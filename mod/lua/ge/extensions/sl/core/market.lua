@@ -68,6 +68,11 @@ function M.offers(cars, kind, seed, day, count)
         offer.condition, offer.damage, offer.mileage = 1, 0, rng:int(5, 60)
         offer.title = 'New'
         offer.price = round(car.value * rng:range(1.0, 1.08), 50)
+        -- now and then a quick car comes ready for the track: built and stripped, at a price
+        if car.value > 30000 and rng:chance(0.3) then
+          offer.build, offer.title = 'race', 'Track special'
+          offer.price = round(offer.price * 1.6, 50)
+        end
       elseif kind == 'scrap' then
         offer.condition = rng:range(0.03, 0.2)
         offer.damage = rng:range(0.6, 1)

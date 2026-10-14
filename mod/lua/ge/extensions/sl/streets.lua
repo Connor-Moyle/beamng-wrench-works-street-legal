@@ -15,6 +15,7 @@ local progression = require('sl/core/progression')
 local carsLib = require('sl/core/cars')
 local stateLib = require('sl/core/state')
 local builder = require('sl/carBuilder')
+local builds = require('sl/core/builds')
 
 local MAX_CRUISERS = 3
 local FINISH_RADIUS = 22
@@ -90,19 +91,38 @@ end
 ----------------------------------------------------------------------------------------------
 -- a racer's own car (they keep it, until somebody wins it off them)
 
+-- Every racer drives their own custom car: a stock car of their class, built up to the stage of
+-- their tier, with a nickname and a paint job - the same car every night (it is rebuilt from the
+-- same recipe, so nothing big goes in the save).
 local function racerCar(s, racer)
-  if racer.car and racer.car.model then return racer.car end
-  local pick = carsLib.pickConfig(builder.configs(), racer.class, rngLib.new(rngLib.hash(racer.id .. s.seed)))
+  if racer.car and racer.car.model then
+    if not racer.car.seed and not racer.car.setup then
+      racer.car.seed = rngLib.hash(racer.id .. ':' .. s.seed)
+      racer.car.stage = builds.stageFor(racer.tier)
+    end
+    return racer.car
+  end
+  local seed = rngLib.hash(racer.id .. ':' .. s.seed)
+  local pick = carsLib.pickConfig(builder.configs(), racer.class, rngLib.new(seed))
   if not pick then return nil end
-  racer.car = { model = pick.model, config = pick.config, name = pick.name, value = pick.value }
+  local stage = builds.stageFor(racer.tier)
+  racer.car = { model = pick.model, config = pick.config, value = pick.value, seed = seed, stage = stage,
+    name = pick.name .. (stage > 0 and (' "' .. builds.nickname(seed) .. '"') or '') }
   return racer.car
 end
 
-local function spawnRacer(job, s, racer, pos, rot)
+-- raceBuild: the track version of their car (the ROC)
+local function spawnRacer(job, s, racer, pos, rot, raceBuild)
   local car = racerCar(s, racer)
   if not car then return nil end
-  local cfg = car.setup or car.config          -- a car they won from the player is a full setup
-  local veh = builder.spawn(job, car.model, cfg, pos, rot)
+  local veh
+  if car.setup and not raceBuild then
+    veh = builder.spawn(job, car.model, car.setup, pos, rot)       -- a car they won off the player, as it was
+  elseif car.config then
+    veh = builder.buildCustom(job, car.model, car.config, { stage = raceBuild and 'race' or car.stage, seed = car.seed }, pos, rot)
+  else
+    veh = builder.spawn(job, car.model, car.setup, pos, rot)
+  end
   if veh then veh:queueLuaCommand('electrics.setLightsState(1)') end
   return veh
 end
@@ -584,7 +604,7 @@ function M.enterRoc()
     spawn.safeTeleport(v, start + vec3(0, 0, 0.5), rot, true)
     job.sleep(0.5)
     right = right or v:getDirectionVector():cross(vec3(0, 0, 1)):normalized()
-    local veh = spawnRacer(job, s, rival, start + right * 5 + vec3(0, 0, 0.5), rot or quat(v:getRotation()))
+    local veh = spawnRacer(job, s, rival, start + right * 5 + vec3(0, 0, 0.5), rot or quat(v:getRotation()), true)
     busy = false
     guihooks.trigger('slFade', { on = false })
     if not veh then return end

@@ -6,7 +6,7 @@ Needs two other mods: the **Valo City** map (`slrr_valo_city`) and **Wrench Work
 
 ## How it plays
 
-- **Start**: Gameplay > Street Legal Racing > New career. Valo City at dusk, you on foot in Club Garage 1 with $3,500 and no car. Benny from the garage texts you where to begin.
+- **Start**: the **Street Legal Racing** card on the main menu (or Gameplay > Street Legal Racing): Continue or New career. Valo City at dusk, you on foot in Club Garage 1 with $3,500 and no car. Benny from the garage texts you where to begin.
 - **Getting a car**: walk up to the junkyard's lot, the dealership or the scrap yard (the phone's Cab app takes you). Their cars stand on the display spot one at a time: left and right through the row, right-drag to look round it. Used cars come as tidy stock, tired stock, damaged, modified, or modified and broken; what is wrong with them is really wrong (parts missing, panels bent, parts swapped). Test drive it, buy it, then drive it home or have it towed.
 - **Your cars**: kept between sessions with their setup, their dents and where you left them. Phone > My cars: tow one home, swap which one you drive (at the garage). Drive up to the junkyard or scrap yard in one and they make you an offer for it.
 - **The garage**: Wrench Works, paid from career money.
@@ -15,6 +15,8 @@ Needs two other mods: the **Valo City** map (`slrr_valo_city`) and **Wrench Work
   - **flash your high beams** at a racer cruising the streets (their name hangs over the car): if they rate you, it is a race to the other side of town for their usual stake;
   - **car meets**: some nights racers gather in a car park (you get a text); roll in and pick somebody: for money, high stakes or **pink slips**;
   - races **arranged by phone**, at a start line they choose.
+- **Every racer has their own car**: a stock car of their class built up by tier, from a stock beater to Stage 3 (turbo, brakes, aero, suspension), with a nickname and a paint job. At the ROC they bring the track version: race parts, stripped interior. The dealership now and then has a **Track special**.
+- **Race starts and flares**: start lines with a chequered line and posts; when a race goes green, orange road flares (some throwing a flickering light) line both edges of the whole route, or every checkpoint of the ROC circuit.
 - **Pink slips are real**: win and their car goes to your garage; lose and they drive off in yours.
 - **The police**: caught, you pay a fine per offence (more mid-race, and the race is lost) and lose face; getting away earns a little.
 - **Up the ladder**: reputation brings titles, new numbers in your phone, and the right to move to Club Garage 2 (1,500 rep, $25,000) and Club Garage 3 (3,000 rep, $75,000). From garage 3 at 6,000 rep: the **ROC**, three rounds against the best in town on the ROC island ($50,000 entry, $250,000 to the champion).
@@ -55,8 +57,9 @@ node tools/phonetest.js   # the phone, in a simulated page (--html <file> writes
 | `lua/ge/extensions/sl/lot.lua` | the junkyard, dealership and scrap yard: browse, test drive, buy, sell |
 | `lua/ge/extensions/sl/streets.lua` | cruising racers, flash to race, car meets, the race runner, pink slips, the ROC |
 | `lua/ge/extensions/sl/carBuilder.lua` | stock cars, cars built as an offer says, saving and restoring a car |
+| `lua/ge/extensions/sl/markers.lua` | start lines, road flares along a race |
 | `lua/ge/extensions/sl/phone.lua` | what the phone shows and what its buttons do |
 | `lua/ge/extensions/sl/menuTile.lua` | the tile in Gameplay |
-| `lua/ge/extensions/sl/core/*.lua` | the rules, no game calls: `progression`, `roster`, `market`, `cars`, `state`, `rng` |
+| `lua/ge/extensions/sl/core/*.lua` | the rules, no game calls: `progression`, `roster`, `market`, `cars`, `builds`, `state`, `rng` |
 | `ui/modModules/slPhone/slPhone.js` | the phone's screen |
 | `docs/integration.md` | how it fits with the Valo City map and Wrench Works |

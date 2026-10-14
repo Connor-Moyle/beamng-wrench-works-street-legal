@@ -8,6 +8,7 @@
 local M = {}
 
 local carsLib = require('sl/core/cars')
+local buildsLib = require('sl/core/builds')
 local rngLib = require('sl/core/rng')
 
 local configCache
@@ -103,9 +104,47 @@ local function valueOf(id)
   end
 end
 
+-- what a part is called, from its jbeam
+local function nameOf(id)
+  local vd = vehData(id)
+  local ok, jbeamIO = pcall(require, 'jbeam/io')
+  return function(name)
+    if not vd or not ok then return name end
+    local okPart, part = pcall(jbeamIO.getPart, vd.ioCtx, name)
+    return okPart and part and part.information and tostring(part.information.name or name) or name
+  end
+end
+
+-- A stock car made into a custom one. recipe = { stage = 0..3 | 'race', seed }: the parts the
+-- stage calls for, at their best, and the paint job that goes with the seed. Returns the vehicle.
+function M.buildCustom(job, model, config, recipe, pos, rot)
+  local veh = M.spawn(job, model, config, pos, rot)
+  if not veh then return nil end
+  local id = veh:getID()
+  local vd = vehData(id)
+  local cfg = deepcopy(vd.config)
+  local result = buildsLib.apply(cfg.partsTree, { stage = recipe.stage, rng = rngLib.new(recipe.seed or 1), classify = classify(),
+    valueOf = valueOf(id), nameOf = nameOf(id) })
+  local paints = buildsLib.paints(recipe.seed or 1, recipe.stage == 'race')
+  if #result.upgraded + #result.stripped > 0 then
+    cfg.paints = paints
+    respawn(job, veh, cfg)
+    veh = getObjectByID(id)
+  else
+    -- nothing to change underneath: just the paint, without a rebuild
+    for i, p in ipairs(paints) do pcall(core_vehicle_manager.liveUpdateVehicleColors, id, veh, i, p) end
+  end
+  return veh
+end
+
 -- A car for sale, built as its offer describes: stock, then parts swapped and taken off, then dented.
--- Returns the vehicle (nil if it could not be made).
+-- A track special is built as a race car instead. Returns the vehicle (nil if it could not be made).
 function M.buildOffer(job, offer, pos, rot)
+  if offer.build then
+    local veh = M.buildCustom(job, offer.model, offer.config, { stage = offer.build, seed = rngLib.hash(offer.id) }, pos, rot)
+    if veh then veh:queueLuaCommand('input.event("parkingbrake", 1, FILTER_DIRECT) controller.setFreeze(1)') end
+    return veh, { removed = {}, swapped = {} }
+  end
   local veh = M.spawn(job, offer.model, offer.config, pos, rot)
   if not veh then return nil end
   local id = veh:getID()

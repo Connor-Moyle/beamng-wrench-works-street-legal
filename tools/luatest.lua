@@ -236,4 +236,79 @@ do
   check('an undamaged car has none', #cars.dents(tree(), classify, rngLib.new(8), 0) == 0)
 end
 
+-- custom builds: street stages and track cars
+do
+  local builds = require('sl/core/builds')
+  local function classify(id)
+    local map = { exhaust = { 'engine', 'exhaust' }, intake = { 'engine', 'intake' }, turbo = { 'engine', 'forced' }, wheel_F = { 'running', 'rims_f' },
+      seat_R = { 'interior', 'seats_r' }, plate = { 'body', 'plates' }, engine = { 'engine', 'blocks' }, wing = { 'body', 'wings' } }
+    local m = map[id] or { 'body', 'misc_keep' }
+    return m[1], m[2]
+  end
+  local function tree()
+    local function n(id, part, suitable, children)
+      return { id = id, chosenPartName = part, suitablePartNames = suitable or { part }, children = children }
+    end
+    local root = { chosenPartName = 'car', path = '/', children = {
+      engine = n('engine', 'i4', { 'i4' }, {
+        exhaust = n('exhaust', 'exh', { 'exh', 'exh_sport', 'exh_race' }),
+        intake = n('intake', 'airbox', { 'airbox', 'airbox_sport' }),
+        turbo = n('turbo', '', { '', 'turbo_stage1', 'turbo_race' }) }),
+      wheel_F = n('wheel_F', 'steel', { 'steel', 'alloy', 'alloy_race' }),
+      seat_R = n('seat_R', 'bench'), plate = n('plate', 'plate'),
+      wing = n('wing', '', { '', 'wing_street', 'wing_race' }),
+    } }
+    local function paths(node, path)
+      for id, c in pairs(node.children or {}) do c.path = path .. id .. '/'; paths(c, c.path) end
+    end
+    paths(root, '/')
+    return root
+  end
+  local values = { exh = 100, exh_sport = 300, exh_race = 300, airbox = 50, airbox_sport = 200, turbo_stage1 = 2000, turbo_race = 2500,
+    steel = 50, alloy = 400, alloy_race = 380, wing_street = 300, wing_race = 280 }
+  local function valueOf(p) return values[p] or 0 end
+
+  check('stage recipes grow', #builds.recipe(1) < #builds.recipe(2) and #builds.recipe(2) < #builds.recipe(3) and #builds.recipe('race') > #builds.recipe(3))
+  check('a stock racer has no recipe', #builds.recipe(0) == 0 and builds.stageFor(1) == 0 and builds.stageFor(5) == 3)
+
+  local t = tree()
+  local r = builds.apply(t, { stage = 1, classify = classify, valueOf = valueOf })
+  check('stage 1: exhaust, intake and wheels', t.children.engine.children.exhaust.chosenPartName ~= 'exh' and t.children.engine.children.intake.chosenPartName == 'airbox_sport'
+    and t.children.wheel_F.chosenPartName ~= 'steel', #r.upgraded)
+  check('stage 1 leaves the turbo alone', t.children.engine.children.turbo.chosenPartName == '')
+
+  t = tree()
+  builds.apply(t, { stage = 3, classify = classify, valueOf = valueOf })
+  check('stage 3 adds forced induction and a wing', t.children.engine.children.turbo.chosenPartName ~= '' and t.children.wing.chosenPartName ~= '')
+  check('a street build keeps the back seat and plate', t.children.seat_R.chosenPartName == 'bench' and t.children.plate.chosenPartName == 'plate')
+
+  t = tree()
+  r = builds.apply(t, { stage = 'race', classify = classify, valueOf = valueOf })
+  check('a track car prefers race parts', t.children.engine.children.exhaust.chosenPartName == 'exh_race' and t.children.engine.children.turbo.chosenPartName == 'turbo_race'
+    and t.children.wing.chosenPartName == 'wing_race', t.children.engine.children.exhaust.chosenPartName)
+  check('a track car loses the back seat and plate', t.children.seat_R.chosenPartName == '' and t.children.plate.chosenPartName == '' and #r.stripped == 2)
+  check('nothing outside the recipe changes', t.children.engine.chosenPartName == 'i4')
+
+  local a, b = tree(), tree()
+  builds.apply(a, { stage = 3, classify = classify, valueOf = valueOf, rng = rngLib.new(7) })
+  builds.apply(b, { stage = 3, classify = classify, valueOf = valueOf, rng = rngLib.new(7) })
+  check('the same seed builds the same car', a.children.wheel_F.chosenPartName == b.children.wheel_F.chosenPartName and a.children.wing.chosenPartName == b.children.wing.chosenPartName)
+  check('nicknames repeat by seed', builds.nickname(42) == builds.nickname(42) and type(builds.nickname(42)) == 'string')
+  local p = builds.paints(42, false)
+  check('three paint slots with colours', #p == 3 and #p[1].baseColor == 4 and p[1].metallic >= 0)
+
+  local cars = {}
+  for i = 1, 60 do cars[i] = { model = 'm' .. i, config = 'c' .. i, name = 'Car ' .. i, brand = 'B', value = 5000 * i } end
+  local specials = 0
+  for day = 1, 15 do
+    for _, o in ipairs(market.offers(cars, 'dealer', 3, day, 8)) do
+      if o.build == 'race' then
+        specials = specials + 1
+        check('a track special costs more than the car ' .. o.id, o.price > o.value * 1.4 and o.title == 'Track special')
+      end
+    end
+  end
+  check('the dealer sometimes has track specials', specials > 0, specials)
+end
+
 print(string.format('lua tests passed: %d checks', passed))
