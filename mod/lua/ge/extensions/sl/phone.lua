@@ -28,7 +28,7 @@ local function snapshot()
     if s.known[r.id] then
       contacts[#contacts + 1] = {
         id = r.id, name = roster.displayName(r), short = r.name, phone = r.phone, tier = r.tier, class = r.class,
-        nightOnly = r.nightOnly, wins = r.wins, losses = r.losses,
+        nightOnly = r.nightOnly, wins = r.wins, losses = r.losses, pinkTonight = roster.pinkTonight(r, s.day, s.seed),
       }
     end
   end
@@ -108,7 +108,7 @@ function M.call(id)
     id = id, answered = answered,
     greeting = answered and (GREETINGS[racer.style] or GREETINGS.easy) or nil,
     text = not answered and 'No answer.' or nil,
-    options = answered and { 'race', 'high', 'pink' } or {},
+    options = answered and (roster.pinkTonight(racer, s.day, s.seed) and { 'race', 'high', 'pink' } or { 'race', 'high' }) or {},
   })
 end
 

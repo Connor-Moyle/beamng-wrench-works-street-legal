@@ -444,7 +444,7 @@ local function sendMeet(open)
     local r = stateLib.racer(s, id)
     if r then
       list[#list + 1] = { id = id, name = roster.displayName(r), car = r.car and r.car.name or '?', tier = r.tier,
-        betMin = r.betMin, betMax = r.betMax, pinkOK = r.pinkOK }
+        betMin = r.betMin, betMax = r.betMax, pinkTonight = roster.pinkTonight(r, s.day, s.seed) }
     end
   end
   table.sort(list, function(a, b) return a.tier < b.tier end)
@@ -485,7 +485,7 @@ function M.meetChallenge(racerId, kind)
   local vid = meet.cars[racerId]
   local racer = stateLib.racer(s, racerId)
   if not vid or not racer then return end
-  local answer = roster.respond(racer, kind, { rep = s.rep, money = s.money, hasCar = sl_fleet.currentCar() ~= nil }, rngLib.new(rngLib.hash(racerId .. kind .. os.time())))
+  local answer = roster.respond(racer, kind, { rep = s.rep, money = s.money, hasCar = sl_fleet.currentCar() ~= nil, pinkTonight = roster.pinkTonight(racer, s.day, s.seed) }, rngLib.new(rngLib.hash(racerId .. kind .. os.time())))
   guihooks.trigger('slPhoneToast', { text = roster.displayName(racer) .. ': "' .. answer.text .. '"' })
   if not answer.accept then return end
   s.known[racerId] = true

@@ -210,8 +210,10 @@ phone.handle('slLotData', { open: false });
 assert.ok(!$('.slp-lot') && !$('.slp-hudtest'), 'lot closed');
 
 // a meet and a race
-phone.handle('slMeet', { open: true, name: 'Harbour car park', racers: [{ id: 'r05', name: 'Kat "Ghost" Holm', car: 'Sunburst', tier: 2, betMin: 300, betMax: 900, pinkOK: true }] });
+phone.handle('slMeet', { open: true, name: 'Harbour car park', racers: [{ id: 'r05', name: 'Kat "Ghost" Holm', car: 'Sunburst', tier: 2, betMin: 300, betMax: 900, pinkTonight: false }] });
 assert.ok(text().includes('Harbour car park') && text().includes('Sunburst') && text().includes('$300-$900'), 'the meet');
+assert.ok(!$('[data-v="r05|pink"]'), 'no pink slips with somebody who is not up for them tonight');
+phone.handle('slMeet', { open: true, name: 'Harbour car park', racers: [{ id: 'r05', name: 'Kat "Ghost" Holm', car: 'Sunburst', tier: 2, betMin: 300, betMax: 900, pinkTonight: true }] });
 click('meet', 'r05|pink');
 assert.ok(calls.includes('@sl_streets.meetChallenge("r05","pink")'), 'pink slips at the meet');
 click('meetclose');

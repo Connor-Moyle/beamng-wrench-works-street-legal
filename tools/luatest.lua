@@ -97,9 +97,30 @@ do
     if x.tier == 1 and not x.pinkOK then pinkNo = x end
   end
   if pinkOK then
-    r = roster.respond(pinkOK, 'pink', { rep = 0, money = 0, hasCar = true }, rng)
-    check('pink slips with somebody who races for cars', r.accept and r.stake == 'pink' and r.bet == 0)
+    r = roster.respond(pinkOK, 'pink', { rep = 0, money = 0, hasCar = true, pinkTonight = true }, rng)
+    check('pink slips with somebody who races for cars, on their night', r.accept and r.stake == 'pink' and r.bet == 0)
+    r = roster.respond(pinkOK, 'pink', { rep = 0, money = 0, hasCar = true, pinkTonight = false }, rng)
+    check('but not on any other night', not r.accept and r.text ~= roster.respond(pinkNo or pinkOK, 'pink', { rep = 0, money = 0, hasCar = true, pinkTonight = true }, rng).text or not pinkNo)
   end
+  -- pink nights are rare, change from night to night, and hold all night
+  local nights, hits, changes, prev = 0, 0, 0, nil
+  for _, x in ipairs(a) do
+    for day = 1, 200 do
+      local t = roster.pinkTonight(x, day, 77)
+      check('the same answer all night', t == roster.pinkTonight(x, day, 77))
+      if x.pinkOK then
+        nights = nights + 1
+        if t then hits = hits + 1 end
+        if prev ~= nil and t ~= prev then changes = changes + 1 end
+        prev = t
+      else
+        check('never for somebody who does not race for cars', not t)
+      end
+    end
+    prev = nil
+  end
+  check('about one night in eight', nights > 0 and hits / nights > 0.07 and hits / nights < 0.18, hits .. '/' .. nights)
+  check('a different night each time', changes > 0)
   if pinkNo then
     r = roster.respond(pinkNo, 'pink', { rep = 0, money = 0, hasCar = true }, rng)
     check('no pink slips with somebody who does not', not r.accept)

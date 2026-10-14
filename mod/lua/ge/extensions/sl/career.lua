@@ -400,7 +400,7 @@ function M.challenge(racerId, kind)
   local racer = stateLib.racer(s, racerId)
   if not racer or not s.known[racerId] then return { accept = false, text = 'Number not recognised.' } end
   local rng = rngLib.new(rngLib.hash(racerId .. kind .. tostring(now())))
-  local answer = roster.respond(racer, kind, { rep = s.rep, money = s.money, hasCar = #s.cars > 0 }, rng)
+  local answer = roster.respond(racer, kind, { rep = s.rep, money = s.money, hasCar = #s.cars > 0, pinkTonight = roster.pinkTonight(racer, s.day, s.seed) }, rng)
   if answer.accept and kind == 'pink' and not s.activeCar then
     answer = { accept = false, text = 'Pink slips for which car? Get one out of the garage first.' }
   end
@@ -516,12 +516,20 @@ function M.onSlrrRaceFinished(r)
       local gone = sl_fleet.lastGone
       if gone and os.clock() - gone.at < 5 then sl_fleet.lose(gone.carId) end
       s.stats.pinksLost = s.stats.pinksLost + 1
-      -- no free car to drive home in: you walk
-      if v and not sl_fleet.carOfVehicle(v:getID()) and v:getJBeamFilename() ~= 'unicycle' then
-        local id = v:getID()
-        if gameplay_walk then gameplay_walk.setWalkingMode(true, nil, nil, true) end
-        core_jobsystem.create(function(job) job.sleep(0.8) local x = getObjectByID(id) if x then x:delete() end end)
-      end
+      -- no free car to drive home in: you walk. The map swaps your car for a runabout only after
+      -- this hook (seen in game: the player was left in a free Covet on the start line), so look
+      -- again once it has
+      core_jobsystem.create(function(job)
+        job.sleep(1.5)
+        local p = getPlayerVehicle(0)
+        if p and not sl_fleet.carOfVehicle(p:getID()) and p:getJBeamFilename() ~= 'unicycle' then
+          local id = p:getID()
+          if gameplay_walk then gameplay_walk.setWalkingMode(true, nil, nil, true) end
+          job.sleep(0.8)
+          local x = getObjectByID(id)
+          if x then x:delete() end
+        end
+      end)
     end
   end
   registered = nil
@@ -598,8 +606,23 @@ end
 ----------------------------------------------------------------------------------------------
 -- the clock: a new day at six in the morning
 
+-- dusk: Benny hears who is putting their car up for pink slips tonight (somebody you can call)
+local function pinkTipOff()
+  local names = {}
+  for _, r in ipairs(s.racers) do
+    if s.known[r.id] and roster.pinkTonight(r, s.day, s.seed) then
+      names[#names + 1] = roster.displayName(r) .. (r.car and r.car.name and (' (' .. r.car.name .. ')') or '')
+    end
+  end
+  if #names > 0 then
+    M.sendText('benny', 'Word is ' .. table.concat(names, ' and ') .. (#names == 1 and ' is' or ' are') ..
+      ' putting their car up for pink slips tonight. Call them if you fancy it - and if you can afford to lose yours.', 1)
+  end
+end
+
 local function updateClock()
   local h = hour()
+  if lastHour and lastHour < 20 and h >= 20 then pinkTipOff() end
   if lastHour and lastHour < 6 and h >= 6 then
     s.day = s.day + 1
     changed()

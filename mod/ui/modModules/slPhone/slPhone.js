@@ -177,6 +177,8 @@
     '.slp-menu h2{margin:0;font-family:"Overpass","Roboto",sans-serif;font-style:italic;font-weight:800;font-size:26px;letter-spacing:.5px;color:#ff8a2a;text-transform:uppercase;line-height:1.05}',
     '.slp-menu p{margin:6px 0 12px 0;font-size:13px;color:#cac4d0;line-height:1.4}',
     '.slp-menu .slp-btn{width:100%;margin-top:8px}',
+    '.slp-pink{color:#ff7eb6;font-weight:500}',
+    '.slp-pinkbtn{background:#ff5fa2;color:#2b0016}',
     '.slp-menu .slp-go{background:#ff6a00;color:#1d0d00}',
     '.slp-hudtest{position:absolute;left:50%;top:2vh;transform:translateX(-50%);padding:10px 18px;border-radius:20px;background:rgba(20,18,24,.85);pointer-events:auto;display:flex;align-items:center;gap:14px;font-size:14px}',
     '.slp-fade.slp-in{opacity:1}',
@@ -289,7 +291,7 @@
     function contactLine(c) {
       if (c.system) return 'Your garage';
       var stars = '<span class="slp-stars">' + new Array((c.tier || 1) + 1).join('&#9733;') + '</span>';
-      return stars + ' &middot; ' + esc(CLASS_NAMES[c.class] || c.class || '') + (c.nightOnly ? ' &middot; nights' : '');
+      return stars + ' &middot; ' + esc(CLASS_NAMES[c.class] || c.class || '') + (c.nightOnly ? ' &middot; nights' : '') + (c.pinkTonight ? ' &middot; <span class="slp-pink">pinks tonight</span>' : '');
     }
 
     function contactsPage() {
@@ -328,7 +330,7 @@
     function threadPage() {
       var c = contactById(st.thread) || { id: st.thread, name: st.thread };
       var bubbles = thread(st.thread).map(function (m) { return '<div class="slp-bub ' + (m.from === 'me' ? 'slp-me' : 'slp-them') + '">' + esc(m.text) + '</div>'; }).join('');
-      var quick = c.system ? '' : '<div class="slp-quick">' + Object.keys(QUICK).map(function (k) { return '<div class="slp-qc" data-a="text" data-v="' + k + '">' + esc(QUICK[k]) + '</div>'; }).join('') + '</div>';
+      var quick = c.system ? '' : '<div class="slp-quick">' + Object.keys(QUICK).filter(function (k) { return k !== 'pink' || c.pinkTonight; }).map(function (k) { return '<div class="slp-qc" data-a="text" data-v="' + k + '">' + esc(QUICK[k]) + '</div>'; }).join('') + '</div>';
       return bar(c.name, '<div style="margin-left:auto" class="slp-ib" data-a="call" data-v="' + esc(c.id) + '">' + I.phone + '</div>') +
         '<div class="slp-msgs">' + (bubbles || '<div class="slp-empty">Say something.</div>') + '</div>' + quick;
     }
@@ -469,7 +471,7 @@
           esc(r.car) + ' &middot; ' + money(r.betMin) + '-' + money(r.betMax) + '</span></div><div class="slp-acts">' +
           '<div class="slp-btn slp-tonal" data-a="meet" data-v="' + esc(r.id) + '|race">Race</div>' +
           '<div class="slp-btn slp-tonal" data-a="meet" data-v="' + esc(r.id) + '|high">High</div>' +
-          '<div class="slp-btn' + (r.pinkOK ? '' : ' slp-tonal') + '" data-a="meet" data-v="' + esc(r.id) + '|pink">Pinks</div></div></div>';
+          (r.pinkTonight ? '<div class="slp-btn slp-pinkbtn" data-a="meet" data-v="' + esc(r.id) + '|pink">Pinks</div>' : '') + '</div></div>';
       });
       return '<div class="slp-meet"><h3>Car meet &middot; ' + esc(m.name) + '</h3><div class="slp-card" style="margin:6px 0 4px 0"><p>Pick somebody. The race is to the other side of town; first one there wins.</p></div>' +
         (rows.join('') || '<div class="slp-empty">Everybody has gone home.</div>') +

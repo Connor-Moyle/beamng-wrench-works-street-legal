@@ -102,6 +102,12 @@ local LINES = {
     roller = "Not this week. Money race, or nothing.",
     careful = "I don't race for cars. Money only.",
   },
+  notTonight = {
+    easy = "Pinks? Not tonight. Ask me another night, I might be in the mood.",
+    trash = "My car stays mine tonight. Money race, or wait for a night I'm feeling lucky.",
+    roller = "Not tonight. When I put the car up, you'll hear about it.",
+    careful = "Not tonight. I only race for cars when I've decided to.",
+  },
   noCar = {
     easy = "You haven't even got a car. Sort that out first.",
     trash = "Race you in what, a shopping trolley?",
@@ -128,9 +134,17 @@ local function line(kind, style, ...)
   return text
 end
 
+-- Pink slips are special: on any one night only a few of the racers who would ever bet their car
+-- are up for it (a different few each night, the same all night). day: the career's day number.
+M.PINK_NIGHT_CHANCE = 0.12
+function M.pinkTonight(racer, day, seed)
+  if not racer or not racer.pinkOK then return false end
+  return rngLib.hash(racer.id .. ':pinks:' .. tostring(day) .. ':' .. tostring(seed or 0)) % 1000 < M.PINK_NIGHT_CHANCE * 1000
+end
+
 -- How a racer answers a challenge.
 --   kind: 'race' (their usual stake) | 'high' (three times that) | 'pink' (cars)
---   player: { rep, money, hasCar }
+--   player: { rep, money, hasCar, pinkTonight (this racer is up for pinks tonight: M.pinkTonight) }
 --   rng: an rng from sl/core/rng (decides the stake within their range)
 -- Returns { accept, stake = 'money'|'pink', bet, text, when }
 function M.respond(racer, kind, player, rng)
@@ -142,7 +156,8 @@ function M.respond(racer, kind, player, rng)
     if not racer.pinkOK or (player.rep or 0) < TIERS[racer.tier].rep[1] then
       return { accept = false, text = line('noPink', racer.style) }
     end
-    return { accept = true, stake = 'pink', bet = 0, when = when, text = line('yesPink', racer.style, when) }
+    if not player.pinkTonight then return { accept = false, text = line('notTonight', racer.style) } end
+    return { accept = true, stake = 'pink', bet = 0, when = 'tonight', text = line('yesPink', racer.style, 'tonight') }
   end
   local bet = round50(rng:range(racer.betMin, racer.betMax))
   if kind == 'high' then bet = bet * 3 end
