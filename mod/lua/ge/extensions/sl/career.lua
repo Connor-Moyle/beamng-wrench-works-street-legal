@@ -298,7 +298,10 @@ function M.start(fresh)
   pending = 'start'
   if getCurrentLevelIdentifier and getCurrentLevelIdentifier() == M.LEVEL then
     begin()
-  elseif freeroam_freeroam and freeroam_freeroam.startFreeroamByName then
+  else
+    if not freeroam_freeroam then extensions.load('freeroam_freeroam') end
+  end
+  if pending == 'start' and not (getCurrentLevelIdentifier and getCurrentLevelIdentifier() == M.LEVEL) and freeroam_freeroam and freeroam_freeroam.startFreeroamByName then
     if not freeroam_freeroam.startFreeroamByName(M.LEVEL, nil, false, false) then
       pending = nil
       tell('Valo City (slrr_valo_city) is not installed: Street Legal Racing is played on that map.', 8)

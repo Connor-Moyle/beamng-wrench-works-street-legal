@@ -50,6 +50,23 @@ const data = {
   cars: 0, stats: { races: 3, wins: 2, pinksWon: 0, pinksLost: 0 },
 };
 
+// the main menu's button: continue or start over (starting over asks twice)
+phone.handle('slMenu', { show: true, installed: true, summary: 'Day 4, $12300, Street kid' });
+assert.ok(text().includes('Street Legal Racing') && text().includes('Day 4'), 'menu button with the saved career');
+click('menustart', 'continue');
+assert.ok(calls.includes('@sl_menuTile.startFromMenu(false)') && !text().includes('Day 4'), 'continue');
+phone.handle('slMenu', { show: true, installed: true, summary: 'Day 4, $12300, Street kid' });
+calls.length = 0;
+click('menustart', 'new');
+assert.ok(!calls.length && text().includes('Click again'), 'starting over asks first');
+click('menustart', 'new');
+assert.ok(calls.includes('@sl_menuTile.startFromMenu(true)'), 'then starts over');
+phone.handle('slMenu', { show: true, installed: false });
+assert.ok(text().includes('Needs the Valo City map'), 'tells you when the map is missing');
+phone.handle('slMenu', { show: false });
+assert.ok(!text().includes('Street Legal Racing'), 'gone once a level loads');
+calls.length = 0;
+
 // nothing shows before a career runs
 assert.ok(!$('.slp-device'), 'no phone without a career');
 phone.handle('slPhoneData', data);

@@ -61,4 +61,37 @@ function M.onGameplaySelectorGetDetails(itemDetails, details, buttonInstance, ba
   }
 end
 
+----------------------------------------------------------------------------------------------
+-- A button on the main menu itself (drawn by the phone's UI module, which is loaded on every
+-- screen): shown while no level is loaded.
+
+local shown, timer = nil, 0
+
+local function send(force)
+  local inMenu = not (getCurrentLevelIdentifier and getCurrentLevelIdentifier())
+  if inMenu == shown and not force then return end
+  shown = inMenu
+  guihooks.trigger('slMenu', { show = inMenu, installed = levelInstalled(), summary = sl_career and sl_career.saveSummary() or nil })
+end
+
+function M.onUpdate(dtReal)
+  timer = timer + dtReal
+  if timer > 0.5 then timer = 0 send(false) end
+end
+
+function M.request() send(true) end
+M.onUiReady = function() send(true) end
+
+function M.startFromMenu(fresh)
+  if not sl_career or not levelInstalled() then return end
+  guihooks.trigger('slMenu', { show = false })
+  shown = false
+  sl_career.start(fresh == true)
+end
+
+-- the Gameplay screen builds its list once; have it look again now that this tile is here
+function M.onExtensionLoaded()
+  if ui_gameplaySelector_general and ui_gameplaySelector_general.onModActivated then ui_gameplaySelector_general.onModActivated() end
+end
+
 return M

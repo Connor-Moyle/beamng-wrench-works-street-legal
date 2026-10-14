@@ -171,6 +171,13 @@
     '.slp-meet .slp-row{cursor:default;padding:10px 0}',
     '.slp-meet .slp-acts{display:flex;gap:6px;margin-left:10px}',
     '.slp-meet .slp-btn{height:34px;padding:0 12px;font-size:13px}',
+    /* the main menu's own button */
+    '.slp-menu{position:absolute;right:3vw;bottom:9vh;width:340px;padding:18px 20px 16px 20px;border-radius:20px;background:rgba(14,12,18,.88);pointer-events:auto;',
+    '  border-left:5px solid #ff6a00;box-shadow:0 18px 50px rgba(0,0,0,.5);z-index:9999}',
+    '.slp-menu h2{margin:0;font-family:"Overpass","Roboto",sans-serif;font-style:italic;font-weight:800;font-size:26px;letter-spacing:.5px;color:#ff8a2a;text-transform:uppercase;line-height:1.05}',
+    '.slp-menu p{margin:6px 0 12px 0;font-size:13px;color:#cac4d0;line-height:1.4}',
+    '.slp-menu .slp-btn{width:100%;margin-top:8px}',
+    '.slp-menu .slp-go{background:#ff6a00;color:#1d0d00}',
     '.slp-hudtest{position:absolute;left:50%;top:2vh;transform:translateX(-50%);padding:10px 18px;border-radius:20px;background:rgba(20,18,24,.85);pointer-events:auto;display:flex;align-items:center;gap:14px;font-size:14px}',
     '.slp-fade.slp-in{opacity:1}',
   ].join('\n');
@@ -479,10 +486,25 @@
         (r.ahead != null ? '<i class="' + (r.ahead ? 'slp-ahead' : 'slp-behind') + '">' + (r.ahead ? 'Ahead' : 'Behind') + '</i>' : '') + '</div>';
     }
 
+    function menuView() {
+      var m = st.menu;
+      if (!m || !m.show) return '';
+      if (!m.installed) {
+        return '<div class="slp-menu"><h2>Street Legal Racing</h2><p>Needs the Valo City map mod (slrr_valo_city). Switch it on under Mods.</p></div>';
+      }
+      return '<div class="slp-menu"><h2>Street Legal Racing</h2><p>' + (m.summary ? 'Your career: ' + esc(m.summary) : 'Valo City at night. No car, $3,500 and a name nobody knows.') + '</p>' +
+        (m.summary ? '<div class="slp-btn slp-go" data-a="menustart" data-v="continue">Continue</div>' : '') +
+        '<div class="slp-btn' + (m.summary ? ' slp-tonal' : ' slp-go') + '" data-a="menustart" data-v="new">' + (m.summary ? 'New career (replaces this one)' : 'New career') + '</div></div>';
+    }
+
     // ---------------------------------------------------------------- drawing
     function render() {
       var d = st.data;
-      if (!d.active) { layer.innerHTML = '<div class="slp-fade' + (st.fade ? ' slp-in' : '') + '"></div>'; return; }
+      if (!d.active) {
+        layer.innerHTML = menuView() + '<div class="slp-toast' + (st.toast ? '' : ' slp-gone') + '">' + esc(st.toast || '') + '</div>' +
+          '<div class="slp-fade' + (st.fade ? ' slp-in' : '') + '"></div>';
+        return;
+      }
       var scroll = layer.querySelector('.slp-body, .slp-msgs');
       var keep = scroll ? scroll.scrollTop : 0, keepApp = st.app;
       var page;
@@ -586,6 +608,12 @@
         case 'roc': lua('enterRoc()'); setOpen(false); break;
         case 'lot': if (/^[a-zA-Z]+\(\)$/.test(v)) lua('@sl_lot.' + v); break;
         case 'meet': var parts = String(v).split('|'); lua('@sl_streets.meetChallenge(' + JSON.stringify(parts[0]) + ',' + JSON.stringify(parts[1]) + ')'); break;
+        case 'menustart':
+          if (v === 'new' && st.menu && st.menu.summary && !st.confirmNew) { st.confirmNew = true; toast('Click again to start over: the career you have is lost.'); break; }
+          st.confirmNew = false;
+          lua('@sl_menuTile.startFromMenu(' + (v === 'new' ? 'true' : 'false') + ')');
+          st.menu = null; render();
+          break;
         case 'meetclose': lua('@sl_streets.closeMeet()'); st.meet = null; render(); break;
         case 'key': if (st.dial.length < 12) st.dial += v; render(); break;
         case 'del': st.dial = st.dial.slice(0, -1); render(); break;
@@ -659,6 +687,7 @@
         case 'slLotData': st.lot = data.open ? data : null; render(); break;
         case 'slMeet': st.meet = data.open ? data : null; render(); break;
         case 'slRace': st.race = data.on ? data : null; render(); break;
+        case 'slMenu': st.menu = data.show ? data : null; render(); break;
       }
     }
 
@@ -683,10 +712,10 @@
         }
       });
       window.__slPhone = phone;
-      ['slPhoneData', 'slPhoneToggle', 'slPhoneCall', 'slPhoneCallReply', 'slPhoneNotify', 'slPhoneToast', 'slFade', 'slLotData', 'slMeet', 'slRace'].forEach(function (name) {
+      ['slPhoneData', 'slPhoneToggle', 'slPhoneCall', 'slPhoneCallReply', 'slPhoneNotify', 'slPhoneToast', 'slFade', 'slLotData', 'slMeet', 'slRace', 'slMenu'].forEach(function (name) {
         $rootScope.$on(name, function (ev, data) { phone.handle(name, data); });
       });
-      if (window.bngApi) window.bngApi.engineLua('if sl_phone then sl_phone.request() end');
+      if (window.bngApi) window.bngApi.engineLua('if sl_phone then sl_phone.request() end if sl_menuTile then sl_menuTile.request() end');
     }]);
   }
 })();

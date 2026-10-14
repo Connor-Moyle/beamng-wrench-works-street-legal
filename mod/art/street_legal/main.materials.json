@@ -1,0 +1,16 @@
+{
+  "sl_flare_body": {
+    "name": "sl_flare_body",
+    "mapTo": "sl_flare_body",
+    "class": "Material",
+    "Stages": [ { "baseColorFactor": [0.55, 0.04, 0.03, 1], "metallicFactor": 0, "roughnessFactor": 0.7 }, {}, {}, {} ],
+    "version": 1.5
+  },
+  "sl_flare_tip": {
+    "name": "sl_flare_tip",
+    "mapTo": "sl_flare_tip",
+    "class": "Material",
+    "Stages": [ { "baseColorFactor": [1, 0.55, 0.12, 1], "emissiveFactor": [1, 0.42, 0.06], "glow": true, "metallicFactor": 0, "roughnessFactor": 0.9 }, {}, {}, {} ],
+    "version": 1.5
+  }
+}

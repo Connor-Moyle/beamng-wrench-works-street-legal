@@ -154,6 +154,7 @@ local function startRace(racer, vid, stake, bet, standing, maxD)
   race = { racer = racer.id, name = roster.displayName(racer), vid = vid, stake = stake, bet = bet, dest = dest, destNode = destNode,
     destName = placeNear(dest), distance = distance, t = 0, countdown = standing and 3.5 or nil, skill = racer.skill }
   if core_groundMarkers then core_groundMarkers.setPath(dest) end
+  if sl_markers then sl_markers.flareRoute(v:getPosition(), dest) end        -- the way lit by flares, start to finish
   if not standing then aiGo(vid, destNode, racer.skill) end
   cruisers[racer.id] = nil
   if meet then meet.cars[racer.id] = nil end
@@ -166,6 +167,7 @@ local function finish(playerWon)
   local r = race
   race = nil
   if core_groundMarkers then core_groundMarkers.setPath(nil) end
+  if sl_markers then sl_markers.clearSoon(8) end
   sendRace()
   if not s or not r then return end
   local racer = stateLib.racer(s, r.racer)
@@ -519,6 +521,7 @@ local function startCircuit(racer, vid, stake, bet, track)
   race = { racer = racer.id, name = roster.displayName(racer), vid = vid, stake = stake, bet = bet, destName = track.name .. ', ' .. ROC_LAPS .. ' laps',
     t = 0, countdown = 3.5, skill = racer.skill, circuit = { cps = track.cps, laps = ROC_LAPS, me = { k = 0 }, them = { k = 0 } } }
   if core_groundMarkers then core_groundMarkers.setPath(nil) end
+  if sl_markers then sl_markers.flareCircuit(track.cps) end
   cruisers[racer.id] = nil
   sendRace()
   return true
