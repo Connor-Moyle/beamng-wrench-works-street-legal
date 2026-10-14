@@ -27,6 +27,7 @@ local s                   -- the save, while a career is played
 local active = false
 local pending             -- 'start' while the level loads for a career
 local dirty, saveTimer = false, 0
+local syncTimer = 0
 local lastHour
 local places              -- { [id] = { id, kind, name, pos = vec3, dir = vec3 } } for this map
 local replyQueue = {}     -- text messages on their way: { at (os.clock), thread, text }
@@ -143,8 +144,15 @@ local function loadPlaces()
           d.z = 0
           return d:length() > 0.01 and d:normalized() or nil
         end
-        places[p.id] = { id = p.id, kind = tostring(p.kind or p.id), name = tostring(p.name or p.id), pos = pos,
+        local place = { id = p.id, kind = tostring(p.kind or p.id), name = tostring(p.name or p.id), pos = pos,
           dir = flat(p.dir) or vec3(0, 1, 0), display = v3(p.display), displayDir = flat(p.displayDir) }
+        -- a lot whose drop-off is the display spot itself: you arrive 8 m in front of the car, facing it
+        if place.kind ~= 'meet' and place.display and (place.display - place.pos):length() < 6 then
+          local facing = place.displayDir or -place.dir
+          place.pos = place.display + facing * 8
+          place.dir = -facing
+        end
+        places[p.id] = place
       else
         log('W', logTag, file .. ': a place without "id" or "pos" was left out')
       end
@@ -391,6 +399,28 @@ function M.cancelChallenge(id)
   return false
 end
 
+-- The map's night races hold one arranged race at a time: the newest one that can be raced now
+-- (a racer who only comes out at night is not handed over in daylight). Kept in step every few seconds.
+local registered = false
+local function syncChallenge()
+  if not (slrrValoRaces and slrrValoRaces.startChallenge) then return end
+  local night = progression.isNight(hour())
+  local pick
+  for _, c in ipairs(s.challenges) do
+    if not c.nightOnly or night then pick = c end
+  end
+  local key = pick and pick.id or false
+  if key == registered then return end
+  registered = key
+  if not pick then
+    slrrValoRaces.startChallenge(nil)
+    return
+  end
+  local racer = stateLib.racer(s, pick.racer)
+  slrrValoRaces.startChallenge(pick.race, { name = roster.displayName(racer), racerId = racer.id, class = racer.class,
+    skill = racer.skill, stake = pick.stake, bet = pick.bet })
+end
+
 -- point the way to a race start (or a place) on the road
 function M.waypoint(what)
   if not active or not core_groundMarkers then return end
@@ -448,6 +478,25 @@ function M.onSlrrRaceFinished(r)
     local x = stateLib.racer(s, racer)
     if r.won then x.losses = x.losses + 1 else x.wins = x.wins + 1 end
   end
+  if r.stake == 'pink' and sl_fleet then
+    local v = getPlayerVehicle(0)
+    if r.won and v and not sl_fleet.carOfVehicle(v:getID()) then
+      -- you are sitting in their car: it is yours
+      sl_fleet.registerVehicle(v:getID(), { name = r.opponent and (r.opponent .. "'s car") or v:getJBeamFilename(), condition = 0.85 })
+      s.stats.pinksWon = s.stats.pinksWon + 1
+    elseif not r.won then
+      local gone = sl_fleet.lastGone
+      if gone and os.clock() - gone.at < 5 then sl_fleet.lose(gone.carId) end
+      s.stats.pinksLost = s.stats.pinksLost + 1
+      -- no free car to drive home in: you walk
+      if v and not sl_fleet.carOfVehicle(v:getID()) and v:getJBeamFilename() ~= 'unicycle' then
+        local id = v:getID()
+        if gameplay_walk then gameplay_walk.setWalkingMode(true, nil, nil, true) end
+        core_jobsystem.create(function(job) job.sleep(0.8) local x = getObjectByID(id) if x then x:delete() end end)
+      end
+    end
+  end
+  registered = nil
   tell(string.format('%s %d reputation (%s)', repDelta >= 0 and '+' or '', repDelta, (progression.titleFor(s.rep))), 5)
   if (progression.titleFor(s.rep)) ~= (progression.titleFor(repBefore)) then
     M.sendText('benny', 'They call you "' .. (progression.titleFor(s.rep)) .. '" on the street now. Not bad.', 3)
@@ -470,8 +519,7 @@ local function checkChallengeArrival()
           tell(roster.displayName(racer) .. ' only races at night. Come back after dark.', 6)
           c.notified = false
         elseif slrrValoRaces and slrrValoRaces.startChallenge then
-          slrrValoRaces.startChallenge(c.race, { name = roster.displayName(racer), racerId = racer.id, class = racer.class,
-            skill = racer.skill, stake = c.stake, bet = c.bet })
+          -- handed over already (syncChallenge): the start marker brings them
         else
           tell(roster.displayName(racer) .. ' is here. Pick them from the race menu.', 6)
         end
@@ -543,6 +591,8 @@ local function onUpdate(dtReal)
   deliverTexts()
   updateClock()
   checkChallengeArrival()
+  syncTimer = syncTimer + dtReal
+  if syncTimer > 2 then syncTimer = 0 syncChallenge() end
   saveTimer = saveTimer + dtReal
   if dirty and saveTimer > 3 then
     saveTimer = 0

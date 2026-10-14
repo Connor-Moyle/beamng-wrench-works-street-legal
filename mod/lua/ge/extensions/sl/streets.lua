@@ -26,6 +26,7 @@ local race                -- the race running: { racer, vid, stake, bet, dest = 
 local beam = { on = false, onAt = 0 }
 local pollTimer, spawnTimer, meetTimer = 0, 0, 0
 local busy = false        -- a job is spawning something
+local circuitPath, updateCircuit   -- (further down, with the ROC)
 
 local function career() return sl_career and sl_career.isActive() and sl_career.getState() or nil end
 local function night() return progression.isNight(sl_career.hour()) end
@@ -118,8 +119,19 @@ local function sendRace()
   if not race then guihooks.trigger('slRace', { on = false }) return end
   local v = playerCar()
   local opp = getObjectByID(race.vid)
-  local mine = v and (v:getPosition() - race.dest):length() or nil
-  local theirs = opp and (opp:getPosition() - race.dest):length() or nil
+  local mine, theirs
+  if race.circuit then
+    local c = race.circuit
+    local function left(p, pos) return (c.laps * #c.cps + 1 - p.k) * 1000 + (pos - c.cps[(p.k % #c.cps) + 1].pos):length() end
+    mine = v and left(c.me, v:getPosition()) or nil
+    theirs = opp and left(c.them, opp:getPosition()) or nil
+    local lap = math.min(c.laps, math.max(1, math.floor((c.me.k - 1) / #c.cps) + 1))
+    guihooks.trigger('slRace', { on = true, name = race.name, stake = race.stake, bet = race.bet, destName = race.destName,
+      countdown = race.countdown and math.ceil(race.countdown) or nil, lap = lap, laps = c.laps, ahead = mine and theirs and mine < theirs })
+    return
+  end
+  mine = v and (v:getPosition() - race.dest):length() or nil
+  theirs = opp and (opp:getPosition() - race.dest):length() or nil
   guihooks.trigger('slRace', { on = true, name = race.name, stake = race.stake, bet = race.bet, destName = race.destName,
     countdown = race.countdown and math.ceil(race.countdown) or nil, mine = mine and math.floor(mine) or nil,
     theirs = theirs and math.floor(theirs) or nil, ahead = mine and theirs and mine < theirs })
@@ -205,12 +217,21 @@ local function updateRace(dt)
     race.countdown = race.countdown - dt
     if race.countdown <= 0 then
       race.countdown = nil
-      aiGo(race.vid, race.destNode, race.skill)
+      if race.circuit then
+        opp:queueLuaCommand('controller.setFreeze(0) input.event("parkingbrake", 0, FILTER_DIRECT) ai.startFollowing(' ..
+          serialize({ path = circuitPath(race.circuit.cps, race.circuit.laps, race.skill or 0.5) }) .. ', 0, 1, "neverReset")')
+      else
+        aiGo(race.vid, race.destNode, race.skill)
+      end
       if ui_message then ui_message('GO!', 2, 'streetLegal') end
     end
     return
   end
   race.t = race.t + dt
+  if race.circuit then
+    if not updateCircuit(v, opp) and race.t > RACE_TIMEOUT then finish(false) end
+    return
+  end
   if (v:getPosition() - race.dest):length() < FINISH_RADIUS then finish(true) return end
   if (opp:getPosition() - race.dest):length() < FINISH_RADIUS then finish(false) return end
   if race.t > RACE_TIMEOUT then finish(false) end
@@ -441,6 +462,79 @@ end
 function M.closeMeet() sendMeet(false) end
 
 ----------------------------------------------------------------------------------------------
+-- circuits: the ROC track's checkpoints (races.json, key "roc"), laps instead of a finish point
+
+local ROC_LAPS = 2
+
+local function rocTrack()
+  local data = jsonReadFile('/levels/' .. sl_career.LEVEL .. '/races.json')
+  local roc = type(data) == 'table' and data.roc
+  if type(roc) ~= 'table' or type(roc.checkpoints) ~= 'table' or #roc.checkpoints < 3 then return nil end
+  local cps = {}
+  for i, c in ipairs(roc.checkpoints) do
+    local p, d = c.pos or {}, c.dir or { 1, 0 }
+    local dir = vec3(tonumber(d[1]) or 1, tonumber(d[2]) or 0, 0)
+    cps[i] = { pos = vec3(tonumber(p[1]) or 0, tonumber(p[2]) or 0, tonumber(p[3]) or 0), dir = dir:length() > 0.01 and dir:normalized() or vec3(1, 0, 0),
+      half = tonumber(c.halfWidth) or 6 }
+  end
+  return { name = roc.name or 'ROC', cps = cps }
+end
+
+-- The opponent's line round the circuit, with a time for every point: as fast as the bends
+-- allow (sideways grip), with the accelerating and braking a car can do. skill sets the limits.
+circuitPath = function(cps, laps, skill)
+  local pts = {}
+  for _ = 1, laps do for _, c in ipairs(cps) do pts[#pts + 1] = c.pos end end
+  pts[#pts + 1] = cps[1].pos
+  local n = #pts
+  local vmax, grip, accel, brake = 32 + 38 * skill, 7 + 4 * skill, 4 + 4 * skill, 7 + 2 * skill
+  local v = {}
+  for i = 1, n do
+    local a, b, c = pts[math.max(1, i - 1)], pts[i], pts[math.min(n, i + 1)]
+    local ab, bc, ca = (b - a):length(), (c - b):length(), (a - c):length()
+    local twice = (b - a):cross(c - a):length()
+    local r = twice > 1e-4 and (ab * bc * ca) / (2 * twice) or 1e9
+    v[i] = math.max(8, math.min(vmax, math.sqrt(grip * r)))
+  end
+  v[1] = 0
+  for i = 2, n do v[i] = math.min(v[i], math.sqrt(v[i - 1] ^ 2 + 2 * accel * (pts[i] - pts[i - 1]):length())) end
+  for i = n - 1, 2, -1 do v[i] = math.min(v[i], math.sqrt(v[i + 1] ^ 2 + 2 * brake * (pts[i + 1] - pts[i]):length())) end
+  local path, t = {}, 0
+  for i = 1, n do
+    if i > 1 then t = t + (pts[i] - pts[i - 1]):length() / math.max(0.5, (v[i - 1] + v[i]) / 2) end
+    path[i] = { x = pts[i].x, y = pts[i].y, z = pts[i].z, t = t }
+  end
+  return path
+end
+
+-- checkpoints passed in order: crossing the start line counts as the first
+local function circuitStep(progress, pos, cps)
+  local c = cps[(progress.k % #cps) + 1]
+  if (pos - c.pos):length() < math.max(c.half, 8) + 4 then progress.k = progress.k + 1 end
+end
+
+local function startCircuit(racer, vid, stake, bet, track)
+  local v = playerCar()
+  if not v or race then return false end
+  race = { racer = racer.id, name = roster.displayName(racer), vid = vid, stake = stake, bet = bet, destName = track.name .. ', ' .. ROC_LAPS .. ' laps',
+    t = 0, countdown = 3.5, skill = racer.skill, circuit = { cps = track.cps, laps = ROC_LAPS, me = { k = 0 }, them = { k = 0 } } }
+  if core_groundMarkers then core_groundMarkers.setPath(nil) end
+  cruisers[racer.id] = nil
+  sendRace()
+  return true
+end
+
+updateCircuit = function(v, opp)
+  local c = race.circuit
+  local total = c.laps * #c.cps + 1
+  circuitStep(c.me, v:getPosition(), c.cps)
+  circuitStep(c.them, opp:getPosition(), c.cps)
+  if c.me.k >= total then finish(true) return true end
+  if c.them.k >= total then finish(false) return true end
+  return false
+end
+
+----------------------------------------------------------------------------------------------
 -- the ROC (Race of Champions): three rounds against the best in town, on their island
 
 function M.rocRound(s)
@@ -468,22 +562,35 @@ function M.enterRoc()
   local rival = champions(s)[3 - roc.round] or champions(s)[1]
   if not rival then return false, 'Nobody to race.' end
   local spot = scenetree.findObject('spawn_roc')
+  local track = rocTrack()
   local start = spot and spot:getPosition() or v:getPosition()
   busy = true
   core_jobsystem.create(function(job)
     guihooks.trigger('slFade', { on = true })
     job.sleep(0.6)
-    local rot
-    if spot then pcall(function() rot = quat(spot:getRotation()) end) end
+    local rot, right
+    if track then
+      -- on the grid, side by side, behind the start line
+      local c1 = track.cps[1]
+      right = c1.dir:cross(vec3(0, 0, 1)):normalized()
+      start = c1.pos - c1.dir * 10 - right * 2.5
+      rot = quatFromDir(c1.dir, vec3(0, 0, 1))
+    elseif spot then
+      pcall(function() rot = quat(spot:getRotation()) end)
+    end
     spawn.safeTeleport(v, start + vec3(0, 0, 0.5), rot, true)
     job.sleep(0.5)
-    local right = v:getDirectionVector():cross(vec3(0, 0, 1)):normalized()
-    local veh = spawnRacer(job, s, rival, v:getPosition() + right * 3.6 + vec3(0, 0, 0.3), quat(v:getRotation()))
+    right = right or v:getDirectionVector():cross(vec3(0, 0, 1)):normalized()
+    local veh = spawnRacer(job, s, rival, start + right * 5 + vec3(0, 0, 0.5), rot or quat(v:getRotation()))
     busy = false
     guihooks.trigger('slFade', { on = false })
     if not veh then return end
+    veh:queueLuaCommand('controller.setFreeze(1)')
     local bet = 10000 * (roc.round + 1)
-    if startRace(rival, veh:getID(), 'money', bet, true, 1500) then
+    local started
+    if track then started = startCircuit(rival, veh:getID(), 'money', bet, track)
+    else started = startRace(rival, veh:getID(), 'money', bet, true, 1500) end
+    if started then
       race.roc = true
       if ui_message then ui_message(string.format('ROC round %d of 3: %s. $%d.', roc.round + 1, roster.displayName(rival), bet), 6, 'streetLegal') end
     end

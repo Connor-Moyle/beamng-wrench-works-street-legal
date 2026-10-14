@@ -284,7 +284,10 @@ function M.onStreetLegalBeforeSave() M.snapshot(false) end
 -- a car somebody deleted (or the game removed) is not out in the world any more
 function M.onVehicleDestroyed(vid)
   local carId = M.carOfVehicle(vid)
-  if carId then spawned[carId] = nil end
+  if carId then
+    spawned[carId] = nil
+    M.lastGone = { carId = carId, at = os.clock() }      -- (a race lost for pink slips deletes the car)
+  end
 end
 
 function M.onUpdate(dtReal)

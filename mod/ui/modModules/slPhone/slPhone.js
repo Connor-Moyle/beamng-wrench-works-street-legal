@@ -473,10 +473,10 @@
       var r = st.race;
       if (!r || !r.on) return '';
       var stake = r.stake === 'pink' ? 'Pink slips' : money(r.bet);
-      var dist = (r.mine != null ? 'You ' + r.mine + ' m' : '') + (r.theirs != null ? ' &middot; them ' + r.theirs + ' m' : '');
+      var dist = r.laps ? 'Lap ' + r.lap + ' of ' + r.laps : (r.mine != null ? 'You ' + r.mine + ' m' : '') + (r.theirs != null ? ' &middot; them ' + r.theirs + ' m' : '');
       return (r.countdown ? '<div class="slp-count">' + r.countdown + '</div>' : '') +
         '<div class="slp-race"><b>vs ' + esc(r.name) + ' &middot; ' + stake + '</b><span>To ' + esc(r.destName) + '</span><span>' + dist + '</span>' +
-        (r.mine != null && r.theirs != null ? '<i class="' + (r.ahead ? 'slp-ahead' : 'slp-behind') + '">' + (r.ahead ? 'Ahead' : 'Behind') + '</i>' : '') + '</div>';
+        (r.ahead != null ? '<i class="' + (r.ahead ? 'slp-ahead' : 'slp-behind') + '">' + (r.ahead ? 'Ahead' : 'Behind') + '</i>' : '') + '</div>';
     }
 
     // ---------------------------------------------------------------- drawing

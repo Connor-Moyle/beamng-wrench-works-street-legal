@@ -41,7 +41,7 @@ slrrValoRaces.startChallenge(raceId, {
 })
 ```
 
-and expects the race to start against that opponent without the usual menu. The class can be mapped onto the existing candidate list by power-to-weight: beater the slowest sixth, super the fastest. Until `startChallenge` exists, the career tells the player to pick the opponent from the race menu.
+and expects the race to start against that opponent without the usual menu. The career keeps this in step every 2 seconds: it hands over its newest arranged race that can be raced now (a racer who only comes out at night is held back in daylight), or nil when there is none. The class can be mapped onto the existing candidate list by power-to-weight: beater the slowest sixth, super the fastest. Until `startChallenge` exists, the career tells the player to pick the opponent from the race menu.
 
 **3. Filling the start lines with the career's racers** (optional, while a career runs). In `makeOffers`, before inventing opponents:
 
@@ -67,6 +67,10 @@ The career's cab and the car lots need to know where things are. Any mod can add
 `pos` is where a cab drops you (on the pavement at the gate), `dir` the way you face on arrival. Walking up to `pos` of a junkyard, dealer or scrap yard opens its lot. `display` / `displayDir` is where the car for sale stands, with room for the camera to go round it (if left out: 7 m in front of `pos`).
 
 Places of kind `meet` are where racers gather on some nights: a car park or a wide lot, with room for half a dozen cars in a ring around `pos`.
+
+**The ROC** is run from races.json key `roc` ({ name, looped, checkpoints = [ { pos, dir, halfWidth } ] }, the first checkpoint being start/finish): two laps from a grid behind the start line, the opponent on a timed line worked out from the checkpoints. Without that key the ROC falls back to a run from `spawn_roc` to the far end of the island's roads.
+
+**Pink slips in the map's races** while a career runs: on a win the player sits in the opponent's car when the hook arrives, and the career registers it as theirs; on a loss the career drops the car the player raced and puts them on foot (it deletes the replacement car the race gives).
 
 The three garages need no entry: they come from Wrench Works' sites (`slrrGarage1`..`3`). The ROC is raced from the level's `spawn_roc` object to the far end of the ROC island's roads.
 
