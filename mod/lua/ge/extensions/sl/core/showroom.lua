@@ -1,8 +1,8 @@
--- Street Legal: the custom cars that go into the game's vehicle selector.
--- A fixed lineup chosen from the stock cars - the same for everybody (a fixed seed): from every
+-- Street Legal: the lineup of custom cars kept for testing (they are not in the vehicle selector).
+-- A fixed lineup chosen from the stock cars - the same every time (a fixed seed): from every
 -- performance class a few street builds, Stage 1 to 3, and from the three fastest classes a few
 -- track cars. Pure: the game hands in its stock configs (tested by tools/luatest.js); the
--- extension sl_exporter turns the lineup into .pc files.
+-- extension sl_debugCars builds them on request.
 
 local M = {}
 
@@ -64,26 +64,6 @@ function M.lineup(configs, seed)
     end
   end
   return out
-end
-
--- a parts tree as the flat "parts" table of a .pc file: slot id -> part, or slot path -> part
--- for slot ids that appear more than once (the game looks a slot up by id first, then by path)
-function M.flatten(tree)
-  local count, rows = {}, {}
-  local function walk(node)
-    for _, child in pairs(node.children or {}) do
-      count[child.id] = (count[child.id] or 0) + 1
-      rows[#rows + 1] = child
-      walk(child)
-    end
-  end
-  walk(tree or {})
-  local parts = {}
-  for _, node in ipairs(rows) do
-    local key = count[node.id] == 1 and node.id or node.path
-    if key then parts[key] = node.chosenPartName or '' end
-  end
-  return parts
 end
 
 return M

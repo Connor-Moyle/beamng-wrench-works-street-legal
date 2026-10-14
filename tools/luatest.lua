@@ -311,7 +311,7 @@ do
   check('the dealer sometimes has track specials', specials > 0, specials)
 end
 
--- the showroom: the custom cars that go into the vehicle selector
+-- the showroom: the custom cars kept for testing
 do
   local showroom = require('sl/core/showroom')
   local configs = {}
@@ -335,13 +335,6 @@ do
   check('track cars only from the fast classes', track == 9 and lowTrack == 0)
   check('few configs, a shorter lineup', #showroom.lineup({ configs[1], configs[2] }) <= 2)
 
-  local tree = { chosenPartName = 'car', children = {
-    a = { id = 'wheel', path = '/a/', chosenPartName = 'w1', children = { x = { id = 'tyre', path = '/a/x/', chosenPartName = 't1' } } },
-    b = { id = 'wheel', path = '/b/', chosenPartName = 'w2' },
-    c = { id = 'turbo', path = '/c/', chosenPartName = '' } } }
-  local parts = showroom.flatten(tree)
-  check('slots by id where the id is unique', parts.tyre == 't1' and parts.turbo == '')
-  check('slots by path where the id is not', parts['/a/'] == 'w1' and parts['/b/'] == 'w2' and parts.wheel == nil)
 end
 
 print(string.format('lua tests passed: %d checks', passed))

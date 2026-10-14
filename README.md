@@ -16,7 +16,6 @@ Needs two other mods: the **Valo City** map (`slrr_valo_city`) and **Wrench Work
   - **car meets**: some nights racers gather in a car park (you get a text); roll in and pick somebody: for money, high stakes or **pink slips**;
   - races **arranged by phone**, at a start line they choose.
 - **Every racer has their own car**: a stock car of their class built up by tier, from a stock beater to Stage 3 (turbo, brakes, aero, suspension), with a nickname and a paint job. At the ROC they bring the track version: race parts, stripped interior. The dealership now and then has a **Track special**.
-- **In the vehicle selector**: about 33 of these custom cars, street builds (Stage 1-3) from every class and track cars from the fastest, written once as ordinary configurations (labelled "Custom", e.g. `Covet "Night Fury" (Stage 2)`) the first time the game starts with the mod. Spawn them anywhere, career or not. `sl_exporter.export(true)` in the console writes them again.
 - **Race starts and flares**: start lines with a chequered line and posts; when a race goes green, orange road flares (some throwing a flickering light) line both edges of the whole route, or every checkpoint of the ROC circuit.
 - **Pink slips are real**: win and their car goes to your garage; lose and they drive off in yours.
 - **The police**: caught, you pay a fine per offence (more mid-race, and the race is lost) and lose face; getting away earns a little.
@@ -41,6 +40,18 @@ It is built as a web page inside the game's interface. A real Android system can
 
 `tools/install.ps1` links `mod/` into BeamNG's `mods/unpacked` folder, so changes here are live after a Lua reload (Ctrl+L) and a UI reload (F5).
 
+## Debug cars
+
+The racers' custom cars are kept out of the vehicle selector. For testing, from the console (`~`, GE Lua):
+
+```
+sl_debugCars.list()                 -- the lineup: street builds Stage 1-3 from every class, track cars from the fastest
+sl_debugCars.spawn(12)              -- build number 12 in front of you and get in
+sl_debugCars.spawn("night fury")    -- or by name
+```
+
+Nothing is written to disk; a car is built when it is asked for.
+
 ## Tests
 
 ```
@@ -59,6 +70,7 @@ node tools/phonetest.js   # the phone, in a simulated page (--html <file> writes
 | `lua/ge/extensions/sl/streets.lua` | cruising racers, flash to race, car meets, the race runner, pink slips, the ROC |
 | `lua/ge/extensions/sl/carBuilder.lua` | stock cars, cars built as an offer says, saving and restoring a car |
 | `lua/ge/extensions/sl/markers.lua` | start lines, road flares along a race |
+| `lua/ge/extensions/sl/debugCars.lua` | the custom cars for testing, from the console (not in the vehicle selector) |
 | `lua/ge/extensions/sl/phone.lua` | what the phone shows and what its buttons do |
 | `lua/ge/extensions/sl/menuTile.lua` | the tile in Gameplay |
 | `lua/ge/extensions/sl/core/*.lua` | the rules, no game calls: `progression`, `roster`, `market`, `cars`, `builds`, `state`, `rng` |
