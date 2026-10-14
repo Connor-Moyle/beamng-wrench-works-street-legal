@@ -64,6 +64,14 @@ local function setHour(h)
   tod.time = ((h - 12) % 24) / 24
   tod.play = true                 -- the clock runs: races are at night
   core_environment.setTimeOfDay(tod)
+  -- the setter leaves "play" off on this level (seen in game: the clock stood at 20:30 all night),
+  -- so start it on the TimeOfDay object itself
+  local names = scenetree.findClassObjects and scenetree.findClassObjects('TimeOfDay') or {}
+  local obj = names[1] and scenetree.findObject(names[1])
+  if obj then
+    obj:setField('play', 0, '1')
+    obj:setField('animate', 0, '1')
+  end
 end
 
 local function v3(t) return type(t) == 'table' and vec3(tonumber(t[1] or t.x) or 0, tonumber(t[2] or t.y) or 0, tonumber(t[3] or t.z) or 0) or nil end

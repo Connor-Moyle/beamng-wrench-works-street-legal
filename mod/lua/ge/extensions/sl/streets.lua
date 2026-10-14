@@ -19,6 +19,8 @@ local builds = require('sl/core/builds')
 
 local MAX_CRUISERS = 3
 local FINISH_RADIUS = 22
+local MIN_ROAD = 1.5          -- half-width of a road node worth racing on (the map's lanes are 2)
+local CITY_RACE = 1800        -- street races stay in town (tunnels run on to the tracks, km away)
 local RACE_TIMEOUT = 600
 
 local cruisers = {}       -- racer id -> vehicle id: racers out driving
@@ -51,7 +53,7 @@ local function nodeAround(from, minD, maxD, rng)
   for name, n in pairs(roadNodes()) do
     tries = tries + 1
     local d = (n.pos - from):length()
-    if d > minD and d < maxD and (n.radius or 0) > 2.5 and rng:chance(0.08) then
+    if d > minD and d < maxD and (n.radius or 0) >= MIN_ROAD and rng:chance(0.08) then
       best, bestName = n, name
       break
     end
@@ -66,7 +68,7 @@ local function farSide(from, maxD)
   local best, bestName, bestD = nil, nil, 0
   for name, n in pairs(roadNodes()) do
     local d = (n.pos - from):length()
-    if d > bestD and (not maxD or d < maxD) and (n.radius or 0) > 2.5 then best, bestName, bestD = n, name, d end
+    if d > bestD and (not maxD or d < maxD) and (n.radius or 0) >= MIN_ROAD then best, bestName, bestD = n, name, d end
   end
   if not best then return nil end
   -- not quite the very edge: somewhere 85% of the way there, on the road
@@ -74,7 +76,7 @@ local function farSide(from, maxD)
   local near, nearName, nearD = best, bestName, math.huge
   for name, n in pairs(roadNodes()) do
     local d = (n.pos - target):length()
-    if d < nearD and (n.radius or 0) > 2.5 then near, nearName, nearD = n, name, d end
+    if d < nearD and (n.radius or 0) >= MIN_ROAD then near, nearName, nearD = n, name, d end
   end
   return near.pos, nearName, (near.pos - from):length()
 end
@@ -161,7 +163,8 @@ local function aiGo(vid, destNode, skill)
   local v = getObjectByID(vid)
   if not v then return end
   local aggression = 0.35 + 0.6 * (skill or 0.5)
-  v:queueLuaCommand(string.format("controller.setFreeze(0) input.event('parkingbrake', 0, FILTER_DIRECT) ai.setAggression(%f) ai.setAvoidCars('on') ai.driveInLane('off') ai.driveUsingPath({wpTargetList = {%q}, aggression = %f})",
+  -- a cruiser comes out of traffic mode with the legal speed limit still set: racing, it is off
+  v:queueLuaCommand(string.format("controller.setFreeze(0) input.event('parkingbrake', 0, FILTER_DIRECT) ai.setSpeedMode('off') ai.setRecoverOnCrash(true) ai.setAggression(%f) ai.setAvoidCars('on') ai.driveInLane('off') ai.driveUsingPath({wpTargetList = {%q}, aggression = %f})",
     aggression, destNode, aggression))
 end
 
@@ -169,7 +172,7 @@ end
 local function startRace(racer, vid, stake, bet, standing, maxD)
   local v = playerCar()
   if not v or race then return false end
-  local dest, destNode, distance = farSide(v:getPosition(), maxD)
+  local dest, destNode, distance = farSide(v:getPosition(), maxD or CITY_RACE)
   if not dest then return false end
   race = { racer = racer.id, name = roster.displayName(racer), vid = vid, stake = stake, bet = bet, dest = dest, destNode = destNode,
     destName = placeNear(dest), distance = distance, t = 0, countdown = standing and 3.5 or nil, skill = racer.skill }
@@ -256,7 +259,24 @@ local function updateRace(dt)
   end
   if (v:getPosition() - race.dest):length() < FINISH_RADIUS then finish(true) return end
   if (opp:getPosition() - race.dest):length() < FINISH_RADIUS then finish(false) return end
-  if race.t > RACE_TIMEOUT then finish(false) end
+  if race.t > RACE_TIMEOUT then finish(false) return end
+  -- a racer who has crashed or wedged themselves (seen in game: one sat in the canal for the rest of
+  -- the race) is put back on the road a little further along and sent on, as SLRR's AI was
+  race.stuck = opp:getVelocity():length() < 1 and (race.stuck or 0) + dt or 0
+  if race.stuck > 10 then
+    race.stuck = 0
+    local pos = opp:getPosition()
+    local path = map.getPointToPointPath and map.getPointToPointPath(pos, race.dest) or {}
+    local nodes = map.getMap().nodes
+    for i = 1, #path - 1 do
+      local n, nxt = nodes[path[i]], nodes[path[i + 1]]
+      if n and nxt and (n.pos - pos):length() > 25 then
+        spawn.safeTeleport(opp, n.pos + vec3(0, 0, 0.3), quatFromDir((nxt.pos - n.pos):normalized(), vec3(0, 0, 1)), true)
+        aiGo(race.vid, race.destNode, race.skill)
+        break
+      end
+    end
+  end
 end
 
 ----------------------------------------------------------------------------------------------
