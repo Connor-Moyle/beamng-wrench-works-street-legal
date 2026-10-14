@@ -311,4 +311,37 @@ do
   check('the dealer sometimes has track specials', specials > 0, specials)
 end
 
+-- the showroom: the custom cars that go into the vehicle selector
+do
+  local showroom = require('sl/core/showroom')
+  local configs = {}
+  for i = 1, 120 do configs[i] = { model = 'm' .. (i % 20), config = '/vehicles/m' .. (i % 20) .. '/c' .. i .. '.pc', name = 'Car ' .. i, pw = i / 200, value = 1000 * i } end
+  local a, b = showroom.lineup(configs), showroom.lineup(configs)
+  check('the lineup is the same for everybody', #a == #b and a[5].file == b[5].file and a[30].config == b[30].config)
+  check('4 street cars a class and 3 track cars for the top three classes', #a == 6 * 4 + 3 * 3, #a)
+  local seen, track, lowTrack = {}, 0, 0
+  for _, e in ipairs(a) do
+    local key = e.model .. '/' .. e.file
+    check('one file per car ' .. key, not seen[key])
+    seen[key] = true
+    check('file names are clean ' .. e.file, e.file:match('^street_legal_[a-z0-9_]+$') ~= nil)
+    check('a label says what it is ' .. e.label, e.label:find('"', 1, true) and (e.label:find('Stage') or e.label:find('Track')))
+    if e.stage == 'race' then
+      track = track + 1
+      if e.class < 4 then lowTrack = lowTrack + 1 end
+    end
+    check('a built car is worth more than stock ' .. e.file, e.value > 0)
+  end
+  check('track cars only from the fast classes', track == 9 and lowTrack == 0)
+  check('few configs, a shorter lineup', #showroom.lineup({ configs[1], configs[2] }) <= 2)
+
+  local tree = { chosenPartName = 'car', children = {
+    a = { id = 'wheel', path = '/a/', chosenPartName = 'w1', children = { x = { id = 'tyre', path = '/a/x/', chosenPartName = 't1' } } },
+    b = { id = 'wheel', path = '/b/', chosenPartName = 'w2' },
+    c = { id = 'turbo', path = '/c/', chosenPartName = '' } } }
+  local parts = showroom.flatten(tree)
+  check('slots by id where the id is unique', parts.tyre == 't1' and parts.turbo == '')
+  check('slots by path where the id is not', parts['/a/'] == 'w1' and parts['/b/'] == 'w2' and parts.wheel == nil)
+end
+
 print(string.format('lua tests passed: %d checks', passed))

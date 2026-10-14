@@ -1,4 +1,4 @@
-﻿# Street Legal Racing for BeamNG
+# Street Legal Racing for BeamNG
 
 A career in the spirit of *Street Legal Racing: Redline*, played on the Valo City map. You start on foot in the first garage with a few thousand and no car. The city's street racers are in your phone. Reputation from racing, worth more at night, takes you up through the three garages to the ROC.
 
@@ -16,6 +16,7 @@ Needs two other mods: the **Valo City** map (`slrr_valo_city`) and **Wrench Work
   - **car meets**: some nights racers gather in a car park (you get a text); roll in and pick somebody: for money, high stakes or **pink slips**;
   - races **arranged by phone**, at a start line they choose.
 - **Every racer has their own car**: a stock car of their class built up by tier, from a stock beater to Stage 3 (turbo, brakes, aero, suspension), with a nickname and a paint job. At the ROC they bring the track version: race parts, stripped interior. The dealership now and then has a **Track special**.
+- **In the vehicle selector**: about 33 of these custom cars, street builds (Stage 1-3) from every class and track cars from the fastest, written once as ordinary configurations (labelled "Custom", e.g. `Covet "Night Fury" (Stage 2)`) the first time the game starts with the mod. Spawn them anywhere, career or not. `sl_exporter.export(true)` in the console writes them again.
 - **Race starts and flares**: start lines with a chequered line and posts; when a race goes green, orange road flares (some throwing a flickering light) line both edges of the whole route, or every checkpoint of the ROC circuit.
 - **Pink slips are real**: win and their car goes to your garage; lose and they drive off in yours.
 - **The police**: caught, you pay a fine per offence (more mid-race, and the race is lost) and lose face; getting away earns a little.
