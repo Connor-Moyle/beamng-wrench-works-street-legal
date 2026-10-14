@@ -282,6 +282,23 @@ local function begin()
     setHour(s.hour or progression.START_HOUR)
   end
   lastHour = hour()
+  -- Night set while the level is still loading leaves the picture all white (seen in game: only a
+  -- big jump of the clock brings it back, setting the same hour again does not). So once the
+  -- loading screen is gone: midday for a moment behind a black fade, then the career's hour.
+  local wanted = hour()
+  core_jobsystem.create(function(job)
+    job.sleep(3)
+    if not active then return end
+    if guihooks then guihooks.trigger('slFade', { on = true }) end
+    job.sleep(0.6)
+    setHour((wanted + 12) % 24)
+    job.sleep(0.5)
+    setHour(wanted)
+    lastHour = hour()
+    if guihooks then guihooks.trigger('slFade', { on = false }) end
+    -- the level loaded with nobody in it, so the game left its free camera on: follow the player
+    if getPlayerVehicle(0) and core_camera.getActiveCamName(0) == 'free' then core_camera.setByName(0, 'orbit') end
+  end)
   placeInGarage()
   changed()
   writeSave()
