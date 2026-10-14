@@ -1,0 +1,10 @@
+{
+  "name": "street_legal",
+  "title": "Street Legal Racing",
+  "tagline": "From a junkyard wreck to the ROC, on the streets of Valo City",
+  "description": "A career in the spirit of Street Legal Racing: Redline. Start with no car, buy one at the junkyard, build it in your garage, race the city's street racers at night for money and pink slips, and climb through the garages to the ROC. Needs the Valo City map and Wrench Works.",
+  "author": "Connor Moyle",
+  "version": "0.1.0",
+  "game_version": "0.39",
+  "category": "mods_of_mods"
+}

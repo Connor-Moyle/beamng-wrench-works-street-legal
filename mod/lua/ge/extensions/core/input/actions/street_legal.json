@@ -1,0 +1,3 @@
+{
+"slPhone" :{"cat":"gameplay", "order": 92, "ctx": "tlua", "onDown": "if sl_phone then sl_phone.toggle() end", "title": "Street Legal Racing: phone", "desc": "Takes the phone out of your pocket, or puts it away." }
+}
