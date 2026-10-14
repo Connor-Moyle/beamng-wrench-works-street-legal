@@ -71,6 +71,9 @@ end
 local function respawn(job, veh, config)
   local id = veh:getID()
   local before = vehData(id)
+  -- a respawned car takes the player unless told not to (seen in game: every racer built for a
+  -- meet or the streets became the player's car); the game's own replaceVehicle does the same
+  veh:setDynDataFieldbyName('autoEnterVehicle', 0, 'false')
   veh:respawn(serialize(config))
   local t = 0
   repeat
