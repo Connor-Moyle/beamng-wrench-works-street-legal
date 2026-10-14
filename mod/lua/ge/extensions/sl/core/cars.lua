@@ -1,0 +1,152 @@
+-- Street Legal: cars as the career sees them. Which real car a racer's class means, and how a
+-- car for sale is made into what the offer says: some parts swapped for better ones (a
+-- modified car), some missing (a car that needs work), panels to dent (a damaged one).
+-- Pure: the game hands in the parts tree and two lookups (tested by tools/luatest.js).
+
+local M = {}
+
+M.CLASSES = { 'beater', 'compact', 'muscle', 'tuner', 'sport', 'super' }
+
+function M.classIndex(name)
+  for i, c in ipairs(M.CLASSES) do if c == name then return i end end
+  return 1
+end
+
+-- configs: { { model, config, name, pw (power to weight), value } } ; a class is a sixth of
+-- them by power to weight. Returns one of that sixth.
+function M.pickConfig(configs, class, rng)
+  local list = {}
+  for _, c in ipairs(configs or {}) do
+    if type(c.pw) == 'number' then list[#list + 1] = c end
+  end
+  if #list == 0 then return nil end
+  table.sort(list, function(a, b) return a.pw < b.pw end)
+  local i, n = M.classIndex(class), #list
+  local lo = math.floor((i - 1) / 6 * n) + 1
+  local hi = math.max(lo, math.floor(i / 6 * n))
+  return list[rng:int(lo, math.min(hi, n))]
+end
+
+-- what each fault takes off the car (catalog chapters, see Wrench Works' garageCatalog)
+M.FAULT_PARTS = {
+  engine = { 'engine/intake' },
+  gearbox = { 'engine/clutch' },
+  radiator = { 'engine/cooling' },
+  battery = { 'engine/fuel' },
+  tyres = { 'running/tyres_f', 'running/tyres_r' },
+  brakes = { 'running/brakes_f', 'running/brakes_r' },
+  exhaust = { 'engine/exhaust' },
+}
+
+-- where a modified car has been modified
+M.MOD_PARTS = { 'running/rims_f', 'running/rims_r', 'engine/exhaust', 'engine/intake', 'engine/forced', 'running/shocks_f',
+  'running/shocks_r', 'running/suspension_f', 'running/suspension_r', 'body/wings', 'body/aero', 'engine/management',
+  'running/brakes_f', 'running/brakes_r', 'running/differentials', 'body/hoods' }
+
+-- panels that take the dents of a damaged car
+M.DENT_PARTS = { 'body/bumpers_f', 'body/bumpers_r', 'body/fenders', 'body/doors', 'body/hoods', 'body/trunk', 'body/roof' }
+
+local function set(list)
+  local s = {}
+  for _, x in ipairs(list) do s[x] = true end
+  return s
+end
+
+local function isChosen(node) return node.chosenPartName ~= nil and node.chosenPartName ~= '' end
+
+-- every chosen node under root with its section/sub, parents before children
+local function nodes(root, classify)
+  local out = {}
+  local function walk(node, depth)
+    for _, child in pairs(node.children or {}) do
+      if isChosen(child) then
+        local section, sub = classify(child.id or '', child.chosenPartName, nil)
+        out[#out + 1] = { node = child, key = section .. '/' .. sub, depth = depth }
+        walk(child, depth + 1)
+      end
+    end
+  end
+  walk(root, 1)
+  table.sort(out, function(a, b)
+    if a.depth ~= b.depth then return a.depth < b.depth end
+    return (a.node.path or '') < (b.node.path or '')
+  end)
+  return out
+end
+
+local function partPath(node) return (node.path or '/') .. node.chosenPartName end
+
+-- Make a stock parts tree into the car an offer describes. Changes the tree in place.
+-- opts: { rng, classify = function(slotId, partName, desc) -> section, sub,
+--         valueOf = function(partName) -> number, faults = { 'engine', ... }, mods = n }
+-- Returns { removed = { partPath }, swapped = { { path, from, to } } }
+function M.tweakTree(tree, opts)
+  local rng, classify, valueOf = opts.rng, opts.classify, opts.valueOf or function() return 0 end
+  local result = { removed = {}, swapped = {} }
+  if type(tree) ~= 'table' then return result end
+
+  -- faults: the parts go
+  for _, fault in ipairs(opts.faults or {}) do
+    local wanted = set(M.FAULT_PARTS[fault] or {})
+    for _, entry in ipairs(nodes(tree, classify)) do
+      local n = entry.node
+      if wanted[entry.key] and isChosen(n) then
+        result.removed[#result.removed + 1] = partPath(n)
+        n.chosenPartName, n.partPath, n.children, n.decisionMethod = '', nil, nil, 'user-empty'
+      end
+    end
+  end
+
+  -- modifications: a few parts swapped for something else that fits, dearer if there is one
+  local mods = opts.mods or 0
+  if mods > 0 then
+    local wanted = set(M.MOD_PARTS)
+    local candidates = {}
+    for _, entry in ipairs(nodes(tree, classify)) do
+      local n = entry.node
+      if wanted[entry.key] and type(n.suitablePartNames) == 'table' and #n.suitablePartNames > 1 then candidates[#candidates + 1] = n end
+    end
+    local done = 0
+    while done < mods and #candidates > 0 do
+      local i = rng:int(#candidates)
+      local n = table.remove(candidates, i)
+      if isChosen(n) then
+        local current = n.chosenPartName
+        local better, other = {}, {}
+        for _, name in ipairs(n.suitablePartNames) do
+          if name ~= current then
+            other[#other + 1] = name
+            if valueOf(name) > valueOf(current) then better[#better + 1] = name end
+          end
+        end
+        local pick = #better > 0 and better[rng:int(#better)] or (#other > 0 and other[rng:int(#other)] or nil)
+        if pick then
+          result.swapped[#result.swapped + 1] = { path = n.path, from = current, to = pick }
+          n.chosenPartName, n.partPath, n.children, n.decisionMethod = pick, (n.path or '/') .. pick, nil, 'user'
+          done = done + 1
+        end
+      end
+    end
+  end
+  return result
+end
+
+-- Dents for a damaged car: which panels, and how bent (0..1 damage -> a few cm at most).
+-- Returns { { partPath, dent, seed } } in the form Wrench Works' vehicle extension applies.
+function M.dents(tree, classify, rng, damage)
+  local out = {}
+  if (damage or 0) <= 0 then return out end
+  local wanted = set(M.DENT_PARTS)
+  local panels = {}
+  for _, entry in ipairs(nodes(tree, classify)) do
+    if wanted[entry.key] then panels[#panels + 1] = entry.node end
+  end
+  local count = math.min(#panels, math.max(1, math.floor(#panels * damage + 0.5)))
+  for _ = 1, count do
+    local n = table.remove(panels, rng:int(#panels))
+    out[#out + 1] = { partPath = partPath(n), dent = 0.01 + 0.035 * damage * rng:range(0.5, 1), seed = rng:int(1, 99999) }
+  end
+  return out
+end
+
+return M

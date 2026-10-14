@@ -89,6 +89,15 @@ function M.taxiFee(distanceMetres)
   return 20 + math.floor((distanceMetres or 0) / 1000 * 12 + 0.5)
 end
 
+-- the police: caught, you pay for every offence (more if you were racing) and lose face;
+-- getting away is worth a little on the street
+M.EVADE_REP = 15
+M.ARREST_REP = -25
+
+function M.policeFine(offences, racing)
+  return 400 + 300 * math.max(1, offences or 0) + (racing and 1000 or 0)
+end
+
 -- is it night? (hour of day, 0-24) Races at night pay better in reputation.
 function M.isNight(hour)
   return hour >= 20 or hour < 5

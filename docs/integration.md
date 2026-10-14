@@ -43,6 +43,15 @@ slrrValoRaces.startChallenge(raceId, {
 
 and expects the race to start against that opponent without the usual menu. The class can be mapped onto the existing candidate list by power-to-weight: beater the slowest sixth, super the fastest. Until `startChallenge` exists, the career tells the player to pick the opponent from the race menu.
 
+**3. Filling the start lines with the career's racers** (optional, while a career runs). In `makeOffers`, before inventing opponents:
+
+```lua
+local crowd = sl_career and sl_career.racersForRace and sl_career.racersForRace(current.id, #TIERS)
+-- nil when no career is running; otherwise up to 5 of { racerId, name, class, skill, bet, pinkOK, tier }
+```
+
+Use their names, stakes and classes (map the class to a car as in 2), and hand `racerId` back in the finish hook (`racerId = o.racerId`). Then the people at the start lines are the same people who are in the player's phone, and who know them.
+
 ## Places for the career
 
 The career's cab and the car lots need to know where things are. Any mod can add them in `/street_legal/places/<anything>.json`:
@@ -55,6 +64,10 @@ The career's cab and the car lots need to know where things are. Any mod can add
 ] } }
 ```
 
-`pos` is where a cab drops you (on the pavement at the gate), `dir` the way you face on arrival. The three garages need no entry: they come from Wrench Works' sites (`slrrGarage1`..`3`).
+`pos` is where a cab drops you (on the pavement at the gate), `dir` the way you face on arrival. Walking up to `pos` of a junkyard, dealer or scrap yard opens its lot. `display` / `displayDir` is where the car for sale stands, with room for the camera to go round it (if left out: 7 m in front of `pos`).
+
+Places of kind `meet` are where racers gather on some nights: a car park or a wide lot, with room for half a dozen cars in a ring around `pos`.
+
+The three garages need no entry: they come from Wrench Works' sites (`slrrGarage1`..`3`). The ROC is raced from the level's `spawn_roc` object to the far end of the ROC island's roads.
 
 In the game, standing at the spot: `sl_career.addPlaceHere("junkyard", "Valo Junkyard")` writes the same thing to the player's own `settings/street_legal/places.json`.

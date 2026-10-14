@@ -55,6 +55,8 @@ do
   local _, pinkMoney = progression.raceResult({ won = true, stake = 'pink', bet = 0 })
   check('pink slips move no money', pinkMoney == 0)
   check('night hours', progression.isNight(23) and progression.isNight(2) and not progression.isNight(14))
+  check('police fines grow with offences and racing', progression.policeFine(3, false) > progression.policeFine(1, false) and progression.policeFine(1, true) > progression.policeFine(1, false))
+  check('caught costs reputation, escaping earns it', progression.ARREST_REP < 0 and progression.EVADE_REP > 0)
   check('fees grow with distance', progression.towFee(5000) > progression.towFee(500) and progression.taxiFee(0) > 0)
 end
 
@@ -173,6 +175,65 @@ do
   check('a loss takes no more than you have', s2.money == 0)
   check('the old save comes back', state.migrate({ seed = 3, money = 5 }).racers ~= nil)
   check('a broken save is refused', state.migrate({}) == nil)
+end
+
+-- cars: classes, and making a stock car into the offer
+do
+  local cars = require('sl/core/cars')
+  local configs = {}
+  for i = 1, 60 do configs[i] = { model = 'm' .. i, config = 'c' .. i, pw = i / 100, value = i * 1000 } end
+  local rng = rngLib.new(11)
+  local slow, fast = cars.pickConfig(configs, 'beater', rng), cars.pickConfig(configs, 'super', rng)
+  check('a beater is from the slowest sixth', slow.pw <= 0.10, slow.pw)
+  check('a supercar is from the fastest sixth', fast.pw > 0.50, fast.pw)
+  check('no configs, no car', cars.pickConfig({}, 'sport', rng) == nil)
+
+  local function classify(id)
+    local map = { exhaust = { 'engine', 'exhaust' }, radiator = { 'engine', 'cooling' }, tire_FL = { 'running', 'tyres_f' },
+      tire_RL = { 'running', 'tyres_r' }, wheel_F = { 'running', 'rims_f' }, bumper_F = { 'body', 'bumpers_f' }, door_FL = { 'body', 'doors' },
+      hood = { 'body', 'hoods' }, engine = { 'engine', 'blocks' } }
+    local m = map[id] or { 'body', 'misc' }
+    return m[1], m[2]
+  end
+  local function tree()
+    local function n(id, part, suitable, children)
+      return { id = id, chosenPartName = part, suitablePartNames = suitable or { part }, children = children }
+    end
+    local root = { chosenPartName = 'car', path = '/', children = {
+      engine = n('engine', 'v8', { 'v8' }, { radiator = n('radiator', 'rad', { 'rad', 'rad_race' }), exhaust = n('exhaust', 'exh', { 'exh', 'exh_sport', 'exh_race' }) }),
+      tire_FL = n('tire_FL', 'tyre'), tire_RL = n('tire_RL', 'tyre'),
+      wheel_F = n('wheel_F', 'steel', { 'steel', 'alloy', 'forged' }),
+      bumper_F = n('bumper_F', 'bump'), door_FL = n('door_FL', 'door'), hood = n('hood', 'hood', { 'hood', 'hood_vent' }),
+    } }
+    local function paths(node, path)
+      for id, c in pairs(node.children or {}) do c.path = path .. id .. '/'; paths(c, c.path) end
+    end
+    paths(root, '/')
+    return root
+  end
+  local values = { exh = 100, exh_sport = 300, exh_race = 600, steel = 50, alloy = 400, forged = 900, rad = 80, rad_race = 200, hood = 100, hood_vent = 250 }
+  local function valueOf(p) return values[p] or 0 end
+
+  local t = tree()
+  local r = cars.tweakTree(t, { rng = rngLib.new(3), classify = classify, valueOf = valueOf, faults = { 'radiator', 'tyres' }, mods = 0 })
+  check('faults take the parts off', t.children.engine.children.radiator.chosenPartName == '' and t.children.tire_FL.chosenPartName == '' and t.children.tire_RL.chosenPartName == '')
+  check('faults are listed', #r.removed == 3, #r.removed)
+  check('nothing else goes', t.children.engine.chosenPartName == 'v8' and t.children.wheel_F.chosenPartName == 'steel')
+
+  t = tree()
+  r = cars.tweakTree(t, { rng = rngLib.new(4), classify = classify, valueOf = valueOf, faults = {}, mods = 2 })
+  check('two parts modified', #r.swapped == 2, #r.swapped)
+  for _, sw in ipairs(r.swapped) do
+    check('a modification is an upgrade ' .. sw.path, valueOf(sw.to) > valueOf(sw.from), sw.from .. ' -> ' .. sw.to)
+  end
+  t = tree()
+  r = cars.tweakTree(t, { rng = rngLib.new(4), classify = classify, valueOf = valueOf, mods = 99 })
+  check('no more mods than places to put them', #r.swapped <= 4, #r.swapped)
+
+  local d = cars.dents(tree(), classify, rngLib.new(8), 0.6)
+  check('a damaged car has dents', #d >= 1 and #d <= 3, #d)
+  for _, x in ipairs(d) do check('dent size in reason ' .. x.partPath, x.dent > 0.005 and x.dent < 0.05, x.dent) end
+  check('an undamaged car has none', #cars.dents(tree(), classify, rngLib.new(8), 0) == 0)
 end
 
 print(string.format('lua tests passed: %d checks', passed))

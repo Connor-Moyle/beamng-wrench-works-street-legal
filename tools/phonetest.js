@@ -147,6 +147,63 @@ assert.ok($('.slp-clock'), 'back to the home screen');
 click('back');
 assert.ok($('.slp-device.slp-away'), 'and into the pocket');
 
+// my cars: drive another one, tow one home
+phone.handle('slPhoneData', Object.assign({}, data, { fleet: [
+  { id: 1, name: 'Covet', where: 'Out on the street', out: true, active: true, condition: 0.6, faults: ['radiator'], towFee: 230 },
+  { id: 2, name: 'Pessima', where: 'In the garage', out: false, active: false, condition: 0.9, faults: [] }] }));
+click('home');
+click('open', 'garage');
+assert.ok(text().includes('Needs: radiator') && text().includes('$230'), 'my cars');
+click('tow', '1');
+assert.ok(calls.includes('tow(1)'), 'tow asked for');
+click('usecar', '2');
+assert.ok(calls.includes('useCar(2)'), 'swap asked for');
+
+// street cred: move garage and the ROC when they are open
+phone.handle('slPhoneData', Object.assign({}, data, { nextGarage: { name: 'Club Garage 2', canMove: true }, roc: true, rocRound: 1, rocEntry: 50000 }));
+click('home');
+click('open', 'me');
+click('move');
+assert.ok(calls.includes('moveGarage()'), 'move garage');
+assert.ok(text().includes('ROC round 2 of 3'), 'ROC round shown');
+click('roc');
+assert.ok(calls.includes('enterRoc()') && $('.slp-device.slp-away'), 'ROC entered, phone put away');
+
+// a lot: browsing, the camera, buying
+calls.length = 0;
+phone.handle('slLotData', { open: true, mode: 'browse', name: 'Valo Junkyard', kindTitle: 'Used cars', kind: 'used', index: 2, count: 8, money: 3000,
+  offer: { name: 'Covet', brand: 'Ibishu', title: 'Modified, needs work', condition: 0.42, damage: 0.3, mileage: 182000, faults: ['tyres'], mods: 3, price: 2400 } });
+assert.ok(text().includes('Ibishu') && text().includes('182,000 km') && text().includes('Needs: tyres') && text().includes('3 parts') && text().includes('2 / 8'), 'the car on show');
+click('lot', 'next()');
+click('lot', 'buy()');
+click('lot', 'testDrive()');
+assert.deepStrictEqual(calls.slice(0, 3), ['@sl_lot.next()', '@sl_lot.buy()', '@sl_lot.testDrive()'], 'lot buttons go to the lot');
+const catcher = $('.slp-catch');
+catcher.dispatchEvent(new win.MouseEvent('mousedown', { bubbles: true, button: 2, clientX: 100, clientY: 100 }));
+win.dispatchEvent(new win.MouseEvent('mousemove', { clientX: 130, clientY: 95 }));
+win.dispatchEvent(new win.MouseEvent('mouseup', {}));
+assert.ok(calls.includes('@sl_lot.cameraDrag(30,-5)'), 'dragging turns the camera');
+phone.handle('slLotData', { open: true, mode: 'browse', name: 'Valo Junkyard', kindTitle: 'Used cars', kind: 'used', index: 1, count: 8, money: 1000, offer: { name: 'X', price: 5000, faults: [] } });
+assert.ok($('[data-v="buy()"].slp-off') && text().includes('Runs and drives'), 'cannot buy what you cannot pay for');
+phone.handle('slLotData', { open: true, mode: 'sell', name: 'Scrap & Salvage', kindTitle: 'Scrap yard', kind: 'scrap', sellCar: { name: 'Covet', price: 410 } });
+assert.ok(text().includes('$410 for the Covet') && text().includes('Scrap it'), 'selling at the scrap yard');
+phone.handle('slLotData', { open: true, mode: 'test', name: 'Valo Junkyard', testLeft: 95 });
+assert.ok(text().includes('1:35 left'), 'test drive clock');
+phone.handle('slLotData', { open: false });
+assert.ok(!$('.slp-lot') && !$('.slp-hudtest'), 'lot closed');
+
+// a meet and a race
+phone.handle('slMeet', { open: true, name: 'Harbour car park', racers: [{ id: 'r05', name: 'Kat "Ghost" Holm', car: 'Sunburst', tier: 2, betMin: 300, betMax: 900, pinkOK: true }] });
+assert.ok(text().includes('Harbour car park') && text().includes('Sunburst') && text().includes('$300-$900'), 'the meet');
+click('meet', 'r05|pink');
+assert.ok(calls.includes('@sl_streets.meetChallenge("r05","pink")'), 'pink slips at the meet');
+click('meetclose');
+assert.ok(!$('.slp-meet'), 'meet menu closed');
+phone.handle('slRace', { on: true, name: 'Kat "Ghost" Holm', stake: 'pink', bet: 0, destName: 'near Valo Junkyard', countdown: 3, mine: 1800, theirs: 1750, ahead: false });
+assert.ok($('.slp-count').textContent === '3' && text().includes('Pink slips') && text().includes('Behind'), 'race display');
+phone.handle('slRace', { on: false });
+assert.ok(!$('.slp-race'), 'race over');
+
 // leaving the career puts it away for good
 phone.handle('slPhoneData', { active: false });
 assert.ok(!$('.slp-device'), 'gone when the career stops');
@@ -157,7 +214,7 @@ console.log('phone test passed');
 const out = process.argv.indexOf('--html');
 if (out > 0) {
   const shots = [];
-  const views = [['home'], ['contacts'], ['contact', 'r01'], ['call'], ['thread', 'r01'], ['races'], ['me']];
+  const views = [['home'], ['contacts'], ['contact', 'r01'], ['call'], ['thread', 'r01'], ['races'], ['me'], ['garage']];
   views.forEach((view) => {
     const d2 = new JSDOM('<!doctype html><html><body></body></html>', { runScripts: 'outside-only' });
     d2.window.__slPhoneTest = true;

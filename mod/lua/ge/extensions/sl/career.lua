@@ -72,6 +72,7 @@ local function v3(t) return type(t) == 'table' and vec3(tonumber(t[1] or t.x) or
 
 local function writeSave()
   if not s then return end
+  extensions.hook('onStreetLegalBeforeSave')      -- the cars out in the world note where they are first
   if not FS:directoryExists(SAVE_DIR) then FS:directoryCreate(SAVE_DIR, true) end
   jsonWriteFile(SAVE_FILE, s, true)
   dirty = false
@@ -136,9 +137,14 @@ local function loadPlaces()
     for _, p in ipairs(type(here) == 'table' and type(here.places) == 'table' and here.places or {}) do
       local pos = v3(p.pos)
       if type(p.id) == 'string' and pos then
-        local dir = v3(p.dir) or vec3(0, 1, 0)
-        dir.z = 0
-        places[p.id] = { id = p.id, kind = tostring(p.kind or p.id), name = tostring(p.name or p.id), pos = pos, dir = dir:length() > 0.01 and dir:normalized() or vec3(0, 1, 0) }
+        local function flat(t)
+          local d = v3(t)
+          if not d then return nil end
+          d.z = 0
+          return d:length() > 0.01 and d:normalized() or nil
+        end
+        places[p.id] = { id = p.id, kind = tostring(p.kind or p.id), name = tostring(p.name or p.id), pos = pos,
+          dir = flat(p.dir) or vec3(0, 1, 0), display = v3(p.display), displayDir = flat(p.displayDir) }
       else
         log('W', logTag, file .. ': a place without "id" or "pos" was left out')
       end
@@ -359,6 +365,9 @@ function M.challenge(racerId, kind)
   if not racer or not s.known[racerId] then return { accept = false, text = 'Number not recognised.' } end
   local rng = rngLib.new(rngLib.hash(racerId .. kind .. tostring(now())))
   local answer = roster.respond(racer, kind, { rep = s.rep, money = s.money, hasCar = #s.cars > 0 }, rng)
+  if answer.accept and kind == 'pink' and not s.activeCar then
+    answer = { accept = false, text = 'Pink slips for which car? Get one out of the garage first.' }
+  end
   if answer.accept then
     local race = pickRace(rng)
     if not race then return { accept = false, text = "There's nowhere to race on this map." } end
@@ -396,6 +405,28 @@ function M.waypoint(what)
   if target then core_groundMarkers.setPath(target) end
 end
 
+-- The street racers waiting at one of the map's night races: the career's own crowd, the
+-- ones whose reputation is near the player's (see docs/integration.md). Nil without a career.
+-- Returns up to count of { racerId, name, class, skill, bet, pinkOK, tier }.
+function M.racersForRace(raceId, count)
+  if not active then return nil end
+  count = count or 5
+  local rng = rngLib.new(rngLib.hash(tostring(raceId) .. ':' .. s.day .. ':' .. math.floor(hour())))
+  local pool = {}
+  for _, r in ipairs(s.racers) do
+    if math.abs(r.rep - s.rep) < 800 + s.rep * 0.6 then pool[#pool + 1] = r end
+  end
+  if #pool < count then pool = {} for _, r in ipairs(s.racers) do pool[#pool + 1] = r end end
+  local out = {}
+  while #out < count and #pool > 0 do
+    local r = table.remove(pool, rng:int(#pool))
+    out[#out + 1] = { racerId = r.id, name = roster.displayName(r), class = r.class, skill = r.skill,
+      bet = math.floor(rng:range(r.betMin, r.betMax) / 50 + 0.5) * 50, pinkOK = r.pinkOK, tier = r.tier }
+  end
+  table.sort(out, function(a, b) return a.bet < b.bet end)
+  return out
+end
+
 -- the map's race code tells us how a race went (see docs/integration.md):
 -- r = { won, stake = 'money'|'pink', bet, raceId, opponent = name }
 function M.onSlrrRaceFinished(r)
@@ -405,7 +436,7 @@ function M.onSlrrRaceFinished(r)
     if c.race == r.raceId then challenge = c table.remove(s.challenges, i) break end
   end
   -- the money has moved already: the map's races pay through the shared wallet
-  local racer = challenge and challenge.racer
+  local racer = (challenge and challenge.racer) or (type(r.racerId) == 'string' and stateLib.racer(s, r.racerId) and r.racerId) or nil
   local repBefore = s.rep
   local h = hour()
   local repDelta = progression.raceResult({ won = r.won, stake = r.stake, bet = r.bet, night = progression.isNight(h),
@@ -446,6 +477,45 @@ local function checkChallengeArrival()
         end
       end
     end
+  end
+end
+
+----------------------------------------------------------------------------------------------
+-- moving up: a bigger garage, once the name and the money are there
+
+function M.moveGarage()
+  if not active then return false, 'No career running.' end
+  local n = progression.nextGarage(s)
+  if not n then return false, 'This is the best garage in town.' end
+  if not n.canMove then return false, n.garage.name .. ' ' .. n.why .. '.' end
+  if not M.addMoney(-n.garage.cost, 'Moved to ' .. n.garage.name) then return false, 'Not enough money.' end
+  s.garageLevel = n.garage.level
+  places = nil
+  changed()
+  M.sendText('benny', 'Welcome to ' .. n.garage.name .. '. Your cars are where you left them; drive them over or have them towed.', 2)
+  return true, 'You now work out of ' .. n.garage.name .. '.'
+end
+
+----------------------------------------------------------------------------------------------
+-- the police (the game's own pursuits, when traffic has police in it)
+
+function M.onPursuitAction(id, action, pursuit)
+  if not active then return end
+  local v = getPlayerVehicle(0)
+  if not v or v:getID() ~= id then return end
+  if action == 'arrest' then
+    local offences = type(pursuit) == 'table' and type(pursuit.offensesList) == 'table' and #pursuit.offensesList or 1
+    local racing = sl_streets and sl_streets.isRacing()
+    if racing then sl_streets.forfeit() end
+    local fine = math.min(s.money, progression.policeFine(offences, racing))
+    if fine > 0 then M.addMoney(-fine, 'Police fine') end
+    stateLib.addRep(s, progression.ARREST_REP)
+    tell(string.format('Busted. $%d in fines%s.', fine, racing and ', and the race is lost' or ''), 7)
+    changed()
+  elseif action == 'evade' then
+    stateLib.addRep(s, progression.EVADE_REP)
+    tell(string.format('You lost them. +%d reputation.', progression.EVADE_REP), 5)
+    changed()
   end
 end
 

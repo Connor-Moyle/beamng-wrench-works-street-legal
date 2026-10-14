@@ -139,6 +139,39 @@
     '.slp-pill{position:absolute;right:3vw;top:1.2vh;padding:6px 14px;border-radius:16px;background:rgba(20,18,24,.72);font-size:13px;display:flex;gap:12px;align-items:center}',
     '.slp-pill b{font-weight:600}',
     '.slp-fade{position:absolute;left:0;top:0;right:0;bottom:0;background:#000;opacity:0;transition:opacity .5s}',
+    /* the car lots: one car at a time, the SLRR way */
+    '.slp-catch{position:absolute;left:0;top:0;right:0;bottom:0;pointer-events:auto;cursor:move;background:rgba(0,0,0,.01)}',
+    '.slp-lot{position:absolute;left:50%;bottom:4vh;transform:translateX(-50%);width:640px;max-width:92vw;padding:18px 22px 14px 22px;border-radius:24px;',
+    '  background:rgba(20,18,24,.9);pointer-events:auto;box-shadow:0 20px 60px rgba(0,0,0,.5)}',
+    '.slp-lothead{display:flex;justify-content:space-between;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#cac4d0}',
+    '.slp-lotname{margin-top:6px;font-size:15px;color:#cac4d0}',
+    '.slp-lotname b{display:block;font-size:28px;font-weight:400;color:#e6e1e5;line-height:1.15}',
+    '.slp-lottitle{display:inline-block;margin-top:6px;padding:3px 10px;border-radius:10px;background:#3a3f4b;font-size:12px;color:#d7e3ff}',
+    '.slp-lotstats{display:flex;gap:22px;margin-top:12px;font-size:13px;color:#cac4d0}',
+    '.slp-lotstats b{display:block;font-size:16px;font-weight:500;color:#e6e1e5}',
+    '.slp-lotfaults{margin-top:10px;font-size:13px;color:#f2b8b5}',
+    '.slp-lotfaults.slp-ok{color:#6dd58c}',
+    '.slp-lotprice{margin-top:10px;font-size:34px;font-weight:300}',
+    '.slp-lotbtns{display:flex;align-items:center;gap:10px;margin-top:12px}',
+    '.slp-lotbtns .slp-btn{flex:1}',
+    '.slp-arrow{width:48px;height:48px;border-radius:50%;background:#2b2930;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:18px;flex:none}',
+    '.slp-arrow:hover{background:#49454f}',
+    '.slp-lotleave{text-align:center;margin-top:8px}',
+    /* race HUD */
+    '.slp-race{position:absolute;left:50%;top:2vh;transform:translateX(-50%);min-width:340px;padding:10px 20px;border-radius:20px;background:rgba(20,18,24,.85);text-align:center}',
+    '.slp-race b{display:block;font-size:16px;font-weight:500}',
+    '.slp-race span{display:block;font-size:13px;color:#cac4d0;margin-top:2px}',
+    '.slp-race i{display:inline-block;margin-top:6px;padding:2px 12px;border-radius:10px;font-style:normal;font-size:12px;font-weight:600}',
+    '.slp-race i.slp-ahead{background:#6dd58c;color:#0b3d1d}.slp-race i.slp-behind{background:#f2b8b5;color:#601410}',
+    '.slp-count{position:absolute;left:50%;top:30vh;transform:translateX(-50%);font-size:140px;font-weight:200;text-shadow:0 0 40px rgba(0,0,0,.6)}',
+    /* a car meet */
+    '.slp-meet{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:560px;max-width:92vw;max-height:80vh;overflow-y:auto;padding:18px 20px;border-radius:24px;',
+    '  background:rgba(20,18,24,.94);pointer-events:auto}',
+    '.slp-meet h3{margin:0 0 4px 0;font-size:22px;font-weight:400}',
+    '.slp-meet .slp-row{cursor:default;padding:10px 0}',
+    '.slp-meet .slp-acts{display:flex;gap:6px;margin-left:10px}',
+    '.slp-meet .slp-btn{height:34px;padding:0 12px;font-size:13px}',
+    '.slp-hudtest{position:absolute;left:50%;top:2vh;transform:translateX(-50%);padding:10px 18px;border-radius:20px;background:rgba(20,18,24,.85);pointer-events:auto;display:flex;align-items:center;gap:14px;font-size:14px}',
     '.slp-fade.slp-in{opacity:1}',
   ].join('\n');
 
@@ -164,7 +197,7 @@
     home: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.5"/></svg>',
     recent: '<svg viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>',
   };
-  var APP_COLORS = { phone: '#2e7d4f', messages: '#2f5fb3', contacts: '#7b4fb0', races: '#c2541e', bank: '#1f7a70', cab: '#b58a12', me: '#5c6474' };
+  var APP_COLORS = { phone: '#2e7d4f', messages: '#2f5fb3', contacts: '#7b4fb0', races: '#c2541e', bank: '#1f7a70', cab: '#b58a12', me: '#5c6474', garage: '#8a3b8f' };
   var AV_COLORS = ['#a8c7fa', '#f2b8b5', '#c3e7c6', '#ffd8a8', '#d0bcff', '#9fe0e8', '#ffb4ab', '#e8def8'];
   var CLASS_NAMES = { beater: 'Beaters', compact: 'Compacts', muscle: 'Muscle', tuner: 'Tuners', sport: 'Sports cars', super: 'Supercars' };
 
@@ -234,6 +267,7 @@
         '<div><span class="slp-chip">' + esc(d.title || '') + ' &middot; ' + (d.rep || 0) + ' rep &middot; ' + money(d.money) + '</span></div>' +
         '<div class="slp-grid">' + appsHtml([
           { id: 'races', title: 'Races', icon: I.flag, badge: arranged || 0 },
+          { id: 'garage', title: 'My cars', icon: I.cab },
           { id: 'bank', title: 'Bank', icon: I.bank },
           { id: 'me', title: 'Street cred', icon: I.me },
         ]) + '</div>' +
@@ -337,17 +371,36 @@
         (rows.join('') || '<div class="slp-empty">The cab company does not know any places on this map yet.</div>') + '</div>';
     }
 
+    function garagePage() {
+      var cars = arr(st.data.fleet);
+      var cards = cars.map(function (c) {
+        var faults = arr(c.faults);
+        var acts = [];
+        if (!c.active) acts.push('<div class="slp-btn" data-a="usecar" data-v="' + c.id + '">Drive this one</div>');
+        if (c.out && c.towFee && c.where === 'Out on the street') acts.push('<div class="slp-btn slp-tonal" data-a="tow" data-v="' + c.id + '">Tow it home &middot; ' + money(c.towFee) + '</div>');
+        return '<div class="slp-card"><h4>' + esc(c.name) + (c.active ? ' &#9733;' : '') + '</h4><p>' + esc(c.where) + ' &middot; condition ' + Math.round((c.condition || 0) * 100) + '%' +
+          (faults.length ? '<br>Needs: ' + esc(faults.join(', ')) : '') + '</p>' + (acts.length ? '<div class="slp-acts">' + acts.join('') + '</div>' : '') + '</div>';
+      });
+      return bar('My cars') + '<div class="slp-body">' + (cards.join('') ||
+        '<div class="slp-empty">You have no car. The junkyard sells cheap ones that need work, the dealership new ones. The Cab app gets you there.</div>') + '</div>';
+    }
+
     function mePage() {
       var d = st.data, s = obj(d.stats);
       var from = d.titleRep || 0, to = d.nextRep, pct = to ? Math.max(0, Math.min(100, ((d.rep || 0) - from) / (to - from) * 100)) : 100;
       var next = d.nextGarage ? '<div class="slp-kv"><span>Next garage</span><b>' + esc(d.nextGarage.name) + (d.nextGarage.canMove ? ' - ready' : ' - ' + esc(d.nextGarage.why)) + '</b></div>' : '';
+      var acts = [];
+      if (d.nextGarage && d.nextGarage.canMove) acts.push('<div class="slp-btn" data-a="move">Move to ' + esc(d.nextGarage.name) + '</div>');
+      if (d.roc && !d.rocChampion) acts.push('<div class="slp-btn" data-a="roc">' + (d.rocRound ? 'ROC round ' + (d.rocRound + 1) + ' of 3' : 'Enter the ROC &middot; ' + money(d.rocEntry)) + '</div>');
       return bar('Street cred') + '<div class="slp-body"><div class="slp-card"><h4>' + esc(d.title) + '</h4><p>' + (d.rep || 0) + ' reputation' + (to ? ' &middot; next title at ' + to : '') + '</p>' +
         '<div class="slp-meter"><i style="width:' + pct.toFixed(1) + '%"></i></div></div>' +
         '<div class="slp-card"><div class="slp-kv"><span>Garage</span><b>' + esc(d.garage || '') + '</b></div>' + next +
         '<div class="slp-kv"><span>Race of Champions</span><b>' + (d.roc ? 'Open to you' : 'Not yet') + '</b></div>' +
         '<div class="slp-kv"><span>Cars</span><b>' + (d.cars || 0) + '</b></div>' +
         '<div class="slp-kv"><span>Races</span><b>' + (s.races || 0) + ' (' + (s.wins || 0) + ' won)</b></div>' +
-        '<div class="slp-kv" style="border:none"><span>Pink slips</span><b>' + (s.pinksWon || 0) + ' won, ' + (s.pinksLost || 0) + ' lost</b></div></div></div>';
+        '<div class="slp-kv" style="border:none"><span>Pink slips</span><b>' + (s.pinksWon || 0) + ' won, ' + (s.pinksLost || 0) + ' lost</b></div>' +
+        (acts.length ? '<div class="slp-acts">' + acts.join('') + '</div>' : '') + '</div>' +
+        (d.rocChampion ? '<div class="slp-card"><h4>ROC champion</h4><p>The best in Valo City. There is nobody left to beat.</p></div>' : '') + '</div>';
     }
 
     function callPage() {
@@ -367,6 +420,65 @@
         '<div class="slp-hang" data-a="hang">' + I.phone + '</div></div>';
     }
 
+    // ---------------------------------------------------------------- the lots, a meet, a race
+    function mmss(sec) { sec = Math.max(0, Math.round(sec || 0)); return Math.floor(sec / 60) + ':' + two(sec % 60); }
+
+    function lotView() {
+      var l = st.lot;
+      if (!l || !l.open) return '';
+      if (l.mode === 'test') {
+        return '<div class="slp-hudtest">Test drive &middot; ' + mmss(l.testLeft) + ' left &middot; bring it back to ' + esc(l.name) +
+          '<div class="slp-btn slp-tonal" data-a="lot" data-v="endTest()">Done</div></div>';
+      }
+      if (l.mode === 'sell') {
+        var c = l.sellCar || {};
+        return '<div class="slp-lot"><div class="slp-lothead"><span>' + esc(l.kindTitle) + ' &middot; ' + esc(l.name) + '</span></div>' +
+          '<div class="slp-lotname">They will give you<b>' + money(c.price) + ' for the ' + esc(c.name) + '</b></div>' +
+          '<div class="slp-lotbtns"><div class="slp-btn" data-a="lot" data-v="sell()">' + (l.kind === 'scrap' ? 'Scrap it' : 'Sell it') + '</div>' +
+          '<div class="slp-btn slp-tonal" data-a="lot" data-v="browse()">Look at their cars</div></div>' +
+          '<div class="slp-lotleave"><div class="slp-btn slp-text" data-a="lot" data-v="close()">Not today</div></div></div>';
+      }
+      var o = l.offer || {};
+      var faults = arr(o.faults);
+      var body = l.building ? '<div class="slp-lotname"><b>Bringing it round\u2026</b></div>' :
+        '<div class="slp-lotname">' + esc(o.brand) + '<b>' + esc(o.name) + '</b></div><div class="slp-lottitle">' + esc(o.title) + '</div>' +
+        '<div class="slp-lotstats"><div>Condition<b>' + Math.round((o.condition || 0) * 100) + '%</b></div><div>Mileage<b>' + String(Math.round(o.mileage || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ',') + ' km</b></div>' +
+        '<div>Bodywork<b>' + (o.damage > 0.5 ? 'Bad' : o.damage > 0.15 ? 'Dented' : 'Clean') + '</b></div>' + (o.mods ? '<div>Modified<b>' + o.mods + ' parts</b></div>' : '') + '</div>' +
+        '<div class="slp-lotfaults' + (faults.length ? '' : ' slp-ok') + '">' + (faults.length ? 'Needs: ' + esc(faults.join(', ')) : 'Runs and drives') + '</div>' +
+        '<div class="slp-lotprice">' + money(o.price) + '</div>';
+      return '<div class="slp-catch" data-catch="lot"></div><div class="slp-lot"><div class="slp-lothead"><span>' + esc(l.kindTitle) + ' &middot; ' + esc(l.name) + '</span><span>' + (l.index || 0) + ' / ' + (l.count || 0) + '</span></div>' + body +
+        '<div class="slp-lotbtns"><div class="slp-arrow" data-a="lot" data-v="prev()">&#9664;</div>' +
+        (l.kind !== 'scrap' ? '<div class="slp-btn slp-tonal' + (l.building ? ' slp-off' : '') + '" data-a="lot" data-v="testDrive()">Test drive</div>' : '') +
+        '<div class="slp-btn' + (l.building || (o.price > l.money) ? ' slp-off' : '') + '" data-a="lot" data-v="buy()">Buy &middot; ' + money(o.price) + '</div>' +
+        '<div class="slp-arrow" data-a="lot" data-v="next()">&#9654;</div></div>' +
+        '<div class="slp-lotleave"><div class="slp-btn slp-text" data-a="lot" data-v="close()">Leave</div></div></div>';
+    }
+
+    function meetView() {
+      var m = st.meet;
+      if (!m || !m.open) return '';
+      var rows = arr(m.racers).map(function (r) {
+        return '<div class="slp-row">' + avatar(r) + '<div class="slp-rt"><b>' + esc(r.name) + '</b><span><span class="slp-stars">' + new Array((r.tier || 1) + 1).join('&#9733;') + '</span> &middot; ' +
+          esc(r.car) + ' &middot; ' + money(r.betMin) + '-' + money(r.betMax) + '</span></div><div class="slp-acts">' +
+          '<div class="slp-btn slp-tonal" data-a="meet" data-v="' + esc(r.id) + '|race">Race</div>' +
+          '<div class="slp-btn slp-tonal" data-a="meet" data-v="' + esc(r.id) + '|high">High</div>' +
+          '<div class="slp-btn' + (r.pinkOK ? '' : ' slp-tonal') + '" data-a="meet" data-v="' + esc(r.id) + '|pink">Pinks</div></div></div>';
+      });
+      return '<div class="slp-meet"><h3>Car meet &middot; ' + esc(m.name) + '</h3><div class="slp-card" style="margin:6px 0 4px 0"><p>Pick somebody. The race is to the other side of town; first one there wins.</p></div>' +
+        (rows.join('') || '<div class="slp-empty">Everybody has gone home.</div>') +
+        '<div class="slp-lotleave"><div class="slp-btn slp-text" data-a="meetclose">Just looking</div></div></div>';
+    }
+
+    function raceView() {
+      var r = st.race;
+      if (!r || !r.on) return '';
+      var stake = r.stake === 'pink' ? 'Pink slips' : money(r.bet);
+      var dist = (r.mine != null ? 'You ' + r.mine + ' m' : '') + (r.theirs != null ? ' &middot; them ' + r.theirs + ' m' : '');
+      return (r.countdown ? '<div class="slp-count">' + r.countdown + '</div>' : '') +
+        '<div class="slp-race"><b>vs ' + esc(r.name) + ' &middot; ' + stake + '</b><span>To ' + esc(r.destName) + '</span><span>' + dist + '</span>' +
+        (r.mine != null && r.theirs != null ? '<i class="' + (r.ahead ? 'slp-ahead' : 'slp-behind') + '">' + (r.ahead ? 'Ahead' : 'Behind') + '</i>' : '') + '</div>';
+    }
+
     // ---------------------------------------------------------------- drawing
     function render() {
       var d = st.data;
@@ -384,6 +496,7 @@
         case 'bank': page = bankPage(); break;
         case 'cab': page = cabPage(); break;
         case 'me': page = mePage(); break;
+        case 'garage': page = garagePage(); break;
         default: page = homePage();
       }
       var isHome = st.app === 'home';
@@ -398,6 +511,7 @@
       layer.innerHTML =
         '<div class="slp-pill"' + (st.open ? ' style="display:none"' : '') + '><b>' + money(d.money) + '</b><span>' + esc(d.title) + '</span><span>' + two(d.hour || 0) + ':' + two(d.minute || 0) + '</span></div>' +
         '<div class="slp-device' + (st.open ? '' : ' slp-away') + '" style="transform:' + (st.open ? '' : 'translateY(70%) ') + 'scale(' + scale() + ')">' + screen + '</div>' +
+        lotView() + meetView() + raceView() +
         huHtml +
         '<div class="slp-toast' + (st.toast ? '' : ' slp-gone') + '">' + esc(st.toast || '') + '</div>' +
         '<div class="slp-fade' + (st.fade ? ' slp-in' : '') + '"></div>';
@@ -466,6 +580,13 @@
         case 'gps': lua('waypoint(' + JSON.stringify(v) + ')'); toast('The route is on your road.'); break;
         case 'cancel': lua('cancel(' + JSON.stringify(v) + ')'); break;
         case 'taxi': lua('taxi(' + JSON.stringify(v) + ')'); break;
+        case 'tow': lua('tow(' + Number(v) + ')'); break;
+        case 'usecar': lua('useCar(' + Number(v) + ')'); break;
+        case 'move': lua('moveGarage()'); break;
+        case 'roc': lua('enterRoc()'); setOpen(false); break;
+        case 'lot': if (/^[a-zA-Z]+\(\)$/.test(v)) lua('@sl_lot.' + v); break;
+        case 'meet': var parts = String(v).split('|'); lua('@sl_streets.meetChallenge(' + JSON.stringify(parts[0]) + ',' + JSON.stringify(parts[1]) + ')'); break;
+        case 'meetclose': lua('@sl_streets.closeMeet()'); st.meet = null; render(); break;
         case 'key': if (st.dial.length < 12) st.dial += v; render(); break;
         case 'del': st.dial = st.dial.slice(0, -1); render(); break;
         case 'dial': var who = dialMatch(); if (who) startCall(who.id); else if (st.dial) toast('The number you have dialled is not available.'); break;
@@ -478,6 +599,29 @@
       toastTimer = clock.set(function () { st.toast = null; render(); }, 3500);
       render();
     }
+
+    // right-drag over the lot turns the camera round the car, the wheel zooms
+    var drag = null;
+    root.addEventListener('mousedown', function (ev) {
+      if (ev.target && ev.target.getAttribute && ev.target.getAttribute('data-catch') === 'lot') {
+        ev.preventDefault();
+        drag = { x: ev.clientX, y: ev.clientY };
+      }
+    });
+    var win = doc.defaultView || {};
+    if (win.addEventListener) {
+      win.addEventListener('mousemove', function (ev) {
+        if (!drag) return;
+        var dx = ev.clientX - drag.x, dy = ev.clientY - drag.y;
+        drag = { x: ev.clientX, y: ev.clientY };
+        if (dx || dy) lua('@sl_lot.cameraDrag(' + dx + ',' + dy + ')');
+      });
+      win.addEventListener('mouseup', function () { drag = null; });
+    }
+    root.addEventListener('wheel', function (ev) {
+      if (ev.target && ev.target.getAttribute && ev.target.getAttribute('data-catch') === 'lot') lua('@sl_lot.cameraZoom(' + (ev.deltaY < 0 ? 1 : -1) + ')');
+    });
+    root.addEventListener('contextmenu', function (ev) { if (st.lot && st.lot.open) ev.preventDefault(); });
 
     root.addEventListener('click', function (ev) {
       var el = ev.target;
@@ -512,6 +656,9 @@
           break;
         case 'slPhoneToast': toast(data.text); break;
         case 'slFade': st.fade = !!data.on; render(); break;
+        case 'slLotData': st.lot = data.open ? data : null; render(); break;
+        case 'slMeet': st.meet = data.open ? data : null; render(); break;
+        case 'slRace': st.race = data.on ? data : null; render(); break;
       }
     }
 
@@ -525,9 +672,18 @@
   if (typeof angular !== 'undefined' && typeof window !== 'undefined' && !window.__slPhoneTest) {
     angular.module('slPhone', []).run(['$rootScope', function ($rootScope) {
       if (window.__slPhone) return;
-      var phone = createPhone(document, function (call) { if (window.bngApi) window.bngApi.engineLua('if sl_phone then sl_phone.' + call + ' end'); });
+      var phone = createPhone(document, function (call) {
+        if (!window.bngApi) return;
+        // '@sl_lot.next()' goes to another extension than the phone's
+        if (call.charAt(0) === '@') {
+          var ext = call.slice(1).split('.')[0];
+          window.bngApi.engineLua('if ' + ext + ' then ' + call.slice(1) + ' end');
+        } else {
+          window.bngApi.engineLua('if sl_phone then sl_phone.' + call + ' end');
+        }
+      });
       window.__slPhone = phone;
-      ['slPhoneData', 'slPhoneToggle', 'slPhoneCall', 'slPhoneCallReply', 'slPhoneNotify', 'slPhoneToast', 'slFade'].forEach(function (name) {
+      ['slPhoneData', 'slPhoneToggle', 'slPhoneCall', 'slPhoneCallReply', 'slPhoneNotify', 'slPhoneToast', 'slFade', 'slLotData', 'slMeet', 'slRace'].forEach(function (name) {
         $rootScope.$on(name, function (ev, data) { phone.handle(name, data); });
       });
       if (window.bngApi) window.bngApi.engineLua('if sl_phone then sl_phone.request() end');

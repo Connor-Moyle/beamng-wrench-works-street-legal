@@ -1,0 +1,557 @@
+-- Street Legal Racing: racing on the street (extension name: sl_streets)
+-- After dark the city's racers are out in their own cars. Drive up behind one and flash your
+-- high beams: if they think you are worth it, it is a race to the other side of town, for
+-- their usual stake. Some nights there is a meet in a car park; roll in and pick somebody to
+-- race - for money, high stakes or pink slips. Pink slips are real: win and their car is
+-- delivered to your garage, lose and you walk home.
+-- The races here are point to point on the road network, run by this file; the map's own
+-- night races (slrrValoRaces) stay the map's.
+
+local M = {}
+
+local roster = require('sl/core/roster')
+local rngLib = require('sl/core/rng')
+local progression = require('sl/core/progression')
+local carsLib = require('sl/core/cars')
+local stateLib = require('sl/core/state')
+local builder = require('sl/carBuilder')
+
+local MAX_CRUISERS = 3
+local FINISH_RADIUS = 22
+local RACE_TIMEOUT = 600
+
+local cruisers = {}       -- racer id -> vehicle id: racers out driving
+local meet                -- { place, cars = { racer id -> vehicle id }, until (day hour), shown }
+local race                -- the race running: { racer, vid, stake, bet, dest = vec3, destName, t, countdown, started }
+local beam = { on = false, onAt = 0 }
+local pollTimer, spawnTimer, meetTimer = 0, 0, 0
+local busy = false        -- a job is spawning something
+
+local function career() return sl_career and sl_career.isActive() and sl_career.getState() or nil end
+local function night() return progression.isNight(sl_career.hour()) end
+local function playerCar()
+  local v = getPlayerVehicle(0)
+  if v and v:getJBeamFilename() ~= 'unicycle' then return v end
+end
+
+----------------------------------------------------------------------------------------------
+-- the road network: somewhere to spawn, somewhere to race to
+
+local function roadNodes()
+  local ok, m = pcall(function() return map.getMap().nodes end)
+  return ok and type(m) == 'table' and m or {}
+end
+
+-- a node at a distance from a point, wide enough to be a real road
+local function nodeAround(from, minD, maxD, rng)
+  local best, bestName
+  local tries = 0
+  for name, n in pairs(roadNodes()) do
+    tries = tries + 1
+    local d = (n.pos - from):length()
+    if d > minD and d < maxD and (n.radius or 0) > 2.5 and rng:chance(0.08) then
+      best, bestName = n, name
+      break
+    end
+    if tries > 20000 then break end
+  end
+  return best, bestName
+end
+
+-- the other side of town: the far end of the road network from here (within maxD, if given:
+-- the ROC's island has no road to the city)
+local function farSide(from, maxD)
+  local best, bestName, bestD = nil, nil, 0
+  for name, n in pairs(roadNodes()) do
+    local d = (n.pos - from):length()
+    if d > bestD and (not maxD or d < maxD) and (n.radius or 0) > 2.5 then best, bestName, bestD = n, name, d end
+  end
+  if not best then return nil end
+  -- not quite the very edge: somewhere 85% of the way there, on the road
+  local target = from + (best.pos - from) * 0.85
+  local near, nearName, nearD = best, bestName, math.huge
+  for name, n in pairs(roadNodes()) do
+    local d = (n.pos - target):length()
+    if d < nearD and (n.radius or 0) > 2.5 then near, nearName, nearD = n, name, d end
+  end
+  return near.pos, nearName, (near.pos - from):length()
+end
+
+local function placeNear(pos)
+  local best, bestD
+  for _, p in pairs(sl_career.getPlaces() or {}) do
+    local d = (p.pos - pos):length()
+    if not bestD or d < bestD then best, bestD = p, d end
+  end
+  return best and bestD < 400 and ('near ' .. best.name) or 'across town'
+end
+
+----------------------------------------------------------------------------------------------
+-- a racer's own car (they keep it, until somebody wins it off them)
+
+local function racerCar(s, racer)
+  if racer.car and racer.car.model then return racer.car end
+  local pick = carsLib.pickConfig(builder.configs(), racer.class, rngLib.new(rngLib.hash(racer.id .. s.seed)))
+  if not pick then return nil end
+  racer.car = { model = pick.model, config = pick.config, name = pick.name, value = pick.value }
+  return racer.car
+end
+
+local function spawnRacer(job, s, racer, pos, rot)
+  local car = racerCar(s, racer)
+  if not car then return nil end
+  local cfg = car.setup or car.config          -- a car they won from the player is a full setup
+  local veh = builder.spawn(job, car.model, cfg, pos, rot)
+  if veh then veh:queueLuaCommand('electrics.setLightsState(1)') end
+  return veh
+end
+
+local function despawn(vid)
+  local v = vid and getObjectByID(vid)
+  if v then v:delete() end
+end
+
+----------------------------------------------------------------------------------------------
+-- the race
+
+local function sendRace()
+  if not race then guihooks.trigger('slRace', { on = false }) return end
+  local v = playerCar()
+  local opp = getObjectByID(race.vid)
+  local mine = v and (v:getPosition() - race.dest):length() or nil
+  local theirs = opp and (opp:getPosition() - race.dest):length() or nil
+  guihooks.trigger('slRace', { on = true, name = race.name, stake = race.stake, bet = race.bet, destName = race.destName,
+    countdown = race.countdown and math.ceil(race.countdown) or nil, mine = mine and math.floor(mine) or nil,
+    theirs = theirs and math.floor(theirs) or nil, ahead = mine and theirs and mine < theirs })
+end
+
+local function aiGo(vid, destNode, skill)
+  local v = getObjectByID(vid)
+  if not v then return end
+  local aggression = 0.35 + 0.6 * (skill or 0.5)
+  v:queueLuaCommand(string.format("controller.setFreeze(0) input.event('parkingbrake', 0, FILTER_DIRECT) ai.setAggression(%f) ai.setAvoidCars('on') ai.driveInLane('off') ai.driveUsingPath({wpTargetList = {%q}, aggression = %f})",
+    aggression, destNode, aggression))
+end
+
+-- start a race against a racer whose car is out in the world (rolling: no countdown; standing: 3, 2, 1)
+local function startRace(racer, vid, stake, bet, standing, maxD)
+  local v = playerCar()
+  if not v or race then return false end
+  local dest, destNode, distance = farSide(v:getPosition(), maxD)
+  if not dest then return false end
+  race = { racer = racer.id, name = roster.displayName(racer), vid = vid, stake = stake, bet = bet, dest = dest, destNode = destNode,
+    destName = placeNear(dest), distance = distance, t = 0, countdown = standing and 3.5 or nil, skill = racer.skill }
+  if core_groundMarkers then core_groundMarkers.setPath(dest) end
+  if not standing then aiGo(vid, destNode, racer.skill) end
+  cruisers[racer.id] = nil
+  if meet then meet.cars[racer.id] = nil end
+  sendRace()
+  return true
+end
+
+local function finish(playerWon)
+  local s = career()
+  local r = race
+  race = nil
+  if core_groundMarkers then core_groundMarkers.setPath(nil) end
+  sendRace()
+  if not s or not r then return end
+  local racer = stateLib.racer(s, r.racer)
+  local repDelta = stateLib.recordRace(s, { racer = r.racer, won = playerWon, stake = r.stake, bet = r.bet, night = night(), at = os.time() })
+  local opp = getObjectByID(r.vid)
+  if r.stake == 'pink' then
+    if playerWon and opp then
+      -- their car is yours: it goes on a truck to your garage
+      opp:queueLuaCommand('ai.setMode("disabled") controller.setFreeze(1)')
+      local car = sl_fleet.registerVehicle(r.vid, { name = racer.car and racer.car.name or 'their car', value = racer.car and racer.car.value or 0, condition = 0.85 })
+      local mine = sl_fleet.currentCar()
+      if car then
+        car.out = false
+        car.where = nil
+        if mine then s.activeCar = mine.id end
+      end
+      opp:delete()
+      racer.car = nil                                           -- they will turn up in something else
+      if ui_message then ui_message(string.format('You won the %s off %s. It is waiting at your garage.', car and car.name or 'car', r.name), 8, 'streetLegal') end
+    elseif not playerWon then
+      local mine = sl_fleet.currentCar()
+      if mine then
+        racer.car = { model = mine.model, setup = mine.config, name = mine.name, value = mine.value }    -- they drive it now
+        local _, lostVeh = sl_fleet.lose(mine.id)
+        local lostId = lostVeh and lostVeh:getID()
+        core_jobsystem.create(function(job)
+          job.sleep(1.5)
+          despawn(lostId)                                       -- driven off into the night
+        end)
+        if ui_message then ui_message(r.name .. ' takes your car. You are walking home.', 8, 'streetLegal') end
+      end
+      if opp then opp:delete() end
+    end
+  else
+    if ui_message then
+      ui_message(playerWon and string.format('You beat %s: +$%d, %+d reputation.', r.name, r.bet, repDelta)
+        or string.format('%s won. -$%d, %+d reputation.', r.name, r.bet, repDelta), 7, 'streetLegal')
+    end
+    core_jobsystem.create(function(job) job.sleep(12) despawn(r.vid) end)
+  end
+  extensions.hook('onStreetLegalChanged')
+end
+
+local function updateRace(dt)
+  local v, opp = playerCar(), getObjectByID(race.vid)
+  if not opp then finish(true) return end                          -- they vanished: a walkover
+  if not v then finish(false) return end                           -- you got out of the car
+  if race.countdown then
+    race.countdown = race.countdown - dt
+    if race.countdown <= 0 then
+      race.countdown = nil
+      aiGo(race.vid, race.destNode, race.skill)
+      if ui_message then ui_message('GO!', 2, 'streetLegal') end
+    end
+    return
+  end
+  race.t = race.t + dt
+  if (v:getPosition() - race.dest):length() < FINISH_RADIUS then finish(true) return end
+  if (opp:getPosition() - race.dest):length() < FINISH_RADIUS then finish(false) return end
+  if race.t > RACE_TIMEOUT then finish(false) end
+end
+
+----------------------------------------------------------------------------------------------
+-- racers cruising at night; flash your high beams at one to race
+
+local function cruiserCandidates(s)
+  local list = {}
+  for _, r in ipairs(s.racers) do
+    if not cruisers[r.id] and not (meet and meet.cars[r.id]) and (not race or race.racer ~= r.id) then list[#list + 1] = r end
+  end
+  return list
+end
+
+local function spawnCruiser(s)
+  local v = getPlayerVehicle(0)
+  if not v or busy then return end
+  local list = cruiserCandidates(s)
+  if #list == 0 then return end
+  local rng = rngLib.new(rngLib.hash(tostring(os.clock())))
+  local racer = list[rng:int(#list)]
+  local node = nodeAround(v:getPosition(), 180, 450, rng)
+  if not node then return end
+  busy = true
+  core_jobsystem.create(function(job)
+    local veh = spawnRacer(job, s, racer, node.pos + vec3(0, 0, 0.5), nil)
+    busy = false
+    if not veh then return end
+    veh:queueLuaCommand('ai.setMode("traffic") ai.setAggression(0.5)')
+    cruisers[racer.id] = veh:getID()
+  end)
+end
+
+local function updateCruisers(s, dt)
+  local v = getPlayerVehicle(0)
+  local count = 0
+  for id, vid in pairs(cruisers) do
+    local c = getObjectByID(vid)
+    if not c or not v or (c:getPosition() - v:getPosition()):length() > 700 or not night() then
+      despawn(vid)
+      cruisers[id] = nil
+    else
+      count = count + 1
+    end
+  end
+  spawnTimer = spawnTimer + dt
+  if night() and count < MAX_CRUISERS and spawnTimer > 8 and not race then
+    spawnTimer = 0
+    spawnCruiser(s)
+  end
+end
+
+-- whose name hangs over their car (so you know who you are flashing)
+local labelColor, labelBg = ColorF(1, 0.8, 0.3, 1), ColorI(0, 0, 0, 170)
+local function drawLabels(s)
+  local v = getPlayerVehicle(0)
+  if not v then return end
+  local function label(racerId, vid, extra)
+    local c = getObjectByID(vid)
+    local r = stateLib.racer(s, racerId)
+    if c and r and (c:getPosition() - v:getPosition()):length() < 60 then
+      debugDrawer:drawTextAdvanced(c:getPosition() + vec3(0, 0, 2.2), String(roster.displayName(r) .. (extra or '')), labelColor, true, false, labelBg)
+    end
+  end
+  for id, vid in pairs(cruisers) do label(id, vid, '  (flash to race)') end
+  if meet then for id, vid in pairs(meet.cars) do label(id, vid) end end
+end
+
+-- the racer in front of the player, close enough to have seen the lights
+local function racerAhead()
+  local v = playerCar()
+  if not v then return nil end
+  local pos, dir = v:getPosition(), v:getDirectionVector()
+  for id, vid in pairs(cruisers) do
+    local c = getObjectByID(vid)
+    if c then
+      local rel = c:getPosition() - pos
+      local d = rel:length()
+      if d < 45 and d > 2 and rel:normalized():dot(dir) > 0.75 then return id, vid end
+    end
+  end
+end
+
+local function onFlash()
+  local s = career()
+  if not s or race then return end
+  local id, vid = racerAhead()
+  if not id then return end
+  local racer = stateLib.racer(s, id)
+  if not night() then return end
+  local answer = roster.respond(racer, 'race', { rep = s.rep, money = s.money, hasCar = sl_fleet.currentCar() ~= nil }, rngLib.new(rngLib.hash(id .. s.day)))
+  if not answer.accept then
+    if ui_message then ui_message(roster.displayName(racer) .. ': "' .. answer.text .. '"', 6, 'streetLegal') end
+    return
+  end
+  s.known[id] = true                            -- after a race you have their number
+  if startRace(racer, vid, 'money', answer.bet, false) and ui_message then
+    ui_message(string.format('%s takes you on: $%d, to %s. Go!', roster.displayName(racer), answer.bet, race.destName), 6, 'streetLegal')
+  end
+end
+
+-- the player's high beams, read from the car a few times a second
+function M.onBeam(value)
+  local on = (tonumber(value) or 0) > 0.5
+  local now = os.clock()
+  if on and not beam.on then beam.onAt = now end
+  if not on and beam.on and now - beam.onAt < 1.5 then onFlash() end
+  beam.on = on
+end
+
+local function pollBeams(dt)
+  pollTimer = pollTimer + dt
+  if pollTimer < 0.12 then return end
+  pollTimer = 0
+  local v = playerCar()
+  if v then v:queueLuaCommand('obj:queueGameEngineLua("if sl_streets then sl_streets.onBeam(" .. tostring((electrics.values.highbeam or 0)) .. ") end")') end
+end
+
+----------------------------------------------------------------------------------------------
+-- meets: a few racers in a car park after dark
+
+local function startMeet(s)
+  local list = {}
+  for _, p in pairs(sl_career.getPlaces() or {}) do if p.kind == 'meet' then list[#list + 1] = p end end
+  if #list == 0 or busy then return end
+  local rng = rngLib.new(rngLib.hash('meet' .. s.day .. math.floor(sl_career.hour())))
+  local place = list[rng:int(#list)]
+  local racers = {}
+  for _, r in ipairs(s.racers) do
+    if math.abs(r.rep - s.rep) < 1500 + s.rep * 0.5 and not cruisers[r.id] then racers[#racers + 1] = r end
+  end
+  if #racers == 0 then return end
+  meet = { place = place, cars = {}, day = s.day }
+  busy = true
+  local count = math.min(#racers, rng:int(3, 6))
+  core_jobsystem.create(function(job)
+    for i = 1, count do
+      local r = table.remove(racers, rng:int(#racers))
+      local a = (i / count) * math.pi * 2
+      local pos = place.pos + vec3(math.cos(a) * 9, math.sin(a) * 9, 0.5)
+      local rot = quatFromDir((place.pos - pos):normalized(), vec3(0, 0, 1))
+      local veh = spawnRacer(job, s, r, pos, rot)
+      if veh and meet then
+        veh:queueLuaCommand('controller.setFreeze(1) input.event("parkingbrake", 1, FILTER_DIRECT) electrics.set_warn_signal(1)')
+        meet.cars[r.id] = veh:getID()
+      end
+    end
+    busy = false
+  end)
+  local who = racers[1] or s.racers[1]
+  sl_career.sendText(s.known[who.id] and who.id or 'benny', 'Meet tonight at ' .. place.name .. '. Bring something fast.', 2)
+end
+
+local function endMeet()
+  if not meet then return end
+  for _, vid in pairs(meet.cars) do despawn(vid) end
+  meet = nil
+  guihooks.trigger('slMeet', { open = false })
+end
+
+local function sendMeet(open)
+  local s = career()
+  if not meet or not s or not open then guihooks.trigger('slMeet', { open = false }) return end
+  local list = {}
+  for id in pairs(meet.cars) do
+    local r = stateLib.racer(s, id)
+    if r then
+      list[#list + 1] = { id = id, name = roster.displayName(r), car = r.car and r.car.name or '?', tier = r.tier,
+        betMin = r.betMin, betMax = r.betMax, pinkOK = r.pinkOK }
+    end
+  end
+  table.sort(list, function(a, b) return a.tier < b.tier end)
+  guihooks.trigger('slMeet', { open = true, name = meet.place.name, racers = list, money = s.money })
+end
+
+local function updateMeet(s, dt)
+  local v = getPlayerVehicle(0)
+  if not meet then
+    meetTimer = meetTimer + dt
+    if night() and meetTimer > 90 and not race then
+      meetTimer = 0
+      if rngLib.new(rngLib.hash('m' .. os.clock())):chance(0.35) then startMeet(s) end
+    end
+    return
+  end
+  if not night() or s.day ~= meet.day and sl_career.hour() > 6 then endMeet() return end
+  local car = playerCar()
+  local here = car and (car:getPosition() - meet.place.pos):length() < 22 and car:getVelocity():length() < 1
+  if here and not meet.shown then
+    meet.shown = true
+    sendMeet(true)
+  elseif not here and meet.shown then
+    meet.shown = false
+    sendMeet(false)
+  end
+  -- a marker over the meet so it can be found
+  if v and (v:getPosition() - meet.place.pos):length() < 400 then
+    debugDrawer:drawCylinder(meet.place.pos, meet.place.pos + vec3(0, 0, 4), 0.25, ColorF(0.7, 0.2, 1, 0.5))
+    debugDrawer:drawTextAdvanced(meet.place.pos + vec3(0, 0, 4.5), String('Car meet'), ColorF(1, 1, 1, 1), true, false, ColorI(60, 0, 90, 200))
+  end
+end
+
+-- from the meet's menu: race this racer for money, high stakes or pink slips
+function M.meetChallenge(racerId, kind)
+  local s = career()
+  if not s or not meet or race then return end
+  local vid = meet.cars[racerId]
+  local racer = stateLib.racer(s, racerId)
+  if not vid or not racer then return end
+  local answer = roster.respond(racer, kind, { rep = s.rep, money = s.money, hasCar = sl_fleet.currentCar() ~= nil }, rngLib.new(rngLib.hash(racerId .. kind .. os.time())))
+  guihooks.trigger('slPhoneToast', { text = roster.displayName(racer) .. ': "' .. answer.text .. '"' })
+  if not answer.accept then return end
+  s.known[racerId] = true
+  sendMeet(false)
+  meet.shown = true
+  -- they pull up beside you for a standing start
+  local v = playerCar()
+  local opp = getObjectByID(vid)
+  if v and opp then
+    local right = v:getDirectionVector():cross(vec3(0, 0, 1)):normalized()
+    spawn.safeTeleport(opp, v:getPosition() + right * 3.6 + vec3(0, 0, 0.3), quat(v:getRotation()), true)
+  end
+  startRace(racer, vid, answer.stake, answer.bet or 0, true)
+end
+
+function M.closeMeet() sendMeet(false) end
+
+----------------------------------------------------------------------------------------------
+-- the ROC (Race of Champions): three rounds against the best in town, on their island
+
+function M.rocRound(s)
+  s.roc = s.roc or { round = 0 }
+  return s.roc
+end
+
+-- the champions, best first
+local function champions(s)
+  local list = {}
+  for _, r in ipairs(s.racers) do if r.tier == 5 then list[#list + 1] = r end end
+  table.sort(list, function(a, b) return a.rep > b.rep end)
+  return list
+end
+
+function M.enterRoc()
+  local s = career()
+  if not s or race or busy then return false, 'Not now.' end
+  if not progression.rocOpen(s) then return false, 'The ROC is for the top garage and the top names.' end
+  local roc = M.rocRound(s)
+  if roc.champion then return false, 'You are the champion. Nobody is left to beat.' end
+  local v = playerCar()
+  if not v or not sl_fleet.currentCar() then return false, 'Bring your own car to the ROC.' end
+  if roc.round == 0 and not sl_career.addMoney(-progression.ROC.entry, 'ROC entry') then return false, string.format('Entry is $%d.', progression.ROC.entry) end
+  local rival = champions(s)[3 - roc.round] or champions(s)[1]
+  if not rival then return false, 'Nobody to race.' end
+  local spot = scenetree.findObject('spawn_roc')
+  local start = spot and spot:getPosition() or v:getPosition()
+  busy = true
+  core_jobsystem.create(function(job)
+    guihooks.trigger('slFade', { on = true })
+    job.sleep(0.6)
+    local rot
+    if spot then pcall(function() rot = quat(spot:getRotation()) end) end
+    spawn.safeTeleport(v, start + vec3(0, 0, 0.5), rot, true)
+    job.sleep(0.5)
+    local right = v:getDirectionVector():cross(vec3(0, 0, 1)):normalized()
+    local veh = spawnRacer(job, s, rival, v:getPosition() + right * 3.6 + vec3(0, 0, 0.3), quat(v:getRotation()))
+    busy = false
+    guihooks.trigger('slFade', { on = false })
+    if not veh then return end
+    local bet = 10000 * (roc.round + 1)
+    if startRace(rival, veh:getID(), 'money', bet, true, 1500) then
+      race.roc = true
+      if ui_message then ui_message(string.format('ROC round %d of 3: %s. $%d.', roc.round + 1, roster.displayName(rival), bet), 6, 'streetLegal') end
+    end
+  end)
+  return true, 'To the ROC.'
+end
+
+local baseFinish = finish
+finish = function(playerWon)
+  local s, wasRoc = career(), race and race.roc
+  baseFinish(playerWon)
+  if not wasRoc or not s then return end
+  local roc = M.rocRound(s)
+  if playerWon then
+    roc.round = roc.round + 1
+    if roc.round >= 3 then
+      roc.champion = true
+      sl_career.addMoney(250000, 'ROC champion')
+      stateLib.addRep(s, 2000)
+      sl_career.sendText('benny', 'You won the ROC. Champion of Valo City. I always said you had it in you. (I did not.)', 3)
+    else
+      sl_career.sendText('benny', string.format('Round %d of the ROC done. Two more, then one. Call it in from the phone when you are ready.', roc.round), 3)
+    end
+  else
+    roc.round = 0
+    sl_career.sendText('benny', 'Out of the ROC. The entry fee is gone; come back when you are ready to pay it again.', 3)
+  end
+  extensions.hook('onStreetLegalChanged')
+end
+
+----------------------------------------------------------------------------------------------
+-- hooks
+
+function M.onUpdate(dtReal)
+  local s = career()
+  if not s then
+    if race or meet or next(cruisers) then
+      for _, vid in pairs(cruisers) do despawn(vid) end
+      cruisers = {}
+      endMeet()
+      race = nil
+    end
+    return
+  end
+  if race then
+    updateRace(dtReal)
+    if race then
+      M._raceSend = (M._raceSend or 0) + dtReal
+      if M._raceSend > 0.5 then M._raceSend = 0 sendRace() end
+    end
+  end
+  pollBeams(dtReal)
+  updateCruisers(s, dtReal)
+  updateMeet(s, dtReal)
+  drawLabels(s)
+end
+
+function M.onStreetLegalStopped()
+  for _, vid in pairs(cruisers) do despawn(vid) end
+  cruisers = {}
+  endMeet()
+  race = nil
+  sendRace()
+end
+
+function M.onClientEndMission() cruisers, meet, race = {}, nil, nil end
+
+function M.forfeit() if race then finish(false) end end
+function M.isRacing() return race ~= nil end
+
+return M

@@ -59,6 +59,9 @@ local function snapshot()
     contacts = contacts, threads = s.threads, unread = s.unread,
     challenges = challenges, ledger = ledger, places = placesOut,
     cars = #s.cars, stats = s.stats,
+    fleet = sl_fleet and sl_fleet.list() or {},
+    rocRound = (s.roc or {}).round or 0, rocChampion = (s.roc or {}).champion == true,
+    rocEntry = progression.ROC.entry,
   }
 end
 
@@ -139,6 +142,16 @@ function M.request() wantSend = true end
 function M.markRead(thread) if career() then sl_career.markRead(thread) end end
 function M.waypoint(id) if career() then sl_career.waypoint(id) end end
 function M.cancel(challengeId) if career() then sl_career.cancelChallenge(challengeId) end end
+
+local function answer(ok, text)
+  guihooks.trigger('slPhoneToast', { text = text })
+  wantSend = true
+end
+
+function M.tow(carId) if career() then answer(sl_fleet.tow(tonumber(carId))) end end
+function M.useCar(carId) if career() then answer(sl_fleet.setActive(tonumber(carId))) end end
+function M.moveGarage() if career() then answer(sl_career.moveGarage()) end end
+function M.enterRoc() if career() then answer(sl_streets.enterRoc()) end end
 
 function M.taxi(placeId)
   if not career() then return end
