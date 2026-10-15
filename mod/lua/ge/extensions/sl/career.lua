@@ -596,7 +596,8 @@ function M.onSlrrRaceFinished(r)
     if r.won and r.stake ~= 'pink' then M.rematchMaybe(racer) end
     extensions.hook('onStreetLegalRaceResult', r.won, r.opponent)
   end
-  if r.stake == 'pink' and sl_fleet then
+  -- an abandoned pink-slip race (false start, out of time, the opponent gone) costs no car: the map leaves it with you
+  if r.stake == 'pink' and sl_fleet and not r.abandoned then
     local v = getPlayerVehicle(0)
     if r.won and v and not sl_fleet.carOfVehicle(v:getID()) then
       -- you are sitting in their car: it is yours
