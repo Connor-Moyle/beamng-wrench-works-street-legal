@@ -217,6 +217,7 @@ end)
 check('tutorial: four steps, then the bonus', function(job)
   local st = sl_career.getState()
   if #st.cars == 0 then return nil, 'needs a car' end
+  local m0 = money()                                             -- (steps already met pass within a tick: the bonus can land early)
   sl_tutorial.begin()
   job.sleep(1.5)                                                  -- step 1 (a car) is already done
   if st.tutorial.step ~= 2 then return false, 'step 1 did not pass with a car' end
@@ -230,7 +231,6 @@ check('tutorial: four steps, then the bonus', function(job)
   local race
   for _, c in ipairs(st.challenges) do if c.id:find(':tutorial', 1, true) then race = c end end
   if not race or race.bet ~= 100 then return false, 'no $100 race arranged for step 4' end
-  local m0 = money()
   st.stats.races = st.stats.races + 1 job.sleep(1.5)
   return st.tutorial.done == true and money() - m0 == 500, string.format('done, +$%d', money() - m0)
 end)
