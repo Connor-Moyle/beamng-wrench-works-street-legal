@@ -11,6 +11,7 @@ local stateLib = require('sl/core/state')
 -- { match = pattern on the mission id, fee, prize (money on a pass, more per star), rep, firstOnly (rep the first time only), heat }
 local RULES = {
   { match = '/timeTrial/slrr_sprint_', title = 'Street sprint', fee = 100, prize = 400, perStar = 0.25, rep = 15, nightOnly = true },
+  { match = '/timeTrial/slrr_rally_', title = 'Rally loop', rep = 20, firstOnly = true },      -- (the ROC rally: a closed timeTrial)
   { match = '/evade/slrr_evade_', title = 'Evade', rep = 20, heatRep = 60, heat = -0.3 },
   { match = '/drift/', title = 'Drift contest', fee = 50, prize = 300, perStar = 0.3, rep = 12 },
   { match = '/precisionParking/', title = 'Parking', rep = 10, firstOnly = true },

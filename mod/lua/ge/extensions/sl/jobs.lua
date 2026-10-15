@@ -87,6 +87,19 @@ local function diners()
   return out
 end
 
+-- the valet stands (the map's places of kind "valet": a kerb drop-off and parking bays)
+local function valetStands()
+  local out = {}
+  local level = getCurrentLevelIdentifier and getCurrentLevelIdentifier() or ''
+  for _, f in ipairs(FS:findFiles('/street_legal/places/', '*.json', 0, false, false) or {}) do
+    local d = jsonReadFile(f)
+    for _, p in ipairs(type(d) == 'table' and type(d[level]) == 'table' and d[level].places or {}) do
+      if p.kind == 'valet' and type(p.pos) == 'table' and type(p.bays) == 'table' and #p.bays > 0 then out[#out + 1] = p end
+    end
+  end
+  return out
+end
+
 local STREETS = { 'a side street', 'an apartment block', 'a house on the corner', 'an office', 'a back street', 'a corner shop' }
 
 -- the kinds of job: { kind, title, unlock = rep, night = true (only after dark), offer = function(ctx, rng) -> job }
@@ -198,6 +211,17 @@ local TYPES = {
       return { item = 'broken-down car', legs = { { id = 'kerb', name = STREETS[rng:int(#STREETS)], x = k.x, y = k.y, z = k.z }, leg(best) }, metres = math.floor(bd),
         fragile = false, car = { model = ({ 'pessima', 'legran', 'midsize', 'fullsize', 'van' })[rng:int(5)], wear = 0.7, limp = 0.35 },
         seconds = math.max(300, math.floor(bd * 1.4 / 8 * 1.5)), pay = math.floor((200 + bd / 1000 * 150) / 10) * 10 }
+    end },
+  -- valet (Design 3 #11): a guest's car at the hotel's kerb, parked neatly in one of the bays
+  { kind = 'valet', title = 'Valet', unlock = 300, night = true, offer = function(ctx, rng)
+      local list = valetStands()
+      if #list == 0 then return nil end
+      local v = list[rng:int(#list)]
+      local bay = v.bays[rng:int(#v.bays)]
+      return { item = 'guest car', legs = { { id = v.id, name = v.name, x = v.pos[1], y = v.pos[2], z = v.pos[3] },
+          { id = v.id .. ':bay', name = 'a parking bay', x = bay[1], y = bay[2], z = bay[3], radius = 3 } },
+        metres = 60, fragile = true, car = { model = ({ 'etk800', 'bastion', 'sunburst2', 'vivace', 'scintilla' })[rng:int(5)], wear = 0.02 },
+        seconds = 90, pay = 40 + rng:int(4) * 10 }
     end },
 }
 M.TYPES = TYPES
@@ -359,7 +383,7 @@ function M.onUpdate(dtReal)
   local stop = j.legs[j.leg]
   local here = v:getPosition()
   local d = (here - vec3(stop.x, stop.y, stop.z or here.z)):length()
-  if (stop.through and d < 15) or (d < STOP_RADIUS and v:getVelocity():length() < 2) then
+  if (stop.through and d < 15) or (d < (stop.radius or STOP_RADIUS) and v:getVelocity():length() < 2) then
     if j.leg == 1 then
       if j.car then
         local veh = spawnJobCar(j, stop)
