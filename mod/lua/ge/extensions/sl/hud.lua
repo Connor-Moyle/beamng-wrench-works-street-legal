@@ -105,6 +105,24 @@ end
 local fastTimer, damageTimer, sendTimer = 0, 0, 0
 local shown = false
 
+-- with the dashboard on, the game's own rev counter and damage app make way for it: the career
+-- uses the 'streetLegal' app layout (settings/ui_apps/originalLayouts/default/streetLegal.uilayout.json)
+-- (checked against the layout in use, as walking and the garage set their own and hand back 'freeroam')
+local layoutSet, layoutTimer = nil, 0
+local function useLayout(dt)
+  layoutTimer = layoutTimer + dt
+  if layoutTimer < 0.5 or not core_gamestate or not core_gamestate.setGameState then return end
+  layoutTimer = 0
+  local current = core_gamestate.state and core_gamestate.state.appLayout
+  local career = sl_career and sl_career.isActive and sl_career.isActive()
+  if career and M.getSettings().enabled then
+    if current == 'freeroam' then core_gamestate.setGameState('freeroam', 'streetLegal') layoutSet = true end
+  elseif layoutSet and current == 'streetLegal' then
+    core_gamestate.setGameState('freeroam', 'freeroam')
+    layoutSet = nil
+  end
+end
+
 local function wanted()
   local s = M.getSettings()
   if not s.enabled then return nil end
@@ -119,6 +137,7 @@ local function wanted()
 end
 
 function M.onUpdate(dtReal)
+  useLayout(dtReal)
   local v = wanted()
   if not v then
     if shown then shown = false guihooks.trigger('slHud', { show = false }) end
@@ -145,7 +164,7 @@ function M.onUpdate(dtReal)
 end
 
 function M.request() mapSent = false sendSettings() end
-function M.onClientEndMission() mapSent, shown, carId, car = false, false, nil, {} end
+function M.onClientEndMission() mapSent, shown, carId, car, layoutSet = false, false, nil, {}, nil end
 function M.onClientPostStartMission() mapSent = false end
 M.onStreetLegalStarted = function() mapSent = false end
 
