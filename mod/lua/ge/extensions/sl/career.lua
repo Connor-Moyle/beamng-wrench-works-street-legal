@@ -644,8 +644,10 @@ function M.onSlrrRaceOffer(missionId, req)
 end
 
 -- the circuits and venues the map lists, for the garage's Tracks list (nil: an older map)
+-- (only once the map's circuit missions put our racer's own car on the grid: slrrValoRaces.circuitOpponents;
+-- before that the stock race brings its own cars, and Street Legal's own track race is used instead)
 function M.tracksList()
-  if not missionRaces() then return nil end
+  if not missionRaces() or not slrrValoRaces.circuitOpponents then return nil end
   return trackList
 end
 
