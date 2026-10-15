@@ -517,4 +517,44 @@ do
   check('premium by fleet value', bank.premium(0) == 100 and bank.premium(20000) == 400)
 end
 
+-- clubs, leagues and the season (X20/X5)
+do
+  local clubs = require('sl/core/clubs')
+  check('classes by PS per tonne', clubs.classOf(100, 1300) == 'D' and clubs.classOf(150, 1300) == 'C' and clubs.classOf(220, 1300) == 'B'
+    and clubs.classOf(300, 1300) == 'A' and clubs.classOf(500, 1300) == 'S')
+  local roster = {}
+  for i = 1, 30 do roster[i] = { id = 'r' .. i, tier = (i % 5) + 1, skill = 0.2 + (i % 5) * 0.15 } end
+  local m1 = clubs.members(roster, 1)
+  check('club 1 has tiers 1-2 only', #m1 > 0 and (function() for _, r in ipairs(m1) do if r.tier > 2 then return false end end return true end)())
+  local races = {}
+  for i = 1, 18 do races[#races + 1] = { id = i, missionId = 'n' .. i, name = 'Night ' .. i, kind = 'night' } end
+  for i = 1, 5 do races[#races + 1] = { id = 'v' .. i, missionId = 'v' .. i, name = 'Venue ' .. i, kind = 'venue' } end
+  local cal = clubs.calendar(races, rngLib.new(4))
+  local nights, ok = {}, true
+  for d = 1, clubs.SEASON_DAYS do
+    if not cal[d].night or not cal[d].day then ok = false end
+    if cal[d].night then if nights[cal[d].night.id] then ok = false end nights[cal[d].night.id] = true end
+  end
+  check('a week of events, no night race twice', ok and cal[7].finale and not cal[1].finale)
+  check('points, doubled at the finale', clubs.points(1) == 10 and clubs.points(1, true) == 20 and clubs.points(9) == 1 and clubs.points(nil) == 0)
+  -- the faster driver wins more often (and the player can be slotted in); seeded as the game seeds it (a hash)
+  local fast, slow = { id = 'fast', skill = 0.9 }, { id = 'slow', skill = 0.3 }
+  local wins = 0
+  for seed = 1, 200 do if clubs.simulate({ fast, slow }, rngLib.new(rngLib.hash('ev' .. seed)))[1] == 'fast' then wins = wins + 1 end end
+  check('a better driver wins most, not all', wins > 180)
+  local mid = { id = 'mid', skill = 0.55 }
+  local upsets = 0
+  for seed = 1, 400 do if clubs.simulate({ mid, { id = 'b', skill = 0.6 } }, rngLib.new(rngLib.hash('ev' .. seed)))[1] == 'mid' then upsets = upsets + 1 end end
+  check('close drivers trade wins (the slower one 10-50 %)', upsets > 40 and upsets < 200)
+  local order = clubs.simulate({ fast, slow }, rngLib.new(1), 2)
+  check('the player takes their place', order[2] == 'player' and #order == 3)
+  local st = clubs.score({}, { 'a', 'player', 'b' })
+  check('standings', st.a == 10 and st.player == 6 and st.b == 4 and clubs.placeOf(st, 'player') == 2)
+  check('skipping costs nothing but points', clubs.score(st, { 'a', 'b' }).player == 6)
+  local money, rep, invited = clubs.seasonReward(2, 1)
+  check('a champion is paid and invited', money == 3000 and rep == 250 and invited)
+  check('4th gets nothing', select(1, clubs.seasonReward(2, 4)) == 0 and not select(3, clubs.seasonReward(2, 4)))
+  check('purse by place', clubs.purse(1, 1) == 300 and clubs.purse(1, 2) == 150 and clubs.purse(1, 4) == 0)
+end
+
 print(string.format('lua tests passed: %d checks', passed))
