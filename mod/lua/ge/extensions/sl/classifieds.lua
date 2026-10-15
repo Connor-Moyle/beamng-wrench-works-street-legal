@@ -30,6 +30,10 @@ local function state(s)
   return s.market
 end
 
+-- what a shelf part is worth to a buyer: its value, but never more than the shop charges for it (Wrench Works'
+-- price setting can make parts cheap; then buying new to sell here must not pay)
+local function worth(it) return math.min(it.value or 0, it.price or it.value or 0) end
+
 local NAMES = { 'Dave', 'Kenny', 'Mirela', 'Gabor', 'Big Tony', 'Sanja', 'Rudi', 'Lex', 'Old Man Fekete', 'Zsofi', 'Marco', 'Petra' }
 
 -- parts of a model with their values (BeamNG's jbeam), cached per model
@@ -231,7 +235,7 @@ function M.summary()
         for _, it in ipairs(slrr_garage.shelfItems(c.model) or {}) do
           if L.canList(it) and #out.shelf < 12 then
             out.shelf[#out.shelf + 1] = { model = c.model, id = it.id, name = it.name,
-              estimate = math.floor(L.resaleCap(it.value or 0, L.condition(it)) / 10) * 10 }
+              estimate = math.floor(L.resaleCap(worth(it), L.condition(it)) / 10) * 10 }
           end
         end
       end
@@ -304,7 +308,7 @@ function M.listPart(model, itemId, channel)
   local item = slrr_garage.takeShelfItem(model, copy.id)
   if not item then return false, 'Not while you are in the garage.' end
   local t = now(s)
-  local y = { id = 'y' .. m.nextId, model = model, name = copy.name, value = copy.value or 0, condition = L.condition(copy),
+  local y = { id = 'y' .. m.nextId, model = model, name = copy.name, value = worth(copy), condition = L.condition(copy),
     channel = channel == 'auction' and 'auction' or 'app', item = item, offers = {}, listed = t }
   m.nextId = m.nextId + 1
   if y.channel == 'auction' then y.bid, y.expires = 0, t + L.CHANNELS.auction.life end
