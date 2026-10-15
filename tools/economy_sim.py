@@ -65,6 +65,9 @@ JOBS = [
     ('recovery', 300, False, lambda r: (round(200 + r.uniform(500, 2500) / 1000 * 150, -1), 0.05), lambda r, d=None: 2.5 + r.uniform(500, 2500) / 8 / 60, 6),
     ('test driver', 600, False, lambda r: (round(TUNE['test_top'] - (r.uniform(1.15, 1.35) - 1.15) * TUNE['test_slope'], -2), 0.3), lambda r, d=None: 6.0, 6),
     ('hot car (night)', 1000, True, lambda r: (TUNE['hot_base'] + round(r.uniform(1000, 3000) / 1000 * TUNE['hot_per_km'], -2), 0.25), lambda r, d=None: 3 + r.uniform(1000, 3000) / CITY_SPEED / 60, 6),
+    # suspected loop (review, B31): a quarter-mile "tune to spec" with the baseline run driven slowly on purpose, then a
+    # $20 part and a real run: core/wwjobs pays the tier's purse plus the under-budget bonus for two strip runs
+    ('tune sandbag (B31)', 500, False, lambda r: (round(r.choice([500, 900, 1500, 2200, 3000][:1 + min(4, int(r.random() * 5))]) * 1.2, -1) - 20, 0.1), lambda r, d=None: 8 + r.uniform(0, 4), 6),
 ]
 
 class Player:
@@ -227,6 +230,12 @@ class Player:
         repairs = max(0.0, (0.9 - c) * v / 3)
         sale = min(v * (0.25 + 0.45 * 0.9), 0.9 * price + 1.35 * repairs)
         if self.r.random() < 0.5: sale *= 1.15        # rebuilt with no fault left in it (about half the wrecks): the premium
+        else:
+            # suspected loop (review, B25): a fault is cleared the moment a part whose slot path names it is *bought*, and
+            # the part sells back at sellFactor, so every fault is worth 5 % of the car's value for a cheap part
+            faults = self.r.randint(1, 3)
+            wash = v * 0.05 * faults - 60 * faults
+            self.book('fault wash (B25)', wash, 2 * faults); sale += wash
         profit = sale - price - repairs
         minutes = self.r.uniform(25, 45)
         bonus = 0

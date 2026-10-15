@@ -716,6 +716,7 @@ function M.trackRace(racerId, trackId)
   local v = playerCar()
   if not v or not sl_fleet.currentCar() then return false, 'Bring your own car.' end
   local bet = math.floor(((racer.betMin or 100) + (racer.betMax or 300)) / 2 / 50) * 50
+  if bet > s.money then return false, string.format('$%d on it, and you have $%d.', bet, s.money) end   -- (recordRace only takes what you have: a free roll otherwise)
   busy = true
   core_jobsystem.create(function(job)
     guihooks.trigger('slFade', { on = true, pic = 'loading_roc_track.png' })

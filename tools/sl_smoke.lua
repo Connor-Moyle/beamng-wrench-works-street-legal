@@ -78,7 +78,7 @@ check('jobs: give up costs 5 rep', function()
   local ok = sl_jobs.take(j.id)
   if not ok then return false, 'take failed' end
   sl_jobs.giveUp()
-  return rep() == r0 - 5 and not js().active, string.format('rep %d -> %d', r0, rep())
+  return rep() == math.max(0, r0 - 5) and not js().active, string.format('rep %d -> %d', r0, rep())
 end)
 for _, kind in ipairs({ 'part', 'courier', 'taxi', 'food', 'crush', 'transport', 'hot', 'testdrive', 'recovery', 'valet' }) do
   check('job: ' .. kind, runJob(kind))
@@ -564,6 +564,20 @@ end)
 check('tracks: the venue list', function()
   local n = #(sl_streets.tracks() or {})
   return n >= 10, n .. ' venues'
+end)
+
+-- a track race is refused when the bet is more than you have (B33: recordRace only ever took what you had)
+check('tracks: a bet you cannot cover is refused', function()
+  local st = sl_career.getState()
+  local track = (sl_streets.tracks() or {})[1]
+  local racer = st.racers[1]
+  if not track or not racer or not sl_fleet.currentCar() then return nil, 'no track, racer or own car' end
+  local keep = money() - 50
+  if keep > 0 then sl_career.addMoney(-keep, 'smoke: money aside') end
+  local ok, text = sl_streets.trackRace(racer.id, track.id)
+  if keep > 0 then sl_career.addMoney(keep, 'smoke: money back') end
+  if ok then sl_streets.forfeit() end
+  return not ok and tostring(text):find('%$'), tostring(text)
 end)
 
 -- the used-car market (X12): a car sold on Revline leaves the world with its record (B24). Last: it sells the car
