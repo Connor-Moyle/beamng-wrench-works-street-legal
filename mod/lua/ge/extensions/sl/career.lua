@@ -608,6 +608,21 @@ function M.racersForRace(raceId, count)
   return out
 end
 
+-- a pink slip won: the map hands the car over out of the player's sight; it is driven to your garage's
+-- forecourt (as it is, dents and all), its driver gets out, and it is in My cars
+function M.onSlrrPinkCarDelivered(vid)
+  local veh = active and getObjectByID(vid)
+  if not veh or not sl_fleet or sl_fleet.carOfVehicle(vid) then return end
+  local won = M._pinkWon or {}
+  M._pinkWon = nil
+  if slrrDrivers and slrrDrivers.setDriver then slrrDrivers.setDriver(vid, nil) end
+  veh:queueLuaCommand('ai.setMode("disabled")')
+  local pos, rot = sl_fleet.forecourt(s, #s.cars % 6)
+  if pos then spawn.safeTeleport(veh, pos, rot, true, nil, nil, nil, false) end     -- (8th: resetVehicle would repair it)
+  sl_fleet.registerVehicle(vid, { name = won.name or veh:getJBeamFilename(), condition = 0.85 })
+  M.sendText('benny', string.format('Your new %s is outside the garage. Won fair and square.', won.name or 'car'), 2)
+end
+
 -- the map's race code tells us how a race went (see docs/integration.md):
 -- r = { won, stake = 'money'|'pink', bet, raceId, opponent = name }
 function M.onSlrrRaceFinished(r)
@@ -633,10 +648,9 @@ function M.onSlrrRaceFinished(r)
   end
   -- an abandoned pink-slip race (false start, out of time, the opponent gone) costs no car: the map leaves it with you
   if r.stake == 'pink' and sl_fleet and not r.abandoned then
-    local v = getPlayerVehicle(0)
-    if r.won and v and not sl_fleet.carOfVehicle(v:getID()) then
-      -- you are sitting in their car: it is yours
-      sl_fleet.registerVehicle(v:getID(), { name = r.opponent and (r.opponent .. "'s car") or v:getJBeamFilename(), condition = 0.85 })
+    if r.won then
+      -- their car is yours: the map stops it and, once out of sight, hands it over (onSlrrPinkCarDelivered)
+      M._pinkWon = { name = r.opponent and (r.opponent .. "'s car") or nil, vid = r.opponentVid }
       s.stats.pinksWon = s.stats.pinksWon + 1
     elseif not r.won then
       local gone = sl_fleet.lastGone
