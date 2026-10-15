@@ -107,6 +107,14 @@ function M.onWrenchWorksRepaired(vid, cost)
   if car and tonumber(cost) then car.repaired = (car.repaired or 0) + tonumber(cost) end
 end
 
+-- a new part in the garage: a fault in that place is put right (it shows in what the car fetches)
+function M.onWrenchWorksPartBought(vid, slotPath)
+  local s = career()
+  local car = s and carById(s, M.carOfVehicle(vid))
+  if not car or not car.faults then return end
+  for i = #car.faults, 1, -1 do if market.fixes(car.faults[i], slotPath) then table.remove(car.faults, i) end end
+end
+
 -- the garage put somebody else behind the wheel (SLRR Drivers mod): it stays with the car
 function M.onWrenchWorksDriverChanged(vid, driverId)
   local s = career()

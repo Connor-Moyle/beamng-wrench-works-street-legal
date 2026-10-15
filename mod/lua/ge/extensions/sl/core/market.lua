@@ -22,6 +22,15 @@ M.CONDITIONS = {
 -- what can be wrong with it; the car is built without these (or with them damaged)
 M.FAULTS = { 'engine', 'gearbox', 'radiator', 'battery', 'tyres', 'brakes', 'exhaust' }
 
+-- a fault is put right by a new part in its place (a slot path, as Wrench Works reports a part bought)
+M.FAULT_SLOTS = { engine = { 'engine' }, gearbox = { 'transmission', 'gearbox' }, radiator = { 'radiator' }, battery = { 'battery' },
+  tyres = { 'tire', 'tyre' }, brakes = { 'brake' }, exhaust = { 'exhaust' } }
+function M.fixes(fault, slotPath)
+  slotPath = tostring(slotPath or ''):lower()
+  for _, key in ipairs(M.FAULT_SLOTS[fault] or {}) do if slotPath:find(key, 1, true) then return true end end
+  return false
+end
+
 local function weightedPick(rng, list)
   local total = 0
   for _, c in ipairs(list) do total = total + c.weight end

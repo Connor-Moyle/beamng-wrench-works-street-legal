@@ -190,6 +190,7 @@ do
   check('brought back to 0.9 yourself: the premium', rebuilt(4100) > rebuilt(3900) * 1.1)
   check('no premium with a fault still in it', rebuilt(4100, { 'radiator' }) < rebuilt(3900, { 'radiator' }) * 1.1)
   check('no premium for a car bought good (no loop)', not market.rebuilt({ value = 20000, condition = 0.95, faults = {}, boughtFor = 20000, repaired = 500 }))
+  check('a new part puts its fault right', market.fixes('gearbox', '/main/transmission_6M') and market.fixes('tyres', '/wheel_FR/tire_FR') and not market.fixes('radiator', '/main/exhaust'))
   check('a pink slip won (nothing paid) sells at the going rate', market.resaleValue({ value = 20000, condition = 0.5 }) > 5000)
 end
 
