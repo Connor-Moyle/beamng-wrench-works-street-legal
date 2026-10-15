@@ -254,6 +254,7 @@ phone.handle('slPhoneData', { active: false });
 assert.ok(!$('.slp-device'), 'gone when the career stops');
 
 // the gas station: pick a grade, fill up, buy into the trunk
+phone.handle('slPhoneData', data);
 calls.length = 0;
 phone.handle('slStation', { open: true, name: 'South Gas', money: 900, car: 'Covet', tank: 0.25, inTank: 'Regular 91', litresToFull: 33,
   fuels: [{ id: 'regular', name: 'Regular 91', price: 1.45 }, { id: 'race', name: 'Race 102', price: 3.2 }],
