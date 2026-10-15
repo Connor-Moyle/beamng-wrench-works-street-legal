@@ -41,6 +41,23 @@ end
 
 local function isChosen(node) return node.chosenPartName ~= nil and node.chosenPartName ~= '' end
 
+-- The drive layout stays as built (seen in game: an upgrade picked a rear-drive transfer case for a
+-- 4WD car and its front driveshaft had nothing to fit to). Slots that set it are never touched, and
+-- no part is swapped for one whose name says another layout.
+local LAYOUT_SLOTS = { 'transfercase', 'transfer_case', 'driveshaft', 'halfshaft', 'transaxle' }
+local function layoutSlot(id)
+  id = tostring(id or ''):lower()
+  for _, w in ipairs(LAYOUT_SLOTS) do if id:find(w, 1, true) then return true end end
+  return false
+end
+local function layoutOf(name)
+  name = tostring(name or ''):lower()
+  for _, w in ipairs({ 'awd', '4wd', 'rwd', 'fwd', '2wd', '4x4' }) do
+    if name:find(w, 1, true) then return (w == '4x4' or w == '4wd') and 'awd' or w end
+  end
+end
+M.layoutOf = layoutOf
+
 local function hits(text, words)
   text = tostring(text or ''):lower()
   local n = 0
@@ -86,11 +103,13 @@ function M.apply(tree, opts)
         child.chosenPartName, child.partPath, child.children, child.decisionMethod = '', nil, nil, 'user-empty'
       elseif not strip[key] then
         do
-          if wanted[key] and type(child.suitablePartNames) == 'table' and #child.suitablePartNames > 0 then
+          if wanted[key] and not layoutSlot(child.id) and type(child.suitablePartNames) == 'table' and #child.suitablePartNames > 0 then
             -- the best two by score; the seed decides between them, so two builds of one car differ a little
             local ranked = {}
+            local layout = isChosen(child) and layoutOf(child.chosenPartName)
             for _, name in ipairs(child.suitablePartNames) do
-              if name ~= '' then ranked[#ranked + 1] = { name = name, score = score(name) } end
+              local other = layoutOf(name)
+              if name ~= '' and not (layout and other and other ~= layout) then ranked[#ranked + 1] = { name = name, score = score(name) } end
             end
             table.sort(ranked, function(a, b) if a.score ~= b.score then return a.score > b.score end return a.name < b.name end)
             local current = isChosen(child) and score(child.chosenPartName) or 0

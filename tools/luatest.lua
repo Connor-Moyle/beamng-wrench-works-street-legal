@@ -315,6 +315,26 @@ do
   builds.apply(b, { stage = 3, classify = classify, valueOf = valueOf, rng = rngLib.new(7) })
   check('the same seed builds the same car', a.children.wheel_F.chosenPartName == b.children.wheel_F.chosenPartName and a.children.wing.chosenPartName == b.children.wing.chosenPartName)
   check('nicknames repeat by seed', builds.nickname(42) == builds.nickname(42) and type(builds.nickname(42)) == 'string')
+
+  -- the drive layout is never changed: a 4WD car keeps its transfer case and 4WD diffs
+  local function awdTree()
+    return { chosenPartName = 'car', children = {
+      transfercase = { id = 'car_transfercase', path = '/tc/', chosenPartName = 'transfercase_4wd', suitablePartNames = { 'transfercase_4wd', 'transfercase_rwd_race' } },
+      diff = { id = 'car_differential_R', path = '/d/', chosenPartName = 'diff_R_4wd_open', suitablePartNames = { 'diff_R_4wd_open', 'diff_R_4wd_lsd', 'diff_R_rwd_race_locker' } },
+      gearbox = { id = 'car_transmission', path = '/g/', chosenPartName = 'gearbox_5M', suitablePartNames = { 'gearbox_5M', 'gearbox_6M_race' } } } }
+  end
+  local function classify2(id)
+    if id:find('differential') then return 'running', 'differentials' end
+    if id:find('transfer') or id:find('transmission') then return 'engine', 'transmission' end
+    return 'other', 'other'
+  end
+  local function value2(name) return (name:find('race') and 9000 or 0) + (name:find('lsd') and 3000 or 0) + 100 end
+  local w = awdTree()
+  builds.apply(w, { stage = 'race', classify = classify2, valueOf = value2 })
+  check('the transfer case is left alone', w.children.transfercase.chosenPartName == 'transfercase_4wd')
+  check('a 4WD diff only becomes a better 4WD diff', w.children.diff.chosenPartName == 'diff_R_4wd_lsd', w.children.diff.chosenPartName)
+  check('a gearbox with no layout in its name can still be upgraded', w.children.gearbox.chosenPartName == 'gearbox_6M_race')
+  check('layout words read from names', builds.layoutOf('x_4WD_y') == 'awd' and builds.layoutOf('rwd_race') == 'rwd' and builds.layoutOf('plain') == nil)
   local p = builds.paints(42, false)
   check('three paint slots with colours', #p == 3 and #p[1].baseColor == 4 and p[1].metallic >= 0)
 
