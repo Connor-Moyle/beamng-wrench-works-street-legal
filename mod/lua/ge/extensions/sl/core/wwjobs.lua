@@ -151,7 +151,7 @@ end
 M.SALVAGE = { { slot = 'radiator', text = 'a radiator' }, { slot = 'seat', text = 'a seat' }, { slot = 'headlight', text = 'a headlight' },
   { slot = 'exhaust', text = 'an exhaust' }, { slot = 'taillight', text = 'a tail light' }, { slot = 'mirror', text = 'a mirror' },
   { slot = 'door', text = 'a door' }, { slot = 'hood', text = 'a bonnet' } }
-M.FINDER_FEE = 60       -- per part
+M.FINDER_FEE = 90       -- per part (the only pay: Wrench Works pays nothing for parts off a job car)
 M.SCAVENGE_SECONDS = 1800
 
 function M.scavengeList(rng)

@@ -40,7 +40,7 @@ local REPAIR = { kind = 'repair', title = 'Repair ticket', unlock = 150, settle 
   end }
 
 -- #9 scavenging: the scrapyard lets you have a wreck; take it to your garage, pull the parts on the list and
--- sell them over the counter (Wrench Works pays their resale), and the yard pays a finder's fee for the lot
+-- sell them over the counter (they're the yard's: Wrench Works pays nothing for parts off a job car), and the yard pays a finder's fee for the lot
 local SCAVENGE = { kind = 'scavenge', title = 'Scavenging', unlock = 0, settle = 'ww', offer = function(ctx, rng)
     local yard = ctx.byId.scrapyard
     if not yard or not ctx.garage then return nil end
@@ -178,6 +178,10 @@ end
 function M.onUpdate()
   register()
   local _, _, j = active()
+  if j and j.carVid and not j.marked and slrr_garage and slrr_garage.markJobCar then
+    slrr_garage.markJobCar(j.carVid)      -- not yours: its parts sell for nothing in Wrench Works
+    j.marked = true
+  end
   if j and j.kind == 'repair' and j.carVid and not j.removed then emptyTicketSlots(j) end
   if j and j.kind == 'scavenge' and j.carVid and not j.checked then checkWreck(j) end
   if leaving and (not slrr_garage or not slrr_garage.getPhase or slrr_garage.getPhase() == 'idle') then
