@@ -901,6 +901,7 @@
     // away or a hidden panel never takes the focus), the pages scroll on the right stick, and the focus survives
     // a re-render (the same button again, else the first one).
     var focusKey = null;
+    var padAt = 0;          // the last pad input: only then does the phone take the focus (mouse and keyboard keep theirs)
     function keyOf(el) { return el && el.getAttribute ? (el.getAttribute('data-a') || '') + '|' + (el.getAttribute('data-v') || '') : null; }
     function navify(key) {
       var device = layer.querySelector('.slp-device');
@@ -922,13 +923,15 @@
       for (var j = 0; j < pages.length; j++) pages[j].setAttribute('bng-nav-scroll', '');
       var active = doc.activeElement;
       var inside = active && layer.contains(active) && active.hasAttribute && active.hasAttribute('bng-nav-item');
-      var target = again || (!inside ? (st.open ? first : panel) : null);
+      var padding = Date.now() - padAt < 15000;
+      var target = again || (padding && !inside ? (st.open ? first : panel) : null);
       if (target && target !== active && target.focus) target.focus();
     }
-    doc.addEventListener('focusin', function (ev) { if (layer.contains(ev.target)) focusKey = keyOf(ev.target); }, true);
+    doc.addEventListener('focusin', function (ev) { focusKey = layer.contains(ev.target) ? keyOf(ev.target) : null; }, true);   // (elsewhere: leave it there)
     // B on the pad: back a page (and put the phone away from its home screen) instead of opening the game's menu
     (doc.defaultView || doc).addEventListener('ui_nav', function (ev) {      // (window capture: before the game's document handler)
       var d = ev.detail || {};
+      padAt = Date.now();
       if (!st.open || d.name !== 'back' || d.value !== 1) return;
       back();
       if (ev.stopImmediatePropagation) ev.stopImmediatePropagation();
