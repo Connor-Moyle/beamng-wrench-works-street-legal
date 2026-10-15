@@ -34,18 +34,24 @@ function M.onGameplaySelectorGetDetails(itemDetails, details, buttonInstance, ba
     { icon = 'personSolid', label = 'Career', value = summary or 'No career yet' },
   }
   local buttons = {}
-  local function start(fresh)
+  local function start(fresh, n)
     return function()
       backend.trackRecent(itemDetails.key)
       extensions.ui_router.navigate('play')
-      sl_career.start(fresh)
+      sl_career.start(fresh, n)
     end
   end
   if installed and sl_career then
     if summary then
       buttons[#buttons + 1] = buttonInstance.addButton(start(false), { label = 'Continue', icon = 'clapperboard', primary = true, isDoubleClickAction = true, waitForLoadingScreen = true })
     end
-    buttons[#buttons + 1] = buttonInstance.addButton(start(true), { label = summary and 'New career (the old one is lost)' or 'New career', icon = 'flag',
+    -- the other careers (save slots); renaming and deleting are on the main menu's career chooser
+    for _, c in ipairs(sl_career.listSlots and sl_career.listSlots() or {}) do
+      if not c.last then
+        buttons[#buttons + 1] = buttonInstance.addButton(start(false, c.slot), { label = 'Load ' .. c.name .. (c.summary and (' (' .. c.summary .. ')') or ''), icon = 'clapperboard', waitForLoadingScreen = true })
+      end
+    end
+    buttons[#buttons + 1] = buttonInstance.addButton(start(true), { label = 'New career', icon = 'flag',
       primary = not summary, isDoubleClickAction = not summary, waitForLoadingScreen = true })
   end
   details[#details + 1] = {
@@ -71,7 +77,8 @@ local function send(force)
   local inMenu = not (getCurrentLevelIdentifier and getCurrentLevelIdentifier())
   if inMenu == shown and not force then return end
   shown = inMenu
-  guihooks.trigger('slMenu', { show = inMenu, installed = levelInstalled(), summary = sl_career and sl_career.saveSummary() or nil })
+  guihooks.trigger('slMenu', { show = inMenu, installed = levelInstalled(), summary = sl_career and sl_career.saveSummary() or nil,
+    slots = sl_career and sl_career.listSlots and sl_career.listSlots() or {}, maxSlots = sl_career and sl_career.SLOTS })
 end
 
 function M.onUpdate(dtReal)
@@ -82,12 +89,16 @@ end
 function M.request() send(true) end
 M.onUiReady = function() send(true) end
 
-function M.startFromMenu(fresh)
+function M.startFromMenu(fresh, n)
   if not sl_career or not levelInstalled() then return end
   guihooks.trigger('slMenu', { show = false })
   shown = false
-  sl_career.start(fresh == true)
+  sl_career.start(fresh == true, n)
 end
+
+-- the chooser's slot buttons
+function M.renameSlot(n, name) if sl_career then sl_career.renameSlot(n, name) end send(true) end
+function M.deleteSlot(n) if sl_career then sl_career.deleteSlot(n) end send(true) end
 
 -- the Gameplay screen builds its list once; have it look again now that this tile is here
 function M.onExtensionLoaded()

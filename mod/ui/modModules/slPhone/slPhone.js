@@ -204,6 +204,8 @@
     '.slp-chcard span{margin-top:8px;font-size:14px;color:#c9c5c0;line-height:1.45;flex:1}',
     '.slp-chcard.slp-chsl{border-left-color:#ff2a6d;background:linear-gradient(160deg,rgba(46,22,40,.96),rgba(14,10,20,.96))}',
     '.slp-chcard.slp-chsl b{color:#ff8a2a}',
+    '.slp-slots{max-height:180px;overflow-y:auto;margin:6px 0}.slp-slot{padding:6px 0;border-top:1px solid rgba(255,255,255,.12)}.slp-slot span{display:block;opacity:.8}',
+    '.slp-slotname{width:110px;background:rgba(0,0,0,.35);color:#fff;border:1px solid rgba(255,255,255,.25);border-radius:4px;padding:2px 6px}',
     '.slp-chcard .slp-btn{margin-top:8px;border-radius:4px;font-family:"Overpass","Roboto",sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:.4px}',
     '.slp-chcard .slp-go{background:#ff6600;color:#1d0d00}',
     '.slp-chback .slp-btn{border-radius:4px;background:rgba(40,40,46,.92);color:#fff;padding:8px 22px}',
@@ -678,6 +680,19 @@
         (r.ahead != null ? '<i class="' + (r.ahead ? 'slp-ahead' : 'slp-behind') + '">' + (r.ahead ? 'Ahead' : 'Behind') + '</i>' : '') + '</div>';
     }
 
+    // the careers saved (X52): play, rename, delete (twice to be sure); each keeps its own backup
+    function slotsHtml(m) {
+      var list = arr(m.slots);
+      if (list.length < 2 && !st.slotEdit) return list.length ? '<div class="slp-btn slp-text" data-a="slotedit" data-v="1">Manage careers</div>' : '';
+      return '<div class="slp-slots">' + list.map(function (c) {
+        return '<div class="slp-slot"><b>' + esc(c.name) + (c.last ? ' &middot; last played' : '') + '</b><span>' + esc(c.summary || '') + '</span>' +
+          '<div class="slp-acts"><div class="slp-btn slp-text" data-a="slotplay" data-v="' + c.slot + '">Play</div>' +
+          '<input class="slp-slotname" data-slot="' + c.slot + '" value="' + esc(c.name) + '" maxlength="32">' +
+          '<div class="slp-btn slp-text" data-a="slotname" data-v="' + c.slot + '">Rename</div>' +
+          '<div class="slp-btn slp-text" data-a="slotdel" data-v="' + c.slot + '">' + (st.slotDel === c.slot ? 'Sure? Delete' : 'Delete') + '</div></div></div>';
+      }).join('') + '</div>';
+    }
+
     // the main menu's own Career button opens this: the game's career, or Wrench Works: Street Legal
     function menuView() {
       var m = st.menu;
@@ -686,8 +701,11 @@
         ? '<div class="slp-chcard slp-chsl slp-off"><b>Wrench Works: Street Legal</b><span>Needs the Wrench Works: Valo City map (slrr_valo_city). Switch it on under Mods.</span></div>'
         : '<div class="slp-chcard slp-chsl"><b>Wrench Works: Street Legal</b>' + (st.slrrArt ? slrrIcon(m.summary ? 'load_career_a.png' : 'new_career_a.png', 'slp-chimg') : '') + '<span>' + (m.summary ? 'Your career: ' + esc(m.summary) : 'Valo City at night. No car, $5,000 and a name nobody knows. Junkyard wrecks, street racers, pink slips and the ROC.') + '</span>' +
           (m.summary ? '<div class="slp-btn slp-go" data-a="menustart" data-v="continue">Continue</div>' : '') +
-          '<div class="slp-btn' + (m.summary ? ' slp-tonal' : ' slp-go') + '" data-a="menustart" data-v="new">' + (m.summary ? 'New career (replaces this one)' : 'New career') + '</div>' +
-          '<div class="slp-btn slp-tonal" data-a="menustart" data-v="newskip">' + (m.summary ? 'New career, no tutorial (replaces this one)' : 'New career, no tutorial') + '</div></div>';
+          slotsHtml(m) +
+          (arr(m.slots).length < (m.maxSlots || 6)
+            ? '<div class="slp-btn' + (m.summary ? ' slp-tonal' : ' slp-go') + '" data-a="menustart" data-v="new">New career</div>' +
+              '<div class="slp-btn slp-tonal" data-a="menustart" data-v="newskip">New career, no tutorial</div>'
+            : '<span>Every career slot is taken: delete one to start another.</span>') + '</div>';
       return '<div class="slp-chooser"><div class="slp-chbox"><h1>Career</h1><div class="slp-chcards">' +
         '<div class="slp-chcard" data-a="chooser" data-v="beamng"><b>BeamNG Career</b><span>The game\'s own career mode: jobs, missions, your garage and vehicles.</span></div>' +
         sl + '</div><div class="slp-chback"><div class="slp-btn slp-text" data-a="chooser" data-v="close" style="display:inline-block">Back</div></div></div></div>';
@@ -851,9 +869,17 @@
         case 'roc': lua('enterRoc()'); setOpen(false); break;
         case 'lot': if (/^[a-zA-Z]+\(\)$/.test(v)) lua('@sl_lot.' + v); break;
         case 'meet': var parts = String(v).split('|'); lua('@sl_streets.meetChallenge(' + JSON.stringify(parts[0]) + ',' + JSON.stringify(parts[1]) + ')'); break;
+        case 'slotedit': st.slotEdit = true; render(); break;
+        case 'slotplay': lua('@sl_menuTile.startFromMenu(false,' + Number(v) + ')'); st.menu = null; st.chooser = false; render(); break;
+        case 'slotname':
+          var inp = root.querySelector('.slp-slotname[data-slot="' + Number(v) + '"]');
+          if (inp) lua('@sl_menuTile.renameSlot(' + Number(v) + ',' + JSON.stringify(String(inp.value || '')) + ')');
+          break;
+        case 'slotdel':
+          if (st.slotDel !== Number(v)) { st.slotDel = Number(v); toast('Click again to delete that career for good.'); render(); break; }
+          st.slotDel = null; lua('@sl_menuTile.deleteSlot(' + Number(v) + ')');
+          break;
         case 'menustart':
-          if ((v === 'new' || v === 'newskip') && st.menu && st.menu.summary && !st.confirmNew) { st.confirmNew = true; toast('Click again to start over: the career you have is lost.'); break; }
-          st.confirmNew = false;
           if (v === 'newskip') lua('@sl_tutorial.skipNextCareer()');
           lua('@sl_menuTile.startFromMenu(' + (v === 'new' || v === 'newskip' ? 'true' : 'false') + ')');
           st.menu = null; st.chooser = false; render();

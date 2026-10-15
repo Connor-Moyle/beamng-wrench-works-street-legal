@@ -19,7 +19,13 @@ local rngLib = require('sl/core/rng')
 local logTag = 'street_legal'
 M.LEVEL = 'slrr_valo_city'
 local SAVE_DIR = '/settings/street_legal/'
-local SAVE_FILE = SAVE_DIR .. 'career.json'
+-- save slots (X52): slot 1 is the original career.json (so the career from before slots is slot 1, untouched),
+-- slot n is careerN.json; their names and the last one played are in slots.json
+M.SLOTS = 6
+local SLOTS_FILE = SAVE_DIR .. 'slots.json'
+local function slotFile(n) return SAVE_DIR .. (n == 1 and 'career.json' or ('career' .. n .. '.json')) end
+local slot = 1
+local SAVE_FILE = slotFile(1)          -- the slot being played; set by M.start
 local PLACES_DIR = '/street_legal/places/'          -- any mod (the map) can bring its places here
 local USER_PLACES = SAVE_DIR .. 'places.json'       -- and the player can add their own
 
@@ -94,25 +100,78 @@ local function writeSave()
   dirty = false
 end
 
-local function readSave()
-  for _, f in ipairs({ SAVE_FILE, SAVE_FILE .. '.new', SAVE_FILE .. '.bak' }) do
+local function readSave(file)
+  file = file or SAVE_FILE
+  for _, f in ipairs({ file, file .. '.new', file .. '.bak' }) do
     local data = FS:fileExists(f) and jsonReadFile(f) or nil
     if type(data) == 'table' then
-      if f ~= SAVE_FILE then log('W', 'sl_career', 'the save was damaged; continuing from ' .. f) end
+      if f ~= file then log('W', 'sl_career', 'the save was damaged; continuing from ' .. f) end
       return stateLib.migrate(data)
     end
   end
   return stateLib.migrate(nil)
 end
 
-function M.hasSave() return FS:fileExists(SAVE_FILE) end
-
--- a line for the menu: "Day 4 - $12,300 - Street kid"
-function M.saveSummary()
-  local data = readSave()
-  if not data then return nil end
-  return string.format('Day %d, $%d, %s', data.day or 1, data.money or 0, (progression.titleFor(data.rep or 0)))
+local function slotsMeta()
+  local m = FS:fileExists(SLOTS_FILE) and jsonReadFile(SLOTS_FILE) or nil
+  if type(m) ~= 'table' then m = {} end
+  m.names = type(m.names) == 'table' and m.names or {}
+  m.last = tonumber(m.last) or 1
+  return m
 end
+local function writeMeta(m)
+  if not FS:directoryExists(SAVE_DIR) then FS:directoryCreate(SAVE_DIR, true) end
+  jsonWriteFile(SLOTS_FILE, m, true)
+end
+local function slotUsed(n) local f = slotFile(n) return FS:fileExists(f) or FS:fileExists(f .. '.bak') end
+
+local function summaryOf(data)
+  return data and string.format('Day %d, $%d, %s', data.day or 1, data.money or 0, (progression.titleFor(data.rep or 0))) or nil
+end
+
+-- every career there is: { { slot, name, summary, last } }
+function M.listSlots()
+  local m, out = slotsMeta(), {}
+  for n = 1, M.SLOTS do
+    if slotUsed(n) then
+      out[#out + 1] = { slot = n, name = m.names[tostring(n)] or ('Career ' .. n), summary = summaryOf(readSave(slotFile(n))), last = m.last == n }
+    end
+  end
+  return out
+end
+
+function M.hasSave() for n = 1, M.SLOTS do if slotUsed(n) then return true end end return false end
+
+-- a line for the menu: "Day 4 - $12,300 - Street kid" (the career played last)
+function M.saveSummary()
+  local m = slotsMeta()
+  local n = slotUsed(m.last) and m.last or nil
+  for i = 1, M.SLOTS do if not n and slotUsed(i) then n = i end end
+  return n and summaryOf(readSave(slotFile(n))) or nil
+end
+
+function M.renameSlot(n, name)
+  n = tonumber(n)
+  if not n or not slotUsed(n) or type(name) ~= 'string' then return false end
+  local m = slotsMeta()
+  name = name:gsub('[%c]', ''):sub(1, 32)
+  m.names[tostring(n)] = name ~= '' and name or nil
+  writeMeta(m)
+  return true
+end
+
+-- a career gone for good (not the one being played): its save, its .new and .bak
+function M.deleteSlot(n)
+  n = tonumber(n)
+  if not n or not slotUsed(n) or (active and n == slot) then return false end
+  for _, f in ipairs({ slotFile(n), slotFile(n) .. '.new', slotFile(n) .. '.bak' }) do if FS:fileExists(f) then FS:removeFile(f) end end
+  local m = slotsMeta()
+  m.names[tostring(n)] = nil
+  writeMeta(m)
+  return true
+end
+
+function M.getSlot() return slot end
 
 function M.getState() return s end
 function M.isActive() return active end
@@ -346,8 +405,22 @@ local function begin()
   log('I', logTag, fresh and 'new career started' or 'career continued')
 end
 
--- from the main menu: a new career (fresh = true) or the saved one
-function M.start(fresh)
+-- from the main menu: a new career (fresh = true, in the first free slot: never over another career) or a saved
+-- one (n, or the one played last)
+function M.start(fresh, n)
+  if active then writeSave() end          -- (the career being played is kept in its own slot first)
+  local m = slotsMeta()
+  n = tonumber(n)
+  if fresh then
+    n = nil
+    for i = 1, M.SLOTS do if not n and not slotUsed(i) then n = i end end
+    if not n then tell(string.format('All %d career slots are taken: delete one first.', M.SLOTS), 6) return false end
+  else
+    n = n or (slotUsed(m.last) and m.last) or 1
+  end
+  slot, SAVE_FILE = n, slotFile(n)
+  m.last = n
+  writeMeta(m)
   s = (not fresh) and readSave() or nil
   if not s then
     s = stateLib.new((os.time() % 1000000) * 31 + math.random(1, 997), now())

@@ -67,13 +67,25 @@ assert.ok(gameCareer === 1 && !text().includes('BeamNG Career'), "the game's own
 pressCareer();
 click('menustart', 'continue');
 assert.ok(calls.includes('@sl_menuTile.startFromMenu(false)') && !text().includes('Day 4'), 'continue');
-phone.handle('slMenu', { show: true, installed: true, summary: 'Day 4, $12300, Street kid' });
+phone.handle('slMenu', { show: true, installed: true, summary: 'Day 4, $12300, Street kid', maxSlots: 6,
+  slots: [{ slot: 1, name: 'Career 1', summary: 'Day 4, $12300, Street kid', last: true }, { slot: 2, name: 'Test', summary: 'Day 1, $5000, Nobody' }] });
 pressCareer();
 calls.length = 0;
+assert.ok(text().includes('Test') && text().includes('last played'), 'the careers are listed');
 click('menustart', 'new');
-assert.ok(!calls.length && text().includes('Click again'), 'starting over asks first');
-click('menustart', 'new');
-assert.ok(calls.includes('@sl_menuTile.startFromMenu(true)'), 'then starts over');
+assert.ok(calls.includes('@sl_menuTile.startFromMenu(true)'), 'a new career goes in a free slot, nothing is lost');
+phone.handle('slMenu', { show: true, installed: true, summary: 'Day 4, $12300, Street kid', maxSlots: 6,
+  slots: [{ slot: 1, name: 'Career 1', summary: 'Day 4', last: true }, { slot: 2, name: 'Test', summary: 'Day 1' }] });
+pressCareer();
+calls.length = 0;
+click('slotdel', '2');
+assert.ok(!calls.length && text().includes('Click again'), 'deleting asks first');
+click('slotdel', '2');
+assert.ok(calls.includes('@sl_menuTile.deleteSlot(2)'), 'then deletes');
+click('slotname', '2');
+assert.ok(calls.includes('@sl_menuTile.renameSlot(2,"Test")'), 'rename sends the typed name');
+click('slotplay', '2');
+assert.ok(calls.includes('@sl_menuTile.startFromMenu(false,2)'), 'play a slot');
 phone.handle('slMenu', { show: true, installed: false });
 pressCareer();
 assert.ok(text().includes('Needs the Wrench Works: Valo City map'), 'tells you when the map is missing');

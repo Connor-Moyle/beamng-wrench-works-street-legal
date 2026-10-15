@@ -263,6 +263,12 @@ check('tow: a city lane near the garage for the truck to drop the car at', funct
   return c ~= nil and sl_tow ~= nil, c and string.format('%.0f m', c.dist) or 'none'
 end)
 
+check('slots: the career being played is one of the saved ones', function()
+  local n, found = sl_career.getSlot(), false
+  for _, c in ipairs(sl_career.listSlots()) do if c.slot == n then found = true end end
+  return found, 'slot ' .. tostring(n)
+end)
+
 -- no freeroam shortcuts in the career (playtest #2, #3)
 check('lockdown: editor, vehicle menus, rewind and teleports blocked; the pause menu has its own mode', function()
   local af = core_input_actionFilter

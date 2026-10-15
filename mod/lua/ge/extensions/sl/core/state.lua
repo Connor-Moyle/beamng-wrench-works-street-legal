@@ -1,6 +1,6 @@
 -- Street Legal: the career save - money, reputation, cars, contacts, messages - and the
 -- book-keeping on it. Pure (tested by tools/luatest.js); the career extension reads and
--- writes it to /settings/street_legal/career.json.
+-- writes it to /settings/street_legal/career.json (slot 1; careerN.json for the other save slots).
 
 local M = {}
 
