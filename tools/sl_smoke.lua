@@ -80,7 +80,7 @@ check('jobs: give up costs 5 rep', function()
   sl_jobs.giveUp()
   return rep() == r0 - 5 and not js().active, string.format('rep %d -> %d', r0, rep())
 end)
-for _, kind in ipairs({ 'part', 'courier', 'taxi', 'food', 'crush', 'transport', 'hot', 'testdrive' }) do
+for _, kind in ipairs({ 'part', 'courier', 'taxi', 'food', 'crush', 'transport', 'hot', 'testdrive', 'recovery' }) do
   check('job: ' .. kind, runJob(kind))
 end
 

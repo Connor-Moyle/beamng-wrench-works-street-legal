@@ -183,6 +183,22 @@ local TYPES = {
       return { item = 'prototype', legs = legs, metres = math.floor(metres), fragile = true, car = { model = 'scintilla', wear = 0 },
         seconds = math.floor(t * slack + 30), pay = math.floor((1500 - (slack - 1.15) * 4000) / 50) * 50 }
     end },
+  -- recovery (Design 3 #6, first version): a stranded motorist's car at the kerb, limping, to the nearest club garage
+  { kind = 'recovery', title = 'Recovery', unlock = 300, offer = function(ctx, rng)
+      local k = kerbNear(ctx, rng, nil, 0, 0)
+      if not k then return nil end
+      local best, bd
+      for _, p in ipairs(ctx.places) do
+        if p.kind == 'garage' then
+          local d = math.sqrt((p.x - k.x) ^ 2 + (p.y - k.y) ^ 2)
+          if not bd or d < bd then best, bd = p, d end
+        end
+      end
+      if not best or bd < 500 then return nil end
+      return { item = 'broken-down car', legs = { { id = 'kerb', name = STREETS[rng:int(#STREETS)], x = k.x, y = k.y, z = k.z }, leg(best) }, metres = math.floor(bd),
+        fragile = false, car = { model = ({ 'pessima', 'legran', 'midsize', 'fullsize', 'van' })[rng:int(5)], wear = 0.7, limp = 0.35 },
+        seconds = math.max(300, math.floor(bd * 1.4 / 8 * 1.5)), pay = math.floor((200 + bd / 1000 * 150) / 10) * 10 }
+    end },
 }
 M.TYPES = TYPES
 
@@ -250,6 +266,11 @@ local function spawnJobCar(j, stop)
   if not ok or not veh then return nil end
   if j.car.wear then veh:queueLuaCommand(string.format('partCondition.initConditions(nil, %d, %f, %f)', math.floor(j.car.wear * 300000000), 1 - j.car.wear * 0.5, 1 - j.car.wear)) end
   if slrrDrivers and slrrDrivers.setDriver then slrrDrivers.setDriver(veh:getID(), nil) end
+  -- a breakdown: the engine down to limp power, a tyre going down
+  if j.car.limp then
+    veh:queueLuaCommand(string.format('local e = powertrain.getDevice("mainEngine") if e then e.outputTorqueState = %f end ' ..
+      'for id, w in pairs(v.data.wheels or {}) do if w.name == "FR" and beamstate.deflateTire then beamstate.deflateTire(id) end end', j.car.limp))
+  end
   return veh
 end
 
