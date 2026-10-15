@@ -19,7 +19,7 @@ function M.onGameplaySelectorGetTiles(items, backend)
     preview = FS:fileExists(PREVIEW) and PREVIEW or nil,
     favouriteIdx = 0, showFavouriteIconPercent = 0,
     showDetails = { key = KEY, streetLegal = true },
-    system = 'Wrench Works: Street Legal', type = 'career', level = 'Valo City',
+    system = 'Wrench Works: Street Legal', type = 'career', level = 'Wrench Works: Valo City',
     sourceIcons = {}, order = -1e12,
     validBackends = { gameplaySelector = true },
   }
