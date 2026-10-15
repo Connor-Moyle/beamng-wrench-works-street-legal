@@ -87,6 +87,11 @@ function M.towFee(distanceMetres)
   return 150 + math.floor((distanceMetres or 0) / 1000 * 40 + 0.5)
 end
 
+-- the reset key in the career: pulled back onto the nearest road as it is (no repairs), by how far off it you are
+function M.roadFee(distanceMetres)
+  return 50 + math.floor((distanceMetres or 0) * 2 + 0.5)
+end
+
 -- a taxi across town (on foot)
 function M.taxiFee(distanceMetres)
   return 20 + math.floor((distanceMetres or 0) / 1000 * 12 + 0.5)

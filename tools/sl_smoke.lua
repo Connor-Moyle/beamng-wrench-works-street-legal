@@ -235,6 +235,17 @@ check('achievements: earned from the record, bests kept', function(job)
   return sum.earned >= 1 and b and b.time == 55.5, string.format('%d of %d earned; best %.2f s', sum.earned, sum.total, b and b.time or -1)
 end)
 
+-- no freeroam shortcuts in the career (playtest #2, #3)
+check('lockdown: editor, vehicle menus, rewind and teleports blocked; the pause menu has its own mode', function()
+  local af = core_input_actionFilter
+  local blocked = true
+  for _, a in ipairs({ 'editorToggle', 'vehicle_selector', 'parts_selector', 'recover_vehicle', 'dropPlayerAtCamera', 'loadHome', 'reload_vehicle', 'toggleRadialMenuSandbox' }) do
+    if not af.isActionBlocked(a) then blocked = false end
+  end
+  local mode = require('ge/extensions/ui/router/services/navigationContext').getContext().mode
+  return sl_lockdown.isLocked() and blocked and not af.isActionBlocked('reset_physics') and mode ~= 'freeroam', 'pause mode ' .. tostring(mode)
+end)
+
 -- the bank (X22)
 check('bank: borrow within the limit, repay', function()
   local st = sl_career.getState()
