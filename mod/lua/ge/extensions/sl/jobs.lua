@@ -41,6 +41,8 @@ local function context(s)
   return { places = places, shops = shops, garage = byId['slrrGarage' .. tostring(s.garageLevel or 1)], byId = byId }
 end
 
+M.context = function(s) return context(s or career()) end      -- (the tutorial makes its part run with it)
+
 local function leg(p) return { id = p.id, name = p.name, x = p.x, y = p.y, z = p.z } end
 
 -- kerbside stops for fares and food: road nodes in the city, not on a track, a link road, the valley
@@ -366,6 +368,14 @@ function M.bonusPay(s, js, j, pay)
   local n = (js.kindDone[j.kind] or 0) + 1
   js.kindDone[j.kind] = n
   return math.floor(pay * boost(s, js) / 10) * 10 + (n <= FIRST_TIMES and FIRST_BONUS or 0)
+end
+
+-- a job called off before it was done (no pay, no rep, not counted as done)
+function M.cancel(s, js, j, text)
+  js.active = nil
+  if core_groundMarkers then core_groundMarkers.setPath(nil) end
+  if text then toast(text) end
+  extensions.hook('onStreetLegalChanged')
 end
 
 -- the end of any job: pay (the one money path), rep, the record, the text. Jobs settled elsewhere (settle = 'ww':

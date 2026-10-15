@@ -64,6 +64,7 @@ local function snapshot()
     rocRound = (s.roc or {}).round or 0, rocChampion = (s.roc or {}).champion == true,
     rocEntry = progression.ROC.entry,
     jobs = sl_jobs and sl_jobs.summary and sl_jobs.summary() or nil,
+    tutorial = sl_tutorial and sl_tutorial.summary and sl_tutorial.summary() or nil,
   }
 end
 

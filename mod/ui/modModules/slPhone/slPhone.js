@@ -306,11 +306,13 @@
         }).join('');
       };
       var arranged = arr(d.challenges).length;
+      var tut = d.tutorial ? '<div class="slp-card slp-tut"><h4>Getting started ' + d.tutorial.step + '/' + d.tutorial.total + ': ' + esc(d.tutorial.title) + '</h4><p>' + esc(d.tutorial.text) + '</p>' +
+        '<div class="slp-acts"><div class="slp-btn slp-text" data-a="tutskip" data-v="1">Skip the tutorial</div></div></div>' : '';
       return '<div class="slp-wall"></div><div class="slp-home">' +
         '<div class="slp-clock">' + two(d.hour || 0) + ':' + two(d.minute || 0) + '</div>' +
         '<div class="slp-date">Day ' + (d.day || 1) + ' &middot; Valo City' + (d.night ? ' &middot; night' : '') + '</div>' +
         '<div><span class="slp-chip">' + esc(d.title || '') + ' &middot; ' + (d.rep || 0) + ' rep &middot; ' + money(d.money) + '</span></div>' +
-        '<div class="slp-grid">' + appsHtml([
+        tut + '<div class="slp-grid">' + appsHtml([
           { id: 'races', title: 'Races', icon: I.flag, badge: arranged || 0 },
           { id: 'garage', title: 'My cars', icon: I.cab },
           { id: 'bank', title: 'Bank', icon: I.bank },
@@ -614,7 +616,8 @@
         ? '<div class="slp-chcard slp-chsl slp-off"><b>Wrench Works: Street Legal</b><span>Needs the Wrench Works: Valo City map (slrr_valo_city). Switch it on under Mods.</span></div>'
         : '<div class="slp-chcard slp-chsl"><b>Wrench Works: Street Legal</b>' + (st.slrrArt ? slrrIcon(m.summary ? 'load_career_a.png' : 'new_career_a.png', 'slp-chimg') : '') + '<span>' + (m.summary ? 'Your career: ' + esc(m.summary) : 'Valo City at night. No car, $3,500 and a name nobody knows. Junkyard wrecks, street racers, pink slips and the ROC.') + '</span>' +
           (m.summary ? '<div class="slp-btn slp-go" data-a="menustart" data-v="continue">Continue</div>' : '') +
-          '<div class="slp-btn' + (m.summary ? ' slp-tonal' : ' slp-go') + '" data-a="menustart" data-v="new">' + (m.summary ? 'New career (replaces this one)' : 'New career') + '</div></div>';
+          '<div class="slp-btn' + (m.summary ? ' slp-tonal' : ' slp-go') + '" data-a="menustart" data-v="new">' + (m.summary ? 'New career (replaces this one)' : 'New career') + '</div>' +
+          '<div class="slp-btn slp-tonal" data-a="menustart" data-v="newskip">' + (m.summary ? 'New career, no tutorial (replaces this one)' : 'New career, no tutorial') + '</div></div>';
       return '<div class="slp-chooser"><div class="slp-chbox"><h1>Career</h1><div class="slp-chcards">' +
         '<div class="slp-chcard" data-a="chooser" data-v="beamng"><b>BeamNG Career</b><span>The game\'s own career mode: jobs, missions, your garage and vehicles.</span></div>' +
         sl + '</div><div class="slp-chback"><div class="slp-btn slp-text" data-a="chooser" data-v="close" style="display:inline-block">Back</div></div></div></div>';
@@ -757,6 +760,7 @@
         case 'text': lua('text(' + JSON.stringify(st.thread) + ',' + JSON.stringify(v) + ')'); break;
         case 'gps': lua('waypoint(' + JSON.stringify(v) + ')'); toast('The route is on your road.'); break;
         case 'cancel': lua('cancel(' + JSON.stringify(v) + ')'); break;
+        case 'tutskip': lua('@sl_tutorial.skip()'); break;
         case 'jobtake': lua('takeJob(' + JSON.stringify(v) + ')'); break;
         case 'jobquit': lua('giveUpJob()'); break;
         case 'jobway': lua('jobWay()'); toast('The route is on your road.'); break;
@@ -769,9 +773,10 @@
         case 'lot': if (/^[a-zA-Z]+\(\)$/.test(v)) lua('@sl_lot.' + v); break;
         case 'meet': var parts = String(v).split('|'); lua('@sl_streets.meetChallenge(' + JSON.stringify(parts[0]) + ',' + JSON.stringify(parts[1]) + ')'); break;
         case 'menustart':
-          if (v === 'new' && st.menu && st.menu.summary && !st.confirmNew) { st.confirmNew = true; toast('Click again to start over: the career you have is lost.'); break; }
+          if ((v === 'new' || v === 'newskip') && st.menu && st.menu.summary && !st.confirmNew) { st.confirmNew = true; toast('Click again to start over: the career you have is lost.'); break; }
           st.confirmNew = false;
-          lua('@sl_menuTile.startFromMenu(' + (v === 'new' ? 'true' : 'false') + ')');
+          if (v === 'newskip') lua('@sl_tutorial.skipNextCareer()');
+          lua('@sl_menuTile.startFromMenu(' + (v === 'new' || v === 'newskip' ? 'true' : 'false') + ')');
           st.menu = null; st.chooser = false; render();
           break;
         case 'chooser':

@@ -441,6 +441,20 @@ local function races()
   return raceList
 end
 
+-- the start line nearest the player (the tutorial's first race)
+function M.nearestRace(drag)
+  local v = getPlayerVehicle(0)
+  local here = v and v:getPosition() or vec3()
+  local best, bd
+  for _, r in ipairs(races()) do
+    if (r.drag == true) == (drag == true) then
+      local d = (r.start - here):squaredLength()
+      if not bd or d < bd then best, bd = r, d end
+    end
+  end
+  return best
+end
+
 -- a start line not too far from the player, picked a bit at random; drag: one of the strip's
 local function pickRace(rng, drag)
   local list = {}

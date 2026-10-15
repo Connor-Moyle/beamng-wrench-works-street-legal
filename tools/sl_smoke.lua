@@ -201,6 +201,28 @@ check('job: move', function(job)
   return runJob('move')(job)
 end)
 
+-- the tutorial (X24): each step through the real systems, faked here where they take minutes
+check('tutorial: four steps, then the bonus', function(job)
+  local st = sl_career.getState()
+  if #st.cars == 0 then return nil, 'needs a car' end
+  sl_tutorial.begin()
+  job.sleep(1.5)                                                  -- step 1 (a car) is already done
+  if st.tutorial.step ~= 2 then return false, 'step 1 did not pass with a car' end
+  local any
+  for _, j in ipairs(js().offers or {}) do if j.kind == 'part' then any = true end end
+  if not any then return false, 'no part run on the board for step 2' end
+  st.jobs.done = (st.jobs.done or 0) + 1 job.sleep(1.5)
+  if st.tutorial.step ~= 3 then return false, 'step 2 did not pass' end
+  st.jobs.upgraded = true job.sleep(1.5)
+  if st.tutorial.step ~= 4 then return false, 'step 3 did not pass' end
+  local race
+  for _, c in ipairs(st.challenges) do if c.id:find(':tutorial', 1, true) then race = c end end
+  if not race or race.bet ~= 100 then return false, 'no $100 race arranged for step 4' end
+  local m0 = money()
+  st.stats.races = st.stats.races + 1 job.sleep(1.5)
+  return st.tutorial.done == true and money() - m0 == 500, string.format('done, +$%d', money() - m0)
+end)
+
 -- garage services and lists
 check('services: drawer entries', function()
   local list = {}
