@@ -14,6 +14,7 @@ often the player wins against each tier with a car of a given class.
 import math, random, sys, statistics
 
 PLAYERS, HOURS = 45, 12   # simulated players, hours of play each
+BOOST = '--noboost' not in sys.argv     # the early-game boost in sl_jobs
 DAY_MIN = 30.0            # real minutes per in-game day (BeamNG's TimeOfDay dayLength; verify in game)
 NIGHT = (20, 5)           # night hours, as progression.isNight
 CITY_SPEED = 11.0         # m/s average across town, stops included
@@ -79,6 +80,10 @@ class Player:
         self.fines, self.broke = 0, 0
         self.series = []
         self.flip_target = 1000
+        self.perf = 0.0                     # parts on the car, in car classes
+        self.upgraded = False               # the first part bought (ends "new in town")
+        self.kind_done = {}
+        self.crew = None                    # [tier, wins needed, pay]
 
     def hour(self): return (20.5 + self.t / DAY_MIN * 24) % 24
     def day(self): return int((20.5 / 24 * DAY_MIN + self.t) // DAY_MIN)
@@ -129,13 +134,17 @@ class Player:
         bet = round(self.r.uniform(*TIERS[opp_tier]['bet']) / 50) * 50
         if bet > self.money * 0.5: return False
         opp_rep = self.r.uniform(*TIERS[opp_tier]['rep'])
-        p_win = 1 / (1 + math.exp(-((CARS[self.car][1] - 1 - opp_tier) * 1.1 + 0.3)))
+        p_win = 1 / (1 + math.exp(-((CARS[self.car][1] - 1 + self.perf - opp_tier) * 1.1 + 0.3)))
         won = self.r.random() < p_win
         night = is_night(self.hour())
         minutes = 7 + self.r.uniform(0, 3)
         self.money += bet if won else -bet
         self.rep += race_rep(won, bet, night, opp_rep, self.rep)
         self.book('street race', bet if won else -bet, minutes)
+        if won and self.crew and opp_tier + 1 >= self.crew[0]:
+            self.crew[1] -= 1
+            if self.crew[1] <= 0:
+                self.money += self.crew[2]; self.book('crew contract', self.crew[2], 0); self.crew = None
         # police: heat from the race, maybe a pursuit, maybe caught
         self.heat = min(1, self.heat + 0.12)
         if self.r.random() < (0.15 + 0.55 * self.heat) * (1 if night else 0.3):
@@ -158,6 +167,10 @@ class Player:
         pay, fail = pay_fn(self.r)
         minutes = min_fn(self.r)
         if self.r.random() < fail: pay = 0
+        if pay and BOOST:                   # sl_jobs: "new in town" and the first-time bonus
+            n = self.kind_done[name] = self.kind_done.get(name, 0) + 1
+            mult = 1 if self.upgraded else 1 + max(0, 1 - self.rep / 150)
+            pay = round(pay * mult, -1) + (150 if n <= 2 else 0)
         self.money += pay; self.rep += rep if pay else -5
         self.book(name, pay, minutes)
         self.spend(minutes)
@@ -173,7 +186,31 @@ class Player:
         self.spend(5)
         return True
 
+    def part(self):
+        price = self.r.uniform(600, 1500)
+        if self.money < price + 800: return False
+        self.money -= price; self.perf += price / 6000; self.upgraded = True
+        self.mark('first upgrade')
+        self.spend(4)
+        return True
+
+    def flip(self):
+        if self.money < 2500: return False
+        cost = self.r.uniform(1200, 2200); minutes = self.r.uniform(20, 35)
+        profit = self.r.uniform(-200, 1500)
+        bonus = 0
+        if profit >= self.flip_target: bonus = round(self.flip_target * 0.5, -1); self.flip_target *= 1.6
+        self.money += profit + bonus
+        self.book('lot flip', profit + bonus, minutes)
+        self.spend(minutes)
+        return True
+
     def step(self):
+        self.rep = max(0, self.rep)                  # state.addRep: never below nothing
+        if self.rep >= 300 and self.crew is None and not getattr(self, 'crew_done', False):
+            self.crew = [max(1, min(5, 1 + int(self.rep / 800))), 3, round(2000 * max(1, min(5, 1 + int(self.rep / 800))) ** 1.3, -2)]
+            self.crew_done = True
+        if self.car is not None and self.perf < 1.5 and self.r.random() < 0.15 and self.part(): return
         nxt = min(5, (self.car or 0) + 1)
         trade = CARS[self.car][0] * 0.4 if self.car is not None else 0
         if self.car is None or (self.money + trade > CARS[nxt][0] * 0.5 + 800 and self.r.random() < 0.5):
@@ -190,7 +227,8 @@ class Player:
         roll = self.r.random()
         if roll < w and self.race(): return
         if roll < w + 0.1 and self.sprint(): return
-        self.job()
+        if self.style != 'racer' and roll > 0.92 and self.flip(): return
+        if not self.job(): self.spend(5)             # nothing on: time passes
 
     def run(self, minutes):
         while self.t < minutes:
@@ -205,7 +243,7 @@ def main():
     for i in range(PLAYERS):
         style = ['racer', 'mixed', 'worker'][i % 3]
         players.append(Player(i, style).run(60 * HOURS))
-    keys = ['car 1', 'car 2', 'car 3', 'car 4', 'rep 150', 'rep 300', 'rep 500', 'rep 800', 'rep 1000', 'rep 1500', 'garage 2', 'rep 3000', 'garage 3', 'rep 6000', 'ROC open']
+    keys = ['car 1', 'first upgrade', 'car 2', 'car 3', 'car 4', 'rep 150', 'rep 300', 'rep 500', 'rep 800', 'rep 1000', 'rep 1500', 'garage 2', 'rep 3000', 'garage 3', 'rep 6000', 'ROC open']
     print('Milestones (real minutes of play; median and 10-90 %; n = players who got there in HOURS h)')
     for style in ['racer', 'mixed', 'worker']:
         print('  ' + style)
@@ -221,7 +259,7 @@ def main():
     for p in players:
         for src, (m, mins) in p.earned.items():
             t = totals.setdefault(src, [0, 0]); t[0] += m; t[1] += mins
-    for src, (m, mins) in sorted(totals.items(), key=lambda kv: -kv[1][0] / max(1, kv[1][1])):
+    for src, (m, mins) in sorted(((k, v) for k, v in totals.items() if v[1] > 0), key=lambda kv: -kv[1][0] / max(1, kv[1][1])):   # (contracts take no time of their own)
         print('  %-16s $%6.0f / min   (%d min sampled)' % (src, m / max(1, mins), mins))
     fines = [p.fines for p in players]
     print('\nPolice: median fines over the run $%d; players who could not pay a fine at least once: %d of %d' % (statistics.median(fines), sum(1 for p in players if p.broke), len(players)))
