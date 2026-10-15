@@ -155,8 +155,9 @@ end
 
 local function drip(kind)
   local p = obj:getPosition()
-  obj:queueGameEngineLua(string.format('if dirtSkidManager and dirtSkidManager.addDrip then dirtSkidManager.addDrip(%.3f,%.3f,%.3f,%q) end',
-    p.x, p.y, p.z - 0.2, kind))
+  -- the drop falling (addDripFx), then its stain on the road (addDrip)
+  obj:queueGameEngineLua(string.format('local m = dirtSkidManager if m and m.addDrip then if m.addDripFx then m.addDripFx(%.3f,%.3f,%.3f,%q) end m.addDrip(%.3f,%.3f,%.3f,%q) end',
+    p.x, p.y, p.z, kind, p.x, p.y, p.z - 0.2, kind))
 end
 
 function M.updateGFX(dt)
