@@ -559,6 +559,7 @@ function M.onSlrrRaceFinished(r)
   if racer then
     local x = stateLib.racer(s, racer)
     if r.won then x.losses = x.losses + 1 else x.wins = x.wins + 1 end
+    if r.won and r.stake ~= 'pink' then M.rematchMaybe(racer) end
   end
   if r.stake == 'pink' and sl_fleet then
     local v = getPlayerVehicle(0)
@@ -593,6 +594,20 @@ function M.onSlrrRaceFinished(r)
   end
   refreshContacts(false)
   changed()
+end
+
+-- a racer you beat may want another go: a text a little later (answer it from their thread)
+local REMATCH = {
+  "You got lucky. Rematch - same stakes or more. Text me when you're ready.",
+  "That wasn't a real race. Again. Name the night.",
+  "Everybody's talking about you beating me. I want that back. Rematch?",
+}
+function M.rematchMaybe(racerId)
+  if not active or type(racerId) ~= 'string' or not stateLib.racer(s, racerId) then return end
+  local rng = rngLib.new(rngLib.hash(racerId .. ':rematch:' .. s.day .. ':' .. #s.ledger))
+  if not rng:chance(0.4) then return end
+  s.known[racerId] = true
+  M.sendText(racerId, REMATCH[rng:int(#REMATCH)], 45 + rng:range(0, 90))
 end
 
 -- with a race arranged, arriving at its start brings the racer (when the map's races can be told)
