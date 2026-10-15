@@ -118,6 +118,12 @@ end
 
 function M.onStreetLegalBeforeSave() askConditions() end
 
+-- one car, now (it is about to be put away): its answer comes a frame or two later
+function M.askConditions(vid)
+  local veh = attached[vid] and getObjectByID(vid)
+  if veh then veh:queueLuaCommand(ASK_CONDITIONS) end
+end
+
 -- a respawned car (the garage rebuilding it) has fresh Lua: set it up again
 function M.onVehicleSpawned(vid) attached[vid] = nil lastDamage[vid] = nil end
 function M.onVehicleDestroyed(vid) attached[vid] = nil lastDamage[vid] = nil end

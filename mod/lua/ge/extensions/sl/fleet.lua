@@ -197,7 +197,9 @@ function M.setActive(carId)
   if oldVeh and not M.atGarage(oldVeh:getPosition(), s) then return false, 'Bring the ' .. old.name .. ' back to the garage first (or have it towed).' end
   core_jobsystem.create(function(job)
     if oldVeh then
-      M.snapshot(false)
+      M.snapshot(true)                                              -- its dents too: the car is about to go
+      if sl_carcare and sl_carcare.askConditions then sl_carcare.askConditions(oldVeh:getID()) end
+      job.sleep(0.5)                                                -- (the car answers a frame or two later)
       if player:getID() == oldVeh:getID() and gameplay_walk then gameplay_walk.setWalkingMode(true, nil, nil, true) job.sleep(0.5) end
       old.out = false
       old.where = nil
