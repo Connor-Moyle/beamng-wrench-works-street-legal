@@ -47,7 +47,7 @@ local function reset(playerID)
   end
   local _, _, dist = map.findClosestRoad(veh:getPosition())
   offer = { fee = progression.roadFee(dist or 0), untilT = now + CONFIRM_SECONDS }
-  toast(string.format('A pull back to the nearest road, as the car is (no repairs): $%d. Press reset again to pay.', offer.fee))
+  toast(string.format('A pull back to the nearest road, as the car is (no repairs): $%d. Press reset again to pay. Will it not drive? Phone > My cars > Tow it home.', offer.fee))
 end
 
 local function lock(on)

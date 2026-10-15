@@ -67,7 +67,7 @@ function M.onStreetLegalSpent(cost, label)
   local s = career()
   local b = s and s.bank
   if not b or not b.policy or type(label) ~= 'string' then return end
-  if not (label:find('^Repaired') or label:find('^Impound')) then return end
+  if not (label:find('^Repaired') or label:find('^Impound') or label:find('^Tow')) then return end
   local payout = bank.claim(b.policy, cost, s.day)
   if payout > 0 then
     sl_career.addMoney(payout, 'Insurance: ' .. label)

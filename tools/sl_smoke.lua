@@ -256,6 +256,13 @@ check('cab: a city lane near the garage door for a cab to pull up on', function(
   return c ~= nil, c and string.format('%.0f m', c.dist) or 'none'
 end)
 
+check('tow: a city lane near the garage for the truck to drop the car at', function()
+  local rs = require('sl/core/roadspot')
+  local pos = sl_fleet.forecourt(sl_career.getState(), 0)
+  local c = pos and rs.pick(rs.candidates(map.getMap().nodes, pos, not map.getRoadRules().rightHandDrive, 200), {})
+  return c ~= nil and sl_tow ~= nil, c and string.format('%.0f m', c.dist) or 'none'
+end)
+
 -- no freeroam shortcuts in the career (playtest #2, #3)
 check('lockdown: editor, vehicle menus, rewind and teleports blocked; the pause menu has its own mode', function()
   local af = core_input_actionFilter

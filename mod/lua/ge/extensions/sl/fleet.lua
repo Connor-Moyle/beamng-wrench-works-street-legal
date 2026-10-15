@@ -164,6 +164,19 @@ function M.tow(carId)
   if veh and (from - pos):length() < 25 then return false, 'It is at the garage already.' end
   local fee = progression.towFee((from - pos):length())
   if not sl_career.addMoney(-fee, 'Tow: ' .. car.name) then return false, string.format('The tow is $%d. You have $%d.', fee, s.money) end
+  -- a real truck comes for a car out on the street (sl_tow); one not spawned is simply brought round
+  if veh and sl_tow and sl_tow.send(carId, veh, fee) then return true, string.format('A tow truck is on its way to the %s. $%d to your garage.', car.name, fee) end
+  M.deliver(carId)
+  return true, string.format('The truck has it. $%d, delivered to your garage.', fee)
+end
+
+-- the car is put on the garage forecourt as it is (the tow's end)
+function M.deliver(carId)
+  local s = career()
+  local car = s and carById(s, carId)
+  local pos, rot = M.forecourt(s, 0)
+  if not car or not pos then return end
+  local veh = M.vehicleOf(carId)
   core_jobsystem.create(function(job)
     local player = getPlayerVehicle(0)
     if veh and player and player:getID() == veh:getID() and gameplay_walk then
@@ -180,7 +193,6 @@ function M.tow(carId)
     M.snapshot(false)
     extensions.hook('onStreetLegalChanged')
   end)
-  return true, string.format('The truck has it. $%d, delivered to your garage.', fee)
 end
 
 -- drive another of your cars: it comes out of the garage, the one you had goes in
