@@ -89,7 +89,7 @@ local function doRace(s, raceId)
     local dir = race.finish and (race.finish - race.start) or vec3(0, 1, 0)
     dir.z = 0
     dir = dir:length() > 1 and dir:normalized() or vec3(0, 1, 0)
-    spawn.safeTeleport(v, race.start - dir * 25 + vec3(0, 0, 0.4), quatFromDir(dir, vec3(0, 0, 1)), true)   -- just short of the line
+    spawn.safeTeleport(v, race.start - dir * 25 + vec3(0, 0, 0.4), quatFromDir(dir, vec3(0, 0, 1)), true, nil, nil, nil, false)   -- just short of the line (not repaired)
     job.sleep(1)
     guihooks.trigger('slFade', { on = false })
     toast(string.format('%s is waiting at %s. $%d. Roll up to the line.', roster.displayName(racer), race.name, bet))

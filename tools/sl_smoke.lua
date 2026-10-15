@@ -31,7 +31,7 @@ local function check(name, fn) checks[#checks + 1] = { name = name, fn = fn } en
 local function teleportTo(job, pos)
   local v = player()
   if not v then return end
-  spawn.safeTeleport(v, vec3(pos.x, pos.y, (pos.z or v:getPosition().z) + 0.5), quat(v:getRotation()), false)
+  spawn.safeTeleport(v, vec3(pos.x, pos.y, (pos.z or v:getPosition().z) + 0.5), quat(v:getRotation()), false, nil, nil, nil, false)   -- (8th: no repair)
   job.sleep(2.5)                                   -- settle, stop, and let sl_jobs see it (it looks every 0.5 s)
 end
 

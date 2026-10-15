@@ -728,7 +728,7 @@ function M.trackRace(racerId, trackId)
     local right = along:cross(vec3(0, 0, 1)):normalized()
     local rot = quatFromDir(along, vec3(0, 0, 1))
     local start = first - along * 6 - right * 2.2
-    spawn.safeTeleport(v, start + vec3(0, 0, 0.5), rot, true)
+    spawn.safeTeleport(v, start + vec3(0, 0, 0.5), rot, true, nil, nil, nil, false)     -- (your car as it is, dents and all)
     job.sleep(0.5)
     local veh = spawnRacer(job, s, racer, start + right * 4.4 + vec3(0, 0, 0.5), rot, true)
     busy = false
@@ -791,7 +791,7 @@ function M.enterRoc()
     elseif spot then
       pcall(function() rot = quat(0, 0, 1, 0) * quat(spot:getRotation()) end)      -- a spawn point's own rotation is half a turn from facing
     end
-    spawn.safeTeleport(v, start + vec3(0, 0, 0.5), rot, true)
+    spawn.safeTeleport(v, start + vec3(0, 0, 0.5), rot, true, nil, nil, nil, false)     -- (your car as it is, dents and all)
     job.sleep(0.5)
     right = right or v:getDirectionVector():cross(vec3(0, 0, 1)):normalized()
     local veh = spawnRacer(job, s, rival, start + right * 4.4 + vec3(0, 0, 0.5), rot or quatFromDir(v:getDirectionVector(), vec3(0, 0, 1)), true)

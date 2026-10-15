@@ -171,7 +171,7 @@ function M.tow(carId)
       job.sleep(0.5)
     end
     if veh then
-      spawn.safeTeleport(veh, pos, rot, true)
+      spawn.safeTeleport(veh, pos, rot, true, nil, nil, nil, false)     -- (8th: resetVehicle, true by default, would repair it)
     else
       local v = builder.spawnOwned(job, car, pos, rot)
       if v then spawned[car.id] = v:getID() end
