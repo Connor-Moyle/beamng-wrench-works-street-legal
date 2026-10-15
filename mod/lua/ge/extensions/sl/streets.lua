@@ -268,7 +268,20 @@ local function updateRace(dt)
           if best and best ~= last then wps[#wps + 1] = best last = best end
         end
         local aggression = M.aggression(race.skill)
-        if #wps >= #race.circuit.cps * 0.8 and not race.circuit.sprint then
+        local line = race.circuit.line
+        if line then
+          -- the map's racing line, at its own speeds: a top racer drives it flat out, a novice at 80 %
+          local pace, path, t, last = 0.8 + 0.2 * (race.skill or 0.5), {}, 0, nil
+          for _ = 1, race.circuit.sprint and 1 or race.circuit.laps do
+            for _, q in ipairs(line) do
+              if last then t = t + (q.pos - last.pos):length() / math.max(1, (q.speed + last.speed) / 2 * pace) end
+              path[#path + 1] = { x = q.pos.x, y = q.pos.y, z = q.pos.z, t = t }
+              last = q
+            end
+          end
+          opp:queueLuaCommand('controller.setFreeze(0) input.event("parkingbrake", 0, FILTER_DIRECT) ai.startFollowing(' ..
+            serialize({ path = path }) .. ', 0, 1, "neverReset")')
+        elseif #wps >= #race.circuit.cps * 0.8 and not race.circuit.sprint then
           opp:queueLuaCommand(string.format("controller.setFreeze(0) input.event('parkingbrake', 0, FILTER_DIRECT) ai.setSpeedMode('off') ai.setRecoverOnCrash(true) ai.setAvoidCars('on') ai.driveInLane('off') ai.setAggression(%f) ai.driveUsingPath(%s)",
             aggression, serialize({ wpTargetList = wps, noOfLaps = race.circuit.laps, aggression = aggression })))
         else
@@ -543,6 +556,20 @@ function M.closeMeet() sendMeet(false) end
 
 local ROC_LAPS = 2
 
+-- a racing line the map brings: /levels/<level>/racelines/<name>.json { points = {{x, y, z, speed m/s}...} }
+local function racingLine(...)
+  for _, name in ipairs({ ... }) do
+    local rl = jsonReadFile('/levels/' .. sl_career.LEVEL .. '/racelines/' .. name .. '.json')
+    if type(rl) == 'table' and type(rl.points) == 'table' then
+      local line = {}
+      for _, q in ipairs(rl.points) do
+        if tonumber(q[1]) and tonumber(q[4]) then line[#line + 1] = { pos = vec3(q[1], q[2], q[3] or 0), speed = math.max(3, tonumber(q[4])) } end
+      end
+      if #line >= 4 then return line end
+    end
+  end
+end
+
 local function rocTrack()
   local data = jsonReadFile('/levels/' .. sl_career.LEVEL .. '/races.json')
   local roc = type(data) == 'table' and data.roc
@@ -554,7 +581,7 @@ local function rocTrack()
     cps[i] = { pos = vec3(tonumber(p[1]) or 0, tonumber(p[2]) or 0, tonumber(p[3]) or 0), dir = dir:length() > 0.01 and dir:normalized() or vec3(1, 0, 0),
       half = tonumber(c.halfWidth) or 6 }
   end
-  return { name = roc.name or 'ROC', cps = cps }
+  return { name = roc.name or 'ROC', cps = cps, line = racingLine('roc') }
 end
 
 -- The opponent's line round the circuit, with a time for every point: as fast as the bends
@@ -597,7 +624,7 @@ local function startCircuit(racer, vid, stake, bet, track)
   race = { racer = racer.id, name = roster.displayName(racer), vid = vid, stake = stake, bet = bet,
     destName = track.name .. (track.sprint and ', to the finish' or ', ' .. laps .. ' laps'),
     t = 0, countdown = 3.5, skill = racer.skill,
-    circuit = { cps = track.cps, laps = laps, sprint = track.sprint, route = track.route, lapEndsAtLast = track.lapEndsAtLast, me = { k = 0 }, them = { k = 0 } } }
+    circuit = { cps = track.cps, laps = laps, sprint = track.sprint, route = track.route, line = track.line, lapEndsAtLast = track.lapEndsAtLast, me = { k = 0 }, them = { k = 0 } } }
   if core_groundMarkers then core_groundMarkers.setPath(nil) end
   if sl_markers then sl_markers.flareCircuit(track.cps) end
   cruisers[racer.id] = nil
@@ -641,7 +668,8 @@ function M.tracks()
       local route = {}
       for _, r in ipairs(t.route or {}) do local p = v3(r) if p then route[#route + 1] = { pos = p } end end
       local start = v3(t.start) or cps[#cps].pos
-      out[#out + 1] = { id = id, name = t.label or id, kind = t.type, cps = cps, start = start, lapEndsAtLast = true,
+      local line = racingLine('slrr_mb_' .. id:lower(), 'slrr_mb_' .. id)       -- the venue's racing line, if the map has one
+      out[#out + 1] = { id = id, name = t.label or id, kind = t.type, cps = cps, start = start, lapEndsAtLast = true, line = line,
         route = #route >= 4 and route or nil, sprint = (cps[#cps].pos - start):length() > 80, laps = 2 }
     end
   end
