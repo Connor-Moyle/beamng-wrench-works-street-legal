@@ -188,7 +188,7 @@ function M.offer(id, amount)
   if not s then return false, 'No career running.' end
   local m = state(s)
   local l = find(m, id)
-  if not l or l.taken then return false, 'That listing is gone.' end
+  if not l or l.taken or l.channel == 'auction' then return false, 'That listing is gone.' end   -- (a lot is only bid on)
   local r, price = L.haggle(l, amount, m.rounds[id] or 0)
   m.rounds[id] = (m.rounds[id] or 0) + 1
   if r == 'accept' then l.agreed = price return true, string.format('%s: "Deal, $%d."', l.seller, price) end
@@ -204,7 +204,7 @@ function M.buy(id, how)
   if not s then return false, 'No career running.' end
   local m = state(s)
   local l = find(m, id)
-  if not l or l.taken then return false, 'That listing is gone.' end
+  if not l or l.taken or l.channel == 'auction' then return false, 'That listing is gone.' end   -- (a lot is only bid on)
   local price = l.agreed or l.ask
   local part = { part = l.item.part, name = l.item.name, slotId = l.item.slotId, value = price, wear = l.wear }
   if how == 'delivery' then
