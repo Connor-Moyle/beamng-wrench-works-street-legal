@@ -394,6 +394,70 @@ function M.onWrenchWorksDyno(vid, data)
   challenge(s, 'dyno', DYNO, math.floor(data.maxPower), function(v, t) return v >= t end, ' PS', 'Dyno')
 end
 
+----------------------------------------------------------------------------------------------
+-- contracts on race results (Design 3 #14, #15): a street crew's contract and sponsor deals
+
+local SPONSORS = { { rep = 1500, name = 'Valo Tyre & Wheel', weekly = 500 }, { rep = 3000, name = 'Redline Speed Shop', weekly = 1500 },
+  { rep = 6000, name = 'Nightrun Energy', weekly = 5000 } }
+local CREW = { 'the Southside Kings', 'Riverbed Runners', 'the North End crew', 'Ring Road Ghosts' }
+
+local function newContract(s, js)
+  local rng = rngLib.new(rngLib.hash('crew:' .. s.day .. ':' .. tostring(s.seed)))
+  local tier = math.max(1, math.min(5, 1 + math.floor((s.rep or 0) / 800)))
+  js.crew = { boss = CREW[rng:int(#CREW)], tier = tier, need = 3, won = 0, untilDay = s.day + 7,
+    pay = math.floor(2000 * tier ^ 1.3 / 100) * 100 }
+end
+
+-- every race you win counts towards the contract (against a racer of its tier or better) and the sponsor's week
+local function countWin(s, racerId)
+  local js = jobsState(s)
+  js.weekWins = (js.weekWins or 0) + 1
+  local c = js.crew
+  local r = racerId and stateLib.racer(s, racerId)
+  if c and not c.done and r and (r.tier or 1) >= c.tier then
+    c.won = c.won + 1
+    if c.won >= c.need then
+      c.done = true
+      sl_career.addMoney(c.pay, 'Crew contract: ' .. c.boss)
+      stateLib.addRep(s, 30)
+      sl_career.sendText('benny', string.format('Word from %s: contract done. $%d is in your account.', c.boss, c.pay), 3)
+    end
+  end
+end
+
+-- (both the map's races and Street Legal's own say so: won, the opponent's name, their racer id)
+function M.onStreetLegalRaceResult(won, opponent, racerId)
+  local s = career()
+  if s and won then countWin(s, racerId) end
+end
+
+function M.onStreetLegalNewDay(day)
+  local s = career()
+  if not s then return end
+  local js = jobsState(s)
+  -- the crew contract: a new one when the last is done or has run out (from 300 rep)
+  if (s.rep or 0) >= 300 and (not js.crew or js.crew.done or day > js.crew.untilDay) then
+    newContract(s, js)
+    sl_career.sendText('benny', string.format('%s want somebody to beat %d racers of tier %d or better this week. $%d. It is on your Jobs app.',
+      js.crew.boss, js.crew.need, js.crew.tier, js.crew.pay), 5)
+  end
+  -- sponsors: the best one your name gets you; paid weekly, as long as you win two races a week
+  local best
+  for _, sp in ipairs(SPONSORS) do if (s.rep or 0) >= sp.rep then best = sp end end
+  if best and (not js.sponsor or js.sponsor.name ~= best.name) then
+    js.sponsor = { name = best.name, weekly = best.weekly, since = day }
+    js.weekWins = 0
+    sl_career.sendText('benny', string.format('%s want their name on your car: $%d a week, as long as you win two races a week.', best.name, best.weekly), 4)
+  elseif js.sponsor and (day - js.sponsor.since) % 7 == 0 and day ~= js.sponsor.since then
+    if (js.weekWins or 0) >= 2 then
+      sl_career.addMoney(js.sponsor.weekly, 'Sponsor: ' .. js.sponsor.name)
+    else
+      sl_career.sendText('benny', js.sponsor.name .. ' saw you did not win two races this week. No cheque. Win some.', 3)
+    end
+    js.weekWins = 0
+  end
+end
+
 -- for the phone
 function M.summary()
   local s = career()
@@ -401,7 +465,9 @@ function M.summary()
   refresh(s)
   local js = jobsState(s)
   local out = { offers = {}, done = js.done, earned = js.earned, flip = js.flip or { target = FLIP_FIRST, best = 0, flips = 0 },
-    quarter = QUARTER[js.quarter or 1] and QUARTER[js.quarter or 1][1] or nil, dyno = DYNO[js.dyno or 1] and DYNO[js.dyno or 1][1] or nil }
+    quarter = QUARTER[js.quarter or 1] and QUARTER[js.quarter or 1][1] or nil, dyno = DYNO[js.dyno or 1] and DYNO[js.dyno or 1][1] or nil,
+    crew = js.crew and not js.crew.done and { boss = js.crew.boss, tier = js.crew.tier, need = js.crew.need, won = js.crew.won, daysLeft = js.crew.untilDay - s.day, pay = js.crew.pay } or nil,
+    sponsor = js.sponsor and { name = js.sponsor.name, weekly = js.sponsor.weekly, weekWins = js.weekWins or 0 } or nil }
   for _, j in ipairs(js.offers) do
     out.offers[#out.offers + 1] = { id = j.id, title = j.title, item = j.item, from = j.legs[1].name, to = j.legs[#j.legs].name,
       pay = j.pay, seconds = j.seconds, fragile = j.fragile, metres = j.metres }

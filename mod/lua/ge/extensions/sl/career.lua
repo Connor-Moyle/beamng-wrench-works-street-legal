@@ -594,7 +594,7 @@ function M.onSlrrRaceFinished(r)
     local x = stateLib.racer(s, racer)
     if r.won then x.losses = x.losses + 1 else x.wins = x.wins + 1 end
     if r.won and r.stake ~= 'pink' then M.rematchMaybe(racer) end
-    extensions.hook('onStreetLegalRaceResult', r.won, r.opponent)
+    extensions.hook('onStreetLegalRaceResult', r.won, r.opponent, racer)
   end
   -- an abandoned pink-slip race (false start, out of time, the opponent gone) costs no car: the map leaves it with you
   if r.stake == 'pink' and sl_fleet and not r.abandoned then

@@ -412,6 +412,8 @@
           (a ? '' : '<div class="slp-acts"><div class="slp-btn" data-a="jobtake" data-v="' + esc(o.id) + '">Take it</div></div>') + '</div>';
       }).join('');
       return bar('Jobs') + '<div class="slp-body">' + activeCard + (cards || '<div class="slp-empty">Nothing on the board. New jobs come in the morning and at dusk.</div>') +
+        (j.crew ? '<div class="slp-card"><h4>Crew contract: ' + esc(j.crew.boss) + '</h4><p>Beat ' + j.crew.need + ' racers of tier ' + j.crew.tier + ' or better: ' + j.crew.won + ' so far, ' + j.crew.daysLeft + ' days left. ' + money(j.crew.pay) + '</p></div>' : '') +
+        (j.sponsor ? '<div class="slp-card"><h4>Sponsor: ' + esc(j.sponsor.name) + '</h4><p>' + money(j.sponsor.weekly) + ' a week for two wins a week: ' + j.sponsor.weekWins + ' this week.</p></div>' : '') +
         (j.quarter || j.dyno ? '<div class="slp-card"><h4>Tuning challenges</h4><p>' + (j.quarter ? 'Quarter mile at the test track under ' + j.quarter + ' s. ' : '') + (j.dyno ? 'Dyno: ' + j.dyno + ' PS on the car info sheet in your garage.' : '') + '</p></div>' : '') +
         (j.flip ? '<div class="slp-card"><h4>Junkyard challenge: flip a car</h4><p>Sell one for ' + money(j.flip.target) + ' more than you paid for a bonus. Best so far: ' + money(j.flip.best || 0) + '.</p></div>' : '') +
         '<div class="slp-empty">' + (j.done || 0) + ' jobs done, ' + money(j.earned || 0) + ' earned.</div></div>';
