@@ -41,8 +41,8 @@ Press **K** (Options > Controls > Gameplay to change it). It is an Android-style
 
 - **Contacts and Phone**: call a racer or dial their number. If they pick up, ask for a race for money, for high stakes (three times their usual), or for pink slips. Big names will not talk to you until you have a name yourself, and nobody races you without a car.
 - **Messages**: the same by text, with quick replies; they write back after a moment.
-- **Races**: what you have arranged, with directions to the start line on the road.
-- **My cars**: where each one is, tow it home, take another one out. **Bank**: balance and statement. **Cab**: on foot, a cab takes you anywhere the career knows about. **Street cred**: title, reputation, garage, the ROC.
+- **Races**: what you have arranged, with directions to the start line on the road; raise the stake on a money race (up to 2x in a racer's beater, 4x against a supercar).
+- **My cars**: where each one is, tow it home, take another one out. **Bank**: balance and statement. **Cab**: on foot, book a ride to anywhere the career knows about: a taxi pulls up on the nearest street with its hazards on, walk up to it and you step out at the other end (the fare is back if you never turn up). **Street cred**: title, reputation, garage, the ROC.
 
 It is built as a web page inside the game's interface. A real Android system cannot run inside BeamNG.
 

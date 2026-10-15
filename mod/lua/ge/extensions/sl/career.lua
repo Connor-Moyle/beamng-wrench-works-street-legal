@@ -387,7 +387,10 @@ function M.taxi(placeId)
     fee = 0
     M.sendText('benny', "My cousin will run you over there. Don't make a habit of it. The junkyard always has a wreck that needs driving to the crusher.", 1)
   end
+  if sl_cab and sl_cab.busy() then return false, 'A cab is already waiting for you.' end
   if fee > 0 and not wallet.add(-fee, 'Cab to ' .. place.name) then return false, string.format('The ride is $%d. You have $%d.', fee, s.money) end
+  if sl_cab and sl_cab.call(place, fee) then return true end
+  -- no lane for a cab to pull up on here: the old way, straight there
   core_jobsystem.create(function(job)
     if guihooks then guihooks.trigger('slFade', { on = true, pic = 'loading_city.png' }) end
     job.sleep(0.6)
