@@ -421,7 +421,8 @@
           return '<div class="slp-btn slp-text" data-a="mkoffer" data-v="' + esc(l.id) + '|' + amt + '">Offer ' + money(amt) + '</div>';
         }).join('');
         return '<div class="slp-card"><h4>' + (l.rare ? '&#9733; ' : '') + esc(l.name) + '</h4>' +
-          '<p>For the ' + esc(l.model) + ' &middot; ' + l.condition + '% condition &middot; ' + esc(l.seller) + ' ' + '&#9733;'.repeat(l.rating || 0) + ' &middot; ' + Math.max(0, l.hoursLeft | 0) + ' h left</p>' + tells +
+          '<p>' + (l.car ? 'Car' + (l.mileage ? ' &middot; ' + Math.round(l.mileage / 1000) + 'k km' : '') + (l.faults ? ' &middot; ' + l.faults + ' fault' + (l.faults > 1 ? 's' : '') : '') : 'For the ' + esc(l.model)) +
+          ' &middot; ' + l.condition + '% condition &middot; ' + esc(l.seller) + ' ' + '&#9733;'.repeat(l.rating || 0) + ' &middot; ' + Math.max(0, l.hoursLeft | 0) + ' h left</p>' + tells +
           '<p><b>' + money(l.ask) + '</b>' + (l.agreed ? ' (agreed)' : '') + ' &middot; deposit ' + money(l.deposit) + (l.delivery != null ? ' &middot; delivery +' + money(l.delivery) : '') + '</p>' +
           '<div class="slp-acts">' + offers + '<div class="slp-btn" data-a="mkbuy" data-v="' + esc(l.id) + '|pickup">Pick up</div>' +
           (l.delivery != null ? '<div class="slp-btn" data-a="mkbuy" data-v="' + esc(l.id) + '|delivery">Deliver</div>' : '') + '</div></div>';
@@ -443,7 +444,12 @@
           '<div class="slp-acts"><div class="slp-btn" data-a="mklist" data-v="' + esc(it.model) + '|' + it.id + '|app">List it</div>' +
           '<div class="slp-btn" data-a="mklist" data-v="' + esc(it.model) + '|' + it.id + '|auction">Auction it</div></div></div>';
       }).join('');
-      return (mine ? '<div class="slp-empty">Your listings</div>' + mine : '') + (shelf ? '<div class="slp-empty">Sell from your shelf</div>' + shelf : '');
+      var cars = arr(m.cars).map(function (c) {
+        return '<div class="slp-card"><h4>' + esc(c.name) + '</h4><p>Your car &middot; buyers pay up to about ' + money(c.estimate || 0) + '</p>' +
+          '<div class="slp-acts"><div class="slp-btn" data-a="mkcar" data-v="' + esc(c.id) + '">List car</div></div></div>';
+      }).join('');
+      return (mine ? '<div class="slp-empty">Your listings</div>' + mine : '') + (shelf ? '<div class="slp-empty">Sell from your shelf</div>' + shelf : '') +
+        (cars ? '<div class="slp-empty">Sell a car</div>' + cars : '');
     }
 
     function marketPage() {
@@ -919,6 +925,7 @@
         case 'mkoffer': lua('marketOffer(' + JSON.stringify(String(v).split('|')[0]) + ',' + Number(String(v).split('|')[1]) + ')'); break;
         case 'mklist': (function () { var q = String(v).split('|'); lua('listPart(' + JSON.stringify(q[0]) + ',' + Number(q[1]) + ',' + JSON.stringify(q[2]) + ')'); })(); break;
         case 'mkaccept': lua('acceptOffer(' + JSON.stringify(String(v).split('|')[0]) + ',' + Number(String(v).split('|')[1]) + ')'); break;
+        case 'mkcar': lua('listCar(' + JSON.stringify(v) + ')'); break;
         case 'mkwithdraw': lua('withdrawListing(' + JSON.stringify(v) + ')'); break;
         case 'mkmeet': lua('buyAtMeet(' + JSON.stringify(v) + ')'); break;
         case 'mkbid': lua('marketBid(' + JSON.stringify(v) + ')'); break;

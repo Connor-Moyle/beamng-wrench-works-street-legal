@@ -63,7 +63,7 @@ function M.demand(rng) return rng:range(M.DEMAND[1], M.DEMAND[2]) end
 function M.listing(rng, item, channel, demand, hour)
   local c = M.CHANNELS[channel]
   local rare = rng:float() < M.RARE
-  local condition = rare and rng:range(0.85, 1.0) or rng:range(0.15, 0.95)
+  local condition = item.condition or (rare and rng:range(0.85, 1.0) or rng:range(0.15, 0.95))   -- (a car: its own)
   local mood = M.MOOD_LIST[rng:int(#M.MOOD_LIST)]
   local fair = M.fair(item.value, condition)
   local ask = fair * c.ask * (demand or 1)
@@ -103,8 +103,10 @@ function M.haggle(l, offer, round_)
 end
 
 -- an AI buyer's offer for one of your listings (lowballers included); never above the resale cap
-function M.buyerOffer(rng, value, condition)
-  local cap = M.resaleCap(value, condition)
+function M.buyerOffer(rng, value, condition) return M.offerUpTo(rng, M.resaleCap(value, condition)) end
+
+-- an AI buyer's offer up to a cap (lowballers included)
+function M.offerUpTo(rng, cap)
   local share = rng:float() < 0.3 and rng:range(0.4, 0.6) or rng:range(0.7, 1.0)
   return math.max(10, math.floor(cap * share / 10) * 10)
 end

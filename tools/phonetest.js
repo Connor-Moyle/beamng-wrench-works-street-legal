@@ -351,6 +351,16 @@ assert.ok(text().includes('Swap meet today') && text().includes('Coilovers') && 
 calls.length = 0;
 click('mkmeet', 's1');
 assert.ok(calls.some(function (c) { return c.indexOf('buyAtMeet("s1")') >= 0; }), 'buying at a stall calls the market');
+// cars on Revline: a private car ad (pickup only) and selling yours
+phone.handle('slPhoneData', Object.assign({}, data, { market: { deliveries: 0, auctions: [], paper: {}, mine: [], shelf: [],
+  listings: [ { id: 'c1', name: 'Covet 1.5', model: 'covet', car: true, mileage: 182000, faults: 2, ask: 2400, condition: 55, seller: 'Big Tony', rating: 4, tells: [], deposit: 240, hoursLeft: 30 } ],
+  cars: [ { id: 3, name: 'Sunburst', estimate: 5200 } ] } }));
+phone.act('home');
+phone.act('open', 'market');
+assert.ok(text().includes('Covet 1.5') && text().includes('182k km') && text().includes('2 faults') && !phone.root.querySelector('[data-v="c1|delivery"]') && text().includes('List car'), 'a car ad (no delivery) and your car to list');
+calls.length = 0;
+click('mkcar', '3');
+assert.ok(calls.some(function (c) { return c.indexOf('listCar("3")') >= 0; }), 'listing a car calls the market');
 phone.handle('slStation', { open: true, name: 'Pump', money: 100, fuels: [], items: [] });
 assert.ok(phone.root.querySelector('.slp-lot') && !phone.root.querySelector('.slp-ico .slp-lot'), 'with SLRR icons the panels stay outside the phone (icon markup closed)');
 console.log('phone test passed');

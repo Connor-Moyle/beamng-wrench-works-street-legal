@@ -10,9 +10,12 @@ local L = require('sl/core/listings')
 local rngLib = require('sl/core/rng')
 local stateLib = require('sl/core/state')
 local jbeamIO = require('jbeam/io')         -- (not a global on the game-engine side)
+local market = require('sl/core/market')
+local builder = require('sl/carBuilder')
 
 local REFRESH_HOURS = 6        -- new listings every few in-game hours
 local APP_LISTINGS = 12
+local CAR_ADS = 3                           -- of Revline's ads, private cars (sl_lot's used-lot offers)
 local PAPER_LISTINGS, PRINT_ONLY = 3, 0.4    -- Valo Classifieds: ads up at a time (each lasts a day); some only in print
 local AUCTIONS = 6                          -- Swap & Bid lots open at a time
 local PAPER_REACH = 30                      -- metres from a gas station to buy a copy
@@ -71,6 +74,17 @@ local function models(s)
   return out
 end
 
+-- the most a buyer pays for one of your cars: what the lot's own buyers would (market.resaleValue, with the
+-- parts it has now) and never more than the least a car like it can be had for on the market
+local function carById(s, id) for _, c in ipairs(s.cars or {}) do if c.id == id then return c end end end
+local function carCap(s, carId)
+  local car = carById(s, carId)
+  if not car then return nil end
+  local veh = sl_fleet and sl_fleet.vehicleOf and sl_fleet.vehicleOf(carId)
+  local partsNow = veh and builder.partsValue(veh:getID()) or nil
+  return math.floor(math.min(market.resaleValue(car, partsNow), L.resaleCap(car.value or 0, car.condition or 0.5)) / 10) * 10
+end
+
 -- drop what expired, top the app up to APP_LISTINGS, deliver what has arrived
 local function refresh(s, force)
   local m, t = state(s), now(s)
@@ -118,10 +132,23 @@ local function refresh(s, force)
       for _, o in ipairs(y.offers) do if t - o.hour < OFFER_HOURS then keepOffers[#keepOffers + 1] = o end end
       y.offers = keepOffers
       if #y.offers < 3 and rng:float() < 0.6 then
-        local o = { amount = L.buyerOffer(rng, y.value, y.condition), hour = t, buyer = NAMES[rng:int(#NAMES)] }
+        local amount = y.kind == 'car' and L.offerUpTo(rng, carCap(s, y.carId) or 0) or L.buyerOffer(rng, y.value, y.condition)
+        local o = { amount = amount, hour = t, buyer = NAMES[rng:int(#NAMES)] }
         y.offers[#y.offers + 1] = o
         toast(string.format('Revline: %s offers $%d for your %s.', o.buyer, o.amount, y.name))
       end
+    end
+  end
+  local function carAds() local n = 0 for _, l in ipairs(m.listings) do if l.kind == 'car' and not l.taken then n = n + 1 end end return n end
+  for _ = 1, CAR_ADS * 2 do               -- private cars: the used lot's kind of car, sold from a kerb
+    if carAds() >= CAR_ADS or not (sl_lot and sl_lot.privateOffers) then break end
+    local offer = (sl_lot.privateOffers(rng:int(1, 1000000), 1) or {})[1]
+    local k = offer and sl_jobs and sl_jobs.randomKerb and sl_jobs.randomKerb(rng)
+    if k then
+      local l = L.listing(rng, { kind = 'car', name = offer.name, value = offer.value or 0, model = offer.model, condition = offer.condition }, 'app', L.demand(rng), t)
+      l.id, l.seller, l.offer, l.where = 'm' .. m.nextId, NAMES[rng:int(#NAMES)], offer, { x = k.x, y = k.y, z = k.z }
+      m.nextId = m.nextId + 1
+      m.listings[#m.listings + 1] = l
     end
   end
   for _ = 1, 40 do if count('app') >= APP_LISTINGS then break end add('app') end
@@ -236,7 +263,10 @@ function M.summary()
     if not l.taken then
       local card = { id = l.id, name = l.item.name, model = l.item.model, ask = l.agreed or l.ask, condition = math.floor(l.condition * 100 + 0.5),
         seller = l.seller, rating = l.rating, tells = L.tells(l), rare = l.rare, agreed = l.agreed ~= nil,
-        delivery = not l.scam and L.delivery(l.agreed or l.ask) or nil, deposit = L.deposit(l.agreed or l.ask), hoursLeft = l.expires - now(s) }
+        delivery = not l.scam and l.kind ~= 'car' and L.delivery(l.agreed or l.ask) or nil, deposit = L.deposit(l.agreed or l.ask), hoursLeft = l.expires - now(s) }
+      if l.kind == 'car' and l.offer then
+        card.car, card.mileage, card.faults = true, l.offer.mileage, #(l.offer.faults or {})
+      end
       if l.channel == 'auction' then
         card.bid, card.high, card.next = l.bid, l.high, l.bid + math.max(10, math.floor(l.bid * 0.05 / 10 + 0.5) * 10)
         out.auctions[#out.auctions + 1] = card
@@ -262,6 +292,14 @@ function M.summary()
     for k, o in ipairs(y.offers or {}) do offers[#offers + 1] = { index = k, amount = o.amount, buyer = o.buyer } end
     out.mine[#out.mine + 1] = { id = y.id, name = y.name, model = y.model, channel = y.channel, offers = offers, bid = y.bid,
       hoursLeft = y.expires and (y.expires - now(s)) or nil }
+  end
+  out.cars = {}
+  if #m.mine < MINE_MAX then
+    local listed = {}
+    for _, y in ipairs(m.mine) do if y.carId then listed[y.carId] = true end end
+    for _, c in ipairs(s.cars or {}) do
+      if not listed[c.id] then out.cars[#out.cars + 1] = { id = c.id, name = c.name, estimate = carCap(s, c.id) } end
+    end
   end
   if slrr_garage and slrr_garage.shelfItems and #m.mine < MINE_MAX then
     local seen = {}
@@ -305,6 +343,7 @@ function M.buy(id, how)
   if not l or l.taken or l.channel == 'auction' or l.channel == 'meet' then return false, 'That listing is gone.' end   -- (a lot is only bid on; a stall is bought there)
   local price = l.agreed or l.ask
   local part = { part = l.item.part, name = l.item.name, slotId = l.item.slotId, value = price, wear = l.wear }
+  if how == 'delivery' and l.kind == 'car' then return false, l.seller .. ': "Come and see it. Cash on the day."' end
   if how == 'delivery' then
     if l.scam then return false, l.seller .. ': "No delivery. Deposit by transfer, then you collect."' end
     if not sl_career.addMoney(-(price + L.delivery(price)), 'Revline: ' .. l.item.name) then return false, 'Not enough money.' end
@@ -320,7 +359,8 @@ function M.buy(id, how)
   local w = l.where
   local job = { id = 'market:' .. l.id, kind = 'market', title = 'Pick up', item = l.item.name, settle = 'market', seconds = 0, pay = 0,
     legs = { { id = 'seller', name = l.seller .. "'s place", x = w.x, y = w.y, z = w.z }, { id = 'seller', name = l.seller .. "'s place", x = w.x, y = w.y, z = w.z } },
-    listing = l.id, price = price, deposit = deposit, model = l.item.model, part = part, scam = l.scam, noShow = l.noShow }
+    listing = l.id, price = price, deposit = deposit, model = l.item.model, part = part, scam = l.scam, noShow = l.noShow,
+    privateCar = l.kind == 'car' and l.offer or nil, seller = l.seller }
   js = js or { offers = {}, done = 0, earned = 0 }
   s.jobs = js
   js.offers = js.offers or {}
@@ -356,6 +396,28 @@ end
 
 local function findMine(m, id) for i, y in ipairs(m.mine) do if y.id == id then return y, i end end end
 
+-- sell one of your cars on Revline: it stays yours (and drivable) until you accept an offer
+function M.listCar(carId)
+  local s = career()
+  if not s then return false, 'No career running.' end
+  local m = state(s)
+  if #m.mine >= MINE_MAX then return false, 'You have ' .. MINE_MAX .. ' things listed already.' end
+  local car = carById(s, tonumber(carId) or carId)
+  if not car then return false, 'That car is not yours.' end
+  for _, y in ipairs(m.mine) do if y.carId == car.id then return false, 'It is listed already.' end end
+  local y = { id = 'y' .. m.nextId, kind = 'car', carId = car.id, name = car.name or car.model, model = car.model, value = car.value or 0,
+    condition = car.condition or 0.5, channel = 'app', offers = {}, listed = now(s) }
+  m.nextId = m.nextId + 1
+  m.mine[#m.mine + 1] = y
+  extensions.hook('onStreetLegalChanged')
+  return true, string.format('Your %s is on Revline. Buyers will make offers; it is yours until you accept one.', y.name)
+end
+
+-- onPrivateSold: sl_lot sold you a Revline car (the listing went when the seller showed it)
+function M.onPrivateSold(listingId, carId)
+  extensions.hook('onStreetLegalChanged')
+end
+
 function M.acceptOffer(id, index)
   local s = career()
   if not s then return false, 'No career running.' end
@@ -363,8 +425,18 @@ function M.acceptOffer(id, index)
   local y, i = findMine(m, id)
   local o = y and y.offers[tonumber(index) or 0]
   if not o then return false, 'That offer is gone.' end
+  local amount = o.amount
+  if y.kind == 'car' then
+    local cap = carCap(s, y.carId)
+    if not cap then table.remove(m.mine, i) return false, 'That car is not yours any more.' end
+    if amount > cap then               -- (the buyer sees the car as it is now: stripped or bent since, it is worth less)
+      o.amount = cap
+      return false, string.format('%s had a look at it and knocked the offer down to $%d.', o.buyer or 'The buyer', cap)
+    end
+    sl_fleet.lose(y.carId)
+  end
   table.remove(m.mine, i)
-  local got = L.proceeds(o.amount)
+  local got = L.proceeds(amount)
   sl_career.addMoney(got, 'Revline sale: ' .. y.name)
   extensions.hook('onStreetLegalChanged')
   return true, string.format('Sold the %s to %s: $%d after the fee.', y.name, o.buyer or 'a buyer', got)
@@ -377,7 +449,7 @@ function M.returnListed(s)
   if not m or not m.mine then return 0 end
   local n = 0
   for _, y in ipairs(m.mine) do
-    if y.item and slrr_garage and slrr_garage.putShelfItem and slrr_garage.putShelfItem(y.model, y.item) then n = n + 1 end
+    if y.item and slrr_garage and slrr_garage.putShelfItem and slrr_garage.putShelfItem(y.model, y.item) then n = n + 1 end   -- (a car never left)
   end
   m.mine = {}
   return n
@@ -391,6 +463,7 @@ function M.withdraw(id)
   if not y then return false, 'That listing is gone.' end
   if y.channel == 'auction' and (y.bid or 0) > 0 then return false, 'There are bids on it: the auction runs to the end.' end
   table.remove(m.mine, i)
+  if y.kind == 'car' then extensions.hook('onStreetLegalChanged') return true, string.format('Your %s is off Revline.', y.name) end
   if slrr_garage and slrr_garage.putShelfItem then slrr_garage.putShelfItem(y.model, y.item) end
   extensions.hook('onStreetLegalChanged')
   return true, string.format('Your %s is back on your shelf.', y.name)
@@ -468,6 +541,20 @@ function M.onUpdate(dtReal)
   local stop = j.legs[1]
   if (v:getPosition() - vec3(stop.x, stop.y, stop.z or 0)):length() > STOP_RADIUS or v:getVelocity():length() > 2 then return end
   local m = state(s)
+  if j.privateCar and not j.scam and not j.noShow then
+    -- a car: the deposit back, and the seller shows it to you (sl_lot's private sale: look, test drive, buy at the price agreed)
+    local offer = deepcopy(j.privateCar)
+    offer.price, offer.listingId = j.price, j.listing
+    if not (sl_lot and sl_lot.openPrivate and sl_lot.openPrivate(offer, vec3(stop.x, stop.y, stop.z or 0), j.seller)) then
+      if not j.waitTold then toast('Close the lot screen you have open first.') j.waitTold = true end
+      return
+    end
+    sl_career.addMoney(j.deposit, 'Revline deposit back')
+    local _, i = find(m, j.listing)
+    if i then table.remove(m.listings, i) end
+    sl_jobs.cancel(s, js, j, string.format('%s shows you the %s. Your deposit is back; pay on the spot if you want it.', j.seller or 'The seller', j.item))
+    return
+  end
   local _, i = find(m, j.listing)
   if i then table.remove(m.listings, i) end
   if j.scam then
