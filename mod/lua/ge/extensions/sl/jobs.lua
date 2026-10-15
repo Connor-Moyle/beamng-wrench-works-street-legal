@@ -277,7 +277,7 @@ local function finish(s, js, j, v)
   js.active = nil
   if core_groundMarkers then core_groundMarkers.setPath(nil) end
   if pay > 0 then sl_career.addMoney(pay, j.title .. ': ' .. (j.item or 'delivery')) end
-  stateLib.addRep(s, verdict == 'broken' and -5 or (verdict == 'late' and 2 or 6))
+  stateLib.addRep(s, verdict == 'broken' and -5 or (verdict == 'late' and 2 or (j.kind == 'errand' and 15 or 6)))
   js.done, js.earned = js.done + 1, js.earned + pay
   if j.car and j.carVid then
     local id = j.carVid
@@ -429,6 +429,23 @@ end
 function M.onStreetLegalRaceResult(won, opponent, racerId)
   local s = career()
   if s and won then countWin(s, racerId) end
+  -- a racer you have just beaten sometimes asks a favour (Design 3 #17): fetch them a part to their meet spot
+  local r = s and won and racerId and stateLib.racer(s, racerId)
+  if not r then return end
+  local rng = rngLib.new(rngLib.hash('errand:' .. racerId .. ':' .. s.day .. ':' .. tostring(#(s.ledger or {}))))
+  if not rng:chance(0.3) then return end
+  local ctx = context(s)
+  local meets = {}
+  for _, p in ipairs(ctx.places) do if p.kind == 'meet' then meets[#meets + 1] = p end end
+  if #ctx.shops == 0 or #meets == 0 then return end
+  local shop, meet = ctx.shops[rng:int(#ctx.shops)], meets[rng:int(#meets)]
+  local j = jobsLib.make('part', shop, meet, rng)
+  j.legs, j.title, j.kind, j.id = { leg(shop), leg(meet) }, 'Favour for ' .. (r.name or 'a racer'), 'errand', 'errand:' .. racerId .. ':' .. s.day
+  j.pay = math.floor(j.pay * 0.5 / 10) * 10
+  local js = jobsState(s)
+  js.offers[#js.offers + 1] = j
+  sl_career.sendText(racerId, string.format('Fair race. Do me a favour? I need a %s from %s, brought to %s. I will make it worth your while. It is on your Jobs app.',
+    j.item, shop.name, meet.name), 60)
 end
 
 function M.onStreetLegalNewDay(day)
