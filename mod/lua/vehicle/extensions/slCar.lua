@@ -87,6 +87,32 @@ function M.litres(tank)
   return per > 0 and tank.energyCapacity / per or 0
 end
 
+-- the garage rebuilds the engine: its wear, its internal damage and its fluids, nothing else on the car
+function M.rebuildEngine()
+  findFluids()
+  if engine then
+    -- the engine's own part condition, fresh, keeps every other part as it is
+    local conditions = partCondition and partCondition.getConditions and partCondition.getConditions()
+    if type(conditions) == 'table' then
+      for partId, cond in pairs(conditions) do
+        if type(partId) == 'string' and partId:lower():find('engine', 1, true) and not partId:lower():find('mount', 1, true) then
+          cond.odometer, cond.integrityValue, cond.integrityState = 0, 1, nil
+        end
+      end
+      pcall(partCondition.initConditions, conditions)
+    end
+    if engine.reset and engine.jbeamData then pcall(engine.reset, engine, engine.jbeamData) end   -- the game's own engine reset: damage, thermals
+    engine.outputTorqueState = 1
+    engine.isBroken, engine.isDisabled = false, false
+    findFluids()
+    setLevel(oil, 1)
+    setLevel(coolant, 1)
+  end
+  state.engineKm, state.oilKm = 0, 0
+  applyFactor()
+  M.report()
+end
+
 local function storageRatio(kind)
   for _, tank in pairs(energyStorage and energyStorage.getStorages and energyStorage.getStorages() or {}) do
     if tank.type == kind then return tank.remainingRatio end
