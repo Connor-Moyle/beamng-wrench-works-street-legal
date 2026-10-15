@@ -404,6 +404,7 @@ function M.buyAtMeet(id)
   local l, i = find(m, id)
   if not l or l.channel ~= 'meet' then return false, 'That stall has sold it.' end
   if not atMeet() then return false, 'The swap meet is at the Tuning shop lot. Come and look.' end
+  if not (slrr_garage and slrr_garage.addShelfPart) then return false, 'You need Wrench Works running to take it home.' end
   if not sl_career.addMoney(-l.ask, 'Swap meet: ' .. l.item.name) then return false, 'Not enough money.' end
   table.remove(m.listings, i)
   if slrr_garage and slrr_garage.addShelfPart then
