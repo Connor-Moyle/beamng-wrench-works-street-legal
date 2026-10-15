@@ -51,6 +51,7 @@ function M.insure(on)
   local b = bankState(s)
   if on then
     if b.policy and b.policy.active then return false, 'You are insured already.' end
+    if sl_options and sl_options.get('slHardcore') then return false, 'Hardcore career: nobody will insure you.' end
     local premium = bank.premium(fleetValue(s))
     if not sl_career.addMoney(-premium, 'Insurance premium') then return false, string.format('The first week is $%d.', premium) end
     b.policy = { active = true, from = s.day + 1, nextPremium = s.day + bank.WEEK }

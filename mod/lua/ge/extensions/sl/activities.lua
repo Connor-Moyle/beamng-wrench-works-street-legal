@@ -62,7 +62,7 @@ function M.onMissionAttemptAggregated(attempt, mission)
   if r.prize and (paid or not r.fee) then money = math.floor(r.prize * (1 + (r.perStar or 0) * stars) / 10) * 10 end
   local rep = 0
   if not r.firstOnly or first then rep = (r.rep or 0) + math.floor((r.heatRep or 0) * (s.heat or 0)) end
-  if money > 0 then sl_career.addMoney(money, r.title) end
+  if money > 0 then sl_career.payOut(money, r.title) end
   if rep ~= 0 then stateLib.addRep(s, rep) end
   if r.heat then s.heat = math.max(0, math.min(1, (s.heat or 0) + r.heat)) end
   if money > 0 or rep ~= 0 then

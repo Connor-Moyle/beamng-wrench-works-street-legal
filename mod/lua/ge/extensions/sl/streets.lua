@@ -570,7 +570,7 @@ function M.showAndShine()
   local mine = showshine.score({ value = car.value, condition = car.condition, dents = car.damage and car.damage.beams and #car.damage.beams or 0,
     washed = sl_station and sl_station.washedToday and sl_station.washedToday(car.id) })
   local place, prize, rep = showshine.result(mine, rivals)
-  if prize > 0 then sl_career.addMoney(prize, 'Show and shine: ' .. place .. (place == 1 and 'st' or place == 2 and 'nd' or 'rd')) end
+  if prize > 0 then sl_career.payOut(prize, 'Show and shine: ' .. place .. (place == 1 and 'st' or place == 2 and 'nd' or 'rd')) end
   if rep > 0 then stateLib.addRep(s, rep) end
   local ord = ({ 'first', 'second', 'third' })[place] or (place .. 'th')
   guihooks.trigger('slPhoneToast', { text = string.format('Show and shine: the %s comes %s of %d.%s', car.name, ord, #rivals + 1,
@@ -823,7 +823,7 @@ finish = function(playerWon)
     roc.round = roc.round + 1
     if roc.round >= 3 then
       roc.champion = true
-      sl_career.addMoney(250000, 'ROC champion')
+      sl_career.payOut(250000, 'ROC champion')
       stateLib.addRep(s, 2000)
       sl_career.sendText('benny', 'You won the ROC. Champion of Valo City. I always said you had it in you. (I did not.)', 3)
     else

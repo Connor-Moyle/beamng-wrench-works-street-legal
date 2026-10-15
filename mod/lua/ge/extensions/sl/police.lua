@@ -58,17 +58,27 @@ local function despawn(id)
   if v then v:delete() end
 end
 
+-- the career's settings (sl_options): police on or off, and how many patrols and how keen
+local function policeOn() return not sl_options or sl_options.get('slPolice') ~= false end
+local function level() return sl_options and sl_options.get('slPoliceLevel') or 1 end
+
 local function updatePatrols()
   local v = getPlayerVehicle(0)
   if not v then return end
+  -- the map turns traffic cars into night patrols itself (slrrValoNight): then no extra cars of ours on the road
+  if slrrValoNight and slrrValoNight.setPolice then
+    local want = policeOn()
+    if (slrrValoNight.getState and slrrValoNight.getState() or {}).police ~= want then slrrValoNight.setPolice(want) end
+  end
+  local target = (policeOn() and not (slrrValoNight and slrrValoNight.setPolice)) and math.floor(PATROLS * level() + 0.5) or 0
   for i = #units, 1, -1 do
     local u = getObjectByID(units[i])
-    if not u or (u:getPosition() - v:getPosition()):length() > 1600 or not night() then
+    if not u or (u:getPosition() - v:getPosition()):length() > 1600 or not night() or i > target then
       despawn(units[i])
       table.remove(units, i)
     end
   end
-  if not night() or busy or #units >= PATROLS or not gameplay_traffic then return end
+  if not night() or busy or #units >= target or not gameplay_traffic then return end
   local node = nodeAround(v:getPosition(), 400, 800)
   if not node then return end
   local cfg = CONFIGS[math.random(#CONFIGS)]
@@ -89,9 +99,9 @@ end
 -- a street race has started: heat, and maybe a patrol on your tail
 function M.onRaceStart()
   local s = career()
-  if not s then return end
+  if not s or not policeOn() then return end
   addHeat(0.12)
-  local chance = 0.15 + 0.55 * (s.heat or 0)
+  local chance = math.min(0.95, (0.15 + 0.55 * (s.heat or 0)) * level())
   if math.random() > chance or not gameplay_police then return end
   local v = getPlayerVehicle(0)
   if not v then return end

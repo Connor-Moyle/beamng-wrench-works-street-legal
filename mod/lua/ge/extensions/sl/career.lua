@@ -204,6 +204,13 @@ function M.addMoney(amount, label)
   return wallet.add(amount, label)
 end
 
+-- money earned (jobs, purses, prizes, sponsors): as much as the career's Pay setting says (sl_options; not
+-- sales, refunds or bets, which stay as they are)
+function M.payOut(amount, label)
+  local k = sl_options and sl_options.get('slEconomy') or 1
+  return wallet.add(math.floor((amount or 0) * k / 10 + 0.5) * 10, label)
+end
+
 ----------------------------------------------------------------------------------------------
 -- places on the map: the junkyard, the dealer, the scrap yard, the garages. Read from
 -- /street_legal/places/*.json (the map brings them) and the player's own places.json:
@@ -464,7 +471,7 @@ function M.taxi(placeId)
   local fee = progression.taxiFee((v:getPosition() - place.pos):length())
   -- the floor: no car and no money for the fare (a pink slip lost, bets gone wrong): once a day a free
   -- ride, so the jobs that need no car (the junkyard's crushing run) are always in reach
-  if s.money < fee and #s.cars == 0 and s.freeRideDay ~= s.day then
+  if s.money < fee and #s.cars == 0 and s.freeRideDay ~= s.day and not (sl_options and sl_options.get('slHardcore')) then
     s.freeRideDay = s.day
     fee = 0
     M.sendText('benny', "My cousin will run you over there. Don't make a habit of it. The junkyard always has a wreck that needs driving to the crusher.", 1)

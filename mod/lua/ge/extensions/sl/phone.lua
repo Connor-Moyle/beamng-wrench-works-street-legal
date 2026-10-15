@@ -205,6 +205,9 @@ M.onStreetLegalText = function(thread, text)
   if not s then return end
   local name = BENNY.name
   for _, r in ipairs(s.racers) do if r.id == thread then name = roster.displayName(r) end end
+  -- the pop-up as the settings say (sl_options): every text, only the racers', or none (all land in Messages)
+  local level = sl_options and sl_options.get('slNotify') or 'all'
+  if level == 'off' or (level == 'important' and thread == 'benny') then return end
   guihooks.trigger('slPhoneNotify', { thread = thread, name = name, text = text })
 end
 

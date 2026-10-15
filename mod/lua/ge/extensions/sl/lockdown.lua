@@ -36,6 +36,7 @@ local function reset(playerID)
   local veh = getPlayerVehicle(0)
   if not veh or (gameplay_walk and gameplay_walk.isWalking()) then toast('On foot: nothing to pull out.') return end
   if veh:getVelocity():length() > 3 then toast('Stop first, then call for a pull back to the road.') return end
+  if sl_options and sl_options.get('slHardcore') then toast('Hardcore: nobody pulls you out. Phone > My cars > Tow it home.') return end
   local now = os.clock()
   if offer and now < offer.untilT then
     local fee = offer.fee

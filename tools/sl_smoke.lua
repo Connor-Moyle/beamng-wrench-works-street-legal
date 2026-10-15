@@ -269,6 +269,33 @@ check('slots: the career being played is one of the saved ones', function()
   return found, 'slot ' .. tostring(n)
 end)
 
+-- the settings group (X53): every setting has a value, the career's own go in the save, and Pay scales earnings
+check('options: Street Legal settings read and write, per career where they change the balance', function()
+  local before = sl_options.get('slEconomy')
+  local defs = {}
+  sl_options.onWrenchWorksSettingsDefs(defs)
+  sl_options.onWrenchWorksSetting('slEconomy', 2)
+  local inSave = (sl_career.getState().options or {}).slEconomy == 2
+  local m0 = sl_career.getState().money
+  sl_career.payOut(100, 'Smoke pay')
+  local paid = sl_career.getState().money - m0
+  sl_career.addMoney(-paid, 'Smoke pay back')
+  sl_options.onWrenchWorksSetting('slEconomy', before)
+  return #defs >= 7 and inSave and paid == 200, string.format('%d settings shown, x2 paid $%d', #defs, paid)
+end)
+
+-- vehicle budget: nothing of ours left standing about (cabs, tow trucks, lot rows, patrols)
+check('budget: no stray spawned vehicles', function()
+  local keep = {}
+  local p = getPlayerVehicle(0)
+  if p then keep[p:getID()] = true end
+  for _, id in ipairs(gameplay_traffic and gameplay_traffic.getTrafficList and gameplay_traffic.getTrafficList() or {}) do keep[id] = true end
+  for _, c in ipairs(sl_career.getState().cars or {}) do local v = sl_fleet.vehicleOf(c.id) if v then keep[v:getID()] = true end end
+  local extra = {}
+  for _, v in ipairs(getAllVehicles()) do if not keep[v:getID()] then extra[#extra + 1] = v:getJBeamFilename() end end
+  return #extra <= 3, #extra .. ' extra: ' .. table.concat(extra, ', ')
+end)
+
 -- no freeroam shortcuts in the career (playtest #2, #3)
 check('lockdown: editor, vehicle menus, rewind and teleports blocked; the pause menu has its own mode', function()
   local af = core_input_actionFilter

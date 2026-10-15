@@ -156,8 +156,12 @@ end
 
 -- flares along the road from one point to another (the way the AI would drive it); a straight
 -- line when there is no road between them (a drag strip)
+-- (off in the settings: sl_options' race flares and start lines)
+local function off() return sl_options and sl_options.get('slMarkers') == false end
+
 function M.flareRoute(from, to)
   M.clear()
+  if off() then return end
   local points = {}
   local ok, path = pcall(function() return map.getPointToPointPath(from, to) end)
   local nodes = map and map.getMap and map.getMap().nodes or {}
@@ -177,6 +181,7 @@ end
 -- a circuit: flares at both sides of every checkpoint. cps = { { pos, dir, half } }
 function M.flareCircuit(cps)
   M.clear()
+  if off() then return end
   for i, c in ipairs(cps) do
     local right = c.dir:cross(vec3(0, 0, 1)):normalized()
     local lit = i % 2 == 1
@@ -194,6 +199,7 @@ local textColor, textBg = ColorF(1, 1, 1, 1), ColorI(25, 12, 0, 210)
 
 -- pos: the middle of the line on the road; dir: the way the race goes; color: a ColorF for the ring
 function M.drawStart(pos, dir, label, color, width)
+  if off() then return end
   local cam = core_camera and core_camera.getPosition and core_camera.getPosition()
   local dist = cam and (cam - pos):length() or 0
   if dist > 450 then return end

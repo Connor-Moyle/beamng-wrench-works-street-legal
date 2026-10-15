@@ -115,7 +115,7 @@ function M.endSeason(s)
   local c = s.club
   local place = clubs.placeOf(c.standings, 'player')
   local money, rep, invited = clubs.seasonReward(c.club, place)
-  if money > 0 then sl_career.addMoney(money, clubs.CLUBS[c.club].name .. ' season ' .. c.season) end
+  if money > 0 then sl_career.payOut(money, clubs.CLUBS[c.club].name .. ' season ' .. c.season) end
   if rep > 0 then stateLib.addRep(s, rep) end
   local text = string.format('%s season %d is over: you finished %s.', clubs.CLUBS[c.club].name, c.season, place and ('#' .. place) or 'unplaced')
   if invited and clubs.CLUBS[c.club + 1] then text = text .. ' ' .. clubs.CLUBS[c.club + 1].name .. ' has sent you an invitation: move up when you can (phone, Street cred).' end
@@ -183,7 +183,7 @@ function M.onSlrrRaceFinished(r)
   table.insert(order, at, pair[2]) table.insert(order, at, pair[1])
   clubs.score(c.standings, order, ev.finale)
   local purse = ch.league.kind == 'day' and clubs.purse(c.club, r.won and 1 or 2) or 0
-  if purse > 0 then sl_career.addMoney(purse, 'Day league purse') end
+  if purse > 0 then sl_career.payOut(purse, 'Day league purse') end
   toast(string.format('League: %s. You are #%d in the %s standings.', r.won and 'won' or 'lost', clubs.placeOf(c.standings, 'player') or 0, clubs.CLUBS[c.club].name))
   extensions.hook('onStreetLegalChanged')
 end

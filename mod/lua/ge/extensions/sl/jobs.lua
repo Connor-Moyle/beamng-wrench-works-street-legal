@@ -386,7 +386,7 @@ end
 function M.finishWith(s, js, j, pay, rep, text)
   js.active = nil
   if core_groundMarkers then core_groundMarkers.setPath(nil) end
-  if pay > 0 then sl_career.addMoney(pay, j.title .. ': ' .. (j.item or 'delivery')) end
+  if pay > 0 then sl_career.payOut(pay, j.title .. ': ' .. (j.item or 'delivery')) end
   stateLib.addRep(s, rep)
   js.done, js.earned = js.done + 1, js.earned + pay
   toast(text)
@@ -469,7 +469,7 @@ function M.onStreetLegalCarSold(car, price, to)
   js.flip.best = math.max(js.flip.best, profit)
   if profit >= js.flip.target then
     local bonus = math.floor(js.flip.target * 0.5 / 10) * 10
-    sl_career.addMoney(bonus, 'Flip bonus: ' .. (car.name or 'car'))
+    sl_career.payOut(bonus, 'Flip bonus: ' .. (car.name or 'car'))
     stateLib.addRep(s, 25)
     sl_career.sendText('benny', string.format('The junkyard owner says you made $%d on that %s. He paid you a $%d bonus, and says next time, $%d.',
       profit, car.name or 'car', bonus, math.floor(js.flip.target * FLIP_GROWTH / 100) * 100), 3)
@@ -488,7 +488,7 @@ local function challenge(s, key, list, value, better, unit, what)
   local paid = 0
   while list[js[key]] and better(value, list[js[key]][1]) do
     local t = list[js[key]]
-    sl_career.addMoney(t[2], what .. ' target ' .. t[1] .. unit)
+    sl_career.payOut(t[2], what .. ' target ' .. t[1] .. unit)
     stateLib.addRep(s, 15)
     paid = paid + t[2]
     js[key] = js[key] + 1
@@ -539,7 +539,7 @@ local function countWin(s, racerId)
     c.won = c.won + 1
     if c.won >= c.need then
       c.done = true
-      sl_career.addMoney(c.pay, 'Crew contract: ' .. c.boss)
+      sl_career.payOut(c.pay, 'Crew contract: ' .. c.boss)
       stateLib.addRep(s, 30)
       sl_career.sendText('benny', string.format('Word from %s: contract done. $%d is in your account.', c.boss, c.pay), 3)
     end
@@ -588,7 +588,7 @@ function M.onStreetLegalNewDay(day)
     sl_career.sendText('benny', string.format('%s want their name on your car: $%d a week, as long as you win two races a week.', best.name, best.weekly), 4)
   elseif js.sponsor and (day - js.sponsor.since) % 7 == 0 and day ~= js.sponsor.since then
     if (js.weekWins or 0) >= 2 then
-      sl_career.addMoney(js.sponsor.weekly, 'Sponsor: ' .. js.sponsor.name)
+      sl_career.payOut(js.sponsor.weekly, 'Sponsor: ' .. js.sponsor.name)
     else
       sl_career.sendText('benny', js.sponsor.name .. ' saw you did not win two races this week. No cheque. Win some.', 3)
     end
