@@ -26,12 +26,27 @@ assert.ok(gone('.slh-map') && gone('.slh-dmg') && !gone('.slh-speedo'), 'switche
 hud.handle('slHud', { show: false });
 assert.ok(hud.root.classList.contains('slh-gone'), 'hidden on foot, in the garage and so on');
 
+console.log('hud test passed');
+
+// --png <dir>: draw a frame (with SLRR's textures when tools/slrr_ui.py has copied them) and save each canvas
 const i = process.argv.indexOf('--png');
 if (i > 0) {
-  hud.handle('slHud', frame);
   const dir = process.argv[i + 1];
-  for (const c of hud.root.querySelectorAll('canvas')) {
-    fs.writeFileSync(path.join(dir, c.className + '.png'), Buffer.from(c.toDataURL('image/png').split(',')[1], 'base64'));
-  }
+  const slrr = path.join(__dirname, '..', 'mod/ui/modModules/slHud/slrr');
+  const dom2 = new JSDOM('<!doctype html><html><body></body></html>', { runScripts: 'outside-only', pretendToBeVisual: true, resources: 'usable' });
+  dom2.window.__slHudTest = true;
+  dom2.window.eval(code);
+  const load = (name) => new Promise((res) => {
+    const img = dom2.window.document.createElement('img');
+    img.onload = () => res(img); img.onerror = () => res(null);
+    img.src = 'file:///' + path.join(slrr, name).replace(/\\/g, '/');
+  });
+  Promise.all([load('general_gauge.png'), load('osd.png')]).then(([gauge, osd]) => {
+    const h2 = dom2.window.__slHudCreate(dom2.window.document, { gauge, osd });
+    h2.handle('slHud', frame);
+    for (const c of h2.root.querySelectorAll('canvas')) {
+      fs.writeFileSync(path.join(dir, c.className.split(' ')[0] + '.png'), Buffer.from(c.toDataURL('image/png').split(',')[1], 'base64'));
+    }
+    console.log('drew with SLRR textures:', !!gauge, !!osd);
+  });
 }
-console.log('hud test passed');

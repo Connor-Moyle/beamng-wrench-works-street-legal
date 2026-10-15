@@ -21,7 +21,18 @@
   var ZONES = ['FL', 'FR', 'ML', 'MR', 'RL', 'RR'];
   var PLACE_COLOURS = { garage: '#ff7a00', junkyard: '#4aa3ff', dealer: '#4aa3ff', scrapyard: '#9aa4b2', meet: '#c46bff' };
 
-  function createHud(doc) {
+  // SLRR's own textures (copied from the player's SLRR by tools/slrr_ui.py): where each piece sits
+  var SPRITES = {
+    speedo: { sx: 328, sy: 119, s: 482, max: 360 },      // km/h, 0 bottom-left round to 360 bottom-right
+    tacho: { sx: 12, sy: 440, s: 386, max: 9000 },       // rpm
+    gear: { sx: 402, sy: 606, w: 412, h: 218 },
+    car: { sx: 4, sy: 4, w: 74, h: 184 },                // the damage outline, in osd.png
+  };
+
+  // assets: { gauge: Image, osd: Image } - SLRR's textures, or nothing (then everything is drawn)
+  function createHud(doc, assets) {
+    assets = assets || {};
+    var ready = function (img) { return img && img.complete && img.naturalWidth > 0; };
     var root = doc.createElement('div');
     root.className = 'slh-root slh-gone';
     var style = doc.createElement('style');
@@ -37,9 +48,10 @@
     var left = doc.createElement('div'); left.className = 'slh-left';
     var dials = doc.createElement('div'); dials.className = 'slh-dials';
     var mapC = canvas('slh-map', 200, 200), dmgC = canvas('slh-dmg', 86, 150);
-    var tachoC = canvas('slh-tacho', 190, 190), speedoC = canvas('slh-speedo', 190, 190);
+    var tachoC = canvas('slh-tacho', 190, 190), speedoC = canvas('slh-speedo', 190, 190), gearC = canvas('slh-gear', 120, 64);
+    gearC.classList.add('slh-gone');
     left.appendChild(mapC); left.appendChild(dmgC);
-    dials.appendChild(tachoC); dials.appendChild(speedoC);
+    dials.appendChild(tachoC); dials.appendChild(gearC); dials.appendChild(speedoC);
     root.appendChild(left); root.appendChild(dials);
     doc.body.appendChild(root);
 
@@ -55,6 +67,40 @@
         (grid[key] = grid[key] || []).push(i);
       }
       roads = { segs: segs, grid: grid, places: data.places || [] };
+    }
+
+    // ---------------------------------------------------------------- SLRR's own dial: its face, a needle on it
+    function slrrDial(c, sp, value, digits) {
+      var g = c.getContext('2d'), W = c.width, r = W / 2;
+      g.clearRect(0, 0, W, W);
+      g.save();
+      g.beginPath(); g.arc(r, r, r - 1, 0, Math.PI * 2); g.clip();          // just this dial, not the edge of its neighbour
+      g.drawImage(assets.gauge, sp.sx, sp.sy, sp.s, sp.s, 0, 0, W, W);
+      g.restore();
+      if (digits != null) {                                                  // in the dial's own window, as SLRR shows the speed
+        g.font = 'bold ' + Math.round(r * 0.2) + 'px Overpass, Roboto, sans-serif';
+        g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#141414';
+        g.fillText(digits, r, r * 1.74);
+      }
+      var a0 = Math.PI * 0.75, a1 = Math.PI * 2.25;
+      var na = a0 + (a1 - a0) * Math.max(0, Math.min(1, value / sp.max));
+      g.save();
+      g.translate(r, r);
+      g.rotate(na);
+      g.beginPath(); g.moveTo(-r * 0.12, -r * 0.03); g.lineTo(r * 0.78, -r * 0.01); g.lineTo(r * 0.78, r * 0.01); g.lineTo(-r * 0.12, r * 0.03); g.closePath();
+      g.fillStyle = '#ff4a12'; g.shadowColor = 'rgba(0,0,0,0.6)'; g.shadowBlur = 6; g.fill();
+      g.restore();
+      g.beginPath(); g.arc(r, r, r * 0.17, 0, Math.PI * 2); g.fillStyle = '#9c9ca0'; g.fill();     // the cap, over the needle's root
+    }
+
+    function slrrGear(text, speedText) {
+      var g = gearC.getContext('2d'), sp = SPRITES.gear, W = gearC.width, H = gearC.height;
+      g.clearRect(0, 0, W, H);
+      g.drawImage(assets.gauge, sp.sx, sp.sy, sp.w, sp.h, 0, 0, W, H);
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.font = 'bold ' + Math.round(H * 0.62) + 'px Overpass, Roboto, sans-serif';
+      g.fillStyle = text === 'R' ? '#e01b1b' : '#1a1a1a';
+      g.fillText(text, W * 0.62, H * 0.52);
     }
 
     // ---------------------------------------------------------------- a round dial
@@ -193,8 +239,13 @@
         g.fillStyle = damageColour(body[z]);
         g.fillRect(bx + col * bw / 2 + 2, by + row * bh / 3 + 2, bw / 2 - 4, bh / 3 - 4);
       });
-      g.lineWidth = 3; g.strokeStyle = '#8c8c94';
-      g.strokeRect(bx, by, bw, bh);
+      if (ready(assets.osd)) {
+        var sp = SPRITES.car;                                 // SLRR's own car outline over the zones
+        g.drawImage(assets.osd, sp.sx, sp.sy, sp.w, sp.h, bx - W * 0.06, by - H * 0.02, bw + W * 0.12, bh + H * 0.04);
+      } else {
+        g.lineWidth = 3; g.strokeStyle = '#8c8c94';
+        g.strokeRect(bx, by, bw, bh);
+      }
       // engine
       g.font = 'bold 22px Overpass, Roboto, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
       g.fillStyle = d.engine === 2 ? '#e01b1b' : (d.engine === 1 ? '#ff8a1e' : '#2fbf4f');
@@ -215,11 +266,18 @@
       show('tacho', tachoC); show('speedo', speedoC); show('map', mapC); show('damage', dmgC);
       var mph = settings.units === 'mph';
       var speed = Math.abs(data.speed || 0) * (mph ? 2.23694 : 3.6);
-      if (settings.speedo) {
+      var slrr = ready(assets.gauge);
+      gearC.classList.toggle('slh-gone', !(slrr && settings.tacho));
+      if (settings.speedo && slrr && !mph) {
+        slrrDial(speedoC, SPRITES.speedo, speed, String(Math.round(speed)));
+      } else if (settings.speedo) {
         var top = mph ? 160 : 280;
         dial(speedoC, speed, top, { step: mph ? 20 : 40, minor: mph ? 4 : 4, caption: mph ? 'MPH' : 'KM/H', digits: String(Math.round(speed)) });
       }
-      if (settings.tacho) {
+      if (settings.tacho && slrr) {
+        slrrDial(tachoC, SPRITES.tacho, data.rpm || 0);
+        slrrGear(gearText(data.gear));
+      } else if (settings.tacho) {
         var redline = data.maxRpm > 1000 ? data.maxRpm : 7000;
         var max = Math.max(6000, Math.ceil((redline + 500) / 1000) * 1000);
         dial(tachoC, data.rpm || 0, max, { step: 1000, minor: 4, labelDiv: 1000, red: redline, caption: 'RPM x1000',
@@ -237,7 +295,9 @@
   if (typeof angular !== 'undefined' && typeof window !== 'undefined' && !window.__slHudTest) {
     angular.module('slHud', []).run(['$rootScope', function ($rootScope) {
       if (window.__slHud) return;
-      var hud = createHud(document);
+      var base = '/ui/modModules/slHud/slrr/';
+      var img = function (name) { var i = new Image(); i.src = base + name; return i; };
+      var hud = createHud(document, { gauge: img('general_gauge.png'), osd: img('osd.png') });
       window.__slHud = hud;
       ['slHud', 'slHudMap', 'slHudSettings'].forEach(function (name) {
         $rootScope.$on(name, function (ev, data) { hud.handle(name, data); });

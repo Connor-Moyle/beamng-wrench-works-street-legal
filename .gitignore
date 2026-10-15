@@ -1,3 +1,6 @@
 node_modules/
 *.zip
 graphify-out/
+
+# SLRR's own textures: copied from each player's install by tools/slrr_ui.py, not redistributed
+mod/ui/modModules/slHud/slrr/
