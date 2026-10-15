@@ -108,7 +108,7 @@ function M.call(id)
     id = id, answered = answered,
     greeting = answered and (GREETINGS[racer.style] or GREETINGS.easy) or nil,
     text = not answered and 'No answer.' or nil,
-    options = answered and (roster.pinkTonight(racer, s.day, s.seed) and { 'race', 'high', 'pink' } or { 'race', 'high' }) or {},
+    options = answered and (roster.pinkTonight(racer, s.day, s.seed) and { 'race', 'high', 'drag', 'pink' } or { 'race', 'high', 'drag' }) or {},
   })
 end
 
@@ -125,6 +125,7 @@ local ASK = {
   race = 'Up for a race?',
   high = 'Race me. High stakes.',
   pink = 'Pink slips. You and me.',
+  drag = 'Drag race at the test track?',
 }
 
 function M.text(id, kind)

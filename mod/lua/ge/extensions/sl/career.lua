@@ -378,12 +378,17 @@ local function races()
   for _, r in ipairs(type(data) == 'table' and data.nightRaces or {}) do
     if v3(r.start) then raceList[#raceList + 1] = { id = r.id, name = r.name or ('Race ' .. tostring(r.id)), start = v3(r.start), finish = v3(r.finish) } end
   end
+  -- the drag strip at the test track: the same race menu runs them (races.json "dragRaces")
+  for _, r in ipairs(type(data) == 'table' and data.dragRaces or {}) do
+    if v3(r.start) then raceList[#raceList + 1] = { id = r.id, name = r.name or ('Drag ' .. tostring(r.id)), start = v3(r.start), finish = v3(r.finish), drag = true } end
+  end
   return raceList
 end
 
--- a start line not too far from the player, picked a bit at random
-local function pickRace(rng)
-  local list = races()
+-- a start line not too far from the player, picked a bit at random; drag: one of the strip's
+local function pickRace(rng, drag)
+  local list = {}
+  for _, r in ipairs(races()) do if (r.drag == true) == (drag == true) then list[#list + 1] = r end end
   if #list == 0 then return nil end
   local v = getPlayerVehicle(0)
   local here = v and v:getPosition() or vec3()
@@ -394,19 +399,20 @@ local function pickRace(rng)
 end
 
 -- the racer's answer to a challenge; arranges the race when they say yes
--- kind: 'race' | 'high' | 'pink'
+-- kind: 'race' | 'high' | 'pink' | 'drag' (their usual stake, down the test track's strip)
 function M.challenge(racerId, kind)
   if not active then return { accept = false, text = 'No career running.' } end
   local racer = stateLib.racer(s, racerId)
   if not racer or not s.known[racerId] then return { accept = false, text = 'Number not recognised.' } end
   local rng = rngLib.new(rngLib.hash(racerId .. kind .. tostring(now())))
-  local answer = roster.respond(racer, kind, { rep = s.rep, money = s.money, hasCar = #s.cars > 0, pinkTonight = roster.pinkTonight(racer, s.day, s.seed) }, rng)
+  local drag = kind == 'drag'
+  local answer = roster.respond(racer, drag and 'race' or kind, { rep = s.rep, money = s.money, hasCar = #s.cars > 0, pinkTonight = roster.pinkTonight(racer, s.day, s.seed) }, rng)
   if answer.accept and kind == 'pink' and not s.activeCar then
     answer = { accept = false, text = 'Pink slips for which car? Get one out of the garage first.' }
   end
   if answer.accept then
-    local race = pickRace(rng)
-    if not race then return { accept = false, text = "There's nowhere to race on this map." } end
+    local race = pickRace(rng, drag)
+    if not race then return { accept = false, text = drag and "There's no drag strip on this map." or "There's nowhere to race on this map." } end
     for i = #s.challenges, 1, -1 do
       if s.challenges[i].racer == racerId then table.remove(s.challenges, i) end      -- one date per racer
     end

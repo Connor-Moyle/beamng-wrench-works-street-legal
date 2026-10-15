@@ -228,8 +228,8 @@
   function arr(x) { return Array.isArray(x) ? x : []; }
   function obj(x) { return x && typeof x === 'object' && !Array.isArray(x) ? x : {}; }
 
-  var STAKE_TEXT = { race: 'Race for money', high: 'High stakes', pink: 'Pink slips' };
-  var QUICK = { race: 'Up for a race?', high: 'Race me. High stakes.', pink: 'Pink slips. You and me.' };
+  var STAKE_TEXT = { race: 'Race for money', high: 'High stakes', drag: 'Drag race', pink: 'Pink slips' };
+  var QUICK = { race: 'Up for a race?', high: 'Race me. High stakes.', drag: 'Drag race at the test track?', pink: 'Pink slips. You and me.' };
 
   function createPhone(doc, lua, clock) {
     clock = clock || { set: function (f, ms) { return setTimeout(f, ms); }, clear: function (t) { clearTimeout(t); }, now: function () { return Date.now(); } };
