@@ -82,6 +82,8 @@ end
 M.onStreetLegalRaceStarted = noteStart
 M.onSlrrRaceStarted = noteStart
 
+local turfWarResult    -- (defined below, used by the race result)
+
 function M.onStreetLegalRaceResult(won, opponent, racerId, stake)
   local s = career()
   local c = s and M.ensure(s)
@@ -186,7 +188,7 @@ local function turfWarNext(s, c)
   extensions.hook('onStreetLegalChanged')
 end
 
-local function turfWarResult(s, c, racerId, won)
+turfWarResult = function(s, c, racerId, won)
   local w = c.turfWar
   local crewId = w and w.order[w.stage]
   if not crewId or c.leader[crewId] ~= racerId then return end

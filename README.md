@@ -72,6 +72,8 @@ Nothing is written to disk; a car is built when it is asked for.
 npm i fengari jsdom
 node tools/luatest.js     # the rules: money, reputation, garages, racers, car market, the save
 node tools/phonetest.js   # the phone, in a simulated page (--html <file> writes a preview of its screens)
+node tools/hudtest.js     # the dashboard, the same way
+python tools/refcheck.py  # every global, hook, cross-mod call and settings key refers to something that exists (needs lupa and the game's lua folder)
 ```
 
 ## Source
