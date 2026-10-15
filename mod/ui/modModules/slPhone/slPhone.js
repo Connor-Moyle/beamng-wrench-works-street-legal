@@ -846,6 +846,7 @@
       if (!d.active) {
         layer.innerHTML = menuView() + gameOverView() + '<div class="slp-toast' + (st.toast ? '' : ' slp-gone') + '">' + esc(st.toast || '') + '</div>' +
           fadeView();
+        navify(focusKey);
         return;
       }
       var scroll = layer.querySelector('.slp-body, .slp-msgs');
@@ -891,7 +892,48 @@
         if (st.app === 'thread') after.scrollTop = after.scrollHeight;
         else if (keepApp === st.app) after.scrollTop = keep;
       }
+      navify(focusKey);
     }
+
+    // ---------------------------------------------------------------- gamepad (BeamNG's UI navigation, X51)
+    // The game moves focus between [bng-nav-item] elements with the d-pad/stick and clicks the focused one on A;
+    // our buttons are data-a divs, so they get bng-nav-item and a tabindex while they can be seen (a phone put
+    // away or a hidden panel never takes the focus), the pages scroll on the right stick, and the focus survives
+    // a re-render (the same button again, else the first one).
+    var focusKey = null;
+    function keyOf(el) { return el && el.getAttribute ? (el.getAttribute('data-a') || '') + '|' + (el.getAttribute('data-v') || '') : null; }
+    function navify(key) {
+      var device = layer.querySelector('.slp-device');
+      var items = layer.querySelectorAll('[data-a]');
+      var first = null, again = null, panel = null;
+      var PANELS = '.slp-lot, .slp-meet, .slp-race, .slp-chooser, .slp-chcard';      // what opens without the phone
+      for (var i = 0; i < items.length; i++) {
+        var el = items[i];
+        var hidden = (device && device.contains(el) && !st.open) || (el.closest && el.closest('.slp-gone')) || el.classList.contains('slp-gone');
+        if (hidden) { el.setAttribute('bng-no-nav', 'true'); el.removeAttribute('bng-nav-item'); el.removeAttribute('tabindex'); continue; }
+        el.setAttribute('bng-nav-item', '');
+        el.setAttribute('tabindex', '0');
+        el.removeAttribute('bng-no-nav');
+        if (!first && el.getAttribute('data-a') !== 'back' && el.getAttribute('data-a') !== 'home' && el.getAttribute('data-a') !== 'away') first = el;
+        if (key && !again && keyOf(el) === key) again = el;
+        if (!panel && el.closest && el.closest(PANELS)) panel = el;
+      }
+      var pages = layer.querySelectorAll('.slp-body, .slp-msgs');
+      for (var j = 0; j < pages.length; j++) pages[j].setAttribute('bng-nav-scroll', '');
+      var active = doc.activeElement;
+      var inside = active && layer.contains(active) && active.hasAttribute && active.hasAttribute('bng-nav-item');
+      var target = again || (!inside ? (st.open ? first : panel) : null);
+      if (target && target !== active && target.focus) target.focus();
+    }
+    doc.addEventListener('focusin', function (ev) { if (layer.contains(ev.target)) focusKey = keyOf(ev.target); }, true);
+    // B on the pad: back a page (and put the phone away from its home screen) instead of opening the game's menu
+    doc.addEventListener('ui_nav', function (ev) {
+      var d = ev.detail || {};
+      if (!st.open || d.name !== 'back' || d.value !== 1) return;
+      back();
+      if (ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+      if (ev.preventDefault) ev.preventDefault();
+    }, true);
 
     function scale() {
       var h = (doc.defaultView && doc.defaultView.innerHeight) || 1080;

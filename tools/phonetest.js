@@ -385,6 +385,22 @@ phone.act('open', 'garage');
 calls.length = 0;
 click('upgrade', 'lift');
 assert.ok(text().includes('Two-post lift') && text().includes('In the garage') && calls.some(function (c) { return c.indexOf('upgrade("lift")') >= 0; }), 'garage upgrades listed and bought');
+// gamepad (X51): buttons are navigable while seen, focus survives a re-render, B goes back
+phone.handle('slPhoneData', Object.assign({}, data, { jobs: { done: 0, earned: 0, offers: [ { id: 'g1', title: 'Courier', item: 'parcel', from: 'A', to: 'B', pay: 100, seconds: 60 } ] } }));
+phone.act('home');
+if (phone.root.querySelector('.slp-device.slp-away')) phone.handle('slPhoneToggle');
+phone.act('open', 'jobs');
+const take = phone.root.querySelector('[data-a="jobtake"]');
+assert.ok(take && take.hasAttribute('bng-nav-item') && take.getAttribute('tabindex') === '0', 'a button on an open phone is a gamepad nav item');
+assert.ok(phone.root.querySelector('.slp-body').hasAttribute('bng-nav-scroll'), 'the page scrolls on the right stick');
+take.focus();
+phone.handle('slPhoneData', Object.assign({}, data, { jobs: { done: 0, earned: 0, offers: [ { id: 'g1', title: 'Courier', item: 'parcel', from: 'A', to: 'B', pay: 100, seconds: 60 } ] } }));
+assert.ok(win.document.activeElement && win.document.activeElement.getAttribute('data-a') === 'jobtake', 'the focus survives a re-render');
+win.document.dispatchEvent(new win.CustomEvent('ui_nav', { detail: { name: 'back', value: 1 } }));
+assert.ok(!text().includes('Courier: parcel'), 'B on the pad goes back from the app');
+phone.handle('slPhoneToggle');
+const away = phone.root.querySelector('.slp-device [data-a]');
+assert.ok(!away || (away.getAttribute('bng-no-nav') === 'true' && !away.hasAttribute('bng-nav-item')), 'a phone put away takes no gamepad focus');
 console.log('phone test passed');
 
 // a page to look at: the phone in several states side by side
