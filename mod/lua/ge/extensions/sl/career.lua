@@ -177,6 +177,12 @@ local function loadPlaces()
           end
           if #place.displays == 0 then place.displays = nil end
         end
+        -- a showroom's way out to the street: "exit": [ [x, y, z] ... ] from inside the door to a city lane
+        if type(p.exit) == 'table' then
+          place.exit = {}
+          for _, q in ipairs(p.exit) do place.exit[#place.exit + 1] = v3(q) end
+          if #place.exit == 0 then place.exit = nil end
+        end
         -- a lot whose drop-off is the display spot itself: you arrive 8 m in front of the car, facing it
         if place.kind ~= 'meet' and place.display and (place.display - place.pos):length() < 6 then
           local facing = place.displayDir or -place.dir

@@ -41,6 +41,9 @@ function M.toRoad(veh, from)
   return true
 end
 
+-- where a car leaves a lot from: a showroom's way out ends on the street (map: "exit"), a yard is the street
+local function leaveFrom(place) return place.exit and place.exit[#place.exit] or place.pos end
+
 -- fade out, the car to the road, the player in it, fade in
 local function driveAwayFromRoad(veh, from, pic)
   core_jobsystem.create(function(j)
@@ -285,7 +288,7 @@ function M.buy()
   local car = sl_fleet.registerVehicle(lot.veh, { name = offer.name, brand = offer.brand, value = offer.value, condition = offer.condition,
     faults = offer.faults, mileage = offer.mileage, price = offer.price })
   local veh = getObjectByID(lot.veh)
-  local from = lot.place.pos
+  local from = leaveFrom(lot.place)
   lot.soldVeh = lot.veh
   cameraOff()
   dropCars()                                    -- the rest of the row goes back inside
@@ -308,7 +311,7 @@ function M.testDrive()
   lot.mode = 'test'
   test = { timeLeft = TEST_SECONDS, driven = 0 }
   if slrrDrivers and slrrDrivers.setDriver then slrrDrivers.setDriver(veh:getID(), slrrDrivers.getDefaultDriver and slrrDrivers.getDefaultDriver() or nil) end   -- you, at the wheel
-  driveAwayFromRoad(veh, lot.place.pos, 'loading_dealer_used_enter.png')
+  driveAwayFromRoad(veh, leaveFrom(lot.place), 'loading_dealer_used_enter.png')
   if core_groundMarkers then core_groundMarkers.setPath(lot.place.pos) end
   send()
 end
