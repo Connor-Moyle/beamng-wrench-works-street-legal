@@ -100,6 +100,13 @@ function M.onWrenchWorksDamage(vid, data)
   end
 end
 
+-- the garage put somebody else behind the wheel (SLRR Drivers mod): it stays with the car
+function M.onWrenchWorksDriverChanged(vid, driverId)
+  local s = career()
+  local car = s and carById(s, M.carOfVehicle(vid))
+  if car then car.driver = driverId or 'none' extensions.hook('onStreetLegalChanged') end
+end
+
 ----------------------------------------------------------------------------------------------
 -- bringing cars into the world
 
