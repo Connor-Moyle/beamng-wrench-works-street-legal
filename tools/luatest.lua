@@ -462,4 +462,10 @@ do
   check('last pays nothing', p4 == 4 and prize4 == 0 and rep4 == 0)
 end
 
+-- the Wrench Works jobs (tools/wwjobs_test.lua)
+do
+  local dir = debug.getinfo(1, 'S').source:match('^@(.*[/\\])') or ''
+  assert(loadfile(dir .. 'wwjobs_test.lua'))()(check, rngLib)
+end
+
 print(string.format('lua tests passed: %d checks', passed))

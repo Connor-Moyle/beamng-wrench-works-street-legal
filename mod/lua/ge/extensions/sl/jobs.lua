@@ -359,6 +359,18 @@ function M.onWrenchWorksPartBought(vid, slotPath, part, price)
   end
 end
 
+-- the end of any job: pay (the one money path), rep, the record, the text. Jobs settled elsewhere (settle = 'ww':
+-- Wrench Works' repair, tune and salvage jobs in sl_wwjobs) end here too
+function M.finishWith(s, js, j, pay, rep, text)
+  js.active = nil
+  if core_groundMarkers then core_groundMarkers.setPath(nil) end
+  if pay > 0 then sl_career.addMoney(pay, j.title .. ': ' .. (j.item or 'delivery')) end
+  stateLib.addRep(s, rep)
+  js.done, js.earned = js.done + 1, js.earned + pay
+  toast(text)
+  extensions.hook('onStreetLegalChanged')
+end
+
 local function finish(s, js, j, v)
   local elapsed = j.startedAt and (os.clock() - j.startedAt) or 0
   local d0, d1 = j.damage0 or 0, damageOf(v:getID())
@@ -370,11 +382,6 @@ local function finish(s, js, j, v)
     js.kindDone[j.kind] = n
     pay = math.floor(pay * boost(s, js) / 10) * 10 + (n <= FIRST_TIMES and FIRST_BONUS or 0)
   end
-  js.active = nil
-  if core_groundMarkers then core_groundMarkers.setPath(nil) end
-  if pay > 0 then sl_career.addMoney(pay, j.title .. ': ' .. (j.item or 'delivery')) end
-  stateLib.addRep(s, verdict == 'broken' and -5 or (verdict == 'late' and 4 or (j.kind == 'errand' and 15 or 10)))
-  js.done, js.earned = js.done + 1, js.earned + pay
   if j.car and j.carVid then
     local id = j.carVid
     core_jobsystem.create(function(job)
@@ -385,9 +392,9 @@ local function finish(s, js, j, v)
     end)
   end
   if j.heat then s.heat = math.max(0, (s.heat or 0) - j.heat) end
-  toast(verdict == 'broken' and string.format('The %s is broken. No pay.', j.item or 'load')
+  M.finishWith(s, js, j, pay, verdict == 'broken' and -5 or (verdict == 'late' and 4 or (j.kind == 'errand' and 15 or 10)),
+    verdict == 'broken' and string.format('The %s is broken. No pay.', j.item or 'load')
     or string.format('%s delivered%s. $%d.', j.item or 'Delivery', verdict == 'late' and ', late' or '', pay))
-  extensions.hook('onStreetLegalChanged')
 end
 
 local timer = 0
@@ -400,7 +407,7 @@ function M.onUpdate(dtReal)
   refresh(s)
   local js = jobsState(s)
   local j = js.active
-  if not j then return end
+  if not j or j.settle then return end         -- (settle: the job ends somewhere else, not at a stop)
   local v = (j.car and j.leg == 1) and getPlayerVehicle(0) or jobVehicle(j)
   if not v then return end
   if j.car and j.carVid then askDamage(v) end

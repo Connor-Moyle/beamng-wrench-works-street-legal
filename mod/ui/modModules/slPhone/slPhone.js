@@ -408,7 +408,7 @@
         '<div class="slp-acts"><div class="slp-btn" data-a="jobway" data-v="1">Show the way</div><div class="slp-btn slp-text" data-a="jobquit" data-v="1">Give up</div></div></div>' : '';
       var cards = arr(j.offers).map(function (o) {
         return '<div class="slp-card"><h4>' + esc(o.title) + ': ' + esc(o.item || '') + (o.fragile ? ' &middot; fragile' : '') + '</h4>' +
-          '<p>' + esc(o.from) + ' &rarr; ' + esc(o.to) + ' &middot; ' + (o.metres ? (o.metres / 1000).toFixed(1) + ' km &middot; ' : '') + mmss(o.seconds) + ' &middot; <b>' + money(o.pay) + '</b></p>' +
+          '<p>' + esc(o.from) + ' &rarr; ' + esc(o.to) + ' &middot; ' + (o.metres ? (o.metres / 1000).toFixed(1) + ' km &middot; ' : '') + (o.seconds ? mmss(o.seconds) + ' &middot; ' : '') + '<b>' + money(o.pay) + '</b></p>' +
           (a ? '' : '<div class="slp-acts"><div class="slp-btn" data-a="jobtake" data-v="' + esc(o.id) + '">Take it</div></div>') + '</div>';
       }).join('');
       var boostLine = j.boost && j.boost > 1.04 ? '<div class="slp-empty">New in town: jobs pay &times;' + j.boost.toFixed(1) + ' until you make a name or buy your first part.</div>' : '';
