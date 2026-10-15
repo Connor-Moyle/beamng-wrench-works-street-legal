@@ -12,7 +12,15 @@ local function round(x, step) step = step or 10 return math.floor(x / step + 0.5
 local function up(x) return math.ceil(x / 10 - 1e-9) * 10 end      -- sellers round their prices up
 
 -- used worth of a thing by its condition (0..1): what everything else is a share of
-function M.fair(value, condition) return (value or 0) * (0.3 + 0.6 * (condition or 0.5)) end
+function M.fair(value, condition) return (value or 0) * (0.35 + 0.65 * (condition or 0.5)) end   -- (as new: its full value)
+
+-- the condition of one of your shelf parts (Wrench Works' shelfItems): its wear if it came from the market, else
+-- nearly new, and a bent one at most half
+function M.condition(item)
+  local c = item.wear and (1 - item.wear) or 0.9
+  if item.damaged then c = math.min(c, 0.5) end
+  return math.max(0.05, math.min(1, c))
+end
 
 -- channels: the asking price as a share of fair worth, and how long a listing lasts (hours)
 M.CHANNELS = { paper = { ask = 0.85, life = 24 }, app = { ask = 1.0, life = 72 }, auction = { ask = 0.65, life = 36 } }

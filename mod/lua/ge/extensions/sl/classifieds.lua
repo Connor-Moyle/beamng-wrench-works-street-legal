@@ -15,6 +15,8 @@ local APP_LISTINGS = 12
 local PAPER_LISTINGS, PRINT_ONLY = 10, 0.4   -- the weekly Valo Classifieds; some ads only in the printed copy
 local AUCTIONS = 6                          -- Swap & Bid lots open at a time
 local PAPER_REACH = 30                      -- metres from a gas station to buy a copy
+local MINE_MAX = 6                          -- your own listings at a time
+local OFFER_HOURS = 24                      -- how long a buyer's offer stands
 local DELIVERY_HOURS = 6
 local COMMON_MODELS = { 'covet', 'pessima', 'vivace', 'etk800', 'sunburst2', 'bastion' }
 local STOP_RADIUS = 9
@@ -24,6 +26,7 @@ local function toast(text) guihooks.trigger('slPhoneToast', { text = text }) if 
 local function now(s) return (s.day or 0) * 24 + math.floor(sl_career.hour and sl_career.hour() or 12) end
 local function state(s)
   s.market = s.market or { listings = {}, nextId = 1, refreshed = -1e9, deliveries = {}, rounds = {} }
+  s.market.mine = s.market.mine or {}
   return s.market
 end
 
@@ -102,6 +105,18 @@ local function refresh(s, force)
     end
     m.listings[#m.listings + 1] = l
   end
+  for _, y in ipairs(m.mine) do        -- buyers for your Revline listings (lowballers too); an offer stands a day
+    if y.channel == 'app' then
+      local keepOffers = {}
+      for _, o in ipairs(y.offers) do if t - o.hour < OFFER_HOURS then keepOffers[#keepOffers + 1] = o end end
+      y.offers = keepOffers
+      if #y.offers < 3 and rng:float() < 0.6 then
+        local o = { amount = L.buyerOffer(rng, y.value, y.condition), hour = t, buyer = NAMES[rng:int(#NAMES)] }
+        y.offers[#y.offers + 1] = o
+        toast(string.format('Revline: %s offers $%d for your %s.', o.buyer, o.amount, y.name))
+      end
+    end
+  end
   for _ = 1, 40 do if count('app') >= APP_LISTINGS then break end add('app') end
   for _ = 1, 20 do if count('auction') >= AUCTIONS then break end add('auction') end
   local edition = math.floor((s.day or 0) / 7)
@@ -121,6 +136,28 @@ local function auctions(s)
   if not m.auctionHour or m.auctionHour >= t then m.auctionHour = m.auctionHour or t return end
   m.auctionHour = t
   local rng = rngLib.new(rngLib.hash('bids:' .. t .. ':' .. tostring(s.seed)))
+  for i = #m.mine, 1, -1 do             -- your lots: bidders up to what a buyer would pay; sold at the last bid
+    local y = m.mine[i]
+    if y.channel == 'auction' then
+      local cap = L.resaleCap(y.value, y.condition)
+      if t < y.expires then
+        if rng:float() < 0.5 then
+          local b = (y.bid or 0) == 0 and math.floor(cap * 0.4 / 10) * 10 or L.nextBid(rng, y.bid, cap)
+          if b and b > 0 then y.bid = b end
+        end
+      else
+        table.remove(m.mine, i)
+        if (y.bid or 0) > 0 then
+          local got = L.proceeds(y.bid)
+          sl_career.addMoney(got, 'Swap & Bid sale: ' .. y.name)
+          toast(string.format('Your %s sold for $%d ($%d after the fee).', y.name, y.bid, got))
+        else
+          if slrr_garage and slrr_garage.putShelfItem then slrr_garage.putShelfItem(y.model, y.item) end
+          toast(string.format('No bids on your %s: it is back on your shelf.', y.name))
+        end
+      end
+    end
+  end
   for i = #m.listings, 1, -1 do
     local l = m.listings[i]
     if l.channel == 'auction' then
@@ -179,6 +216,27 @@ function M.summary()
       end
     end
   end
+  out.mine, out.shelf = {}, {}
+  for _, y in ipairs(m.mine) do
+    local offers = {}
+    for k, o in ipairs(y.offers or {}) do offers[#offers + 1] = { index = k, amount = o.amount, buyer = o.buyer } end
+    out.mine[#out.mine + 1] = { id = y.id, name = y.name, model = y.model, channel = y.channel, offers = offers, bid = y.bid,
+      hoursLeft = y.expires and (y.expires - now(s)) or nil }
+  end
+  if slrr_garage and slrr_garage.shelfItems and #m.mine < MINE_MAX then
+    local seen = {}
+    for _, c in ipairs(s.cars or {}) do
+      if c.model and not seen[c.model] then
+        seen[c.model] = true
+        for _, it in ipairs(slrr_garage.shelfItems(c.model) or {}) do
+          if L.canList(it) and #out.shelf < 12 then
+            out.shelf[#out.shelf + 1] = { model = c.model, id = it.id, name = it.name,
+              estimate = math.floor(L.resaleCap(it.value or 0, L.condition(it)) / 10) * 10 }
+          end
+        end
+      end
+    end
+  end
   return out
 end
 
@@ -229,6 +287,60 @@ function M.buy(id, how)
   js.offers[#js.offers + 1] = job
   local ok, text = sl_jobs.take(job.id)
   return ok, ok and string.format('Deposit $%d paid. %s is expecting you.', deposit, l.seller) or text
+end
+
+-- sell one of your shelf parts: on Revline (buyers make offers) or at auction (sold at the last bid, or back to the
+-- shelf). The part leaves the shelf while it is listed; a job car's part can't be listed
+function M.listPart(model, itemId, channel)
+  local s = career()
+  if not s then return false, 'No career running.' end
+  local m = state(s)
+  if #m.mine >= MINE_MAX then return false, 'You have ' .. MINE_MAX .. ' things listed already.' end
+  if not (slrr_garage and slrr_garage.shelfItems) then return false, 'Wrench Works is not running.' end
+  local copy
+  for _, it in ipairs(slrr_garage.shelfItems(model) or {}) do if it.id == tonumber(itemId) then copy = it end end
+  if not copy then return false, 'That part is not on your shelf.' end
+  if not L.canList(copy) then return false, "That part belongs to a customer's car." end
+  local item = slrr_garage.takeShelfItem(model, copy.id)
+  if not item then return false, 'Not while you are in the garage.' end
+  local t = now(s)
+  local y = { id = 'y' .. m.nextId, model = model, name = copy.name, value = copy.value or 0, condition = L.condition(copy),
+    channel = channel == 'auction' and 'auction' or 'app', item = item, offers = {}, listed = t }
+  m.nextId = m.nextId + 1
+  if y.channel == 'auction' then y.bid, y.expires = 0, t + L.CHANNELS.auction.life end
+  m.mine[#m.mine + 1] = y
+  extensions.hook('onStreetLegalChanged')
+  if y.channel == 'auction' then return true, string.format('Your %s is up for auction for %d hours.', y.name, L.CHANNELS.auction.life) end
+  return true, string.format('Your %s is on Revline. Offers come in over the day.', y.name)
+end
+
+local function findMine(m, id) for i, y in ipairs(m.mine) do if y.id == id then return y, i end end end
+
+function M.acceptOffer(id, index)
+  local s = career()
+  if not s then return false, 'No career running.' end
+  local m = state(s)
+  local y, i = findMine(m, id)
+  local o = y and y.offers[tonumber(index) or 0]
+  if not o then return false, 'That offer is gone.' end
+  table.remove(m.mine, i)
+  local got = L.proceeds(o.amount)
+  sl_career.addMoney(got, 'Revline sale: ' .. y.name)
+  extensions.hook('onStreetLegalChanged')
+  return true, string.format('Sold the %s to %s: $%d after the fee.', y.name, o.buyer or 'a buyer', got)
+end
+
+function M.withdraw(id)
+  local s = career()
+  if not s then return false, 'No career running.' end
+  local m = state(s)
+  local y, i = findMine(m, id)
+  if not y then return false, 'That listing is gone.' end
+  if y.channel == 'auction' and (y.bid or 0) > 0 then return false, 'There are bids on it: the auction runs to the end.' end
+  table.remove(m.mine, i)
+  if slrr_garage and slrr_garage.putShelfItem then slrr_garage.putShelfItem(y.model, y.item) end
+  extensions.hook('onStreetLegalChanged')
+  return true, string.format('Your %s is back on your shelf.', y.name)
 end
 
 -- Swap & Bid: bid the next step on a lot (paid when it ends, if you are still the highest bidder)

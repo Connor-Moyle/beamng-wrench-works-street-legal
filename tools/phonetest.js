@@ -329,6 +329,19 @@ assert.ok(text().includes('Turbo kit') && text().includes('(outbid)') && text().
 calls.length = 0;
 click('mkbid', 'a1');
 assert.ok(calls.some(function (c) { return c.indexOf('marketBid("a1")') >= 0; }), 'a bid calls the market');
+// selling your own parts on Revline
+phone.handle('slPhoneData', Object.assign({}, data, { market: { deliveries: 0, listings: [], auctions: [], paper: {},
+  mine: [ { id: 'y1', name: 'Stock exhaust', model: 'covet', channel: 'app', offers: [ { index: 1, amount: 140, buyer: 'Kenny' } ] } ],
+  shelf: [ { model: 'covet', id: 7, name: 'Stock radiator', estimate: 90 } ] } }));
+phone.act('home');
+phone.act('open', 'market');
+assert.ok(text().includes('Your Stock exhaust') && text().includes('Accept $140') && text().includes('Stock radiator') && text().includes('Auction it'), 'Revline: your listings with offers, and your shelf to sell from');
+calls.length = 0;
+click('mklist', 'covet|7|auction');
+click('mkaccept', 'y1|1');
+click('mkwithdraw', 'y1');
+assert.ok(calls.some(function (c) { return c.indexOf('listPart("covet",7,"auction")') >= 0; }) && calls.some(function (c) { return c.indexOf('acceptOffer("y1",1)') >= 0; }) &&
+  calls.some(function (c) { return c.indexOf('withdrawListing("y1")') >= 0; }), 'list, accept and withdraw call the market');
 phone.handle('slStation', { open: true, name: 'Pump', money: 100, fuels: [], items: [] });
 assert.ok(phone.root.querySelector('.slp-lot') && !phone.root.querySelector('.slp-ico .slp-lot'), 'with SLRR icons the panels stay outside the phone (icon markup closed)');
 console.log('phone test passed');

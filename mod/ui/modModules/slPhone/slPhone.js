@@ -427,11 +427,30 @@
           (l.delivery != null ? '<div class="slp-btn" data-a="mkbuy" data-v="' + esc(l.id) + '|delivery">Deliver</div>' : '') + '</div></div>';
     }
 
+    // selling: your listings (offers to accept) and your shelf parts to list
+    function sellCards(m) {
+      var mine = arr(m.mine).map(function (y) {
+        var body = y.channel === 'auction'
+          ? '<p>At auction &middot; ' + (y.bid ? 'top bid ' + money(y.bid) : 'no bids yet') + ' &middot; ' + Math.max(0, y.hoursLeft | 0) + ' h left</p>'
+          : (arr(y.offers).length ? arr(y.offers).map(function (o) {
+              return '<div class="slp-acts"><div class="slp-btn" data-a="mkaccept" data-v="' + esc(y.id) + '|' + o.index + '">Accept ' + money(o.amount) + ' from ' + esc(o.buyer || 'a buyer') + '</div></div>';
+            }).join('') : '<p>No offers yet.</p>');
+        return '<div class="slp-card"><h4>Your ' + esc(y.name) + '</h4>' + body +
+          '<div class="slp-acts"><div class="slp-btn slp-text" data-a="mkwithdraw" data-v="' + esc(y.id) + '">Withdraw</div></div></div>';
+      }).join('');
+      var shelf = arr(m.shelf).map(function (it) {
+        return '<div class="slp-card"><h4>' + esc(it.name) + '</h4><p>On your shelf for the ' + esc(it.model) + ' &middot; buyers pay up to about ' + money(it.estimate) + '</p>' +
+          '<div class="slp-acts"><div class="slp-btn" data-a="mklist" data-v="' + esc(it.model) + '|' + it.id + '|app">List it</div>' +
+          '<div class="slp-btn" data-a="mklist" data-v="' + esc(it.model) + '|' + it.id + '|auction">Auction it</div></div></div>';
+      }).join('');
+      return (mine ? '<div class="slp-empty">Your listings</div>' + mine : '') + (shelf ? '<div class="slp-empty">Sell from your shelf</div>' + shelf : '');
+    }
+
     function marketPage() {
       var m = obj(st.data.market);
       var cards = arr(m.listings).map(adCard).join('');
       return bar('Revline') + '<div class="slp-body">' + (m.deliveries ? '<div class="slp-empty">' + m.deliveries + ' on the way to your garage.</div>' : '') +
-        (cards || '<div class="slp-empty">Nothing listed right now. New ads come in through the day.</div>') + '</div>';
+        (cards || '<div class="slp-empty">Nothing listed right now. New ads come in through the day.</div>') + sellCards(m) + '</div>';
     }
 
     // Valo Classifieds: the weekly paper (some ads only in the printed copy, $2 at a gas station)
@@ -890,6 +909,9 @@
         case 'tutskip': lua('@sl_tutorial.skip()'); break;
         case 'jobtake': lua('takeJob(' + JSON.stringify(v) + ')'); break;
         case 'mkoffer': lua('marketOffer(' + JSON.stringify(String(v).split('|')[0]) + ',' + Number(String(v).split('|')[1]) + ')'); break;
+        case 'mklist': (function () { var q = String(v).split('|'); lua('listPart(' + JSON.stringify(q[0]) + ',' + Number(q[1]) + ',' + JSON.stringify(q[2]) + ')'); })(); break;
+        case 'mkaccept': lua('acceptOffer(' + JSON.stringify(String(v).split('|')[0]) + ',' + Number(String(v).split('|')[1]) + ')'); break;
+        case 'mkwithdraw': lua('withdrawListing(' + JSON.stringify(v) + ')'); break;
         case 'mkbid': lua('marketBid(' + JSON.stringify(v) + ')'); break;
         case 'buypaper': lua('buyPaper()'); break;
         case 'mkbuy': lua('marketBuy(' + JSON.stringify(String(v).split('|')[0]) + ',' + JSON.stringify(String(v).split('|')[1]) + ')'); break;

@@ -50,6 +50,9 @@ return function(check, rngLib)
   check('a bid goes up in steps, and stops at the cap', L.nextBid(rngLib.new(1), 1000, 1040) == nil)
   check('deposit, delivery and fee', L.deposit(500) == 50 and L.delivery(500) == 70 and L.proceeds(1000) == 950)
   check('job parts cannot be listed', not L.canList({ foreign = true }) and L.canList({ part = 'x' }))
+  check('shelf part condition: wear, nearly new, bent', L.condition({ wear = 0.3 }) == 0.7 and L.condition({}) == 0.9 and L.condition({ damaged = true }) == 0.5)
+  -- selling a nearly new part to a Revline buyer can beat the Wrench Works counter (half its value), a little
+  check('a buyer can pay more than the counter for a nearly new part', L.resaleCap(1000, 1.0) > 500 and L.resaleCap(1000, 1.0) < 600, L.resaleCap(1000, 1.0))
   local honest = { ask = 900, item = { value = 1000 }, condition = 0.7, rating = 4 }
   check('an honest listing shows no tells', #L.tells(honest) == 0)
 end

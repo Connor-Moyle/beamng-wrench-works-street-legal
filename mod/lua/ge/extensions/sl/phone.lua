@@ -172,6 +172,9 @@ function M.marketOffer(id, amount) if career() and sl_classifieds then answer(sl
 function M.marketBuy(id, how) if career() and sl_classifieds then answer(sl_classifieds.buy(tostring(id), tostring(how))) end end
 function M.marketBid(id) if career() and sl_classifieds then answer(sl_classifieds.bid(tostring(id))) end end
 function M.buyPaper() if career() and sl_classifieds then answer(sl_classifieds.buyPaper()) end end
+function M.listPart(model, id, channel) if career() and sl_classifieds then answer(sl_classifieds.listPart(tostring(model), tonumber(id), tostring(channel))) end end
+function M.acceptOffer(id, index) if career() and sl_classifieds then answer(sl_classifieds.acceptOffer(tostring(id), tonumber(index))) end end
+function M.withdrawListing(id) if career() and sl_classifieds then answer(sl_classifieds.withdraw(tostring(id))) end end
 function M.giveUpJob() if career() and sl_jobs then answer(sl_jobs.giveUp()) end end
 function M.jobWay() if career() and sl_jobs then sl_jobs.showWay() end end
 
