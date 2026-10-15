@@ -17,6 +17,8 @@ Part of the **BeamNG Wrench Works** family. Needs two of the others: **Wrench Wo
   - **flash your high beams** at a racer cruising the streets (their name hangs over the car): if they rate you, it is a race to the other side of town for their usual stake;
   - **car meets**: some nights racers gather in a car park (you get a text); roll in and pick somebody: for money, high stakes or **pink slips**;
   - races **arranged by phone**, at a start line they choose, or a **drag race** down the test track's quarter mile or mile. The racer turns up in their own car.
+  - **race tracks**: from the garage's Tracks list, SLRR's circuits and rally stages in the valley (Spa, Nürburgring, Laguna Seca, the UK rally stages...), you and a racer of your level on the grid; rivals drive the map's racing lines, faster the better they are.
+  - when the map provides them, the races run as BeamNG missions (its race UI and timing), with your racer, stake and pink slips intact.
 - **Every racer has their own car**: a stock car of their class built up by tier, from a stock beater to Stage 3 (turbo, brakes, aero, suspension), with a nickname and a paint job. At the ROC they bring the track version: race parts, stripped interior. The dealership now and then has a **Track special**.
 - **Race starts and flares**: start lines with a chequered line and posts; when a race goes green, orange road flares (some throwing a flickering light) line both edges of the whole route, or every checkpoint of the ROC circuit.
 - **Pink slips are special**: only a few racers put their car up on any one night (Benny texts you at dusk who), and only they offer it. They are real: win and their car goes to your garage; lose and they drive off in yours and you walk home.
