@@ -495,7 +495,18 @@
         '<div class="slp-kv" style="border:none"><span>Pink slips</span><b>' + (s.pinksWon || 0) + ' won, ' + (s.pinksLost || 0) + ' lost</b></div>' +
         (acts.length ? '<div class="slp-acts">' + acts.join('') + '</div>' : '') + '</div>' +
         (d.rocChampion ? '<div class="slp-card"><h4>ROC champion</h4><p>The best in Valo City. There is nobody left to beat.</p></div>' : '') +
-        hudCard(d.hud) + '</div>';
+        achievementsCard(d.achievements) + hudCard(d.hud) + '</div>';
+    }
+
+    // achievements (earned ones lit, the rest dimmed) and personal best times
+    function achievementsCard(a) {
+      if (!a) return '';
+      var rows = arr(a.list).map(function (x) {
+        return '<div class="slp-kv"' + (x.day != null ? '' : ' style="opacity:.45"') + '><span>' + esc(x.title) + '<br><small>' + esc(x.desc) + '</small></span><b>' + (x.day != null ? 'Day ' + x.day : '') + '</b></div>';
+      }).join('');
+      var bests = arr(a.bests).map(function (b) { return '<div class="slp-kv"><span>' + esc(b.name) + '</span><b>' + Number(b.time).toFixed(2) + ' s</b></div>'; }).join('');
+      return '<div class="slp-card"><h4>Achievements ' + (a.earned || 0) + ' / ' + (a.total || 0) + '</h4>' + rows + '</div>' +
+        (bests ? '<div class="slp-card"><h4>Best times</h4>' + bests + '</div>' : '');
     }
 
     // the SLRR dashboard's switches

@@ -468,4 +468,24 @@ do
   assert(loadfile(dir .. 'wwjobs_test.lua'))()(check, rngLib)
 end
 
+-- achievements and personal bests
+do
+  local ach = require('sl/core/achievements')
+  local s = { day = 3, rep = 0, money = 3500, cars = {}, stats = { races = 0, wins = 0, pinksWon = 0, pinksLost = 0 } }
+  check('nothing earned at the start', #ach.update(s) == 0)
+  s.cars = { {}, {}, {} }
+  s.stats.wins, s.stats.races = 1, 2
+  local got = ach.update(s)
+  local ids = {}
+  for _, a in ipairs(got) do ids[a.id] = true end
+  check('cars and a win earn theirs', ids.first_car and ids.fleet_3 and ids.first_win and ids.first_race and not ids.wins_10)
+  check('earned on the day', s.achievements.first_car == 3)
+  check('only once', #ach.update(s) == 0)
+  check('ids are unique', (function() local seen = {} for _, a in ipairs(ach.LIST) do if seen[a.id] then return false end seen[a.id] = true end return #ach.LIST >= 20 end)())
+  check('a first time is a best', ach.best(s, 7, 61.234, 'Night race 7') and s.bests['7'].time == 61.23)
+  check('slower is not', not ach.best(s, 7, 70))
+  check('faster is', ach.best(s, 7, 58) and s.bests['7'].time == 58)
+  check('no time, no best', not ach.best(s, 7, nil) and not ach.best(s, nil, 10))
+end
+
 print(string.format('lua tests passed: %d checks', passed))

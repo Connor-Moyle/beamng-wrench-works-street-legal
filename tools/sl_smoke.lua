@@ -223,6 +223,18 @@ check('tutorial: four steps, then the bonus', function(job)
   return st.tutorial.done == true and money() - m0 == 500, string.format('done, +$%d', money() - m0)
 end)
 
+-- achievements and best times (X23)
+check('achievements: earned from the record, bests kept', function(job)
+  job.sleep(2.5)                                                  -- (checked every 2 s)
+  local sum = sl_achievements.summary()
+  if not sum or sum.total < 20 then return false, 'no list' end
+  sl_achievements.onStreetLegalRaceTimed('Smoke track', 'Smoke track', 60)
+  sl_achievements.onStreetLegalRaceTimed('Smoke track', 'Smoke track', 70)
+  sl_achievements.onStreetLegalRaceTimed('Smoke track', 'Smoke track', 55.5)
+  local b = sl_career.getState().bests['Smoke track']
+  return sum.earned >= 1 and b and b.time == 55.5, string.format('%d of %d earned; best %.2f s', sum.earned, sum.total, b and b.time or -1)
+end)
+
 -- garage services and lists
 check('services: drawer entries', function()
   local list = {}

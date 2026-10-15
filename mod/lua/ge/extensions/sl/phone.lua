@@ -65,6 +65,7 @@ local function snapshot()
     rocEntry = progression.ROC.entry,
     jobs = sl_jobs and sl_jobs.summary and sl_jobs.summary() or nil,
     tutorial = sl_tutorial and sl_tutorial.summary and sl_tutorial.summary() or nil,
+    achievements = sl_achievements and sl_achievements.summary and sl_achievements.summary() or nil,
   }
 end
 
