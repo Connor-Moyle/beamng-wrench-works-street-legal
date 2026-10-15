@@ -80,7 +80,7 @@ check('jobs: give up costs 5 rep', function()
   sl_jobs.giveUp()
   return rep() == r0 - 5 and not js().active, string.format('rep %d -> %d', r0, rep())
 end)
-for _, kind in ipairs({ 'part', 'courier', 'taxi', 'food', 'crush', 'transport', 'hot' }) do
+for _, kind in ipairs({ 'part', 'courier', 'taxi', 'food', 'crush', 'transport', 'hot', 'testdrive' }) do
   check('job: ' .. kind, runJob(kind))
 end
 
@@ -189,6 +189,16 @@ check('job: errand', function(job)
     sl_jobs.onStreetLegalRaceResult(true, r.name, r.id)
   end
   return runJob('errand')(job)
+end)
+
+-- moving garage: the offers come with a move (faked here: garage 1 to 2), one per car you own
+check('job: move', function(job)
+  sl_jobs.onStreetLegalGarageMoved(1, 2, 25000)
+  local mine = sl_fleet.currentCar()
+  local any
+  for _, j in ipairs(js().offers or {}) do if j.kind == 'move' and mine and j.needCar == mine.id then any = j end end
+  if not any then return false, 'no move offer for this car' end
+  return runJob('move')(job)
 end)
 
 -- garage services and lists
