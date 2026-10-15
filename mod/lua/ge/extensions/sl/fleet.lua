@@ -95,7 +95,7 @@ function M.onWrenchWorksDamage(vid, data)
   if not s or not carId then return end
   local car = carById(s, carId)
   if car then
-    car.damage = { nodes = data.nodes or {}, beams = data.beams or {} }
+    car.damage = { nodes = data.nodes or {}, beams = data.beams or {}, latches = data.latches }   -- latches: shut doors are shut again
     extensions.hook('onStreetLegalChanged')
   end
 end
