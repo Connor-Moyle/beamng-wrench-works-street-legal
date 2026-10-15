@@ -378,6 +378,13 @@ assert.ok(text().includes('Game over') && text().includes('day 12') && text().in
 calls.length = 0;
 click('gameover', 'new');
 assert.ok(calls.includes('@sl_menuTile.startFromMenu(true)') && !text().includes('Game over'), 'and starts a new one');
+// the garage's kit (X58)
+phone.handle('slPhoneData', Object.assign({}, data, { upgrades: [{ id: 'lift', name: 'Two-post lift', price: 3000, desc: 'Engine work', has: false }, { id: 'dyno', name: 'Dyno', price: 6000, desc: 'Curves', has: true }] }));
+phone.act('home');
+phone.act('open', 'garage');
+calls.length = 0;
+click('upgrade', 'lift');
+assert.ok(text().includes('Two-post lift') && text().includes('In the garage') && calls.some(function (c) { return c.indexOf('upgrade("lift")') >= 0; }), 'garage upgrades listed and bought');
 console.log('phone test passed');
 
 // a page to look at: the phone in several states side by side

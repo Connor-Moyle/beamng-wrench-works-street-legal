@@ -70,6 +70,7 @@ local function snapshot()
     bank = sl_bank and sl_bank.summary and sl_bank.summary() or nil,
     club = sl_clubs and sl_clubs.summary and sl_clubs.summary() or nil,
     turf = sl_crews and sl_crews.summary and sl_crews.summary() or nil,
+    upgrades = sl_upgrades and sl_upgrades.summary and sl_upgrades.summary() or nil,
   }
 end
 
@@ -157,6 +158,7 @@ local function answer(ok, text)
   wantSend = true
 end
 
+function M.upgrade(id) if career() and sl_upgrades then answer(sl_upgrades.buy(tostring(id))) end end
 function M.raise(challengeId) if career() then answer(sl_career.raiseStake(challengeId)) end end
 function M.tow(carId) if career() then answer(sl_fleet.tow(tonumber(carId))) end end
 function M.release(carId) if career() then answer(sl_career.releaseCar(tonumber(carId))) end end

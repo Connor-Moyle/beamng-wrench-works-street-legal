@@ -614,8 +614,14 @@
         return '<div class="slp-card"><h4>' + esc(c.name) + (c.active ? ' &#9733;' : '') + '</h4><p>' + esc(c.where) + ' &middot; condition ' + Math.round((c.condition || 0) * 100) + '%' +
           (faults.length ? '<br>Needs: ' + esc(faults.join(', ')) : '') + '</p>' + careView(c) + (acts.length ? '<div class="slp-acts">' + acts.join('') + '</div>' : '') + '</div>';
       });
+      // the garage's own kit (X58): what it has, and what can be put in
+      var ups = arr(st.data.upgrades).map(function (u) {
+        return '<div class="slp-kv"><span>' + esc(u.name) + '<br><small>' + esc(u.desc) + '</small></span><b>' +
+          (u.has ? 'In the garage' : '<div class="slp-btn slp-tonal" data-a="upgrade" data-v="' + esc(u.id) + '">' + money(u.price) + '</div>') + '</b></div>';
+      }).join('');
       return bar('My cars') + '<div class="slp-body">' + (cards.join('') ||
-        '<div class="slp-empty">You have no car. The junkyard sells cheap ones that need work, the dealership new ones. The Cab app gets you there.</div>') + '</div>';
+        '<div class="slp-empty">You have no car. The junkyard sells cheap ones that need work, the dealership new ones. The Cab app gets you there.</div>') +
+        (ups ? '<div class="slp-card"><h4>The garage</h4>' + ups + '</div>' : '') + '</div>';
     }
 
     function mePage() {
@@ -964,6 +970,7 @@
         case 'jobway': lua('jobWay()'); toast('The route is on your road.'); break;
         case 'taxi': lua('taxi(' + JSON.stringify(v) + ')'); break;
         case 'tow': lua('tow(' + Number(v) + ')'); break;
+        case 'upgrade': lua('upgrade(' + JSON.stringify(v) + ')'); break;
         case 'release': lua('release(' + Number(v) + ')'); break;
         case 'usecar': lua('useCar(' + Number(v) + ')'); break;
         case 'move': lua('moveGarage()'); break;

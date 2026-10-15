@@ -80,6 +80,7 @@ class Player:
         self.fines, self.broke = 0, 0
         self.series = []
         self.flip_target = 1000
+        self.kit = set()
         self.car_paid = 0
         self.perf = 0.0                     # parts on the car, in car classes
         self.upgraded = False               # the first part bought (ends "new in town")
@@ -253,6 +254,14 @@ class Player:
             if self.garage == lvl - 1 and self.rep >= rep and self.money >= cost + 2000:
                 self.money -= cost; self.garage = lvl; self.mark('garage %d' % lvl); return
         if self.garage == 3 and self.rep >= ROC['rep'] and self.money >= ROC['entry'] + 5000: self.mark('ROC open')
+        # garage kit (X58, core/progression UPGRADES): bought once the first bolt-ons are on, with a cushion left over;
+        # the club garages (2, 3) come with the lift and the bench
+        if 'first upgrade' in self.log:
+            for name, price in (('lift', 2000), ('workbench', 1500), ('shelves', 1000), ('dyno', 6000), ('paint', 5000)):
+                if name in self.kit or (self.garage >= 2 and name in ('lift', 'workbench')): continue
+                if self.money >= price + 1500:
+                    self.money -= price; self.kit.add(name); self.mark(name); self.spend(2); return
+                break
         w = {'racer': 0.75, 'mixed': 0.5, 'worker': 0.25, 'borrower': 0.5}[self.style]
         roll = self.r.random()
         if roll < w and self.race(): return
@@ -273,7 +282,7 @@ def main():
     for i in range(PLAYERS + PLAYERS // 3):
         style = ['racer', 'mixed', 'worker', 'borrower'][i % 4]
         players.append(Player(i, style).run(60 * HOURS))
-    keys = ['car 1', 'first upgrade', 'car 2', 'car 3', 'car 4', 'rep 150', 'rep 300', 'rep 500', 'rep 800', 'rep 1000', 'rep 1500', 'garage 2', 'rep 3000', 'garage 3', 'rep 6000', 'ROC open']
+    keys = ['car 1', 'first upgrade', 'lift', 'workbench', 'dyno', 'car 2', 'car 3', 'car 4', 'rep 150', 'rep 300', 'rep 500', 'rep 800', 'rep 1000', 'rep 1500', 'garage 2', 'rep 3000', 'garage 3', 'rep 6000', 'ROC open']
     print('Milestones (real minutes of play; median and 10-90 %; n = players who got there in HOURS h)')
     for style in ['racer', 'mixed', 'worker', 'borrower']:
         print('  ' + style)

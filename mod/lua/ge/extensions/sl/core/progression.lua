@@ -32,6 +32,31 @@ M.garages = {
   { level = 3, site = 'slrrGarage3', name = 'Club Garage 3', rep = 3000, cost = 75000 },
 }
 
+-- garage upgrades (X58, Design 7): what a garage has is bought, and kept with that garage. The club garages (2, 3)
+-- come with the lift and the workbench. Off a career Wrench Works has everything.
+M.UPGRADES = {
+  { id = 'lift', name = 'Two-post lift', price = 2000, desc = 'Engine, gearbox, suspension and exhaust work at home.' },
+  { id = 'workbench', name = 'Workbench and tools', price = 1500, desc = 'Repairs at the normal price; engine rebuilds.' },
+  { id = 'dyno', name = 'Dyno', price = 6000, desc = 'Power curves, before and after.' },
+  { id = 'paint', name = 'Paint booth', price = 5000, desc = 'Paint, liveries and tint at home.' },
+  { id = 'shelves', name = 'Parts shelves', price = 1000, desc = 'Three times the shelf space.' },
+  { id = 'photo', name = 'Photo corner', price = 800, desc = 'Photo mode in the garage, and a showcase shot for the meets.' },
+}
+M.GARAGE_COMES_WITH = { [2] = { lift = true, workbench = true }, [3] = { lift = true, workbench = true } }
+M.SHELF = { base = 12, shelves = 40 }       -- parts per model on the shelf
+M.MOBILE_MECHANIC = 1.5                    -- repairs without the workbench cost this much more
+
+function M.upgrade(id) for _, u in ipairs(M.UPGRADES) do if u.id == id then return u end end end
+
+-- what Wrench Works may do in this garage: bought ones and what the garage came with
+function M.garageFeatures(bought, level)
+  local has = {}
+  for k, v in pairs(M.GARAGE_COMES_WITH[level or 1] or {}) do has[k] = v end
+  for k, v in pairs(bought or {}) do if v then has[k] = true end end
+  return { lift = has.lift == true, workbench = has.workbench == true, dyno = has.dyno == true, paint = has.paint == true, photo = has.photo == true,
+    shelfSize = has.shelves and M.SHELF.shelves or M.SHELF.base, repairFactor = has.workbench and 1 or M.MOBILE_MECHANIC }
+end
+
 -- the Race of Champions: the last garage and the top title
 M.ROC = { garageLevel = 3, rep = 6000, entry = 50000 }
 
