@@ -361,6 +361,40 @@ check('crews: a crew that lost a district calls you out to a race there', functi
   return found ~= nil, found and (found.raceName .. ', ' .. found.stake) or 'no challenge'
 end)
 
+check('crews: holding four districts brings the turf war, a leader calls you out', function()
+  local s = sl_career.getState()
+  local c = sl_crews.ensure(s)
+  local saved = {}
+  for id, t in pairs(c.territory) do saved[id] = { owner = t.owner, control = t.control } end
+  local n = 0
+  for _, t in pairs(c.territory) do if n < 4 and not t.home then t.owner, n = 'player', n + 1 end end
+  for _, t in pairs(c.territory) do if n < 4 then t.owner, n = 'player', n + 1 end end
+  sl_crews.onUpdate(6)
+  local w = c.turfWar
+  local found
+  for i = #s.challenges, 1, -1 do if s.challenges[i].turfWar then found = s.challenges[i] table.remove(s.challenges, i) end end
+  for id, v in pairs(saved) do c.territory[id].owner, c.territory[id].control = v.owner, v.control end
+  c.turfWar = nil
+  return w ~= nil and #w.order == 3 and found ~= nil, found and found.raceName or 'no leader called'
+end)
+check('crews: a raid never touches a car at the garage or the one you drive', function()
+  local s = sl_career.getState()
+  local c = sl_crews.ensure(s)
+  c.raid = { crew = 'southside', day = s.day }
+  local cars = 0
+  for _, car in ipairs(s.cars) do
+    local v = sl_fleet.vehicleOf(car.id)
+    if v and (sl_fleet.atGarage(v:getPosition(), s) or v:getID() == getPlayerVehicle(0):getID()) then cars = cars + 1 end
+  end
+  local before = #(s.messages and s.messages.benny or {})
+  c.raid.day = s.day - 1
+  local h = sl_career.hour
+  sl_career.hour = function() return 23 end
+  sl_crews.onUpdate(6)
+  sl_career.hour = h
+  return c.raid == nil, cars .. ' car(s) protected; the raid ran and cleared'
+end)
+
 -- vehicle budget: nothing of ours left standing about (cabs, tow trucks, lot rows, patrols)
 check('budget: no stray spawned vehicles', function()
   local keep = {}

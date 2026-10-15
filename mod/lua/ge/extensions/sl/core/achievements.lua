@@ -26,6 +26,9 @@ M.LIST = {
   { id = 'money_100k', title = 'Six figures', desc = 'Have $100,000 in the bank.', check = function(s) return (s.money or 0) >= 100000 end },
   { id = 'jobs_25', title = 'Working stiff', desc = 'Finish 25 jobs.', check = function(s) return (jobs(s).done or 0) >= 25 end },
   { id = 'jobs_all', title = 'Jack of all trades', desc = 'Finish eight different kinds of job.', check = function(s) return count(jobs(s).kindDone) >= 8 end },
+  { id = 'turf', title = 'On the map', desc = 'Take a district from a crew.', check = function(s) for _, t in pairs(s.crews and s.crews.territory or {}) do if t.owner == 'player' then return true end end return false end },
+  { id = 'home', title = 'Their own front door', desc = "Take a crew's home district.", check = function(s) for _, t in pairs(s.crews and s.crews.territory or {}) do if t.home and t.owner == 'player' then return true end end return false end },
+  { id = 'king', title = 'King of Valo', desc = 'Win the turf war against the crew leaders.', check = function(s) return s.crews ~= nil and s.crews.king ~= nil end },
   { id = 'flip', title = 'Flipper', desc = 'Sell a car for more than you paid.', check = function(s) return jobs(s).flip ~= nil and (jobs(s).flip.flips or 0) >= 1 end },
   { id = 'activities_5', title = 'Explorer', desc = 'Complete five different activities.', check = function(s) return count(s.activitiesDone) >= 5 end },
 }

@@ -94,6 +94,8 @@ function M.onStreetLegalRaceResult(won, opponent, racerId, stake)
     stateLib.addRep(s, math.floor((s.rep - repAtStart) * (crews.PERKS.rep - 1) + 0.5))
   end
   for i = #(c.callouts or {}), 1, -1 do if c.callouts[i].racer == racerId then table.remove(c.callouts, i) end end    -- (answered)
+  if c.turfWar then turfWarResult(s, c, racerId, won) end
+  if c.king then raceDistrict = nil return end              -- (the city is yours: nothing more to take)
   local entry, event = crews.raceResult(c.territory, raceDistrict, crewId, c.leader[crewId] == racerId, won, stake == 'pink', c.friendly)
   raceDistrict, repAtStart, homeCrowd = nil, nil, nil
   local crew = crews.crew(crewId)
@@ -102,6 +104,8 @@ function M.onStreetLegalRaceResult(won, opponent, racerId, stake)
     sl_career.sendText('benny', string.format('Word is %s is yours now. %s won\'t take that lying down.', dist.name, crew.name:gsub('^%l', string.upper)), 3)
     c.callouts = c.callouts or {}
     c.callouts[#c.callouts + 1] = { crew = crewId, district = dist.id, day = s.day }
+    c.angry = c.angry or {}
+    c.angry[crewId] = s.day
     extensions.hook('onStreetLegalDistrictTaken', dist.id, crewId)
   elseif event == 'lost' then
     sl_career.sendText('benny', string.format('%s took %s back off you.', crew.name:gsub('^%l', string.upper), dist.name), 3)
@@ -156,6 +160,122 @@ local function sendCallouts(s, c)
   end
 end
 
+----------------------------------------------------------------------------------------------
+-- the turf war: hold enough of the city and the leaders come, one a night, each on their own home streets.
+-- Beat them all and the city is yours (King of Valo); lose one and it is off for a week.
+
+local function crewHome(c, crewId)
+  for id, t in pairs(c.territory) do if t.home == crewId then return id end end
+end
+
+local function turfWarNext(s, c)
+  local w = c.turfWar
+  local crewId = w and w.order[w.stage]
+  if not crewId or w.sentDay == s.day then return end
+  local leader = stateLib.racer(s, c.leader[crewId])
+  local home = crewHome(c, crewId)
+  local race = home and raceIn(c, home) or (sl_career.racesList() or {})[1]
+  if not leader or not race then return end
+  w.sentDay = s.day
+  s.known[leader.id] = true
+  for i = #s.challenges, 1, -1 do if s.challenges[i].racer == leader.id then table.remove(s.challenges, i) end end
+  local bet = math.floor((leader.betMax or 1000) * 2 / 50) * 50
+  s.challenges[#s.challenges + 1] = { id = leader.id .. ':turfwar:' .. s.day, racer = leader.id, stake = 'money', bet = bet, race = race.id,
+    raceName = race.name, missionId = race.missionId, nightOnly = true, at = os.time(), turfWar = crewId }
+  sl_career.sendText(leader.id, string.format('So you want the whole city. Tonight, %s, $%d. You and me. (%d of %d)', race.name, bet, w.stage, #w.order), 4)
+  extensions.hook('onStreetLegalChanged')
+end
+
+local function turfWarResult(s, c, racerId, won)
+  local w = c.turfWar
+  local crewId = w and w.order[w.stage]
+  if not crewId or c.leader[crewId] ~= racerId then return end
+  if not won then
+    sl_career.sendText('benny', 'They beat you. The crews are laughing. Give it a week and try again.', 3)
+    c.turfWar, c.turfWarAfter = nil, s.day + 7
+    return
+  end
+  w.stage = w.stage + 1
+  if w.stage > #w.order then
+    c.king, c.turfWar = s.day, nil
+    stateLib.addRep(s, 1000)
+    for _, t in pairs(c.territory) do t.owner, t.control = 'player', 100 end
+    sl_career.sendText('benny', 'You did it. Every crew in Valo answers to you now. King of Valo!', 3)
+    extensions.hook('onStreetLegalKingOfValo')
+  else
+    sl_career.sendText('benny', string.format('That is %d down. %s is next, tomorrow night.', w.stage - 1, crews.crew(w.order[w.stage]).name), 3)
+  end
+end
+
+local function turfWarCheck(s, c)
+  if c.king or c.turfWar or (c.turfWarAfter and s.day < c.turfWarAfter) or not crews.turfWarReady(c.territory) then return end
+  -- three leaders: the crews still holding their home first, then the others
+  local holding, beaten, order = {}, {}, {}
+  for _, cr in ipairs(crews.CREWS) do
+    local home = crewHome(c, cr.id)
+    if c.leader[cr.id] then
+      local list = (home and c.territory[home].owner ~= 'player') and holding or beaten
+      list[#list + 1] = cr.id
+    end
+  end
+  for _, id in ipairs(holding) do if #order < 3 then order[#order + 1] = id end end
+  for _, id in ipairs(beaten) do if #order < 3 then order[#order + 1] = id end end
+  c.turfWar = { stage = 1, order = order }
+  sl_career.sendText('benny', 'The crew leaders have noticed you. They want a turf war: three nights, three races, one each on their own streets. Win them all and the city is yours.', 3)
+end
+
+----------------------------------------------------------------------------------------------
+-- raids (Settings: Crew raids): a crew you took a district from may come for a car you left out, the night after
+-- you hear of it: lights and mirrors smashed (its own break groups: nothing flies), never a car at the garage
+-- or the one you are in, and once a week a crew at most
+
+local RAID_HOUR = 22
+local SMASH = [[
+local groups, seen = {}, {}
+for _, b in pairs(v.data.beams or {}) do
+  local g = b.breakGroup
+  for _, name in ipairs(type(g) == 'table' and g or { g }) do
+    local n = type(name) == 'string' and name:lower() or ''
+    if not seen[name] and (n:find('mirror') or n:find('headlight') or n:find('taillight')) then seen[name] = true groups[#groups + 1] = name end
+  end
+end
+for i = 1, math.min(3, #groups) do beamstate.breakBreakGroup(groups[math.random(#groups)]) end
+]]
+
+local function raidsOn() return not sl_options or sl_options.get('slRaids') ~= false end
+
+local function planRaid(s, c, day)
+  if c.raid or not raidsOn() or c.king then return end
+  c.raided = c.raided or {}
+  for crewId, since in pairs(c.angry or {}) do
+    if day - since <= 7 and (c.raided[crewId] or -99) + 7 <= day then
+      c.raid = { crew = crewId, day = day + 1 }
+      sl_career.sendText('benny', string.format('Heads up: word is %s are going after one of your cars tomorrow night. Keep them in the garage.', crews.crew(crewId).name), 3)
+      return
+    end
+  end
+end
+
+local function doRaid(s, c)
+  local r = c.raid
+  if not r or s.day < r.day or (sl_career.hour and sl_career.hour() or 0) < RAID_HOUR then return end
+  c.raid = nil
+  c.raided = c.raided or {}
+  c.raided[r.crew] = s.day
+  if not raidsOn() then return end
+  local me = getPlayerVehicle(0)
+  for _, car in ipairs(s.cars or {}) do
+    local v = sl_fleet.vehicleOf(car.id)
+    local away = v and me and (v:getPosition() - me:getPosition()):length() > 150
+    if v and v:getID() ~= (me and me:getID()) and away and not sl_fleet.atGarage(v:getPosition(), s) then
+      v:queueLuaCommand(SMASH)
+      sl_career.sendText('benny', string.format('%s got to your %s: the lights are smashed. Should have kept it in the garage.', crews.crew(r.crew).name:gsub('^%l', string.upper), car.name), 3)
+      return
+    end
+  end
+  sl_career.sendText('benny', string.format('%s came looking for your cars last night and found nothing. Good call.', crews.crew(r.crew).name:gsub('^%l', string.upper)), 3)
+end
+
 local timer = 0
 function M.onUpdate(dtReal)
   timer = timer + (dtReal or 0)
@@ -164,6 +284,7 @@ function M.onUpdate(dtReal)
   local s = career()
   local c = s and s.crews
   if c and c.callouts and #c.callouts > 0 then sendCallouts(s, c) end
+  if c then turfWarCheck(s, c) if c.turfWar then turfWarNext(s, c) end if c.raid then doRaid(s, c) end end
 end
 
 -- the crews trade a district between them now and then, overnight; call-outs not answered cost you
@@ -182,6 +303,7 @@ function M.onStreetLegalNewDay(day)
   local keep = {}
   for _, co in ipairs(c.callouts or {}) do if co.day + 1 >= day then keep[#keep + 1] = co end end
   c.callouts = keep
+  planRaid(s, c, day)
   local id, who = crews.nightly(c.territory, rngLib.new(rngLib.hash('crewnight:' .. tostring(day) .. ':' .. tostring(s.seed))))
   if id then
     for _, d in ipairs(c.districts or {}) do

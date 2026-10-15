@@ -18,6 +18,8 @@ M.defs = {
     desc = 'What jobs, purses and season prizes pay (this career). Bets and prices are not changed.' },
   { key = 'slHardcore', career = true, title = 'Hardcore', type = 'bool', default = false,
     desc = 'No paid pull back to the road (a car off the road needs the tow truck), no free cab when broke, no insurance. A pink slip lost is gone, as always (this career).' },
+  { key = 'slRaids', career = true, title = 'Crew raids', type = 'bool', default = true,
+    desc = 'A crew you took a district from may smash the lights of a car you left out on the street (never in the garage; you hear of it a day before) (this career).' },
   { key = 'slRaceTraffic', title = 'Traffic in street races', type = 'choice', default = 'normal',
     options = { { id = 'normal', label = 'As usual' }, { id = 'light', label = 'Light' }, { id = 'none', label = 'None' } },
     desc = 'Thins out the town\'s traffic while you race on the street, and puts it back after.' },
