@@ -6,7 +6,7 @@
 local M = {}
 
 M.MAX_SPEED = 22          -- m/s: above this it is a freeway
-M.MIN_RADIUS = 2.4        -- m: a lane, not a path
+M.MIN_RADIUS = 1.5        -- m: a lane, not a path (Valo City's navgraph is one node per lane, radius 1.75)
 
 local function degree(node) local n = 0 for _ in pairs(node.links or {}) do n = n + 1 end return n end
 

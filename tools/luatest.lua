@@ -166,6 +166,19 @@ do
   local scrap = market.offers(cars, 'scrap', 1, 3, 6)
   for i, o in ipairs(scrap) do check('scrap is cheap and bent ' .. i, o.price < o.value * 0.2 and o.damage >= 0.6, o.price) end
   check('nothing to sell from nothing', #market.offers({}, 'used', 1, 1, 5) == 0)
+  -- a starter car: with the game's real values (nothing under $9,000 new) the used lot still has a car at the
+  -- starter price every day, and it is the cheapest one on the lot
+  do
+    local dear = {}
+    for i = 1, 60 do dear[i] = { model = 'm' .. (i % 12), config = 'd' .. i, name = 'Dear ' .. i, brand = 'B', value = 9000 + i * 3000 } end
+    local ok = true
+    for seed = 1, 40 do
+      local o = market.offers(dear, 'used', seed, seed % 9 + 1, 6)
+      if #o ~= 6 or o[1].price > market.STARTER_PRICE or o[1].condition > 0.75 then ok = false end
+    end
+    check('the used lot always has a starter at or under the starter price', ok)
+    check('a starter is a real used car, not a loop', market.resaleValue({ value = 12000, condition = 0.5, faults = {}, boughtFor = 3500, partsAtBuy = 0 }, 0) < 3500)
+  end
   check('scrap pays less than a private buyer', market.scrapValue({ value = 20000, condition = 0.5 }) < market.resaleValue({ value = 20000, condition = 0.5 }))
   -- no money loop (fails the build): every car any lot sells, sold straight back or scrapped as it is, fetches
   -- less than it cost; fitting parts only gets their value back; a better state since is worth more
@@ -621,6 +634,17 @@ do
   check('road spot: in the right-hand lane, facing along it', math.abs(math.abs(c[1].y) - 2) < 0.01 and math.abs(c[1].dx) == 1 and (c[1].dx > 0) == (c[1].y < 0))
   local free = rs.pick(c, { P(125, -2) })
   check('road spot: skips one with a car on it', free and math.abs(free.x - 125) > 1)
+  -- Valo City's real navgraph: one node per lane, radius 1.75, one-way links with inNode/outNode (no spot was found anywhere at 2.4)
+  do
+    local function lane(i, o) return { inNode = i, outNode = o, drivability = 1, speedLimit = 16.7, lanes = '+', oneWay = true } end
+    local ns = { l1 = { pos = P(0, 0), radius = 1.75, links = {} }, l2 = { pos = P(40, 0), radius = 1.75, links = {} }, l3 = { pos = P(80, 0), radius = 1.75, links = {} }, l4 = { pos = P(120, 0), radius = 1.75, links = {} } }
+    ns.l1.links.l2 = lane('l1', 'l2') ns.l2.links.l1 = ns.l1.links.l2
+    ns.l2.links.l3 = lane('l3', 'l2') ns.l3.links.l2 = ns.l2.links.l3      -- (seen from l2's side: the far node is the inNode)
+    ns.l3.links.l4 = lane('l3', 'l4') ns.l4.links.l3 = ns.l3.links.l4
+    local c = rs.candidates(ns, P(60, 10), true)
+    check('road spot: a 1.75 m one-way lane counts (between two plain nodes)', #c == 1)
+    check('road spot: a one-way lane is faced the way it runs', c[1] and c[1].x == 60 and c[1].dx == -1 and math.abs(c[1].y) < 0.01)
+  end
   check('road spot: hidden and private roads are not city lanes', #rs.candidates({ a = { pos = P(0, 0), radius = 4, links = { b = link('a', 'b', { type = 'private' }) } },
     b = { pos = P(50, 0), radius = 4, links = { a = link('a', 'b', { type = 'private' }) } } }, P(0, 0), true) == 0)
 end

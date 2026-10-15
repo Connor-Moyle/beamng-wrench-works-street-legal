@@ -20,6 +20,8 @@ M.CONDITIONS = {
 }
 
 -- what can be wrong with it; the car is built without these (or with them damaged)
+M.STARTER_PRICE = 3500     -- the used lot's cheapest car is never dearer (start money $5,000, fuel and a part to spare)
+
 M.FAULTS = { 'engine', 'gearbox', 'radiator', 'battery', 'tyres', 'brakes', 'exhaust' }
 
 -- a fault is put right by a new part in its place (a slot path, as Wrench Works reports a part bought)
@@ -108,6 +110,31 @@ function M.offers(cars, kind, seed, day, count)
       offer.condition = math.floor(offer.condition * 100 + 0.5) / 100
       offer.damage = math.floor(offer.damage * 100 + 0.5) / 100
       out[#out + 1] = offer
+    end
+  end
+  -- a starter: the used lot always has something a new player's $5,000 buys (the tutorial sends them there for
+  -- "something that runs"); the game's own car values start near $10,000, so the cheapest car on the lot is
+  -- a tired or damaged one at the starter price when nothing else is that cheap
+  if kind == 'used' and #out > 0 then
+    local cheapest = out[1]
+    for _, o in ipairs(out) do if o.price < cheapest.price then cheapest = o end end
+    if cheapest.price > M.STARTER_PRICE then
+      local car = pool[1]
+      for _, c in ipairs(pool) do if c.value < car.value then car = c end end
+      local c = M.CONDITIONS[rng:chance(0.5) and 2 or 3]                                   -- tired or damaged stock
+      local o = { id = string.format('%s-%d-starter', kind, day or 0), model = car.model, config = car.config, name = car.name,
+        brand = car.brand, value = car.value, kind = kind, faults = {}, mods = 0, title = c.title,
+        condition = math.floor(between(rng, c.condition) * 100 + 0.5) / 100, damage = math.floor(between(rng, c.damage) * 100 + 0.5) / 100,
+        mileage = rng:int(120000, 260000) }
+      for _, f in ipairs(M.FAULTS) do if rng:chance(c.broken / 3) then o.faults[#o.faults + 1] = f end end
+      o.price = math.min(M.STARTER_PRICE, round(math.max(200, car.value * c.price * (0.85 + 0.3 * o.condition)), 50))
+      for i = #out, 1, -1 do if out[i].config == car.config then table.remove(out, i) end end
+      if #out >= count then                                                                -- (in place of the dearest)
+        local di = 1
+        for i, x in ipairs(out) do if x.price > out[di].price then di = i end end
+        table.remove(out, di)
+      end
+      out[#out + 1] = o
     end
   end
   table.sort(out, function(a, b) return a.price < b.price end)

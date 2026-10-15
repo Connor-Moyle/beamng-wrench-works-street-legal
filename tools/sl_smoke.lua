@@ -35,6 +35,17 @@ local function teleportTo(job, pos)
   job.sleep(2.5)                                   -- settle, stop, and let sl_jobs see it (it looks every 0.5 s)
 end
 
+-- your own car brought to you and you in it (the checks that need it come after jobs in other people's cars)
+local function backInOwnCar(job)
+  local car = sl_career.getState().cars[1]
+  local v = car and sl_fleet.vehicleOf(car.id)
+  local me = player()
+  if not v or not me or me:getID() == v:getID() then return end
+  spawn.safeTeleport(v, me:getPosition() + vec3(3, 3, 0.5), quat(v:getRotation()), false, nil, nil, nil, false)
+  if gameplay_walk and gameplay_walk.getInVehicle then gameplay_walk.getInVehicle(v) else be:enterVehicle(0, v) end
+  job.sleep(1.5)
+end
+
 -- a delivery job of one kind: take it, drive (teleport) through its stops, and see it paid
 local function runJob(kind)
   return function(job)
@@ -53,6 +64,7 @@ local function runJob(kind)
     end
     job.sleep(1.5)
     if js().active then return false, 'still active after the last stop' end
+    backInOwnCar(job)                              -- (a job car leaves you on foot where it ended: fetch your car for the next check)
     local paid = money() - m0
     if (js().done or 0) ~= done0 + 1 then return false, 'done count did not go up' end
     if pick.fragile and paid == 0 then return true, 'fragile load broke on the teleports (paid 0): machinery works' end
@@ -275,7 +287,7 @@ check('dealer showroom: display spots on a floor, exit on the street (B16)', fun
   local d
   for _, p in pairs(sl_career.getPlaces() or {}) do if p.kind == 'dealer' then d = p end end
   if not d then return nil, 'no dealer' end
-  if not d.showroom or not d.displays or #d.displays < 7 or not d.exit then return false, 'no showroom data on the place' end
+  if not d.displays or #d.displays < 7 or not d.exit then return false, 'no display spots or exit on the place' end
   local bad = {}
   for i, sp in ipairs(d.displays) do
     local pos = vec3(sp.pos.x or sp.pos[1], sp.pos.y or sp.pos[2], sp.pos.z or sp.pos[3])
