@@ -234,6 +234,7 @@
     wifi: svg('M12 21 1 8a16 16 0 0 1 22 0z'),
     battery: svg('M16 4h-2V2h-4v2H8a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1z'),
     down: svg('M7.4 8.6 12 13.2l4.6-4.6L18 10l-6 6-6-6z'),
+    turf: svg('M3 3h8v8H3zm10 0h8v8h-8zM3 13h8v8H3zm10 0h8v8h-8z'),
     club: svg('M12 2 4 6v6c0 5 3.4 9 8 10 4.6-1 8-5 8-10V6zm0 4 1.8 3.6 4 .6-2.9 2.8.7 4L12 15.1 8.4 17l.7-4L6.2 10.2l4-.6z'),
     jobs: svg('M10 2h4a2 2 0 0 1 2 2v2h4a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4V4a2 2 0 0 1 2-2zm4 4V4h-4v2z'),
   };
@@ -325,6 +326,7 @@
           { id: 'me', title: 'Street cred', icon: I.me },
           { id: 'jobs', title: 'Jobs', icon: I.jobs, badge: d.jobs && d.jobs.active ? 1 : 0 },
           { id: 'club', title: 'Club', icon: I.club },
+          { id: 'turf', title: 'Turf', icon: I.turf },
           { id: 'market', title: 'Revline', icon: I.market, badge: d.market && d.market.deliveries || 0 },
           { id: 'paper', title: 'Classifieds', icon: I.paper },
           { id: 'bid', title: 'Swap & Bid', icon: I.bid, badge: d.market ? arr(d.market.auctions).filter(function (l) { return l.high === 'you'; }).length : 0 },
@@ -511,6 +513,19 @@
     }
 
     // the club: today's league events, the standings
+    // Turf: the city's districts, who holds them and how firmly (sl_crews, X21)
+    function turfPage() {
+      var t = obj(st.data.turf);
+      var rows = arr(t.districts).map(function (d) {
+        return '<div class="slp-row"><div class="slp-rt"><b>' + esc(d.name) + (d.here ? ' &middot; you are here' : '') + '</b><span>' +
+          (d.yours ? 'Yours' : esc(d.owner)) + ' &middot; ' + d.control + '% control' + (d.home ? ' &middot; home of ' + esc(d.home) : '') + '</span></div></div>';
+      }).join('');
+      var crews = arr(t.crews).map(function (c) { return '<p>' + esc(c.name) + (c.leader ? ' &middot; led by ' + esc(c.leader) : '') + '</p>'; }).join('');
+      return bar('Turf') + '<div class="slp-body">' +
+        '<div class="slp-empty">Beat a crew on its own streets to take the district. You hold ' + (t.held || 0) + '.' + (t.turfWar ? ' The leaders want a word.' : '') + '</div>' +
+        (rows || '<div class="slp-empty">No districts on this map.</div>') + '<div class="slp-card"><h4>The crews</h4>' + crews + '</div></div>';
+    }
+
     function clubPage() {
       var c = st.data.club;
       if (!c) return bar('Club') + '<div class="slp-body"><div class="slp-empty">No club yet.</div></div>';
@@ -826,6 +841,7 @@
         case 'races': page = racesPage(); break;
         case 'jobs': page = jobsPage(); break;
         case 'club': page = clubPage(); break;
+        case 'turf': page = turfPage(); break;
         case 'market': page = marketPage(); break;
         case 'paper': page = paperPage(); break;
         case 'bid': page = bidPage(); break;

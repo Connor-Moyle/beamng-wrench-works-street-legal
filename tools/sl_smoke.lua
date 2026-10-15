@@ -284,6 +284,30 @@ check('options: Street Legal settings read and write, per career where they chan
   return #defs >= 7 and inSave and paid == 200, string.format('%d settings shown, x2 paid $%d', #defs, paid)
 end)
 
+-- rival crews (X21): districts on this map, every racer in a crew, a win on a crew's own streets takes control
+check('crews: districts, crews, and a win on their streets takes control', function()
+  local s = sl_career.getState()
+  local c = sl_crews.ensure(s)
+  local d = c.districts[1]
+  local t = c.territory[d.id]
+  local member
+  for _, r in ipairs(s.racers) do if c.member[r.id] == t.owner and c.leader[t.owner] ~= r.id then member = r.id end end
+  local before, owner = t.control, t.owner
+  local saved = { owner = t.owner, control = t.control }
+  local v = getPlayerVehicle(0)
+  sl_crews.onStreetLegalRaceStarted()
+  local here = sl_crews.districtAt(v and v:getPosition() or vec3(0, 0, 0))
+  local ok = here ~= nil
+  if here and here.id == d.id then
+    sl_crews.onStreetLegalRaceResult(true, 'smoke', member, 'money')
+    ok = c.territory[d.id].control < before
+  end
+  c.territory[d.id].owner, c.territory[d.id].control = saved.owner, saved.control
+  local all = true
+  for _, r in ipairs(s.racers) do if not c.member[r.id] then all = false end end
+  return #c.districts >= 4 and all and ok, string.format('%d districts (%s), %s holds %s', #c.districts, c.sig, owner, d.name)
+end)
+
 -- vehicle budget: nothing of ours left standing about (cabs, tow trucks, lot rows, patrols)
 check('budget: no stray spawned vehicles', function()
   local keep = {}

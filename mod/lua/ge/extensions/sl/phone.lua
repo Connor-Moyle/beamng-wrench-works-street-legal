@@ -69,6 +69,7 @@ local function snapshot()
     achievements = sl_achievements and sl_achievements.summary and sl_achievements.summary() or nil,
     bank = sl_bank and sl_bank.summary and sl_bank.summary() or nil,
     club = sl_clubs and sl_clubs.summary and sl_clubs.summary() or nil,
+    turf = sl_crews and sl_crews.summary and sl_crews.summary() or nil,
   }
 end
 

@@ -363,6 +363,14 @@ click('mkcar', '3');
 assert.ok(calls.some(function (c) { return c.indexOf('listCar("3")') >= 0; }), 'listing a car calls the market');
 phone.handle('slStation', { open: true, name: 'Pump', money: 100, fuels: [], items: [] });
 assert.ok(phone.root.querySelector('.slp-lot') && !phone.root.querySelector('.slp-ico .slp-lot'), 'with SLRR icons the panels stay outside the phone (icon markup closed)');
+// Turf: districts and crews
+phone.handle('slPhoneData', Object.assign({}, data, { turf: { held: 1, turfWar: false, districts: [
+  { id: 'd1', name: 'The Docks', owner: 'You', yours: true, control: 50, here: true },
+  { id: 'd2', name: 'Northside', owner: 'the North End crew', control: 75, home: 'the North End crew' } ],
+  crews: [{ name: 'the North End crew', leader: 'Nina' }] } }));
+phone.act('home');
+phone.act('open', 'turf');
+assert.ok(text().includes('The Docks') && text().includes('you are here') && text().includes('home of the North End crew') && text().includes('led by Nina'), 'Turf lists districts and crews');
 console.log('phone test passed');
 
 // a page to look at: the phone in several states side by side
