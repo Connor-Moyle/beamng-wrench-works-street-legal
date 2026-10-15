@@ -7,8 +7,10 @@
 local M = {}
 
 local SETTINGS_FILE = '/settings/street_legal/hud.json'
-local DEFAULTS = { enabled = true, speedo = true, tacho = true, map = true, damage = true, units = 'kmh', freeroam = false }
+local DEFAULTS = { enabled = false, speedo = true, tacho = true, map = true, damage = true, units = 'kmh', freeroam = false, enabledChosen = false }
 
+-- off until the player turns it on (phone > Street cred > Dashboard, or the bindable 'dashboard' key); a file
+-- written before that choice was asked for holds enabled = true only because every toggle saved them all
 local settings
 local function load()
   settings = {}
@@ -16,6 +18,7 @@ local function load()
   for k, v in pairs(DEFAULTS) do
     if type(saved) == 'table' and type(saved[k]) == type(v) then settings[k] = saved[k] else settings[k] = v end
   end
+  if not settings.enabledChosen then settings.enabled = false end
 end
 
 function M.getSettings()
@@ -32,8 +35,9 @@ function M.toggle(key)
   local s = M.getSettings()
   if key == 'units' then
     s.units = s.units == 'kmh' and 'mph' or 'kmh'
-  elseif type(DEFAULTS[key]) == 'boolean' then
+  elseif type(DEFAULTS[key]) == 'boolean' and key ~= 'enabledChosen' then
     s[key] = not s[key]
+    if key == 'enabled' then s.enabledChosen = true end
   else
     return
   end

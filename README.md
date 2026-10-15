@@ -33,7 +33,7 @@ The career is played on the Wrench Works: Valo City map, which brings the places
 
 ## The SLRR dashboard
 
-While you drive in the career: a rev counter (with the gear) and a speedometer, SLRR's round white-on-black dials, a road map that turns with the car (your garage, the lots and meets marked, the way to a race in red), and a damage diagram (six body zones, burst tyres, the engine). The game's own rev counter and damage app make way for it. Each part can be switched off, km/h or mph, and it can be used outside the career too: phone > Street cred > Dashboard.
+Off at first (the game's own apps show the speed, damage and minimap): turn it on with phone > Street cred > Dashboard, or bind a key to "Wrench Works: Street Legal: dashboard" in Options > Controls; the choice is kept. While you drive in the career: a rev counter (with the gear) and a speedometer, SLRR's round white-on-black dials, a road map that turns with the car (your garage, the lots and meets marked, the way to a race in red), and a damage diagram (six body zones, burst tyres, the engine). The game's own rev counter and damage app make way for it. Each part can be switched off, km/h or mph, and it can be used outside the career too: phone > Street cred > Dashboard.
 
 ## The phone
 
