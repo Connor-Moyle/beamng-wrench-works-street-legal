@@ -421,4 +421,28 @@ do
   check('prices', cc.fillCost('race', 10) == 32 and cc.oilChangeCost(4) == 73)
 end
 
+-- jobs: part runs and courier parcels
+do
+  local jobs = require('sl/core/jobs')
+  local shops = { { id = 'tyres', name = 'Tyres', x = -700, y = 60 }, { id = 'speed', name = 'Speed', x = 700, y = 470 }, { id = 'near', name = 'Next door', x = -255, y = -1030 } }
+  local garage = { id = 'g1', name = 'Garage 1', x = -260, y = -1035 }
+  local places = { garage, { id = 'junk', name = 'Junkyard', x = 880, y = -606 }, { id = 'dealer', name = 'Dealer', x = -797, y = 239 }, { id = 'meet', name = 'Meet', x = -121, y = 89 } }
+  for seed = 1, 40 do
+    local list = jobs.offers(shops, places, garage, rngLib.new(seed), 6)
+    check('offers come ' .. seed, #list >= 4)
+    for _, j in ipairs(list) do
+      check('never next door ' .. seed .. j.id, j.metres >= jobs.MIN_METRES and j.from ~= j.to and j.from ~= 'near')
+      check('part runs end at the garage ' .. seed .. j.id, j.kind ~= 'part' or j.to == 'g1')
+      check('pay and time ' .. seed .. j.id, j.pay >= jobs.MIN_PAY and j.pay % 10 == 0 and j.seconds >= jobs.MIN_SECONDS)
+    end
+  end
+  local j = { pay = 500, seconds = 300, fragile = false }
+  check('on time, clean: full pay', select(1, jobs.settle(j, 200, 0)) == 500 and select(2, jobs.settle(j, 200, 0)) == 'on time')
+  check('late: half', jobs.settle(j, 400, 0) == 250 and select(2, jobs.settle(j, 400, 0)) == 'late')
+  check('damage docks it', jobs.settle(j, 200, 0.1) == 400 and jobs.settle(j, 200, 1) == 100)
+  local f = { pay = 500, seconds = 300, fragile = true }
+  check('a fragile load breaks', jobs.settle(f, 200, 0.06) == 0 and select(2, jobs.settle(f, 200, 0.06)) == 'broken' and jobs.settle(f, 200, 0.04) > 0)
+  check('nothing to offer, no crash', #jobs.offers({}, {}, nil, rngLib.new(1), 4) == 0)
+end
+
 print(string.format('lua tests passed: %d checks', passed))
