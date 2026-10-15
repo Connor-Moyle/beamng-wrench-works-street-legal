@@ -49,6 +49,30 @@ assert.ok(hud.root.classList.contains('slh-gone'), 'hidden on foot, in the garag
   }, 300);
 }
 
+// tiles: the whole level (red) first, the city (blue, 600 m round the origin) on top of it
+{
+  const { createCanvas } = require('canvas');
+  const tile = (colour) => { const c = createCanvas(8, 8), g = c.getContext('2d'); g.fillStyle = colour; g.fillRect(0, 0, 8, 8); return c.toDataURL(); };
+  const dom4 = new JSDOM('<!doctype html><html><body></body></html>', { runScripts: 'outside-only', pretendToBeVisual: true, resources: 'usable' });
+  dom4.window.__slHudTest = true;
+  dom4.window.eval(code);
+  const h4 = dom4.window.__slHudCreate(dom4.window.document);
+  h4.handle('slHudMap', { segs: [], places: [], pictures: [
+    { url: tile('#ff0000'), x0: -5000, y0: 5000, x1: 5000, y1: -5000 },
+    { url: tile('#0000ff'), x0: -600, y0: 600, x1: 600, y1: -600 } ] });
+  const centre = (x, y) => {
+    h4.handle('slHud', Object.assign({}, frame, { x, y, heading: 0, target: null }));
+    const c = h4.root.querySelector('.slh-map');
+    const d = c.getContext('2d').getImageData(Math.round(c.width / 2), Math.round(c.height / 2) + 40, 1, 1).data;
+    return d[0] > d[2] ? 'red' : 'blue';
+  };
+  setTimeout(() => {
+    assert.strictEqual(centre(0, 0), 'blue', 'in the city: the city tile, on top');
+    assert.strictEqual(centre(3000, -3000), 'red', 'out of town: the whole-level tile');
+    console.log('hud tiles test passed');
+  }, 300);
+}
+
 console.log('hud test passed');
 
 // --png <dir>: draw a frame (with SLRR's textures when tools/slrr_ui.py has copied them) and save each canvas

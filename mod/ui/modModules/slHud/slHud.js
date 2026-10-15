@@ -67,12 +67,15 @@
         (grid[key] = grid[key] || []).push(i);
       }
       roads = { segs: segs, grid: grid, places: data.places || [] };
-      var pic = data.picture;
-      if (pic && pic.url && doc.defaultView && doc.defaultView.Image) {          // the map's navigator picture: drawn instead of the lines once loaded
+      // the map's navigator pictures (the whole level, the city over it): drawn instead of the lines once loaded
+      var pics = data.pictures || (data.picture ? [data.picture] : []), mine = roads;
+      mine.pictures = [];
+      pics.forEach(function (pic, i) {
+        if (!pic || !pic.url || !doc.defaultView || !doc.defaultView.Image) return;
         var img = new doc.defaultView.Image();
-        img.onload = function () { if (roads) roads.picture = { img: img, x0: pic.x0, y0: pic.y0, x1: pic.x1, y1: pic.y1 }; };
+        img.onload = function () { mine.pictures[i] = { img: img, x0: pic.x0, y0: pic.y0, x1: pic.x1, y1: pic.y1 }; };
         img.src = pic.url;
-      }
+      });
     }
 
     // ---------------------------------------------------------------- SLRR's own dial: its face, a needle on it
@@ -178,17 +181,24 @@
       var px = d.x, py = d.y;
       function sx(x, y) { return r + ((x - px) * rx + (y - py) * ry) * scale; }
       function sy(x, y) { return r - ((x - px) * fx + (y - py) * fy) * scale; }
-      var pic = roads && roads.picture;
-      if (pic) {
+      var pic = false;
+      (roads && roads.pictures || []).forEach(function (p) {
+        if (!p) return;
+        pic = true;
         // image pixel (u, v) -> world (x0 + u*ax, y0 + v*ay) -> the same turn as sx/sy below
-        var ax = (pic.x1 - pic.x0) / pic.img.width, ay = (pic.y1 - pic.y0) / pic.img.height;
-        var ox = pic.x0 - px, oy = pic.y0 - py;
+        var ax = (p.x1 - p.x0) / p.img.width, ay = (p.y1 - p.y0) / p.img.height;
+        var ox = p.x0 - px, oy = p.y0 - py;
         g.save();
         g.setTransform(rx * ax * scale, -fx * ax * scale, ry * ay * scale, -fy * ay * scale,
           r + (ox * rx + oy * ry) * scale, r - (ox * fx + oy * fy) * scale);
-        g.drawImage(pic.img, 0, 0);
+        // only the piece round the car (a whole-level tile is thousands of pixels; this runs every redraw)
+        var R = 250;                                                            // metres round the car (the map shows 170)
+        var ua = (px - R - p.x0) / ax, ub = (px + R - p.x0) / ax, va = (py - R - p.y0) / ay, vb = (py + R - p.y0) / ay;
+        var u0 = Math.max(0, Math.floor(Math.min(ua, ub))), u1 = Math.min(p.img.width, Math.ceil(Math.max(ua, ub)));
+        var v0 = Math.max(0, Math.floor(Math.min(va, vb))), v1 = Math.min(p.img.height, Math.ceil(Math.max(va, vb)));
+        if (u1 > u0 && v1 > v0) g.drawImage(p.img, u0, v0, u1 - u0, v1 - v0, u0, v0, u1 - u0, v1 - v0);
         g.restore();
-      }
+      });
       if (roads) {
         g.strokeStyle = '#c9ccd2'; g.lineWidth = 5; g.lineCap = 'round';
         g.beginPath();
