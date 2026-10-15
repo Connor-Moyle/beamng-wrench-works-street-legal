@@ -567,7 +567,8 @@ function M.showAndShine()
     local r = stateLib.racer(s, id)
     if r then rivals[#rivals + 1] = showshine.rival(r.tier, rng) end
   end
-  local mine = showshine.score({ value = car.value, condition = car.condition, dents = car.damage and car.damage.beams and #car.damage.beams or 0 })
+  local mine = showshine.score({ value = car.value, condition = car.condition, dents = car.damage and car.damage.beams and #car.damage.beams or 0,
+    washed = sl_station and sl_station.washedToday and sl_station.washedToday(car.id) })
   local place, prize, rep = showshine.result(mine, rivals)
   if prize > 0 then sl_career.addMoney(prize, 'Show and shine: ' .. place .. (place == 1 and 'st' or place == 2 and 'nd' or 'rd')) end
   if rep > 0 then stateLib.addRep(s, rep) end

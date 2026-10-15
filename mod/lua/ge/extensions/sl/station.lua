@@ -3,6 +3,7 @@
 -- (a little more power for the better ones), paid by the litre; the shop sells what goes in the
 -- trunk (fuel cans, oil, coolant, a battery); a fuel can is filled with the grade you choose.
 -- The pump and the shop are the phone's 'slStation' panel.
+-- And the car wash: the map's wash bays (places of kind 'carwash'), $15 to roll through.
 
 local M = {}
 
@@ -96,8 +97,42 @@ local function patch()
   patched = true
 end
 
+-- the car wash (X3a): the map's wash bays (places of kind 'carwash'); roll in slowly in one of your cars and it
+-- is washed: Surface FX's built-up dirt comes off (when that mod is there), and it counts as fresh for the
+-- day's show and shine
+M.WASH_PRICE = 15
+local WASH_RADIUS, WASH_SPEED = 4, 1.0
+local washedOn = {}        -- car id -> career day of its last wash (for the day; not saved)
+local inBay                -- the bay we are in, so a wash happens once per visit
+local washTimer = 0
+
+function M.washedToday(carId) local s = career() return s ~= nil and carId ~= nil and washedOn[carId] == s.day end
+
+local function updateWash(dt)
+  washTimer = washTimer + dt
+  if washTimer < 0.25 then return end
+  washTimer = 0
+  local s, v = career(), getPlayerVehicle(0)
+  local carId = v and sl_fleet and sl_fleet.carOfVehicle and sl_fleet.carOfVehicle(v:getID())
+  if not s or not carId then inBay = nil return end
+  local here, bay = v:getPosition(), nil
+  for id, p in pairs(sl_career.getPlaces() or {}) do
+    if p.kind == 'carwash' and p.pos and (here - vec3(p.pos.x, p.pos.y, p.pos.z)):length() < WASH_RADIUS then bay = id end
+  end
+  if bay ~= inBay and bay and v:getVelocity():length() < WASH_SPEED then
+    inBay = bay
+    if not sl_career.addMoney(-M.WASH_PRICE, 'Car wash') then toast('A wash is $' .. M.WASH_PRICE .. '.') return end
+    if surfaceFXBody and surfaceFXBody.wash then surfaceFXBody.wash() end
+    washedOn[carId] = s.day
+    toast(string.format("Washed and dried. $%d. It looks the part for tonight's meet.", M.WASH_PRICE))
+  elseif not bay then
+    inBay = nil
+  end
+end
+
 function M.onStreetLegalStarted() patch() end
-function M.onUpdate() if career() and not patched then patch() end
+function M.onUpdate(dtReal) if career() and not patched then patch() end
+  if career() then updateWash(dtReal or 0) end
   -- driven off: the pump closes
   if open then
     local v = getPlayerVehicle(0)
@@ -109,7 +144,7 @@ function M.onStreetLegalStopped()
   if patched and freeroam_gasStations then freeroam_gasStations.refuelCar = original end
   patched = false
 end
-function M.onClientEndMission() open, patched = nil, false end
+function M.onClientEndMission() open, patched, inBay = nil, false, nil end
 function M.request() send() end
 
 return M

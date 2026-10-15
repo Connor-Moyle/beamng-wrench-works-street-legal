@@ -451,6 +451,7 @@ do
   check('clean beats dented', ss.score({ value = 20000, condition = 0.8, dents = 0 }) > ss.score({ value = 20000, condition = 0.8, dents = 200 }))
   check('worth more scores more', ss.score({ value = 40000, condition = 0.5 }) > ss.score({ value = 10000, condition = 1 }))
   check('a wreck still scores', ss.score({ value = 5000, condition = 0.2, dents = 5000 }) > 0)
+  check('a fresh wash scores more', ss.score({ value = 20000, condition = 0.8, washed = true }) == math.floor(ss.score({ value = 20000, condition = 0.8 }) * ss.WASHED))
   local rng = rngLib.new(7)
   local low, high = ss.rival(1, rng), ss.rival(5, rng)
   check('better racers, better cars', high > low * 5)

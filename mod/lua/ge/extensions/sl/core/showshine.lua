@@ -8,10 +8,11 @@ M.FEE = 50
 M.PRIZES = { 1.0, 0.4, 0.15 }        -- of the purse, for 1st, 2nd and 3rd
 M.REP = { 20, 8, 3 }
 
--- a car: { value = $, condition = 0..1 (as bought), dents = bent beams kept in the save }
+-- a car: { value = $, condition = 0..1 (as bought), dents = bent beams kept in the save, washed = true (today) }
+M.WASHED = 1.1         -- a fresh wash catches the judges' eye
 function M.score(car)
   local clean = 1 - math.min(0.6, (car.dents or 0) / 300)
-  return math.floor((car.value or 0) * (0.6 + 0.4 * (car.condition or 0.7)) * clean)
+  return math.floor((car.value or 0) * (0.6 + 0.4 * (car.condition or 0.7)) * clean * (car.washed and M.WASHED or 1))
 end
 
 -- a racer's car, by tier (1..5), with the night's luck
