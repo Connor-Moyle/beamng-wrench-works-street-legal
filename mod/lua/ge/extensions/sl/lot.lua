@@ -294,7 +294,7 @@ local function endTest()
   local veh = lot.veh and getObjectByID(lot.veh)
   if core_groundMarkers then core_groundMarkers.setPath(nil) end
   core_jobsystem.create(function(j)
-    guihooks.trigger('slFade', { on = true })
+    guihooks.trigger('slFade', { on = true, pic = 'loading_dealer_used_enter.png' })
     j.sleep(0.6)
     if gameplay_walk then gameplay_walk.setWalkingMode(true, lot and lot.place.pos + vec3(0, 0, 0.3) or nil, nil, true) end
     j.sleep(0.4)

@@ -178,6 +178,10 @@
     '.slp-menu p{margin:6px 0 12px 0;font-size:13px;color:#cac4d0;line-height:1.4}',
     '.slp-menu .slp-btn{width:100%;margin-top:8px}',
     '.slp-pink{color:#ff7eb6;font-weight:500}',
+    '.slp-slrr{display:block;image-rendering:auto}',
+    '.slp-appimg{width:70%;height:70%;object-fit:contain}',
+    '.slp-arrow .slp-slrr{width:30px;height:30px}',
+    '.slp-chcard .slp-chimg{width:100%;max-height:96px;object-fit:contain;margin:6px 0 4px 0}',
     '.slp-hudrow{cursor:pointer}',
     '.slp-hudrow b.slp-on{color:#6dd58c}',
     '.slp-hudrow b.slp-offtxt{color:#938f99}',
@@ -226,6 +230,11 @@
     home: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.5"/></svg>',
     recent: '<svg viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>',
   };
+  // SLRR's own icons (copied from the player's SLRR by tools/slrr_ui.py) where it has one; the phone's
+  // own apps (calls, texts, contacts) keep their phone icons
+  var SLRR_ART = '/ui/modModules/slHud/slrr/icons/';
+  var SLRR_ICON = { races: 'cup.png', garage: 'garage.png', bank: 'dollar.png', cab: 'city.png', me: 'roc.png' };
+  function slrrIcon(name, cls) { return '<img class="slp-slrr ' + (cls || '') + '" src="' + SLRR_ART + name + '" alt=">'; }
   var APP_COLORS = { phone: '#2e7d4f', messages: '#2f5fb3', contacts: '#7b4fb0', races: '#c2541e', bank: '#1f7a70', cab: '#b58a12', me: '#5c6474', garage: '#8a3b8f' };
   var AV_COLORS = ['#a8c7fa', '#f2b8b5', '#c3e7c6', '#ffd8a8', '#d0bcff', '#9fe0e8', '#ffb4ab', '#e8def8'];
   var CLASS_NAMES = { beater: 'Beaters', compact: 'Compacts', muscle: 'Muscle', tuner: 'Tuners', sport: 'Sports cars', super: 'Supercars' };
@@ -286,7 +295,8 @@
       var appsHtml = function (list) {
         return list.map(function (a) {
           var badge = a.badge ? '<div class="slp-badge">' + a.badge + '</div>' : '';
-          return '<div class="slp-app" data-a="open" data-v="' + a.id + '"><div class="slp-ico" style="background:' + APP_COLORS[a.id] + '">' + a.icon + '</div>' + badge + '<span>' + a.title + '</span></div>';
+          var ico = st.slrrArt && SLRR_ICON[a.id] ? slrrIcon(SLRR_ICON[a.id], 'slp-appimg') : a.icon;
+          return '<div class="slp-app" data-a="open" data-v="' + a.id + '"><div class="slp-ico" style="background:' + APP_COLORS[a.id] + '">' + ico + '</div>' + badge + '<span>' + a.title + '</span></div>';
         }).join('');
       };
       var arranged = arr(d.challenges).length;
@@ -489,10 +499,10 @@
         '<div class="slp-lotfaults' + (faults.length ? '' : ' slp-ok') + '">' + (faults.length ? 'Needs: ' + esc(faults.join(', ')) : 'Runs and drives') + '</div>' +
         '<div class="slp-lotprice">' + money(o.price) + '</div>';
       return '<div class="slp-catch" data-catch="lot"></div><div class="slp-lot"><div class="slp-lothead"><span>' + esc(l.kindTitle) + ' &middot; ' + esc(l.name) + '</span><span>' + (l.index || 0) + ' / ' + (l.count || 0) + '</span></div>' + body +
-        '<div class="slp-lotbtns"><div class="slp-arrow" data-a="lot" data-v="prev()">&#9664;</div>' +
+        '<div class="slp-lotbtns"><div class="slp-arrow" data-a="lot" data-v="prev()">' + (st.slrrArt ? slrrIcon('left.png') : '&#9664;') + '</div>' +
         (l.kind !== 'scrap' ? '<div class="slp-btn slp-tonal' + (l.building ? ' slp-off' : '') + '" data-a="lot" data-v="testDrive()">Test drive</div>' : '') +
         '<div class="slp-btn' + (l.building || (o.price > l.money) ? ' slp-off' : '') + '" data-a="lot" data-v="buy()">Buy &middot; ' + money(o.price) + '</div>' +
-        '<div class="slp-arrow" data-a="lot" data-v="next()">&#9654;</div></div>' +
+        '<div class="slp-arrow" data-a="lot" data-v="next()">' + (st.slrrArt ? slrrIcon('right.png') : '&#9654;') + '</div></div>' +
         '<div class="slp-lotleave"><div class="slp-btn slp-text" data-a="lot" data-v="close()">Leave</div></div></div>';
     }
 
@@ -527,7 +537,7 @@
       if (!m || !m.show || !st.chooser) return '';
       var sl = !m.installed
         ? '<div class="slp-chcard slp-chsl slp-off"><b>Street Legal Racing</b><span>Needs the Valo City map mod (slrr_valo_city). Switch it on under Mods.</span></div>'
-        : '<div class="slp-chcard slp-chsl"><b>Street Legal Racing</b><span>' + (m.summary ? 'Your career: ' + esc(m.summary) : 'Valo City at night. No car, $3,500 and a name nobody knows. Junkyard wrecks, street racers, pink slips and the ROC.') + '</span>' +
+        : '<div class="slp-chcard slp-chsl"><b>Street Legal Racing</b>' + (st.slrrArt ? slrrIcon(m.summary ? 'load_career_a.png' : 'new_career_a.png', 'slp-chimg') : '') + '<span>' + (m.summary ? 'Your career: ' + esc(m.summary) : 'Valo City at night. No car, $3,500 and a name nobody knows. Junkyard wrecks, street racers, pink slips and the ROC.') + '</span>' +
           (m.summary ? '<div class="slp-btn slp-go" data-a="menustart" data-v="continue">Continue</div>' : '') +
           '<div class="slp-btn' + (m.summary ? ' slp-tonal' : ' slp-go') + '" data-a="menustart" data-v="new">' + (m.summary ? 'New career (replaces this one)' : 'New career') + '</div></div>';
       return '<div class="slp-chooser"><div class="slp-chbox"><h1>Career</h1><div class="slp-chcards">' +
@@ -561,12 +571,18 @@
       if (st.chooser && (ev.key === 'Escape' || ev.keyCode === 27)) { st.chooser = false; render(); ev.stopPropagation(); }
     }, true);
 
+    // the fade: black, or one of SLRR's loading screens (a cab ride, the garage, the dealer)
+    function fadeView() {
+      var pic = st.slrrArt && st.fadePic ? ' style="background:#000 url(/ui/modModules/slHud/slrr/loading/' + esc(st.fadePic) + ') center/cover no-repeat"' : '';
+      return '<div class="slp-fade' + (st.fade ? ' slp-in' : '') + '"' + pic + '></div>';
+    }
+
     // ---------------------------------------------------------------- drawing
     function render() {
       var d = st.data;
       if (!d.active) {
         layer.innerHTML = menuView() + '<div class="slp-toast' + (st.toast ? '' : ' slp-gone') + '">' + esc(st.toast || '') + '</div>' +
-          '<div class="slp-fade' + (st.fade ? ' slp-in' : '') + '"></div>';
+          fadeView();
         return;
       }
       var scroll = layer.querySelector('.slp-body, .slp-msgs');
@@ -600,7 +616,7 @@
         lotView() + meetView() + raceView() +
         huHtml +
         '<div class="slp-toast' + (st.toast ? '' : ' slp-gone') + '">' + esc(st.toast || '') + '</div>' +
-        '<div class="slp-fade' + (st.fade ? ' slp-in' : '') + '"></div>';
+        fadeView();
       var after = layer.querySelector('.slp-body, .slp-msgs');
       if (after) {
         if (st.app === 'thread') after.scrollTop = after.scrollHeight;
@@ -752,11 +768,12 @@
           render();
           break;
         case 'slPhoneToast': toast(data.text); break;
-        case 'slFade': st.fade = !!data.on; render(); break;
+        case 'slFade': st.fade = !!data.on; if (data.on) st.fadePic = data.pic || null; render(); break;
         case 'slLotData': st.lot = data.open ? data : null; render(); break;
         case 'slMeet': st.meet = data.open ? data : null; render(); break;
         case 'slRace': st.race = data.on ? data : null; render(); break;
         case 'slMenu': st.menu = data.show ? data : null; render(); break;
+        case 'slArt': st.slrrArt = true; render(); break;
       }
     }
 
@@ -781,6 +798,10 @@
         }
       });
       window.__slPhone = phone;
+      // SLRR's art, when the player has copied it from their SLRR (tools/slrr_ui.py)
+      var probe = new Image();
+      probe.onload = function () { phone.handle('slArt'); };
+      probe.src = '/ui/modModules/slHud/slrr/icons/cup.png';
       ['slPhoneData', 'slPhoneToggle', 'slPhoneCall', 'slPhoneCallReply', 'slPhoneNotify', 'slPhoneToast', 'slFade', 'slLotData', 'slMeet', 'slRace', 'slMenu'].forEach(function (name) {
         $rootScope.$on(name, function (ev, data) { phone.handle(name, data); });
       });

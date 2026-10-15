@@ -306,7 +306,7 @@ local function begin()
   core_jobsystem.create(function(job)
     job.sleep(3)
     if not active then return end
-    if guihooks then guihooks.trigger('slFade', { on = true }) end
+    if guihooks then guihooks.trigger('slFade', { on = true, pic = 'loading_garage_blue_cheetah.png' }) end
     job.sleep(0.6)
     setHour((wanted + 12) % 24)
     job.sleep(0.5)
@@ -368,7 +368,7 @@ function M.taxi(placeId)
   local fee = progression.taxiFee((v:getPosition() - place.pos):length())
   if not wallet.add(-fee, 'Cab to ' .. place.name) then return false, string.format('The ride is $%d. You have $%d.', fee, s.money) end
   core_jobsystem.create(function(job)
-    if guihooks then guihooks.trigger('slFade', { on = true }) end
+    if guihooks then guihooks.trigger('slFade', { on = true, pic = 'loading_city.png' }) end
     job.sleep(0.6)
     spawn.safeTeleport(getPlayerVehicle(0), place.pos + vec3(0, 0, 0.3), quatFromDir(place.dir, vec3(0, 0, 1)), true)
     job.sleep(0.6)

@@ -20,6 +20,13 @@ FILES = {
     r"cars\textures\LongOSDGauge.png": "osd.png",                             # damage outline, ABS/ASR, nitro/turbo bars
     r"multibot\maps\ValoCity\data\minimap.png": "valo_minimap.png",
 }
+# whole folders of icons (SLRR's buttons, main menu and event list icons), kept by name under icons/
+FOLDERS = {
+    r"frontend\textures\interface\icons\buttons": "icons",
+    r"frontend\textures\interface\icons\main_menu\active": "icons",
+    r"frontend\textures\interface\icons\event_list": "icons",
+    r"frontend\textures\interface\loading": "loading",
+}
 
 
 def main():
@@ -35,6 +42,16 @@ def main():
             copied += 1
         else:
             print("missing in this install:", src)
+    for src, sub in FOLDERS.items():
+        folder = os.path.join(slrr, src)
+        if not os.path.isdir(folder):
+            print("missing in this install:", src)
+            continue
+        os.makedirs(os.path.join(OUT, sub), exist_ok=True)
+        for name in os.listdir(folder):
+            if name.lower().endswith(".png"):
+                shutil.copyfile(os.path.join(folder, name), os.path.join(OUT, sub, name.lower()))
+                copied += 1
     print("%d SLRR textures copied to %s" % (copied, os.path.normpath(OUT)))
 
 

@@ -253,6 +253,13 @@ assert.ok(!$('.slp-race'), 'race over');
 phone.handle('slPhoneData', { active: false });
 assert.ok(!$('.slp-device'), 'gone when the career stops');
 
+// with SLRR's art copied in, its icons replace the drawn ones where SLRR has one
+phone.handle('slPhoneData', data);
+phone.handle('slPhoneToggle');
+click('home');
+assert.ok(!phone.root.querySelector('img.slp-slrr'), 'drawn icons without SLRR art');
+phone.handle('slArt');
+assert.ok(phone.root.querySelector('img.slp-slrr[src$="cup.png"]') && phone.root.querySelector('img.slp-slrr[src$="dollar.png"]'), "SLRR's cup and dollar icons");
 console.log('phone test passed');
 
 // a page to look at: the phone in several states side by side
