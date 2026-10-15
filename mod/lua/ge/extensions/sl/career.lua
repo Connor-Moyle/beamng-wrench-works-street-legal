@@ -730,6 +730,11 @@ function M.racersForRace(raceId, count)
   return out
 end
 
+-- tonight's themed meet (Drivers & Pedestrians, X54): Benny passes it on
+function M.onSlrrMeetTheme(t)
+  if active and type(t) == 'table' and type(t.text) == 'string' then M.sendText('benny', t.text, 2) end
+end
+
 -- a pink slip won: the map hands the car over out of the player's sight; it is driven to your garage's
 -- forecourt (as it is, dents and all), its driver gets out, and it is in My cars
 function M.onSlrrPinkCarDelivered(vid)
