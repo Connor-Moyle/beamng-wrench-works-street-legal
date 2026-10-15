@@ -268,12 +268,12 @@ local function updateRace(dt)
           if best and best ~= last then wps[#wps + 1] = best last = best end
         end
         local aggression = M.aggression(race.skill)
-        if #wps >= #race.circuit.cps * 0.8 then
+        if #wps >= #race.circuit.cps * 0.8 and not race.circuit.sprint then
           opp:queueLuaCommand(string.format("controller.setFreeze(0) input.event('parkingbrake', 0, FILTER_DIRECT) ai.setSpeedMode('off') ai.setRecoverOnCrash(true) ai.setAvoidCars('on') ai.driveInLane('off') ai.setAggression(%f) ai.driveUsingPath(%s)",
             aggression, serialize({ wpTargetList = wps, noOfLaps = race.circuit.laps, aggression = aggression })))
         else
           opp:queueLuaCommand('controller.setFreeze(0) input.event("parkingbrake", 0, FILTER_DIRECT) ai.startFollowing(' ..
-            serialize({ path = circuitPath(race.circuit.cps, race.circuit.laps, race.skill or 0.5) }) .. ', 0, 1, "neverReset")')
+            serialize({ path = circuitPath(race.circuit.route or race.circuit.cps, race.circuit.sprint and 1 or race.circuit.laps, race.skill or 0.5, race.circuit.sprint) }) .. ', 0, 1, "neverReset")')
         end
       else
         aiGo(race.vid, race.destNode, race.skill)
@@ -559,10 +559,10 @@ end
 
 -- The opponent's line round the circuit, with a time for every point: as fast as the bends
 -- allow (sideways grip), with the accelerating and braking a car can do. skill sets the limits.
-circuitPath = function(cps, laps, skill)
+circuitPath = function(cps, laps, skill, sprint)
   local pts = {}
   for _ = 1, laps do for _, c in ipairs(cps) do pts[#pts + 1] = c.pos end end
-  pts[#pts + 1] = cps[1].pos
+  if not sprint then pts[#pts + 1] = cps[1].pos end
   local n = #pts
   local vmax, grip, accel, brake = 32 + 38 * skill, 7 + 4 * skill, 4 + 4 * skill, 7 + 2 * skill
   local v = {}
@@ -593,8 +593,11 @@ end
 local function startCircuit(racer, vid, stake, bet, track)
   local v = playerCar()
   if not v or race then return false end
-  race = { racer = racer.id, name = roster.displayName(racer), vid = vid, stake = stake, bet = bet, destName = track.name .. ', ' .. ROC_LAPS .. ' laps',
-    t = 0, countdown = 3.5, skill = racer.skill, circuit = { cps = track.cps, laps = ROC_LAPS, me = { k = 0 }, them = { k = 0 } } }
+  local laps = track.laps or ROC_LAPS
+  race = { racer = racer.id, name = roster.displayName(racer), vid = vid, stake = stake, bet = bet,
+    destName = track.name .. (track.sprint and ', to the finish' or ', ' .. laps .. ' laps'),
+    t = 0, countdown = 3.5, skill = racer.skill,
+    circuit = { cps = track.cps, laps = laps, sprint = track.sprint, route = track.route, lapEndsAtLast = track.lapEndsAtLast, me = { k = 0 }, them = { k = 0 } } }
   if core_groundMarkers then core_groundMarkers.setPath(nil) end
   if sl_markers then sl_markers.flareCircuit(track.cps) end
   cruisers[racer.id] = nil
@@ -604,12 +607,85 @@ end
 
 updateCircuit = function(v, opp)
   local c = race.circuit
-  local total = c.laps * #c.cps + 1
+  -- a stage ends at its last checkpoint; a lap at the start line (the ROC's first checkpoint, a venue's last)
+  local total = c.sprint and #c.cps or c.laps * #c.cps + (c.lapEndsAtLast and 0 or 1)
   circuitStep(c.me, v:getPosition(), c.cps)
   circuitStep(c.them, opp:getPosition(), c.cps)
   if c.me.k >= total then finish(true) return true end
   if c.them.k >= total then finish(false) return true end
   return false
+end
+
+----------------------------------------------------------------------------------------------
+-- the race tracks the map brings (SLRR's multibot venues: /levels/<level>/multibot_tracks.json,
+-- { <id> = { label, type, start, heading, checkpoints = {{x,y,z}...}, route = {{x,y,z}...} } }):
+-- their checkpoints leave out the start line: a circuit's last one is back at the start (a lap
+-- ends there), a rally stage's is the finish, far from it
+
+function M.tracks()
+  local data = jsonReadFile('/levels/' .. sl_career.LEVEL .. '/multibot_tracks.json')
+  local out = {}
+  local function v3(t) return type(t) == 'table' and tonumber(t[1]) and vec3(tonumber(t[1]), tonumber(t[2]) or 0, tonumber(t[3]) or 0) or nil end
+  for id, t in pairs(type(data) == 'table' and data or {}) do
+    local cps = {}
+    for _, c in ipairs(type(t) == 'table' and t.checkpoints or {}) do
+      local p = v3(c)
+      if p then cps[#cps + 1] = { pos = p, half = 8 } end
+    end
+    if #cps >= 3 then
+      for i, c in ipairs(cps) do
+        local d = cps[i % #cps + 1].pos - c.pos
+        d.z = 0
+        c.dir = d:length() > 0.01 and d:normalized() or vec3(1, 0, 0)
+      end
+      local route = {}
+      for _, r in ipairs(t.route or {}) do local p = v3(r) if p then route[#route + 1] = { pos = p } end end
+      local start = v3(t.start) or cps[#cps].pos
+      out[#out + 1] = { id = id, name = t.label or id, kind = t.type, cps = cps, start = start, lapEndsAtLast = true,
+        route = #route >= 4 and route or nil, sprint = (cps[#cps].pos - start):length() > 80, laps = 2 }
+    end
+  end
+  table.sort(out, function(a, b) return a.name < b.name end)
+  return out
+end
+
+-- a race at one of them against a racer, for their usual stake: you are taken to the grid
+function M.trackRace(racerId, trackId)
+  local s = career()
+  if not s or race or busy then return false, 'Not now.' end
+  local racer = stateLib.racer(s, racerId)
+  local track
+  for _, t in ipairs(M.tracks()) do if t.id == trackId then track = t end end
+  if not racer or not track then return false, 'That race is not on.' end
+  local v = playerCar()
+  if not v or not sl_fleet.currentCar() then return false, 'Bring your own car.' end
+  local bet = math.floor(((racer.betMin or 100) + (racer.betMax or 300)) / 2 / 50) * 50
+  busy = true
+  core_jobsystem.create(function(job)
+    guihooks.trigger('slFade', { on = true, pic = 'loading_roc_track.png' })
+    job.sleep(0.6)
+    -- on the grid, side by side behind the start, facing along the track
+    local first = track.start or track.cps[1].pos
+    local ahead = track.route and track.route[2] and track.route[2].pos or track.cps[1].pos
+    local along = ahead - first
+    along.z = 0
+    if along:length() < 1 then along = track.cps[2].pos - track.cps[1].pos along.z = 0 end
+    along = along:normalized()
+    local right = along:cross(vec3(0, 0, 1)):normalized()
+    local rot = quatFromDir(along, vec3(0, 0, 1))
+    local start = first - along * 6 - right * 2.2
+    spawn.safeTeleport(v, start + vec3(0, 0, 0.5), rot, true)
+    job.sleep(0.5)
+    local veh = spawnRacer(job, s, racer, start + right * 4.4 + vec3(0, 0, 0.5), rot, true)
+    busy = false
+    guihooks.trigger('slFade', { on = false })
+    if not veh then return end
+    veh:queueLuaCommand('controller.setFreeze(1)')
+    if startCircuit(racer, veh:getID(), 'money', bet, track) and ui_message then
+      ui_message(string.format('%s: %s. $%d.', track.name, roster.displayName(racer), bet), 6, 'streetLegal')
+    end
+  end)
+  return true, 'To ' .. track.name .. '.'
 end
 
 ----------------------------------------------------------------------------------------------
