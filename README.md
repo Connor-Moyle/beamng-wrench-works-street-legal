@@ -9,7 +9,9 @@ Needs two other mods: the **Valo City** map (`slrr_valo_city`) and **Wrench Work
 - **Start**: the main menu's **Career** button asks which career: BeamNG's own, or **Street Legal Racing** (Continue or New career). Also under Gameplay > Street Legal Racing. Valo City at dusk, you on foot in Club Garage 1 with $3,500 and no car. Benny from the garage texts you where to begin.
 - **Getting a car**: walk up to the junkyard's lot, the dealership or the scrap yard (the phone's Cab app takes you). Two to six cars stand in a row under floodlights (a different count and choice each day); the camera glides from one to the next as you go left and right, right-drag to look round the one on show. Used cars come as tidy stock, tired stock, damaged, modified, or modified and broken; what is wrong with them is really wrong (parts missing, panels bent, parts swapped). Test drive it, buy it, then drive it home or have it towed.
 - **Your cars**: kept between sessions with their setup, their dents and where you left them. Phone > My cars: tow one home, swap which one you drive (at the garage). Drive up to the junkyard or scrap yard in one and they make you an offer for it.
-- **The garage**: Wrench Works, paid from career money.
+- **The garage**: Wrench Works, paid from career money. Its **Services** drawer, as in SLRR: an oil change, coolant, a new battery, a nitrous refill, an **engine rebuild** (only the engine, the rest of the car as it is), swap the car on the lift for another of yours, and a **race selector** (pick an event and a racer of your level waits at the start). Bent parts are fixed one at a time with Wrench Works' repair tool.
+- **Looking after a car**: damage stays until you fix it. Every car has a 12 V battery (the lights drain it; flat, it will not start), oil and coolant (low oil, old oil and a worn engine cost power; a high-mileage engine leaks oil and leaves drops on the road with the Enhanced Skidmarks mod), a fuel grade (Regular 91 to Race 102, a little more power with each) and nitrous that stays as empty as you left it. Phone > My cars shows it all, and each car's history: owners, races, wins, wrecks.
+- **Gas stations and the trunk**: the pumps charge career money and sell fuel by grade, plus a fuel can, oil, coolant and a battery that go in the trunk. Use them from My cars: top up the oil after a smashed sump to limp home, cool an overheating engine, refill from the can.
 - **Racing**, at night for the most reputation:
   - the map's night races, at their start lines;
   - **flash your high beams** at a racer cruising the streets (their name hangs over the car): if they rate you, it is a race to the other side of town for their usual stake;
@@ -18,7 +20,8 @@ Needs two other mods: the **Valo City** map (`slrr_valo_city`) and **Wrench Work
 - **Every racer has their own car**: a stock car of their class built up by tier, from a stock beater to Stage 3 (turbo, brakes, aero, suspension), with a nickname and a paint job. At the ROC they bring the track version: race parts, stripped interior. The dealership now and then has a **Track special**.
 - **Race starts and flares**: start lines with a chequered line and posts; when a race goes green, orange road flares (some throwing a flickering light) line both edges of the whole route, or every checkpoint of the ROC circuit.
 - **Pink slips are special**: only a few racers put their car up on any one night (Benny texts you at dusk who), and only they offer it. They are real: win and their car goes to your garage; lose and they drive off in yours and you walk home.
-- **The police**: caught, you pay a fine per offence (more mid-race, and the race is lost) and lose face; getting away earns a little.
+- **The police**: patrol cars cruise at night, and racing raises your heat, which draws them. Caught, you pay a fine per offence (more mid-race, and the race is lost) and lose face; can't pay and the car goes to the impound until you can (phone > My cars). Getting away earns a little. Heat cools off day by day.
+- **It gets harder**: the more reputation, the sharper the racers drive and the closer their cars are to yours.
 - **Up the ladder**: reputation brings titles, new numbers in your phone, and the right to move to Club Garage 2 (1,500 rep, $25,000) and Club Garage 3 (3,000 rep, $75,000). From garage 3 at 6,000 rep: the **ROC**, three rounds against the best in town on the ROC island ($50,000 entry, $250,000 to the champion).
 
 ## The map
@@ -77,6 +80,13 @@ node tools/phonetest.js   # the phone, in a simulated page (--html <file> writes
 | `lua/ge/extensions/sl/debugCars.lua` | the custom cars for testing, from the console (not in the vehicle selector) |
 | `lua/ge/extensions/sl/phone.lua` | what the phone shows and what its buttons do |
 | `lua/ge/extensions/sl/menuTile.lua` | the tile in Gameplay |
+| `lua/ge/extensions/sl/hud.lua` | the SLRR dashboard |
+| `lua/ge/extensions/sl/carcare.lua` | battery, oil, coolant, wear, fuel grade, nitrous, the trunk, a car's history |
+| `lua/ge/extensions/sl/station.lua` | the gas station pumps and shop |
+| `lua/ge/extensions/sl/police.lua` | night patrols, heat, the impound |
+| `lua/ge/extensions/sl/services.lua` | the garage's Services drawer |
+| `lua/vehicle/extensions/slCar.lua` | the same in the car's own Lua: battery, fluids, wear, leaks |
+| `lua/common/sl_carcare.lua` | the car care rules |
 | `lua/ge/extensions/sl/core/*.lua` | the rules, no game calls: `progression`, `roster`, `market`, `cars`, `builds`, `state`, `rng` |
 | `ui/modModules/slPhone/slPhone.js` | the phone's screen |
 | `docs/integration.md` | how it fits with the Valo City map and Wrench Works |
