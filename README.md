@@ -6,24 +6,24 @@ Needs two other mods: the **Valo City** map (`slrr_valo_city`) and **Wrench Work
 
 ## How it plays
 
-- **Start**: the **Street Legal Racing** card on the main menu (or Gameplay > Street Legal Racing): Continue or New career. Valo City at dusk, you on foot in Club Garage 1 with $3,500 and no car. Benny from the garage texts you where to begin.
-- **Getting a car**: walk up to the junkyard's lot, the dealership or the scrap yard (the phone's Cab app takes you). Their cars stand on the display spot one at a time: left and right through the row, right-drag to look round it. Used cars come as tidy stock, tired stock, damaged, modified, or modified and broken; what is wrong with them is really wrong (parts missing, panels bent, parts swapped). Test drive it, buy it, then drive it home or have it towed.
+- **Start**: the main menu's **Career** button asks which career: BeamNG's own, or **Street Legal Racing** (Continue or New career). Also under Gameplay > Street Legal Racing. Valo City at dusk, you on foot in Club Garage 1 with $3,500 and no car. Benny from the garage texts you where to begin.
+- **Getting a car**: walk up to the junkyard's lot, the dealership or the scrap yard (the phone's Cab app takes you). Two to six cars stand in a row under floodlights (a different count and choice each day); the camera glides from one to the next as you go left and right, right-drag to look round the one on show. Used cars come as tidy stock, tired stock, damaged, modified, or modified and broken; what is wrong with them is really wrong (parts missing, panels bent, parts swapped). Test drive it, buy it, then drive it home or have it towed.
 - **Your cars**: kept between sessions with their setup, their dents and where you left them. Phone > My cars: tow one home, swap which one you drive (at the garage). Drive up to the junkyard or scrap yard in one and they make you an offer for it.
 - **The garage**: Wrench Works, paid from career money.
 - **Racing**, at night for the most reputation:
   - the map's night races, at their start lines;
   - **flash your high beams** at a racer cruising the streets (their name hangs over the car): if they rate you, it is a race to the other side of town for their usual stake;
   - **car meets**: some nights racers gather in a car park (you get a text); roll in and pick somebody: for money, high stakes or **pink slips**;
-  - races **arranged by phone**, at a start line they choose.
+  - races **arranged by phone**, at a start line they choose, or a **drag race** down the test track's quarter mile or mile. The racer turns up in their own car.
 - **Every racer has their own car**: a stock car of their class built up by tier, from a stock beater to Stage 3 (turbo, brakes, aero, suspension), with a nickname and a paint job. At the ROC they bring the track version: race parts, stripped interior. The dealership now and then has a **Track special**.
 - **Race starts and flares**: start lines with a chequered line and posts; when a race goes green, orange road flares (some throwing a flickering light) line both edges of the whole route, or every checkpoint of the ROC circuit.
-- **Pink slips are real**: win and their car goes to your garage; lose and they drive off in yours.
+- **Pink slips are special**: only a few racers put their car up on any one night (Benny texts you at dusk who), and only they offer it. They are real: win and their car goes to your garage; lose and they drive off in yours and you walk home.
 - **The police**: caught, you pay a fine per offence (more mid-race, and the race is lost) and lose face; getting away earns a little.
 - **Up the ladder**: reputation brings titles, new numbers in your phone, and the right to move to Club Garage 2 (1,500 rep, $25,000) and Club Garage 3 (3,000 rep, $75,000). From garage 3 at 6,000 rep: the **ROC**, three rounds against the best in town on the ROC island ($50,000 entry, $250,000 to the champion).
 
-## What still needs the map
+## The map
 
-The junkyard, dealership, scrap yard and meet spots need coordinates from the Valo City map (see docs/integration.md). Until they are in, the cab and the lots only know the garages. The map's night races give reputation once they report results to the career (two lines, also in the doc).
+The career is played on the Valo City map mod, which brings the places (garages, junkyard, dealership, scrap yard, meet spots, the lots' display spots), the night and drag races and the ROC track; docs/integration.md has the contract between the two.
 
 ## The phone
 
