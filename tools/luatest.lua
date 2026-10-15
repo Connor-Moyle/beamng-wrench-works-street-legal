@@ -181,10 +181,15 @@ do
   local wreck = { value = 20000, condition = 0.3, faults = {}, boughtFor = 5000 }
   local function flip(spent) local c = { value = 20000, condition = 0.3, faults = {}, boughtFor = 5000, repaired = spent } return market.resaleValue(c) - 5000 - spent end
   check('a wreck sold straight back loses', flip(0) < 0)
-  check('fixed up it pays: 10-30 % on the repairs', flip(4000) > 4000 * 0.1 and flip(4000) < 4000 * 0.3, flip(4000))
+  check('part fixed up it pays: 10-30 % on the repairs', flip(3000) > 3000 * 0.1 and flip(3000) < 3000 * 0.3, flip(3000))
+  check('rebuilt all the way it pays best, 15-35 % of the whole outlay', flip(4100) > 9100 * 0.15 and flip(4100) < 9100 * 0.35, flip(4100))
   check('repairs past what it is worth fixed lose money', flip(30000) < 0)
-  check('repairs raise what a pink slip car fetches too, but not past as good as new', market.resaleValue({ value = 20000, condition = 0.3, repaired = 1e6 }) <= market.resaleValue({ value = 20000, condition = 0.95 }))
+  check('repairs raise what a pink slip car fetches too, but not past as good as new', market.resaleValue({ value = 20000, condition = 0.3, repaired = 1e6 }) <= market.resaleValue({ value = 20000, condition = 0.95 }) * market.REBUILT_PREMIUM)
   check('a wreck is a wreck: no faults fixed, no money', market.resaleValue(wreck) <= 5000 * 0.9)
+  local function rebuilt(spent, faults) return market.resaleValue({ value = 20000, condition = 0.3, faults = faults or {}, boughtFor = 5000, repaired = spent }) end
+  check('brought back to 0.9 yourself: the premium', rebuilt(4100) > rebuilt(3900) * 1.1)
+  check('no premium with a fault still in it', rebuilt(4100, { 'radiator' }) < rebuilt(3900, { 'radiator' }) * 1.1)
+  check('no premium for a car bought good (no loop)', not market.rebuilt({ value = 20000, condition = 0.95, faults = {}, boughtFor = 20000, repaired = 500 }))
   check('a pink slip won (nothing paid) sells at the going rate', market.resaleValue({ value = 20000, condition = 0.5 }) > 5000)
 end
 

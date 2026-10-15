@@ -133,9 +133,18 @@ function M.scrapValue(car, partsNow)
   return capped(car, base * (0.6 + 0.8 * condition(car)), partsNow, 10)
 end
 
+-- a car you brought back yourself: bought below 0.9, repaired to 0.9 or better, nothing wrong with it. Private
+-- buyers pay a premium for one (the flip's reward; a car bought good never gets it, so it is no loop)
+M.REBUILT_PREMIUM = 1.15
+function M.rebuilt(car)
+  return (car.condition or 1) < 0.9 and (car.repaired or 0) > 0 and condition(car) >= 0.9 - 1e-9 and #(car.faults or {}) == 0
+end
+
 -- what a private buyer at the lot pays for a car of yours
 function M.resaleValue(car, partsNow)
-  return capped(car, rawResale(car), partsNow, 50)
+  local v = capped(car, rawResale(car), partsNow, 50)
+  if M.rebuilt(car) then v = math.floor(v * M.REBUILT_PREMIUM / 50) * 50 end
+  return v
 end
 
 return M
