@@ -425,7 +425,7 @@ function M.acceptOffer(id, index)
   local y, i = findMine(m, id)
   local o = y and y.offers[tonumber(index) or 0]
   if not o then return false, 'That offer is gone.' end
-  local amount = o.amount
+  local amount, sold = o.amount, nil
   if y.kind == 'car' then
     local cap = carCap(s, y.carId)
     if not cap then table.remove(m.mine, i) return false, 'That car is not yours any more.' end
@@ -433,11 +433,13 @@ function M.acceptOffer(id, index)
       o.amount = cap
       return false, string.format('%s had a look at it and knocked the offer down to $%d.', o.buyer or 'The buyer', cap)
     end
+    sold = carById(s, y.carId)
     sl_fleet.lose(y.carId)
   end
   table.remove(m.mine, i)
   local got = L.proceeds(amount)
   sl_career.addMoney(got, 'Revline sale: ' .. y.name)
+  if sold then extensions.hook('onStreetLegalCarSold', sold, got, 'revline') end     -- (the flip challenge counts it)
   extensions.hook('onStreetLegalChanged')
   return true, string.format('Sold the %s to %s: $%d after the fee.', y.name, o.buyer or 'a buyer', got)
 end
