@@ -342,6 +342,15 @@ click('mkaccept', 'y1|1');
 click('mkwithdraw', 'y1');
 assert.ok(calls.some(function (c) { return c.indexOf('listPart("covet",7,"auction")') >= 0; }) && calls.some(function (c) { return c.indexOf('acceptOffer("y1",1)') >= 0; }) &&
   calls.some(function (c) { return c.indexOf('withdrawListing("y1")') >= 0; }), 'list, accept and withdraw call the market');
+// the weekend swap meet
+phone.handle('slPhoneData', Object.assign({}, data, { market: { deliveries: 0, listings: [], auctions: [], paper: {},
+  meet: { open: true, here: true, place: 'Tuning shop lot', listings: [ { id: 's1', name: 'Coilovers', model: 'covet', ask: 220, condition: 75, seller: 'Gabor' } ] } } }));
+phone.act('home');
+phone.act('open', 'bid');
+assert.ok(text().includes('Swap meet today') && text().includes('Coilovers') && text().includes("Gabor's stall"), 'the swap meet stalls show on the weekend');
+calls.length = 0;
+click('mkmeet', 's1');
+assert.ok(calls.some(function (c) { return c.indexOf('buyAtMeet("s1")') >= 0; }), 'buying at a stall calls the market');
 phone.handle('slStation', { open: true, name: 'Pump', money: 100, fuels: [], items: [] });
 assert.ok(phone.root.querySelector('.slp-lot') && !phone.root.querySelector('.slp-ico .slp-lot'), 'with SLRR icons the panels stay outside the phone (icon markup closed)');
 console.log('phone test passed');

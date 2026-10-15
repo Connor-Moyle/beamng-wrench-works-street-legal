@@ -473,7 +473,15 @@
           '<p><b>' + money(l.bid) + '</b> ' + (mine ? '(your bid)' : (l.high === 'ai' ? '(outbid)' : '(opening bid)')) + ' &middot; delivery +' + money(l.delivery || 0) + '</p>' +
           (mine ? '' : '<div class="slp-acts"><div class="slp-btn" data-a="mkbid" data-v="' + esc(l.id) + '">Bid ' + money(l.next) + '</div></div>') + '</div>';
       }).join('');
-      return bar('Swap & Bid') + '<div class="slp-body">' + (cards || '<div class="slp-empty">No lots right now.</div>') + '</div>';
+      var meet = obj(m.meet), stalls = '';
+      if (meet.open) {
+        stalls = '<div class="slp-empty">Swap meet today at the ' + esc(meet.place || 'Tuning shop lot') + (meet.here ? '. You are here.' : ': go and buy in person.') + '</div>' +
+          arr(meet.listings).map(function (l) {
+            return '<div class="slp-card"><h4>' + (l.rare ? '&#9733; ' : '') + esc(l.name) + '</h4><p>For the ' + esc(l.model) + ' &middot; ' + l.condition + '% condition &middot; ' + esc(l.seller) + '\'s stall</p>' +
+              '<p><b>' + money(l.ask) + '</b></p>' + (meet.here ? '<div class="slp-acts"><div class="slp-btn" data-a="mkmeet" data-v="' + esc(l.id) + '">Buy it</div></div>' : '') + '</div>';
+          }).join('');
+      }
+      return bar('Swap & Bid') + '<div class="slp-body">' + stalls + (cards || '<div class="slp-empty">No lots right now.</div>') + '</div>';
     }
 
     function jobsPage() {
@@ -912,6 +920,7 @@
         case 'mklist': (function () { var q = String(v).split('|'); lua('listPart(' + JSON.stringify(q[0]) + ',' + Number(q[1]) + ',' + JSON.stringify(q[2]) + ')'); })(); break;
         case 'mkaccept': lua('acceptOffer(' + JSON.stringify(String(v).split('|')[0]) + ',' + Number(String(v).split('|')[1]) + ')'); break;
         case 'mkwithdraw': lua('withdrawListing(' + JSON.stringify(v) + ')'); break;
+        case 'mkmeet': lua('buyAtMeet(' + JSON.stringify(v) + ')'); break;
         case 'mkbid': lua('marketBid(' + JSON.stringify(v) + ')'); break;
         case 'buypaper': lua('buyPaper()'); break;
         case 'mkbuy': lua('marketBuy(' + JSON.stringify(String(v).split('|')[0]) + ',' + JSON.stringify(String(v).split('|')[1]) + ')'); break;

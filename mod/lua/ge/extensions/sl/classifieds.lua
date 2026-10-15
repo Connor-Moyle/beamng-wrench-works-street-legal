@@ -16,12 +16,14 @@ local APP_LISTINGS = 12
 local PAPER_LISTINGS, PRINT_ONLY = 3, 0.4    -- Valo Classifieds: ads up at a time (each lasts a day); some only in print
 local AUCTIONS = 6                          -- Swap & Bid lots open at a time
 local PAPER_REACH = 30                      -- metres from a gas station to buy a copy
+local MEET_STALLS, MEET_PLACE, MEET_REACH = 6, 'meet_tuning', 40   -- the weekend swap meet at the Tuning shop lot
 local MINE_MAX = 6                          -- your own listings at a time
 local OFFER_HOURS = 24                      -- how long a buyer's offer stands
 local DELIVERY_HOURS = 6
 local COMMON_MODELS = { 'covet', 'pessima', 'vivace', 'etk800', 'sunburst2', 'bastion' }
 local STOP_RADIUS = 9
 
+local atMeet       -- (defined further down, used by summary)
 local function career() return sl_career and sl_career.isActive() and sl_career.getState() or nil end
 local function toast(text) guihooks.trigger('slPhoneToast', { text = text }) if ui_message then ui_message(text, 5, 'streetLegal') end end
 local function now(s) return (s.day or 0) * 24 + math.floor(sl_career.hour and sl_career.hour() or 12) end
@@ -131,6 +133,26 @@ local function refresh(s, force)
     for _, l in ipairs(m.listings) do if l.channel ~= 'paper' or l.taken then fresh[#fresh + 1] = l end end
     m.listings = fresh
   end
+  -- the swap meet: stalls on the weekend (days 6 and 7 of the week) at the Tuning shop lot, bought there and then
+  local weekend = (s.day or 0) % 7 >= 5
+  if not weekend or m.meetDay ~= s.day then
+    local others = {}
+    for _, l in ipairs(m.listings) do if l.channel ~= 'meet' then others[#others + 1] = l end end
+    m.listings = others
+  end
+  if weekend and m.meetDay ~= s.day then
+    m.meetDay = s.day
+    for _ = 1, MEET_STALLS do
+      local pool = #ms > 0 and partsOf(ms[rng:int(#ms)]) or {}
+      if #pool > 0 then
+        local l = L.listing(rng, pool[rng:int(#pool)], 'paper', L.demand(rng), t)     -- (priced as the paper: no scams in person)
+        l.scam, l.noShow = nil, nil
+        l.channel, l.id, l.seller = 'meet', 'm' .. m.nextId, NAMES[rng:int(#NAMES)]
+        m.nextId = m.nextId + 1
+        m.listings[#m.listings + 1] = l
+      end
+    end
+  end
   -- the edition's ads come out through the week (each lasts a day), so the paper is never empty
   for _ = 1, 30 do if count('paper') >= PAPER_LISTINGS then break end add('paper') end
   extensions.hook('onStreetLegalChanged')
@@ -194,6 +216,13 @@ end
 
 local function find(m, id) for i, l in ipairs(m.listings) do if l.id == id then return l, i end end end
 
+-- are you at the swap meet (within MEET_REACH of its place)?
+atMeet = function()
+  local v = getPlayerVehicle(0)
+  local p = (sl_career.getPlaces() or {})[MEET_PLACE]
+  return v and p and p.pos and (v:getPosition() - vec3(p.pos.x, p.pos.y, p.pos.z)):length() < MEET_REACH or false
+end
+
 -- the phone's view of the app
 function M.summary()
   local s = career()
@@ -201,7 +230,7 @@ function M.summary()
   refresh(s)
   local m = state(s)
   local edition = m.edition or 0
-  local out = { listings = {}, auctions = {}, deliveries = #m.deliveries,
+  local out = { listings = {}, auctions = {}, deliveries = #m.deliveries, meet = { listings = {}, place = 'Tuning shop lot' },
     paper = { bought = m.paperRead == edition, edition = edition + 1, listings = {}, hidden = 0, price = L.PAPER_PRICE } }
   for _, l in ipairs(m.listings) do
     if not l.taken then
@@ -211,6 +240,8 @@ function M.summary()
       if l.channel == 'auction' then
         card.bid, card.high, card.next = l.bid, l.high, l.bid + math.max(10, math.floor(l.bid * 0.05 / 10 + 0.5) * 10)
         out.auctions[#out.auctions + 1] = card
+      elseif l.channel == 'meet' then
+        out.meet.listings[#out.meet.listings + 1] = card
       elseif l.channel == 'paper' then
         if l.printOnly and m.paperRead ~= edition then
           out.paper.hidden = out.paper.hidden + 1
@@ -223,6 +254,8 @@ function M.summary()
       end
     end
   end
+  out.meet.open = (s.day or 0) % 7 >= 5
+  out.meet.here = out.meet.open and atMeet() or false
   out.mine, out.shelf = {}, {}
   for _, y in ipairs(m.mine) do
     local offers = {}
@@ -253,7 +286,7 @@ function M.offer(id, amount)
   if not s then return false, 'No career running.' end
   local m = state(s)
   local l = find(m, id)
-  if not l or l.taken or l.channel == 'auction' then return false, 'That listing is gone.' end   -- (a lot is only bid on)
+  if not l or l.taken or l.channel == 'auction' or l.channel == 'meet' then return false, 'That listing is gone.' end   -- (a lot is only bid on; a stall is bought there)
   local r, price = L.haggle(l, amount, m.rounds[id] or 0)
   m.rounds[id] = (m.rounds[id] or 0) + 1
   if r == 'accept' then l.agreed = price return true, string.format('%s: "Deal, $%d."', l.seller, price) end
@@ -269,7 +302,7 @@ function M.buy(id, how)
   if not s then return false, 'No career running.' end
   local m = state(s)
   local l = find(m, id)
-  if not l or l.taken or l.channel == 'auction' then return false, 'That listing is gone.' end   -- (a lot is only bid on)
+  if not l or l.taken or l.channel == 'auction' or l.channel == 'meet' then return false, 'That listing is gone.' end   -- (a lot is only bid on; a stall is bought there)
   local price = l.agreed or l.ask
   local part = { part = l.item.part, name = l.item.name, slotId = l.item.slotId, value = price, wear = l.wear }
   if how == 'delivery' then
@@ -348,6 +381,23 @@ function M.withdraw(id)
   if slrr_garage and slrr_garage.putShelfItem then slrr_garage.putShelfItem(y.model, y.item) end
   extensions.hook('onStreetLegalChanged')
   return true, string.format('Your %s is back on your shelf.', y.name)
+end
+
+-- buy at a swap meet stall: there and then, at the asking price, straight onto your shelf
+function M.buyAtMeet(id)
+  local s = career()
+  if not s then return false, 'No career running.' end
+  local m = state(s)
+  local l, i = find(m, id)
+  if not l or l.channel ~= 'meet' then return false, 'That stall has sold it.' end
+  if not atMeet() then return false, 'The swap meet is at the Tuning shop lot. Come and look.' end
+  if not sl_career.addMoney(-l.ask, 'Swap meet: ' .. l.item.name) then return false, 'Not enough money.' end
+  table.remove(m.listings, i)
+  if slrr_garage and slrr_garage.addShelfPart then
+    slrr_garage.addShelfPart(l.item.model, { part = l.item.part, name = l.item.name, slotId = l.item.slotId, value = l.ask, wear = l.wear })
+  end
+  extensions.hook('onStreetLegalChanged')
+  return true, string.format('Bought the %s from %s. It is on your shelf for the %s.', l.item.name, l.seller, l.item.model)
 end
 
 -- Swap & Bid: bid the next step on a lot (paid when it ends, if you are still the highest bidder)
