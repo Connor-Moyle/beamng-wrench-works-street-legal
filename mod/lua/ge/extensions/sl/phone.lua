@@ -67,6 +67,7 @@ local function snapshot()
     tutorial = sl_tutorial and sl_tutorial.summary and sl_tutorial.summary() or nil,
     achievements = sl_achievements and sl_achievements.summary and sl_achievements.summary() or nil,
     bank = sl_bank and sl_bank.summary and sl_bank.summary() or nil,
+    club = sl_clubs and sl_clubs.summary and sl_clubs.summary() or nil,
   }
 end
 
@@ -160,6 +161,7 @@ function M.useItem(carId, itemId) if career() and sl_carcare then answer(sl_carc
 function M.useCar(carId) if career() then answer(sl_fleet.setActive(tonumber(carId))) end end
 function M.moveGarage() if career() then answer(sl_career.moveGarage()) end end
 function M.enterRoc() if career() then answer(sl_streets.enterRoc()) end end
+function M.enterLeague(kind) if career() and sl_clubs then answer(sl_clubs.enter(tostring(kind))) end end
 function M.borrow(amount) if career() and sl_bank then answer(sl_bank.borrow(tonumber(amount))) end end
 function M.repay(amount) if career() and sl_bank then answer(sl_bank.repay(tonumber(amount))) end end
 function M.insure(on) if career() and sl_bank then answer(sl_bank.insure(on == true or on == 'true')) end end

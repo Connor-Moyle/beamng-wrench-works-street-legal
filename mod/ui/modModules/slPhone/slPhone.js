@@ -229,6 +229,7 @@
     wifi: svg('M12 21 1 8a16 16 0 0 1 22 0z'),
     battery: svg('M16 4h-2V2h-4v2H8a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1z'),
     down: svg('M7.4 8.6 12 13.2l4.6-4.6L18 10l-6 6-6-6z'),
+    club: svg('M12 2 4 6v6c0 5 3.4 9 8 10 4.6-1 8-5 8-10V6zm0 4 1.8 3.6 4 .6-2.9 2.8.7 4L12 15.1 8.4 17l.7-4L6.2 10.2l4-.6z'),
     jobs: svg('M10 2h4a2 2 0 0 1 2 2v2h4a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4V4a2 2 0 0 1 2-2zm4 4V4h-4v2z'),
   };
   var NAV = {
@@ -241,7 +242,7 @@
   var SLRR_ART = '/ui/modModules/slHud/slrr/icons/';
   var SLRR_ICON = { races: 'cup.png', garage: 'garage.png', bank: 'dollar.png', cab: 'city.png', me: 'roc.png' };
   function slrrIcon(name, cls) { return '<img class="slp-slrr ' + (cls || '') + '" src="' + SLRR_ART + name + '" alt="">'; }
-  var APP_COLORS = { jobs: '#3d7a2e', phone: '#2e7d4f', messages: '#2f5fb3', contacts: '#7b4fb0', races: '#c2541e', bank: '#1f7a70', cab: '#b58a12', me: '#5c6474', garage: '#8a3b8f' };
+  var APP_COLORS = { club: '#6a2e7a', jobs: '#3d7a2e', phone: '#2e7d4f', messages: '#2f5fb3', contacts: '#7b4fb0', races: '#c2541e', bank: '#1f7a70', cab: '#b58a12', me: '#5c6474', garage: '#8a3b8f' };
   var AV_COLORS = ['#a8c7fa', '#f2b8b5', '#c3e7c6', '#ffd8a8', '#d0bcff', '#9fe0e8', '#ffb4ab', '#e8def8'];
   var CLASS_NAMES = { beater: 'Beaters', compact: 'Compacts', muscle: 'Muscle', tuner: 'Tuners', sport: 'Sports cars', super: 'Supercars' };
 
@@ -318,6 +319,7 @@
           { id: 'bank', title: 'Bank', icon: I.bank },
           { id: 'me', title: 'Street cred', icon: I.me },
           { id: 'jobs', title: 'Jobs', icon: I.jobs, badge: d.jobs && d.jobs.active ? 1 : 0 },
+          { id: 'club', title: 'Club', icon: I.club },
         ]) + '</div>' +
         '<div class="slp-dock">' + appsHtml([
           { id: 'phone', title: 'Phone', icon: I.phone },
@@ -420,6 +422,25 @@
         (j.quarter || j.dyno ? '<div class="slp-card"><h4>Tuning challenges</h4><p>' + (j.quarter ? 'Quarter mile at the test track under ' + j.quarter + ' s. ' : '') + (j.dyno ? 'Dyno: ' + j.dyno + ' PS on the car info sheet in your garage.' : '') + '</p></div>' : '') +
         (j.flip ? '<div class="slp-card"><h4>Junkyard challenge: flip a car</h4><p>Sell one for ' + money(j.flip.target) + ' more than you paid for a bonus. Best so far: ' + money(j.flip.best || 0) + '.</p></div>' : '') +
         '<div class="slp-empty">' + (j.done || 0) + ' jobs done, ' + money(j.earned || 0) + ' earned.</div></div>';
+    }
+
+    // the club: today's league events, the standings
+    function clubPage() {
+      var c = st.data.club;
+      if (!c) return bar('Club') + '<div class="slp-body"><div class="slp-empty">No club yet.</div></div>';
+      var ev = c.today || {};
+      var row = function (kind, label, e) {
+        if (!e) return '';
+        var act = e.done ? '<b>Done</b>' : (kind === 'day' && !e.open ? '<b>Soon</b>' : '<div class="slp-btn" data-a="league" data-v="' + kind + '">Enter</div>');
+        return '<div class="slp-kv"><span>' + label + '<br><small>' + esc(e.name) + '</small></span>' + act + '</div>';
+      };
+      var table = arr(c.standings).map(function (r) {
+        return '<div class="slp-kv"' + (r.you ? ' style="font-weight:700"' : '') + '><span>' + r.place + '. ' + esc(r.name) + '</span><b>' + r.points + '</b></div>';
+      }).join('');
+      return bar(c.club) + '<div class="slp-body"><div class="slp-card"><h4>Season ' + c.season + ', day ' + c.day + ' of ' + c.days + (ev.finale ? ' &middot; finale, double points' : '') + '</h4>' +
+        '<p>Class ' + esc(c['class'] || '?') + (c.carClass && c.carClass !== c['class'] ? ' &middot; this car: ' + esc(c.carClass) : '') + ' &middot; skip any event, it only costs its points</p>' +
+        row('night', 'Night league', ev.night) + row('day', 'Day league', ev.day) + '</div>' +
+        '<div class="slp-card"><h4>Standings</h4>' + table + '</div></div>';
     }
 
     function bankPage() {
@@ -702,6 +723,7 @@
         case 'phone': page = phonePage(); break;
         case 'races': page = racesPage(); break;
         case 'jobs': page = jobsPage(); break;
+        case 'club': page = clubPage(); break;
         case 'bank': page = bankPage(); break;
         case 'cab': page = cabPage(); break;
         case 'me': page = mePage(); break;
@@ -788,6 +810,7 @@
         case 'text': lua('text(' + JSON.stringify(st.thread) + ',' + JSON.stringify(v) + ')'); break;
         case 'gps': lua('waypoint(' + JSON.stringify(v) + ')'); toast('The route is on your road.'); break;
         case 'cancel': lua('cancel(' + JSON.stringify(v) + ')'); break;
+        case 'league': lua('enterLeague(' + JSON.stringify(v) + ')'); break;
         case 'borrow': lua('borrow(' + Number(v) + ')'); break;
         case 'repay': lua('repay(' + Number(v) + ')'); break;
         case 'insure': lua('insure(' + (v === 'true' ? 'true' : 'false') + ')'); break;

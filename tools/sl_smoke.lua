@@ -262,6 +262,24 @@ check('bank: insurance waits a day, then pays half over the deductible', functio
   return sameDay == 0 and next == 1000, string.format('same day $%d, after $%d', sameDay, next)
 end)
 
+-- clubs and leagues (X20/X5)
+check('club: a season, a night-league entry, a scored result', function(job)
+  local sum = sl_clubs.summary()
+  if not sum or not sum.today then return false, 'no season or no calendar' end
+  if not sum.today.night or sum.today.night.done then return nil, 'no open night event today' end
+  local ok, text = sl_clubs.enter('night')
+  if not ok then return false, 'enter: ' .. tostring(text) end
+  local st = sl_career.getState()
+  local ch
+  for _, x in ipairs(st.challenges) do if x.league then ch = x end end
+  if not ch then return false, 'no league race arranged' end
+  local p0 = st.club.standings.player or 0
+  sl_clubs.onSlrrRaceFinished({ won = true, raceId = ch.race, missionId = ch.missionId, time = 60 })
+  local gained = (st.club.standings.player or 0) - p0
+  local again = sl_clubs.enter('night')
+  return gained > 0 and not again, string.format('+%d points, #%d; a second entry refused', gained, sl_clubs.summary().standings[1] and (function() for _, r in ipairs(sl_clubs.summary().standings) do if r.you then return r.place end end end)() or 0)
+end)
+
 -- garage services and lists
 check('services: drawer entries', function()
   local list = {}
