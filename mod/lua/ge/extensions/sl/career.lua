@@ -379,7 +379,14 @@ function M.taxi(placeId)
   local v = getPlayerVehicle(0)
   if not v or v:getJBeamFilename() ~= 'unicycle' then return false, 'Cabs are for people on foot. Park the car and get out first.' end
   local fee = progression.taxiFee((v:getPosition() - place.pos):length())
-  if not wallet.add(-fee, 'Cab to ' .. place.name) then return false, string.format('The ride is $%d. You have $%d.', fee, s.money) end
+  -- the floor: no car and no money for the fare (a pink slip lost, bets gone wrong): once a day a free
+  -- ride, so the jobs that need no car (the junkyard's crushing run) are always in reach
+  if s.money < fee and #s.cars == 0 and s.freeRideDay ~= s.day then
+    s.freeRideDay = s.day
+    fee = 0
+    M.sendText('benny', "My cousin will run you over there. Don't make a habit of it. The junkyard always has a wreck that needs driving to the crusher.", 1)
+  end
+  if fee > 0 and not wallet.add(-fee, 'Cab to ' .. place.name) then return false, string.format('The ride is $%d. You have $%d.', fee, s.money) end
   core_jobsystem.create(function(job)
     if guihooks then guihooks.trigger('slFade', { on = true, pic = 'loading_city.png' }) end
     job.sleep(0.6)
