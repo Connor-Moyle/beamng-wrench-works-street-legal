@@ -67,6 +67,12 @@
         (grid[key] = grid[key] || []).push(i);
       }
       roads = { segs: segs, grid: grid, places: data.places || [] };
+      var pic = data.picture;
+      if (pic && pic.url && doc.defaultView && doc.defaultView.Image) {          // the map's navigator picture: drawn instead of the lines once loaded
+        var img = new doc.defaultView.Image();
+        img.onload = function () { if (roads) roads.picture = { img: img, x0: pic.x0, y0: pic.y0, x1: pic.x1, y1: pic.y1 }; };
+        img.src = pic.url;
+      }
     }
 
     // ---------------------------------------------------------------- SLRR's own dial: its face, a needle on it
@@ -172,6 +178,17 @@
       var px = d.x, py = d.y;
       function sx(x, y) { return r + ((x - px) * rx + (y - py) * ry) * scale; }
       function sy(x, y) { return r - ((x - px) * fx + (y - py) * fy) * scale; }
+      var pic = roads && roads.picture;
+      if (pic) {
+        // image pixel (u, v) -> world (x0 + u*ax, y0 + v*ay) -> the same turn as sx/sy below
+        var ax = (pic.x1 - pic.x0) / pic.img.width, ay = (pic.y1 - pic.y0) / pic.img.height;
+        var ox = pic.x0 - px, oy = pic.y0 - py;
+        g.save();
+        g.setTransform(rx * ax * scale, -fx * ax * scale, ry * ay * scale, -fy * ay * scale,
+          r + (ox * rx + oy * ry) * scale, r - (ox * fx + oy * fy) * scale);
+        g.drawImage(pic.img, 0, 0);
+        g.restore();
+      }
       if (roads) {
         g.strokeStyle = '#c9ccd2'; g.lineWidth = 5; g.lineCap = 'round';
         g.beginPath();
@@ -187,7 +204,7 @@
             }
           }
         }
-        g.stroke();
+        if (!pic) g.stroke();
         roads.places.forEach(function (p) {
           var x = sx(p.x, p.y), y = sy(p.x, p.y);
           var dd = Math.sqrt((x - r) * (x - r) + (y - r) * (y - r));

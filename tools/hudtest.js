@@ -1,4 +1,4 @@
-// Runs the dashboard (ui/modModules/slHud/slHud.js) in a simulated page: it draws without errors,
+﻿// Runs the dashboard (ui/modModules/slHud/slHud.js) in a simulated page: it draws without errors,
 // hides and shows, and leaves out the parts switched off. Needs jsdom and canvas:  npm i jsdom canvas
 // With --png <dir> it also saves what each canvas drew, to look at.
 const fs = require('fs'), path = require('path'), assert = require('assert');
@@ -25,6 +25,29 @@ hud.handle('slHud', Object.assign({}, frame, { gear: 'R', settings: Object.assig
 assert.ok(gone('.slh-map') && gone('.slh-dmg') && !gone('.slh-speedo'), 'switched-off parts are left out');
 hud.handle('slHud', { show: false });
 assert.ok(hud.root.classList.contains('slh-gone'), 'hidden on foot, in the garage and so on');
+
+// the map's navigator picture turns with the car: west half red, east half blue, 2 km square round the origin
+{
+  const { createCanvas } = require('canvas');
+  const art = createCanvas(64, 64), ag = art.getContext('2d');
+  ag.fillStyle = '#ff0000'; ag.fillRect(0, 0, 32, 64); ag.fillStyle = '#0000ff'; ag.fillRect(32, 0, 32, 64);
+  const dom3 = new JSDOM('<!doctype html><html><body></body></html>', { runScripts: 'outside-only', pretendToBeVisual: true, resources: 'usable' });
+  dom3.window.__slHudTest = true;
+  dom3.window.eval(code);
+  const h3 = dom3.window.__slHudCreate(dom3.window.document);
+  h3.handle('slHudMap', { segs: [], places: [], picture: { url: art.toDataURL(), x0: -1000, y0: 1000, x1: 1000, y1: -1000 } });
+  const colourAt = (heading, x) => {                     // x: 0..1 across the map
+    h3.handle('slHud', Object.assign({}, frame, { heading, target: null }));
+    const c = h3.root.querySelector('.slh-map');
+    const d = c.getContext('2d').getImageData(Math.round(x * c.width), Math.round(c.height / 2), 1, 1).data;
+    return d[0] > d[2] ? 'red' : 'blue';
+  };
+  setTimeout(() => {
+    assert.strictEqual(colourAt(0, 0.2) + colourAt(0, 0.8), 'redblue', 'facing north: west on the left');
+    assert.strictEqual(colourAt(Math.PI, 0.2) + colourAt(Math.PI, 0.8), 'bluered', 'facing south: west on the right');
+    console.log('hud picture test passed');
+  }, 300);
+}
 
 console.log('hud test passed');
 

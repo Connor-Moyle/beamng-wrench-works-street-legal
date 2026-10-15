@@ -95,7 +95,18 @@ local function sendMap()
   for id, p in pairs(sl_career and sl_career.getPlaces and sl_career.getPlaces() or {}) do
     places[#places + 1] = { id = id, kind = p.kind, name = p.name, x = math.floor(p.pos.x), y = math.floor(p.pos.y) }
   end
-  guihooks.trigger('slHudMap', { segs = segs, places = places })
+  -- the map may bring SLRR's own navigator picture: /street_legal/minimap/<name>.json
+  -- { image, x0, y0, x1, y1 } (world x/y at the image's left/top and right/bottom), <name> part of the level id
+  local picture
+  local level = getCurrentLevelIdentifier and getCurrentLevelIdentifier() or ''
+  for _, f in ipairs(FS:findFiles('/street_legal/minimap/', '*.json', 0, false, false) or {}) do
+    local name = f:match('([^/]+)%.json$')
+    local d = name and level:find(name, 1, true) and jsonReadFile(f)
+    if type(d) == 'table' and d.image and tonumber(d.x0) and tonumber(d.x1) and tonumber(d.y0) and tonumber(d.y1) then
+      picture = { url = '/street_legal/minimap/' .. d.image, x0 = d.x0, y0 = d.y0, x1 = d.x1, y1 = d.y1 }
+    end
+  end
+  guihooks.trigger('slHudMap', { segs = segs, places = places, picture = picture })
   mapSent = true
 end
 
