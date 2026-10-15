@@ -333,8 +333,20 @@ do
   builds.apply(w, { stage = 'race', classify = classify2, valueOf = value2 })
   check('the transfer case is left alone', w.children.transfercase.chosenPartName == 'transfercase_4wd')
   check('a 4WD diff only becomes a better 4WD diff', w.children.diff.chosenPartName == 'diff_R_4wd_lsd', w.children.diff.chosenPartName)
-  check('a gearbox with no layout in its name can still be upgraded', w.children.gearbox.chosenPartName == 'gearbox_6M_race')
+  check('the gearbox is left alone (it can bring another layout with it)', w.children.gearbox.chosenPartName == 'gearbox_5M')
   check('layout words read from names', builds.layoutOf('x_4WD_y') == 'awd' and builds.layoutOf('rwd_race') == 'rwd' and builds.layoutOf('plain') == nil)
+  -- a front-drive car: its empty rear diff slot stays empty, and no AWD-only exhaust goes on
+  local fwd = { chosenPartName = 'car', children = {
+    diffR = { id = 'car_differential_R', path = '/dr/', chosenPartName = '', suitablePartNames = { 'car_differential_R_race' } },
+    exh = { id = 'car_exhaust', path = '/e/', chosenPartName = 'exhaust_sport', suitablePartNames = { 'exhaust_sport', 'exhaust_AWD_race', 'exhaust_race' } } } }
+  local function classify3(id)
+    if id:find('differential') then return 'running', 'differentials' end
+    if id:find('exhaust') then return 'engine', 'exhaust' end
+    return 'other', 'other'
+  end
+  builds.apply(fwd, { stage = 'race', classify = classify3, valueOf = function(n) return n:find('AWD') and 20000 or (n:find('race') and 9000 or 100) end })
+  check('an empty diff slot stays empty', fwd.children.diffR.chosenPartName == '')
+  check('no AWD-only part on a car that is not AWD', fwd.children.exh.chosenPartName == 'exhaust_race', fwd.children.exh.chosenPartName)
   local p = builds.paints(42, false)
   check('three paint slots with colours', #p == 3 and #p[1].baseColor == 4 and p[1].metallic >= 0)
 

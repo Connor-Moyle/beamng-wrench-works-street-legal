@@ -18,7 +18,9 @@ M.STAGES = {
 }
 
 -- a track car: everything above, the engine's insides, and the cage
-M.RACE_EXTRA = { 'engine/internals', 'engine/fuel', 'engine/cooling', 'engine/transmission', 'body/chassis', 'running/brakes' }
+-- (not the gearbox: one can carry another drive layout's transfer case without saying so - seen in
+-- game: an AWD K-Series given a rear-drive manual)
+M.RACE_EXTRA = { 'engine/internals', 'engine/fuel', 'engine/cooling', 'body/chassis', 'running/brakes' }
 -- and what comes out of it
 M.RACE_STRIP = { 'interior/seats_r', 'interior/trim', 'interior/extras', 'body/plates', 'body/misc' }
 
@@ -103,13 +105,18 @@ function M.apply(tree, opts)
         child.chosenPartName, child.partPath, child.children, child.decisionMethod = '', nil, nil, 'user-empty'
       elseif not strip[key] then
         do
-          if wanted[key] and not layoutSlot(child.id) and type(child.suitablePartNames) == 'table' and #child.suitablePartNames > 0 then
+          -- an empty diff or gearbox slot stays empty: filling it adds a driven axle (seen in game: a
+          -- rear diff in a front-drive Wendover)
+          local drivelineGap = (key == 'running/differentials' or key == 'engine/transmission') and not isChosen(child)
+          if wanted[key] and not drivelineGap and not layoutSlot(child.id) and type(child.suitablePartNames) == 'table' and #child.suitablePartNames > 0 then
             -- the best two by score; the seed decides between them, so two builds of one car differ a little
             local ranked = {}
             local layout = isChosen(child) and layoutOf(child.chosenPartName)
             for _, name in ipairs(child.suitablePartNames) do
               local other = layoutOf(name)
-              if name ~= '' and not (layout and other and other ~= layout) then ranked[#ranked + 1] = { name = name, score = score(name) } end
+              -- a part made for one layout only goes where that layout already is (an "AWD" exhaust
+              -- needs the AWD floor, driveshaft and all)
+              if name ~= '' and not (other and other ~= layout) then ranked[#ranked + 1] = { name = name, score = score(name) } end
             end
             table.sort(ranked, function(a, b) if a.score ~= b.score then return a.score > b.score end return a.name < b.name end)
             local current = isChosen(child) and score(child.chosenPartName) or 0
