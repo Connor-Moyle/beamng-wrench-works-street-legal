@@ -736,8 +736,10 @@ function M.moveGarage()
   if not n then return false, 'This is the best garage in town.' end
   if not n.canMove then return false, n.garage.name .. ' ' .. n.why .. '.' end
   if not M.addMoney(-n.garage.cost, 'Moved to ' .. n.garage.name) then return false, 'Not enough money.' end
+  local fromLevel = s.garageLevel
   s.garageLevel = n.garage.level
   places = nil
+  extensions.hook('onStreetLegalGarageMoved', fromLevel, s.garageLevel, n.garage.cost)
   changed()
   M.sendText('benny', 'Welcome to ' .. n.garage.name .. '. Your cars are where you left them; drive them over or have them towed.', 2)
   return true, 'You now work out of ' .. n.garage.name .. '.'

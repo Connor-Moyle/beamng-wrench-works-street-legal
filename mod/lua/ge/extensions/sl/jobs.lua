@@ -163,6 +163,26 @@ local TYPES = {
         fragile = false, heat = 0.4, car = { model = ({ 'scintilla', 'sbr', 'bolide', 'etkc' })[rng:int(4)], wear = 0.1 },
         seconds = math.max(240, math.floor(metres * 1.4 / jobsLib.SPEED * 1.3)), pay = 1000 + math.floor(metres / 1000 * 600 / 100) * 100 }
     end },
+  -- test driver: a prototype round the test track's oval against the clock, without a scratch
+  { kind = 'testdrive', title = 'Test driver', unlock = 600, offer = function(ctx, rng)
+      local rl = jsonReadFile('/levels/' .. sl_career.LEVEL .. '/racelines/tt_oval.json')
+      local pts = type(rl) == 'table' and rl.points or {}
+      if #pts < 8 then return nil end
+      local n = #pts
+      local function at(i) local q = pts[i] return { id = 'oval', name = 'the oval', x = q[1], y = q[2], z = q[3] } end
+      local legs = { at(1) }
+      for k = 1, 4 do local stop = at(math.floor(n * k / 4) % n + 1) stop.through = true legs[#legs + 1] = stop end
+      legs[#legs].name = 'the line'
+      local metres, t = 0, 0
+      for i = 2, n do
+        local a, b = pts[i - 1], pts[i]
+        local d = math.sqrt((b[1] - a[1]) ^ 2 + (b[2] - a[2]) ^ 2)
+        metres, t = metres + d, t + d / math.max(5, ((a[4] or 30) + (b[4] or 30)) / 2)
+      end
+      local slack = rng:range(1.15, 1.35)                   -- the faster the target, the better the pay
+      return { item = 'prototype', legs = legs, metres = math.floor(metres), fragile = true, car = { model = 'scintilla', wear = 0 },
+        seconds = math.floor(t * slack + 30), pay = math.floor((1500 - (slack - 1.15) * 4000) / 50) * 50 }
+    end },
 }
 M.TYPES = TYPES
 
@@ -184,9 +204,12 @@ local function refresh(s, force)
   for _, t in ipairs(TYPES) do
     if (s.rep or 0) >= (t.unlock or 0) and (not t.night or night) then open[#open + 1] = t end
   end
-  js.offers = {}
+  -- offers that came by text (a favour, moving your cars) stay until taken
+  local kept = {}
+  for _, j in ipairs(js.offers or {}) do if j.kind == 'move' or j.kind == 'errand' then kept[#kept + 1] = j end end
+  js.offers = kept
   for i = 1, OFFERS * 2 do
-    if #js.offers >= OFFERS or #open == 0 then break end
+    if #js.offers >= OFFERS + #kept or #open == 0 then break end
     local t = open[(i - 1) % #open + 1]
     local ok, j = pcall(t.offer, ctx, rng)
     if ok and j and j.legs and #j.legs >= 2 then
@@ -216,7 +239,9 @@ end
 
 local function jobVehicle(j)
   if j.car then return j.carVid and getObjectByID(j.carVid) end
-  return playerCarId()
+  local v = playerCarId()
+  if v and j.needCar and sl_fleet.carOfVehicle(v:getID()) ~= j.needCar then return nil end      -- (the job is for that car)
+  return v
 end
 
 local function spawnJobCar(j, stop)
@@ -241,6 +266,7 @@ function M.take(jobId)
   for i, j in ipairs(js.offers) do
     if j.id == jobId then
       if not j.car and not playerCarId() then return false, 'You need to be in one of your cars.' end
+      if j.needCar and sl_fleet.carOfVehicle(playerCarId():getID()) ~= j.needCar then return false, 'That job is for your ' .. (j.item or 'other car') .. '.' end
       table.remove(js.offers, i)
       j.leg = 1
       js.active = j
@@ -311,7 +337,8 @@ function M.onUpdate(dtReal)
   if j.heat and j.startedAt then s.heat = math.min(1, (s.heat or 0) + j.heat / 120) end    -- a hot car: the police hear more of it every second
   local stop = j.legs[j.leg]
   local here = v:getPosition()
-  if (here - vec3(stop.x, stop.y, stop.z or here.z)):length() < STOP_RADIUS and v:getVelocity():length() < 2 then
+  local d = (here - vec3(stop.x, stop.y, stop.z or here.z)):length()
+  if (stop.through and d < 15) or (d < STOP_RADIUS and v:getVelocity():length() < 2) then
     if j.leg == 1 then
       if j.car then
         local veh = spawnJobCar(j, stop)
@@ -473,6 +500,26 @@ function M.onStreetLegalNewDay(day)
     end
     js.weekWins = 0
   end
+end
+
+----------------------------------------------------------------------------------------------
+-- moving garage (Design 3 #18): drive each of your cars over yourself and get 5 % of the move back for each
+
+function M.onStreetLegalGarageMoved(fromLevel, toLevel, cost)
+  local s = career()
+  if not s then return end
+  local ctx = context(s)
+  local from, to = ctx.byId['slrrGarage' .. tostring(fromLevel)], ctx.byId['slrrGarage' .. tostring(toLevel)]
+  if not from or not to then return end
+  local js = jobsState(s)
+  for _, car in ipairs(s.cars) do
+    if not car.impounded then
+      js.offers[#js.offers + 1] = { id = 'move:' .. car.id .. ':' .. s.day, kind = 'move', title = 'Moving', item = car.name, needCar = car.id,
+        legs = { leg(from), leg(to) }, metres = math.floor(jobsLib.distance(from, to)), fragile = false, seconds = 3600,
+        pay = math.floor((cost or 0) * 0.05 / 10) * 10 }
+    end
+  end
+  extensions.hook('onStreetLegalChanged')
 end
 
 -- for the phone
