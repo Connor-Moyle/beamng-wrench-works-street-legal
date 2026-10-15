@@ -63,6 +63,7 @@ local function snapshot()
     hud = sl_hud and sl_hud.getSettings and sl_hud.getSettings() or nil,
     rocRound = (s.roc or {}).round or 0, rocChampion = (s.roc or {}).champion == true,
     rocEntry = progression.ROC.entry,
+    jobs = sl_jobs and sl_jobs.summary and sl_jobs.summary() or nil,
   }
 end
 
@@ -156,6 +157,9 @@ function M.useItem(carId, itemId) if career() and sl_carcare then answer(sl_carc
 function M.useCar(carId) if career() then answer(sl_fleet.setActive(tonumber(carId))) end end
 function M.moveGarage() if career() then answer(sl_career.moveGarage()) end end
 function M.enterRoc() if career() then answer(sl_streets.enterRoc()) end end
+function M.takeJob(id) if career() and sl_jobs then answer(sl_jobs.take(tostring(id))) end end
+function M.giveUpJob() if career() and sl_jobs then answer(sl_jobs.giveUp()) end end
+function M.jobWay() if career() and sl_jobs then sl_jobs.showWay() end end
 
 function M.taxi(placeId)
   if not career() then return end

@@ -275,6 +275,17 @@ click('home');
 assert.ok(!phone.root.querySelector('img.slp-slrr'), 'drawn icons without SLRR art');
 phone.handle('slArt');
 assert.ok(phone.root.querySelector('img.slp-slrr[src$="cup.png"]') && phone.root.querySelector('img.slp-slrr[src$="dollar.png"]'), "SLRR's cup and dollar icons");
+// the job board
+phone.handle('slPhoneData', Object.assign({}, data, { jobs: { done: 2, earned: 640, offers: [
+  { id: '5d:1', title: 'Part run', item: 'turbocharger', from: 'Redline Speed Shop', to: 'Club Garage 1', pay: 380, seconds: 240, metres: 2100, fragile: true } ] } }));
+phone.act('home');
+phone.act('open', 'jobs');
+assert.ok(text().includes('Part run: turbocharger') && text().includes('Redline Speed Shop') && text().includes('2 jobs done'), 'the board lists the offer and the record');
+calls.length = 0;
+click('jobtake', '5d:1');
+assert.ok(calls.some(function (c) { return c.indexOf('takeJob("5d:1")') >= 0; }), 'Take it calls takeJob');
+phone.handle('slPhoneData', Object.assign({}, data, { jobs: { done: 2, earned: 640, offers: [], active: { title: 'Part run', item: 'turbocharger', next: 'Club Garage 1', to: 'Club Garage 1', pay: 380, timeLeft: 95 } } }));
+assert.ok(text().includes('Next stop: Club Garage 1') && text().includes('1:35 left') && !text().includes('Take it'), 'the job you are on, with its clock');
 phone.handle('slStation', { open: true, name: 'Pump', money: 100, fuels: [], items: [] });
 assert.ok(phone.root.querySelector('.slp-lot') && !phone.root.querySelector('.slp-ico .slp-lot'), 'with SLRR icons the panels stay outside the phone (icon markup closed)');
 console.log('phone test passed');

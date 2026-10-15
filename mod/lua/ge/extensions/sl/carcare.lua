@@ -122,6 +122,9 @@ end
 
 function M.onStreetLegalBeforeSave() askConditions() end
 
+-- the damage a car last reported (BeamNG's own beamstate total; jobs measure what happens on the way)
+function M.damageOf(vid) return lastDamage[vid] end
+
 -- one car, now (it is about to be put away): its answer comes a frame or two later
 function M.askConditions(vid)
   local veh = attached[vid] and getObjectByID(vid)

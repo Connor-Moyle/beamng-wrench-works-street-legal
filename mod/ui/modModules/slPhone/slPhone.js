@@ -229,6 +229,7 @@
     wifi: svg('M12 21 1 8a16 16 0 0 1 22 0z'),
     battery: svg('M16 4h-2V2h-4v2H8a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1z'),
     down: svg('M7.4 8.6 12 13.2l4.6-4.6L18 10l-6 6-6-6z'),
+    jobs: svg('M10 2h4a2 2 0 0 1 2 2v2h4a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4V4a2 2 0 0 1 2-2zm4 4V4h-4v2z'),
   };
   var NAV = {
     back: '<svg viewBox="0 0 24 24"><path d="M16 4 7 12l9 8z"/></svg>',
@@ -240,7 +241,7 @@
   var SLRR_ART = '/ui/modModules/slHud/slrr/icons/';
   var SLRR_ICON = { races: 'cup.png', garage: 'garage.png', bank: 'dollar.png', cab: 'city.png', me: 'roc.png' };
   function slrrIcon(name, cls) { return '<img class="slp-slrr ' + (cls || '') + '" src="' + SLRR_ART + name + '" alt="">'; }
-  var APP_COLORS = { phone: '#2e7d4f', messages: '#2f5fb3', contacts: '#7b4fb0', races: '#c2541e', bank: '#1f7a70', cab: '#b58a12', me: '#5c6474', garage: '#8a3b8f' };
+  var APP_COLORS = { jobs: '#3d7a2e', phone: '#2e7d4f', messages: '#2f5fb3', contacts: '#7b4fb0', races: '#c2541e', bank: '#1f7a70', cab: '#b58a12', me: '#5c6474', garage: '#8a3b8f' };
   var AV_COLORS = ['#a8c7fa', '#f2b8b5', '#c3e7c6', '#ffd8a8', '#d0bcff', '#9fe0e8', '#ffb4ab', '#e8def8'];
   var CLASS_NAMES = { beater: 'Beaters', compact: 'Compacts', muscle: 'Muscle', tuner: 'Tuners', sport: 'Sports cars', super: 'Supercars' };
 
@@ -314,6 +315,7 @@
           { id: 'garage', title: 'My cars', icon: I.cab },
           { id: 'bank', title: 'Bank', icon: I.bank },
           { id: 'me', title: 'Street cred', icon: I.me },
+          { id: 'jobs', title: 'Jobs', icon: I.jobs, badge: d.jobs && d.jobs.active ? 1 : 0 },
         ]) + '</div>' +
         '<div class="slp-dock">' + appsHtml([
           { id: 'phone', title: 'Phone', icon: I.phone },
@@ -395,6 +397,22 @@
       });
       return bar('Races') + '<div class="slp-body">' + (cards.join('') ||
         '<div class="slp-empty">No races arranged. Call or text one of your contacts to set one up: for money, for high stakes, or for pink slips.</div>') + '</div>';
+    }
+
+    // the job board: what is on offer now, the one you are on, your record
+    function jobsPage() {
+      var j = obj(st.data.jobs), a = j.active;
+      var mmss = function (sec) { sec = Math.max(0, sec | 0); return Math.floor(sec / 60) + ':' + two(sec % 60); };
+      var activeCard = a ? '<div class="slp-card"><h4>' + esc(a.title) + ': ' + esc(a.item || '') + (a.fragile ? ' &middot; fragile' : '') + '</h4>' +
+        '<p>Next stop: ' + esc(a.next) + (a.timeLeft != null ? ' &middot; ' + (a.timeLeft > 0 ? mmss(a.timeLeft) + ' left' : 'late') : '') + ' &middot; ' + money(a.pay) + '</p>' +
+        '<div class="slp-acts"><div class="slp-btn" data-a="jobway" data-v="1">Show the way</div><div class="slp-btn slp-text" data-a="jobquit" data-v="1">Give up</div></div></div>' : '';
+      var cards = arr(j.offers).map(function (o) {
+        return '<div class="slp-card"><h4>' + esc(o.title) + ': ' + esc(o.item || '') + (o.fragile ? ' &middot; fragile' : '') + '</h4>' +
+          '<p>' + esc(o.from) + ' &rarr; ' + esc(o.to) + ' &middot; ' + (o.metres ? (o.metres / 1000).toFixed(1) + ' km &middot; ' : '') + mmss(o.seconds) + ' &middot; <b>' + money(o.pay) + '</b></p>' +
+          (a ? '' : '<div class="slp-acts"><div class="slp-btn" data-a="jobtake" data-v="' + esc(o.id) + '">Take it</div></div>') + '</div>';
+      }).join('');
+      return bar('Jobs') + '<div class="slp-body">' + activeCard + (cards || '<div class="slp-empty">Nothing on the board. New jobs come in the morning and at dusk.</div>') +
+        '<div class="slp-empty">' + (j.done || 0) + ' jobs done, ' + money(j.earned || 0) + ' earned.</div></div>';
     }
 
     function bankPage() {
@@ -646,6 +664,7 @@
         case 'thread': page = threadPage(); break;
         case 'phone': page = phonePage(); break;
         case 'races': page = racesPage(); break;
+        case 'jobs': page = jobsPage(); break;
         case 'bank': page = bankPage(); break;
         case 'cab': page = cabPage(); break;
         case 'me': page = mePage(); break;
@@ -732,6 +751,9 @@
         case 'text': lua('text(' + JSON.stringify(st.thread) + ',' + JSON.stringify(v) + ')'); break;
         case 'gps': lua('waypoint(' + JSON.stringify(v) + ')'); toast('The route is on your road.'); break;
         case 'cancel': lua('cancel(' + JSON.stringify(v) + ')'); break;
+        case 'jobtake': lua('takeJob(' + JSON.stringify(v) + ')'); break;
+        case 'jobquit': lua('giveUpJob()'); break;
+        case 'jobway': lua('jobWay()'); toast('The route is on your road.'); break;
         case 'taxi': lua('taxi(' + JSON.stringify(v) + ')'); break;
         case 'tow': lua('tow(' + Number(v) + ')'); break;
         case 'release': lua('release(' + Number(v) + ')'); break;
