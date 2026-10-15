@@ -701,6 +701,20 @@ end
 
 function M.onClientEndMission() cruisers, meet, race = {}, nil, nil end
 
+-- a racer's own car, built and parked (frozen) for a race somebody else runs: the career hands it to
+-- the map's race for an arranged race. done(veh or nil) is called when it is ready.
+function M.buildRacerCar(racerId, pos, rot, done)
+  local s = career()
+  local racer = s and stateLib.racer(s, racerId)
+  if not racer then return false end
+  core_jobsystem.create(function(job)
+    local veh = spawnRacer(job, s, racer, pos, rot)
+    if veh then veh:queueLuaCommand('controller.setFreeze(1) input.event("parkingbrake", 1, FILTER_DIRECT)') end
+    done(veh)
+  end)
+  return true
+end
+
 function M.forfeit() if race then finish(false) end end
 function M.isRacing() return race ~= nil end
 

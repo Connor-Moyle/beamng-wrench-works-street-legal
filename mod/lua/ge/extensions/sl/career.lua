@@ -436,6 +436,40 @@ end
 -- The map's night races hold one arranged race at a time: the newest one that can be raced now
 -- (a racer who only comes out at night is not handed over in daylight). Kept in step every few seconds.
 local registered = false
+-- the racer's own car, built while the player drives to the start (when the map's race can take it:
+-- slrrValoRaces.acceptsVehicleId); otherwise the map brings a stock car of their class
+local ownCar             -- { challenge = id, vid, building }
+local function dropOwnCar()
+  if ownCar and ownCar.vid then
+    local v = getObjectByID(ownCar.vid)
+    if v and slrrValoRaces.getState and slrrValoRaces.getState() ~= 'countdown' and slrrValoRaces.getState() ~= 'racing' then v:delete() end
+  end
+  ownCar = nil
+end
+
+local function updateOwnCar(pick)
+  if not slrrValoRaces.acceptsVehicleId or not (sl_streets and sl_streets.buildRacerCar) then return end
+  if not pick then if ownCar then dropOwnCar() end return end
+  if ownCar and ownCar.challenge ~= pick.id then dropOwnCar() end
+  local start
+  for _, r in ipairs(races()) do if r.id == pick.race then start = r.start end end
+  local v = getPlayerVehicle(0)
+  if not start or not v then return end
+  local d = (v:getPosition() - start):length()
+  if not ownCar and d < 400 and d > 120 then
+    ownCar = { challenge = pick.id, building = true }
+    local mine = ownCar
+    sl_streets.buildRacerCar(pick.racer, start + vec3(0, 0, 0.5), nil, function(veh)    -- waiting on the start line; the race lines it up
+      if ownCar ~= mine then if veh then veh:delete() end return end
+      mine.building, mine.vid = false, veh and veh:getID() or nil
+      registered = nil                                     -- hand it over with the car
+    end)
+  elseif ownCar and not ownCar.building and d > 900 then
+    dropOwnCar()
+    registered = nil
+  end
+end
+
 local function syncChallenge()
   if not (slrrValoRaces and slrrValoRaces.startChallenge) then return end
   local night = progression.isNight(hour())
@@ -443,7 +477,8 @@ local function syncChallenge()
   for _, c in ipairs(s.challenges) do
     if not c.nightOnly or night then pick = c end
   end
-  local key = pick and pick.id or false
+  updateOwnCar(pick)
+  local key = pick and (pick.id .. ':' .. tostring(ownCar and ownCar.vid)) or false
   if key == registered then return end
   registered = key
   if not pick then
@@ -452,7 +487,8 @@ local function syncChallenge()
   end
   local racer = stateLib.racer(s, pick.racer)
   slrrValoRaces.startChallenge(pick.race, { name = roster.displayName(racer), racerId = racer.id, class = racer.class,
-    skill = racer.skill, stake = pick.stake, bet = pick.bet })
+    skill = racer.skill, aggression = 0.35 + 0.6 * (racer.skill or 0.5), stake = pick.stake, bet = pick.bet,
+    car = racer.car and racer.car.name, vehicleId = ownCar and ownCar.vid or nil })
 end
 
 -- point the way to a race start (or a place) on the road
