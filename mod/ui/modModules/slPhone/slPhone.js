@@ -460,7 +460,7 @@
       var head = '<div class="slp-empty">Edition ' + (p.edition || 1) + '. Small ads go fast.' +
         (p.bought ? ' You have the printed copy.' : (p.hidden ? ' ' + p.hidden + ' more in the printed copy.' : '')) + '</div>' +
         (p.bought ? '' : '<div class="slp-acts"><div class="slp-btn" data-a="buypaper" data-v="1">Buy the paper (' + money(p.price || 2) + ', at a gas station)</div></div>');
-      return bar('Valo Classifieds') + '<div class="slp-body">' + head + (cards || '<div class="slp-empty">No ads left this week.</div>') + '</div>';
+      return bar('Valo Classifieds') + '<div class="slp-body">' + head + (cards || '<div class="slp-empty">No ads right now. New ones come out through the week.</div>') + '</div>';
     }
 
     // Swap & Bid: auctions against other bidders; the lot is paid for and delivered when it ends

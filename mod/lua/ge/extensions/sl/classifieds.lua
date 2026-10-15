@@ -8,11 +8,12 @@ local M = {}
 
 local L = require('sl/core/listings')
 local rngLib = require('sl/core/rng')
+local stateLib = require('sl/core/state')
 local jbeamIO = require('jbeam/io')         -- (not a global on the game-engine side)
 
 local REFRESH_HOURS = 6        -- new listings every few in-game hours
 local APP_LISTINGS = 12
-local PAPER_LISTINGS, PRINT_ONLY = 10, 0.4   -- the weekly Valo Classifieds; some ads only in the printed copy
+local PAPER_LISTINGS, PRINT_ONLY = 3, 0.4    -- Valo Classifieds: ads up at a time (each lasts a day); some only in print
 local AUCTIONS = 6                          -- Swap & Bid lots open at a time
 local PAPER_REACH = 30                      -- metres from a gas station to buy a copy
 local MINE_MAX = 6                          -- your own listings at a time
@@ -129,8 +130,9 @@ local function refresh(s, force)
     local fresh = {}
     for _, l in ipairs(m.listings) do if l.channel ~= 'paper' or l.taken then fresh[#fresh + 1] = l end end
     m.listings = fresh
-    for _ = 1, 30 do if count('paper') >= PAPER_LISTINGS then break end add('paper') end
   end
+  -- the edition's ads come out through the week (each lasts a day), so the paper is never empty
+  for _ = 1, 30 do if count('paper') >= PAPER_LISTINGS then break end add('paper') end
   extensions.hook('onStreetLegalChanged')
 end
 
@@ -181,7 +183,8 @@ local function auctions(s)
               part = { part = l.item.part, name = l.item.name, slotId = l.item.slotId, value = l.bid, wear = l.wear } }
             toast(string.format('You won the %s for $%d. It is on its way to your garage.', l.item.name, l.bid))
           else
-            toast(string.format('You won the %s but could not pay: it goes to the next bidder.', l.item.name))
+            stateLib.addRep(s, -5)        -- (a bid you couldn't pay: the auction house remembers)
+            toast(string.format('You won the %s but could not pay: it goes to the next bidder, and your name is mud there (-5 rep).', l.item.name))
           end
         end
       end
