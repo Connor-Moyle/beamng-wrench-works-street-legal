@@ -162,6 +162,26 @@ do
   for i, o in ipairs(scrap) do check('scrap is cheap and bent ' .. i, o.price < o.value * 0.2 and o.damage >= 0.6, o.price) end
   check('nothing to sell from nothing', #market.offers({}, 'used', 1, 1, 5) == 0)
   check('scrap pays less than a private buyer', market.scrapValue({ value = 20000, condition = 0.5 }) < market.resaleValue({ value = 20000, condition = 0.5 }))
+  -- no money loop (fails the build): every car any lot sells, sold straight back or scrapped as it is, fetches
+  -- less than it cost; fitting parts only gets their value back; a better state since is worth more
+  local loops = {}
+  for _, kind in ipairs({ 'used', 'dealer', 'scrap' }) do
+    for seed = 1, 40 do
+      for _, o in ipairs(market.offers(cars, kind, seed, seed % 9 + 1, 8)) do
+        local car = { value = o.value, condition = o.condition, faults = o.faults, boughtFor = o.price, partsAtBuy = 5000 }
+        car.resaleAtBuy = market.resaleAtBuy(car)
+        local back, scrapped = market.resaleValue(car, 5000), market.scrapValue(car, 5000)
+        if back >= o.price or scrapped >= o.price then loops[#loops + 1] = string.format('%s %s $%d -> $%d/$%d', kind, o.name, o.price, back, scrapped) end
+        if market.resaleValue(car, 5000 + 800) > back + 800 then loops[#loops + 1] = 'parts pay more than they cost: ' .. o.name end
+      end
+    end
+  end
+  check('no car buys back for more than it cost (lot to lot, lot to scrap)', #loops == 0, loops[1])
+  local bought = { value = 20000, condition = 0.4, faults = { 'radiator', 'battery' }, boughtFor = 3000 }
+  bought.resaleAtBuy = market.resaleAtBuy(bought)
+  local fixed = { value = 20000, condition = 0.4, faults = {}, boughtFor = 3000, resaleAtBuy = bought.resaleAtBuy }
+  check('fixing it is worth something', market.resaleValue(fixed) > market.resaleValue(bought))
+  check('a pink slip won (nothing paid) sells at the going rate', market.resaleValue({ value = 20000, condition = 0.5 }) > 5000)
 end
 
 -- career save

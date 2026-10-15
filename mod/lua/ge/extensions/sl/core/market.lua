@@ -105,16 +105,34 @@ function M.offers(cars, kind, seed, day, count)
   return out
 end
 
+-- No money loop: a car you bought never sells back (or scraps) for more than 90 % of what you paid, in the state
+-- you bought it in. A better state since (fewer faults) raises that in proportion, and parts added since count at
+-- their value (what the shop charges for them: no gain there either). partsNow: its parts' value now, if built.
+M.SELL_BACK = 0.9
+local function rawResale(car)
+  local c = car.condition or 0.5
+  return math.max(150, (car.value or 0) * (0.25 + 0.45 * c) * (1 - 0.05 * #(car.faults or {})))
+end
+local function capped(car, raw, partsNow, step)
+  if not car.boughtFor or car.boughtFor <= 0 then return round(raw, step) end       -- (a pink slip won: nothing paid)
+  local better = rawResale(car) / math.max(1, car.resaleAtBuy or rawResale(car))
+  local parts = math.max(0, (partsNow or 0) - (car.partsAtBuy or partsNow or 0))
+  local cap = car.boughtFor * M.SELL_BACK * better + parts
+  return math.min(round(raw, step), math.floor(cap / step) * step)                      -- (never rounded up past the cap)
+end
+
+-- the yardstick kept with a car when it is bought
+function M.resaleAtBuy(car) return rawResale(car) end
+
 -- what the scrap yard pays for a car of yours: its metal, plus a little for what still works
-function M.scrapValue(car)
+function M.scrapValue(car, partsNow)
   local base = math.max(100, (car.value or 0) * 0.05)
-  return round(base * (0.6 + 0.8 * (car.condition or 0.3)), 10)
+  return capped(car, base * (0.6 + 0.8 * (car.condition or 0.3)), partsNow, 10)
 end
 
 -- what a private buyer at the lot pays for a car of yours
-function M.resaleValue(car)
-  local c = car.condition or 0.5
-  return round(math.max(150, (car.value or 0) * (0.25 + 0.45 * c) * (1 - 0.05 * #(car.faults or {}))), 50)
+function M.resaleValue(car, partsNow)
+  return capped(car, rawResale(car), partsNow, 50)
 end
 
 return M

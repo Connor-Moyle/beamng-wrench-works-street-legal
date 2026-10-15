@@ -94,11 +94,13 @@ local function send()
     return
   end
   local mine = sl_fleet.currentCar()
+  local mineVeh = mine and sl_fleet.vehicleOf(mine.id)
+  local parts = mineVeh and builder.partsValue(mineVeh:getID())       -- (what was fitted since counts, as at the sale)
   guihooks.trigger('slLotData', {
     open = true, mode = lot.mode, name = lot.place.name, kindTitle = TITLES[lot.kind], kind = lot.kind,
     index = lot.index, count = #lot.offers, offer = offerForUi(lot.offers[lot.index]), building = lot.mode == 'browse' and lot.veh == nil,
     money = s.money, testLeft = test and math.ceil(test.timeLeft) or nil,
-    sellCar = mine and { name = mine.name, price = lot.kind == 'scrap' and market.scrapValue(mine) or market.resaleValue(mine) } or nil,
+    sellCar = mine and { name = mine.name, price = lot.kind == 'scrap' and market.scrapValue(mine, parts) or market.resaleValue(mine, parts) } or nil,
   })
 end
 

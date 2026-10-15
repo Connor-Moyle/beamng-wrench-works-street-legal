@@ -121,6 +121,7 @@ function M.registerVehicle(vid, info)
     value = info.value or 0, condition = info.condition or 1, faults = info.faults or {}, mileage = info.mileage or 0,
     config = builder.configOf(vid), where = placeOf(veh), boughtFor = info.price, boughtDay = s.day,
   })
+  if info.price then car.resaleAtBuy, car.partsAtBuy = market.resaleAtBuy(car), builder.partsValue(vid) end   -- (the sell-back cap's yardstick)
   spawned[car.id] = vid
   s.activeCar = car.id
   veh:queueLuaCommand('controller.setFreeze(0) extensions.load("slrrGarageVeh")')
@@ -235,8 +236,9 @@ function M.sell(carId, to)
   local s = career()
   local car = s and carById(s, carId)
   if not car then return false, 'No such car.' end
-  local price = to == 'scrap' and market.scrapValue(car) or market.resaleValue(car)
   local veh = M.vehicleOf(carId)
+  local parts = veh and builder.partsValue(veh:getID())
+  local price = to == 'scrap' and market.scrapValue(car, parts) or market.resaleValue(car, parts)
   local player = getPlayerVehicle(0)
   if veh and player and player:getID() == veh:getID() and gameplay_walk then gameplay_walk.setWalkingMode(true, nil, nil, true) end
   if veh then veh:delete() end

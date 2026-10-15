@@ -107,6 +107,21 @@ local function valueOf(id)
   end
 end
 
+-- what every part on a live car is worth together (its jbeam values; nil when the car isn't built)
+function M.partsValue(id)
+  local vd = vehData(id)
+  local tree = vd and vd.config and vd.config.partsTree
+  if not tree then return nil end
+  local value, total = valueOf(id), 0
+  local function walk(node)
+    if type(node) ~= 'table' then return end
+    if type(node.chosenPartName) == 'string' and node.chosenPartName ~= '' then total = total + value(node.chosenPartName) end
+    for _, child in pairs(node.children or {}) do walk(child) end
+  end
+  walk(tree)
+  return total
+end
+
 -- what a part is called, from its jbeam
 local function nameOf(id)
   local vd = vehData(id)
