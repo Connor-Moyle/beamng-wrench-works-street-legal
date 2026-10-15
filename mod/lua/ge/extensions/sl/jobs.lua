@@ -43,6 +43,52 @@ end
 
 local function leg(p) return { id = p.id, name = p.name, x = p.x, y = p.y, z = p.z } end
 
+-- kerbside stops for fares and food: road nodes in the city, not on a track, a link road, the valley
+-- or a freeway (the map names its AI roads: ai_lane_ city, ai_roc / ai_tt_ / ai_slrr_mb_ tracks,
+-- ai_link_ / ai_valley links; road_check.py), inside the box round the career's places
+local NOT_CITY = { '^ai_roc', '^ai_tt_', '^ai_slrr_mb_', '^ai_link_', '^ai_valley' }
+local kerbCache
+local function kerbs(ctx)
+  if kerbCache and kerbCache.level == (getCurrentLevelIdentifier and getCurrentLevelIdentifier()) then return kerbCache.list end
+  local x0, y0, x1, y1 = math.huge, math.huge, -math.huge, -math.huge
+  for _, p in ipairs(ctx.places) do x0, y0, x1, y1 = math.min(x0, p.x), math.min(y0, p.y), math.max(x1, p.x), math.max(y1, p.y) end
+  local list = {}
+  local ok, nodes = pcall(function() return map.getMap().nodes end)
+  for name, n in pairs(ok and type(nodes) == 'table' and nodes or {}) do
+    local city = type(name) == 'string'
+    for _, pat in ipairs(NOT_CITY) do if city and name:find(pat) then city = false end end
+    local r = n.radius or 0
+    if city and r >= 2 and r <= 6 and n.pos.x > x0 - 200 and n.pos.x < x1 + 200 and n.pos.y > y0 - 200 and n.pos.y < y1 + 200 then
+      list[#list + 1] = { x = n.pos.x, y = n.pos.y, z = n.pos.z }
+    end
+  end
+  kerbCache = { level = getCurrentLevelIdentifier and getCurrentLevelIdentifier(), list = list }
+  return list
+end
+
+local function kerbNear(ctx, rng, from, minD, maxD)
+  local list = kerbs(ctx)
+  if #list == 0 then return nil end
+  for _ = 1, 40 do
+    local k = list[rng:int(#list)]
+    local d = from and math.sqrt((k.x - from.x) ^ 2 + (k.y - from.y) ^ 2) or minD
+    if d >= minD and d <= maxD then return k end
+  end
+end
+
+-- the diners (the gas stations' food counters: the game's own facilities)
+local function diners()
+  local out = {}
+  local f = freeroam_facilities and freeroam_facilities.getFacilities and freeroam_facilities.getFacilities(getCurrentLevelIdentifier())
+  for _, g in ipairs(f and f.gasStations or {}) do
+    local c = freeroam_gasStations and freeroam_gasStations.gasStationCenterRadius and freeroam_gasStations.gasStationCenterRadius(g)
+    if c then out[#out + 1] = { id = 'diner:' .. tostring(g.id or g.name), name = (g.name or 'Gas station') .. ' diner', x = c.x, y = c.y, z = c.z } end
+  end
+  return out
+end
+
+local STREETS = { 'a side street', 'an apartment block', 'a house on the corner', 'an office', 'a back street', 'a corner shop' }
+
 -- the kinds of job: { kind, title, unlock = rep, night = true (only after dark), offer = function(ctx, rng) -> job }
 -- a job is { item, legs = { stop, stop... }, pay, seconds, fragile }
 local TYPES = {
@@ -59,6 +105,32 @@ local TYPES = {
       if not j then return nil end
       j.legs = { leg(ctx.byId[j.from]), leg(ctx.byId[j.to]) }
       return j
+    end },
+  -- night food delivery: three drops from a diner, the food going cold
+  { kind = 'food', title = 'Food delivery', unlock = 0, night = true, offer = function(ctx, rng)
+      local list = diners()
+      if #list == 0 then return nil end
+      local d = list[rng:int(#list)]
+      local legs, last, metres = { leg(d) }, d, 0
+      for i = 1, 3 do
+        local k = kerbNear(ctx, rng, last, 250, 1200)
+        if not k then return nil end
+        legs[#legs + 1] = { id = 'kerb', name = STREETS[rng:int(#STREETS)], x = k.x, y = k.y, z = k.z }
+        metres = metres + math.sqrt((k.x - last.x) ^ 2 + (k.y - last.y) ^ 2)
+        last = k
+      end
+      return { item = 'three orders', legs = legs, metres = math.floor(metres), fragile = false,
+        seconds = math.max(180, math.floor(metres * 1.4 / jobsLib.SPEED * 1.2)), pay = 120 + math.floor(metres / 1000 * 60 / 10) * 10 }
+    end },
+  -- taxi fares: a fare at the kerb, to one of the city's places
+  { kind = 'taxi', title = 'Taxi fare', unlock = 0, offer = function(ctx, rng)
+      local k = kerbNear(ctx, rng, nil, 0, 0)
+      if not k or #ctx.places == 0 then return nil end
+      local to = ctx.places[rng:int(#ctx.places)]
+      local metres = math.sqrt((to.x - k.x) ^ 2 + (to.y - k.y) ^ 2)
+      if metres < 600 then return nil end
+      return { item = 'a fare', legs = { { id = 'kerb', name = STREETS[rng:int(#STREETS)], x = k.x, y = k.y, z = k.z }, leg(to) }, metres = math.floor(metres),
+        fragile = false, seconds = math.max(120, math.floor(metres * 1.4 / jobsLib.SPEED * 1.3)), pay = math.max(60, math.floor((40 + metres / 1000 * 90) / 10) * 10) }
     end },
 }
 M.TYPES = TYPES
