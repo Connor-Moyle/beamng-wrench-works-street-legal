@@ -489,8 +489,8 @@ local function updateMeet(s, dt)
     meet.shown = false
     sendMeet(false)
   end
-  -- a marker over the meet so it can be found
-  if v and (v:getPosition() - meet.place.pos):length() < 400 then
+  -- a marker over the meet so it can be found (the map's own markers do it where they are)
+  if not slrrValoPois and v and (v:getPosition() - meet.place.pos):length() < 400 then
     debugDrawer:drawCylinder(meet.place.pos, meet.place.pos + vec3(0, 0, 4), 0.25, ColorF(0.7, 0.2, 1, 0.5))
     debugDrawer:drawTextAdvanced(meet.place.pos + vec3(0, 0, 4.5), String('Car meet'), ColorF(1, 1, 1, 1), true, false, ColorI(60, 0, 90, 200))
   end

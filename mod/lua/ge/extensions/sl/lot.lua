@@ -347,6 +347,8 @@ local function update(dt)
     if (v:getPosition() - lot.place.pos):length() > 30 then M.close() end
     return
   end
+  -- the map marks the lots with the game's own markers: then they open from its prompt (below)
+  if slrrValoPois then return end
   local pos = v:getPosition()
   local onFoot = v:getJBeamFilename() == 'unicycle'
   for id, place in pairs(sl_career.getPlaces() or {}) do
@@ -360,6 +362,30 @@ local function update(dt)
           open(place, 'sell')
         end
         return
+      end
+    end
+  end
+end
+
+-- standing in a lot's marker: the game's prompt gets our button (as its gas stations do)
+local HEADINGS = { used = 'Used cars', dealer = 'New cars', scrap = 'Scrap yard' }
+function M.onActivityAcceptGatherData(elemData, activityData)
+  if not career() or lot then return end
+  for _, elem in ipairs(elemData or {}) do
+    local place = elem.type == 'slrrPlace' and (sl_career.getPlaces() or {})[elem.placeId]
+    local kind = place and KIND[place.kind]
+    if kind then
+      local v = getPlayerVehicle(0)
+      local onFoot = not v or v:getJBeamFilename() == 'unicycle'
+      local selling = not onFoot and sl_fleet.currentCar() and kind ~= 'dealer'
+      if onFoot or selling then
+        table.insert(activityData, {
+          icon = 'poi_arrival_round', heading = place.name, preheadings = { HEADINGS[kind] },
+          sorting = { type = 'slrrPlace', id = place.id },
+          buttonLabel = selling and (kind == 'scrap' and 'Scrap your car' or 'Sell your car') or 'Look at the cars',
+          buttonFun = function() open(place, selling and 'sell' or 'browse') end,
+          buttonSoundClass = 'bng_hover_generic',
+        })
       end
     end
   end
