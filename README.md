@@ -1,12 +1,12 @@
-# Street Legal Racing for BeamNG
+# BeamNG Wrench Works: Street Legal
 
-A career in the spirit of *Street Legal Racing: Redline*, played on the Valo City map. You start on foot in the first garage with a few thousand and no car. The city's street racers are in your phone. Reputation from racing, worth more at night, takes you up through the three garages to the ROC.
+A career in the spirit of *Street Legal Racing: Redline*, played on the Wrench Works: Valo City map. You start on foot in the first garage with a few thousand and no car. The city's street racers are in your phone. Reputation from racing, worth more at night, takes you up through the three garages to the ROC.
 
-Needs two other mods: the **Valo City** map (`slrr_valo_city`) and **Wrench Works** (the garage). BeamNG.drive 0.39.
+Part of the **BeamNG Wrench Works** family. Needs two of the others: **Wrench Works** (the garage) and the **Wrench Works: Valo City** map (`slrr_valo_city`). **Wrench Works: Drivers** (SLRR's drivers in the cars, and pedestrians) is optional. BeamNG.drive 0.39.
 
 ## How it plays
 
-- **Start**: the main menu's **Career** button asks which career: BeamNG's own, or **Street Legal Racing** (Continue or New career). Also under Gameplay > Street Legal Racing. Valo City at dusk, you on foot in Club Garage 1 with $3,500 and no car. Benny from the garage texts you where to begin.
+- **Start**: the main menu's **Career** button asks which career: BeamNG's own, or **Wrench Works: Street Legal** (Continue or New career). Also under Gameplay > Wrench Works: Street Legal. Valo City at dusk, you on foot in Club Garage 1 with $3,500 and no car. Benny from the garage texts you where to begin.
 - **Getting a car**: walk up to the junkyard's lot, the dealership or the scrap yard (the phone's Cab app takes you). Two to six cars stand in a row under floodlights (a different count and choice each day); the camera glides from one to the next as you go left and right, right-drag to look round the one on show. Used cars come as tidy stock, tired stock, damaged, modified, or modified and broken; what is wrong with them is really wrong (parts missing, panels bent, parts swapped). Test drive it, buy it, then drive it home or have it towed.
 - **Your cars**: kept between sessions with their setup, their dents and where you left them. Phone > My cars: tow one home, swap which one you drive (at the garage). Drive up to the junkyard or scrap yard in one and they make you an offer for it.
 - **The garage**: Wrench Works, paid from career money. Its **Services** drawer, as in SLRR: an oil change, coolant, a new battery, a nitrous refill, an **engine rebuild** (only the engine, the rest of the car as it is), swap the car on the lift for another of yours, and a **race selector** (pick an event and a racer of your level waits at the start). Bent parts are fixed one at a time with Wrench Works' repair tool.
@@ -26,7 +26,7 @@ Needs two other mods: the **Valo City** map (`slrr_valo_city`) and **Wrench Work
 
 ## The map
 
-The career is played on the Valo City map mod, which brings the places (garages, junkyard, dealership, scrap yard, meet spots, the lots' display spots), the night and drag races and the ROC track; docs/integration.md has the contract between the two.
+The career is played on the Wrench Works: Valo City map, which brings the places (garages, junkyard, dealership, scrap yard, meet spots, the lots' display spots), the night and drag races and the ROC track; docs/integration.md has the contract between the two.
 
 ## The SLRR dashboard
 

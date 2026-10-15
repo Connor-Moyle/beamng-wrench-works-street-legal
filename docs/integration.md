@@ -1,4 +1,4 @@
-# How Street Legal Racing fits with the Valo City map and Wrench Works
+# How Wrench Works: Street Legal fits with the Valo City map and Wrench Works
 
 Three mods, one game:
 
@@ -6,11 +6,11 @@ Three mods, one game:
 | --- | --- |
 | Valo City (`slrr_valo_city`) | the map, its garages' positions, traffic, the night races (`slrrValoRaces`) |
 | Wrench Works (`slrr_garage`) | the garage: working on the car, parts, catalog, shops |
-| Street Legal Racing (`sl_*`) | the career: money, reputation, the climb through the garages, the phone, the racers, the car lots |
+| Wrench Works: Street Legal (`sl_*`) | the career: money, reputation, the climb through the garages, the phone, the racers, the car lots |
 
 ## One wallet
 
-While a career runs, Street Legal Racing hands Wrench Works a money provider (`garageParts.setMoneyProvider`). From then on everything Wrench Works spends or pays, and everything that goes through `require('slrr/garageParts').changeMoney(amount, label)`, is career money. The night races already pay through `changeMoney`, so nothing more is needed there.
+While a career runs, Wrench Works: Street Legal hands Wrench Works a money provider (`garageParts.setMoneyProvider`). From then on everything Wrench Works spends or pays, and everything that goes through `require('slrr/garageParts').changeMoney(amount, label)`, is career money. The night races already pay through `changeMoney`, so nothing more is needed there.
 
 ## What the night races should tell the career (two small additions to `slrrValoRaces.lua`)
 

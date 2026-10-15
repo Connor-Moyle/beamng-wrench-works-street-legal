@@ -341,7 +341,7 @@ function M.start(fresh)
   if pending == 'start' and not (getCurrentLevelIdentifier and getCurrentLevelIdentifier() == M.LEVEL) and freeroam_freeroam and freeroam_freeroam.startFreeroamByName then
     if not freeroam_freeroam.startFreeroamByName(M.LEVEL, nil, false, false) then
       pending = nil
-      tell('Valo City (slrr_valo_city) is not installed: Street Legal Racing is played on that map.', 8)
+      tell('Wrench Works: Valo City (slrr_valo_city) is not installed: Wrench Works: Street Legal is played on that map.', 8)
     end
   end
 end

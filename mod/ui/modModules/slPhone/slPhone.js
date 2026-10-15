@@ -582,13 +582,13 @@
         (r.ahead != null ? '<i class="' + (r.ahead ? 'slp-ahead' : 'slp-behind') + '">' + (r.ahead ? 'Ahead' : 'Behind') + '</i>' : '') + '</div>';
     }
 
-    // the main menu's own Career button opens this: the game's career, or Street Legal Racing
+    // the main menu's own Career button opens this: the game's career, or Wrench Works: Street Legal
     function menuView() {
       var m = st.menu;
       if (!m || !m.show || !st.chooser) return '';
       var sl = !m.installed
-        ? '<div class="slp-chcard slp-chsl slp-off"><b>Street Legal Racing</b><span>Needs the Valo City map mod (slrr_valo_city). Switch it on under Mods.</span></div>'
-        : '<div class="slp-chcard slp-chsl"><b>Street Legal Racing</b>' + (st.slrrArt ? slrrIcon(m.summary ? 'load_career_a.png' : 'new_career_a.png', 'slp-chimg') : '') + '<span>' + (m.summary ? 'Your career: ' + esc(m.summary) : 'Valo City at night. No car, $3,500 and a name nobody knows. Junkyard wrecks, street racers, pink slips and the ROC.') + '</span>' +
+        ? '<div class="slp-chcard slp-chsl slp-off"><b>Wrench Works: Street Legal</b><span>Needs the Wrench Works: Valo City map (slrr_valo_city). Switch it on under Mods.</span></div>'
+        : '<div class="slp-chcard slp-chsl"><b>Wrench Works: Street Legal</b>' + (st.slrrArt ? slrrIcon(m.summary ? 'load_career_a.png' : 'new_career_a.png', 'slp-chimg') : '') + '<span>' + (m.summary ? 'Your career: ' + esc(m.summary) : 'Valo City at night. No car, $3,500 and a name nobody knows. Junkyard wrecks, street racers, pink slips and the ROC.') + '</span>' +
           (m.summary ? '<div class="slp-btn slp-go" data-a="menustart" data-v="continue">Continue</div>' : '') +
           '<div class="slp-btn' + (m.summary ? ' slp-tonal' : ' slp-go') + '" data-a="menustart" data-v="new">' + (m.summary ? 'New career (replaces this one)' : 'New career') + '</div></div>';
       return '<div class="slp-chooser"><div class="slp-chbox"><h1>Career</h1><div class="slp-chcards">' +

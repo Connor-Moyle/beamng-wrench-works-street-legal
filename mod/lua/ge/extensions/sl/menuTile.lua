@@ -15,11 +15,11 @@ end
 function M.onGameplaySelectorGetTiles(items, backend)
   if backend.backendName ~= 'gameplaySelector' then return end
   items[#items + 1] = {
-    key = KEY, name = 'Street Legal Racing',
+    key = KEY, name = 'Wrench Works: Street Legal',
     preview = FS:fileExists(PREVIEW) and PREVIEW or nil,
     favouriteIdx = 0, showFavouriteIconPercent = 0,
     showDetails = { key = KEY, streetLegal = true },
-    system = 'Street Legal Racing', type = 'career', level = 'Valo City',
+    system = 'Wrench Works: Street Legal', type = 'career', level = 'Valo City',
     sourceIcons = {}, order = -1e12,
     validBackends = { gameplaySelector = true },
   }
@@ -49,7 +49,7 @@ function M.onGameplaySelectorGetDetails(itemDetails, details, buttonInstance, ba
       primary = not summary, isDoubleClickAction = not summary, waitForLoadingScreen = true })
   end
   details[#details + 1] = {
-    headerTitle = 'Street Legal Racing',
+    headerTitle = 'Wrench Works: Street Legal',
     description = 'Valo City at night. No car, a few thousand in your pocket and a name nobody knows. Buy a wreck at the junkyard, '
       .. 'build it up in your garage, race the city\'s street racers for money and pink slips, and climb from the first garage to the ROC.'
       .. (installed and '' or '\n\nThis needs the Valo City map mod (level slrr_valo_city).'),
