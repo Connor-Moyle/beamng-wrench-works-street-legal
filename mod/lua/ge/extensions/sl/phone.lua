@@ -64,6 +64,7 @@ local function snapshot()
     rocRound = (s.roc or {}).round or 0, rocChampion = (s.roc or {}).champion == true,
     rocEntry = progression.ROC.entry,
     jobs = sl_jobs and sl_jobs.summary and sl_jobs.summary() or nil,
+    market = sl_classifieds and sl_classifieds.summary and sl_classifieds.summary() or nil,
     tutorial = sl_tutorial and sl_tutorial.summary and sl_tutorial.summary() or nil,
     achievements = sl_achievements and sl_achievements.summary and sl_achievements.summary() or nil,
     bank = sl_bank and sl_bank.summary and sl_bank.summary() or nil,
@@ -167,6 +168,8 @@ function M.borrow(amount) if career() and sl_bank then answer(sl_bank.borrow(ton
 function M.repay(amount) if career() and sl_bank then answer(sl_bank.repay(tonumber(amount))) end end
 function M.insure(on) if career() and sl_bank then answer(sl_bank.insure(on == true or on == 'true')) end end
 function M.takeJob(id) if career() and sl_jobs then answer(sl_jobs.take(tostring(id))) end end
+function M.marketOffer(id, amount) if career() and sl_classifieds then answer(sl_classifieds.offer(tostring(id), tonumber(amount))) end end
+function M.marketBuy(id, how) if career() and sl_classifieds then answer(sl_classifieds.buy(tostring(id), tostring(how))) end end
 function M.giveUpJob() if career() and sl_jobs then answer(sl_jobs.giveUp()) end end
 function M.jobWay() if career() and sl_jobs then sl_jobs.showWay() end end
 

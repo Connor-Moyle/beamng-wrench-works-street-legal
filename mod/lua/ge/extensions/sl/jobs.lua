@@ -78,6 +78,9 @@ local function kerbNear(ctx, rng, from, minD, maxD)
   end
 end
 
+-- a random city kerb (for other extensions: the used-parts market's sellers)
+function M.randomKerb(rng) local s = career() return s and kerbNear(context(s), rng, nil, 0, 0) or nil end
+
 -- the diners (the gas stations' food counters: the game's own facilities)
 local function diners()
   local out = {}

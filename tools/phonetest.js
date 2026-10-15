@@ -288,6 +288,18 @@ click('jobtake', '5d:1');
 assert.ok(calls.some(function (c) { return c.indexOf('takeJob("5d:1")') >= 0; }), 'Take it calls takeJob');
 phone.handle('slPhoneData', Object.assign({}, data, { jobs: { done: 2, earned: 640, offers: [], active: { title: 'Part run', item: 'turbocharger', next: 'Club Garage 1', to: 'Club Garage 1', pay: 380, timeLeft: 95 } } }));
 assert.ok(text().includes('Next stop: Club Garage 1') && text().includes('1:35 left') && !text().includes('Take it'), 'the job you are on, with its clock');
+// Revline: the used parts market
+phone.handle('slPhoneData', Object.assign({}, data, { market: { deliveries: 1, listings: [
+  { id: 'm1', name: 'Sport exhaust', model: 'covet', ask: 300, condition: 72, seller: 'Kenny', rating: 4, tells: [], delivery: 58, deposit: 30, hoursLeft: 40 },
+  { id: 'm2', name: 'Turbo', model: 'covet', ask: 120, condition: 90, seller: 'Lex', rating: 1, tells: ['new account', 'deposit by transfer only'], deposit: 10, hoursLeft: 5 } ] } }));
+phone.act('home');
+phone.act('open', 'market');
+assert.ok(text().includes('Sport exhaust') && text().includes('1 on the way') && text().includes('deposit by transfer only'), 'Revline lists the ads, the tells and deliveries');
+assert.ok(!phone.root.querySelector('[data-v="m2|delivery"]') && phone.root.querySelector('[data-v="m1|delivery"]'), 'no delivery offered on a scam-looking ad');
+calls.length = 0;
+click('mkoffer', 'm1|270');
+click('mkbuy', 'm1|pickup');
+assert.ok(calls.some(function (c) { return c.indexOf('marketOffer("m1",270)') >= 0; }) && calls.some(function (c) { return c.indexOf('marketBuy("m1","pickup")') >= 0; }), 'offer and pick up call the market');
 phone.handle('slStation', { open: true, name: 'Pump', money: 100, fuels: [], items: [] });
 assert.ok(phone.root.querySelector('.slp-lot') && !phone.root.querySelector('.slp-ico .slp-lot'), 'with SLRR icons the panels stay outside the phone (icon markup closed)');
 console.log('phone test passed');
