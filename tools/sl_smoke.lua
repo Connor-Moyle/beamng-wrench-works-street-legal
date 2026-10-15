@@ -261,6 +261,15 @@ for _, kind in ipairs({ 'junkyard', 'dealer', 'scrapyard' }) do
   end)
 end
 
+-- B4: the junkyard's lot today has a car a new player's money buys (the starter)
+check('junkyard: a starter at or under the starter price today (B4)', function()
+  local s = sl_career.getState()
+  local market = require('sl/core/market')
+  local offers = market.offers(require('sl/carBuilder').configs(), 'used', s.seed, s.day, 10)
+  local o = offers[1]
+  return o ~= nil and o.price <= market.STARTER_PRICE, o and string.format('%s $%d (%s)', o.name, o.price, o.title) or 'no offers'
+end)
+
 -- B19: the SLRR dashboard is off until the player turns it on
 check('dashboard: off unless chosen (B19)', function()
   local h = sl_hud.getSettings()
