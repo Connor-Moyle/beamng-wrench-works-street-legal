@@ -927,7 +927,7 @@
     }
     doc.addEventListener('focusin', function (ev) { if (layer.contains(ev.target)) focusKey = keyOf(ev.target); }, true);
     // B on the pad: back a page (and put the phone away from its home screen) instead of opening the game's menu
-    doc.addEventListener('ui_nav', function (ev) {
+    (doc.defaultView || doc).addEventListener('ui_nav', function (ev) {      // (window capture: before the game's document handler)
       var d = ev.detail || {};
       if (!st.open || d.name !== 'back' || d.value !== 1) return;
       back();
