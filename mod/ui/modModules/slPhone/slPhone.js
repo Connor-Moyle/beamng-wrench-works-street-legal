@@ -180,6 +180,23 @@
     '.slp-pink{color:#ff7eb6;font-weight:500}',
     '.slp-pinkbtn{background:#ff5fa2;color:#2b0016}',
     '.slp-menu .slp-go{background:#ff6a00;color:#1d0d00}',
+    /* the main menu's Career button asks which career */
+    '.slp-chooser{position:absolute;left:0;top:0;right:0;bottom:0;background:rgba(6,6,10,.62);display:flex;align-items:center;justify-content:center;pointer-events:auto;z-index:10000}',
+    '.slp-chbox{width:min(860px,92vw);font-family:"Overpass","Roboto",sans-serif}',
+    '.slp-chbox h1{margin:0 0 14px 4px;font-style:italic;font-weight:800;font-size:34px;letter-spacing:.5px;text-transform:uppercase;color:#fff}',
+    '.slp-chcards{display:flex;gap:16px}',
+    '.slp-chcard{flex:1;min-height:230px;padding:22px 22px 18px 22px;border-radius:6px;cursor:pointer;display:flex;flex-direction:column;',
+    '  background:linear-gradient(160deg,rgba(40,40,46,.96),rgba(18,18,22,.96));border-left:5px solid #ff6600;box-shadow:0 14px 40px rgba(0,0,0,.55);transition:transform .12s}',
+    '.slp-chcard:hover{transform:translateY(-3px);background:linear-gradient(160deg,rgba(58,52,48,.98),rgba(24,22,22,.98))}',
+    '.slp-chcard b{font-style:italic;font-weight:800;font-size:26px;text-transform:uppercase;color:#fff;line-height:1.05}',
+    '.slp-chcard span{margin-top:8px;font-size:14px;color:#c9c5c0;line-height:1.45;flex:1}',
+    '.slp-chcard.slp-chsl{border-left-color:#ff2a6d;background:linear-gradient(160deg,rgba(46,22,40,.96),rgba(14,10,20,.96))}',
+    '.slp-chcard.slp-chsl b{color:#ff8a2a}',
+    '.slp-chcard .slp-btn{margin-top:8px;border-radius:4px;font-family:"Overpass","Roboto",sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:.4px}',
+    '.slp-chcard .slp-go{background:#ff6600;color:#1d0d00}',
+    '.slp-chback .slp-btn{border-radius:4px;background:rgba(40,40,46,.92);color:#fff;padding:8px 22px}',
+    '.slp-chcard.slp-off{opacity:.55;cursor:default}',
+    '.slp-chback{margin-top:14px;text-align:right}',
     '.slp-hudtest{position:absolute;left:50%;top:2vh;transform:translateX(-50%);padding:10px 18px;border-radius:20px;background:rgba(20,18,24,.85);pointer-events:auto;display:flex;align-items:center;gap:14px;font-size:14px}',
     '.slp-fade.slp-in{opacity:1}',
   ].join('\n');
@@ -488,16 +505,45 @@
         (r.ahead != null ? '<i class="' + (r.ahead ? 'slp-ahead' : 'slp-behind') + '">' + (r.ahead ? 'Ahead' : 'Behind') + '</i>' : '') + '</div>';
     }
 
+    // the main menu's own Career button opens this: the game's career, or Street Legal Racing
     function menuView() {
       var m = st.menu;
-      if (!m || !m.show) return '';
-      if (!m.installed) {
-        return '<div class="slp-menu"><h2>Street Legal Racing</h2><p>Needs the Valo City map mod (slrr_valo_city). Switch it on under Mods.</p></div>';
-      }
-      return '<div class="slp-menu"><h2>Street Legal Racing</h2><p>' + (m.summary ? 'Your career: ' + esc(m.summary) : 'Valo City at night. No car, $3,500 and a name nobody knows.') + '</p>' +
-        (m.summary ? '<div class="slp-btn slp-go" data-a="menustart" data-v="continue">Continue</div>' : '') +
-        '<div class="slp-btn' + (m.summary ? ' slp-tonal' : ' slp-go') + '" data-a="menustart" data-v="new">' + (m.summary ? 'New career (replaces this one)' : 'New career') + '</div></div>';
+      if (!m || !m.show || !st.chooser) return '';
+      var sl = !m.installed
+        ? '<div class="slp-chcard slp-chsl slp-off"><b>Street Legal Racing</b><span>Needs the Valo City map mod (slrr_valo_city). Switch it on under Mods.</span></div>'
+        : '<div class="slp-chcard slp-chsl"><b>Street Legal Racing</b><span>' + (m.summary ? 'Your career: ' + esc(m.summary) : 'Valo City at night. No car, $3,500 and a name nobody knows. Junkyard wrecks, street racers, pink slips and the ROC.') + '</span>' +
+          (m.summary ? '<div class="slp-btn slp-go" data-a="menustart" data-v="continue">Continue</div>' : '') +
+          '<div class="slp-btn' + (m.summary ? ' slp-tonal' : ' slp-go') + '" data-a="menustart" data-v="new">' + (m.summary ? 'New career (replaces this one)' : 'New career') + '</div></div>';
+      return '<div class="slp-chooser"><div class="slp-chbox"><h1>Career</h1><div class="slp-chcards">' +
+        '<div class="slp-chcard" data-a="chooser" data-v="beamng"><b>BeamNG Career</b><span>The game\'s own career mode: jobs, missions, your garage and vehicles.</span></div>' +
+        sl + '</div><div class="slp-chback"><div class="slp-btn slp-text" data-a="chooser" data-v="close" style="display:inline-block">Back</div></div></div></div>';
     }
+
+    // catch the main menu's Career button before the game sees it (and let it through for its own career)
+    var careerButton = null, letThrough = false;
+    function careerButtonOf(el) {
+      for (var e = el; e && e.classList; e = e.parentElement) {
+        if (e.classList.contains('mainmenu-button')) {
+          var label = e.querySelector('.label-container .text') || e.querySelector('.text');
+          return label && label.textContent.trim() === 'Career' ? e : null;
+        }
+      }
+      return null;
+    }
+    doc.addEventListener('click', function (ev) {
+      if (letThrough || !st.menu || !st.menu.show) return;
+      var btn = careerButtonOf(ev.target);
+      if (!btn) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+      careerButton = btn;
+      st.chooser = true;
+      render();
+    }, true);
+    doc.addEventListener('keydown', function (ev) {
+      if (st.chooser && (ev.key === 'Escape' || ev.keyCode === 27)) { st.chooser = false; render(); ev.stopPropagation(); }
+    }, true);
 
     // ---------------------------------------------------------------- drawing
     function render() {
@@ -614,7 +660,11 @@
           if (v === 'new' && st.menu && st.menu.summary && !st.confirmNew) { st.confirmNew = true; toast('Click again to start over: the career you have is lost.'); break; }
           st.confirmNew = false;
           lua('@sl_menuTile.startFromMenu(' + (v === 'new' ? 'true' : 'false') + ')');
-          st.menu = null; render();
+          st.menu = null; st.chooser = false; render();
+          break;
+        case 'chooser':
+          st.chooser = false; render();
+          if (v === 'beamng' && careerButton) { letThrough = true; try { careerButton.click(); } finally { letThrough = false; } }
           break;
         case 'meetclose': lua('@sl_streets.closeMeet()'); st.meet = null; render(); break;
         case 'key': if (st.dial.length < 12) st.dial += v; render(); break;

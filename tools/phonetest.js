@@ -50,21 +50,39 @@ const data = {
   cars: 0, stats: { races: 3, wins: 2, pinksWon: 0, pinksLost: 0 },
 };
 
-// the main menu's button: continue or start over (starting over asks twice)
+// the main menu's own Career button asks which career: the game's, or Street Legal (continue or start over)
+const menuBtn = win.document.createElement('div');
+menuBtn.className = 'mainmenu-button';
+menuBtn.innerHTML = '<div class="label-container"><span class="text">Career</span></div>';
+let gameCareer = 0;
+menuBtn.addEventListener('click', () => { gameCareer++; });
+win.document.body.appendChild(menuBtn);
+const pressCareer = () => menuBtn.querySelector('.text').dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
 phone.handle('slMenu', { show: true, installed: true, summary: 'Day 4, $12300, Street kid' });
-assert.ok(text().includes('Street Legal Racing') && text().includes('Day 4'), 'menu button with the saved career');
+assert.ok(!text().includes('Street Legal Racing'), 'nothing over the main menu until Career is pressed');
+pressCareer();
+assert.ok(gameCareer === 0 && text().includes('BeamNG Career') && text().includes('Street Legal Racing') && text().includes('Day 4'), 'Career asks which one');
+click('chooser', 'beamng');
+assert.ok(gameCareer === 1 && !text().includes('BeamNG Career'), "the game's own career goes ahead");
+pressCareer();
 click('menustart', 'continue');
 assert.ok(calls.includes('@sl_menuTile.startFromMenu(false)') && !text().includes('Day 4'), 'continue');
 phone.handle('slMenu', { show: true, installed: true, summary: 'Day 4, $12300, Street kid' });
+pressCareer();
 calls.length = 0;
 click('menustart', 'new');
 assert.ok(!calls.length && text().includes('Click again'), 'starting over asks first');
 click('menustart', 'new');
 assert.ok(calls.includes('@sl_menuTile.startFromMenu(true)'), 'then starts over');
 phone.handle('slMenu', { show: true, installed: false });
+pressCareer();
 assert.ok(text().includes('Needs the Valo City map'), 'tells you when the map is missing');
+click('chooser', 'close');
+assert.ok(!text().includes('BeamNG Career'), 'back closes it');
 phone.handle('slMenu', { show: false });
-assert.ok(!text().includes('Street Legal Racing'), 'gone once a level loads');
+pressCareer();
+assert.ok(!text().includes('Street Legal Racing') && gameCareer === 2, 'in a level the button is left alone');
+menuBtn.remove();
 calls.length = 0;
 
 // nothing shows before a career runs
