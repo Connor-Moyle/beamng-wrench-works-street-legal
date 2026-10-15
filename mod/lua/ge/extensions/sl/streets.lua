@@ -14,6 +14,7 @@ local rngLib = require('sl/core/rng')
 local progression = require('sl/core/progression')
 local carsLib = require('sl/core/cars')
 local stateLib = require('sl/core/state')
+local showshine = require('sl/core/showshine')
 local builder = require('sl/carBuilder')
 local builds = require('sl/core/builds')
 
@@ -496,7 +497,7 @@ local function sendMeet(open)
     end
   end
   table.sort(list, function(a, b) return a.tier < b.tier end)
-  guihooks.trigger('slMeet', { open = true, name = meet.place.name, racers = list, money = s.money })
+  guihooks.trigger('slMeet', { open = true, name = meet.place.name, racers = list, money = s.money, canShow = not meet.judged and sl_fleet.currentCar() ~= nil, showFee = showshine.FEE })
 end
 
 local function updateMeet(s, dt)
@@ -550,6 +551,31 @@ function M.meetChallenge(racerId, kind)
 end
 
 function M.closeMeet() sendMeet(false) end
+
+-- show and shine: the judges walk round your car and the racers' cars here tonight (once a meet)
+function M.showAndShine()
+  local s = career()
+  if not s or not meet or meet.judged or race then return end
+  local car = sl_fleet.currentCar()
+  if not car then return guihooks.trigger('slPhoneToast', { text = 'Bring one of your cars.' }) end
+  if not sl_career.addMoney(-showshine.FEE, 'Show and shine entry') then return guihooks.trigger('slPhoneToast', { text = 'Not enough for the entry.' }) end
+  meet.judged = true
+  local rng = rngLib.new(rngLib.hash('shine:' .. s.day .. ':' .. meet.place.id))
+  local rivals = {}
+  for id in pairs(meet.cars) do
+    local r = stateLib.racer(s, id)
+    if r then rivals[#rivals + 1] = showshine.rival(r.tier, rng) end
+  end
+  local mine = showshine.score({ value = car.value, condition = car.condition, dents = car.damage and car.damage.beams and #car.damage.beams or 0 })
+  local place, prize, rep = showshine.result(mine, rivals)
+  if prize > 0 then sl_career.addMoney(prize, 'Show and shine: ' .. place .. (place == 1 and 'st' or place == 2 and 'nd' or 'rd')) end
+  if rep > 0 then stateLib.addRep(s, rep) end
+  local ord = ({ 'first', 'second', 'third' })[place] or (place .. 'th')
+  guihooks.trigger('slPhoneToast', { text = string.format('Show and shine: the %s comes %s of %d.%s', car.name, ord, #rivals + 1,
+    prize > 0 and string.format(' $%d, +%d reputation.', prize, rep) or ' Clean it up and try again.') })
+  sendMeet(true)
+  extensions.hook('onStreetLegalChanged')
+end
 
 ----------------------------------------------------------------------------------------------
 -- circuits: the ROC track's checkpoints (races.json, key "roc"), laps instead of a finish point

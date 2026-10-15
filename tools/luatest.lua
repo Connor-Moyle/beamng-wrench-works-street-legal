@@ -445,4 +445,21 @@ do
   check('nothing to offer, no crash', #jobs.offers({}, {}, nil, rngLib.new(1), 4) == 0)
 end
 
+-- show and shine
+do
+  local ss = require('sl/core/showshine')
+  check('clean beats dented', ss.score({ value = 20000, condition = 0.8, dents = 0 }) > ss.score({ value = 20000, condition = 0.8, dents = 200 }))
+  check('worth more scores more', ss.score({ value = 40000, condition = 0.5 }) > ss.score({ value = 10000, condition = 1 }))
+  check('a wreck still scores', ss.score({ value = 5000, condition = 0.2, dents = 5000 }) > 0)
+  local rng = rngLib.new(7)
+  local low, high = ss.rival(1, rng), ss.rival(5, rng)
+  check('better racers, better cars', high > low * 5)
+  local place, prize, rep = ss.result(1e9, { 1000, 2000, 3000 })
+  check('best car wins', place == 1 and prize > 0 and rep == ss.REP[1])
+  local p2, prize2 = ss.result(2500, { 1000, 2000, 3000 })
+  check('second pays less', p2 == 2 and prize2 < prize and prize2 > 0)
+  local p4, prize4, rep4 = ss.result(1, { 1000, 2000, 3000 })
+  check('last pays nothing', p4 == 4 and prize4 == 0 and rep4 == 0)
+end
+
 print(string.format('lua tests passed: %d checks', passed))

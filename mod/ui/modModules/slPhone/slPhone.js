@@ -589,6 +589,7 @@
       });
       return '<div class="slp-meet"><h3>Car meet &middot; ' + esc(m.name) + '</h3><div class="slp-card" style="margin:6px 0 4px 0"><p>Pick somebody. The race is to the other side of town; first one there wins.</p></div>' +
         (rows.join('') || '<div class="slp-empty">Everybody has gone home.</div>') +
+        (m.canShow ? '<div class="slp-lotbtns"><div class="slp-btn slp-tonal" data-a="meetshow" data-v="1">Show and shine (' + money(m.showFee || 50) + ')</div></div>' : '') +
         '<div class="slp-lotleave"><div class="slp-btn slp-text" data-a="meetclose">Just looking</div></div></div>';
     }
 
@@ -784,6 +785,7 @@
           break;
         case 'useitem': var ui = String(v).split('|'); lua('useItem(' + Number(ui[0]) + ',' + JSON.stringify(ui[1]) + ')'); break;
         case 'meetclose': lua('@sl_streets.closeMeet()'); st.meet = null; render(); break;
+        case 'meetshow': lua('@sl_streets.showAndShine()'); break;
         case 'key': if (st.dial.length < 12) st.dial += v; render(); break;
         case 'del': st.dial = st.dial.slice(0, -1); render(); break;
         case 'dial': var who = dialMatch(); if (who) startCall(who.id); else if (st.dial) toast('The number you have dialled is not available.'); break;
