@@ -32,7 +32,7 @@ function M.onWrenchWorksServices(list, vid)
     add({ id = 'oil', label = 'Oil change', price = rules.oilChangeCost(4), desc = string.format('fresh oil: it is %s km old, %d%% full', tostring(math.floor(c.oilKm or 0)), math.floor((c.oilLevel or 1) * 100)) })
     add({ id = 'coolant', label = 'Top up the coolant', price = PRICES.coolant, desc = string.format('%d%% full', math.floor((c.coolantLevel or 1) * 100)) })
     add({ id = 'battery', label = 'New battery', price = PRICES.battery, desc = string.format('this one is at %d%%', math.floor((c.battery or 1) * 100)) })
-    add({ id = 'n2o', label = 'Refill the nitrous', price = PRICES.n2o, desc = c.n2o and string.format('the bottle is at %d%%', math.floor(c.n2o * 100)) or 'no nitrous fitted', disabled = c.n2o == nil })
+    if c.n2o then add({ id = 'n2o', label = 'Refill the nitrous', price = PRICES.n2o, desc = string.format('the bottle is at %d%%', math.floor(c.n2o * 100)) }) end
     add({ id = 'engine', label = 'Rebuild the engine', price = engineRebuildCost(car), desc = string.format('only the engine, like new: %s km of wear and any internal damage gone', tostring(math.floor(c.engineKm or 0))) })
   end
   for _, other in ipairs(s.cars) do

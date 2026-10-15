@@ -101,9 +101,26 @@ function M.rebuildEngine()
       end
       pcall(partCondition.initConditions, conditions)
     end
-    if engine.reset and engine.jbeamData then pcall(engine.reset, engine, engine.jbeamData) end   -- the game's own engine reset: damage, thermals
-    engine.outputTorqueState = 1
-    engine.isBroken, engine.isDisabled = false, false
+    -- the game's own engine reset (damage, flooding, thermals) wants the engine's jbeam section
+    -- (built as powertrain.init builds it: its powertrain row merged with its own section)
+    local jb
+    for _, row in pairs(v and v.data and v.data.powertrain or {}) do
+      if type(row) == 'table' and row.name == engine.name then jb = tableMergeRecursive(deepcopy(row), v.data[engine.name] or {}) end
+    end
+    if engine.reset and jb and pcall(engine.reset, engine, jb) and engine.registerStorage then
+      -- the reset forgets its fuel tanks, nitrous and battery: hand them back as the game does at spawn
+      for name in pairs(energyStorage.getStorages() or {}) do pcall(engine.registerStorage, engine, name) end
+    end
+    -- what a seized engine keeps otherwise (combustionEngine lockUp/disable)
+    engine.outputTorqueState, engine.outputAVState = 1, 1
+    engine.isBroken, engine.isDisabled, engine.starterDisabled, engine.isStalled = false, false, false, false
+    engine.floodLevel = 0
+    if damageTracker then
+      for _, k in ipairs({ 'engineDisabled', 'engineLockedUp', 'engineReducedTorque', 'engineHydrolocked', 'catastrophicOverrevDamage', 'mildOverrevDamage', 'catastrophicOverTorqueDamage', 'impactDamage' }) do
+        damageTracker.setDamage('engine', k, false)
+      end
+      damageTracker.setDamage('powertrain', engine.name, false)
+    end
     findFluids()
     setLevel(oil, 1)
     setLevel(coolant, 1)
@@ -111,6 +128,11 @@ function M.rebuildEngine()
   state.engineKm, state.oilKm = 0, 0
   applyFactor()
   M.report()
+  -- the career keeps the fresh conditions now, or a later restore would bring the old engine back
+  local fresh = partCondition and partCondition.getConditions and partCondition.getConditions()
+  if type(fresh) == 'table' then
+    obj:queueGameEngineLua(string.format('if sl_carcare then sl_carcare.onConditions(%d,%s) end', obj:getId(), serialize(fresh)))
+  end
 end
 
 local function storageRatio(kind)

@@ -78,7 +78,13 @@ end
 
 -- the game's own pump: in the career it opens ours
 local function patch()
-  if patched or not freeroam_gasStations or not freeroam_gasStations.refuelCar then return end
+  if patched then return end
+  -- not every way into the level loads the game's pumps (the map's facilities file has them)
+  if not extensions.isExtensionLoaded('freeroam_gasStations') then
+    extensions.load('freeroam_facilities', 'freeroam_gasStations')
+    if gameplay_rawPois then gameplay_rawPois.clear() end
+  end
+  if not freeroam_gasStations or not freeroam_gasStations.refuelCar then return end
   original = freeroam_gasStations.refuelCar
   freeroam_gasStations.refuelCar = function(elem, fuelTypes, veh)
     if career() then

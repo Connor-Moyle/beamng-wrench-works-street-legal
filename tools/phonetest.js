@@ -275,6 +275,8 @@ click('home');
 assert.ok(!phone.root.querySelector('img.slp-slrr'), 'drawn icons without SLRR art');
 phone.handle('slArt');
 assert.ok(phone.root.querySelector('img.slp-slrr[src$="cup.png"]') && phone.root.querySelector('img.slp-slrr[src$="dollar.png"]'), "SLRR's cup and dollar icons");
+phone.handle('slStation', { open: true, name: 'Pump', money: 100, fuels: [], items: [] });
+assert.ok(phone.root.querySelector('.slp-lot') && !phone.root.querySelector('.slp-ico .slp-lot'), 'with SLRR icons the panels stay outside the phone (icon markup closed)');
 console.log('phone test passed');
 
 // a page to look at: the phone in several states side by side

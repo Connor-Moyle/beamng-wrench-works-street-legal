@@ -115,6 +115,12 @@ local function useLayout(dt)
   layoutTimer = 0
   local current = core_gamestate.state and core_gamestate.state.appLayout
   local career = sl_career and sl_career.isActive and sl_career.isActive()
+  -- a mission that ended before the career started can leave its layout behind (timeTrialMission...)
+  local mm = gameplay_missions_missionManager
+  if career and type(current) == 'string' and current:find('Mission$') and not (mm and mm.getForegroundMissionId and mm.getForegroundMissionId()) then
+    current = 'freeroam'
+    core_gamestate.setGameState('freeroam', 'freeroam')
+  end
   if career and M.getSettings().enabled then
     if current == 'freeroam' then core_gamestate.setGameState('freeroam', 'streetLegal') layoutSet = true end
   elseif layoutSet and current == 'streetLegal' then
