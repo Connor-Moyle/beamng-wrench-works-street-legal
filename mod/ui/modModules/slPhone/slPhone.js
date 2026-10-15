@@ -183,6 +183,11 @@
     '.slp-arrow .slp-slrr{width:30px;height:30px}',
     '.slp-chcard .slp-chimg{width:100%;max-height:96px;object-fit:contain;margin:6px 0 4px 0}',
     '.slp-hudrow{cursor:pointer}',
+    '.slp-carcare{margin-top:8px}',
+    '.slp-grades .slp-btn{font-size:12px;line-height:1.25;padding:8px 6px}',
+    '.slp-grades small{opacity:.75}',
+    '.slp-warn{color:#ffb4ab}',
+    '.slp-trunk{margin-top:8px;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#938f99}',
     '.slp-hudrow b.slp-on{color:#6dd58c}',
     '.slp-hudrow b.slp-offtxt{color:#938f99}',
     '.slp-pinkbtn{background:#ff5fa2;color:#2b0016}',
@@ -410,6 +415,30 @@
         (rows.join('') || '<div class="slp-empty">The cab company does not know any places on this map yet.</div>') + '</div>';
     }
 
+    // a car's health, its trunk (use what is in it) and its history
+    var ITEM_NAMES = { fuelCan: 'Fuel can', oil: 'Engine oil', coolant: 'Coolant', battery: '12 V battery' };
+    function careView(c) {
+      var k = c.care;
+      if (!k) return '';
+      var pct = function (v) { return v == null ? '-' : Math.round(v * 100) + '%'; };
+      var warn = function (v, low) { return v != null && v < low ? ' class="slp-warn"' : ''; };
+      var rows = '<div class="slp-kv"><span>Battery</span><b' + warn(k.battery, 0.3) + '>' + pct(k.battery) + '</b></div>' +
+        '<div class="slp-kv"><span>Oil</span><b' + warn(k.oilLevel, 0.5) + '>' + pct(k.oilLevel) + ' &middot; ' + (k.oilKm || 0).toLocaleString() + ' km old</b></div>' +
+        '<div class="slp-kv"><span>Coolant</span><b' + warn(k.coolantLevel, 0.5) + '>' + pct(k.coolantLevel) + '</b></div>' +
+        '<div class="slp-kv"><span>Fuel</span><b>' + pct(k.fuelLevel) + ' &middot; ' + esc(k.fuel) + '</b></div>' +
+        (k.n2o != null ? '<div class="slp-kv"><span>Nitrous</span><b>' + pct(k.n2o) + '</b></div>' : '') +
+        '<div class="slp-kv"><span>Engine</span><b>' + (k.engineKm || 0).toLocaleString() + ' km &middot; ' + Math.round((k.performance || 1) * 100) + '% power</b></div>';
+      var counts = {};
+      arr(k.trunk).forEach(function (i) { counts[i] = (counts[i] || 0) + 1; });
+      var trunk = Object.keys(counts).map(function (i) {
+        return '<div class="slp-kv slp-hudrow" data-a="useitem" data-v="' + c.id + '|' + i + '"><span>' + esc(ITEM_NAMES[i] || i) + ' &times;' + counts[i] + '</span><b class="slp-on">Use</b></div>';
+      }).join('');
+      var h = k.history || {};
+      var hist = '<div class="slp-kv" style="border:none"><span>History</span><b>' + (h.owners || 0) + ' owners before you &middot; ' + (h.wins || 0) + '/' + (h.races || 0) + ' races won' +
+        (h.wrecks ? ' &middot; wrecked ' + h.wrecks + '&times;' : '') + '</b></div>';
+      return '<div class="slp-carcare">' + rows + (trunk ? '<div class="slp-trunk">Trunk</div>' + trunk : '') + hist + '</div>';
+    }
+
     function garagePage() {
       var cars = arr(st.data.fleet);
       var cards = cars.map(function (c) {
@@ -418,7 +447,7 @@
         if (!c.active) acts.push('<div class="slp-btn" data-a="usecar" data-v="' + c.id + '">Drive this one</div>');
         if (c.out && c.towFee && c.where === 'Out on the street') acts.push('<div class="slp-btn slp-tonal" data-a="tow" data-v="' + c.id + '">Tow it home &middot; ' + money(c.towFee) + '</div>');
         return '<div class="slp-card"><h4>' + esc(c.name) + (c.active ? ' &#9733;' : '') + '</h4><p>' + esc(c.where) + ' &middot; condition ' + Math.round((c.condition || 0) * 100) + '%' +
-          (faults.length ? '<br>Needs: ' + esc(faults.join(', ')) : '') + '</p>' + (acts.length ? '<div class="slp-acts">' + acts.join('') + '</div>' : '') + '</div>';
+          (faults.length ? '<br>Needs: ' + esc(faults.join(', ')) : '') + '</p>' + careView(c) + (acts.length ? '<div class="slp-acts">' + acts.join('') + '</div>' : '') + '</div>';
       });
       return bar('My cars') + '<div class="slp-body">' + (cards.join('') ||
         '<div class="slp-empty">You have no car. The junkyard sells cheap ones that need work, the dealership new ones. The Cab app gets you there.</div>') + '</div>';
@@ -504,6 +533,27 @@
         '<div class="slp-btn' + (l.building || (o.price > l.money) ? ' slp-off' : '') + '" data-a="lot" data-v="buy()">Buy &middot; ' + money(o.price) + '</div>' +
         '<div class="slp-arrow" data-a="lot" data-v="next()">' + (st.slrrArt ? slrrIcon('right.png') : '&#9654;') + '</div></div>' +
         '<div class="slp-lotleave"><div class="slp-btn slp-text" data-a="lot" data-v="close()">Leave</div></div></div>';
+    }
+
+    // the gas station: a grade, fill the tank or a can, and the shop
+    function stationView() {
+      var g = st.station;
+      if (!g || !g.open) return '';
+      var pick = st.fuelPick || 'premium';
+      var grades = arr(g.fuels).map(function (f) {
+        return '<div class="slp-btn' + (f.id === pick ? '' : ' slp-tonal') + '" data-a="fuelpick" data-v="' + esc(f.id) + '">' + esc(f.name) + '<br><small>$' + Number(f.price).toFixed(2) + '/L</small></div>';
+      }).join('');
+      var tank = g.car ? 'Your ' + esc(g.car) + ': ' + (g.tank != null ? Math.round(g.tank * 100) + '% full' : '') + (g.inTank ? ' &middot; ' + esc(g.inTank) : '') +
+        (g.litresToFull != null ? ' &middot; ' + Math.round(g.litresToFull) + ' L to fill' : '') : 'Come in your car to fill it up.';
+      var shop = arr(g.items).map(function (it) {
+        return '<div class="slp-kv slp-hudrow" data-a="station" data-v="buy|' + esc(it.id) + '"><span>' + esc(it.name) + '</span><b class="slp-on">' + money(it.price) + '</b></div>';
+      }).join('');
+      return '<div class="slp-lot"><div class="slp-lothead"><span>Gas station &middot; ' + esc(g.name) + '</span><span>' + money(g.money) + '</span></div>' +
+        '<div class="slp-lotname">' + tank + '</div>' +
+        '<div class="slp-lotbtns slp-grades">' + grades + '</div>' +
+        '<div class="slp-lotbtns"><div class="slp-btn slp-go" data-a="station" data-v="fill|' + esc(pick) + '">Fill the tank</div></div>' +
+        '<div class="slp-trunk">Shop &middot; into the trunk (' + (g.trunk || 0) + '/' + (g.trunkSlots || 6) + ')' + ' &middot; a fuel can takes the grade above</div>' + shop +
+        '<div class="slp-lotleave"><div class="slp-btn slp-text" data-a="station" data-v="close">Drive on</div></div></div>';
     }
 
     function meetView() {
@@ -613,7 +663,7 @@
       layer.innerHTML =
         '<div class="slp-pill"' + (st.open ? ' style="display:none"' : '') + '><b>' + money(d.money) + '</b><span>' + esc(d.title) + '</span><span>' + two(d.hour || 0) + ':' + two(d.minute || 0) + '</span></div>' +
         '<div class="slp-device' + (st.open ? '' : ' slp-away') + '" style="transform:' + (st.open ? '' : 'translateY(70%) ') + 'scale(' + scale() + ')">' + screen + '</div>' +
-        lotView() + meetView() + raceView() +
+        lotView() + stationView() + meetView() + raceView() +
         huHtml +
         '<div class="slp-toast' + (st.toast ? '' : ' slp-gone') + '">' + esc(st.toast || '') + '</div>' +
         fadeView();
@@ -699,6 +749,14 @@
           if (v === 'beamng' && careerButton) { letThrough = true; try { careerButton.click(); } finally { letThrough = false; } }
           break;
         case 'hud': lua('@sl_hud.toggle(' + JSON.stringify(v) + ')'); break;
+        case 'fuelpick': st.fuelPick = v; render(); break;
+        case 'station':
+          var sv = String(v).split('|');
+          if (sv[0] === 'close') { lua('@sl_station.close()'); st.station = null; render(); }
+          else if (sv[0] === 'fill') lua('@sl_station.fill(' + JSON.stringify(sv[1]) + ')');
+          else if (sv[0] === 'buy') lua('@sl_station.buy(' + JSON.stringify(sv[1]) + ',' + JSON.stringify(st.fuelPick || 'premium') + ')');
+          break;
+        case 'useitem': var ui = String(v).split('|'); lua('useItem(' + Number(ui[0]) + ',' + JSON.stringify(ui[1]) + ')'); break;
         case 'meetclose': lua('@sl_streets.closeMeet()'); st.meet = null; render(); break;
         case 'key': if (st.dial.length < 12) st.dial += v; render(); break;
         case 'del': st.dial = st.dial.slice(0, -1); render(); break;
@@ -771,6 +829,7 @@
         case 'slFade': st.fade = !!data.on; if (data.on) st.fadePic = data.pic || null; render(); break;
         case 'slLotData': st.lot = data.open ? data : null; render(); break;
         case 'slMeet': st.meet = data.open ? data : null; render(); break;
+        case 'slStation': st.station = data.open ? data : null; render(); break;
         case 'slRace': st.race = data.on ? data : null; render(); break;
         case 'slMenu': st.menu = data.show ? data : null; render(); break;
         case 'slArt': st.slrrArt = true; render(); break;
@@ -802,7 +861,7 @@
       var probe = new Image();
       probe.onload = function () { phone.handle('slArt'); };
       probe.src = '/ui/modModules/slHud/slrr/icons/cup.png';
-      ['slPhoneData', 'slPhoneToggle', 'slPhoneCall', 'slPhoneCallReply', 'slPhoneNotify', 'slPhoneToast', 'slFade', 'slLotData', 'slMeet', 'slRace', 'slMenu'].forEach(function (name) {
+      ['slPhoneData', 'slPhoneToggle', 'slPhoneCall', 'slPhoneCallReply', 'slPhoneNotify', 'slPhoneToast', 'slFade', 'slLotData', 'slMeet', 'slRace', 'slMenu', 'slStation'].forEach(function (name) {
         $rootScope.$on(name, function (ev, data) { phone.handle(name, data); });
       });
       if (window.bngApi) window.bngApi.engineLua('if sl_phone then sl_phone.request() end if sl_menuTile then sl_menuTile.request() end');

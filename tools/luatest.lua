@@ -390,4 +390,35 @@ do
 
 end
 
+-- car care: fuel grades, wear, old oil, leaks, the 12 V battery, the trunk
+do
+  local cc = require('sl_carcare')
+  local near = function(a, b) return math.abs(a - b) < 1e-6 end
+  check('four fuel grades, premium the reference', #cc.FUELS == 4 and cc.fuel('premium').torque == 1 and cc.fuel('nope').id == 'premium' and cc.fuel(nil).id == 'premium')
+  check('better fuel, a little more power', cc.fuel('regular').torque < 1 and cc.fuel('race').torque > cc.fuel('super').torque)
+  check('a fresh engine is not worn', cc.wearFactor(0) == 1 and cc.wearFactor(50000) == 1 and cc.wearFactor(nil) == 1)
+  check('wear takes some power', cc.wearFactor(200000) < 1 and cc.wearFactor(200000) > 0.88 and near(cc.wearFactor(350000), 0.88) and near(cc.wearFactor(900000), 0.88))
+  check('old oil takes a little', cc.oilAgeFactor(5000) == 1 and cc.oilAgeFactor(20000) < 1 and near(cc.oilAgeFactor(60000), 0.95))
+  check('low oil takes a little more', cc.oilLevelFactor(1) == 1 and cc.oilLevelFactor(0.6) == 1 and near(cc.oilLevelFactor(0), 0.9) and cc.oilLevelFactor(nil) == 1)
+  local p = cc.performance({ engineKm = 0, oilKm = 0, oilLevel = 1, fuel = 'premium' })
+  check('a fresh car on premium: full power', p == 1, p)
+  local worn = cc.performance({ engineKm = 300000, oilKm = 30000, oilLevel = 0.3, fuel = 'regular' })
+  check('a tired car: noticeably less, not crippled', worn < 0.9 and worn > 0.7, worn)
+  check('only worn engines leak', cc.leakLitresPerKm(100000) == 0 and cc.leakLitresPerKm(200000) > 0 and cc.leakLitresPerKm(2e6) <= 0.004 + 1e-9)
+  local b = cc.battery(1, 600, true, false, false)
+  check('ignition on, engine off: the battery runs down', b < 1 and b > 0.5, b)
+  check('lights make it worse', cc.battery(1, 600, true, false, true) < b)
+  check('the engine charges it', cc.battery(0.5, 60, true, true, false) > 0.5 and cc.battery(0.99, 600, true, true, false) == 1)
+  check('switched off, nothing drains', cc.battery(0.8, 600, false, false, false) == 0.8)
+  check('flat batteries do not start', not cc.canStart(0.1) and cc.canStart(0.5) and cc.canStart(nil))
+  check('a flat battery stays at nothing', cc.battery(0.01, 3600, true, false, true) == 0)
+  local trunk = {}
+  for i = 1, cc.TRUNK_SLOTS do check('room in the trunk ' .. i, cc.trunkAdd(trunk, 'oil')) end
+  local ok, why = cc.trunkAdd(trunk, 'coolant')
+  check('a full trunk says so', not ok and why:find('full'))
+  check('counting and taking', cc.trunkCount(trunk, 'oil') == cc.TRUNK_SLOTS and cc.trunkTake(trunk, 'oil') and cc.trunkCount(trunk, 'oil') == cc.TRUNK_SLOTS - 1 and not cc.trunkTake(trunk, 'battery'))
+  check('unknown things stay out', not cc.trunkAdd({}, 'piano'))
+  check('prices', cc.fillCost('race', 10) == 32 and cc.oilChangeCost(4) == 73)
+end
+
 print(string.format('lua tests passed: %d checks', passed))

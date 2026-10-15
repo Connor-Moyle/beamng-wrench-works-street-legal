@@ -253,6 +253,20 @@ assert.ok(!$('.slp-race'), 'race over');
 phone.handle('slPhoneData', { active: false });
 assert.ok(!$('.slp-device'), 'gone when the career stops');
 
+// the gas station: pick a grade, fill up, buy into the trunk
+calls.length = 0;
+phone.handle('slStation', { open: true, name: 'South Gas', money: 900, car: 'Covet', tank: 0.25, inTank: 'Regular 91', litresToFull: 33,
+  fuels: [{ id: 'regular', name: 'Regular 91', price: 1.45 }, { id: 'race', name: 'Race 102', price: 3.2 }],
+  items: [{ id: 'oil', name: 'Engine oil (4 L)', price: 45 }], trunk: 1, trunkSlots: 6 });
+assert.ok(text().includes('South Gas') && text().includes('33 L to fill') && text().includes('Race 102'), 'the pump');
+click('fuelpick', 'race');
+click('station', 'fill|race');
+assert.ok(calls.includes('@sl_station.fill("race")'), 'filling with race fuel');
+click('station', 'buy|oil');
+assert.ok(calls.includes('@sl_station.buy("oil","race")'), 'oil into the trunk');
+click('station', 'close');
+assert.ok(!text().includes('South Gas'), 'driving on');
+
 // with SLRR's art copied in, its icons replace the drawn ones where SLRR has one
 phone.handle('slPhoneData', data);
 phone.handle('slPhoneToggle');

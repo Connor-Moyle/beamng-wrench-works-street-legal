@@ -8,7 +8,8 @@ const { lua, lauxlib, lualib, to_luastring, to_jsstring } = require('fengari');
 const root = path.join(__dirname, '..');
 const L = lauxlib.luaL_newstate();
 lualib.luaL_openlibs(L);
-const setup = `package.path = ${JSON.stringify(path.join(root, 'mod/lua/ge/extensions/?.lua').replace(/\\/g, '/'))} .. ';' .. package.path`;
+const lp = (p) => JSON.stringify(path.join(root, p).replace(/\\/g, '/'));
+const setup = `package.path = ${lp('mod/lua/ge/extensions/?.lua')} .. ';' .. ${lp('mod/lua/common/?.lua')} .. ';' .. package.path`;
 if (lauxlib.luaL_dostring(L, to_luastring(setup)) !== lua.LUA_OK) throw new Error('setup failed');
 const status = lauxlib.luaL_dofile(L, to_luastring(path.join(__dirname, 'luatest.lua')));
 if (status !== lua.LUA_OK) {

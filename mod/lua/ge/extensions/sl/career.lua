@@ -560,6 +560,7 @@ function M.onSlrrRaceFinished(r)
     local x = stateLib.racer(s, racer)
     if r.won then x.losses = x.losses + 1 else x.wins = x.wins + 1 end
     if r.won and r.stake ~= 'pink' then M.rematchMaybe(racer) end
+    extensions.hook('onStreetLegalRaceResult', r.won, r.opponent)
   end
   if r.stake == 'pink' and sl_fleet then
     local v = getPlayerVehicle(0)

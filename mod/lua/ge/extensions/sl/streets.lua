@@ -196,6 +196,7 @@ local function finish(playerWon)
   local racer = stateLib.racer(s, r.racer)
   local repDelta = stateLib.recordRace(s, { racer = r.racer, won = playerWon, stake = r.stake, bet = r.bet, night = night(), at = os.time() })
   if playerWon and r.stake ~= 'pink' and not r.roc and sl_career.rematchMaybe then sl_career.rematchMaybe(r.racer) end
+  extensions.hook('onStreetLegalRaceResult', playerWon, r.name)
   local opp = getObjectByID(r.vid)
   if r.stake == 'pink' then
     if playerWon and opp then

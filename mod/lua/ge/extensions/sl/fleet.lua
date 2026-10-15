@@ -256,6 +256,7 @@ function M.list()
       id = c.id, name = c.name, brand = c.brand, active = s.activeCar == c.id, where = where, out = veh ~= nil,
       condition = c.condition, faults = c.faults, value = c.value,
       scrap = market.scrapValue(c), resale = market.resaleValue(c), towFee = veh and progression.towFee((veh:getPosition() - (M.forecourt(s, 0) or veh:getPosition())):length()) or nil,
+      care = sl_carcare and sl_carcare.summary and sl_carcare.summary(c) or nil,
     }
   end
   return out

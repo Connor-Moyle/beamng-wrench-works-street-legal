@@ -1,0 +1,161 @@
+-- Street Legal Racing: what the career adds to a car, in the car's own Lua (vehicle extension slCar)
+-- A 12 V battery that the ignition drains and the engine charges (flat: it will not crank); the
+-- engine's oil and coolant, read from and topped up in the game's own engine model; a worn engine,
+-- old oil and the fuel grade taking a little of the power; worn engines (high mileage) losing oil
+-- on the road, leaving drops behind (with the Enhanced Skidmarks mod). The rules are in
+-- lua/common/sl_carcare.lua; the career (lua/ge/extensions/sl/carcare.lua) keeps the numbers.
+
+local M = {}
+
+local rules = require('sl_carcare')
+
+local state = { battery = 1, engineKm = 0, oilKm = 0, fuel = 'premium' }
+local engine, oil, coolant
+local factor = 1
+local lastPos
+local reportTimer, capTimer, dripTimer = 0, 0, 0
+local leakCarry = 0
+local flatWarned = false
+
+-- the engine model keeps its oil and coolant in a table of its own: found through one of its functions
+local function findFluids()
+  engine = powertrain and powertrain.getDevice and powertrain.getDevice('mainEngine')
+  oil, coolant = nil, nil
+  local f = engine and engine.thermals and engine.thermals.getPartConditionRadiator
+  if not f or not debug or not debug.getupvalue then return end
+  for i = 1, 40 do
+    local name, value = debug.getupvalue(f, i)
+    if not name then break end
+    if name == 'fluidReservoirs' and type(value) == 'table' then oil, coolant = value.oil, value.coolant end
+  end
+end
+
+local function level(res) return res and res.initialMass and res.initialMass > 0 and res.currentMass / res.initialMass or nil end
+local function setLevel(res, v)
+  if res and res.initialMass and res.initialMass > 0 then res.currentMass = math.max(0, math.min(1, v)) * res.initialMass end
+end
+
+local function applyFactor()
+  factor = rules.performance({ engineKm = state.engineKm, oilKm = state.oilKm, oilLevel = level(oil) or 1, fuel = state.fuel })
+  if engine and engine.outputTorqueState and engine.outputTorqueState > factor then engine.outputTorqueState = factor end
+end
+
+-- from the career: { battery, engineKm, oilKm, fuel, oilLevel, coolantLevel }
+function M.setState(s)
+  if type(s) ~= 'table' then return end
+  for k, v in pairs(s) do state[k] = v end
+  findFluids()
+  if s.oilLevel then setLevel(oil, s.oilLevel) end
+  if s.coolantLevel then setLevel(coolant, s.coolantLevel) end
+  applyFactor()
+end
+
+-- topping up: kind 'oil' | 'coolant' (litres), 'battery' (a new one), 'fuel' (litres of fuel id)
+function M.refill(kind, amount, fuelId)
+  if kind == 'battery' then
+    state.battery = 1
+  elseif kind == 'oil' and oil then
+    local capacity = math.max(1, (oil.initialMass or 4) / 0.88)          -- litres, from kg
+    setLevel(oil, (level(oil) or 1) + (amount or 0) / capacity)
+  elseif kind == 'coolant' and coolant then
+    local capacity = math.max(1, coolant.initialMass or 6)
+    setLevel(coolant, (level(coolant) or 1) + (amount or 0) / capacity)
+  elseif kind == 'fuel' then
+    local tank = M.fuelTank()
+    if tank then
+      local cap = M.litres(tank)
+      tank:setRemainingVolume(math.min(cap, (tank.remainingVolume or 0) + (amount or 0)))
+    end
+    if fuelId then state.fuel = fuelId end
+  elseif kind == 'n2o' then
+    for _, tank in pairs(energyStorage.getStorages() or {}) do
+      if tank.type == 'n2oTank' and tank.setRemainingRatio then tank:setRemainingRatio(1) end
+    end
+  end
+  applyFactor()
+  M.report()
+end
+
+-- the (first) fuel tank, and how many litres it holds
+function M.fuelTank()
+  for _, tank in pairs(energyStorage and energyStorage.getStorages and energyStorage.getStorages() or {}) do
+    if tank.type == 'fuelTank' and tank.setRemainingVolume and (tank.energyCapacity or 0) > 0 then return tank end
+  end
+end
+function M.litres(tank)
+  local per = (tank.fuelLiquidDensity or 0.75) * (tank.energyDensity or 41.5e6)
+  return per > 0 and tank.energyCapacity / per or 0
+end
+
+local function storageRatio(kind)
+  for _, tank in pairs(energyStorage and energyStorage.getStorages and energyStorage.getStorages() or {}) do
+    if tank.type == kind then return tank.remainingRatio end
+  end
+end
+
+function M.report()
+  local t = {
+    battery = state.battery, oilLevel = level(oil), coolantLevel = level(coolant), fuelLevel = storageRatio('fuelTank'),
+    n2o = storageRatio('n2oTank'), engineKm = state.engineKm, oilKm = state.oilKm, fuel = state.fuel, factor = factor,
+    coolantTemp = engine and engine.thermals and engine.thermals.coolantTemperature or nil,
+  }
+  local tank = M.fuelTank()
+  if tank then t.fuelLitres, t.fuelCapacity = tank.remainingVolume, M.litres(tank) end
+  obj:queueGameEngineLua(string.format('if sl_carcare then sl_carcare.onReport(%d,%s) end', obj:getId(), serialize(t)))
+end
+
+local function drip(kind)
+  local p = obj:getPosition()
+  obj:queueGameEngineLua(string.format('if dirtSkidManager and dirtSkidManager.addDrip then dirtSkidManager.addDrip(%.3f,%.3f,%.3f,%q) end',
+    p.x, p.y, p.z - 0.2, kind))
+end
+
+function M.updateGFX(dt)
+  -- the 12 V system
+  local ign = electrics.values.ignitionLevel or 0
+  local running = (electrics.values.engineRunning or 0) > 0.5
+  local lights = (electrics.values.lights_state or 0) > 0
+  state.battery = rules.battery(state.battery, dt, ign >= 1, running, lights)
+  if not running and ign >= 3 and not rules.canStart(state.battery) then
+    electrics.setIgnitionLevel(2)                                             -- the starter just clicks
+    if not flatWarned then
+      flatWarned = true
+      guihooks.message('The battery is flat. Jump it, or put a new one in (trunk, or the garage).', 6, 'slBattery')
+    end
+  elseif running then
+    flatWarned = false
+  end
+
+  -- distance: wear and oil age, and the oil a worn engine loses
+  local pos = obj:getPosition()
+  if lastPos then
+    local km = (pos - lastPos):length() / 1000
+    if km < 0.2 then                                                          -- not a teleport
+      state.engineKm = (state.engineKm or 0) + km
+      state.oilKm = (state.oilKm or 0) + km
+      local leak = rules.leakLitresPerKm(state.engineKm) * km
+      if leak > 0 and oil then
+        local capacity = math.max(1, (oil.initialMass or 4) / 0.88)
+        setLevel(oil, (level(oil) or 1) - leak / capacity)
+        leakCarry = leakCarry + leak
+        if leakCarry > 0.02 then leakCarry = 0 drip('oil') end
+      end
+    end
+  end
+  lastPos = pos
+
+  capTimer = capTimer + dt
+  if capTimer > 1 then capTimer = 0 applyFactor() end
+  reportTimer = reportTimer + dt
+  if reportTimer > 2 then reportTimer = 0 M.report() end
+end
+
+function M.onReset()
+  findFluids()
+  lastPos = nil
+  applyFactor()
+end
+
+M.onExtensionLoaded = function() findFluids() end
+
+return M
