@@ -471,6 +471,7 @@ end
 do
   local dir = debug.getinfo(1, 'S').source:match('^@(.*[/\\])') or ''
   assert(loadfile(dir .. 'wwjobs_test.lua'))()(check, rngLib)
+  assert(loadfile(dir .. 'listings_test.lua'))()(check, rngLib)      -- the used parts and cars market
 end
 
 -- achievements and personal bests
