@@ -312,6 +312,13 @@ function M.onStreetLegalNewDay(day)
   end
 end
 
+-- a shop in one of your districts: 10 % off (Wrench Works asks when you walk in)
+function M.onWrenchWorksShopOpened(shop, more)
+  local c = career() and M.ensure()
+  local d = c and shop and shop.pos and crews.districtOf(c.districts or {}, shop.pos.x, shop.pos.y)
+  if d and type(more) == 'table' then more.extra = math.max(more.extra or 0, 1 - crews.perks(c.territory, d.id).shop) end
+end
+
 -- a racer's crew, for the contacts list
 function M.crewOf(racerId)
   local c = M.ensure()
