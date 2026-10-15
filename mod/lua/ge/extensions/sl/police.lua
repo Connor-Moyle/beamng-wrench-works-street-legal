@@ -100,7 +100,7 @@ end
 function M.onRaceStart()
   local s = career()
   if not s or not policeOn() then return end
-  addHeat(0.12)
+  addHeat(0.12 * (sl_crews and sl_crews.perksHere().heat or 1))       -- (half in your own districts: people look away)
   local chance = math.min(0.95, (0.15 + 0.55 * (s.heat or 0)) * level())
   if math.random() > chance or not gameplay_police then return end
   local v = getPlayerVehicle(0)

@@ -343,6 +343,24 @@ check('death, Hardcore: the career ends, with what it came to', function()
   return ended and marked and data.day and data.achievementsTotal, 'day ' .. tostring(data.day)
 end)
 
+check('crews: a crew that lost a district calls you out to a race there', function()
+  local s = sl_career.getState()
+  local c = sl_crews.ensure(s)
+  local target, crewId
+  for _, r in ipairs(sl_career.racesList()) do
+    local d = r.start and not r.drag and sl_crews.districtAt(r.start)
+    if d and not target then target, crewId = d.id, c.territory[d.id].owner end
+  end
+  if not target then return false, 'no race starts in any district' end
+  if crewId == 'player' then crewId = 'southside' end
+  c.callouts = { { crew = crewId, district = target, day = s.day } }
+  sl_crews.onUpdate(6)
+  local found
+  for i = #s.challenges, 1, -1 do if s.challenges[i].callout == target then found = s.challenges[i] table.remove(s.challenges, i) end end
+  c.callouts = {}
+  return found ~= nil, found and (found.raceName .. ', ' .. found.stake) or 'no challenge'
+end)
+
 -- vehicle budget: nothing of ours left standing about (cabs, tow trucks, lot rows, patrols)
 check('budget: no stray spawned vehicles', function()
   local keep = {}

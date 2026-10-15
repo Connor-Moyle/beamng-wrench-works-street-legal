@@ -69,12 +69,15 @@ function M.districtAt(pos)
   return c and pos and crews.districtOf(c.districts or {}, pos.x, pos.y) or nil
 end
 
--- where the race starts decides whose turf it is
-local raceDistrict
+-- where the race starts decides whose turf it is (and the rep before it, for a home crowd's share)
+local raceDistrict, repAtStart, homeCrowd
 local function noteStart()
   local v = getPlayerVehicle(0)
   local d = v and M.districtAt(v:getPosition())
+  local c = d and M.ensure()
   raceDistrict = d and d.id or nil
+  repAtStart = (career() or {}).rep
+  homeCrowd = c and c.territory[d.id] and c.territory[d.id].owner == 'player'
 end
 M.onStreetLegalRaceStarted = noteStart
 M.onSlrrRaceStarted = noteStart
@@ -86,12 +89,19 @@ function M.onStreetLegalRaceResult(won, opponent, racerId, stake)
   local crewId = c.member[racerId]
   local dist
   for _, d in ipairs(c.districts or {}) do if d.id == raceDistrict then dist = d end end
+  -- a home crowd: a race won in one of your districts is worth a fifth more rep
+  if won and homeCrowd and repAtStart and s.rep > repAtStart then
+    stateLib.addRep(s, math.floor((s.rep - repAtStart) * (crews.PERKS.rep - 1) + 0.5))
+  end
+  for i = #(c.callouts or {}), 1, -1 do if c.callouts[i].racer == racerId then table.remove(c.callouts, i) end end    -- (answered)
   local entry, event = crews.raceResult(c.territory, raceDistrict, crewId, c.leader[crewId] == racerId, won, stake == 'pink', c.friendly)
-  raceDistrict = nil
+  raceDistrict, repAtStart, homeCrowd = nil, nil, nil
   local crew = crews.crew(crewId)
   if not entry or not dist or not crew then return end
   if event == 'taken' then
     sl_career.sendText('benny', string.format('Word is %s is yours now. %s won\'t take that lying down.', dist.name, crew.name:gsub('^%l', string.upper)), 3)
+    c.callouts = c.callouts or {}
+    c.callouts[#c.callouts + 1] = { crew = crewId, district = dist.id, day = s.day }
     extensions.hook('onStreetLegalDistrictTaken', dist.id, crewId)
   elseif event == 'lost' then
     sl_career.sendText('benny', string.format('%s took %s back off you.', crew.name:gsub('^%l', string.upper), dist.name), 3)
@@ -101,11 +111,77 @@ function M.onStreetLegalRaceResult(won, opponent, racerId, stake)
   extensions.hook('onStreetLegalChanged')
 end
 
--- the crews trade a district between them now and then, overnight
+----------------------------------------------------------------------------------------------
+-- call-outs: a crew that lost a district to you wants it back: a race there tonight, on its terms (through the
+-- career's arranged races, so the map's own race runs it). Ignored, they take some of it back at midnight.
+
+local CALLOUT_IGNORED = 10
+
+local function raceIn(c, districtId)
+  for _, r in ipairs(sl_career.racesList and sl_career.racesList() or {}) do
+    local d = r.start and not r.drag and crews.districtOf(c.districts or {}, r.start.x, r.start.y)
+    if d and d.id == districtId then return r end
+  end
+end
+
+local function sendCallouts(s, c)
+  for _, co in ipairs(c.callouts or {}) do
+    if not co.racer then
+      local t = c.territory[co.district] or {}
+      local home = t.home == co.crew
+      -- the leader for a home, else the crew's best racer after the leader
+      local pick, best = c.leader[co.crew], -1
+      if not home then
+        for _, r in ipairs(s.racers) do
+          if c.member[r.id] == co.crew and r.id ~= c.leader[co.crew] and (r.skill or 0) > best then pick, best = r.id, r.skill or 0 end
+        end
+      end
+      local racer = pick and stateLib.racer(s, pick)
+      local race = raceIn(c, co.district)
+      co.racer = pick or false
+      if racer and race then
+        s.known[racer.id] = true
+        for i = #s.challenges, 1, -1 do if s.challenges[i].racer == racer.id then table.remove(s.challenges, i) end end
+        local pink = home and s.activeCar ~= nil
+        local bet = math.floor(((racer.betMin or 100) + (racer.betMax or 300)) * 0.75 / 50) * 50     -- (1.5 x their usual)
+        s.challenges[#s.challenges + 1] = { id = racer.id .. ':callout:' .. s.day, racer = racer.id, stake = pink and 'pink' or 'money', bet = pink and 0 or bet,
+          race = race.id, raceName = race.name, missionId = race.missionId, nightOnly = true, at = os.time(), callout = co.district }
+        local dname = co.district
+        for _, d in ipairs(c.districts or {}) do if d.id == co.district then dname = d.name end end
+        sl_career.sendText(racer.id, string.format('You think %s is yours? Tonight, %s. %s. Don\'t make us come looking.', dname, race.name,
+          pink and 'Pink slips' or ('$' .. bet)), 4)
+        extensions.hook('onStreetLegalChanged')
+      end
+    end
+  end
+end
+
+local timer = 0
+function M.onUpdate(dtReal)
+  timer = timer + (dtReal or 0)
+  if timer < 5 then return end
+  timer = 0
+  local s = career()
+  local c = s and s.crews
+  if c and c.callouts and #c.callouts > 0 then sendCallouts(s, c) end
+end
+
+-- the crews trade a district between them now and then, overnight; call-outs not answered cost you
 function M.onStreetLegalNewDay(day)
   local s = career()
   local c = s and M.ensure(s)
   if not c then return end
+  for _, co in ipairs(c.callouts or {}) do
+    local t = c.territory[co.district]
+    if co.racer and t and t.owner == 'player' and co.day + 1 < day then     -- (a whole day and a night to answer it)
+      t.control = t.control - CALLOUT_IGNORED
+      for i = #s.challenges, 1, -1 do if s.challenges[i].callout == co.district then table.remove(s.challenges, i) end end
+      if t.control <= 0 then t.owner, t.control = co.crew, crews.TAKEN_CONTROL end
+    end
+  end
+  local keep = {}
+  for _, co in ipairs(c.callouts or {}) do if co.day + 1 >= day then keep[#keep + 1] = co end end
+  c.callouts = keep
   local id, who = crews.nightly(c.territory, rngLib.new(rngLib.hash('crewnight:' .. tostring(day) .. ':' .. tostring(s.seed))))
   if id then
     for _, d in ipairs(c.districts or {}) do
