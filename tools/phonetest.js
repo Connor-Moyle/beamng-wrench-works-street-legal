@@ -312,6 +312,23 @@ calls.length = 0;
 click('mkoffer', 'm1|270');
 click('mkbuy', 'm1|pickup');
 assert.ok(calls.some(function (c) { return c.indexOf('marketOffer("m1",270)') >= 0; }) && calls.some(function (c) { return c.indexOf('marketBuy("m1","pickup")') >= 0; }), 'offer and pick up call the market');
+// Valo Classifieds and Swap & Bid
+phone.handle('slPhoneData', Object.assign({}, data, { market: { deliveries: 0, listings: [],
+  paper: { bought: false, edition: 3, hidden: 4, price: 2, listings: [ { id: 'p1', name: 'Bucket seat', model: 'covet', ask: 90, condition: 60, seller: 'Rudi', rating: 3, tells: [], delivery: 45, deposit: 10, hoursLeft: 12 } ] },
+  auctions: [ { id: 'a1', name: 'Turbo kit', model: 'covet', bid: 400, next: 420, high: 'ai', condition: 80, hoursLeft: 9, delivery: 64 },
+    { id: 'a2', name: 'Rims', model: 'covet', bid: 200, next: 210, high: 'you', condition: 70, hoursLeft: 2, delivery: 52 } ] } }));
+phone.act('home');
+phone.act('open', 'paper');
+assert.ok(text().includes('Edition 3') && text().includes('Bucket seat') && text().includes('4 more in the printed copy') && text().includes('Buy the paper'), 'the paper: ads, the print-only count, the buy button');
+calls.length = 0;
+click('buypaper', '1');
+assert.ok(calls.some(function (c) { return c.indexOf('buyPaper()') >= 0; }), 'buying the paper calls the market');
+phone.act('home');
+phone.act('open', 'bid');
+assert.ok(text().includes('Turbo kit') && text().includes('(outbid)') && text().includes('(your bid)') && !phone.root.querySelector('[data-a="mkbid"][data-v="a2"]'), 'auctions: outbid and your own bid, no bid button on your own');
+calls.length = 0;
+click('mkbid', 'a1');
+assert.ok(calls.some(function (c) { return c.indexOf('marketBid("a1")') >= 0; }), 'a bid calls the market');
 phone.handle('slStation', { open: true, name: 'Pump', money: 100, fuels: [], items: [] });
 assert.ok(phone.root.querySelector('.slp-lot') && !phone.root.querySelector('.slp-ico .slp-lot'), 'with SLRR icons the panels stay outside the phone (icon markup closed)');
 console.log('phone test passed');

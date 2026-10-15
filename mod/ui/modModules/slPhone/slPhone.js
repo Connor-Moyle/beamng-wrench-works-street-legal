@@ -219,6 +219,8 @@
   function svg(path, viewBox) { return '<svg viewBox="' + (viewBox || '0 0 24 24') + '"><path d="' + path + '"/></svg>'; }
   var I = {
     market: svg('M3 4h18l-2 6H5zm2 8h14v8H5zm4 2v4h6v-4z'),
+    paper: svg('M4 4h13v14a2 2 0 0 0 2 2H6a2 2 0 0 1-2-2zm15 4h2v10a2 2 0 0 1-2 2zM7 7v3h7V7zm0 5v1h7v-1zm0 3v1h7v-1z'),
+    bid: svg('M14 3l7 7-3 3-7-7zM9 8l7 7-2 2-7-7zM3 20l6-6 2 2-6 6zM13 21h8v-2h-8z'),
     phone: svg('M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z'),
     msg: svg('M20 2H4a2 2 0 0 0-2 2v18l4-4h14a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zM6 9h12v2H6zm8 5H6v-2h8zm4-6H6V6h12z'),
     contacts: svg('M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm0 2c-2.7 0-8 1.3-8 4v2h16v-2c0-2.7-5.3-4-8-4z'),
@@ -245,7 +247,7 @@
   var SLRR_ART = '/ui/modModules/slHud/slrr/icons/';
   var SLRR_ICON = { races: 'cup.png', garage: 'garage.png', bank: 'dollar.png', cab: 'city.png', me: 'roc.png' };
   function slrrIcon(name, cls) { return '<img class="slp-slrr ' + (cls || '') + '" src="' + SLRR_ART + name + '" alt="">'; }
-  var APP_COLORS = { market: '#a3322c', club: '#6a2e7a', jobs: '#3d7a2e', phone: '#2e7d4f', messages: '#2f5fb3', contacts: '#7b4fb0', races: '#c2541e', bank: '#1f7a70', cab: '#b58a12', me: '#5c6474', garage: '#8a3b8f' };
+  var APP_COLORS = { market: '#a3322c', paper: '#5b5346', bid: '#b5651d', club: '#6a2e7a', jobs: '#3d7a2e', phone: '#2e7d4f', messages: '#2f5fb3', contacts: '#7b4fb0', races: '#c2541e', bank: '#1f7a70', cab: '#b58a12', me: '#5c6474', garage: '#8a3b8f' };
   var AV_COLORS = ['#a8c7fa', '#f2b8b5', '#c3e7c6', '#ffd8a8', '#d0bcff', '#9fe0e8', '#ffb4ab', '#e8def8'];
   var CLASS_NAMES = { beater: 'Beaters', compact: 'Compacts', muscle: 'Muscle', tuner: 'Tuners', sport: 'Sports cars', super: 'Supercars' };
 
@@ -324,6 +326,8 @@
           { id: 'jobs', title: 'Jobs', icon: I.jobs, badge: d.jobs && d.jobs.active ? 1 : 0 },
           { id: 'club', title: 'Club', icon: I.club },
           { id: 'market', title: 'Revline', icon: I.market, badge: d.market && d.market.deliveries || 0 },
+          { id: 'paper', title: 'Classifieds', icon: I.paper },
+          { id: 'bid', title: 'Swap & Bid', icon: I.bid, badge: d.market ? arr(d.market.auctions).filter(function (l) { return l.high === 'you'; }).length : 0 },
         ]) + '</div>' +
         '<div class="slp-dock">' + appsHtml([
           { id: 'phone', title: 'Phone', icon: I.phone },
@@ -409,9 +413,8 @@
 
     // the job board: what is on offer now, the one you are on, your record
     // Revline: used parts from private sellers (sl_classifieds)
-    function marketPage() {
-      var m = obj(st.data.market);
-      var cards = arr(m.listings).map(function (l) {
+    // one ad (Revline and the paper share it)
+    function adCard(l) {
         var tells = arr(l.tells).length ? '<p class="slp-warn">&#9888; ' + arr(l.tells).map(esc).join(' &middot; ') + '</p>' : '';
         var offers = l.agreed ? '' : [0.9, 0.8, 0.7].map(function (f) {
           var amt = Math.round(l.ask * f / 10) * 10;
@@ -422,9 +425,36 @@
           '<p><b>' + money(l.ask) + '</b>' + (l.agreed ? ' (agreed)' : '') + ' &middot; deposit ' + money(l.deposit) + (l.delivery != null ? ' &middot; delivery +' + money(l.delivery) : '') + '</p>' +
           '<div class="slp-acts">' + offers + '<div class="slp-btn" data-a="mkbuy" data-v="' + esc(l.id) + '|pickup">Pick up</div>' +
           (l.delivery != null ? '<div class="slp-btn" data-a="mkbuy" data-v="' + esc(l.id) + '|delivery">Deliver</div>' : '') + '</div></div>';
-      }).join('');
+    }
+
+    function marketPage() {
+      var m = obj(st.data.market);
+      var cards = arr(m.listings).map(adCard).join('');
       return bar('Revline') + '<div class="slp-body">' + (m.deliveries ? '<div class="slp-empty">' + m.deliveries + ' on the way to your garage.</div>' : '') +
         (cards || '<div class="slp-empty">Nothing listed right now. New ads come in through the day.</div>') + '</div>';
+    }
+
+    // Valo Classifieds: the weekly paper (some ads only in the printed copy, $2 at a gas station)
+    function paperPage() {
+      var p = obj(obj(st.data.market).paper);
+      var cards = arr(p.listings).map(function (l) { return adCard(l).replace('<h4>', '<h4>' + (l.printOnly ? '<span class="slp-warn">[print only]</span> ' : '')); }).join('');
+      var head = '<div class="slp-empty">Edition ' + (p.edition || 1) + '. Small ads go fast.' +
+        (p.bought ? ' You have the printed copy.' : (p.hidden ? ' ' + p.hidden + ' more in the printed copy.' : '')) + '</div>' +
+        (p.bought ? '' : '<div class="slp-acts"><div class="slp-btn" data-a="buypaper" data-v="1">Buy the paper (' + money(p.price || 2) + ', at a gas station)</div></div>');
+      return bar('Valo Classifieds') + '<div class="slp-body">' + head + (cards || '<div class="slp-empty">No ads left this week.</div>') + '</div>';
+    }
+
+    // Swap & Bid: auctions against other bidders; the lot is paid for and delivered when it ends
+    function bidPage() {
+      var m = obj(st.data.market);
+      var cards = arr(m.auctions).map(function (l) {
+        var mine = l.high === 'you';
+        return '<div class="slp-card"><h4>' + (l.rare ? '&#9733; ' : '') + esc(l.name) + '</h4>' +
+          '<p>For the ' + esc(l.model) + ' &middot; ' + l.condition + '% condition &middot; ' + Math.max(0, l.hoursLeft | 0) + ' h left</p>' +
+          '<p><b>' + money(l.bid) + '</b> ' + (mine ? '(your bid)' : (l.high === 'ai' ? '(outbid)' : '(opening bid)')) + ' &middot; delivery +' + money(l.delivery || 0) + '</p>' +
+          (mine ? '' : '<div class="slp-acts"><div class="slp-btn" data-a="mkbid" data-v="' + esc(l.id) + '">Bid ' + money(l.next) + '</div></div>') + '</div>';
+      }).join('');
+      return bar('Swap & Bid') + '<div class="slp-body">' + (cards || '<div class="slp-empty">No lots right now.</div>') + '</div>';
     }
 
     function jobsPage() {
@@ -764,6 +794,8 @@
         case 'jobs': page = jobsPage(); break;
         case 'club': page = clubPage(); break;
         case 'market': page = marketPage(); break;
+        case 'paper': page = paperPage(); break;
+        case 'bid': page = bidPage(); break;
         case 'bank': page = bankPage(); break;
         case 'cab': page = cabPage(); break;
         case 'me': page = mePage(); break;
@@ -858,6 +890,8 @@
         case 'tutskip': lua('@sl_tutorial.skip()'); break;
         case 'jobtake': lua('takeJob(' + JSON.stringify(v) + ')'); break;
         case 'mkoffer': lua('marketOffer(' + JSON.stringify(String(v).split('|')[0]) + ',' + Number(String(v).split('|')[1]) + ')'); break;
+        case 'mkbid': lua('marketBid(' + JSON.stringify(v) + ')'); break;
+        case 'buypaper': lua('buyPaper()'); break;
         case 'mkbuy': lua('marketBuy(' + JSON.stringify(String(v).split('|')[0]) + ',' + JSON.stringify(String(v).split('|')[1]) + ')'); break;
         case 'jobquit': lua('giveUpJob()'); break;
         case 'jobway': lua('jobWay()'); toast('The route is on your road.'); break;

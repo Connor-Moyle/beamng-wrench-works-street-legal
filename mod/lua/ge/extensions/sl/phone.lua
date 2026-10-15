@@ -170,6 +170,8 @@ function M.insure(on) if career() and sl_bank then answer(sl_bank.insure(on == t
 function M.takeJob(id) if career() and sl_jobs then answer(sl_jobs.take(tostring(id))) end end
 function M.marketOffer(id, amount) if career() and sl_classifieds then answer(sl_classifieds.offer(tostring(id), tonumber(amount))) end end
 function M.marketBuy(id, how) if career() and sl_classifieds then answer(sl_classifieds.buy(tostring(id), tostring(how))) end end
+function M.marketBid(id) if career() and sl_classifieds then answer(sl_classifieds.bid(tostring(id))) end end
+function M.buyPaper() if career() and sl_classifieds then answer(sl_classifieds.buyPaper()) end end
 function M.giveUpJob() if career() and sl_jobs then answer(sl_jobs.giveUp()) end end
 function M.jobWay() if career() and sl_jobs then sl_jobs.showWay() end end
 
