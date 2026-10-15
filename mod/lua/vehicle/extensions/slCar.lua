@@ -47,6 +47,16 @@ function M.setState(s)
   findFluids()
   if s.oilLevel then setLevel(oil, s.oilLevel) end
   if s.coolantLevel then setLevel(coolant, s.coolantLevel) end
+  -- the tank and the nitrous bottle as they were left (a respawned car starts full otherwise)
+  if s.fuelLevel then
+    local tank = M.fuelTank()
+    if tank then tank:setRemainingVolume(M.litres(tank) * math.max(0, math.min(1, s.fuelLevel))) end
+  end
+  if s.n2o then
+    for _, tank in pairs(energyStorage.getStorages() or {}) do
+      if tank.type == 'n2oTank' and tank.setRemainingRatio then tank:setRemainingRatio(math.max(0, math.min(1, s.n2o))) end
+    end
+  end
   applyFactor()
 end
 

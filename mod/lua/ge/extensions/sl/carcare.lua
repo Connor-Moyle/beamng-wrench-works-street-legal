@@ -66,7 +66,7 @@ local function attach(vid, car)
     veh:queueLuaCommand(string.format('partCondition.initConditions(nil, %d, 1, 1)', math.floor((c.engineKm or 0) * 1000)))
   end
   veh:queueLuaCommand('if slCar then slCar.setState(' .. serialize({ battery = c.battery, engineKm = c.engineKm, oilKm = c.oilKm, fuel = c.fuel,
-    oilLevel = c.oilLevel, coolantLevel = c.coolantLevel }) .. ') end')
+    oilLevel = c.oilLevel, coolantLevel = c.coolantLevel, fuelLevel = c.fuelLevel, n2o = c.n2o }) .. ') end')
   -- the driver chosen for this car in the garage (SLRR Drivers mod), back in the seat
   -- (none chosen yet: the mod's default, also for a car bought straight off a lot, where the seats are empty)
   if slrrDrivers and slrrDrivers.setDriver then
