@@ -39,7 +39,19 @@ local REPAIR = { kind = 'repair', title = 'Repair ticket', unlock = 150, settle 
     return t
   end }
 
-local ROWS = { TUNE, REPAIR }     -- #9 scavenging joins once Wrench Works can run it
+-- #9 scavenging: the scrapyard lets you have a wreck; take it to your garage, pull the parts on the list and
+-- sell them over the counter (Wrench Works pays their resale), and the yard pays a finder's fee for the lot
+local SCAVENGE = { kind = 'scavenge', title = 'Scavenging', unlock = 0, settle = 'ww', offer = function(ctx, rng)
+    local yard = ctx.byId.scrapyard
+    if not yard or not ctx.garage then return nil end
+    local j = ww.scavengeList(rng)
+    j.settle, j.fragile = 'ww', false
+    j.car = { model = ww.MODELS[rng:int(#ww.MODELS)], wear = 0.9 }
+    j.legs = { stop(yard, 'the wreck at the scrapyard'), stop(ctx.garage, 'your garage') }
+    return j
+  end }
+
+local ROWS = { TUNE, REPAIR, SCAVENGE }
 
 -- add our rows to the board (again after sl_jobs reloads, which makes a fresh TYPES)
 local addedTo
@@ -63,7 +75,8 @@ local function measured(value, carKey)
   if not j or j.kind ~= 'tune' then return end
   local r = ww.tuneMeasure(j, value, carKey)
   if r == 'already' then
-    sl_jobs.finishWith(s, js, j, 0, 0, 'That car already beats the spec. The customer wanted it built, not bought: job off.')
+    local text = 'That car already beats the spec. The customer wanted it built, not bought: job off.'
+    if sl_jobs.cancel then sl_jobs.cancel(s, js, j, text) else sl_jobs.finishWith(s, js, j, 0, 0, text) end
   elseif r == 'baseline' then
     toast(string.format('Baseline noted. Now build it to %s.', j.item))
   elseif r == 'no parts' then
@@ -133,10 +146,40 @@ function M.onWrenchWorksDriveOut(vid, info)
     'Ticket done' .. (late and ', late' or '') .. (verdict == 'over budget' and ', over budget' or '') .. ': $%d. The customer drives off.')
 end
 
+----------------------------------------------------------------------------------------------
+-- #9: the wanted parts the wreck hasn't got are ticked off when it arrives; each sold part ticks one off
+
+local function checkWreck(j)
+  local vd = core_vehicle_manager.getVehicleData(j.carVid)
+  if not vd or not vd.config or not vd.config.partsTree then return end
+  ww.markMissing(j, vd.config.partsTree)
+  j.checked = true
+  local left = 0
+  for i = 1, #j.parts do if not j.sold[i] then left = left + 1 end end
+  if left == 0 then          -- (a wreck with nothing on the list: the yard calls it off, no harm done)
+    local s, js = active()
+    leaving = j.carVid
+    local text = 'That wreck has nothing the yard wants after all. Job off.'
+    if sl_jobs.cancel then sl_jobs.cancel(s, js, j, text) else sl_jobs.finishWith(s, js, j, 0, 0, text) end
+    return
+  end
+  toast('The yard wants: ' .. j.item .. '. Strip them in your garage and sell them over the counter.')
+end
+
+function M.onWrenchWorksPartSold(vid, slotPath, part, price)
+  local s, js, j = active()
+  if not j or j.kind ~= 'scavenge' or vid ~= j.carVid then return end
+  if ww.scavengeSold(j, slotPath) then
+    leaving = vid
+    pay(s, js, j, j.pay, 10, "The yard has all it wanted. Finder's fee: $%d. They will collect the shell.")
+  end
+end
+
 function M.onUpdate()
   register()
   local _, _, j = active()
   if j and j.kind == 'repair' and j.carVid and not j.removed then emptyTicketSlots(j) end
+  if j and j.kind == 'scavenge' and j.carVid and not j.checked then checkWreck(j) end
   if leaving and (not slrr_garage or not slrr_garage.getPhase or slrr_garage.getPhase() == 'idle') then
     local veh = getObjectByID(leaving)
     leaving = nil

@@ -148,9 +148,9 @@ end
 -- #9 scrapyard scavenging: pull the named parts off the yard's wrecks and sell them at the pawn shop; the
 -- shop pays their resale (Wrench Works), the job a finder's fee per part once all of them are sold
 
-M.SALVAGE = { { slot = 'turbo', text = 'a turbo' }, { slot = 'radiator', text = 'a radiator' }, { slot = 'alternator', text = 'an alternator' },
-  { slot = 'seat', text = 'a seat' }, { slot = 'wheel', text = 'a wheel' }, { slot = 'headlight', text = 'a headlight' },
-  { slot = 'gearbox', text = 'a gearbox' }, { slot = 'exhaust', text = 'an exhaust' } }
+M.SALVAGE = { { slot = 'radiator', text = 'a radiator' }, { slot = 'seat', text = 'a seat' }, { slot = 'headlight', text = 'a headlight' },
+  { slot = 'exhaust', text = 'an exhaust' }, { slot = 'taillight', text = 'a tail light' }, { slot = 'mirror', text = 'a mirror' },
+  { slot = 'door', text = 'a door' }, { slot = 'hood', text = 'a bonnet' } }
 M.FINDER_FEE = 60       -- per part
 M.SCAVENGE_SECONDS = 1800
 
@@ -162,7 +162,14 @@ function M.scavengeList(rng)
   end
   local names = {}
   for _, s in ipairs(list) do names[#names + 1] = s.text end
-  return { parts = list, item = table.concat(names, ', '), pay = #list * M.FINDER_FEE, seconds = M.SCAVENGE_SECONDS }
+  local sold = {}
+  for i = 1, #list do sold[i] = false end
+  return { parts = list, sold = sold, item = table.concat(names, ', '), pay = #list * M.FINDER_FEE, seconds = M.SCAVENGE_SECONDS }
+end
+
+-- wanted parts this wreck hasn't got count as found (a stock car has most of them)
+function M.markMissing(job, tree)
+  for i, s in ipairs(job.parts) do if not find(tree or {}, s.slot) then job.sold[i] = true end end
 end
 
 -- the job's wanted parts ticked off by a sold part's slot path; true when all are sold

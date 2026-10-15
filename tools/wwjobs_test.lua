@@ -61,6 +61,9 @@ return function(check, rngLib)
     local j = ww.scavengeList(rngLib.new(seed))
     check('2-4 different parts to find ' .. seed, #j.parts >= 2 and #j.parts <= 4 and j.pay == #j.parts * ww.FINDER_FEE)
   end
+  local w = { parts = { { slot = 'exhaust' }, { slot = 'radiator' } }, sold = { false, false } }
+  ww.markMissing(w, car())
+  check('a part the wreck lacks counts as found', w.sold[1] == false and w.sold[2] == true)
   local j = { parts = { { slot = 'turbo' }, { slot = 'seat' } } }
   check('a sold part ticks one off', not ww.scavengeSold(j, '/etk_engine/etk_turbo/') and j.sold[1])
   check('the same part again ticks nothing more', not ww.scavengeSold(j, '/etk_engine/etk_turbo/'))
