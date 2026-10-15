@@ -249,6 +249,93 @@ for _, kind in ipairs({ 'junkyard', 'dealer', 'scrapyard' }) do
   end)
 end
 
+-- B19: the SLRR dashboard is off until the player turns it on
+check('dashboard: off unless chosen (B19)', function()
+  local h = sl_hud.getSettings()
+  return (not h.enabled) or h.enabledChosen == true, string.format('enabled %s, chosen %s', tostring(h.enabled), tostring(h.enabledChosen))
+end)
+
+-- B15: a car leaving a lot goes to the nearest city lane, on the road, facing along it
+check('lot junkyard: the car leaves on a city lane (B15)', function(job)
+  local v = player()
+  if not v or not sl_fleet.currentCar() then return nil, 'not in own car' end
+  local yard
+  for _, p in pairs(sl_career.getPlaces() or {}) do if p.kind == 'junkyard' then yard = p end end
+  if not yard then return nil, 'no junkyard' end
+  local ok = sl_lot.toRoad(v, yard.pos)
+  job.sleep(2)
+  local pos = v:getPosition()
+  local n1, _, dist = map.findClosestRoad(pos)
+  local far = (pos - yard.pos):length()
+  return ok and n1 ~= nil and dist < 3 and far < 400, string.format('%.1f m off the lane centre, %.0f m from the lot', dist or -1, far)
+end)
+
+-- B16: the dealer's showroom: every display spot has a floor under it, and the way out ends by a lane
+check('dealer showroom: display spots on a floor, exit on the street (B16)', function()
+  local d
+  for _, p in pairs(sl_career.getPlaces() or {}) do if p.kind == 'dealer' then d = p end end
+  if not d then return nil, 'no dealer' end
+  if not d.showroom or not d.displays or #d.displays < 7 or not d.exit then return false, 'no showroom data on the place' end
+  local bad = {}
+  for i, sp in ipairs(d.displays) do
+    local pos = vec3(sp.pos.x or sp.pos[1], sp.pos.y or sp.pos[2], sp.pos.z or sp.pos[3])
+    local hit = castRayStatic(pos + vec3(0, 0, 1.5), vec3(0, 0, -1), 4)
+    if hit > 2.5 then bad[#bad + 1] = 'spot ' .. i .. ' no floor' end
+    local up = castRayStatic(pos + vec3(0, 0, 0.3), vec3(0, 0, 1), 2.5)
+    if up < 2.5 then bad[#bad + 1] = 'spot ' .. i .. ' something ' .. string.format('%.1f', up) .. ' m above' end
+  end
+  local e = d.exit[#d.exit]
+  local ex = vec3(e.x or e[1], e.y or e[2], e.z or e[3])
+  local rs = require('sl/core/roadspot')
+  local c = rs.pick(rs.candidates(map.getMap().nodes, ex, not map.getRoadRules().rightHandDrive, 80), {})
+  if not c then bad[#bad + 1] = 'no lane within 80 m of the exit' end
+  return #bad == 0, #bad == 0 and (#d.displays .. ' spots, lane ' .. string.format('%.0f', c.dist) .. ' m from the exit') or table.concat(bad, '; ')
+end)
+
+-- B11: the reset key quotes a paid pull to the road (no repair); the second press pays it
+check('reset: a paid pull back to the road, no free repair (B11)', function(job)
+  local v = player()
+  if not v or not sl_fleet.currentCar() then return nil, 'not in own car' end
+  if not sl_lockdown.isLocked() then return false, 'not locked down' end
+  local hc = sl_options.get('slHardcore')
+  sl_options.set('slHardcore', false)
+  local _, _, dist = map.findClosestRoad(v:getPosition())
+  local fee = require('sl/core/progression').roadFee(dist or 0)
+  local m0 = money()
+  resetGameplay(0)
+  local quoted = money() == m0
+  resetGameplay(0)
+  job.sleep(2)
+  sl_options.set('slHardcore', hc)
+  local paid = m0 - money()
+  return quoted and paid == fee and paid > 0, string.format('quoted, then paid $%d (fee $%d)', paid, fee)
+end)
+
+-- B11: a car that will not drive: a real rollback is sent (the ride home is the manual test: 3 minutes)
+check('tow: a rollback is sent to the car (B11)', function(job)
+  local v = player()
+  local car = v and sl_fleet.carOfVehicle(v:getID())
+  if not car then return nil, 'not in own car' end
+  if sl_tow.busy() then return false, 'a tow already running' end
+  local rs = require('sl/core/roadspot')
+  local yard = sl_fleet.forecourt(sl_career.getState(), 0)
+  local list = {}
+  for _, c in ipairs(rs.candidates(map.getMap().nodes, yard, not map.getRoadRules().rightHandDrive, 600)) do if c.dist > 250 then list[#list + 1] = c end end
+  local c = rs.pick(list, {})
+  if not c then return nil, 'no lane 250 m from the garage' end
+  teleportTo(job, c)
+  local m0 = money()
+  local ok, text = sl_fleet.tow(car)
+  job.sleep(1)
+  local truck
+  for _, o in ipairs(getAllVehicles()) do if o:getJBeamFilename() == 'pickup' and o:getID() ~= v:getID() then truck = o end end
+  local sent = ok and sl_tow.busy() and truck ~= nil
+  local fee = m0 - money()
+  sl_tow.onStreetLegalStopped()                                      -- (called off: the fee back; the manual test rides it home)
+  if fee > 0 then sl_career.addMoney(fee, 'Smoke tow back') end
+  return sent, string.format('%s; truck %s, fee $%d', tostring(text), truck and string.format('%.0f m away', (truck:getPosition() - v:getPosition()):length()) or 'none', fee)
+end)
+
 check('cab: a city lane near the garage door for a cab to pull up on', function()
   local rs = require('sl/core/roadspot')
   local pos = sl_fleet.forecourt(sl_career.getState(), 0)
