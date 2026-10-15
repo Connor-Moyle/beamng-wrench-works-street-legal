@@ -8,6 +8,7 @@ local M = {}
 
 local L = require('sl/core/listings')
 local rngLib = require('sl/core/rng')
+local jbeamIO = require('jbeam/io')         -- (not a global on the game-engine side)
 
 local REFRESH_HOURS = 6        -- new listings every few in-game hours
 local APP_LISTINGS = 12
@@ -73,7 +74,11 @@ local function refresh(s, force)
   if not force and t - m.refreshed < REFRESH_HOURS then return end
   m.refreshed = t
   local keep = {}
-  for _, l in ipairs(m.listings) do if l.expires > t or l.taken then keep[#keep + 1] = l end end
+  -- a taken one stays only while its pickup is the job you are on (bought for delivery, given up: gone)
+  local active = s.jobs and s.jobs.active
+  for _, l in ipairs(m.listings) do
+    if (l.expires > t and not l.taken) or (l.taken and active and active.listing == l.id) then keep[#keep + 1] = l end
+  end
   m.listings = keep
   local rng = rngLib.new(rngLib.hash('market:' .. t .. ':' .. tostring(s.seed)))
   local ms = models(s)

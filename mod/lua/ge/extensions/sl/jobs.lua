@@ -633,7 +633,7 @@ function M.summary()
   local a = js.active
   if a then
     out.active = { title = a.title, item = a.item, next = a.legs[a.leg].name, to = a.legs[#a.legs].name, pay = a.pay, fragile = a.fragile,
-      timeLeft = a.startedAt and math.floor(a.seconds - (os.clock() - a.startedAt)) or nil }
+      timeLeft = a.startedAt and (a.seconds or 0) > 0 and math.floor(a.seconds - (os.clock() - a.startedAt)) or nil }
   end
   return out
 end
