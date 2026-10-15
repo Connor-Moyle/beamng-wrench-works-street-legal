@@ -427,7 +427,24 @@
         return '<div class="slp-row" style="min-height:52px;cursor:default"><div class="slp-rt"><b>' + esc(e.label || '') + '</b></div><div class="slp-amt ' + (e.amount >= 0 ? 'slp-plus' : 'slp-minus') + '">' +
           (e.amount >= 0 ? '+' : '') + money(e.amount) + '</div></div>';
       });
-      return bar('Bank') + '<div class="slp-body"><div class="slp-bal"><small>Balance</small><div>' + money(st.data.money) + '</div></div>' +
+      // the loan and the insurance
+      var bk = st.data.bank, cards = '';
+      if (bk) {
+        if (bk.loan) {
+          cards += '<div class="slp-card"><h4>Loan: ' + money(bk.loan.owed) + ' owed</h4><p>Next payment ' + money(bk.loan.due) + ' in ' + bk.loan.dueIn + ' day' + (bk.loan.dueIn === 1 ? '' : 's') +
+            (bk.loan.missed ? ' &middot; <span class="slp-pink">' + bk.loan.missed + ' missed</span>' : '') + '</p>' +
+            '<div class="slp-acts"><div class="slp-btn" data-a="repay" data-v="' + Math.min(bk.loan.owed, st.data.money || 0) + '">Pay ' + money(Math.min(bk.loan.owed, st.data.money || 0)) + '</div></div></div>';
+        } else {
+          var half = Math.floor(bk.limit / 200) * 100;
+          cards += '<div class="slp-card"><h4>Borrow</h4><p>Up to ' + money(bk.limit) + ' &middot; ' + Math.round(bk.rate * 100) + '% a day &middot; a quarter due each week</p>' +
+            '<div class="slp-acts"><div class="slp-btn slp-tonal" data-a="borrow" data-v="' + half + '">' + money(half) + '</div><div class="slp-btn slp-tonal" data-a="borrow" data-v="' + bk.limit + '">' + money(bk.limit) + '</div></div></div>';
+        }
+        cards += bk.policy ? '<div class="slp-card"><h4>Insured</h4><p>' + (bk.policy.startsIn ? 'Cover starts tomorrow' : 'Covering half of repairs and impound bills over ' + money(bk.deductible)) + '</p>' +
+            '<div class="slp-acts"><div class="slp-btn slp-text" data-a="insure" data-v="false">Cancel</div></div></div>'
+          : '<div class="slp-card"><h4>Insurance</h4><p>' + money(bk.premium) + ' a week: half of repairs and impound bills over ' + money(bk.deductible) + ', from the next day</p>' +
+            '<div class="slp-acts"><div class="slp-btn slp-tonal" data-a="insure" data-v="true">Insure</div></div></div>';
+      }
+      return bar('Bank') + '<div class="slp-body"><div class="slp-bal"><small>Balance</small><div>' + money(st.data.money) + '</div></div>' + cards +
         (rows.join('') || '<div class="slp-empty">No transactions yet.</div>') + '</div>';
     }
 
@@ -771,6 +788,9 @@
         case 'text': lua('text(' + JSON.stringify(st.thread) + ',' + JSON.stringify(v) + ')'); break;
         case 'gps': lua('waypoint(' + JSON.stringify(v) + ')'); toast('The route is on your road.'); break;
         case 'cancel': lua('cancel(' + JSON.stringify(v) + ')'); break;
+        case 'borrow': lua('borrow(' + Number(v) + ')'); break;
+        case 'repay': lua('repay(' + Number(v) + ')'); break;
+        case 'insure': lua('insure(' + (v === 'true' ? 'true' : 'false') + ')'); break;
         case 'tutskip': lua('@sl_tutorial.skip()'); break;
         case 'jobtake': lua('takeJob(' + JSON.stringify(v) + ')'); break;
         case 'jobquit': lua('giveUpJob()'); break;

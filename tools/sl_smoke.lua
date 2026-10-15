@@ -235,6 +235,33 @@ check('achievements: earned from the record, bests kept', function(job)
   return sum.earned >= 1 and b and b.time == 55.5, string.format('%d of %d earned; best %.2f s', sum.earned, sum.total, b and b.time or -1)
 end)
 
+-- the bank (X22)
+check('bank: borrow within the limit, repay', function()
+  local st = sl_career.getState()
+  if st.bank and st.bank.loan then sl_bank.repay(st.bank.loan.owed) end
+  local limit = sl_bank.summary().limit
+  local tooMuch = sl_bank.borrow(limit + 100)
+  local m0 = money()
+  local ok = sl_bank.borrow(1000)
+  local got = money() - m0
+  local ok2 = sl_bank.repay(1000)
+  return not tooMuch and ok and got == 1000 and ok2 and not (st.bank and st.bank.loan), string.format('limit $%d, borrowed and repaid $1000', limit)
+end)
+check('bank: insurance waits a day, then pays half over the deductible', function()
+  local st = sl_career.getState()
+  sl_bank.insure(false)
+  local ok = sl_bank.insure(true)
+  if not ok then return nil, 'could not afford the premium' end
+  local m0 = money()
+  sl_bank.onStreetLegalSpent(2200, 'Repaired the car')                -- the same day: nothing
+  local sameDay = money() - m0
+  st.bank.policy.from = st.day                                          -- (as if a day had passed)
+  sl_bank.onStreetLegalSpent(2200, 'Repaired the car')
+  local next = money() - m0 - sameDay
+  sl_bank.insure(false)
+  return sameDay == 0 and next == 1000, string.format('same day $%d, after $%d', sameDay, next)
+end)
+
 -- garage services and lists
 check('services: drawer entries', function()
   local list = {}

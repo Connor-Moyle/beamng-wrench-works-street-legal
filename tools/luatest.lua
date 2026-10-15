@@ -488,4 +488,32 @@ do
   check('no time, no best', not ach.best(s, 7, nil) and not ach.best(s, nil, 10))
 end
 
+-- the bank: loans that can't spiral, insurance that can't be gamed
+do
+  local bank = require('sl/core/bank')
+  check('loan limits grow with rep, capped', bank.loanLimit(0) == 3000 and bank.loanLimit(1500) == 6000 and bank.loanLimit(1e6) == 20000)
+  local loan = bank.newLoan(5000, 10)
+  for _ = 1, 100 do bank.accrue(loan) end
+  check('owed never passes 1.5x', loan.owed == 7500)
+  check('due is a quarter', bank.due(loan) == 1875)
+  local r1 = bank.payment(loan, 0)
+  local r2 = bank.payment(loan, 0)
+  local r3 = bank.payment(loan, 0)
+  check('two warnings before repossession', r1 == 'warning' and r2 == 'final' and r3 == 'repossess')
+  loan = bank.newLoan(1000, 1)
+  local r, paid = bank.payment(loan, 5000)
+  check('a payment pays a quarter', r == 'paid' and paid == 250 and loan.owed == 750 and loan.missed == 0)
+  bank.payment(loan, 0)
+  bank.payment(loan, 5000)
+  check('paying resets the warnings', loan.missed == 0)
+  local small = bank.newLoan(150, 1)
+  check('the minimum is $100, never more than owed', bank.due(small) == 100 and bank.due({ owed = 60 }) == 60)
+  local policy = { active = true, from = 5 }
+  check('no cover before it starts', bank.claim(policy, 2000, 4) == 0)
+  check('half over the deductible', bank.claim(policy, 2200, 5) == 1000)
+  check('small claims pay nothing', bank.claim(policy, 150, 9) == 0)
+  check('no policy, no payout', bank.claim(nil, 5000, 9) == 0 and bank.claim({ active = false, from = 0 }, 5000, 9) == 0)
+  check('premium by fleet value', bank.premium(0) == 100 and bank.premium(20000) == 400)
+end
+
 print(string.format('lua tests passed: %d checks', passed))

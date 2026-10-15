@@ -84,6 +84,11 @@ class Player:
         self.upgraded = False               # the first part bought (ends "new in town")
         self.kind_done = {}
         self.crew = None                    # [tier, wins needed, pay]
+        self.loan = None                    # core/bank: [borrowed, owed, nextDue day, missed]
+        self.repossessed = 0
+        if style == 'borrower':             # takes the full loan at once (core/bank.loanLimit at 0 rep)
+            self.loan = [3000, 3000, 7, 0]
+            self.money += 3000
 
     def hour(self): return (20.5 + self.t / DAY_MIN * 24) % 24
     def day(self): return int((20.5 / 24 * DAY_MIN + self.t) // DAY_MIN)
@@ -98,7 +103,21 @@ class Player:
     def spend(self, minutes):
         before = self.day()
         self.t += minutes
-        if self.day() != before: self.heat *= 0.7      # police: heat cools daily
+        if self.day() != before:
+            self.heat *= 0.7                            # police: heat cools daily
+            if self.loan:                               # core/bank: interest, the weekly quarter, two warnings
+                self.loan[1] = min(self.loan[0] * 1.5, round(self.loan[1] * 1.03))
+                if self.day() >= self.loan[2]:
+                    self.loan[2] = self.day() + 7
+                    due = min(self.loan[1], max(100, math.ceil(self.loan[1] / 4)))
+                    if self.money >= due:
+                        self.money -= due; self.loan[1] -= due; self.loan[3] = 0
+                    else:
+                        self.loan[3] += 1
+                        if self.loan[3] >= 3: self.repossessed += 1; self.car = None; self.loan = None
+                if self.loan and self.loan[1] <= 0: self.loan = None
+            if self.loan and self.money > self.loan[1] * 3:   # pays it off once comfortable
+                self.money -= self.loan[1]; self.loan = None
         self.heat = max(0.0, self.heat - TUNE['heat_decay_per_min'] * minutes)
         if not self.series or self.t - self.series[-1][0] >= 5: self.series.append((self.t, self.money, self.rep))
         if self.t > 20 and self.money < 300: self.broke_min = getattr(self, 'broke_min', 0) + minutes   # the floor check
@@ -224,7 +243,7 @@ class Player:
             if self.garage == lvl - 1 and self.rep >= rep and self.money >= cost + 2000:
                 self.money -= cost; self.garage = lvl; self.mark('garage %d' % lvl); return
         if self.garage == 3 and self.rep >= ROC['rep'] and self.money >= ROC['entry'] + 5000: self.mark('ROC open')
-        w = {'racer': 0.75, 'mixed': 0.5, 'worker': 0.25}[self.style]
+        w = {'racer': 0.75, 'mixed': 0.5, 'worker': 0.25, 'borrower': 0.5}[self.style]
         roll = self.r.random()
         if roll < w and self.race(): return
         if roll < w + 0.1 and self.sprint(): return
@@ -241,12 +260,12 @@ class Player:
 
 def main():
     players = []
-    for i in range(PLAYERS):
-        style = ['racer', 'mixed', 'worker'][i % 3]
+    for i in range(PLAYERS + PLAYERS // 3):
+        style = ['racer', 'mixed', 'worker', 'borrower'][i % 4]
         players.append(Player(i, style).run(60 * HOURS))
     keys = ['car 1', 'first upgrade', 'car 2', 'car 3', 'car 4', 'rep 150', 'rep 300', 'rep 500', 'rep 800', 'rep 1000', 'rep 1500', 'garage 2', 'rep 3000', 'garage 3', 'rep 6000', 'ROC open']
     print('Milestones (real minutes of play; median and 10-90 %; n = players who got there in HOURS h)')
-    for style in ['racer', 'mixed', 'worker']:
+    for style in ['racer', 'mixed', 'worker', 'borrower']:
         print('  ' + style)
         ps = [p for p in players if p.style == style]
         for k in keys:
@@ -262,8 +281,11 @@ def main():
             t = totals.setdefault(src, [0, 0]); t[0] += m; t[1] += mins
     for src, (m, mins) in sorted(((k, v) for k, v in totals.items() if v[1] > 0), key=lambda kv: -kv[1][0] / max(1, kv[1][1])):   # (contracts take no time of their own)
         print('  %-16s $%6.0f / min   (%d min sampled)' % (src, m / max(1, mins), mins))
-    for style in ['racer', 'mixed', 'worker']:
+    for style in ['racer', 'mixed', 'worker', 'borrower']:
         ps = [p for p in players if p.style == style]
+        worth = sorted(p.money - (p.loan[1] if p.loan else 0) for p in ps)
+        print('Net worth at the end (%s): median $%d; repossessions %d; loans still open %d'
+              % (style, statistics.median(worth), sum(p.repossessed for p in ps), sum(1 for p in ps if p.loan)))
         bm = sorted(getattr(p, 'broke_min', 0) for p in ps)
         print('Floor (%s): minutes under $300 after the first 20: median %d, worst %d; players who ended under $300: %d of %d'
               % (style, statistics.median(bm), bm[-1], sum(1 for p in ps if p.money < 300), len(ps)))

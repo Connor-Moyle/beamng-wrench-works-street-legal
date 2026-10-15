@@ -126,6 +126,7 @@ local wallet = {
     if not s then return false end
     local ok = stateLib.addMoney(s, amount, label, now())
     if ok then changed() end
+    if ok and amount < 0 then extensions.hook('onStreetLegalSpent', -amount, label) end   -- (the bank's insurance looks at repairs)
     return ok
   end,
   walkIn = false,       -- no body shells over the counter: cars come from the lots
