@@ -620,4 +620,59 @@ do
     b = { pos = P(50, 0), radius = 4, links = { a = link('a', 'b', { type = 'private' }) } } }, P(0, 0), true) == 0)
 end
 
+
+-- rival crews and their districts (X21, Design 6)
+do
+  local crews = require('sl/core/crews')
+  local racers = roster.generate(7, 36)
+  local member, leader = crews.assign(racers, rngLib.new(3))
+  local count, top = {}, {}
+  for _, r in ipairs(racers) do
+    local c = member[r.id]
+    count[c] = (count[c] or 0) + 1
+    if r.tier == 5 then top[c] = true end
+  end
+  check('every racer in a crew, the crews even', count.southside == 9 and count.riverbed == 9 and count.northend == 9 and count.ringroad == 9)
+  check('each crew has a leader of its own', member[leader.southside] == 'southside' and member[leader.ringroad] == 'ringroad')
+  local pts = {}
+  for i = 1, 60 do local a = i / 60 * math.pi * 2 pts[#pts + 1] = { x = math.cos(a) * (200 + i % 7 * 60), y = math.sin(a) * (200 + i % 5 * 70) } end
+  for i = 1, 10 do pts[#pts + 1] = { x = i * 3, y = -i * 2 } end
+  local ds = crews.cluster(pts, 6)
+  local names = {}
+  for _, d in ipairs(ds) do names[d.name] = true end
+  check('six districts from the places, one Downtown, the rest by the compass', #ds == 6 and names.Downtown)
+  check('a place is in the district nearest it', crews.districtOf(ds, ds[2].centre.x, ds[2].centre.y).id == ds[2].id)
+  local square = { { id = 'sq', name = 'Square', polygon = { { 0, 0 }, { 100, 0 }, { 100, 100 }, { 0, 100 } } }, { id = 'far', name = 'Far', centre = { x = 500, y = 500 } } }
+  check('inside a polygon wins over a nearer centre', crews.districtOf(square, 90, 90).id == 'sq' and crews.districtOf(square, 300, 300).id == 'far')
+  local t = crews.newTerritory(ds, rngLib.new(5))
+  local homes, owned = 0, {}
+  for _, d in pairs(t) do if d.home then homes = homes + 1 end owned[d.owner] = true end
+  check('every crew holds its home, every district has an owner', homes == 4 and owned.southside and owned.riverbed and owned.northend and owned.ringroad)
+  local id, d0
+  for k, d in pairs(t) do if not d.home then id, d0 = k, d end end
+  local owner = d0.owner
+  crews.raceResult(t, id, 'nobody', false, true)
+  check('beating a crew that does not hold it changes nothing', t[id].owner == owner and t[id].control == crews.START_CONTROL)
+  crews.raceResult(t, id, owner, false, false)
+  check('a race lost gives them some back', t[id].control == crews.START_CONTROL + crews.LOSS)
+  crews.raceResult(t, id, owner, false, true)
+  crews.raceResult(t, id, owner, false, true)
+  local _, ev = crews.raceResult(t, id, owner, true, true)
+  check('beaten on their own streets, the district is yours', ev == 'taken' and t[id].owner == 'player' and t[id].control == crews.TAKEN_CONTROL)
+  check('and its perks with it', crews.perks(t, id).rep > 1 and crews.perks(t, id).heat < 1)
+  crews.raceResult(t, id, owner, false, false)
+  local _, ev2 = crews.raceResult(t, id, owner, false, false, true)
+  check('lose there often enough and it goes back', ev2 == 'lost' and t[id].owner == owner)
+  local friendly = crews.raceResult(t, id, owner, true, true, false, owner)
+  check('racing a crew you work for takes nothing from it', friendly.owner == owner)
+  for seed = 1, 200 do crews.nightly(t, rngLib.new(seed)) end
+  local homesOk = true
+  for _, d in pairs(t) do if d.home and d.owner ~= d.home then homesOk = false end end
+  check('the crews trade districts at night, never a home', homesOk)
+  check('the turf war waits for enough districts', not crews.turfWarReady(t))
+  local n = 0
+  for _, d in pairs(t) do if n < crews.TURF_WAR_AT then d.owner, n = 'player', n + 1 end end
+  check('then the leaders come', n == crews.TURF_WAR_AT and crews.turfWarReady(t))
+end
+
 print(string.format('lua tests passed: %d checks', passed))
