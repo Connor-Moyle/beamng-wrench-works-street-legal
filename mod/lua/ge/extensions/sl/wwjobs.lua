@@ -80,7 +80,7 @@ local function measured(value, carKey)
   elseif r == 'baseline' then
     toast(string.format('Baseline noted. Now build it to %s.', j.item))
   elseif r == 'no parts' then
-    toast('It makes the spec, but nothing was bought for it: the customer is paying for a build.')
+    toast(string.format('It makes the spec, but the customer is paying for a build: at least $%d of parts must go into it (you have put in $%d).', math.floor(ww.MIN_SPEND * j.budget), j.spent or 0))
   elseif r == 'met' then
     local amount, verdict = ww.tuneSettle(j, j.spent)
     pay(s, js, j, amount, verdict == 'over budget' and 5 or 20, 'Spec met (' .. j.item .. '), ' .. verdict .. ': $%d. The customer is happy.')
@@ -100,7 +100,8 @@ function M.onSlrrRaceFinished(r)
   if not car then return end
   for _, x in ipairs(sl_career.racesList and sl_career.racesList() or {}) do
     if x.drag and (x.id == r.raceId or (r.missionId and x.missionId == r.missionId)) and tostring(x.name):find('1/4', 1, true) then
-      measured(r.time, car)
+      local best = (sl_career.getState().bests or {})[x.name]                     -- (a slow run on purpose is no baseline: your record counts)
+      measured(best and best.time and math.min(r.time, best.time) or r.time, car)
       return
     end
   end

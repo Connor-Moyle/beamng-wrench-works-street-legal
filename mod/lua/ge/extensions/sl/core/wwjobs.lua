@@ -13,6 +13,7 @@ M.POWER = { { 180, 2000, 500 }, { 250, 3000, 900 }, { 320, 5000, 1500 }, { 420, 
 M.QUARTER = { { 15.5, 2000, 500 }, { 14.5, 3500, 900 }, { 13.5, 5500, 1500 }, { 12.5, 8500, 2200 }, { 11.5, 13000, 3000 } } -- s
 M.TIER_REP = { 500, 900, 1500, 2500, 4000 }
 M.UNDER = 0.8           -- spending under this share of the budget earns the bonus
+M.MIN_SPEND = 0.35      -- at least this share of the budget must go into the car (the customer pays for a build, not for a slow first run)
 M.BONUS = 0.2           -- of the pay
 M.TUNE_DAYS = 2         -- in-game days to deliver
 
@@ -50,7 +51,7 @@ function M.tuneMeasure(job, value, car)
   end
   if car ~= job.carKey then return 'other car' end
   if not M.tuneMet(job, value) then return 'below' end
-  if (job.spent or 0) <= 0 then return 'no parts' end
+  if (job.spent or 0) < M.MIN_SPEND * (job.budget or 0) then return 'no parts' end
   return 'met'
 end
 

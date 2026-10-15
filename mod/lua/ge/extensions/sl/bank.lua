@@ -76,8 +76,14 @@ function M.onStreetLegalSpent(cost, label)
   end
 end
 
-local function repossess(s, b)
+local function repossess(s, b, day)
   local car = sl_fleet and sl_fleet.currentCar() or s.cars[1]
+  if not car then                              -- (B27: nothing to take: the debt stays, and grows, until there is)
+    stateLib.addRep(s, -20)
+    b.loan.nextDue = day + bank.WEEK
+    sl_career.sendText('benny', string.format('The bank came for your car and found none. The debt stays: $%d, and they will be back next week.', b.loan.owed), 1)
+    return
+  end
   if car then
     car.impounded = b.loan.owed
     car.out = false
@@ -108,7 +114,7 @@ function M.onStreetLegalNewDay(day)
         stateLib.addRep(s, -20)
         sl_career.sendText('benny', 'Second missed payment. Next week the bank takes your car. Pay something now (phone, Bank).', 1)
       else
-        repossess(s, b)
+        repossess(s, b, day)
       end
     end
   end

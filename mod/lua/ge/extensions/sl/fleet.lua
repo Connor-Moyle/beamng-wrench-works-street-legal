@@ -107,12 +107,30 @@ function M.onWrenchWorksRepaired(vid, cost)
   if car and tonumber(cost) then car.repaired = (car.repaired or 0) + tonumber(cost) end
 end
 
--- a new part in the garage: a fault in that place is put right (it shows in what the car fetches)
-function M.onWrenchWorksPartBought(vid, slotPath)
+-- a new part bought for a fault's slot: remembered by price; the fault is put right only once the car drives out
+-- with a part in that slot (B25: buying and selling a part back cleared faults for nothing)
+function M.onWrenchWorksPartBought(vid, slotPath, part, price)
   local s = career()
   local car = s and carById(s, M.carOfVehicle(vid))
   if not car or not car.faults then return end
-  for i = #car.faults, 1, -1 do if market.fixes(car.faults[i], slotPath) then table.remove(car.faults, i) end end
+  for _, f in ipairs(car.faults) do
+    if market.fixes(f, slotPath) then car.partPaid = car.partPaid or {} car.partPaid[f] = tonumber(price) or 0 end
+  end
+end
+
+-- as a car of yours leaves the garage: a fault whose slot holds a part is fixed (worth what the part cost), one
+-- whose slot is empty again is back
+function M.onWrenchWorksDriveOut(vid, info)
+  local s = career()
+  local car = s and carById(s, M.carOfVehicle(vid))
+  if not car or not car.faults or #car.faults == 0 or type(info) ~= 'table' or not info.partsTree then return end
+  local fitted = market.faultsFitted(info.partsTree, car.faults)
+  local fixed = {}
+  for _, f in ipairs(car.faults) do
+    if fitted[f] then fixed[f] = (car.partPaid or {})[f] or (car.fixed or {})[f] or 0 end
+  end
+  car.fixed = fixed
+  extensions.hook('onStreetLegalChanged')
 end
 
 -- the garage put somebody else behind the wheel (SLRR Drivers mod): it stays with the car
@@ -294,7 +312,7 @@ function M.list()
     end
     out[#out + 1] = {
       id = c.id, name = c.name, brand = c.brand, active = s.activeCar == c.id, where = where, out = veh ~= nil,
-      condition = c.condition, faults = c.faults, value = c.value,
+      condition = c.condition, faults = market.unfixed(c), value = c.value,
       scrap = market.scrapValue(c), resale = market.resaleValue(c), towFee = veh and progression.towFee((veh:getPosition() - (M.forecourt(s, 0) or veh:getPosition())):length()) or nil,
       care = sl_carcare and sl_carcare.summary and sl_carcare.summary(c) or nil,
       impounded = c.impounded,

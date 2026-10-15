@@ -153,8 +153,42 @@ local function condition(car)
   local c = car.condition or 0.5
   return math.min(math.max(c, 0.95), c + M.REPAIR_CONDITION * (car.repaired or 0) / math.max(1, car.value or 0))
 end
+-- the faults whose slot holds a part in a Wrench Works parts tree (a fault's word in a fitted slot's path)
+function M.faultsFitted(partsTree, faults)
+  local paths = {}
+  local function walk(node)
+    local chosen = node.chosenPartName ~= nil and node.chosenPartName ~= ''
+    if node.path and chosen then paths[#paths + 1] = tostring(node.path):lower() end
+    if node.path == nil or chosen then for _, c in pairs(node.children or {}) do walk(c) end end
+  end
+  walk(partsTree or {})
+  local fitted = {}
+  for _, f in ipairs(faults or {}) do
+    for _, p in ipairs(paths) do if M.fixes(f, p) then fitted[f] = true break end end
+  end
+  return fitted
+end
+
+-- a car's faults still open (car.fixed[fault] = what the part in its slot cost, set at drive-out; nil = still wrong)
+function M.unfixed(car)
+  local out = {}
+  for _, f in ipairs(car.faults or {}) do if not (car.fixed and car.fixed[f]) then out[#out + 1] = f end end
+  return out
+end
+
+-- a fault takes 5 % off; one put right with a part gets that back only as far as REPAIR_BACK x what the part cost
+-- (a $60 exhaust is not worth 5 % of the car: the flip's rule, no fault wash)
+local function faultPenalty(car, base)
+  local p = 0
+  for _, f in ipairs(car.faults or {}) do
+    local paid = car.fixed and car.fixed[f]
+    p = p + (paid and math.max(0, 0.05 * base - M.REPAIR_BACK * paid) or 0.05 * base)
+  end
+  return p
+end
 local function rawResale(car)
-  return math.max(150, (car.value or 0) * (0.25 + 0.45 * condition(car)) * (1 - 0.05 * #(car.faults or {})))
+  local base = (car.value or 0) * (0.25 + 0.45 * condition(car))
+  return math.max(150, base - faultPenalty(car, base))
 end
 local function capped(car, raw, partsNow, step)
   if not car.boughtFor or car.boughtFor <= 0 then return round(raw, step) end       -- (a pink slip won: nothing paid)
@@ -173,7 +207,7 @@ end
 -- buyers pay a premium for one (the flip's reward; a car bought good never gets it, so it is no loop)
 M.REBUILT_PREMIUM = 1.15
 function M.rebuilt(car)
-  return (car.condition or 1) < 0.9 and (car.repaired or 0) > 0 and condition(car) >= 0.9 - 1e-9 and #(car.faults or {}) == 0
+  return (car.condition or 1) < 0.9 and (car.repaired or 0) > 0 and condition(car) >= 0.9 - 1e-9 and #M.unfixed(car) == 0
 end
 
 -- what a private buyer at the lot pays for a car of yours

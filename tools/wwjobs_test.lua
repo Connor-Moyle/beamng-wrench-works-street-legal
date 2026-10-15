@@ -22,7 +22,11 @@ return function(check, rngLib)
   check('another car does not count', ww.tuneMeasure(m, 300, 'b') == 'other car')
   check('not there yet', ww.tuneMeasure(m, 240, 'a') == 'below')
   check('no parts bought, no pay', ww.tuneMeasure(m, 260, 'a') == 'no parts')
-  m.spent = 800
+  m.spent = 20
+  check('a $20 part is not a build: under 35 % of the budget, no pay (B31)', ww.tuneMeasure(m, 260, 'a') == 'no parts')
+  m.spent = 1050
+  check('35 % of the budget in the car counts', ww.tuneMeasure(m, 260, 'a') == 'met')
+  m.spent = 1100
   check('built to spec', ww.tuneMeasure(m, 260, 'a') == 'met')
   check('no reading, no change', ww.tuneMeasure(m, nil, 'a') == 'none')
 

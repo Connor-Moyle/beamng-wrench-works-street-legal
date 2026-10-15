@@ -11,7 +11,7 @@ The BeamNG Wrench Works family, one game:
 
 ## One wallet
 
-While a career runs, Wrench Works: Street Legal hands Wrench Works a money provider (`garageParts.setMoneyProvider`). From then on everything Wrench Works spends or pays, and everything that goes through `require('slrr/garageParts').changeMoney(amount, label)`, is career money. The night races already pay through `changeMoney`, so nothing more is needed there.
+While a career runs, Wrench Works: Street Legal hands Wrench Works a money provider (`garageParts.setMoneyProvider`). From then on everything Wrench Works spends or pays, and everything that goes through `require('slrr/garageParts').changeMoney(amount, label)`, is career money. The night races already pay through `changeMoney`, so nothing more is needed there. Without Wrench Works installed there is no shared wallet (the map keeps its own, in `/settings/slrr_valo_city/races.json`), so the career settles a money bet itself from `onSlrrRaceFinished` (`won`, `bet`, `stake`); the map's own wallet then moves too, which only freeroam sees.
 
 ## Before missions: what the night races tell the career (`slrrValoRaces.lua`)
 

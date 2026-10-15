@@ -179,6 +179,21 @@ do
     check('the used lot always has a starter at or under the starter price', ok)
     check('a starter is a real used car, not a loop', market.resaleValue({ value = 12000, condition = 0.5, faults = {}, boughtFor = 3500, partsAtBuy = 0 }, 0) < 3500)
   end
+  -- B25: a fault is fixed only while a part sits in its slot at drive-out, and is worth at most 1.35 x that part
+  do
+    local car = { value = 20000, condition = 0.5, faults = { 'exhaust', 'engine' } }   -- (no sell-back cap: as a car won)
+    local open = market.resaleValue(car, 0)
+    car.fixed = { exhaust = 60 }
+    local cheap = market.resaleValue(car, 0)
+    check('a $60 part gives back at most $81 of the fault, not 5 % of the car', cheap - open <= 100 and cheap >= open)
+    car.fixed = { exhaust = 2000, engine = 3000 }
+    local proper = market.resaleValue(car, 0)
+    check('proper parts get the whole fault back', proper > cheap and #market.unfixed(car) == 0)
+    check('no fixed part, every fault open', #market.unfixed({ faults = { 'a', 'b' } }) == 2)
+    local tree = { children = { engine = { path = '/engine/', chosenPartName = 'engine_v8', children = { exhaust = { path = '/engine/exhaust/', chosenPartName = '' } } } } }
+    local f = market.faultsFitted(tree, { 'engine', 'exhaust', 'battery' })
+    check('faultsFitted: a part in the slot counts, an empty slot does not', f.engine == true and not f.exhaust and not f.battery)
+  end
   check('scrap pays less than a private buyer', market.scrapValue({ value = 20000, condition = 0.5 }) < market.resaleValue({ value = 20000, condition = 0.5 }))
   -- no money loop (fails the build): every car any lot sells, sold straight back or scrapped as it is, fetches
   -- less than it cost; fitting parts only gets their value back; a better state since is worth more

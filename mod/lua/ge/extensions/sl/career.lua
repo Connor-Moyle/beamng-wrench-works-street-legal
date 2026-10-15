@@ -418,8 +418,10 @@ end
 
 -- from the main menu: a new career (fresh = true, in the first free slot: never over another career) or a saved
 -- one (n, or the one played last)
+local stop                                 -- (defined below)
+
 function M.start(fresh, n)
-  if active then writeSave() end          -- (the career being played is kept in its own slot first)
+  if active then stop() end              -- (B26: the career being played is saved and stopped first, so nothing of it carries over)
   local m = slotsMeta()
   n = tonumber(n)
   if fresh then
@@ -455,7 +457,6 @@ function M.start(fresh, n)
   end
 end
 
-local stop
 -- the career is over (Hardcore: the driver died): saved as ended, and stopped
 function M.endCareer() if active then stop() end end
 
@@ -746,7 +747,7 @@ function M.onSlrrPinkCarDelivered(vid)
   veh:queueLuaCommand('ai.setMode("disabled")')
   local pos, rot = sl_fleet.forecourt(s, #s.cars % 6)
   if pos then spawn.safeTeleport(veh, pos, rot, true, nil, nil, nil, false) end     -- (8th: resetVehicle would repair it)
-  sl_fleet.registerVehicle(vid, { name = won.name or veh:getJBeamFilename(), condition = 0.85 })
+  sl_fleet.registerVehicle(vid, { name = won.name or veh:getJBeamFilename(), condition = 0.85, value = won.value })   -- (B32: a value, so resale and scrap price it)
   M.sendText('benny', string.format('Your new %s is outside the garage. Won fair and square.', won.name or 'car'), 2)
 end
 
@@ -758,7 +759,11 @@ function M.onSlrrRaceFinished(r)
   for i, c in ipairs(s.challenges) do
     if c.race == r.raceId or (r.missionId and c.missionId == r.missionId) then challenge = c table.remove(s.challenges, i) break end
   end
-  -- the money has moved already: the map's races pay through the shared wallet
+  -- the money has moved already: the map's races pay through the shared wallet. Without Wrench Works there is no
+  -- shared wallet (the map keeps its own) so the bet is settled here (gate M1, B28)
+  if r.stake == 'money' and tonumber(r.bet) and r.bet > 0 and not garageModule('slrr/garageParts') then
+    wallet.add(r.won and r.bet or -r.bet, (r.won and 'Won' or 'Lost') .. ' a street race' .. (r.opponent and (' against ' .. tostring(r.opponent)) or ''))
+  end
   local racer = (challenge and challenge.racer) or (type(r.racerId) == 'string' and stateLib.racer(s, r.racerId) and r.racerId) or nil
   local repBefore = s.rep
   local h = hour()
@@ -777,7 +782,7 @@ function M.onSlrrRaceFinished(r)
   if r.stake == 'pink' and sl_fleet and not r.abandoned then
     if r.won then
       -- their car is yours: the map stops it and, once out of sight, hands it over (onSlrrPinkCarDelivered)
-      M._pinkWon = { name = r.opponent and (r.opponent .. "'s car") or nil, vid = r.opponentVid }
+      M._pinkWon = { name = r.opponent and (r.opponent .. "'s car") or nil, vid = r.opponentVid, value = tonumber(r.value) }
       s.stats.pinksWon = s.stats.pinksWon + 1
     elseif not r.won then
       local gone = sl_fleet.lastGone
