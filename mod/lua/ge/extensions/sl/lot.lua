@@ -28,6 +28,32 @@ M.MIN_CARS, M.MAX_CARS = 2, 6
 
 local function career() return sl_career and sl_career.isActive() and sl_career.getState() or nil end
 
+-- out to the street: the display spots are boxed in, so a car you drive away (bought or on a test drive) waits on
+-- the nearest city lane, in the lane, facing along it, where no other car stands
+local roadspot = require('sl/core/roadspot')
+function M.toRoad(veh, from)
+  local others = {}
+  for _, v in ipairs(getAllVehicles()) do if v:getID() ~= veh:getID() then others[#others + 1] = v:getPosition() end end
+  local c = roadspot.pick(roadspot.candidates(map.getMap().nodes, from, not map.getRoadRules().rightHandDrive), others)
+  if not c then return false end
+  veh:queueLuaCommand('controller.setFreeze(0) input.event("parkingbrake", 0, FILTER_DIRECT)')
+  spawn.safeTeleport(veh, vec3(c.x, c.y, c.z + 0.4), quatFromDir(vec3(c.dx, c.dy, 0), vec3(0, 0, 1)), true, nil, nil, nil, false)   -- (not repaired)
+  return true
+end
+
+-- fade out, the car to the road, the player in it, fade in
+local function driveAwayFromRoad(veh, from, pic)
+  core_jobsystem.create(function(j)
+    guihooks.trigger('slFade', { on = true, pic = pic })
+    j.sleep(0.6)
+    if not M.toRoad(veh, from) then veh:queueLuaCommand('controller.setFreeze(0) input.event("parkingbrake", 0, FILTER_DIRECT)') end
+    j.sleep(0.3)
+    if gameplay_walk and gameplay_walk.getInVehicle then gameplay_walk.getInVehicle(veh) else be:enterVehicle(0, veh) end
+    j.sleep(0.3)
+    guihooks.trigger('slFade', { on = false })
+  end)
+end
+
 local function displaySpot(place)
   local pos = place.display or (place.pos + place.dir * 7)
   local dir = place.displayDir or place.dir
@@ -259,15 +285,14 @@ function M.buy()
   local car = sl_fleet.registerVehicle(lot.veh, { name = offer.name, brand = offer.brand, value = offer.value, condition = offer.condition,
     faults = offer.faults, mileage = offer.mileage, price = offer.price })
   local veh = getObjectByID(lot.veh)
+  local from = lot.place.pos
   lot.soldVeh = lot.veh
   cameraOff()
   dropCars()                                    -- the rest of the row goes back inside
   lightsOff()
   lot = nil
   send()
-  if veh then
-    if gameplay_walk and gameplay_walk.getInVehicle then gameplay_walk.getInVehicle(veh) else be:enterVehicle(0, veh) end
-  end
+  if veh then driveAwayFromRoad(veh, from, 'loading_dealer_used_enter.png') end
   local broken = #(offer.faults or {}) > 0
   sl_career.sendText('benny', broken and string.format('You bought the %s? It has problems: %s. Drive it home if it goes, or call a tow, and we will sort it in the garage.', offer.name, table.concat(offer.faults, ', '))
     or string.format('Nice, the %s. Bring it to the garage and let us have a look at it.', offer.name), 4)
@@ -282,9 +307,8 @@ function M.testDrive()
   cameraOff()
   lot.mode = 'test'
   test = { timeLeft = TEST_SECONDS, driven = 0 }
-  veh:queueLuaCommand('controller.setFreeze(0) input.event("parkingbrake", 0, FILTER_DIRECT)')
   if slrrDrivers and slrrDrivers.setDriver then slrrDrivers.setDriver(veh:getID(), slrrDrivers.getDefaultDriver and slrrDrivers.getDefaultDriver() or nil) end   -- you, at the wheel
-  if gameplay_walk and gameplay_walk.getInVehicle then gameplay_walk.getInVehicle(veh) else be:enterVehicle(0, veh) end
+  driveAwayFromRoad(veh, lot.place.pos, 'loading_dealer_used_enter.png')
   if core_groundMarkers then core_groundMarkers.setPath(lot.place.pos) end
   send()
 end

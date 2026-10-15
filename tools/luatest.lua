@@ -558,4 +558,32 @@ do
   check('purse by place', clubs.purse(1, 1) == 300 and clubs.purse(1, 2) == 150 and clubs.purse(1, 4) == 0)
 end
 
+-- leaving a lot by the road (playtest: boxed-in display spots)
+do
+  local rs = require('sl/core/roadspot')
+  local function P(x, y) return { x = x, y = y, z = 0 } end
+  local function link(i, o, extra) local e = { inNode = i, outNode = o, drivability = 1, speedLimit = 14, lanes = '-+' } for k, v in pairs(extra or {}) do e[k] = v end return e end
+  -- a street along x (a..d), a freeway (f1..f3) closer to the lot, a junction at b
+  local nodes = {
+    a = { pos = P(0, 0), radius = 4, links = {} }, b = { pos = P(50, 0), radius = 4, links = {} },
+    c = { pos = P(100, 0), radius = 4, links = {} }, d = { pos = P(150, 0), radius = 4, links = {} },
+    s = { pos = P(50, 60), radius = 4, links = {} },
+    f1 = { pos = P(0, 20), radius = 6, links = {} }, f2 = { pos = P(60, 20), radius = 6, links = {} }, f3 = { pos = P(120, 20), radius = 6, links = {} },
+  }
+  local function connect(i, o, extra) nodes[i].links[o] = link(i, o, extra) nodes[o].links[i] = link(i, o, extra) end
+  connect('a', 'b') connect('b', 'c') connect('c', 'd') connect('b', 's')
+  connect('f1', 'f2', { speedLimit = 30 }) connect('f2', 'f3', { speedLimit = 30 })
+  nodes.a.links.z = link('a', 'z') nodes.z = { pos = P(-50, 0), radius = 4, links = { a = link('a', 'z') } }
+  nodes.y = { pos = P(200, 0), radius = 4, links = {} } nodes.w = { pos = P(250, 0), radius = 4, links = {} }
+  connect('d', 'y') connect('y', 'w') nodes.w.links.v = link('w', 'v')
+  local c = rs.candidates(nodes, P(120, 25), true)
+  check('road spot: never the freeway, never at a junction', #c > 0 and c[1].y < 5)
+  check('road spot: the nearest plain link, its middle', math.abs(c[1].x - 125) < 0.01)
+  check('road spot: in the right-hand lane, facing along it', math.abs(math.abs(c[1].y) - 2) < 0.01 and math.abs(c[1].dx) == 1 and (c[1].dx > 0) == (c[1].y < 0))
+  local free = rs.pick(c, { P(125, -2) })
+  check('road spot: skips one with a car on it', free and math.abs(free.x - 125) > 1)
+  check('road spot: hidden and private roads are not city lanes', #rs.candidates({ a = { pos = P(0, 0), radius = 4, links = { b = link('a', 'b', { type = 'private' }) } },
+    b = { pos = P(50, 0), radius = 4, links = { a = link('a', 'b', { type = 'private' }) } } }, P(0, 0), true) == 0)
+end
+
 print(string.format('lua tests passed: %d checks', passed))

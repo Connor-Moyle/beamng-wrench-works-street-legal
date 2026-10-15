@@ -235,6 +235,20 @@ check('achievements: earned from the record, bests kept', function(job)
   return sum.earned >= 1 and b and b.time == 55.5, string.format('%d of %d earned; best %.2f s', sum.earned, sum.total, b and b.time or -1)
 end)
 
+-- every lot has a city lane to leave by (playtest: boxed-in display spots)
+for _, kind in ipairs({ 'junkyard', 'dealer', 'scrapyard' }) do
+  check('lot ' .. kind .. ': a clear city lane nearby to drive away from', function()
+    local rs = require('sl/core/roadspot')
+    for _, p in pairs(sl_career.getPlaces() or {}) do
+      if p.kind == kind then
+        local c = rs.pick(rs.candidates(map.getMap().nodes, p.pos, not map.getRoadRules().rightHandDrive), {})
+        return c ~= nil and c.dist < 250, c and string.format('%.0f m from the lot', c.dist) or 'none within 400 m'
+      end
+    end
+    return false, 'no ' .. kind .. ' on this map'
+  end)
+end
+
 -- no freeroam shortcuts in the career (playtest #2, #3)
 check('lockdown: editor, vehicle menus, rewind and teleports blocked; the pause menu has its own mode', function()
   local af = core_input_actionFilter
