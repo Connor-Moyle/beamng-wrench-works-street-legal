@@ -663,7 +663,7 @@
       if (!m || !m.show || !st.chooser) return '';
       var sl = !m.installed
         ? '<div class="slp-chcard slp-chsl slp-off"><b>Wrench Works: Street Legal</b><span>Needs the Wrench Works: Valo City map (slrr_valo_city). Switch it on under Mods.</span></div>'
-        : '<div class="slp-chcard slp-chsl"><b>Wrench Works: Street Legal</b>' + (st.slrrArt ? slrrIcon(m.summary ? 'load_career_a.png' : 'new_career_a.png', 'slp-chimg') : '') + '<span>' + (m.summary ? 'Your career: ' + esc(m.summary) : 'Valo City at night. No car, $3,500 and a name nobody knows. Junkyard wrecks, street racers, pink slips and the ROC.') + '</span>' +
+        : '<div class="slp-chcard slp-chsl"><b>Wrench Works: Street Legal</b>' + (st.slrrArt ? slrrIcon(m.summary ? 'load_career_a.png' : 'new_career_a.png', 'slp-chimg') : '') + '<span>' + (m.summary ? 'Your career: ' + esc(m.summary) : 'Valo City at night. No car, $5,000 and a name nobody knows. Junkyard wrecks, street racers, pink slips and the ROC.') + '</span>' +
           (m.summary ? '<div class="slp-btn slp-go" data-a="menustart" data-v="continue">Continue</div>' : '') +
           '<div class="slp-btn' + (m.summary ? ' slp-tonal' : ' slp-go') + '" data-a="menustart" data-v="new">' + (m.summary ? 'New career (replaces this one)' : 'New career') + '</div>' +
           '<div class="slp-btn slp-tonal" data-a="menustart" data-v="newskip">' + (m.summary ? 'New career, no tutorial (replaces this one)' : 'New career, no tutorial') + '</div></div>';

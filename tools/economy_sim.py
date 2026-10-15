@@ -18,7 +18,7 @@ BOOST = '--noboost' not in sys.argv     # the early-game boost in sl_jobs
 DAY_MIN = 30.0            # real minutes per in-game day (BeamNG's TimeOfDay dayLength; verify in game)
 NIGHT = (20, 5)           # night hours, as progression.isNight
 CITY_SPEED = 11.0         # m/s average across town, stops included
-START_MONEY = 3500
+START_MONEY = 5000
 TIERS = [  # roster.TIERS: rep range, bet range
     dict(rep=(0, 150), bet=(100, 400)), dict(rep=(150, 600), bet=(300, 1000)), dict(rep=(600, 1800), bet=(800, 3000)),
     dict(rep=(1800, 4000), bet=(2500, 8000)), dict(rep=(4000, 9000), bet=(6000, 20000))]

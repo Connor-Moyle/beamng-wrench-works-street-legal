@@ -8,7 +8,7 @@
 
 local M = {}
 
-M.START_MONEY = 3500
+M.START_MONEY = 5000
 M.START_HOUR = 20.5          -- the first evening
 
 -- how hard the street gets, 0 (nobody) to 1 (the ROC crowd): from reputation
