@@ -164,6 +164,9 @@ end
 function M.deleteSlot(n)
   n = tonumber(n)
   if not n or not slotUsed(n) or (active and n == slot) then return false end
+  -- parts it had up for sale are held in the save: back onto Wrench Works' shelf (it is shared by every career)
+  local data = sl_classifieds and sl_classifieds.returnListed and readSave(slotFile(n))
+  if data then sl_classifieds.returnListed(data) end
   for _, f in ipairs({ slotFile(n), slotFile(n) .. '.new', slotFile(n) .. '.bak' }) do if FS:fileExists(f) then FS:removeFile(f) end end
   local m = slotsMeta()
   m.names[tostring(n)] = nil

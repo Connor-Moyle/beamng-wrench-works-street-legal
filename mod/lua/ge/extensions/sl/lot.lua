@@ -97,7 +97,7 @@ local function send()
   local mineVeh = mine and sl_fleet.vehicleOf(mine.id)
   local parts = mineVeh and builder.partsValue(mineVeh:getID())       -- (what was fitted since counts, as at the sale)
   guihooks.trigger('slLotData', {
-    open = true, mode = lot.mode, name = lot.place.name, kindTitle = TITLES[lot.kind], kind = lot.kind,
+    open = true, mode = lot.mode, name = lot.place.name, kindTitle = lot.private and 'Private sale' or TITLES[lot.kind], kind = lot.kind,
     index = lot.index, count = #lot.offers, offer = offerForUi(lot.offers[lot.index]), building = lot.mode == 'browse' and lot.veh == nil,
     money = s.money, testLeft = test and math.ceil(test.timeLeft) or nil,
     sellCar = mine and { name = mine.name, price = lot.kind == 'scrap' and market.scrapValue(mine, parts) or market.resaleValue(mine, parts) } or nil,
@@ -229,17 +229,18 @@ end
 ----------------------------------------------------------------------------------------------
 -- opening and closing
 
-local function open(place, mode)
+local function open(place, mode, given)
   local s = career()
   if not s or lot then return end
-  local kind = KIND[place.kind]
+  local kind = KIND[place.kind] or 'used'
   -- how many stand on the lot today: 2 to 6, the same all day
   local count = rngLib.new(rngLib.hash(place.id .. ':' .. s.day .. ':' .. s.seed)):int(M.MIN_CARS, M.MAX_CARS)
-  local offers = {}
-  for _, o in ipairs(market.offers(builder.configs(), kind, s.seed, s.day, count + 4)) do
+  local offers = given or {}
+  for _, o in ipairs(given and {} or market.offers(builder.configs(), kind, s.seed, s.day, count + 4)) do
     if not (s.bought or {})[o.id] and #offers < count then offers[#offers + 1] = o end
   end
-  lot = { place = place, kind = kind, offers = offers, index = 1, cars = {}, mode = mode or 'browse', previousCamera = core_camera.getActiveCamName(0) }
+  lot = { place = place, kind = kind, offers = offers, index = 1, cars = {}, mode = mode or 'browse', previousCamera = core_camera.getActiveCamName(0),
+    private = place.private }
   armedAt[place.id] = false
   if lot.mode == 'browse' then
     if #offers == 0 then
@@ -253,6 +254,22 @@ local function open(place, mode)
     buildRow()
   end
   send()
+end
+
+-- a private seller's car (the used-car ads, sl_classifieds): offer as the lots make them ({ name, model, config,
+-- condition, faults, mileage, price, value } + listingId), standing on the street by the seller's kerb at pos.
+-- Looked round, test driven and bought as at a lot; a sale calls sl_classifieds.onPrivateSold(listingId, carId)
+function M.privateOffers(seed, count) return market.offers(builder.configs(), 'used', seed or 1, 0, count or 6) end
+function M.openPrivate(offer, pos, sellerName)
+  if not career() or lot or type(offer) ~= 'table' or not pos then return false end
+  pos = vec3(pos.x, pos.y, pos.z or 0)
+  local others = {}
+  for _, v in ipairs(getAllVehicles()) do others[#others + 1] = v:getPosition() end
+  local c = roadspot.pick(roadspot.candidates(map.getMap().nodes, pos, not map.getRoadRules().rightHandDrive, 120), others)
+  local at, dir = c and vec3(c.x, c.y, c.z) or pos, c and vec3(c.dx, c.dy, 0) or vec3(0, 1, 0)
+  open({ id = 'private:' .. tostring(offer.listingId), kind = 'private', name = (sellerName or 'A private seller') .. "'s car",
+    pos = pos, dir = dir, displays = { { pos = at, dir = dir } }, private = offer.listingId or true }, 'browse', { offer })
+  return lot ~= nil
 end
 
 function M.close()
@@ -291,6 +308,7 @@ function M.buy()
     faults = offer.faults, mileage = offer.mileage, price = offer.price })
   local veh = getObjectByID(lot.veh)
   local from = leaveFrom(lot.place)
+  if lot.private and sl_classifieds and sl_classifieds.onPrivateSold then sl_classifieds.onPrivateSold(lot.private, car and car.id) end
   lot.soldVeh = lot.veh
   cameraOff()
   dropCars()                                    -- the rest of the row goes back inside
