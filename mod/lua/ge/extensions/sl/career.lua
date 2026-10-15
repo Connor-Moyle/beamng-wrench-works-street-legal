@@ -383,7 +383,31 @@ end
 -- docs/integration.md for the two calls that ties them together.
 
 local raceList            -- the map's night races { id, name, start = vec3, finish = vec3 }
+local trackList           -- its circuits and venues (from its mission list)
+local listedAt
+
+-- the map lists every race as a BeamNG mission (slrrValoRaces.listRaces): night races and drags
+-- for the street, circuits and venues for the garage's Tracks list. Older maps: races.json.
+local function missionRaces()
+  if not (slrrValoRaces and slrrValoRaces.listRaces and slrrValoRaces.launch) then return nil end
+  if raceList and listedAt and os.clock() - listedAt < 10 then return raceList end
+  local ok, list = pcall(slrrValoRaces.listRaces)
+  if not ok or type(list) ~= 'table' then return nil end
+  raceList, trackList, listedAt = {}, {}, os.clock()
+  for _, r in ipairs(list) do
+    local e = { id = r.id or r.missionId, missionId = r.missionId, name = r.name or tostring(r.id), start = v3(r.start), finish = v3(r.finish),
+      kind = r.kind, ref = r.ref, laps = r.laps, drag = r.kind == 'drag' }
+    if e.start and e.missionId then
+      if r.kind == 'night' or r.kind == 'street' or r.kind == 'drag' then raceList[#raceList + 1] = e
+      elseif r.ref ~= 'roc' then trackList[#trackList + 1] = e end        -- the ROC is the career's own, behind its rules
+    end
+  end
+  return raceList
+end
+
 local function races()
+  local listed = missionRaces()
+  if listed then return listed end
   if raceList then return raceList end
   raceList = {}
   local data = jsonReadFile('/levels/' .. M.LEVEL .. '/races.json')
@@ -429,7 +453,7 @@ function M.challenge(racerId, kind)
       if s.challenges[i].racer == racerId then table.remove(s.challenges, i) end      -- one date per racer
     end
     local c = { id = racerId .. ':' .. now(), racer = racerId, stake = answer.stake, bet = answer.bet, race = race.id, raceName = race.name,
-      nightOnly = racer.nightOnly, at = now() }
+      missionId = race.missionId, nightOnly = racer.nightOnly, at = now() }
     s.challenges[#s.challenges + 1] = c
     answer.challenge = c
     answer.text = answer.text .. ' Meet at ' .. race.name .. '.'
@@ -482,14 +506,24 @@ local function updateOwnCar(pick)
   end
 end
 
+-- what the map's race needs to know about an arranged race (slrrValoRaces.launch's offer)
+local function offerFor(c, vid)
+  local racer = stateLib.racer(s, c.racer)
+  if not racer then return nil end
+  return { name = roster.displayName(racer), racerId = racer.id, class = racer.class, skill = racer.skill,
+    aggression = sl_streets and sl_streets.aggression and sl_streets.aggression(racer.skill) or 0.6,
+    stake = c.stake, bet = c.bet, car = racer.car and racer.car.name, vehicleId = vid, laps = c.laps }
+end
+
 local function syncChallenge()
-  if not (slrrValoRaces and slrrValoRaces.startChallenge) then return end
+  if not (slrrValoRaces and (slrrValoRaces.startChallenge or slrrValoRaces.launch)) then return end
   local night = progression.isNight(hour())
   local pick
   for _, c in ipairs(s.challenges) do
     if not c.nightOnly or night then pick = c end
   end
   updateOwnCar(pick)
+  if slrrValoRaces.launch and missionRaces() then return end           -- started from here, at the line (checkChallengeArrival)
   local key = pick and (pick.id .. ':' .. tostring(ownCar and ownCar.vid)) or false
   if key == registered then return end
   registered = key
@@ -545,7 +579,7 @@ function M.onSlrrRaceFinished(r)
   if not active or type(r) ~= 'table' then return end
   local challenge
   for i, c in ipairs(s.challenges) do
-    if c.race == r.raceId then challenge = c table.remove(s.challenges, i) break end
+    if c.race == r.raceId or (r.missionId and c.missionId == r.missionId) then challenge = c table.remove(s.challenges, i) break end
   end
   -- the money has moved already: the map's races pay through the shared wallet
   local racer = (challenge and challenge.racer) or (type(r.racerId) == 'string' and stateLib.racer(s, r.racerId) and r.racerId) or nil
@@ -597,6 +631,44 @@ function M.onSlrrRaceFinished(r)
   changed()
 end
 
+-- a race started from its marker on the map, with no offer from us: an arranged race there brings
+-- its racer and stake; anything else is raced for nothing
+function M.onSlrrRaceOffer(missionId, req)
+  if not active or type(req) ~= 'table' then return end
+  for _, c in ipairs(s.challenges) do
+    if c.missionId == missionId then
+      req.offer = offerFor(c, ownCar and ownCar.challenge == c.id and ownCar.vid or nil)
+      return
+    end
+  end
+end
+
+-- the circuits and venues the map lists, for the garage's Tracks list (nil: an older map)
+function M.tracksList()
+  if not missionRaces() then return nil end
+  return trackList
+end
+
+-- a race at one of them against a racer: their car is built at the start, then the mission takes over
+function M.launchTrack(racerId, missionId)
+  if not active then return false, 'No career running.' end
+  local racer = stateLib.racer(s, racerId)
+  local track
+  for _, t in ipairs(M.tracksList() or {}) do if t.missionId == missionId then track = t end end
+  if not racer or not track then return false, 'That race is not on.' end
+  if not (sl_streets and sl_streets.buildRacerCar) then return false, 'Not now.' end
+  local bet = math.floor(((racer.betMin or 100) + (racer.betMax or 300)) / 2 / 50) * 50
+  for i = #s.challenges, 1, -1 do if s.challenges[i].racer == racerId then table.remove(s.challenges, i) end end
+  local c = { id = racerId .. ':track:' .. now(), racer = racerId, stake = 'money', bet = bet, race = track.id, raceName = track.name,
+    missionId = missionId, laps = track.laps, at = now() }
+  s.challenges[#s.challenges + 1] = c
+  changed()
+  sl_streets.buildRacerCar(racerId, track.start + vec3(0, 0, 0.5), nil, function(veh)
+    slrrValoRaces.launch(missionId, offerFor(c, veh and veh:getID() or nil))
+  end)
+  return true, string.format('%s, against %s for $%d.', track.name, roster.displayName(racer), bet)
+end
+
 -- a racer you beat may want another go: a text a little later (answer it from their thread)
 local REMATCH = {
   "You got lucky. Rematch - same stakes or more. Text me when you're ready.",
@@ -624,6 +696,9 @@ local function checkChallengeArrival()
         if c.nightOnly and not progression.isNight(hour()) then
           tell(roster.displayName(racer) .. ' only races at night. Come back after dark.', 6)
           c.notified = false
+        elseif slrrValoRaces and slrrValoRaces.launch and r.missionId then
+          -- the race is a BeamNG mission now: start it with them in it
+          slrrValoRaces.launch(r.missionId, offerFor(c, ownCar and ownCar.challenge == c.id and ownCar.vid or nil))
         elseif slrrValoRaces and slrrValoRaces.startChallenge then
           -- handed over already (syncChallenge): the start marker brings them
         else

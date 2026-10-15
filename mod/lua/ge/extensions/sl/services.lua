@@ -45,8 +45,13 @@ function M.onWrenchWorksServices(list, vid)
     for _, r in ipairs(sl_career.racesList() or {}) do
       list[#list + 1] = { id = 'race:' .. r.id, group = 'Races', label = r.name, desc = r.drag and 'drag strip, test track: a racer of your level waits' or 'a racer of your level waits at the start' }
     end
-    -- the race tracks in the valley: you and a racer of your level, taken to the grid
-    for _, t in ipairs(sl_streets and sl_streets.tracks and sl_streets.tracks() or {}) do
+    -- the race tracks: the map's own missions when it lists them, else its venue file
+    local missionTracks = sl_career.tracksList and sl_career.tracksList()
+    for _, t in ipairs(missionTracks or {}) do
+      list[#list + 1] = { id = 'mtrack:' .. t.missionId, group = 'Tracks', label = t.name,
+        desc = (t.laps and t.laps > 1 and t.laps .. ' laps' or 'start to finish') .. ': a racer of your level on the grid with you' }
+    end
+    for _, t in ipairs(not missionTracks and sl_streets and sl_streets.tracks and sl_streets.tracks() or {}) do
       list[#list + 1] = { id = 'track:' .. t.id, group = 'Tracks', label = t.name,
         desc = (t.sprint and 'a stage, start to finish' or t.laps .. ' laps') .. (t.kind == 'offroad' and ', off road' or '') .. ': a racer of your level on the grid with you' }
     end
@@ -73,7 +78,7 @@ local function doRace(s, raceId)
   local bet = math.floor(((racer.betMin or 100) + (racer.betMax or 300)) / 2 / 50) * 50
   for i = #s.challenges, 1, -1 do if s.challenges[i].racer == racer.id then table.remove(s.challenges, i) end end
   s.challenges[#s.challenges + 1] = { id = racer.id .. ':event:' .. os.time(), racer = racer.id, stake = 'money', bet = bet,
-    race = race.id, raceName = race.name, nightOnly = racer.nightOnly, at = os.time() }
+    race = race.id, raceName = race.name, missionId = race.missionId, nightOnly = racer.nightOnly, at = os.time() }
   core_jobsystem.create(function(job)
     if slrr_garage and slrr_garage.leave then slrr_garage.leave() end
     job.sleep(4)
@@ -116,6 +121,19 @@ function M.onWrenchWorksService(id, vid)
   if swap then return doSwap(tonumber(swap)) end
   local race = id:match('^race:(.+)$')
   if race then return doRace(s, race) end
+  local mtrack = id:match('^mtrack:(.+)$')
+  if mtrack then
+    local racer = racerForEvent(s, mtrack)
+    if not racer then return toast('Nobody to race.') end
+    s.known[racer.id] = true
+    core_jobsystem.create(function(job)
+      if slrr_garage and slrr_garage.leave then slrr_garage.leave() end
+      job.sleep(4)
+      local _, text = sl_career.launchTrack(racer.id, mtrack)
+      toast(text)
+    end)
+    return
+  end
   local track = id:match('^track:(.+)$')
   if track then
     local racer = racerForEvent(s, track)
