@@ -306,6 +306,9 @@ local function begin()
     if guihooks then guihooks.trigger('slFade', { on = false }) end
     -- the level loaded with nobody in it, so the game left its free camera on: follow the player
     if getPlayerVehicle(0) and core_camera.getActiveCamName(0) == 'free' then core_camera.setByName(0, 'orbit') end
+    -- started from the main menu's button, the UI stays on the menu screen over the game (seen in
+    -- game: the main menu drawn over the garage, taking the keys): on to the play screen
+    if ui_router and ui_router.navigate then ui_router.navigate('play') end
   end)
   placeInGarage()
   changed()
