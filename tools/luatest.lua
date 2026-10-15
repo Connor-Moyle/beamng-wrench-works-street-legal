@@ -169,7 +169,6 @@ do
     for seed = 1, 40 do
       for _, o in ipairs(market.offers(cars, kind, seed, seed % 9 + 1, 8)) do
         local car = { value = o.value, condition = o.condition, faults = o.faults, boughtFor = o.price, partsAtBuy = 5000 }
-        car.resaleAtBuy = market.resaleAtBuy(car)
         local back, scrapped = market.resaleValue(car, 5000), market.scrapValue(car, 5000)
         if back >= o.price or scrapped >= o.price then loops[#loops + 1] = string.format('%s %s $%d -> $%d/$%d', kind, o.name, o.price, back, scrapped) end
         if market.resaleValue(car, 5000 + 800) > back + 800 then loops[#loops + 1] = 'parts pay more than they cost: ' .. o.name end
@@ -177,10 +176,15 @@ do
     end
   end
   check('no car buys back for more than it cost (lot to lot, lot to scrap)', #loops == 0, loops[1])
-  local bought = { value = 20000, condition = 0.4, faults = { 'radiator', 'battery' }, boughtFor = 3000 }
-  bought.resaleAtBuy = market.resaleAtBuy(bought)
-  local fixed = { value = 20000, condition = 0.4, faults = {}, boughtFor = 3000, resaleAtBuy = bought.resaleAtBuy }
-  check('fixing it is worth something', market.resaleValue(fixed) > market.resaleValue(bought))
+  -- the flip: a wreck bought, repaired in your garage, sold: the repairs come back with a margin, as far as the car
+  -- is worth fixed (and no further: repairing past that only loses money)
+  local wreck = { value = 20000, condition = 0.3, faults = {}, boughtFor = 5000 }
+  local function flip(spent) local c = { value = 20000, condition = 0.3, faults = {}, boughtFor = 5000, repaired = spent } return market.resaleValue(c) - 5000 - spent end
+  check('a wreck sold straight back loses', flip(0) < 0)
+  check('fixed up it pays: 10-30 % on the repairs', flip(4000) > 4000 * 0.1 and flip(4000) < 4000 * 0.3, flip(4000))
+  check('repairs past what it is worth fixed lose money', flip(30000) < 0)
+  check('repairs raise what a pink slip car fetches too, but not past as good as new', market.resaleValue({ value = 20000, condition = 0.3, repaired = 1e6 }) <= market.resaleValue({ value = 20000, condition = 0.95 }))
+  check('a wreck is a wreck: no faults fixed, no money', market.resaleValue(wreck) <= 5000 * 0.9)
   check('a pink slip won (nothing paid) sells at the going rate', market.resaleValue({ value = 20000, condition = 0.5 }) > 5000)
 end
 

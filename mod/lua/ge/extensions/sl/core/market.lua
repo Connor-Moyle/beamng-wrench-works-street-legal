@@ -105,29 +105,32 @@ function M.offers(cars, kind, seed, day, count)
   return out
 end
 
--- No money loop: a car you bought never sells back (or scraps) for more than 90 % of what you paid, in the state
--- you bought it in. A better state since (fewer faults) raises that in proportion, and parts added since count at
--- their value (what the shop charges for them: no gain there either). partsNow: its parts' value now, if built.
+-- No money loop: a car you bought never sells back (or scraps) for more than 90 % of what you paid, as you bought
+-- it. What you put into it since counts: repairs done in your own garage (car.repaired, $) bring the car up (its
+-- condition, to 0.95 at most) and come back with a margin, REPAIR_BACK of what they cost: buying a wreck, fixing it
+-- and selling it pays (the SLRR flip), but only as far as the car is worth fixed. Parts added since count at their
+-- value (what the shop charges: no gain there). partsNow: its parts' value now, if built.
 M.SELL_BACK = 0.9
-local function rawResale(car)
+M.REPAIR_BACK = 1.35
+M.REPAIR_CONDITION = 3        -- condition gained per share of the car's value spent repairing it
+local function condition(car)
   local c = car.condition or 0.5
-  return math.max(150, (car.value or 0) * (0.25 + 0.45 * c) * (1 - 0.05 * #(car.faults or {})))
+  return math.min(math.max(c, 0.95), c + M.REPAIR_CONDITION * (car.repaired or 0) / math.max(1, car.value or 0))
+end
+local function rawResale(car)
+  return math.max(150, (car.value or 0) * (0.25 + 0.45 * condition(car)) * (1 - 0.05 * #(car.faults or {})))
 end
 local function capped(car, raw, partsNow, step)
   if not car.boughtFor or car.boughtFor <= 0 then return round(raw, step) end       -- (a pink slip won: nothing paid)
-  local better = rawResale(car) / math.max(1, car.resaleAtBuy or rawResale(car))
   local parts = math.max(0, (partsNow or 0) - (car.partsAtBuy or partsNow or 0))
-  local cap = car.boughtFor * M.SELL_BACK * better + parts
+  local cap = car.boughtFor * M.SELL_BACK + M.REPAIR_BACK * (car.repaired or 0) + parts
   return math.min(round(raw, step), math.floor(cap / step) * step)                      -- (never rounded up past the cap)
 end
-
--- the yardstick kept with a car when it is bought
-function M.resaleAtBuy(car) return rawResale(car) end
 
 -- what the scrap yard pays for a car of yours: its metal, plus a little for what still works
 function M.scrapValue(car, partsNow)
   local base = math.max(100, (car.value or 0) * 0.05)
-  return capped(car, base * (0.6 + 0.8 * (car.condition or 0.3)), partsNow, 10)
+  return capped(car, base * (0.6 + 0.8 * condition(car)), partsNow, 10)
 end
 
 -- what a private buyer at the lot pays for a car of yours

@@ -100,6 +100,13 @@ function M.onWrenchWorksDamage(vid, data)
   end
 end
 
+-- repaired in your own garage: what it cost stays with the car (its worth to a buyer goes up with it; core/market)
+function M.onWrenchWorksRepaired(vid, cost)
+  local s = career()
+  local car = s and carById(s, M.carOfVehicle(vid))
+  if car and tonumber(cost) then car.repaired = (car.repaired or 0) + tonumber(cost) end
+end
+
 -- the garage put somebody else behind the wheel (SLRR Drivers mod): it stays with the car
 function M.onWrenchWorksDriverChanged(vid, driverId)
   local s = career()
@@ -121,7 +128,7 @@ function M.registerVehicle(vid, info)
     value = info.value or 0, condition = info.condition or 1, faults = info.faults or {}, mileage = info.mileage or 0,
     config = builder.configOf(vid), where = placeOf(veh), boughtFor = info.price, boughtDay = s.day,
   })
-  if info.price then car.resaleAtBuy, car.partsAtBuy = market.resaleAtBuy(car), builder.partsValue(vid) end   -- (the sell-back cap's yardstick)
+  if info.price then car.partsAtBuy = builder.partsValue(vid) end   -- (the sell-back cap: parts added after this count)
   spawned[car.id] = vid
   s.activeCar = car.id
   veh:queueLuaCommand('controller.setFreeze(0) extensions.load("slrrGarageVeh")')

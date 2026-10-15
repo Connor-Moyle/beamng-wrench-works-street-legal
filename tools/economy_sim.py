@@ -80,6 +80,7 @@ class Player:
         self.fines, self.broke = 0, 0
         self.series = []
         self.flip_target = 1000
+        self.car_paid = 0
         self.perf = 0.0                     # parts on the car, in car classes
         self.upgraded = False               # the first part bought (ends "new in town")
         self.kind_done = {}
@@ -134,7 +135,7 @@ class Player:
         best = None
         for i, (value, _) in enumerate(CARS):
             price = value * self.r.uniform(0.3, 0.6)          # damaged stock (0.3) to tired (0.5-0.6), market.lua
-            trade = CARS[self.car][0] * 0.4 if self.car is not None else 0
+            trade = min(CARS[self.car][0] * 0.4, 0.9 * self.car_paid) if self.car is not None else 0   # (the sell-back cap)
             if price <= self.money + trade - 800 and (best is None or i > best[0]): best = (i, price, trade)
         if best and (self.car is None or best[0] > self.car):
             i, price, trade = best
@@ -142,7 +143,7 @@ class Player:
                 profit = trade - CARS[self.car][0] * 0.5
                 if profit > self.flip_target: self.money += self.flip_target * 0.5; self.flip_target *= 1.6
             self.money += trade - price
-            self.car = i
+            self.car, self.car_paid = i, price
             self.spend(8)
             self.mark('car %d' % (i + 1))
             return True
@@ -215,9 +216,17 @@ class Player:
         return True
 
     def flip(self):
-        if self.money < 2500: return False
-        cost = self.r.uniform(1200, 2200); minutes = self.r.uniform(20, 35)
-        profit = self.r.uniform(-200, 1500)
+        # the SLRR flip as core/market prices it now: a damaged-stock car bought, repaired in your garage up to
+        # condition 0.9, sold to a private buyer: min(what it is worth fixed, 0.9 x paid + 1.35 x the repairs)
+        affordable = [v for v, _ in CARS if v * 0.35 + v * 0.25 < self.money - 500]
+        if not affordable: return False
+        v = self.r.choice(affordable)
+        c = self.r.uniform(0.2, 0.5)
+        price = v * 0.3 * (0.85 + 0.3 * c) * self.r.uniform(0.92, 1.08)
+        repairs = max(0.0, (0.9 - c) * v / 3)
+        sale = min(v * (0.25 + 0.45 * 0.9), 0.9 * price + 1.35 * repairs)
+        profit = sale - price - repairs
+        minutes = self.r.uniform(25, 45)
         bonus = 0
         if profit >= self.flip_target: bonus = round(self.flip_target * 0.5, -1); self.flip_target *= 1.6
         self.money += profit + bonus
