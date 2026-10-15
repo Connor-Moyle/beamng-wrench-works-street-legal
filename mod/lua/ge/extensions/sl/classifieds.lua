@@ -370,6 +370,19 @@ function M.acceptOffer(id, index)
   return true, string.format('Sold the %s to %s: $%d after the fee.', y.name, o.buyer or 'a buyer', got)
 end
 
+-- a career slot about to be deleted (sl_career): its listed parts go back on the Wrench Works shelf, which every
+-- slot shares, so nothing listed is lost with the slot. s: that slot's state
+function M.returnListed(s)
+  local m = type(s) == 'table' and s.market
+  if not m or not m.mine then return 0 end
+  local n = 0
+  for _, y in ipairs(m.mine) do
+    if y.item and slrr_garage and slrr_garage.putShelfItem and slrr_garage.putShelfItem(y.model, y.item) then n = n + 1 end
+  end
+  m.mine = {}
+  return n
+end
+
 function M.withdraw(id)
   local s = career()
   if not s then return false, 'No career running.' end
