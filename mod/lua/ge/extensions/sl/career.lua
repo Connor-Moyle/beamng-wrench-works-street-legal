@@ -499,7 +499,7 @@ local function syncChallenge()
   end
   local racer = stateLib.racer(s, pick.racer)
   slrrValoRaces.startChallenge(pick.race, { name = roster.displayName(racer), racerId = racer.id, class = racer.class,
-    skill = racer.skill, aggression = 0.35 + 0.6 * (racer.skill or 0.5), stake = pick.stake, bet = pick.bet,
+    skill = racer.skill, aggression = sl_streets and sl_streets.aggression and sl_streets.aggression(racer.skill) or 0.6, stake = pick.stake, bet = pick.bet,
     car = racer.car and racer.car.name, vehicleId = ownCar and ownCar.vid or nil })
 end
 
@@ -637,6 +637,21 @@ end
 ----------------------------------------------------------------------------------------------
 -- moving up: a bigger garage, once the name and the money are there
 
+-- the impound: pay what is owed and the car is back at your garage
+function M.releaseCar(carId)
+  if not active then return false, 'No career running.' end
+  for _, car in ipairs(s.cars) do
+    if car.id == carId and car.impounded then
+      if not M.addMoney(-car.impounded, 'Impound: ' .. car.name) then return false, string.format('It is $%d. You have $%d.', car.impounded, s.money) end
+      car.impounded = nil
+      car.out, car.where = false, nil
+      changed()
+      return true, 'The ' .. car.name .. ' is back in your garage.'
+    end
+  end
+  return false, 'Nothing of yours is impounded.'
+end
+
 function M.moveGarage()
   if not active then return false, 'No career running.' end
   local n = progression.nextGarage(s)
@@ -661,10 +676,23 @@ function M.onPursuitAction(id, action, pursuit)
     local offences = type(pursuit) == 'table' and type(pursuit.offensesList) == 'table' and #pursuit.offensesList or 1
     local racing = sl_streets and sl_streets.isRacing()
     if racing then sl_streets.forfeit() end
-    local fine = math.min(s.money, progression.policeFine(offences, racing))
+    local owed = progression.policeFine(offences, racing)
+    local fine = math.min(s.money, owed)
     if fine > 0 then M.addMoney(-fine, 'Police fine') end
     stateLib.addRep(s, progression.ARREST_REP)
-    tell(string.format('Busted. $%d in fines%s.', fine, racing and ', and the race is lost' or ''), 7)
+    s.heat = math.min(1, (s.heat or 0) + 0.2)
+    -- could not pay it all: the car goes to the impound until the rest is paid (as in SLRR)
+    local car = owed > fine and sl_fleet and sl_fleet.currentCar()
+    if car then
+      car.impounded = (owed - fine) + 500
+      car.out = false
+      local veh = sl_fleet.vehicleOf(car.id)
+      if gameplay_walk then gameplay_walk.setWalkingMode(true, nil, nil, true) end
+      if veh then core_jobsystem.create(function(job) job.sleep(1) if veh then veh:delete() end end) end
+      tell(string.format('Busted, and you cannot pay. The %s is impounded: $%d to get it back (phone, My cars).', car.name, car.impounded), 9)
+    else
+      tell(string.format('Busted. $%d in fines%s.', fine, racing and ', and the race is lost' or ''), 7)
+    end
     changed()
   elseif action == 'evade' then
     stateLib.addRep(s, progression.EVADE_REP)

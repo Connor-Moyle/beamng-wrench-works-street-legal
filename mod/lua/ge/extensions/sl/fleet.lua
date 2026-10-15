@@ -181,6 +181,7 @@ function M.setActive(carId)
   local s = career()
   local car = s and carById(s, carId)
   if not car then return false, 'No such car.' end
+  if car.impounded then return false, string.format('It is in the police impound: $%d to get it back.', car.impounded) end
   if s.activeCar == carId and M.vehicleOf(carId) then return false, 'You have that one out already.' end
   local player = getPlayerVehicle(0)
   if not player or not M.atGarage(player:getPosition(), s) then return false, 'Swap cars at your garage.' end
@@ -257,6 +258,7 @@ function M.list()
       condition = c.condition, faults = c.faults, value = c.value,
       scrap = market.scrapValue(c), resale = market.resaleValue(c), towFee = veh and progression.towFee((veh:getPosition() - (M.forecourt(s, 0) or veh:getPosition())):length()) or nil,
       care = sl_carcare and sl_carcare.summary and sl_carcare.summary(c) or nil,
+      impounded = c.impounded,
     }
   end
   return out

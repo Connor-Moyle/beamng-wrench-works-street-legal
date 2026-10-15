@@ -151,6 +151,7 @@ local function answer(ok, text)
 end
 
 function M.tow(carId) if career() then answer(sl_fleet.tow(tonumber(carId))) end end
+function M.release(carId) if career() then answer(sl_career.releaseCar(tonumber(carId))) end end
 function M.useItem(carId, itemId) if career() and sl_carcare then answer(sl_carcare.useItem(tonumber(carId), tostring(itemId))) end end
 function M.useCar(carId) if career() then answer(sl_fleet.setActive(tonumber(carId))) end end
 function M.moveGarage() if career() then answer(sl_career.moveGarage()) end end

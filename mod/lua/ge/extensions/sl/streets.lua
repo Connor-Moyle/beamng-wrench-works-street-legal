@@ -159,10 +159,16 @@ local function sendRace()
     theirs = theirs and math.floor(theirs) or nil, ahead = mine and theirs and mine < theirs })
 end
 
+-- how hard a racer drives: their own skill, and more the bigger your name (the street gets harder)
+function M.aggression(skill)
+  local s = career()
+  return math.min(1, 0.35 + 0.5 * (skill or 0.5) + 0.15 * progression.difficulty(s and s.rep or 0))
+end
+
 local function aiGo(vid, destNode, skill)
   local v = getObjectByID(vid)
   if not v then return end
-  local aggression = 0.35 + 0.6 * (skill or 0.5)
+  local aggression = M.aggression(skill)
   -- a cruiser comes out of traffic mode with the legal speed limit still set: racing, it is off
   v:queueLuaCommand(string.format("controller.setFreeze(0) input.event('parkingbrake', 0, FILTER_DIRECT) ai.setSpeedMode('off') ai.setRecoverOnCrash(true) ai.setAggression(%f) ai.setAvoidCars('on') ai.driveInLane('off') ai.driveUsingPath({wpTargetList = {%q}, aggression = %f})",
     aggression, destNode, aggression))
@@ -178,6 +184,7 @@ local function startRace(racer, vid, stake, bet, standing, maxD)
     destName = placeNear(dest), distance = distance, t = 0, countdown = standing and 3.5 or nil, skill = racer.skill }
   if core_groundMarkers then core_groundMarkers.setPath(dest) end
   if sl_markers then sl_markers.flareRoute(v:getPosition(), dest) end        -- the way lit by flares, start to finish
+  extensions.hook('onStreetLegalRaceStarted')
   if not standing then aiGo(vid, destNode, racer.skill) end
   cruisers[racer.id] = nil
   if meet then meet.cars[racer.id] = nil end
@@ -256,7 +263,7 @@ local function updateRace(dt)
           end
           if best and best ~= last then wps[#wps + 1] = best last = best end
         end
-        local aggression = 0.35 + 0.6 * (race.skill or 0.5)
+        local aggression = M.aggression(race.skill)
         if #wps >= #race.circuit.cps * 0.8 then
           opp:queueLuaCommand(string.format("controller.setFreeze(0) input.event('parkingbrake', 0, FILTER_DIRECT) ai.setSpeedMode('off') ai.setRecoverOnCrash(true) ai.setAvoidCars('on') ai.driveInLane('off') ai.setAggression(%f) ai.driveUsingPath(%s)",
             aggression, serialize({ wpTargetList = wps, noOfLaps = race.circuit.laps, aggression = aggression })))
@@ -315,6 +322,11 @@ local function spawnCruiser(s)
   local list = cruiserCandidates(s)
   if #list == 0 then return end
   local rng = rngLib.new(rngLib.hash(tostring(os.clock())))
+  local mine = 1
+  for t, def in ipairs(roster.TIERS) do if (s.rep or 0) >= def.rep[1] then mine = t end end
+  local near = {}
+  for _, r in ipairs(list) do if math.abs(r.tier - mine) <= 1 then near[#near + 1] = r end end
+  if #near > 0 and rng:chance(0.8) then list = near end
   local racer = list[rng:int(#list)]
   local node = nodeAround(v:getPosition(), 180, 450, rng)
   if not node then return end

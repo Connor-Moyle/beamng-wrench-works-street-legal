@@ -11,6 +11,9 @@ local M = {}
 M.START_MONEY = 3500
 M.START_HOUR = 20.5          -- the first evening
 
+-- how hard the street gets, 0 (nobody) to 1 (the ROC crowd): from reputation
+function M.difficulty(rep) return math.max(0, math.min(1, (rep or 0) / 6000)) end
+
 -- what people call you
 M.titles = {
   { rep = 0, title = 'Nobody' },

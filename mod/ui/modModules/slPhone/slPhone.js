@@ -444,7 +444,8 @@
       var cards = cars.map(function (c) {
         var faults = arr(c.faults);
         var acts = [];
-        if (!c.active) acts.push('<div class="slp-btn" data-a="usecar" data-v="' + c.id + '">Drive this one</div>');
+        if (c.impounded) acts.push('<div class="slp-btn" data-a="release" data-v="' + c.id + '">Get it out of the impound &middot; ' + money(c.impounded) + '</div>');
+        else if (!c.active) acts.push('<div class="slp-btn" data-a="usecar" data-v="' + c.id + '">Drive this one</div>');
         if (c.out && c.towFee && c.where === 'Out on the street') acts.push('<div class="slp-btn slp-tonal" data-a="tow" data-v="' + c.id + '">Tow it home &middot; ' + money(c.towFee) + '</div>');
         return '<div class="slp-card"><h4>' + esc(c.name) + (c.active ? ' &#9733;' : '') + '</h4><p>' + esc(c.where) + ' &middot; condition ' + Math.round((c.condition || 0) * 100) + '%' +
           (faults.length ? '<br>Needs: ' + esc(faults.join(', ')) : '') + '</p>' + careView(c) + (acts.length ? '<div class="slp-acts">' + acts.join('') + '</div>' : '') + '</div>';
@@ -733,6 +734,7 @@
         case 'cancel': lua('cancel(' + JSON.stringify(v) + ')'); break;
         case 'taxi': lua('taxi(' + JSON.stringify(v) + ')'); break;
         case 'tow': lua('tow(' + Number(v) + ')'); break;
+        case 'release': lua('release(' + Number(v) + ')'); break;
         case 'usecar': lua('useCar(' + Number(v) + ')'); break;
         case 'move': lua('moveGarage()'); break;
         case 'roc': lua('enterRoc()'); setOpen(false); break;
