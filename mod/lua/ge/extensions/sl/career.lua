@@ -154,6 +154,15 @@ local function loadPlaces()
         end
         local place = { id = p.id, kind = tostring(p.kind or p.id), name = tostring(p.name or p.id), pos = pos,
           dir = flat(p.dir) or vec3(0, 1, 0), display = v3(p.display), displayDir = flat(p.displayDir) }
+        -- a lot's display spots, one car each: "displays": [ { "pos": [x, y, z], "dir": [x, y] } ]
+        if type(p.displays) == 'table' then
+          place.displays = {}
+          for _, d in ipairs(p.displays) do
+            local dp = type(d) == 'table' and v3(d.pos)
+            if dp then place.displays[#place.displays + 1] = { pos = dp, dir = flat(d.dir) or place.displayDir or -place.dir } end
+          end
+          if #place.displays == 0 then place.displays = nil end
+        end
         -- a lot whose drop-off is the display spot itself: you arrive 8 m in front of the car, facing it
         if place.kind ~= 'meet' and place.display and (place.display - place.pos):length() < 6 then
           local facing = place.displayDir or -place.dir

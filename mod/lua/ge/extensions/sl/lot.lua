@@ -9,16 +9,22 @@
 local M = {}
 
 local market = require('sl/core/market')
+local rngLib = require('sl/core/rng')
 local builder = require('sl/carBuilder')
 
 local KIND = { junkyard = 'used', dealer = 'dealer', scrapyard = 'scrap' }
 local TITLES = { used = 'Used cars', dealer = 'New cars', scrap = 'Scrap yard' }
 local TEST_SECONDS = 150
 
-local lot                 -- the open lot: { place, kind, offers, index, veh, building, previousCamera, mode = 'browse'|'test'|'sell' }
+-- the open lot: { place, kind, offers, spots, cars (index -> vehicle id), index, veh (the one looked at),
+--   building, previousCamera, mode = 'browse'|'test'|'sell' }
+local lot
 local armedAt = {}        -- place id -> true once the player has walked away from it
 local test                -- { timeLeft, started } during a test drive
 local job                 -- the running build, so a second click does not start another
+
+local SPACING = 4.6       -- metres between cars standing in a row
+M.MIN_CARS, M.MAX_CARS = 2, 6
 
 local function career() return sl_career and sl_career.isActive() and sl_career.getState() or nil end
 
@@ -26,6 +32,21 @@ local function displaySpot(place)
   local pos = place.display or (place.pos + place.dir * 7)
   local dir = place.displayDir or place.dir
   return pos, dir
+end
+
+-- where the cars stand: the map's own spots for this lot, or a row side by side through the
+-- display spot, all facing the same way. Returns { { pos, dir } } with n entries.
+local function spots(place, n)
+  if place.displays and #place.displays >= n then
+    local out = {}
+    for i = 1, n do out[i] = place.displays[i] end
+    return out
+  end
+  local base, dir = displaySpot(place)
+  local side = vec3(dir.y, -dir.x, 0)
+  local out = {}
+  for i = 1, n do out[i] = { pos = base + side * ((i - (n + 1) / 2) * SPACING), dir = dir } end
+  return out
 end
 
 ----------------------------------------------------------------------------------------------
@@ -46,77 +67,132 @@ local function send()
   local mine = sl_fleet.currentCar()
   guihooks.trigger('slLotData', {
     open = true, mode = lot.mode, name = lot.place.name, kindTitle = TITLES[lot.kind], kind = lot.kind,
-    index = lot.index, count = #lot.offers, offer = offerForUi(lot.offers[lot.index]), building = lot.building,
+    index = lot.index, count = #lot.offers, offer = offerForUi(lot.offers[lot.index]), building = lot.mode == 'browse' and lot.veh == nil,
     money = s.money, testLeft = test and math.ceil(test.timeLeft) or nil,
     sellCar = mine and { name = mine.name, price = lot.kind == 'scrap' and market.scrapValue(mine) or market.resaleValue(mine) } or nil,
   })
 end
 
 ----------------------------------------------------------------------------------------------
--- the camera: Wrench Works' garage camera, round the display spot
+-- the camera: SLRR's way, a three-quarter view of the car on show from the side the row faces,
+-- gliding over to the next one; drag to go round it, the wheel to come closer. (Wrench Works'
+-- garage camera was made for a room: on an open lot a fence behind the car pulled it inside the car.)
 
-local function cameraOn(pos, dir)
-  local ok, camera = pcall(require, 'slrr/garageCamera')
-  if not ok then return end
-  local site = { spot = pos, dir = dir, halfWidth = 9, backDist = 9, doorDist = -9, ceiling = 8 }
-  camera.setup(site, function()
-    local veh = lot and lot.veh and getObjectByID(lot.veh)
-    return veh and veh:getSpawnWorldOOBB():getCenter() or (pos + vec3(0, 0, 0.7))
-  end, 4.6, false)
-  camera.onPose = nil
-  camera.startOrbit(false)
-  core_camera.setByName(0, 'slrrGarage', false)
+local cam             -- { yaw, pitch, dist, pos, look, previous }
+
+local function cameraOn()
+  if cam then return end
+  cam = { yaw = math.rad(35), pitch = math.rad(12), dist = 7.5, previous = lot and lot.previousCamera }
+  if commands and commands.setFreeCamera then commands.setFreeCamera() end
 end
 
 local function cameraOff()
-  local ok, camera = pcall(require, 'slrr/garageCamera')
-  if ok then camera.stop() end
-  if core_camera.getActiveCamName(0) == 'slrrGarage' then
-    core_camera.setByName(0, (lot and lot.previousCamera and lot.previousCamera ~= 'slrrGarage') and lot.previousCamera or 'orbit', false)
+  if not cam then return end
+  local previous = cam.previous
+  cam = nil
+  if core_camera.getActiveCamName(0) == 'free' then
+    core_camera.setByName(0, (previous and previous ~= 'free' and previous ~= 'slrrGarage') and previous or 'orbit', false)
   end
 end
 
+local function updateCamera(dt)
+  if not cam or not lot or lot.mode ~= 'browse' then return end
+  local sp = lot.spots and lot.spots[lot.index or 1]
+  if not sp then return end
+  local veh = lot.veh and getObjectByID(lot.veh)
+  local target = veh and veh:getSpawnWorldOOBB():getCenter() or (sp.pos + vec3(0, 0, 0.7))
+  local side = vec3(sp.dir.y, -sp.dir.x, 0)
+  local flat = sp.dir * math.cos(cam.yaw) + side * math.sin(cam.yaw)
+  local want = target + flat * (cam.dist * math.cos(cam.pitch)) + vec3(0, 0, cam.dist * math.sin(cam.pitch) + 0.4)
+  local k = 1 - math.exp(-4 * math.min(dt, 0.1))
+  cam.pos = cam.pos and (cam.pos + (want - cam.pos) * k) or want
+  cam.look = cam.look and (cam.look + (target - cam.look) * k) or target
+  core_camera.setPosition(0, cam.pos)
+  core_camera.setRotation(0, quatFromDir((cam.look - cam.pos):normalized(), vec3(0, 0, 1)))
+end
+
 function M.cameraDrag(dx, dy)
-  local ok, camera = pcall(require, 'slrr/garageCamera')
-  if ok and lot and lot.mode == 'browse' then camera.rotate(tonumber(dx) or 0, tonumber(dy) or 0) end
+  if not cam then return end
+  cam.yaw = cam.yaw - (tonumber(dx) or 0) * 0.008
+  cam.pitch = math.max(math.rad(2), math.min(math.rad(60), cam.pitch + (tonumber(dy) or 0) * 0.006))
 end
 
 function M.cameraZoom(steps)
-  local ok, camera = pcall(require, 'slrr/garageCamera')
-  if ok and lot and lot.mode == 'browse' then camera.zoom(tonumber(steps) or 0) end
+  if cam then cam.dist = math.max(4, math.min(14, cam.dist - (tonumber(steps) or 0) * 0.6)) end
 end
 
 ----------------------------------------------------------------------------------------------
 -- showing one car of the row
 
-local function dropCar()
-  if lot and lot.veh and not lot.sold then
-    local veh = getObjectByID(lot.veh)
-    if veh then veh:delete() end
+-- every car of the lot goes, except one just bought
+local function dropCars()
+  if not lot then return end
+  for _, vid in pairs(lot.cars or {}) do
+    if vid ~= lot.soldVeh then
+      local veh = getObjectByID(vid)
+      if veh then veh:delete() end
+    end
   end
-  if lot then lot.veh = nil end
+  lot.cars, lot.veh = {}, nil
 end
 
+-- look at another car of the row: the camera glides over to it
 local function show(index)
-  if not lot or lot.building then return end
+  if not lot then return end
   lot.index = ((index - 1) % #lot.offers) + 1
-  lot.building = true
+  lot.veh = lot.cars[lot.index]
   send()
-  local offer = lot.offers[lot.index]
-  local pos, dir = displaySpot(lot.place)
-  job = core_jobsystem.create(function(j)
-    dropCar()
-    local veh = builder.buildOffer(j, offer, pos + vec3(0, 0, 0.4), quatFromDir(dir, vec3(0, 0, 1)))
-    if not lot then if veh then veh:delete() end return end
-    lot.veh = veh and veh:getID() or nil
-    lot.building = false
-    if not veh then guihooks.trigger('slPhoneToast', { text = 'That one would not start. Try the next.' }) end
-    send()
-  end)
 end
 
 function M.next() if lot and lot.mode == 'browse' then show(lot.index + 1) end end
 function M.prev() if lot and lot.mode == 'browse' then show(lot.index - 1) end end
+
+-- the whole row is brought out, one car after another (the first one as soon as it is there)
+local function buildRow()
+  local mine = lot
+  lot.building = true
+  send()
+  job = core_jobsystem.create(function(j)
+    for i, offer in ipairs(mine.offers) do
+      local spot = mine.spots[i]
+      local veh = builder.buildOffer(j, offer, spot.pos + vec3(0, 0, 0.4), quatFromDir(spot.dir, vec3(0, 0, 1)))
+      if lot ~= mine then if veh then veh:delete() end return end
+      if veh then
+        mine.cars[i] = veh:getID()
+        if i == mine.index then mine.veh = mine.cars[i] end
+      end
+      send()
+    end
+    mine.building = false
+    send()
+  end)
+end
+
+----------------------------------------------------------------------------------------------
+-- floodlights over the row while you look round (a lot after dark was too dark to see a car)
+
+local lights = {}
+local function lightsOff()
+  for _, l in ipairs(lights) do pcall(function() l:delete() end) end
+  lights = {}
+end
+
+local function lightsOn(row)
+  lightsOff()
+  for i, sp in ipairs(row) do
+    local l = createObject('PointLight')
+    l.canSave = false
+    l.radius = 9
+    l:setField('color', 0, '1 0.95 0.85 1')
+    l:setField('brightness', 0, '2')
+    l:setField('castShadows', 0, '0')
+    l:registerObject('slLotLight' .. i)
+    local m = MatrixF(true)
+    m:setPosition(sp.pos + vec3(0, 0, 4.5))
+    l:setTransform(m)
+    lights[#lights + 1] = l
+  end
+end
 
 ----------------------------------------------------------------------------------------------
 -- opening and closing
@@ -125,11 +201,13 @@ local function open(place, mode)
   local s = career()
   if not s or lot then return end
   local kind = KIND[place.kind]
+  -- how many stand on the lot today: 2 to 6, the same all day
+  local count = rngLib.new(rngLib.hash(place.id .. ':' .. s.day .. ':' .. s.seed)):int(M.MIN_CARS, M.MAX_CARS)
   local offers = {}
-  for _, o in ipairs(market.offers(builder.configs(), kind, s.seed, s.day, kind == 'scrap' and 6 or 8)) do
-    if not (s.bought or {})[o.id] then offers[#offers + 1] = o end
+  for _, o in ipairs(market.offers(builder.configs(), kind, s.seed, s.day, count + 4)) do
+    if not (s.bought or {})[o.id] and #offers < count then offers[#offers + 1] = o end
   end
-  lot = { place = place, kind = kind, offers = offers, index = 1, mode = mode or 'browse', previousCamera = core_camera.getActiveCamName(0) }
+  lot = { place = place, kind = kind, offers = offers, index = 1, cars = {}, mode = mode or 'browse', previousCamera = core_camera.getActiveCamName(0) }
   armedAt[place.id] = false
   if lot.mode == 'browse' then
     if #offers == 0 then
@@ -137,9 +215,10 @@ local function open(place, mode)
       lot = nil
       return
     end
-    local pos, dir = displaySpot(place)
-    cameraOn(pos, dir)
-    show(1)
+    lot.spots = spots(place, #offers)
+    lightsOn(lot.spots)
+    cameraOn(lot.spots)
+    buildRow()
   end
   send()
 end
@@ -147,7 +226,8 @@ end
 function M.close()
   if not lot then return end
   if test then return end
-  dropCar()
+  dropCars()
+  lightsOff()
   cameraOff()
   lot = nil
   send()
@@ -166,7 +246,7 @@ end
 
 function M.buy()
   local s = career()
-  if not s or not lot or lot.mode ~= 'browse' or lot.building or not lot.veh then return end
+  if not s or not lot or lot.mode ~= 'browse' or not lot.veh then return end
   local offer = lot.offers[lot.index]
   if s.money < offer.price then
     guihooks.trigger('slPhoneToast', { text = string.format('It is $%d. You have $%d.', offer.price, s.money) })
@@ -178,8 +258,10 @@ function M.buy()
   local car = sl_fleet.registerVehicle(lot.veh, { name = offer.name, brand = offer.brand, value = offer.value, condition = offer.condition,
     faults = offer.faults, mileage = offer.mileage, price = offer.price })
   local veh = getObjectByID(lot.veh)
-  lot.sold = true
+  lot.soldVeh = lot.veh
   cameraOff()
+  dropCars()                                    -- the rest of the row goes back inside
+  lightsOff()
   lot = nil
   send()
   if veh then
@@ -193,7 +275,7 @@ end
 
 function M.testDrive()
   local s = career()
-  if not s or not lot or lot.mode ~= 'browse' or lot.building or not lot.veh or lot.kind == 'scrap' then return end
+  if not s or not lot or lot.mode ~= 'browse' or not lot.veh or lot.kind == 'scrap' then return end
   local veh = getObjectByID(lot.veh)
   if not veh then return end
   cameraOff()
@@ -217,14 +299,13 @@ local function endTest()
     if gameplay_walk then gameplay_walk.setWalkingMode(true, lot and lot.place.pos + vec3(0, 0, 0.3) or nil, nil, true) end
     j.sleep(0.4)
     if veh and lot then
-      local pos, dir = displaySpot(lot.place)
-      spawn.safeTeleport(veh, pos + vec3(0, 0, 0.4), quatFromDir(dir, vec3(0, 0, 1)), true)
+      local spot = lot.spots[lot.index]
+      spawn.safeTeleport(veh, spot.pos + vec3(0, 0, 0.4), quatFromDir(spot.dir, vec3(0, 0, 1)), true)
       veh:queueLuaCommand('input.event("parkingbrake", 1, FILTER_DIRECT) controller.setFreeze(1)')
     end
     if lot then
       lot.mode = 'browse'
-      local pos, dir = displaySpot(lot.place)
-      cameraOn(pos, dir)
+      cameraOn(lot.spots)
     end
     j.sleep(0.3)
     guihooks.trigger('slFade', { on = false })
@@ -261,7 +342,11 @@ local function update(dt)
     if back or test.timeLeft <= 0 then endTest() end
     return
   end
-  if lot then return end
+  -- walked or driven off (or taken a cab) while the lot was open: it closes
+  if lot then
+    if (v:getPosition() - lot.place.pos):length() > 30 then M.close() end
+    return
+  end
   local pos = v:getPosition()
   local onFoot = v:getJBeamFilename() == 'unicycle'
   for id, place in pairs(sl_career.getPlaces() or {}) do
@@ -283,6 +368,7 @@ end
 local sendTimer = 0
 function M.onUpdate(dtReal)
   update(dtReal)
+  updateCamera(dtReal)
   if test then
     sendTimer = sendTimer + dtReal
     if sendTimer > 1 then sendTimer = 0 send() end
@@ -290,7 +376,7 @@ function M.onUpdate(dtReal)
 end
 
 function M.request() send() end
-function M.onStreetLegalStopped() if lot then dropCar() cameraOff() end lot, test = nil, nil send() end
-function M.onClientEndMission() lot, test = nil, nil end
+function M.onStreetLegalStopped() if lot then dropCars() lightsOff() cameraOff() end lot, test = nil, nil send() end
+function M.onClientEndMission() lot, test, lights, cam = nil, nil, {}, nil end
 
 return M

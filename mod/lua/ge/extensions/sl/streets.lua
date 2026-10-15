@@ -513,7 +513,7 @@ function M.meetChallenge(racerId, kind)
   local opp = getObjectByID(vid)
   if v and opp then
     local right = v:getDirectionVector():cross(vec3(0, 0, 1)):normalized()
-    spawn.safeTeleport(opp, v:getPosition() + right * 3.6 + vec3(0, 0, 0.3), quat(v:getRotation()), true)
+    spawn.safeTeleport(opp, v:getPosition() + right * 3.6 + vec3(0, 0, 0.3), quatFromDir(v:getDirectionVector(), vec3(0, 0, 1)), true)
   end
   startRace(racer, vid, answer.stake, answer.bet or 0, true)
 end
@@ -641,12 +641,12 @@ function M.enterRoc()
       start = c1.pos - along * 10 - right * 2.2
       rot = quatFromDir(along, vec3(0, 0, 1))
     elseif spot then
-      pcall(function() rot = quat(spot:getRotation()) end)
+      pcall(function() rot = quat(0, 0, 1, 0) * quat(spot:getRotation()) end)      -- a spawn point's own rotation is half a turn from facing
     end
     spawn.safeTeleport(v, start + vec3(0, 0, 0.5), rot, true)
     job.sleep(0.5)
     right = right or v:getDirectionVector():cross(vec3(0, 0, 1)):normalized()
-    local veh = spawnRacer(job, s, rival, start + right * 4.4 + vec3(0, 0, 0.5), rot or quat(v:getRotation()), true)
+    local veh = spawnRacer(job, s, rival, start + right * 4.4 + vec3(0, 0, 0.5), rot or quatFromDir(v:getDirectionVector(), vec3(0, 0, 1)), true)
     busy = false
     guihooks.trigger('slFade', { on = false })
     if not veh then return end
