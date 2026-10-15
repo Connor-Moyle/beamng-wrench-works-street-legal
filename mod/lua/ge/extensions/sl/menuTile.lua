@@ -96,6 +96,9 @@ function M.startFromMenu(fresh, n)
   sl_career.start(fresh == true, n)
 end
 
+-- the game-over screen's way out
+function M.toMainMenu() if returnToMainMenu then returnToMainMenu() end end
+
 -- the chooser's slot buttons
 function M.renameSlot(n, name) if sl_career then sl_career.renameSlot(n, name) end send(true) end
 function M.deleteSlot(n) if sl_career then sl_career.deleteSlot(n) end send(true) end

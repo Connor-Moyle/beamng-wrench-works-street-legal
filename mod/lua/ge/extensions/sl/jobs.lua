@@ -312,6 +312,7 @@ function M.take(jobId)
   if not s then return false, 'No career running.' end
   local js = jobsState(s)
   if js.active then return false, 'Finish the job you are on first.' end
+  if sl_hospital and not sl_hospital.canDrive() then return false, 'Not with those injuries. Rest up first.' end
   if sl_streets and sl_streets.isRacing and sl_streets.isRacing() then return false, 'Not in the middle of a race.' end
   for i, j in ipairs(js.offers) do
     if j.id == jobId then

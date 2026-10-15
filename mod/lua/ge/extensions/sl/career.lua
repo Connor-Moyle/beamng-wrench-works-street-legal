@@ -126,7 +126,7 @@ end
 local function slotUsed(n) local f = slotFile(n) return FS:fileExists(f) or FS:fileExists(f .. '.bak') end
 
 local function summaryOf(data)
-  return data and string.format('Day %d, $%d, %s', data.day or 1, data.money or 0, (progression.titleFor(data.rep or 0))) or nil
+  return data and string.format('Day %d, $%d, %s%s', data.day or 1, data.money or 0, (progression.titleFor(data.rep or 0)), data.ended and ' (ended)' or '') or nil
 end
 
 -- every career there is: { { slot, name, summary, last } }
@@ -134,7 +134,8 @@ function M.listSlots()
   local m, out = slotsMeta(), {}
   for n = 1, M.SLOTS do
     if slotUsed(n) then
-      out[#out + 1] = { slot = n, name = m.names[tostring(n)] or ('Career ' .. n), summary = summaryOf(readSave(slotFile(n))), last = m.last == n }
+      local data = readSave(slotFile(n))
+      out[#out + 1] = { slot = n, name = m.names[tostring(n)] or ('Career ' .. n), summary = summaryOf(data), last = m.last == n, ended = data and data.ended ~= nil }
     end
   end
   return out
@@ -428,6 +429,11 @@ function M.start(fresh, n)
   else
     n = n or (slotUsed(m.last) and m.last) or 1
   end
+  -- a career that ended (Hardcore: the driver died) can be looked at, not played on
+  if not fresh then
+    local data = readSave(slotFile(n))
+    if data and data.ended then tell('That career is over: it ended on day ' .. tostring(data.ended.day) .. '. Start a new one.', 6) return false end
+  end
   slot, SAVE_FILE = n, slotFile(n)
   m.last = n
   writeMeta(m)
@@ -449,7 +455,11 @@ function M.start(fresh, n)
   end
 end
 
-local function stop()
+local stop
+-- the career is over (Hardcore: the driver died): saved as ended, and stopped
+function M.endCareer() if active then stop() end end
+
+stop = function()
   if not active then return end
   s.hour = hour()
   writeSave()
@@ -567,6 +577,7 @@ function M.challenge(racerId, kind)
   if not active then return { accept = false, text = 'No career running.' } end
   local racer = stateLib.racer(s, racerId)
   if not racer or not s.known[racerId] then return { accept = false, text = 'Number not recognised.' } end
+  if sl_hospital and not sl_hospital.canDrive() then return { accept = false, text = 'You can barely walk, mate. Call me when you are healed.' } end
   local rng = rngLib.new(rngLib.hash(racerId .. kind .. tostring(now())))
   local drag = kind == 'drag'
   local answer = roster.respond(racer, drag and 'race' or kind, { rep = s.rep, money = s.money, hasCar = #s.cars > 0, pinkTonight = roster.pinkTonight(racer, s.day, s.seed) }, rng)

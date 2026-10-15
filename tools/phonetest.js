@@ -371,6 +371,13 @@ phone.handle('slPhoneData', Object.assign({}, data, { turf: { held: 1, turfWar: 
 phone.act('home');
 phone.act('open', 'turf');
 assert.ok(text().includes('The Docks') && text().includes('you are here') && text().includes('home of the North End crew') && text().includes('led by Nina'), 'Turf lists districts and crews');
+// Hardcore game over
+phone.handle('slPhoneData', { active: false });
+phone.handle('slGameOver', { day: 12, money: 4300, rep: 640, title: 'Known face', races: 20, wins: 9, pinksWon: 1, cars: 2, achievements: 5, achievementsTotal: 24 });
+assert.ok(text().includes('Game over') && text().includes('day 12') && text().includes('5 of 24'), 'game over shows what the career came to');
+calls.length = 0;
+click('gameover', 'new');
+assert.ok(calls.includes('@sl_menuTile.startFromMenu(true)') && !text().includes('Game over'), 'and starts a new one');
 console.log('phone test passed');
 
 // a page to look at: the phone in several states side by side

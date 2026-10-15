@@ -308,6 +308,41 @@ check('crews: districts, crews, and a win on their streets takes control', funct
   return #c.districts >= 4 and all and ok, string.format('%d districts (%s), %s holds %s', #c.districts, c.sig, owner, d.name)
 end)
 
+-- hurt and killed at the wheel (sl_hospital, with Drivers & Pedestrians' slrrInjury)
+check('death, normal career: the hospital, its bill, the car towed home as it is', function(job)
+  local s = sl_career.getState()
+  local v = getPlayerVehicle(0)
+  local carId = v and sl_fleet.carOfVehicle(v:getID())
+  local hc = sl_options.get('slHardcore')
+  sl_options.set('slHardcore', false)
+  local m0 = s.money
+  sl_hospital.onSlrrDriverDied(v and v:getID() or -1, 'crash', { player = true })
+  job.sleep(4)
+  sl_options.set('slHardcore', hc)
+  local me = getPlayerVehicle(0)
+  local hosp
+  for _, p in pairs(sl_career.getPlaces()) do if p.kind == 'hospital' then hosp = p end end
+  local there = me and hosp and (me:getPosition() - hosp.pos):length() < 15
+  local car = carId and sl_fleet.vehicleOf(carId)
+  local atGarage = car and sl_fleet.atGarage(car:getPosition(), s)
+  return me and me:getJBeamFilename() == 'unicycle' and s.money <= m0 and (not carId or atGarage), string.format('billed $%d, %s, car %s',
+    m0 - s.money, hosp and (there and 'at the hospital' or 'NOT at the hospital') or 'no hospital place (home instead)', carId and (atGarage and 'at the garage' or 'not at the garage') or 'none')
+end)
+check('death, Hardcore: the career ends, with what it came to', function()
+  local s = sl_career.getState()
+  local hc, orig, ended, shown = sl_options.get('slHardcore'), sl_career.endCareer, false, nil
+  sl_options.set('slHardcore', true)
+  sl_career.endCareer = function() ended = true end           -- (not really: the smoke run goes on)
+  local data = sl_hospital.gameOverData(s, 'crash')
+  sl_hospital.onSlrrDriverDied(-1, 'crash', { player = true })
+  sl_career.endCareer = orig
+  sl_options.set('slHardcore', hc)
+  local marked = s.ended ~= nil
+  s.ended = nil
+  guihooks.trigger('slGameOver', nil)
+  return ended and marked and data.day and data.achievementsTotal, 'day ' .. tostring(data.day)
+end)
+
 -- vehicle budget: nothing of ours left standing about (cabs, tow trucks, lot rows, patrols)
 check('budget: no stray spawned vehicles', function()
   local keep = {}

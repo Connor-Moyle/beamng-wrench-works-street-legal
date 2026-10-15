@@ -821,11 +821,24 @@
       return '<div class="slp-fade' + (st.fade ? ' slp-in' : '') + '"' + pic + '></div>';
     }
 
+    // Hardcore: the driver died and the career is over (sl_hospital); what it came to, and what next
+    function gameOverView() {
+      var g = st.gameOver;
+      if (!g) return '';
+      var line = function (k, v) { return '<p><b>' + k + '</b> ' + v + '</p>'; };
+      return '<div class="slp-chooser"><div class="slp-chbox"><h1>Game over</h1><div class="slp-chcard slp-chsl"><b>Your career ended on day ' + (g.day || 1) + '</b>' +
+        '<span>' + esc(g.title || '') + ' &middot; ' + money(g.money || 0) + ' &middot; ' + (g.rep || 0) + ' rep</span>' +
+        line('Races', (g.races || 0) + ', won ' + (g.wins || 0)) + line('Pink slips won', g.pinksWon || 0) + line('Cars', g.cars || 0) +
+        line('Achievements', (g.achievements || 0) + ' of ' + (g.achievementsTotal || 0)) +
+        '<div class="slp-btn slp-go" data-a="gameover" data-v="new">New career</div>' +
+        '<div class="slp-btn slp-tonal" data-a="gameover" data-v="menu">Main menu</div></div></div></div>';
+    }
+
     // ---------------------------------------------------------------- drawing
     function render() {
       var d = st.data;
       if (!d.active) {
-        layer.innerHTML = menuView() + '<div class="slp-toast' + (st.toast ? '' : ' slp-gone') + '">' + esc(st.toast || '') + '</div>' +
+        layer.innerHTML = menuView() + gameOverView() + '<div class="slp-toast' + (st.toast ? '' : ' slp-gone') + '">' + esc(st.toast || '') + '</div>' +
           fadeView();
         return;
       }
@@ -958,6 +971,10 @@
         case 'lot': if (/^[a-zA-Z]+\(\)$/.test(v)) lua('@sl_lot.' + v); break;
         case 'meet': var parts = String(v).split('|'); lua('@sl_streets.meetChallenge(' + JSON.stringify(parts[0]) + ',' + JSON.stringify(parts[1]) + ')'); break;
         case 'slotedit': st.slotEdit = true; render(); break;
+        case 'gameover':
+          st.gameOver = null; render();
+          if (v === 'new') lua('@sl_menuTile.startFromMenu(true)'); else lua('@sl_menuTile.toMainMenu()');
+          break;
         case 'slotplay': lua('@sl_menuTile.startFromMenu(false,' + Number(v) + ')'); st.menu = null; st.chooser = false; render(); break;
         case 'slotname':
           var inp = root.querySelector('.slp-slotname[data-slot="' + Number(v) + '"]');
@@ -1055,6 +1072,7 @@
           render();
           break;
         case 'slPhoneToast': toast(data.text); break;
+        case 'slGameOver': st.gameOver = data && data.day ? data : null; render(); break;
         case 'slFade': st.fade = !!data.on; if (data.on) st.fadePic = data.pic || null; render(); break;
         case 'slLotData': st.lot = data.open ? data : null; render(); break;
         case 'slMeet': st.meet = data.open ? data : null; render(); break;
