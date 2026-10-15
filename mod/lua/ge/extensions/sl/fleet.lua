@@ -231,6 +231,7 @@ function M.sell(carId, to)
   spawned[carId] = nil
   stateLib.removeCar(s, carId)
   sl_career.addMoney(price, (to == 'scrap' and 'Scrapped: ' or 'Sold: ') .. car.name)
+  extensions.hook('onStreetLegalCarSold', car, price, to)       -- (the job board counts the profit)
   extensions.hook('onStreetLegalChanged')
   return true, string.format('%s the %s for $%d.', to == 'scrap' and 'Scrapped' or 'Sold', car.name, price), price
 end

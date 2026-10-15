@@ -177,13 +177,38 @@ function M.onUpdate(dtReal)
   end
 end
 
+----------------------------------------------------------------------------------------------
+-- lot flipping (Design 3 #16): every sale counts its profit over what you paid; the junkyard's
+-- standing challenge pays a bonus for a flip that clears its target, and then asks for more
+
+local FLIP_FIRST, FLIP_GROWTH = 1000, 1.6
+
+function M.onStreetLegalCarSold(car, price, to)
+  local s = career()
+  if not s or type(car) ~= 'table' or not car.boughtFor then return end
+  local js = jobsState(s)
+  js.flip = js.flip or { target = FLIP_FIRST, best = 0, flips = 0 }
+  local profit = (price or 0) - car.boughtFor
+  if profit <= 0 then return end
+  js.flip.flips = js.flip.flips + 1
+  js.flip.best = math.max(js.flip.best, profit)
+  if profit >= js.flip.target then
+    local bonus = math.floor(js.flip.target * 0.5 / 10) * 10
+    sl_career.addMoney(bonus, 'Flip bonus: ' .. (car.name or 'car'))
+    stateLib.addRep(s, 25)
+    sl_career.sendText('benny', string.format('The junkyard owner says you made $%d on that %s. He paid you a $%d bonus, and says next time, $%d.',
+      profit, car.name or 'car', bonus, math.floor(js.flip.target * FLIP_GROWTH / 100) * 100), 3)
+    js.flip.target = math.floor(js.flip.target * FLIP_GROWTH / 100) * 100
+  end
+end
+
 -- for the phone
 function M.summary()
   local s = career()
   if not s then return nil end
   refresh(s)
   local js = jobsState(s)
-  local out = { offers = {}, done = js.done, earned = js.earned }
+  local out = { offers = {}, done = js.done, earned = js.earned, flip = js.flip or { target = FLIP_FIRST, best = 0, flips = 0 } }
   for _, j in ipairs(js.offers) do
     out.offers[#out.offers + 1] = { id = j.id, title = j.title, item = j.item, from = j.legs[1].name, to = j.legs[#j.legs].name,
       pay = j.pay, seconds = j.seconds, fragile = j.fragile, metres = j.metres }
