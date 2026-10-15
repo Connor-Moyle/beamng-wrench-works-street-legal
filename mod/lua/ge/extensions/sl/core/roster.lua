@@ -34,6 +34,15 @@ local STYLES = { 'easy', 'trash', 'roller', 'careful' }
 
 local function round50(x) return math.floor(x / 50 + 0.5) * 50 end
 
+-- raising the stake on an arranged race (playtest #6): 10 % of the agreed bet a step, up to what their car
+-- makes them sure of: twice the bet in a beater, four times in a supercar
+function M.stakeStep(base) return math.max(50, round50((base or 0) * 0.1)) end
+function M.maxStake(racer, base)
+  local class = 1
+  for i, c in ipairs(M.CLASSES) do if c == racer.class then class = i end end
+  return round50((base or 0) * math.min(4, 1.5 + 0.5 * class))
+end
+
 -- count racers: more at the bottom of the ladder than at the top
 function M.generate(seed, count)
   count = count or 36

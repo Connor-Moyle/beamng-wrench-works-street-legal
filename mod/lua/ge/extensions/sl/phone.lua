@@ -155,6 +155,7 @@ local function answer(ok, text)
   wantSend = true
 end
 
+function M.raise(challengeId) if career() then answer(sl_career.raiseStake(challengeId)) end end
 function M.tow(carId) if career() then answer(sl_fleet.tow(tonumber(carId))) end end
 function M.release(carId) if career() then answer(sl_career.releaseCar(tonumber(carId))) end end
 function M.useItem(carId, itemId) if career() and sl_carcare then answer(sl_carcare.useItem(tonumber(carId), tostring(itemId))) end end

@@ -497,6 +497,25 @@ function M.challenge(racerId, kind)
   return answer
 end
 
+-- raise the stake of an arranged money race by a step, as far as their car makes them willing (and you can pay)
+function M.raiseStake(id)
+  if not active then return false, 'No career running.' end
+  for _, c in ipairs(s.challenges) do
+    if c.id == id then
+      local racer = stateLib.racer(s, c.racer)
+      if c.stake ~= 'money' or not racer then return false, 'Nothing to raise.' end
+      c.baseBet = c.baseBet or c.bet
+      local cap, bet = roster.maxStake(racer, c.baseBet), c.bet + roster.stakeStep(c.baseBet)
+      if bet > cap then return false, string.format('%s will not go past $%d.', roster.displayName(racer), cap) end
+      if bet > s.money then return false, string.format('$%d? You have $%d.', bet, s.money) end
+      c.bet = bet
+      changed()
+      return true, string.format('%s: "$%d it is."', roster.displayName(racer), bet)
+    end
+  end
+  return false, 'That race is off.'
+end
+
 function M.cancelChallenge(id)
   for i = #s.challenges, 1, -1 do
     if s.challenges[i].id == id then table.remove(s.challenges, i) changed() return true end

@@ -397,7 +397,7 @@
       var cards = list.map(function (c) {
         var stake = c.stake === 'pink' ? 'Pink slips' : money(c.bet);
         return '<div class="slp-card"><h4>' + esc(c.name) + '</h4><p>' + esc(c.raceName) + ' &middot; ' + stake + (c.nightOnly ? ' &middot; after dark' : '') + '</p>' +
-          '<div class="slp-acts"><div class="slp-btn" data-a="gps" data-v="' + esc(c.id) + '">Show the way</div><div class="slp-btn slp-text" data-a="cancel" data-v="' + esc(c.id) + '">Call it off</div></div></div>';
+          '<div class="slp-acts"><div class="slp-btn" data-a="gps" data-v="' + esc(c.id) + '">Show the way</div>' + (c.stake === 'money' ? '<div class="slp-btn slp-tonal" data-a="raise" data-v="' + esc(c.id) + '">Raise the stake</div>' : '') + '<div class="slp-btn slp-text" data-a="cancel" data-v="' + esc(c.id) + '">Call it off</div></div></div>';
       });
       return bar('Races') + '<div class="slp-body">' + (cards.join('') ||
         '<div class="slp-empty">No races arranged. Call or text one of your contacts to set one up: for money, for high stakes, or for pink slips.</div>') + '</div>';
@@ -810,6 +810,7 @@
         case 'text': lua('text(' + JSON.stringify(st.thread) + ',' + JSON.stringify(v) + ')'); break;
         case 'gps': lua('waypoint(' + JSON.stringify(v) + ')'); toast('The route is on your road.'); break;
         case 'cancel': lua('cancel(' + JSON.stringify(v) + ')'); break;
+        case 'raise': lua('raise(' + JSON.stringify(v) + ')'); break;
         case 'league': lua('enterLeague(' + JSON.stringify(v) + ')'); break;
         case 'borrow': lua('borrow(' + Number(v) + ')'); break;
         case 'repay': lua('repay(' + Number(v) + ')'); break;

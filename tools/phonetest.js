@@ -163,6 +163,8 @@ click('del');
 click('home');
 click('open', 'races');
 assert.ok(text().includes('Night race 4') && text().includes('$300'), 'arranged races');
+click('raise', 'r01:1');
+assert.ok(calls.includes('raise("r01:1")'), 'raising the stake');
 click('cancel', 'r01:1');
 assert.ok(calls.includes('cancel("r01:1")'), 'calling one off');
 click('home');

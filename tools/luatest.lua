@@ -86,6 +86,9 @@ do
   check('a top racer ignores a nobody', not r.accept and r.text ~= '')
   r = roster.respond(bottom, 'race', { rep = 0, money = 1e6, hasCar = false }, rng)
   check('nobody races you without a car', not r.accept)
+  check('a stake goes up in tenths, at least $50', roster.stakeStep(1000) == 100 and roster.stakeStep(200) == 50)
+  check('how far a stake goes depends on their car: 2x a beater, 4x a supercar',
+    roster.maxStake({ class = 'beater' }, 1000) == 2000 and roster.maxStake({ class = 'super' }, 1000) == 4000 and roster.maxStake({ class = 'tuner' }, 1000) == 3500)
   r = roster.respond(bottom, 'race', { rep = 0, money = 1e6, hasCar = true }, rng)
   check('a bottom racer takes a money race', r.accept and r.stake == 'money' and r.bet >= bottom.betMin and r.bet <= bottom.betMax, r.bet)
   local high = roster.respond(bottom, 'high', { rep = 0, money = 1e6, hasCar = true }, rngLib.new(5))
