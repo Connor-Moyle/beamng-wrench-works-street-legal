@@ -2,7 +2,7 @@
 
 A career in the spirit of *Street Legal Racing: Redline*, played on the Wrench Works: Valo City map. You start on foot in the first garage with a few thousand and no car. The city's street racers are in your phone. Reputation from racing, worth more at night, takes you up through the three garages to the ROC.
 
-Part of the **BeamNG Wrench Works** family. Needs two of the others: **Wrench Works** (the garage) and the **Wrench Works: Valo City** map (`slrr_valo_city`). **Wrench Works: Drivers** (SLRR's drivers in the cars, and pedestrians) is optional. BeamNG.drive 0.39.
+Part of the **BeamNG Wrench Works** family. Needs two of the others: **Wrench Works** (the garage) and the **Wrench Works: Valo City** map (`slrr_valo_city`). **Wrench Works: Drivers & Pedestrians** (SLRR's drivers in the cars, and pedestrians on the sidewalks) is optional. BeamNG.drive 0.39.
 
 ## How it plays
 
