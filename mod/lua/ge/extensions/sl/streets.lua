@@ -126,6 +126,10 @@ local function spawnRacer(job, s, racer, pos, rot, raceBuild)
     veh = builder.spawn(job, car.model, car.setup, pos, rot)
   end
   if veh then veh:queueLuaCommand('electrics.setLightsState(1)') end
+  -- SLRR's opponents behind the wheel (SLRR Drivers mod), the same one for a racer every time
+  if veh and slrrDrivers and slrrDrivers.setDriver then
+    slrrDrivers.setDriver(veh:getID(), rngLib.hash(racer.id) % 2 == 0 and 'slrr_opponent1' or 'slrr_opponent2')
+  end
   return veh
 end
 

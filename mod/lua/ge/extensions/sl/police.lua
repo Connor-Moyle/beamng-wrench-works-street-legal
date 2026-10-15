@@ -77,6 +77,7 @@ local function updatePatrols()
     if ok and veh then
       job.sleep(1.5)
       units[#units + 1] = veh:getID()
+      if slrrDrivers and slrrDrivers.setDriver then slrrDrivers.setDriver(veh:getID(), 'slrr_police') end
       gameplay_traffic.insertTraffic(veh:getID())                         -- a police config: the game makes it a patrol
       playerInTraffic()
     end

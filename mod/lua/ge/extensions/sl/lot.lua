@@ -158,6 +158,7 @@ local function buildRow()
       local veh = builder.buildOffer(j, offer, spot.pos + vec3(0, 0, 0.4), quatFromDir(spot.dir, vec3(0, 0, 1)))
       if lot ~= mine then if veh then veh:delete() end return end
       if veh then
+        if slrrDrivers and slrrDrivers.setDriver then slrrDrivers.setDriver(veh:getID(), nil) end   -- a car for sale: nobody in it
         mine.cars[i] = veh:getID()
         if i == mine.index then mine.veh = mine.cars[i] end
       end
@@ -282,6 +283,7 @@ function M.testDrive()
   lot.mode = 'test'
   test = { timeLeft = TEST_SECONDS, driven = 0 }
   veh:queueLuaCommand('controller.setFreeze(0) input.event("parkingbrake", 0, FILTER_DIRECT)')
+  if slrrDrivers and slrrDrivers.setDriver then slrrDrivers.setDriver(veh:getID(), slrrDrivers.getDefaultDriver and slrrDrivers.getDefaultDriver() or nil) end   -- you, at the wheel
   if gameplay_walk and gameplay_walk.getInVehicle then gameplay_walk.getInVehicle(veh) else be:enterVehicle(0, veh) end
   if core_groundMarkers then core_groundMarkers.setPath(lot.place.pos) end
   send()
