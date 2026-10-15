@@ -359,6 +359,15 @@ function M.onWrenchWorksPartBought(vid, slotPath, part, price)
   end
 end
 
+-- a job's pay with the new-in-town boost and the first-times bonus (the phone shows offers the same way)
+function M.bonusPay(s, js, j, pay)
+  if pay <= 0 then return pay end
+  js.kindDone = js.kindDone or {}
+  local n = (js.kindDone[j.kind] or 0) + 1
+  js.kindDone[j.kind] = n
+  return math.floor(pay * boost(s, js) / 10) * 10 + (n <= FIRST_TIMES and FIRST_BONUS or 0)
+end
+
 -- the end of any job: pay (the one money path), rep, the record, the text. Jobs settled elsewhere (settle = 'ww':
 -- Wrench Works' repair, tune and salvage jobs in sl_wwjobs) end here too
 function M.finishWith(s, js, j, pay, rep, text)
@@ -376,12 +385,7 @@ local function finish(s, js, j, v)
   local d0, d1 = j.damage0 or 0, damageOf(v:getID())
   local damage = math.max(0, math.min(1, ((d1 or 0) - d0) / DAMAGE_FULL))
   local pay, verdict = jobsLib.settle(j, elapsed, damage)
-  if pay > 0 then
-    js.kindDone = js.kindDone or {}
-    local n = (js.kindDone[j.kind] or 0) + 1
-    js.kindDone[j.kind] = n
-    pay = math.floor(pay * boost(s, js) / 10) * 10 + (n <= FIRST_TIMES and FIRST_BONUS or 0)
-  end
+  pay = M.bonusPay(s, js, j, pay)
   if j.car and j.carVid then
     local id = j.carVid
     core_jobsystem.create(function(job)
@@ -407,7 +411,7 @@ function M.onUpdate(dtReal)
   refresh(s)
   local js = jobsState(s)
   local j = js.active
-  if not j or j.settle then return end         -- (settle: the job ends somewhere else, not at a stop)
+  if not j or (j.settle and not j.car) then return end    -- (settle: it ends somewhere else; a car job still picks up its car)
   local v = (j.car and j.leg == 1) and getPlayerVehicle(0) or jobVehicle(j)
   if not v then return end
   if j.car and j.carVid then askDamage(v) end
@@ -428,7 +432,7 @@ function M.onUpdate(dtReal)
       j.damage0 = damageOf(v:getID())
       toast(string.format('Picked up the %s%s. %d:%02d to %s.', j.item or 'load', j.fragile and ' (fragile)' or '', math.floor(j.seconds / 60), j.seconds % 60, j.legs[2].name))
     end
-    if j.leg >= #j.legs then finish(s, js, j, v) return end
+    if j.leg >= #j.legs then if not j.settle then finish(s, js, j, v) end return end
     j.leg = j.leg + 1
     routeTo(j.legs[j.leg])
     extensions.hook('onStreetLegalChanged')
