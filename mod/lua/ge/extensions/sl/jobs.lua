@@ -132,6 +132,37 @@ local TYPES = {
       return { item = 'a fare', legs = { { id = 'kerb', name = STREETS[rng:int(#STREETS)], x = k.x, y = k.y, z = k.z }, leg(to) }, metres = math.floor(metres),
         fragile = false, seconds = math.max(120, math.floor(metres * 1.4 / jobsLib.SPEED * 1.3)), pay = math.max(60, math.floor((40 + metres / 1000 * 90) / 10) * 10) }
     end },
+  -- the junkyard's crushing run: a wreck that barely goes, to the crusher at the scrapyard
+  { kind = 'crush', title = 'Crushing run', unlock = 0, offer = function(ctx, rng)
+      local from, to = ctx.byId.junkyard, ctx.byId.scrapyard
+      if not from or not to then return nil end
+      local metres = jobsLib.distance(from, to)
+      return { item = 'wreck', legs = { leg(from), leg(to) }, metres = math.floor(metres), fragile = false,
+        car = { model = ({ 'covet', 'pessima', 'legran', 'midsize' })[rng:int(4)], wear = 0.9 },
+        seconds = math.max(240, math.floor(metres * 1.4 / 9 * 1.5)), pay = 150 }
+    end },
+  -- car transport: a car between the dealer and the lots, without a scratch (fragile: over 5 % damage pays nothing)
+  { kind = 'transport', title = 'Car transport', unlock = 200, offer = function(ctx, rng)
+      local ends = { ctx.byId.dealer, ctx.byId.junkyard, ctx.byId.scrapyard }
+      local a, b = ends[rng:int(3)], ends[rng:int(3)]
+      if not a or not b or a.id == b.id then return nil end
+      local metres = jobsLib.distance(a, b)
+      local model = ({ 'vivace', 'sunburst2', 'etk800', 'bastion', 'scintilla' })[rng:int(5)]
+      return { item = model .. ' for the ' .. b.name, legs = { leg(a), leg(b) }, metres = math.floor(metres), fragile = true,
+        car = { model = model, wear = 0.05 },
+        seconds = math.max(180, math.floor(metres * 1.4 / jobsLib.SPEED * 1.4)), pay = 300 + math.floor(metres / 1000 * 120 / 10) * 10 }
+    end },
+  -- the hot car: from a back street to a lock-up, and the police hear more of it every minute (heat)
+  { kind = 'hot', title = 'Hot car', unlock = 1000, night = true, offer = function(ctx, rng)
+      local k = kerbNear(ctx, rng, nil, 0, 0)
+      local to = ctx.byId.meet_tuning or ctx.byId.scrapyard
+      if not k or not to then return nil end
+      local metres = math.sqrt((to.x - k.x) ^ 2 + (to.y - k.y) ^ 2)
+      if metres < 1000 then return nil end
+      return { item = 'hot car', legs = { { id = 'kerb', name = 'a back street', x = k.x, y = k.y, z = k.z }, leg(to) }, metres = math.floor(metres),
+        fragile = false, heat = 0.4, car = { model = ({ 'scintilla', 'sbr', 'bolide', 'etkc' })[rng:int(4)], wear = 0.1 },
+        seconds = math.max(240, math.floor(metres * 1.4 / jobsLib.SPEED * 1.3)), pay = 1000 + math.floor(metres / 1000 * 600 / 100) * 100 }
+    end },
 }
 M.TYPES = TYPES
 
@@ -171,6 +202,32 @@ local function playerCarId()
   return car and v or nil
 end
 
+-- car jobs ("car" in the job: { model, config, wear }): the car is waiting at the first stop; you get in
+-- there (yours stays parked), it is taken off you at the last. Its damage is read from its own Lua.
+local carDamage = {}
+function M.onJobCarDamage(vid, d) carDamage[vid] = d end
+local function askDamage(veh)
+  veh:queueLuaCommand('obj:queueGameEngineLua("if sl_jobs then sl_jobs.onJobCarDamage(" .. obj:getId() .. "," .. tostring(beamstate.damage or 0) .. ") end")')
+end
+local function damageOf(vid)
+  if sl_carcare and sl_carcare.damageOf and sl_carcare.damageOf(vid) then return sl_carcare.damageOf(vid) end
+  return carDamage[vid] or 0
+end
+
+local function jobVehicle(j)
+  if j.car then return j.carVid and getObjectByID(j.carVid) end
+  return playerCarId()
+end
+
+local function spawnJobCar(j, stop)
+  local ok, veh = pcall(core_vehicles.spawnNewVehicle, j.car.model, { config = j.car.config, pos = vec3(stop.x, stop.y, (stop.z or 0) + 0.5),
+    autoEnterVehicle = false, canSpawnAnotherVehicleCheck = false })
+  if not ok or not veh then return nil end
+  if j.car.wear then veh:queueLuaCommand(string.format('partCondition.initConditions(nil, %d, %f, %f)', math.floor(j.car.wear * 300000000), 1 - j.car.wear * 0.5, 1 - j.car.wear)) end
+  if slrrDrivers and slrrDrivers.setDriver then slrrDrivers.setDriver(veh:getID(), nil) end
+  return veh
+end
+
 local function routeTo(stop)
   if core_groundMarkers and stop then core_groundMarkers.setPath(vec3(stop.x, stop.y, stop.z or 0)) end
 end
@@ -181,9 +238,9 @@ function M.take(jobId)
   local js = jobsState(s)
   if js.active then return false, 'Finish the job you are on first.' end
   if sl_streets and sl_streets.isRacing and sl_streets.isRacing() then return false, 'Not in the middle of a race.' end
-  if not playerCarId() then return false, 'You need to be in one of your cars.' end
   for i, j in ipairs(js.offers) do
     if j.id == jobId then
+      if not j.car and not playerCarId() then return false, 'You need to be in one of your cars.' end
       table.remove(js.offers, i)
       j.leg = 1
       js.active = j
@@ -199,6 +256,12 @@ function M.giveUp()
   local s = career()
   local js = s and jobsState(s)
   if not js or not js.active then return false, 'You are not on a job.' end
+  local j = js.active
+  if j.car and j.carVid then
+    if gameplay_walk then gameplay_walk.setWalkingMode(true, nil, nil, true) end
+    local veh = getObjectByID(j.carVid)
+    if veh then veh:delete() end
+  end
   js.active = nil
   stateLib.addRep(s, -5)
   if core_groundMarkers then core_groundMarkers.setPath(nil) end
@@ -208,7 +271,7 @@ end
 
 local function finish(s, js, j, v)
   local elapsed = j.startedAt and (os.clock() - j.startedAt) or 0
-  local d0, d1 = j.damage0 or 0, sl_carcare and sl_carcare.damageOf and sl_carcare.damageOf(v:getID()) or 0
+  local d0, d1 = j.damage0 or 0, damageOf(v:getID())
   local damage = math.max(0, math.min(1, ((d1 or 0) - d0) / DAMAGE_FULL))
   local pay, verdict = jobsLib.settle(j, elapsed, damage)
   js.active = nil
@@ -216,6 +279,16 @@ local function finish(s, js, j, v)
   if pay > 0 then sl_career.addMoney(pay, j.title .. ': ' .. (j.item or 'delivery')) end
   stateLib.addRep(s, verdict == 'broken' and -5 or (verdict == 'late' and 2 or 6))
   js.done, js.earned = js.done + 1, js.earned + pay
+  if j.car and j.carVid then
+    local id = j.carVid
+    core_jobsystem.create(function(job)
+      if gameplay_walk then gameplay_walk.setWalkingMode(true, nil, nil, true) end
+      job.sleep(1)
+      local veh = getObjectByID(id)
+      if veh then veh:delete() end
+    end)
+  end
+  if j.heat then s.heat = math.max(0, (s.heat or 0) - j.heat) end
   toast(verdict == 'broken' and string.format('The %s is broken. No pay.', j.item or 'load')
     or string.format('%s delivered%s. $%d.', j.item or 'Delivery', verdict == 'late' and ', late' or '', pay))
   extensions.hook('onStreetLegalChanged')
@@ -232,14 +305,23 @@ function M.onUpdate(dtReal)
   local js = jobsState(s)
   local j = js.active
   if not j then return end
-  local v = playerCarId()
+  local v = (j.car and j.leg == 1) and getPlayerVehicle(0) or jobVehicle(j)
   if not v then return end
+  if j.car and j.carVid then askDamage(v) end
+  if j.heat and j.startedAt then s.heat = math.min(1, (s.heat or 0) + j.heat / 120) end    -- a hot car: the police hear more of it every second
   local stop = j.legs[j.leg]
   local here = v:getPosition()
   if (here - vec3(stop.x, stop.y, stop.z or here.z)):length() < STOP_RADIUS and v:getVelocity():length() < 2 then
     if j.leg == 1 then
+      if j.car then
+        local veh = spawnJobCar(j, stop)
+        if not veh then return end
+        j.carVid = veh:getID()
+        if gameplay_walk and gameplay_walk.getInVehicle then gameplay_walk.getInVehicle(veh) end
+        v = veh
+      end
       j.startedAt = os.clock()
-      j.damage0 = sl_carcare and sl_carcare.damageOf and sl_carcare.damageOf(v:getID()) or 0
+      j.damage0 = damageOf(v:getID())
       toast(string.format('Picked up the %s%s. %d:%02d to %s.', j.item or 'load', j.fragile and ' (fragile)' or '', math.floor(j.seconds / 60), j.seconds % 60, j.legs[2].name))
     end
     if j.leg >= #j.legs then finish(s, js, j, v) return end
