@@ -25,6 +25,10 @@ Needs two other mods: the **Valo City** map (`slrr_valo_city`) and **Wrench Work
 
 The career is played on the Valo City map mod, which brings the places (garages, junkyard, dealership, scrap yard, meet spots, the lots' display spots), the night and drag races and the ROC track; docs/integration.md has the contract between the two.
 
+## The SLRR dashboard
+
+While you drive in the career: a rev counter (with the gear) and a speedometer, SLRR's round white-on-black dials, a road map that turns with the car (your garage, the lots and meets marked, the way to a race in red), and a damage diagram (six body zones, burst tyres, the engine). The game's own rev counter and damage app make way for it. Each part can be switched off, km/h or mph, and it can be used outside the career too: phone > Street cred > Dashboard.
+
 ## The phone
 
 Press **K** (Options > Controls > Gameplay to change it). It is an Android-style phone: home screen with a dock, three-button navigation, notifications that drop in when a text arrives.
