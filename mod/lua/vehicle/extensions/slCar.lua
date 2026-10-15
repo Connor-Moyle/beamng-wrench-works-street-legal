@@ -146,6 +146,7 @@ function M.report()
     battery = state.battery, oilLevel = level(oil), coolantLevel = level(coolant), fuelLevel = storageRatio('fuelTank'),
     n2o = storageRatio('n2oTank'), engineKm = state.engineKm, oilKm = state.oilKm, fuel = state.fuel, factor = factor,
     coolantTemp = engine and engine.thermals and engine.thermals.coolantTemperature or nil,
+    damage = beamstate and beamstate.damage or nil,                           -- a jump: a crash, kept at once
   }
   local tank = M.fuelTank()
   if tank then t.fuelLitres, t.fuelCapacity = tank.remainingVolume, M.litres(tank) end

@@ -11,6 +11,11 @@ local rules = require('sl_carcare')
 
 local attached = {}          -- vehicle id -> car id, once slCar is in it and set up
 local timer, condTimer = 0, 0
+local lastDamage = {}         -- vehicle id -> the damage it last reported
+local CRASH_DAMAGE = 2000     -- this much more since the last report (2 s) is a crash
+local settleUntil = {}        -- vehicle id -> clock: its saved dents are still going back on until then
+
+local ASK_CONDITIONS = [[obj:queueGameEngineLua(string.format('if sl_carcare then sl_carcare.onConditions(%d,%s) end', obj:getId(), serialize(partCondition.getConditions())))]]
 
 local function career() return sl_career and sl_career.isActive() and sl_career.getState() or nil end
 
@@ -52,6 +57,7 @@ local function attach(vid, car)
   if not veh then return end
   local c = M.careOf(car)
   attached[vid] = car.id
+  settleUntil[vid] = os.clock() + 10
   veh:queueLuaCommand('extensions.load("slCar")')
   -- the part conditions first (wear, damage, fluids the game keeps), then our numbers on top
   if car.conditions then
@@ -79,6 +85,20 @@ function M.onReport(vid, t)
   for _, k in ipairs({ 'battery', 'oilLevel', 'coolantLevel', 'fuelLevel', 'n2o', 'engineKm', 'oilKm', 'fuel', 'factor', 'coolantTemp', 'fuelLitres', 'fuelCapacity' }) do
     if t[k] ~= nil then c[k] = t[k] end
   end
+  -- a crash: its dents and the parts it broke go into the save now, not at the next minute's look
+  -- (quitting straight after would lose them). Not in a garage: it measures the car itself there.
+  if type(t.damage) == 'number' then
+    local before = lastDamage[vid]
+    lastDamage[vid] = t.damage
+    local phase = slrr_garage and slrr_garage.getPhase and slrr_garage.getPhase()
+    if before and t.damage - before > CRASH_DAMAGE and (not phase or phase == 'idle') and os.clock() > (settleUntil[vid] or 0) then
+      local veh = getObjectByID(vid)
+      if veh then
+        veh:queueLuaCommand('extensions.load("slrrGarageVeh") if slrrGarageVeh then slrrGarageVeh.capture() end')
+        veh:queueLuaCommand(ASK_CONDITIONS)
+      end
+    end
+  end
 end
 
 -- the game's own part conditions, asked for now and then and kept with the car
@@ -88,8 +108,6 @@ function M.onConditions(vid, conditions)
   local car = s and carId and carById(s, carId)
   if car and type(conditions) == 'table' then car.conditions = conditions end
 end
-
-local ASK_CONDITIONS = [[obj:queueGameEngineLua(string.format('if sl_carcare then sl_carcare.onConditions(%d,%s) end', obj:getId(), serialize(partCondition.getConditions())))]]
 
 local function askConditions()
   for vid in pairs(attached) do
@@ -101,8 +119,8 @@ end
 function M.onStreetLegalBeforeSave() askConditions() end
 
 -- a respawned car (the garage rebuilding it) has fresh Lua: set it up again
-function M.onVehicleSpawned(vid) attached[vid] = nil end
-function M.onVehicleDestroyed(vid) attached[vid] = nil end
+function M.onVehicleSpawned(vid) attached[vid] = nil lastDamage[vid] = nil end
+function M.onVehicleDestroyed(vid) attached[vid] = nil lastDamage[vid] = nil end
 
 function M.onUpdate(dtReal)
   local s = career()
