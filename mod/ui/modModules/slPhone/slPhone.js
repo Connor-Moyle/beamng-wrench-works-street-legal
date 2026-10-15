@@ -411,7 +411,8 @@
           '<p>' + esc(o.from) + ' &rarr; ' + esc(o.to) + ' &middot; ' + (o.metres ? (o.metres / 1000).toFixed(1) + ' km &middot; ' : '') + mmss(o.seconds) + ' &middot; <b>' + money(o.pay) + '</b></p>' +
           (a ? '' : '<div class="slp-acts"><div class="slp-btn" data-a="jobtake" data-v="' + esc(o.id) + '">Take it</div></div>') + '</div>';
       }).join('');
-      return bar('Jobs') + '<div class="slp-body">' + activeCard + (cards || '<div class="slp-empty">Nothing on the board. New jobs come in the morning and at dusk.</div>') +
+      var boostLine = j.boost && j.boost > 1.04 ? '<div class="slp-empty">New in town: jobs pay &times;' + j.boost.toFixed(1) + ' until you make a name or buy your first part.</div>' : '';
+      return bar('Jobs') + '<div class="slp-body">' + boostLine + activeCard + (cards || '<div class="slp-empty">Nothing on the board. New jobs come in the morning and at dusk.</div>') +
         (j.crew ? '<div class="slp-card"><h4>Crew contract: ' + esc(j.crew.boss) + '</h4><p>Beat ' + j.crew.need + ' racers of tier ' + j.crew.tier + ' or better: ' + j.crew.won + ' so far, ' + j.crew.daysLeft + ' days left. ' + money(j.crew.pay) + '</p></div>' : '') +
         (j.sponsor ? '<div class="slp-card"><h4>Sponsor: ' + esc(j.sponsor.name) + '</h4><p>' + money(j.sponsor.weekly) + ' a week for two wins a week: ' + j.sponsor.weekWins + ' this week.</p></div>' : '') +
         (j.quarter || j.dyno ? '<div class="slp-card"><h4>Tuning challenges</h4><p>' + (j.quarter ? 'Quarter mile at the test track under ' + j.quarter + ' s. ' : '') + (j.dyno ? 'Dyno: ' + j.dyno + ' PS on the car info sheet in your garage.' : '') + '</p></div>' : '') +

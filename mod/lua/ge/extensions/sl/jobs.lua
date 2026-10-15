@@ -340,11 +340,36 @@ function M.giveUp()
   return true, 'Job dropped. Word gets round: -5 reputation.'
 end
 
+-- the first hour: "new in town" doubles job pay, tapering to nothing at 150 rep, and ends the moment
+-- the first part is bought in Wrench Works; the first two jobs of each kind pay a bonus (balance pass)
+local NEW_IN_TOWN_REP, FIRST_TIMES, FIRST_BONUS = 150, 2, 150
+local function boost(s, js)
+  if js.upgraded then return 1 end
+  return 1 + math.max(0, 1 - (s.rep or 0) / NEW_IN_TOWN_REP)
+end
+M.boost = function() local s = career() return s and boost(s, jobsState(s)) or 1 end
+
+function M.onWrenchWorksPartBought(vid, slotPath, part, price)
+  local s = career()
+  if not s or not (sl_fleet and sl_fleet.carOfVehicle and sl_fleet.carOfVehicle(vid)) then return end
+  local js = jobsState(s)
+  if not js.upgraded then
+    js.upgraded = true
+    sl_career.sendText('benny', 'First upgrade on the car. Now we are getting somewhere. (The new-in-town favours stop here.)', 3)
+  end
+end
+
 local function finish(s, js, j, v)
   local elapsed = j.startedAt and (os.clock() - j.startedAt) or 0
   local d0, d1 = j.damage0 or 0, damageOf(v:getID())
   local damage = math.max(0, math.min(1, ((d1 or 0) - d0) / DAMAGE_FULL))
   local pay, verdict = jobsLib.settle(j, elapsed, damage)
+  if pay > 0 then
+    js.kindDone = js.kindDone or {}
+    local n = (js.kindDone[j.kind] or 0) + 1
+    js.kindDone[j.kind] = n
+    pay = math.floor(pay * boost(s, js) / 10) * 10 + (n <= FIRST_TIMES and FIRST_BONUS or 0)
+  end
   js.active = nil
   if core_groundMarkers then core_groundMarkers.setPath(nil) end
   if pay > 0 then sl_career.addMoney(pay, j.title .. ': ' .. (j.item or 'delivery')) end
@@ -573,13 +598,13 @@ function M.summary()
   if not s then return nil end
   refresh(s)
   local js = jobsState(s)
-  local out = { offers = {}, done = js.done, earned = js.earned, flip = js.flip or { target = FLIP_FIRST, best = 0, flips = 0 },
+  local out = { offers = {}, done = js.done, earned = js.earned, boost = boost(s, js), flip = js.flip or { target = FLIP_FIRST, best = 0, flips = 0 },
     quarter = QUARTER[js.quarter or 1] and QUARTER[js.quarter or 1][1] or nil, dyno = DYNO[js.dyno or 1] and DYNO[js.dyno or 1][1] or nil,
     crew = js.crew and not js.crew.done and { boss = js.crew.boss, tier = js.crew.tier, need = js.crew.need, won = js.crew.won, daysLeft = js.crew.untilDay - s.day, pay = js.crew.pay } or nil,
     sponsor = js.sponsor and { name = js.sponsor.name, weekly = js.sponsor.weekly, weekWins = js.weekWins or 0 } or nil }
   for _, j in ipairs(js.offers) do
     out.offers[#out.offers + 1] = { id = j.id, title = j.title, item = j.item, from = j.legs[1].name, to = j.legs[#j.legs].name,
-      pay = j.pay, seconds = j.seconds, fragile = j.fragile, metres = j.metres }
+      pay = math.floor(j.pay * boost(s, js) / 10) * 10 + (((js.kindDone or {})[j.kind] or 0) < FIRST_TIMES and FIRST_BONUS or 0), seconds = j.seconds, fragile = j.fragile, metres = j.metres }
   end
   local a = js.active
   if a then
