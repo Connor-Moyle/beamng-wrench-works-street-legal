@@ -188,7 +188,8 @@ function M.onUpdate()
     local veh = getObjectByID(leaving)
     leaving = nil
     if veh then
-      if gameplay_walk then gameplay_walk.setWalkingMode(true, nil, nil, true) end
+      local me = getPlayerVehicle(0)
+      if gameplay_walk and me and me:getID() == veh:getID() then gameplay_walk.setWalkingMode(true, nil, nil, true) end   -- (out of it only if you sit in it)
       veh:delete()
     end
   end
