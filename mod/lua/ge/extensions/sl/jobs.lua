@@ -139,7 +139,7 @@ local TYPES = {
       local metres = jobsLib.distance(from, to)
       return { item = 'wreck', legs = { leg(from), leg(to) }, metres = math.floor(metres), fragile = false,
         car = { model = ({ 'covet', 'pessima', 'legran', 'midsize' })[rng:int(4)], wear = 0.9 },
-        seconds = math.max(240, math.floor(metres * 1.4 / 9 * 1.5)), pay = 150 }
+        seconds = math.max(240, math.floor(metres * 1.4 / 9 * 1.5)), pay = 250 }
     end },
   -- car transport: a car between the dealer and the lots, without a scratch (fragile: over 5 % damage pays nothing)
   { kind = 'transport', title = 'Car transport', unlock = 200, offer = function(ctx, rng)
@@ -161,7 +161,7 @@ local TYPES = {
       if metres < 1000 then return nil end
       return { item = 'hot car', legs = { { id = 'kerb', name = 'a back street', x = k.x, y = k.y, z = k.z }, leg(to) }, metres = math.floor(metres),
         fragile = false, heat = 0.4, car = { model = ({ 'scintilla', 'sbr', 'bolide', 'etkc' })[rng:int(4)], wear = 0.1 },
-        seconds = math.max(240, math.floor(metres * 1.4 / jobsLib.SPEED * 1.3)), pay = 1000 + math.floor(metres / 1000 * 600 / 100) * 100 }
+        seconds = math.max(240, math.floor(metres * 1.4 / jobsLib.SPEED * 1.3)), pay = 600 + math.floor(metres / 1000 * 300 / 100) * 100 }
     end },
   -- test driver: a prototype round the test track's oval against the clock, without a scratch
   { kind = 'testdrive', title = 'Test driver', unlock = 600, offer = function(ctx, rng)
@@ -181,7 +181,7 @@ local TYPES = {
       end
       local slack = rng:range(1.15, 1.35)                   -- the faster the target, the better the pay
       return { item = 'prototype', legs = legs, metres = math.floor(metres), fragile = true, car = { model = 'scintilla', wear = 0 },
-        seconds = math.floor(t * slack + 30), pay = math.floor((1500 - (slack - 1.15) * 4000) / 50) * 50 }
+        seconds = math.floor(t * slack + 30), pay = math.floor((1200 - (slack - 1.15) * 3000) / 50) * 50 }
     end },
   -- recovery (Design 3 #6, first version): a stranded motorist's car at the kerb, limping, to the nearest club garage
   { kind = 'recovery', title = 'Recovery', unlock = 300, offer = function(ctx, rng)
@@ -324,7 +324,7 @@ local function finish(s, js, j, v)
   js.active = nil
   if core_groundMarkers then core_groundMarkers.setPath(nil) end
   if pay > 0 then sl_career.addMoney(pay, j.title .. ': ' .. (j.item or 'delivery')) end
-  stateLib.addRep(s, verdict == 'broken' and -5 or (verdict == 'late' and 2 or (j.kind == 'errand' and 15 or 6)))
+  stateLib.addRep(s, verdict == 'broken' and -5 or (verdict == 'late' and 4 or (j.kind == 'errand' and 15 or 10)))
   js.done, js.earned = js.done + 1, js.earned + pay
   if j.car and j.carVid then
     local id = j.carVid

@@ -17,6 +17,7 @@ local CONFIGS = {
 local units = {}          -- vehicle ids of our patrol cars
 local timer, busy = 0, false
 
+local HEAT_COOLING = 0.01   -- per real minute (balance pass, tools/economy_sim.py)
 local function career() return sl_career and sl_career.isActive() and sl_career.getState() or nil end
 local function night() return sl_career and sl_career.hour and require('sl/core/progression').isNight(sl_career.hour()) end
 
@@ -113,7 +114,12 @@ function M.onUpdate(dtReal)
     return
   end
   timer = timer + dtReal
-  if timer > 5 then timer = 0 updatePatrols() end
+  if timer > 5 then
+    timer = 0
+    updatePatrols()
+    local s = career()
+    s.heat = math.max(0, (s.heat or 0) - HEAT_COOLING * 5 / 60)      -- heat cools as time passes, not only overnight
+  end
 end
 
 function M.onStreetLegalStopped() for _, id in ipairs(units) do despawn(id) end units = {} end

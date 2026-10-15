@@ -69,7 +69,7 @@ function M.raceResult(r)
   local ratio = ((r.opponentRep or 0) + 200) / ((r.playerRep or 0) + 200)
   local against = math.max(0.5, math.min(2, ratio))          -- beating somebody better known counts for more
   if r.won then
-    rep = 20 + math.min(80, (r.bet or 0) / 100)
+    rep = 35 + math.min(80, (r.bet or 0) / 100)                -- (35: balance pass, tools/economy_sim.py)
     if r.stake == 'pink' then rep = rep + 60 end
     rep = rep * against
     if r.night then rep = rep * 1.5 end
@@ -98,7 +98,7 @@ M.EVADE_REP = 15
 M.ARREST_REP = -25
 
 function M.policeFine(offences, racing)
-  return 400 + 300 * math.max(1, offences or 0) + (racing and 1000 or 0)
+  return 250 + 150 * math.max(1, offences or 0) + (racing and 500 or 0)      -- (balance pass: bites, doesn't bankrupt)
 end
 
 -- is it night? (hour of day, 0-24) Races at night pay better in reputation.

@@ -1,0 +1,238 @@
+"""Economy and progression simulation for Wrench Works: Street Legal (balance pass).
+
+Simulates players through a career in real minutes, choosing sensible things to do (jobs, races,
+activities, upgrades) with the career's actual numbers (core/progression.lua, roster.lua, market.lua,
+jobs.lua, activities.lua), and reports when money and reputation milestones arrive, the pay per real
+minute of every job and activity (to spot exploits), and how police fines land.
+
+  python tools/economy_sim.py            # 200 players, prints the tables
+  python tools/economy_sim.py --plot out.png   # also plots money and rep over time (needs matplotlib)
+
+Assumptions (check in game): real minutes per in-game day (DAY_MIN), drive speed in town, and how
+often the player wins against each tier with a car of a given class.
+"""
+import math, random, sys, statistics
+
+PLAYERS, HOURS = 45, 12   # simulated players, hours of play each
+DAY_MIN = 30.0            # real minutes per in-game day (BeamNG's TimeOfDay dayLength; verify in game)
+NIGHT = (20, 5)           # night hours, as progression.isNight
+CITY_SPEED = 11.0         # m/s average across town, stops included
+START_MONEY = 3500
+TIERS = [  # roster.TIERS: rep range, bet range
+    dict(rep=(0, 150), bet=(100, 400)), dict(rep=(150, 600), bet=(300, 1000)), dict(rep=(600, 1800), bet=(800, 3000)),
+    dict(rep=(1800, 4000), bet=(2500, 8000)), dict(rep=(4000, 9000), bet=(6000, 20000))]
+GARAGES = [(1500, 25000), (3000, 75000)]
+ROC = dict(rep=6000, entry=50000)
+# cars by class: (value new, how well it races 1..6)
+TUNE = dict(               # the game's numbers since the balance pass (DESIGN3_jobs.md); --old: before it
+    race_rep_base=35,       # progression.raceResult: rep for a win = base + bet/100 (x1.5 at night)
+    job_rep=10,             # sl_jobs: rep per job done
+    fine_base=250, fine_offence=150, fine_racing=500,    # progression.policeFine
+    heat_decay_per_min=0.01,  # sl_police: heat cooling per real minute (on top of the daily x0.7)
+    crush_pay=250, hot_base=600, hot_per_km=300, test_top=1200, test_slope=3000,
+)
+if '--old' in sys.argv:
+    TUNE.update(race_rep_base=20, job_rep=6, fine_base=400, fine_offence=300, fine_racing=1000, heat_decay_per_min=0.0, crush_pay=150,
+                hot_base=1000, hot_per_km=600, test_top=1500, test_slope=4000)
+CARS = [(6000, 1), (15000, 2), (30000, 3), (60000, 4), (120000, 5), (250000, 6)]
+
+def is_night(h): return h >= NIGHT[0] or h < NIGHT[1]
+
+def race_rep(won, bet, night, opp_rep, my_rep, pink=False):          # progression.raceResult
+    against = max(0.5, min(2, (opp_rep + 200) / (my_rep + 200)))
+    if won:
+        rep = (TUNE['race_rep_base'] + min(80, bet / 100) + (60 if pink else 0)) * against
+        if night: rep *= 1.5
+    else:
+        rep = (-30 if pink else -5) / against
+    return round(rep)
+
+def police_fine(racing): return TUNE['fine_base'] + TUNE['fine_offence'] + (TUNE['fine_racing'] if racing else 0)
+
+# jobs: (name, unlock rep, night only, pay(dist m, rng) -> $, minutes(dist, rng), rep on success, fail chance)
+def job_part(d, r):
+    fragile = r.random() < 0.35
+    pay = max(120, d / 1000 * 140 * (1.5 if fragile else 1) * 1.25)
+    return round(pay, -1), (0.06 if fragile else 0.02)
+JOBS = [
+    ('part run', 0, False, lambda r: job_part(r.uniform(600, 2500), r), lambda r, d=None: 2 + r.uniform(600, 2500) / CITY_SPEED / 60, 6),
+    ('courier', 0, False, lambda r: (round(max(120, r.uniform(400, 2500) / 1000 * 140 * (1.5 if r.random() < 0.2 else 1)), -1), 0.03), lambda r, d=None: 2 + r.uniform(400, 2500) / CITY_SPEED / 60, 6),
+    ('taxi', 0, False, lambda r: (max(60, round(40 + r.uniform(600, 2500) / 1000 * 90, -1)), 0.02), lambda r, d=None: 2.5 + r.uniform(600, 2500) / CITY_SPEED / 60, 6),
+    ('food (night)', 0, True, lambda r: (120 + round(r.uniform(900, 3000) / 1000 * 60, -1), 0.03), lambda r, d=None: 3 + r.uniform(900, 3000) / CITY_SPEED / 60, 6),
+    ('crushing run', 0, False, lambda r: (TUNE['crush_pay'], 0.05), lambda r, d=None: 2 + 1300 / 8 / 60, 6),
+    ('car transport', 200, False, lambda r: (300 + round(r.uniform(1000, 2000) / 1000 * 120, -1), 0.15), lambda r, d=None: 2 + r.uniform(1000, 2000) / CITY_SPEED / 60, 6),
+    ('recovery', 300, False, lambda r: (round(200 + r.uniform(500, 2500) / 1000 * 150, -1), 0.05), lambda r, d=None: 2.5 + r.uniform(500, 2500) / 8 / 60, 6),
+    ('test driver', 600, False, lambda r: (round(TUNE['test_top'] - (r.uniform(1.15, 1.35) - 1.15) * TUNE['test_slope'], -2), 0.3), lambda r, d=None: 6.0, 6),
+    ('hot car (night)', 1000, True, lambda r: (TUNE['hot_base'] + round(r.uniform(1000, 3000) / 1000 * TUNE['hot_per_km'], -2), 0.25), lambda r, d=None: 3 + r.uniform(1000, 3000) / CITY_SPEED / 60, 6),
+]
+
+class Player:
+    def __init__(self, seed, style):
+        self.r = random.Random(seed)
+        self.style = style                 # 'racer' | 'worker' | 'mixed'
+        self.money, self.rep, self.heat = START_MONEY, 0, 0.0
+        self.t = 0.0                        # real minutes
+        self.car = None                     # class index into CARS, or None
+        self.garage = 1
+        self.log = {}                       # milestone -> minute
+        self.earned = {}                    # source -> [money, minutes]
+        self.fines, self.broke = 0, 0
+        self.series = []
+        self.flip_target = 1000
+
+    def hour(self): return (20.5 + self.t / DAY_MIN * 24) % 24
+    def day(self): return int((20.5 / 24 * DAY_MIN + self.t) // DAY_MIN)
+
+    def mark(self, key):
+        if key not in self.log: self.log[key] = self.t
+
+    def book(self, src, money, minutes):
+        e = self.earned.setdefault(src, [0, 0])
+        e[0] += money; e[1] += minutes
+
+    def spend(self, minutes):
+        before = self.day()
+        self.t += minutes
+        if self.day() != before: self.heat *= 0.7      # police: heat cools daily
+        self.heat = max(0.0, self.heat - TUNE['heat_decay_per_min'] * minutes)
+        if not self.series or self.t - self.series[-1][0] >= 5: self.series.append((self.t, self.money, self.rep))
+
+    def tier(self):
+        t = 0
+        for i, d in enumerate(TIERS):
+            if self.rep >= d['rep'][0]: t = i
+        return t
+
+    # ---- the choices
+    def buy_car(self):
+        # the best used car the money buys, keeping $800 for fuel and fixes; tired stock at half value
+        best = None
+        for i, (value, _) in enumerate(CARS):
+            price = value * self.r.uniform(0.3, 0.6)          # damaged stock (0.3) to tired (0.5-0.6), market.lua
+            trade = CARS[self.car][0] * 0.4 if self.car is not None else 0
+            if price <= self.money + trade - 800 and (best is None or i > best[0]): best = (i, price, trade)
+        if best and (self.car is None or best[0] > self.car):
+            i, price, trade = best
+            if self.car is not None:
+                profit = trade - CARS[self.car][0] * 0.5
+                if profit > self.flip_target: self.money += self.flip_target * 0.5; self.flip_target *= 1.6
+            self.money += trade - price
+            self.car = i
+            self.spend(8)
+            self.mark('car %d' % (i + 1))
+            return True
+        return False
+
+    def race(self):
+        t = self.tier()
+        opp_tier = max(0, min(4, min(t, CARS[self.car][1] - 1) + self.r.choice([-1, 0, 0, 0, 1])))
+        bet = round(self.r.uniform(*TIERS[opp_tier]['bet']) / 50) * 50
+        if bet > self.money * 0.5: return False
+        opp_rep = self.r.uniform(*TIERS[opp_tier]['rep'])
+        p_win = 1 / (1 + math.exp(-((CARS[self.car][1] - 1 - opp_tier) * 1.1 + 0.3)))
+        won = self.r.random() < p_win
+        night = is_night(self.hour())
+        minutes = 7 + self.r.uniform(0, 3)
+        self.money += bet if won else -bet
+        self.rep += race_rep(won, bet, night, opp_rep, self.rep)
+        self.book('street race', bet if won else -bet, minutes)
+        # police: heat from the race, maybe a pursuit, maybe caught
+        self.heat = min(1, self.heat + 0.12)
+        if self.r.random() < (0.15 + 0.55 * self.heat) * (1 if night else 0.3):
+            if self.r.random() < 0.4:
+                fine = police_fine(True)
+                paid = min(self.money, fine)
+                self.money -= paid; self.fines += paid; self.rep -= 25; self.heat = min(1, self.heat + 0.2)
+                if paid < fine: self.broke += 1
+            else:
+                self.rep += 15
+        self.spend(minutes)
+        return True
+
+    def job(self):
+        night = is_night(self.hour())
+        options = [j for j in JOBS if self.rep >= j[1] and (not j[2] or night)]
+        if not options: return False
+        name, _, _, pay_fn, min_fn, _ = self.r.choice(options)
+        rep = TUNE['job_rep']
+        pay, fail = pay_fn(self.r)
+        minutes = min_fn(self.r)
+        if self.r.random() < fail: pay = 0
+        self.money += pay; self.rep += rep if pay else -5
+        self.book(name, pay, minutes)
+        self.spend(minutes)
+        return True
+
+    def sprint(self):
+        if not is_night(self.hour()): return False
+        stars = self.r.choice([0, 1, 1, 2, 2, 3])
+        passed = self.r.random() < 0.7
+        net = -100 + (round(400 * (1 + 0.25 * stars), -1) if passed else 0)
+        self.money += net; self.rep += 15 if passed else 0
+        self.book('street sprint', net, 5)
+        self.spend(5)
+        return True
+
+    def step(self):
+        nxt = min(5, (self.car or 0) + 1)
+        trade = CARS[self.car][0] * 0.4 if self.car is not None else 0
+        if self.car is None or (self.money + trade > CARS[nxt][0] * 0.5 + 800 and self.r.random() < 0.5):
+            if self.buy_car(): return
+            if self.car is None:
+                self.job() if self.rep >= 0 and any(not j[2] for j in JOBS) else self.spend(5)
+                return
+        # garage moves when both are there
+        for lvl, (rep, cost) in enumerate(GARAGES, start=2):
+            if self.garage == lvl - 1 and self.rep >= rep and self.money >= cost + 2000:
+                self.money -= cost; self.garage = lvl; self.mark('garage %d' % lvl); return
+        if self.garage == 3 and self.rep >= ROC['rep'] and self.money >= ROC['entry'] + 5000: self.mark('ROC open')
+        w = {'racer': 0.75, 'mixed': 0.5, 'worker': 0.25}[self.style]
+        roll = self.r.random()
+        if roll < w and self.race(): return
+        if roll < w + 0.1 and self.sprint(): return
+        self.job()
+
+    def run(self, minutes):
+        while self.t < minutes:
+            self.step()
+            for m in (150, 300, 500, 800, 1000, 1500, 3000, 6000):
+                if self.rep >= m: self.mark('rep %d' % m)
+            if self.money <= 0: self.broke += 0          # (counted at arrests)
+        return self
+
+def main():
+    players = []
+    for i in range(PLAYERS):
+        style = ['racer', 'mixed', 'worker'][i % 3]
+        players.append(Player(i, style).run(60 * HOURS))
+    keys = ['car 1', 'car 2', 'car 3', 'car 4', 'rep 150', 'rep 300', 'rep 500', 'rep 800', 'rep 1000', 'rep 1500', 'garage 2', 'rep 3000', 'garage 3', 'rep 6000', 'ROC open']
+    print('Milestones (real minutes of play; median and 10-90 %; n = players who got there in HOURS h)')
+    for style in ['racer', 'mixed', 'worker']:
+        print('  ' + style)
+        ps = [p for p in players if p.style == style]
+        for k in keys:
+            ts = sorted(p.log[k] for p in ps if k in p.log)
+            if ts:
+                print('    %-10s %6.0f  (%4.0f-%4.0f)  n=%d' % (k, statistics.median(ts), ts[len(ts) // 10], ts[len(ts) * 9 // 10], len(ts)))
+            else:
+                print('    %-10s   never' % k)
+    print('\nPay per real minute (all players)')
+    totals = {}
+    for p in players:
+        for src, (m, mins) in p.earned.items():
+            t = totals.setdefault(src, [0, 0]); t[0] += m; t[1] += mins
+    for src, (m, mins) in sorted(totals.items(), key=lambda kv: -kv[1][0] / max(1, kv[1][1])):
+        print('  %-16s $%6.0f / min   (%d min sampled)' % (src, m / max(1, mins), mins))
+    fines = [p.fines for p in players]
+    print('\nPolice: median fines over the run $%d; players who could not pay a fine at least once: %d of %d' % (statistics.median(fines), sum(1 for p in players if p.broke), len(players)))
+    if '--plot' in sys.argv:
+        import matplotlib; matplotlib.use('Agg'); import matplotlib.pyplot as plt
+        fig, ax = plt.subplots(2, 1, figsize=(9, 7), sharex=True)
+        for p in players[:12]:
+            ts = [s[0] / 60 for s in p.series]
+            ax[0].plot(ts, [s[1] for s in p.series], lw=0.8); ax[1].plot(ts, [s[2] for s in p.series], lw=0.8)
+        ax[0].set_ylabel('money $'); ax[1].set_ylabel('reputation'); ax[1].set_xlabel('hours of play')
+        fig.savefig(sys.argv[sys.argv.index('--plot') + 1], dpi=110)
+
+if __name__ == '__main__':
+    main()
