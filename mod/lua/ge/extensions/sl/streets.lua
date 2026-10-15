@@ -243,8 +243,25 @@ local function updateRace(dt)
     if race.countdown <= 0 then
       race.countdown = nil
       if race.circuit then
-        opp:queueLuaCommand('controller.setFreeze(0) input.event("parkingbrake", 0, FILTER_DIRECT) ai.startFollowing(' ..
-          serialize({ path = circuitPath(race.circuit.cps, race.circuit.laps, race.skill or 0.5) }) .. ', 0, 1, "neverReset")')
+        -- round the track on its AI roads (the checkpoints alone are too far apart: a line through
+        -- them cut a bend and stuck the car - seen in game); a scripted line if there are none
+        local nodes, wps, last = map.getMap().nodes, {}, nil
+        for _, cp in ipairs(race.circuit.cps) do
+          local best, bd
+          for name, n in pairs(nodes) do
+            local d = (n.pos - cp.pos):length()
+            if d < 15 and (not bd or d < bd) then best, bd = name, d end
+          end
+          if best and best ~= last then wps[#wps + 1] = best last = best end
+        end
+        local aggression = 0.35 + 0.6 * (race.skill or 0.5)
+        if #wps >= #race.circuit.cps * 0.8 then
+          opp:queueLuaCommand(string.format("controller.setFreeze(0) input.event('parkingbrake', 0, FILTER_DIRECT) ai.setSpeedMode('off') ai.setRecoverOnCrash(true) ai.setAvoidCars('on') ai.driveInLane('off') ai.setAggression(%f) ai.driveUsingPath(%s)",
+            aggression, serialize({ wpTargetList = wps, noOfLaps = race.circuit.laps, aggression = aggression })))
+        else
+          opp:queueLuaCommand('controller.setFreeze(0) input.event("parkingbrake", 0, FILTER_DIRECT) ai.startFollowing(' ..
+            serialize({ path = circuitPath(race.circuit.cps, race.circuit.laps, race.skill or 0.5) }) .. ', 0, 1, "neverReset")')
+        end
       else
         aiGo(race.vid, race.destNode, race.skill)
       end
@@ -614,17 +631,22 @@ function M.enterRoc()
     local rot, right
     if track then
       -- on the grid, side by side, behind the start line
-      local c1 = track.cps[1]
-      right = c1.dir:cross(vec3(0, 0, 1)):normalized()
-      start = c1.pos - c1.dir * 10 - right * 2.5
-      rot = quatFromDir(c1.dir, vec3(0, 0, 1))
+      -- along the road from the first checkpoint to the second (a checkpoint's own "dir" put the
+      -- second grid spot on the shoulder - seen in game)
+      local c1, c2 = track.cps[1], track.cps[2]
+      local along = c2.pos - c1.pos
+      along.z = 0
+      along = along:length() > 1 and along:normalized() or c1.dir
+      right = along:cross(vec3(0, 0, 1)):normalized()
+      start = c1.pos - along * 10 - right * 2.2
+      rot = quatFromDir(along, vec3(0, 0, 1))
     elseif spot then
       pcall(function() rot = quat(spot:getRotation()) end)
     end
     spawn.safeTeleport(v, start + vec3(0, 0, 0.5), rot, true)
     job.sleep(0.5)
     right = right or v:getDirectionVector():cross(vec3(0, 0, 1)):normalized()
-    local veh = spawnRacer(job, s, rival, start + right * 5 + vec3(0, 0, 0.5), rot or quat(v:getRotation()), true)
+    local veh = spawnRacer(job, s, rival, start + right * 4.4 + vec3(0, 0, 0.5), rot or quat(v:getRotation()), true)
     busy = false
     guihooks.trigger('slFade', { on = false })
     if not veh then return end
