@@ -202,13 +202,52 @@ function M.onStreetLegalCarSold(car, price, to)
   end
 end
 
+----------------------------------------------------------------------------------------------
+-- tuning challenges (Design 2 G1/G2): targets in order, each paid once
+local QUARTER = { { 16, 300 }, { 15, 500 }, { 14, 800 }, { 13, 1200 }, { 12, 2000 }, { 11, 3500 } }        -- seconds, prize
+local DYNO = { { 150, 300 }, { 200, 500 }, { 250, 800 }, { 300, 1200 }, { 400, 2000 }, { 500, 3500 } }     -- PS, prize
+
+local function challenge(s, key, list, value, better, unit, what)
+  local js = jobsState(s)
+  js[key] = js[key] or 1
+  local paid = 0
+  while list[js[key]] and better(value, list[js[key]][1]) do
+    local t = list[js[key]]
+    sl_career.addMoney(t[2], what .. ' target ' .. t[1] .. unit)
+    stateLib.addRep(s, 15)
+    paid = paid + t[2]
+    js[key] = js[key] + 1
+  end
+  if paid > 0 then toast(string.format('%s: %s%s beats the target. $%d.', what, tostring(value), unit, paid)) end
+end
+
+-- the quarter mile: a drag race's time down the test track's 1/4 mile
+function M.onSlrrRaceFinished(r)
+  local s = career()
+  if not s or type(r) ~= 'table' or r.abandoned or type(r.time) ~= 'number' or r.time <= 0 then return end
+  local quarter
+  for _, x in ipairs(sl_career.racesList() or {}) do
+    if x.drag and (x.id == r.raceId or (r.missionId and x.missionId == r.missionId)) and tostring(x.name):find('1/4', 1, true) then quarter = true end
+  end
+  if quarter then challenge(s, 'quarter', QUARTER, math.floor(r.time * 100) / 100, function(v, t) return v <= t end, ' s', 'Quarter mile') end
+end
+
+-- the dyno: Wrench Works' car info sheet, for one of your cars
+function M.onWrenchWorksDyno(vid, data)
+  local s = career()
+  if not s or type(data) ~= 'table' or not tonumber(data.maxPower) then return end
+  if not (sl_fleet and sl_fleet.carOfVehicle and sl_fleet.carOfVehicle(vid)) then return end
+  challenge(s, 'dyno', DYNO, math.floor(data.maxPower), function(v, t) return v >= t end, ' PS', 'Dyno')
+end
+
 -- for the phone
 function M.summary()
   local s = career()
   if not s then return nil end
   refresh(s)
   local js = jobsState(s)
-  local out = { offers = {}, done = js.done, earned = js.earned, flip = js.flip or { target = FLIP_FIRST, best = 0, flips = 0 } }
+  local out = { offers = {}, done = js.done, earned = js.earned, flip = js.flip or { target = FLIP_FIRST, best = 0, flips = 0 },
+    quarter = QUARTER[js.quarter or 1] and QUARTER[js.quarter or 1][1] or nil, dyno = DYNO[js.dyno or 1] and DYNO[js.dyno or 1][1] or nil }
   for _, j in ipairs(js.offers) do
     out.offers[#out.offers + 1] = { id = j.id, title = j.title, item = j.item, from = j.legs[1].name, to = j.legs[#j.legs].name,
       pay = j.pay, seconds = j.seconds, fragile = j.fragile, metres = j.metres }

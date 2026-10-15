@@ -412,6 +412,7 @@
           (a ? '' : '<div class="slp-acts"><div class="slp-btn" data-a="jobtake" data-v="' + esc(o.id) + '">Take it</div></div>') + '</div>';
       }).join('');
       return bar('Jobs') + '<div class="slp-body">' + activeCard + (cards || '<div class="slp-empty">Nothing on the board. New jobs come in the morning and at dusk.</div>') +
+        (j.quarter || j.dyno ? '<div class="slp-card"><h4>Tuning challenges</h4><p>' + (j.quarter ? 'Quarter mile at the test track under ' + j.quarter + ' s. ' : '') + (j.dyno ? 'Dyno: ' + j.dyno + ' PS on the car info sheet in your garage.' : '') + '</p></div>' : '') +
         (j.flip ? '<div class="slp-card"><h4>Junkyard challenge: flip a car</h4><p>Sell one for ' + money(j.flip.target) + ' more than you paid for a bonus. Best so far: ' + money(j.flip.best || 0) + '.</p></div>' : '') +
         '<div class="slp-empty">' + (j.done || 0) + ' jobs done, ' + money(j.earned || 0) + ' earned.</div></div>';
     }
