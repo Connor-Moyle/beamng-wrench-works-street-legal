@@ -178,6 +178,9 @@
     '.slp-menu p{margin:6px 0 12px 0;font-size:13px;color:#cac4d0;line-height:1.4}',
     '.slp-menu .slp-btn{width:100%;margin-top:8px}',
     '.slp-pink{color:#ff7eb6;font-weight:500}',
+    '.slp-hudrow{cursor:pointer}',
+    '.slp-hudrow b.slp-on{color:#6dd58c}',
+    '.slp-hudrow b.slp-offtxt{color:#938f99}',
     '.slp-pinkbtn{background:#ff5fa2;color:#2b0016}',
     '.slp-menu .slp-go{background:#ff6a00;color:#1d0d00}',
     /* the main menu's Career button asks which career */
@@ -426,7 +429,20 @@
         '<div class="slp-kv"><span>Races</span><b>' + (s.races || 0) + ' (' + (s.wins || 0) + ' won)</b></div>' +
         '<div class="slp-kv" style="border:none"><span>Pink slips</span><b>' + (s.pinksWon || 0) + ' won, ' + (s.pinksLost || 0) + ' lost</b></div>' +
         (acts.length ? '<div class="slp-acts">' + acts.join('') + '</div>' : '') + '</div>' +
-        (d.rocChampion ? '<div class="slp-card"><h4>ROC champion</h4><p>The best in Valo City. There is nobody left to beat.</p></div>' : '') + '</div>';
+        (d.rocChampion ? '<div class="slp-card"><h4>ROC champion</h4><p>The best in Valo City. There is nobody left to beat.</p></div>' : '') +
+        hudCard(d.hud) + '</div>';
+    }
+
+    // the SLRR dashboard's switches
+    function hudCard(h) {
+      if (!h) return '';
+      var row = function (key, label, on, text) {
+        return '<div class="slp-kv slp-hudrow" data-a="hud" data-v="' + key + '"><span>' + label + '</span><b class="' + (on ? 'slp-on' : 'slp-offtxt') + '">' + (text || (on ? 'On' : 'Off')) + '</b></div>';
+      };
+      return '<div class="slp-card"><h4>Dashboard</h4><p>The SLRR gauges, map and damage diagram while you drive.</p>' +
+        row('enabled', 'Dashboard', h.enabled) +
+        (h.enabled ? row('tacho', 'Rev counter', h.tacho) + row('speedo', 'Speedometer', h.speedo) + row('map', 'Map', h.map) + row('damage', 'Damage', h.damage) +
+          row('units', 'Units', true, h.units === 'mph' ? 'mph' : 'km/h') + row('freeroam', 'Also outside the career', h.freeroam) : '') + '</div>';
     }
 
     function callPage() {
@@ -666,6 +682,7 @@
           st.chooser = false; render();
           if (v === 'beamng' && careerButton) { letThrough = true; try { careerButton.click(); } finally { letThrough = false; } }
           break;
+        case 'hud': lua('@sl_hud.toggle(' + JSON.stringify(v) + ')'); break;
         case 'meetclose': lua('@sl_streets.closeMeet()'); st.meet = null; render(); break;
         case 'key': if (st.dial.length < 12) st.dial += v; render(); break;
         case 'del': st.dial = st.dial.slice(0, -1); render(); break;

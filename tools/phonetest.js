@@ -175,6 +175,14 @@ assert.ok(calls.includes('taxi("junkyard")'), 'cab ordered');
 click('home');
 click('open', 'me');
 assert.ok(text().includes('Street kid') && text().includes('needs 1500 reputation'), 'street cred page');
+phone.handle('slPhoneData', Object.assign({}, data, { hud: { enabled: true, speedo: true, tacho: true, map: false, damage: true, units: 'mph', freeroam: false } }));
+assert.ok(text().includes('Dashboard') && text().includes('Rev counter') && text().includes('mph'), 'dashboard switches');
+calls.length = 0;
+click('hud', 'map');
+assert.ok(calls.includes('@sl_hud.toggle("map")'), 'switching the map');
+phone.handle('slPhoneData', Object.assign({}, data, { hud: { enabled: false, speedo: true, tacho: true, map: true, damage: true, units: 'kmh', freeroam: false } }));
+assert.ok(text().includes('Dashboard') && !text().includes('Rev counter'), 'switched off: only the main switch');
+phone.handle('slPhoneData', data);
 
 // back walks back through the pages, and out of the phone at the end
 click('back');
