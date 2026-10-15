@@ -83,13 +83,26 @@ local function writeSave()
   if not s then return end
   extensions.hook('onStreetLegalBeforeSave')      -- the cars out in the world note where they are first
   if not FS:directoryExists(SAVE_DIR) then FS:directoryCreate(SAVE_DIR, true) end
-  jsonWriteFile(SAVE_FILE, s, true)
+  -- never half a save: write it aside and read it back, keep the last good one as .bak, then put it in
+  -- place (a crash or Alt-F4 at any point leaves a whole save behind; readSave tries them in turn)
+  local fresh = SAVE_FILE .. '.new'
+  jsonWriteFile(fresh, s, true)
+  if type(jsonReadFile(fresh)) ~= 'table' then log('E', 'sl_career', 'the save did not read back; the last one is kept') return end
+  if FS:fileExists(SAVE_FILE) then FS:copyFile(SAVE_FILE, SAVE_FILE .. '.bak') end
+  FS:copyFile(fresh, SAVE_FILE)
+  FS:removeFile(fresh)
   dirty = false
 end
 
 local function readSave()
-  local data = FS:fileExists(SAVE_FILE) and jsonReadFile(SAVE_FILE) or nil
-  return stateLib.migrate(data)
+  for _, f in ipairs({ SAVE_FILE, SAVE_FILE .. '.new', SAVE_FILE .. '.bak' }) do
+    local data = FS:fileExists(f) and jsonReadFile(f) or nil
+    if type(data) == 'table' then
+      if f ~= SAVE_FILE then log('W', 'sl_career', 'the save was damaged; continuing from ' .. f) end
+      return stateLib.migrate(data)
+    end
+  end
+  return stateLib.migrate(nil)
 end
 
 function M.hasSave() return FS:fileExists(SAVE_FILE) end

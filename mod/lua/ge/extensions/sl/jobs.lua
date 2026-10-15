@@ -595,6 +595,22 @@ function M.showWay()
   if a then routeTo(a.legs[a.leg]) end
 end
 
-function M.onStreetLegalStopped() if core_groundMarkers then core_groundMarkers.setPath(nil) end end
+function M.onStreetLegalStopped()
+  if core_groundMarkers then core_groundMarkers.setPath(nil) end
+  local s = sl_career and sl_career.getState and sl_career.getState()
+  local a = s and s.jobs and s.jobs.active
+  local veh = a and a.carVid and getObjectByID(a.carVid)
+  if veh then veh:delete() end                 -- (a job's car does not outlive the career)
+end
+
+-- a job you were on when the game was left (its clock and its car are gone): called off, no penalty
+function M.onStreetLegalStarted()
+  local s = career()
+  local js = s and s.jobs
+  if js and js.active then
+    js.active = nil
+    sl_career.sendText('benny', 'The job you were on got called off while you were away. No harm done; the board has more.', 4)
+  end
+end
 
 return M
