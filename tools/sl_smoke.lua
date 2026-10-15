@@ -566,6 +566,26 @@ check('tracks: the venue list', function()
   return n >= 10, n .. ' venues'
 end)
 
+-- the used-car market (X12): a car sold on Revline leaves the world with its record (B24). Last: it sells the car
+check('revline: a sold car leaves the world', function(job)
+  local st = sl_career.getState()
+  local car = sl_fleet.currentCar()
+  if not car then return nil, 'not in own car' end
+  local ok, text = sl_classifieds.listCar(car.id)
+  if not ok then return false, 'list: ' .. tostring(text) end
+  local y
+  for _, x in ipairs(st.market.mine) do if x.carId == car.id then y = x end end
+  if not y then return false, 'no listing' end
+  y.offers[#y.offers + 1] = { amount = 10, hour = 0, buyer = 'Smoke' }
+  local vid = player():getID()
+  local ok2, text2 = sl_classifieds.acceptOffer(y.id, #y.offers)
+  if not ok2 then return false, 'accept: ' .. tostring(text2) end
+  job.sleep(1)
+  local still
+  for _, c in ipairs(st.cars) do if c.id == car.id then still = true end end
+  return not still and getObjectByID(vid) == nil, still and 'the record stayed' or (getObjectByID(vid) and 'the vehicle stayed' or text2)
+end)
+
 -- run them all, one after the other
 core_jobsystem.create(function(job)
   for _, c in ipairs(checks) do

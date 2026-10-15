@@ -353,6 +353,7 @@ function M.buy(id, how)
   end
   local js = s.jobs
   if js and js.active then return false, 'Finish the job you are on first.' end
+  if not (sl_fleet and sl_fleet.currentCar()) then return false, 'You need to be in one of your cars to go and fetch it.' end   -- (sl_jobs.take refuses after the deposit otherwise)
   local deposit = L.deposit(price)
   if not sl_career.addMoney(-deposit, 'Revline deposit: ' .. l.item.name) then return false, 'Not enough for the deposit.' end
   l.taken = true
@@ -434,7 +435,8 @@ function M.acceptOffer(id, index)
       return false, string.format('%s had a look at it and knocked the offer down to $%d.', o.buyer or 'The buyer', cap)
     end
     sold = carById(s, y.carId)
-    sl_fleet.lose(y.carId)
+    local _, veh = sl_fleet.lose(y.carId)
+    if veh then veh:delete() end          -- (the buyer drives it away: as sl_fleet.sell does)
   end
   table.remove(m.mine, i)
   local got = L.proceeds(amount)
