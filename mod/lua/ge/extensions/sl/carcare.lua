@@ -14,6 +14,7 @@ local timer, condTimer = 0, 0
 local lastDamage = {}         -- vehicle id -> the damage it last reported
 local CRASH_DAMAGE = 2000     -- this much more since the last report (2 s) is a crash
 local settleUntil = {}        -- vehicle id -> clock: its saved dents are still going back on until then
+local lookAgain = {}          -- vehicle id -> clock: a crash was caught mid-way; look again once it has settled
 
 local ASK_CONDITIONS = [[obj:queueGameEngineLua(string.format('if sl_carcare then sl_carcare.onConditions(%d,%s) end', obj:getId(), serialize(partCondition.getConditions())))]]
 
@@ -91,7 +92,10 @@ function M.onReport(vid, t)
     local before = lastDamage[vid]
     lastDamage[vid] = t.damage
     local phase = slrr_garage and slrr_garage.getPhase and slrr_garage.getPhase()
-    if before and t.damage - before > CRASH_DAMAGE and (not phase or phase == 'idle') and os.clock() > (settleUntil[vid] or 0) then
+    local crashed = before and t.damage - before > CRASH_DAMAGE and os.clock() > (settleUntil[vid] or 0)
+    local again = lookAgain[vid] and os.clock() > lookAgain[vid]
+    if crashed then lookAgain[vid] = os.clock() + 3 elseif again then lookAgain[vid] = nil end
+    if (crashed or again) and (not phase or phase == 'idle') then
       local veh = getObjectByID(vid)
       if veh then
         veh:queueLuaCommand('extensions.load("slrrGarageVeh") if slrrGarageVeh then slrrGarageVeh.capture() end')
@@ -125,7 +129,7 @@ function M.askConditions(vid)
 end
 
 -- a respawned car (the garage rebuilding it) has fresh Lua: set it up again
-function M.onVehicleSpawned(vid) attached[vid] = nil lastDamage[vid] = nil end
+function M.onVehicleSpawned(vid) attached[vid] = nil lastDamage[vid] = nil lookAgain[vid] = nil end
 function M.onVehicleDestroyed(vid) attached[vid] = nil lastDamage[vid] = nil end
 
 function M.onUpdate(dtReal)
