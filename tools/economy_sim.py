@@ -101,6 +101,7 @@ class Player:
         if self.day() != before: self.heat *= 0.7      # police: heat cools daily
         self.heat = max(0.0, self.heat - TUNE['heat_decay_per_min'] * minutes)
         if not self.series or self.t - self.series[-1][0] >= 5: self.series.append((self.t, self.money, self.rep))
+        if self.t > 20 and self.money < 300: self.broke_min = getattr(self, 'broke_min', 0) + minutes   # the floor check
 
     def tier(self):
         t = 0
@@ -261,6 +262,11 @@ def main():
             t = totals.setdefault(src, [0, 0]); t[0] += m; t[1] += mins
     for src, (m, mins) in sorted(((k, v) for k, v in totals.items() if v[1] > 0), key=lambda kv: -kv[1][0] / max(1, kv[1][1])):   # (contracts take no time of their own)
         print('  %-16s $%6.0f / min   (%d min sampled)' % (src, m / max(1, mins), mins))
+    for style in ['racer', 'mixed', 'worker']:
+        ps = [p for p in players if p.style == style]
+        bm = sorted(getattr(p, 'broke_min', 0) for p in ps)
+        print('Floor (%s): minutes under $300 after the first 20: median %d, worst %d; players who ended under $300: %d of %d'
+              % (style, statistics.median(bm), bm[-1], sum(1 for p in ps if p.money < 300), len(ps)))
     fines = [p.fines for p in players]
     print('\nPolice: median fines over the run $%d; players who could not pay a fine at least once: %d of %d' % (statistics.median(fines), sum(1 for p in players if p.broke), len(players)))
     if '--plot' in sys.argv:
