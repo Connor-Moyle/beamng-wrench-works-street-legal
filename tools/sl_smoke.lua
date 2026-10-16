@@ -6,6 +6,8 @@
 -- career recorded: money, rep, heat, the job board, the phone's summary.
 
 rawset(_G, 'SL_SMOKE', { lines = {}, done = false })
+rawset(_G, 'SL_SMOKE_BEFORE', {})
+for _, v in ipairs(getAllVehicles()) do SL_SMOKE_BEFORE[v:getID()] = true end
 local R = SL_SMOKE
 local function line(status, name, detail) R.lines[#R.lines + 1] = string.format('%-4s %-34s %s', status, name, detail or '') end
 local function report()
@@ -40,6 +42,17 @@ local function backInOwnCar(job)
   local car = sl_career.getState().cars[1]
   local v = car and sl_fleet.vehicleOf(car.id)
   local me = player()
+  if car and not v and me then
+    -- the car is stored (towed home after the death check, say): bring it out the way My cars does, at the garage forecourt
+    local pos = sl_fleet.forecourt(sl_career.getState(), 0)
+    if pos then
+      spawn.safeTeleport(me, pos + vec3(6, 0, 0.5), quat(me:getRotation()), false, nil, nil, nil, false)
+      job.sleep(1)
+      sl_fleet.setActive(car.id)
+      job.sleep(3)
+      v, me = sl_fleet.vehicleOf(car.id), player()
+    end
+  end
   if not v or not me or me:getID() == v:getID() then return end
   spawn.safeTeleport(v, me:getPosition() + vec3(3, 3, 0.5), quat(v:getRotation()), false, nil, nil, nil, false)
   if gameplay_walk and gameplay_walk.getInVehicle then gameplay_walk.getInVehicle(v) else be:enterVehicle(0, v) end
@@ -217,6 +230,7 @@ end)
 check('job: move', function(job)
   sl_jobs.onStreetLegalGarageMoved(1, 2, 25000)
   local mine = sl_fleet.currentCar()
+  if not mine then return nil, 'not in own car' end
   local any
   for _, j in ipairs(js().offers or {}) do if j.kind == 'move' and mine and j.needCar == mine.id then any = j end end
   if not any then return false, 'no move offer for this car' end
@@ -518,12 +532,14 @@ end)
 -- vehicle budget: nothing of ours left standing about (cabs, tow trucks, lot rows, patrols)
 check('budget: no stray spawned vehicles', function()
   local keep = {}
+  for id in pairs(SL_SMOKE_BEFORE) do keep[id] = true end        -- (the launch's own car and the like)
+  for _, id in ipairs(gameplay_parking and gameplay_parking.getParkedCarsList and gameplay_parking.getParkedCarsList() or {}) do keep[id] = true end   -- (the game's parked cars come and go as the car is teleported about)
   local p = getPlayerVehicle(0)
   if p then keep[p:getID()] = true end
   for _, id in ipairs(gameplay_traffic and gameplay_traffic.getTrafficList and gameplay_traffic.getTrafficList() or {}) do keep[id] = true end
   for _, c in ipairs(sl_career.getState().cars or {}) do local v = sl_fleet.vehicleOf(c.id) if v then keep[v:getID()] = true end end
   local extra = {}
-  for _, v in ipairs(getAllVehicles()) do if not keep[v:getID()] then extra[#extra + 1] = v:getJBeamFilename() end end
+  for _, v in ipairs(getAllVehicles()) do if not keep[v:getID()] and v:getJBeamFilename() ~= 'unicycle' then extra[#extra + 1] = v:getJBeamFilename() end end
   return #extra <= 3, #extra .. ' extra: ' .. table.concat(extra, ', ')
 end)
 
@@ -585,6 +601,7 @@ end)
 
 -- garage services and lists
 check('services: drawer entries', function()
+  if #(sl_career.getState().cars or {}) == 0 then return nil, 'no cars in the career (the revline check sold the last one): the drawer is empty by rule' end
   local list = {}
   sl_services.onWrenchWorksServices(list, player() and player():getID() or 0)
   local groups = {}
