@@ -75,7 +75,13 @@ function M.listRaces()
   end
   return out
 end
-M.getState = function() return state end
+-- the phase as the career reads it (string), and the rest for QA: slrrValoRaces returns a bare string, so the
+-- career takes either
+M.getState = function()
+  if not cur then return { phase = state } end
+  return { phase = state, raceId = cur.race.id, missionId = cur.race.missionId, start = cur.race.start, goal = cur.race.finish,
+           playerVid = cur.playerVid, opponentVid = cur.oppVid, ready = cur.ready or false, t = cur.t, done = cur.done }
+end
 M.acceptsVehicleId = true                     -- the offer may bring the racer's own car (offer.vehicleId)
 
 -- a money bet moves through the shared wallet, as the map's races do; without Wrench Works the career settles it
@@ -122,15 +128,29 @@ end
 
 -- the career calls this at the start line with its arranged race (offer: name, racerId, class, skill, aggression,
 -- stake, bet, car, vehicleId, laps); nil offer: a race for nothing against nobody is not run here
+local function refuse(missionId, why)
+  log('W', 'sl_races', 'launch ' .. tostring(missionId) .. ' refused: ' .. why)
+  return false
+end
+
 function M.launch(missionId, offer)
-  if state ~= 'idle' or type(offer) ~= 'table' then return false end
+  if state ~= 'idle' then return refuse(missionId, 'a race is on (' .. state .. ')') end
+  if type(offer) ~= 'table' then return refuse(missionId, 'no offer (name, racerId, stake, bet; vehicleId or a running career)') end
   local race
   for _, r in ipairs(build()) do if r.missionId == missionId then race = r end end
+  if not race then return refuse(missionId, 'not one of this level\'s ' .. #build() .. ' sprints (listRaces)') end
   local veh = getPlayerVehicle(0)
-  if not race or not veh or veh:getJBeamFilename() == 'unicycle' then return false end
+  if not veh or veh:getJBeamFilename() == 'unicycle' then return refuse(missionId, 'the player is not in a car') end
+  -- the opponent: the car the offer brings, else the racer's own car built by the career (sl_streets, career only)
+  local own = offer.vehicleId and getObjectByID(offer.vehicleId)
+  local canBuild = offer.racerId and sl_streets and sl_streets.buildRacerCar and sl_career and sl_career.isActive and sl_career.isActive()
+  if not own and not canBuild then
+    return refuse(missionId, 'no opponent: the offer brings no vehicleId and the racer\'s car is built by the career, which is not running')
+  end
   local line = races.lineUp(race.start, race.dir)
   local rot = quatFromDir(vec3(race.dir.x, race.dir.y, 0), vec3(0, 0, 1))
-  spawn.safeTeleport(veh, v3(line.player.pos) + vec3(0, 0, 0.3), rot, true, nil, nil, nil, false)   -- (8th: a reset would repair it)
+  -- the car's centre on the line, no reset (a reset would repair it), no traffic removed
+  spawn.safeTeleport(veh, v3(line.player.pos) + vec3(0, 0, 0.3), rot, true, nil, false, true, false)
   veh:queueLuaCommand('controller.setFreeze(1)')
   cur = { race = race, offer = offer, playerVid = veh:getID(), t = 0, done = {} }
   state = 'countdown'
@@ -140,20 +160,20 @@ function M.launch(missionId, offer)
     if not opp then
       cur, state = nil, 'idle'
       veh:queueLuaCommand('controller.setFreeze(0)')
+      if core_groundMarkers then core_groundMarkers.setPath(nil) end
+      log('W', 'sl_races', 'launch ' .. race.missionId .. ': the opponent\'s car was not built')
       tell('Nobody showed up.', 5)
       return
     end
     cur.oppVid = opp:getID()
-    spawn.safeTeleport(opp, v3(line.opponent.pos) + vec3(0, 0, 0.3), rot, true, nil, nil, nil, false)
+    spawn.safeTeleport(opp, v3(line.opponent.pos) + vec3(0, 0, 0.3), rot, true, nil, false, true, false)
     opp:queueLuaCommand('controller.setFreeze(1) input.event("parkingbrake", 1, FILTER_DIRECT)')
     cur.t, cur.ready = 0, true
   end
-  local own = offer.vehicleId and getObjectByID(offer.vehicleId)
   if own then
     withOpponent(own)
-  elseif offer.racerId and sl_streets and sl_streets.buildRacerCar then
-    if not sl_streets.buildRacerCar(offer.racerId, v3(line.opponent.pos) + vec3(0, 0, 0.5), rot, withOpponent) then withOpponent(nil) end
-  else
+  elseif not sl_streets.buildRacerCar(offer.racerId, v3(line.opponent.pos) + vec3(0, 0, 0.5), rot, withOpponent) then
+    log('W', 'sl_races', 'launch ' .. missionId .. ': the career has no racer ' .. tostring(offer.racerId) .. ' (nobody came)')
     withOpponent(nil)
   end
   tell(string.format('%s: %s, %.1f km to the finish.', race.name, tostring(offer.name), race.metres / 1000), 6)

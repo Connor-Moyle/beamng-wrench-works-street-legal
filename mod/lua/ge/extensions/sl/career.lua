@@ -673,6 +673,7 @@ local function dropOwnCar()
   if ownCar and ownCar.vid then
     local v, rm = getObjectByID(ownCar.vid), raceMod()
     local st = rm and rm.getState and rm.getState()
+    if type(st) == 'table' then st = st.phase end      -- (sl_races; the map's returns a string)
     if v and st ~= 'countdown' and st ~= 'racing' then v:delete() end
   end
   ownCar = nil
