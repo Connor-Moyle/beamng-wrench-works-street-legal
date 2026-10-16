@@ -948,8 +948,22 @@
     (doc.defaultView || doc).addEventListener('ui_nav', function (ev) {      // (window capture: before the game's document handler)
       var d = ev.detail || {};
       padAt = Date.now();
-      if (!st.open || d.name !== 'back' || d.value !== 1) return;
-      back();
+      // a lot being looked at: the right stick turns the camera round the car, the zoom buttons zoom (what the mouse does on the catch layer)
+      if (!st.open && st.lot && st.lot.open && st.lot.mode === 'browse') {
+        var v = Number(d.value) || 0;
+        if (d.name === 'rotate_h_cam' && Math.abs(v) > 0.15) lua('@sl_lot.cameraDrag(' + Math.round(v * 10) + ',0)');
+        else if (d.name === 'rotate_v_cam' && Math.abs(v) > 0.15) lua('@sl_lot.cameraDrag(0,' + Math.round(v * 8) + ')');
+        else if ((d.name === 'zoom_in' || d.name === 'zoom_out') && v === 1) lua('@sl_lot.cameraZoom(' + (d.name === 'zoom_in' ? 1 : -1) + ')');
+      }
+      if (d.name !== 'back' || d.value !== 1) return;
+      if (st.open) back();
+      else {
+        // B leaves what opens without the phone (a lot, a car meet, a gas station, the career chooser) through its own leave button
+        var panel = layer.querySelector('.slp-lot, .slp-meet, .slp-chooser');
+        var leave = panel && panel.querySelector('.slp-lotleave [data-a], .slp-chback [data-a]');
+        if (!leave) return;
+        leave.click();
+      }
       if (ev.stopImmediatePropagation) ev.stopImmediatePropagation();
       if (ev.preventDefault) ev.preventDefault();
     }, true);

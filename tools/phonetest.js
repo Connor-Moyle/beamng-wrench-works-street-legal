@@ -415,6 +415,16 @@ assert.ok(!text().includes('Courier: parcel'), 'B on the pad goes back from the 
 phone.handle('slPhoneToggle');
 const away = phone.root.querySelector('.slp-device [data-a]');
 assert.ok(!away || (away.getAttribute('bng-no-nav') === 'true' && !away.hasAttribute('bng-nav-item')), 'a phone put away takes no gamepad focus');
+// B and the right stick on a lot opened without the phone (a pad player at a lot, a dealer, a meet)
+calls.length = 0;
+phone.handle('slLotData', { open: true, mode: 'browse', name: 'Jefferson Motors', kindTitle: 'New cars', kind: 'dealer', index: 1, count: 4, money: 9000, offer: { name: 'X', price: 5000, faults: [] } });
+assert.ok(phone.root.querySelector('.slp-lot [data-a="lot"]').hasAttribute('bng-nav-item'), 'a lot button is a gamepad nav item with the phone away');
+const nav = (name, value) => win.document.dispatchEvent(new win.CustomEvent('ui_nav', { detail: { name, value } }));
+nav('rotate_h_cam', 1); nav('rotate_v_cam', -1); nav('zoom_in', 1);
+assert.ok(calls.includes('@sl_lot.cameraDrag(10,0)') && calls.includes('@sl_lot.cameraDrag(0,-8)') && calls.includes('@sl_lot.cameraZoom(1)'), 'the stick turns the lot camera, a zoom button zooms');
+nav('back', 1);
+assert.ok(calls.includes('@sl_lot.close()'), 'B leaves the lot');
+phone.handle('slLotData', { open: false });
 console.log('phone test passed');
 
 // a page to look at: the phone in several states side by side

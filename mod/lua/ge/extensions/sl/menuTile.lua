@@ -56,10 +56,13 @@ function M.onGameplaySelectorGetDetails(itemDetails, details, buttonInstance, ba
         buttons[#buttons + 1] = buttonInstance.addButton(start(false, c.slot), { label = 'Load ' .. c.name .. (c.summary and (' (' .. c.summary .. ')') or ''), icon = 'clapperboard', waitForLoadingScreen = true })
       end
     end
+    local firstMap = true
     for _, m in ipairs(maps()) do
       if m.installed then
+        local main = firstMap and not summary          -- (one primary button: the first map's)
+        firstMap = false
         buttons[#buttons + 1] = buttonInstance.addButton(start(true, nil, m.id), { label = 'New career: ' .. m.name, icon = 'flag',
-          primary = not summary, isDoubleClickAction = not summary, waitForLoadingScreen = true })
+          primary = main, isDoubleClickAction = main, waitForLoadingScreen = true })
       end
     end
   end
