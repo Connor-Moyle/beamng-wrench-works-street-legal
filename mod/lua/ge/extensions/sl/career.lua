@@ -224,6 +224,8 @@ local wallet = {
     return ok
   end,
   walkIn = false,       -- no body shells over the counter: cars come from the lots
+  -- on foot in a garage doorway Wrench Works takes you in with this car (your current one, if it is out)
+  car = function() return s and s.activeCar and sl_fleet and sl_fleet.vehicleOf(s.activeCar) or nil end,
 }
 
 local function connectWallet(on)
