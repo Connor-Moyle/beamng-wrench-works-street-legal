@@ -255,12 +255,25 @@ check('job: move', function(job)
 end)
 
 -- the tutorial (X24): each step through the real systems, faked here where they take minutes
-check('tutorial: four steps, then the bonus', function(job)
-  local st = sl_career.getState()
-  if #st.cars == 0 then return nil, 'needs a car' end
-  -- the bonus is looked for in the ledger (a money delta also sees what else moves money in those seconds: the day's
-  -- costs at midnight, a loan's interest)
-  local seen = {}
+-- a known start for the tutorial: this career has jobs done, a part fitted and races run by now, and a step whose condition is
+-- already met passes on whichever look comes first; put them back after (fn(st, restore) -> ok, detail)
+local function tutorialFromScratch(fn)
+  return function(job)
+    local st = sl_career.getState()
+    if #st.cars == 0 then return nil, 'needs a car' end
+    local saved = { done = st.jobs.done, upgraded = st.jobs.upgraded, races = st.stats.races }
+    st.jobs.done, st.jobs.upgraded, st.stats.races = 0, nil, 0
+    local ok, a, b = pcall(fn, job, st)
+    st.jobs.done, st.jobs.upgraded, st.stats.races = saved.done, saved.upgraded, saved.races
+    if not ok then error(a) end
+    return a, b
+  end
+end
+
+-- the steps are driven by sl_tutorial.advance (no waiting on its look timer: that is the next check); each condition is
+-- set alone, so a look landing in between can never go further than the step
+check('tutorial: four steps, then the bonus', tutorialFromScratch(function(job, st)
+  local seen = {}                  -- the bonus is looked for in the ledger (a money delta also sees what else moves money: the day roll at midnight)
   for i = 1, math.min(#st.ledger, 60) do seen[st.ledger[i]] = true end
   local function bonusPaid()
     for i = 1, math.min(#st.ledger, 60) do
@@ -269,31 +282,35 @@ check('tutorial: four steps, then the bonus', function(job)
     end
     return false
   end
-  -- a known start: this career has jobs done, a part fitted and races run by now, and a step whose condition is already
-  -- met would pass on whichever look comes first (a night run missed step 3 that way); put them back after
-  local saved = { done = st.jobs.done, upgraded = st.jobs.upgraded, races = st.stats.races }
-  st.jobs.done, st.jobs.upgraded, st.stats.races = 0, nil, 0
-  local function result(ok, detail)
-    st.jobs.done, st.jobs.upgraded, st.stats.races = saved.done, saved.upgraded, saved.races
-    return ok, detail
+  local function at(step, what)
+    if st.tutorial.step ~= step then return false, string.format('%s (step %s, wanted %s)', what, tostring(st.tutorial.step), tostring(step)) end
   end
   sl_tutorial.begin()
-  job.sleep(1.5)                                                  -- step 1 (a car) is already done
-  if st.tutorial.step ~= 2 then return result(false, 'step 1 did not pass with a car (step ' .. tostring(st.tutorial.step) .. ')') end
+  sl_tutorial.advance(st)                                         -- step 1 (a car) is already done
+  local bad, why = at(2, 'step 1 did not pass with a car') if why then return bad, why end
   local any
   for _, j in ipairs(js().offers or {}) do if j.kind == 'part' or j.kind == 'courier' then any = true end end
-  if not any then return result(false, 'no part or courier run on the board for step 2') end
-  st.jobs.done = 1 job.sleep(1.5)
-  if st.tutorial.step ~= 3 then return result(false, 'step 2 did not pass (step ' .. tostring(st.tutorial.step) .. ')') end
-  st.jobs.upgraded = true job.sleep(1.5)
-  if st.tutorial.step ~= 4 then return result(false, 'step 3 did not pass (step ' .. tostring(st.tutorial.step) .. ')') end
+  if not any then return false, 'no part or courier run on the board for step 2' end
+  st.jobs.done = 1 sl_tutorial.advance(st)
+  bad, why = at(3, 'step 2 did not pass') if why then return bad, why end
+  st.jobs.upgraded = true sl_tutorial.advance(st)
+  bad, why = at(4, 'step 3 did not pass') if why then return bad, why end
   local race
   for _, c in ipairs(st.challenges) do if c.id:find(':tutorial', 1, true) then race = c end end
-  if not race or race.bet ~= 100 then return result(false, 'no $100 race arranged for step 4') end
-  st.stats.races = 1 job.sleep(1.5)
+  if not race or race.bet ~= 100 then return false, 'no $100 race arranged for step 4' end
+  st.stats.races = 1 sl_tutorial.advance(st)
   local paid = bonusPaid()
-  return result(st.tutorial.done == true and paid, string.format('done, bonus %s', paid and 'paid ($500 in the ledger)' or 'NOT in the ledger'))
-end)
+  return st.tutorial.done == true and paid, string.format('done, bonus %s', paid and 'paid ($500 in the ledger)' or 'NOT in the ledger')
+end))
+
+-- the real player path: the tutorial's own one-second look moves it on (no advance call); up to 5 s, as the look may wait on a fade
+check('tutorial: its own look moves it on', tutorialFromScratch(function(job, st)
+  sl_tutorial.begin()
+  local waited = 0
+  while st.tutorial.step ~= 2 and waited < 5 do job.sleep(0.25) waited = waited + 0.25 end
+  st.tutorial = { skipped = true }                                -- (the smoke goes on without it)
+  return waited < 5, string.format('step 2 after %.2f s', waited)
+end))
 
 -- achievements and best times (X23)
 check('achievements: earned from the record, bests kept', function(job)
