@@ -32,7 +32,7 @@ function M.onActivityAcceptGatherData(elemData, activityData)
   for _, elem in ipairs(elemData or {}) do
     if elem.type == 'slrrComputer' then
       table.insert(activityData, {
-        icon = 'poi_arrival_round', heading = elem.name or 'Computer', preheadings = { 'Laptop' },
+        icon = 'poi_arrival_round', heading = translateLanguage and translateLanguage(elem.name, 'Computer', true) or 'Computer',   -- (the facility's name is a translation key) preheadings = { 'Laptop' },
         sorting = { type = 'slrrComputer', id = elem.id },
         buttonLabel = 'Use the laptop', buttonFun = function() if sl_phone then sl_phone.toggle() end end,
         buttonSoundClass = 'bng_hover_generic',
