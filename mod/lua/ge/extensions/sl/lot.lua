@@ -446,13 +446,14 @@ local HEADINGS = { used = 'Used cars', dealer = 'New cars', scrap = 'Scrap yard'
 function M.onActivityAcceptGatherData(elemData, activityData)
   if not career() or lot then return end
   for _, elem in ipairs(elemData or {}) do
-    local place = elem.type == 'slrrPlace' and (sl_career.getPlaces() or {})[elem.placeId]
+    local place = type(elem.placeId) == 'string' and (sl_career.getPlaces() or {})[elem.placeId]      -- (sl_pois' markers carry the place)
     local kind = place and KIND[place.kind]
     if kind then
       local v = getPlayerVehicle(0)
       local onFoot = not v or v:getJBeamFilename() == 'unicycle'
       local selling = not onFoot and sl_fleet.currentCar() and kind ~= 'dealer'
-      if onFoot or selling then
+      -- a dealer shows its cars to a driver too: Connor drove to Jefferson Motors and had nothing to press (T33)
+      if onFoot or selling or kind == 'dealer' then
         table.insert(activityData, {
           icon = 'poi_arrival_round', heading = place.name, preheadings = { HEADINGS[kind] },
           sorting = { type = 'slrrPlace', id = place.id },

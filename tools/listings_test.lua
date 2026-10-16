@@ -348,4 +348,32 @@ return function(check, rngLib)
   local refusedWrong = false
   for _, x in ipairs(r5.refused) do if x.path:find('rim_tyre', 1, true) and x.why == 'does not fit the slot' then refusedWrong = true end end
   check('a part refused for its slot is named', refusedWrong)
+
+  -- T33: every lot of the career has a marker, a big-map entry and a prompt (sl/core/pois)
+  local PO = require('sl/core/pois')
+  local places = {
+    dealer = { id = 'dealer', kind = 'dealer', name = 'Jefferson Motors', at = { x = 10, y = 20, z = 1 }, stockId = 'jeffersonmotors' },
+    stock_belascoauto = { id = 'stock_belascoauto', kind = 'dealer', name = 'Belasco Auto', at = { x = 30, y = 40, z = 2 }, stockId = 'belascoAuto' },
+    junkyard = { id = 'junkyard', kind = 'junkyard', name = 'Quarry Road Wrecks', at = { x = 50, y = 60, z = 3 } },
+    scrapyard = { id = 'scrapyard', kind = 'scrapyard', name = 'Sealbrik', at = { x = 70, y = 80, z = 4 } },
+    hospital = { id = 'hospital', kind = 'hospital', name = 'Hospital', at = { x = 1, y = 1, z = 1 } },
+    meet_docks = { id = 'meet_docks', kind = 'meet', name = 'Dockyards', at = { x = 2, y = 2, z = 2 } },
+    belascoCityGarage = { id = 'belascoCityGarage', kind = 'garage', name = 'Belasco City Garage', at = { x = 3, y = 3, z = 3 } },
+    nowhere = { id = 'nowhere', kind = 'dealer', name = 'No position' },
+  }
+  local recs = PO.records(places)
+  local byPlace = {}
+  for _, r in ipairs(recs) do byPlace[r.placeId] = r end
+  check('every dealer, used lot and scrap yard with a position has a marker; the other places have none', #recs == 4 and byPlace.dealer and byPlace.stock_belascoauto and byPlace.junkyard and byPlace.scrapyard
+    and not byPlace.hospital and not byPlace.meet_docks and not byPlace.belascoCityGarage and not byPlace.nowhere)
+  check('a dealer is a dealership in the big map with the dealer icon; the lots are "other"', byPlace.dealer.type == 'dealership' and byPlace.dealer.cardIcon == 'carDealer'
+    and byPlace.junkyard.type == 'other' and byPlace.scrapyard.type == 'other')
+  check('the record carries the place, its name, its position and the stock dealership it is', byPlace.dealer.placeId == 'dealer' and byPlace.dealer.name == 'Jefferson Motors'
+    and byPlace.dealer.pos[1] == 10 and byPlace.dealer.pos[3] == 1 and byPlace.dealer.stockId == 'jeffersonmotors' and byPlace.junkyard.stockId == nil)
+  local seen, unique = {}, true
+  for _, r in ipairs(recs) do if seen[r.poiId] then unique = false end seen[r.poiId] = true end
+  check('POI ids are unique, stable and sorted by place', unique and recs[1].placeId == 'dealer' and recs[1].poiId == 'sl_place_dealer' and recs[4].placeId == 'stock_belascoauto')
+  check('no places, no markers', #PO.records(nil) == 0 and #PO.records({}) == 0)
+  local D2 = require('sl/core/stockdealers')
+  check('a stock dealer place remembers which stock dealership it is, for its marker', D2.dealer({ id = 'jeffersonmotors', filter = {} }, { { x = 1, y = 2, z = 3, dx = 0, dy = 1 } }, nil).stockId == 'jeffersonmotors')
 end

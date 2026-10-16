@@ -79,7 +79,7 @@ function M.dealer(fac, spots, tr, rays)
   if not (spots and spots[1]) then return nil end
   spots = M.slots(spots, rays)
   local a = spots[1]
-  local p = { id = 'stock_' .. tostring(fac.id):lower(), kind = 'dealer', name = M.nameOf(fac, tr), pos = arr3(a), display = arr3(a),
+  local p = { id = 'stock_' .. tostring(fac.id):lower(), stockId = fac.id, kind = 'dealer', name = M.nameOf(fac, tr), pos = arr3(a), display = arr3(a),
     displayDir = { a.dx, a.dy }, displays = {}, stock = { kind = M.offerKind(fac.filter), filter = fac.filter } }
   for _, s in ipairs(spots) do p.displays[#p.displays + 1] = { pos = arr3(s), dir = { s.dx, s.dy } } end
   return p

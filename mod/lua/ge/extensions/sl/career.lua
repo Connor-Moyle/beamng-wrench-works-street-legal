@@ -268,7 +268,8 @@ local function addPlace(p, file)
     end
     local place = { id = p.id, kind = tostring(p.kind or p.id), name = tostring(p.name or p.id), pos = pos,
       dir = flat(p.dir) or vec3(0, 1, 0), display = v3(p.display), displayDir = flat(p.displayDir),
-      stock = type(p.stock) == 'table' and p.stock or nil }      -- (stock: a stock dealer's { kind, filter }, sl_lot)
+      stock = type(p.stock) == 'table' and p.stock or nil,
+      stockId = type(p.stockId) == 'string' and p.stockId or nil }      -- (stock: a stock dealer's { kind, filter }, sl_lot)
     -- a lot's display spots, one car each: "displays": [ { "pos": [x, y, z], "dir": [x, y] } ]
     if type(p.displays) == 'table' then
       place.displays = {}
@@ -290,6 +291,7 @@ local function addPlace(p, file)
       place.pos = place.display + facing * 8
       place.dir = -facing
     end
+    place.at = place.pos          -- (where the place is: its markers stand here, whatever the lane nudge does to .pos)
     places[p.id] = place
   else
     log('W', logTag, file .. ': a place without "id" or "pos" was left out')
@@ -362,6 +364,7 @@ local function stockApi(level)
   }, tr
 end
 
+local placesSig                -- the ids of the places at the last load (to tell the markers when they change)
 local lanesPending = false     -- the navgraph was not there yet at the last load of the places
 local stockState = {}          -- stockLib.load's: whether the stock places are still to be had (retry), and how often it was tried
 local stockTriedAt = -1e9
@@ -412,6 +415,15 @@ local function loadPlaces()
         places[g.site] = { id = g.site, kind = 'garage', name = g.name, pos = site.spot + site.dir * 2, dir = -site.dir, level = g.level }
       end
     end
+  end
+  -- the markers and prompts of the places are drawn from this list: when it changes (the stock places came in late) they are made again
+  local ids = {}
+  for id in pairs(places) do ids[#ids + 1] = id end
+  table.sort(ids)
+  local sig = table.concat(ids, ',')
+  if sig ~= placesSig then
+    placesSig = sig
+    extensions.hook('onStreetLegalPlacesChanged')
   end
 end
 
@@ -1182,6 +1194,25 @@ M.onExtensionUnloaded = stop
 
 -- for the phone
 M.hour = hour
+
+-- wait: to the next morning or a few hours on (progression.skipPlan); the clock, the day counter and everything that follows
+-- the clock (shop hours, deliveries, listings) move together. false and the reason when it cannot be done now.
+function M.skipTime(what)
+  if not s then return false, 'No career running.' end
+  local why = progression.skipRefusal({ racing = sl_streets and sl_streets.isRacing and sl_streets.isRacing(), job = s.jobs and s.jobs.active ~= nil,
+    heat = sl_police and sl_police.heat and sl_police.heat() or 0 })
+  if why then return false, why end
+  local plan = progression.skipPlan(hour(), what)
+  if not plan then return false, 'Wait how long?' end
+  setHour(plan.to)
+  lastHour = plan.to                       -- (updateClock must not count this jump as a day change again)
+  for _ = 1, plan.days do
+    s.day = s.day + 1
+    extensions.hook('onStreetLegalNewDay', s.day)
+  end
+  changed()
+  return true, plan.days > 0 and string.format('You wait until %02d:%02d. A new day.', math.floor(plan.to), math.floor((plan.to % 1) * 60)) or string.format('You wait until %02d:%02d.', math.floor(plan.to), math.floor((plan.to % 1) * 60))
+end
 M.racesList = races
 M.markRead = function(thread) if s then stateLib.markRead(s, thread) changed() end end
 M.logMessage = function(thread, text) if s then stateLib.addMessage(s, thread, 'me', text, now()) changed() end end
