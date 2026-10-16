@@ -2,7 +2,7 @@
 
 A career in the spirit of *Street Legal Racing: Redline*, played on the Wrench Works: Valo City map or on West Coast USA (New career asks which; the save keeps it). You start on foot in the first garage with a few thousand and no car. The city's street racers are in your phone. Reputation from racing, worth more at night, takes you up through the three garages to the ROC.
 
-Part of the **BeamNG Wrench Works** family. Needs two of the others: **Wrench Works** (the garage) and the **Wrench Works: Valo City** map (`slrr_valo_city`). **Wrench Works: Drivers & Pedestrians** (SLRR's drivers in the cars, and pedestrians on the sidewalks) is optional. BeamNG.drive 0.39.
+Part of the **BeamNG Wrench Works** family. Needs **Wrench Works** (the garage). Plays on West Coast USA, or on the **Wrench Works: Valo City** map (`slrr_valo_city`) when it is installed. **Wrench Works: Drivers & Pedestrians** (SLRR's drivers in the cars, and pedestrians on the sidewalks) is optional. BeamNG.drive 0.39.
 
 ## How it plays
 
@@ -33,9 +33,11 @@ Part of the **BeamNG Wrench Works** family. Needs two of the others: **Wrench Wo
 
 ## The map
 
-The career is played on the Wrench Works: Valo City map, which brings the places (garages, junkyard, dealership, scrap yard, meet spots, the lots' display spots), the night and drag races and the ROC track; docs/integration.md has the contract between the two.
+On the Wrench Works: Valo City map the career gets its places (garages, junkyard, dealership, scrap yard, meet spots, the lots' display spots), the night and drag races and the ROC track; docs/integration.md has the contract between the two.
 
 ## The SLRR dashboard
+
+SLRR's own art (the dials, icons and loading screens) is not shipped: it belongs to SLRR. Without it the dashboard and the phone draw their own gauges and icons and the fades are plain black. To use the original art, unpack `street_legal.zip` into `mods/unpacked/street_legal` (delete the zip), then run `python tools/slrr_ui.py "<your Street Legal Racing Redline folder>" "<...>/mods/unpacked/street_legal/ui/modModules/slHud/slrr"` with `tools/slrr_ui.py` from this repository.
 
 Off at first (the game's own apps show the speed, damage and minimap): turn it on with phone > Street cred > Dashboard, or bind a key to "Wrench Works: Street Legal: dashboard" in Options > Controls; the choice is kept. While you drive in the career: a rev counter (with the gear) and a speedometer, SLRR's round white-on-black dials, a road map that turns with the car (your garage, the lots and meets marked, the way to a race in red), and a damage diagram (six body zones, burst tyres, the engine). The game's own rev counter and damage app make way for it. Each part can be switched off, km/h or mph, and it can be used outside the career too: phone > Street cred > Dashboard.
 
