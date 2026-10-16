@@ -43,7 +43,7 @@ end
 
 M.context = function(s) return context(s or career()) end      -- (the tutorial makes its part run with it)
 
-local function leg(p) return { id = p.id, name = p.name, x = p.x, y = p.y, z = p.z } end
+local function leg(p) return { id = p.id, name = p.name, x = p.x, y = p.y, z = p.z, radius = p.radius } end
 
 -- kerbside stops for fares and food: road nodes in the city, not on a track, a link road, the valley
 -- or a freeway (the map names its AI roads: ai_lane_ city, ai_roc / ai_tt_ / ai_slrr_mb_ tracks,
@@ -86,8 +86,11 @@ local function diners()
   local out = {}
   local f = freeroam_facilities and freeroam_facilities.getFacilities and freeroam_facilities.getFacilities(getCurrentLevelIdentifier())
   for _, g in ipairs(f and f.gasStations or {}) do
-    local c = freeroam_gasStations and freeroam_gasStations.gasStationCenterRadius and freeroam_gasStations.gasStationCenterRadius(g)
-    if c then out[#out + 1] = { id = 'diner:' .. tostring(g.id or g.name), name = (g.name or 'Gas station') .. ' diner', x = c.x, y = c.y, z = c.z } end
+    local c, r = nil, 0
+    if freeroam_gasStations and freeroam_gasStations.gasStationCenterRadius then c, r = freeroam_gasStations.gasStationCenterRadius(g) end
+    -- the stop is the middle of the pumps; a car at the far pump is as far as the pumps spread, and a car's length more
+    if c then out[#out + 1] = { id = 'diner:' .. tostring(g.id or g.name), name = (g.name or 'Gas station') .. ' diner', x = c.x, y = c.y, z = c.z,
+      radius = math.min(30, math.max(STOP_RADIUS, (tonumber(r) or 0) + 6)) } end
   end
   return out
 end

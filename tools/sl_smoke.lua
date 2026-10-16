@@ -21,6 +21,16 @@ end
 local s = sl_career and sl_career.isActive() and sl_career.getState()
 if not s then line('FAIL', 'career', 'no career running') R.done = true report() return 'no career' end
 
+rawset(_G, 'SL_SMOKE_SPAWNS', {})
+-- who spawns what: every core_vehicles.spawnNewVehicle during the run is logged with the first Street Legal line on its call stack
+local spawnOriginal = core_vehicles.spawnNewVehicle
+core_vehicles.spawnNewVehicle = function(...)
+  local veh = spawnOriginal(...)
+  local ok, id = pcall(function() return veh and veh:getID() end)
+  if ok and id then SL_SMOKE_SPAWNS[id] = debug.traceback('', 2):match('extensions/(sl/[%w_/]+%.lua:%d+)') or 'not Street Legal' end
+  return veh
+end
+
 local function money() return sl_career.getState().money end
 local function rep() return sl_career.getState().rep end
 local function js() return sl_career.getState().jobs or {} end
@@ -72,6 +82,13 @@ local function runJob(kind)
     for i, stop in ipairs(pick.legs) do
       teleportTo(job, stop)
       local a = js().active
+      -- the game may set the car down beside the stop (a pump, a parked car): try again a few metres either side
+      for _, off in ipairs({ { 5, 0 }, { -5, 0 }, { 0, 5 } }) do
+        if i < #pick.legs and (not a or a.leg ~= i + 1) then
+          teleportTo(job, { x = stop.x + off[1], y = stop.y + off[2], z = stop.z })
+          a = js().active
+        end
+      end
       if i < #pick.legs and (not a or a.leg ~= i + 1) then job.sleep(3) a = js().active end     -- (a zone loading under the car, a job car spawning: one more look)
       if i < #pick.legs and (not a or a.leg ~= i + 1) then
         local v = player()
@@ -558,7 +575,7 @@ check('budget: no stray spawned vehicles', function()
   for _, id in ipairs(gameplay_traffic and gameplay_traffic.getTrafficList and gameplay_traffic.getTrafficList() or {}) do keep[id] = true end
   for _, c in ipairs(sl_career.getState().cars or {}) do local v = sl_fleet.vehicleOf(c.id) if v then keep[v:getID()] = true end end
   local extra = {}
-  for _, v in ipairs(getAllVehicles()) do if not keep[v:getID()] and v:getJBeamFilename() ~= 'unicycle' then extra[#extra + 1] = v:getJBeamFilename() end end
+  for _, v in ipairs(getAllVehicles()) do if not keep[v:getID()] and v:getJBeamFilename() ~= 'unicycle' then extra[#extra + 1] = v:getJBeamFilename() .. ' (' .. (SL_SMOKE_SPAWNS[v:getID()] or 'spawned elsewhere') .. ')' end end
   return #extra <= 3, #extra .. ' extra: ' .. table.concat(extra, ', ')
 end)
 
@@ -676,12 +693,14 @@ core_jobsystem.create(function(job)
   for _, c in ipairs(checks) do
     pcall(backInOwnCar, job)                       -- (one failure, or the death check, must not leave the rest on foot)
     local ok, res, detail = pcall(c.fn, job)
+    if js().active then pcall(sl_jobs.giveUp) end          -- (a job left running would refuse the next take: one failure must not cascade)
     if not ok then line('FAIL', c.name, 'error: ' .. tostring(res))
     elseif res == nil then line('SKIP', c.name, detail)
     else line(res and 'PASS' or 'FAIL', c.name, detail) end
     report()
     job.sleep(0.3)
   end
+  core_vehicles.spawnNewVehicle = spawnOriginal
   R.done = true
   report()
 end)
