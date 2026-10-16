@@ -54,7 +54,7 @@
   function arr(x) { return Array.isArray(x) ? x : []; }
   function obj(x) { return x && typeof x === 'object' && !Array.isArray(x) ? x : {}; }
 
-  var TITLES = { cars: 'My cars', parts: 'My parts', bank: 'Bank / insurance', cred: 'Street cred' };
+  var TITLES = { cars: 'My cars', parts: 'My parts', bank: 'Bank / insurance', cred: 'Street cred', dealers: 'Dealers' };
 
   function createLaptop(doc, lua) {
     var root = doc.createElement('div');
@@ -66,7 +66,7 @@
     root.appendChild(layer);
     doc.body.appendChild(root);
 
-    var st = { open: false, view: null, data: { active: false }, parts: [], page: 'home', car: 0, note: '', padAt: 0 };
+    var st = { open: false, view: null, data: { active: false }, parts: [], page: 'home', car: 0, note: '', padAt: 0, dealers: null, offers: null };
 
     // ---------------------------------------------------------------- pages
     function head(title) {
@@ -117,6 +117,31 @@
           (faults.length ? '<br>Needs: ' + esc(faults.join(', ')) : '') + '</p>' + (acts.length ? '<div class="sll-acts">' + acts.join('') + '</div>' : '') + '</div>';
       });
       return head(TITLES.cars) + '<div class="sll-body">' + (cards.join('') || '<div class="sll-empty">You have no car.</div>') + '</div><div class="sll-note">' + esc(st.note) + '</div>';
+    }
+
+    // the stock dealers: the same cars as walking onto their lots; a bought car is delivered to the garage a few hours later
+    function dealersPage() {
+      var d = st.dealers || { dealers: [], coming: [] };
+      var rows = arr(d.dealers).map(function (x) {
+        return '<div class="sll-card" data-a="dealer" data-v="' + esc(x.id) + '"><h4>' + esc(x.name) + '</h4><p>' + (x.metres >= 1000 ? (x.metres / 1000).toFixed(1) + ' km' : x.metres + ' m') +
+          ' away &middot; ' + x.count + ' car' + (x.count === 1 ? '' : 's') + ' today</p></div>';
+      }).join('');
+      var coming = arr(d.coming).map(function (c) {
+        return '<div class="sll-kv"><span>' + esc(c.name) + '</span><b>' + (c.hours > 0 ? 'in about ' + c.hours + ' h' : 'arriving') + '</b></div>';
+      }).join('');
+      return head(TITLES.dealers) + '<div class="sll-body">' + (coming ? '<div class="sll-card"><h4>On the way to your garage</h4>' + coming + '</div>' : '') +
+        (rows || '<div class="sll-empty">No dealers on this map.</div>') + '</div><div class="sll-note">' + esc(st.note) + '</div>';
+    }
+
+    function offersPage() {
+      var o = st.offers || { name: 'Dealer', offers: [] };
+      var cards = arr(o.offers).map(function (c) {
+        var faults = arr(c.faults);
+        return '<div class="sll-card"><h4>' + esc(c.name) + (c.title ? ' &middot; ' + esc(c.title) : '') + '</h4><p>' + (c.mileage != null ? Number(c.mileage).toLocaleString() + ' km' : '') +
+          ' &middot; condition ' + Math.round((c.condition || 0) * 100) + '%' + (faults.length ? '<br>Needs: ' + esc(faults.join(', ')) : '') + '</p>' +
+          '<div class="sll-acts"><div class="sll-btn' + ((o.money || 0) < c.price ? ' sll-off' : '') + '" data-a="buy" data-v="' + esc(o.dealer) + '|' + esc(c.id) + '">Buy &middot; ' + money(c.price) + '</div></div></div>';
+      }).join('');
+      return head(o.name) + '<div class="sll-body">' + (cards || '<div class="sll-empty">Nothing left on the lot today.</div>') + '</div><div class="sll-note">' + esc(st.note) + '</div>';
     }
 
     function partsPage() {
@@ -182,6 +207,8 @@
         else if (st.page === 'parts') html = partsPage();
         else if (st.page === 'bank') html = bankPage();
         else if (st.page === 'cred') html = credPage();
+        else if (st.page === 'dealers') html = dealersPage();
+        else if (st.page === 'offers') html = offersPage();
         else html = homePage();
       }
       layer.innerHTML = '<div class="sll-screen' + (st.open ? '' : ' sll-gone') + '">' + html + '</div>';
@@ -217,6 +244,7 @@
       return null;
     }
     function back() {
+      if (st.page === 'offers') { st.page = 'dealers'; st.note = ''; focusKey = null; lua('@sl_dealers.list()'); render(); return; }
       if (st.page !== 'home') { st.page = 'home'; st.note = ''; render(); return; }
       close();
     }
@@ -231,6 +259,7 @@
           if (t.page) {
             st.page = t.page; st.note = ''; focusKey = null;
             if (t.page === 'parts') lua('@sl_computer.parts()');
+            if (t.page === 'dealers') lua('@sl_dealers.list()');
             lua('@sl_phone.request()');
             render();
           } else if (t.mode) {
@@ -238,6 +267,11 @@
             var car = arr(st.data.fleet)[st.car];
             if (car) lua('@sl_computer.enterGarage(' + JSON.stringify(t.mode) + ',' + Number(car.id) + ')');
           }
+          break;
+        case 'dealer': st.page = 'offers'; st.offers = { name: 'Dealer', offers: [], dealer: v }; st.note = ''; focusKey = null; lua('@sl_dealers.offers(' + JSON.stringify(v) + ')'); render(); break;
+        case 'buy':
+          var pair = String(v).split('|');
+          lua('@sl_dealers.buy(' + JSON.stringify(pair[0]) + ',' + JSON.stringify(pair[1]) + ')');
           break;
         case 'back': back(); break;
         case 'close': close(); break;
@@ -280,6 +314,8 @@
           break;
         case 'slLaptopClose': if (st.open) setOpen(false); break;
         case 'slLaptopParts': st.parts = arr(data.parts); if (st.open) render(); break;
+        case 'slLaptopDealers': st.dealers = data; if (st.open) render(); break;
+        case 'slLaptopOffers': st.offers = data; if (st.open && st.page === 'offers') render(); break;
         case 'slPhoneData': st.data = data || { active: false }; if (st.open) render(); break;
         case 'slPhoneToast': if (st.open && data && data.text) { st.note = data.text; render(); } break;
       }
@@ -301,7 +337,7 @@
         window.bngApi.engineLua('if ' + ext + ' then ' + call.slice(1) + ' end');
       });
       window.__slLaptop = laptop;
-      ['slLaptopOpen', 'slLaptopClose', 'slLaptopParts', 'slPhoneData', 'slPhoneToast'].forEach(function (name) {
+      ['slLaptopOpen', 'slLaptopClose', 'slLaptopParts', 'slLaptopDealers', 'slLaptopOffers', 'slPhoneData', 'slPhoneToast'].forEach(function (name) {
         $rootScope.$on(name, function (ev, data) { laptop.handle(name, data); });
       });
     }]);

@@ -911,15 +911,15 @@ do
   local _, car, general = view('alderDragwayGarageComputer', ok)
   check('the drag strip garage: cars, parts, customization and tuning only', labels(car) == 'Part customization,Tuning' and labels(general) == 'My cars,My parts')
   local v, car2, general2 = view('servicestationOfficeComputer', ok)
-  check('the office lists no cars and no car band: dealers and the parts shop only', not v.lists and car2 == nil and labels(general2) == 'Dealers,Part customization')
+  check('the office lists no cars and no car band: dealers and the parts shop only', not v.lists and car2 == nil and labels(general2) == 'Dealers,Part customization' and general2.tiles[1].enabled and not general2.tiles[2].enabled and general2.tiles[2].reason == 'Use a computer in a garage for this.')
   -- reasons, in order: a race or job, no car, not built yet
   local _, c1, g1 = view('commercialGarageComputer', { hasCar = false })
   local reasons = {}
   for _, t in ipairs(c1.tiles) do reasons[t.label] = t.reason end
   check('no car yet: the car tiles say so, the pages that need none stay open', reasons.Tuning == 'You have no car yet.' and g1.tiles[1].enabled and g1.tiles[4].enabled and g1.tiles[5].enabled)
   local _, c2, g2 = view('commercialGarageComputer', { hasCar = true, carHere = true })
-  check('a car at the garage: the garage tiles open the garage in their mode, Dealers are "coming soon" (L3), the reading pages are open',
-    c2.tiles[1].enabled and c2.tiles[1].mode == 'catalog' and c2.tiles[2].mode == 'tune' and c2.tiles[3].mode == 'paint' and g2.tiles[3].reason == 'Coming soon.' and not g2.tiles[3].enabled
+  check('a car at the garage: the garage tiles open the garage in their mode, Dealers open their page, the reading pages are open',
+    c2.tiles[1].enabled and c2.tiles[1].mode == 'catalog' and c2.tiles[2].mode == 'tune' and c2.tiles[3].mode == 'paint' and g2.tiles[3].enabled and g2.tiles[3].page == 'dealers'
     and g2.tiles[1].enabled and g2.tiles[1].page == 'cars' and g2.tiles[2].page == 'parts' and g2.tiles[4].page == 'bank' and g2.tiles[5].page == 'cred')
   local _, c3, g3 = view('commercialGarageComputer', { hasCar = true, busy = true })
   check('in a race or on a job: car tiles and Dealers wait, reading pages stay', c3.tiles[2].reason == 'Not during a race or a job.' and g3.tiles[3].reason == 'Not during a race or a job.' and g3.tiles[1].enabled)
@@ -968,6 +968,72 @@ do
     computer.enterGarage('tune', 1)
     check('the garage saying no keeps the laptop open and shows its reason', toasts[#toasts] == 'The garage is busy.' and sent[#sent].name ~= 'slLaptopClose')
   end
+end
+
+-- buying from the stock dealers on the laptop (L3)
+do
+  local rules = require('sl/core/dealers')
+  check('the clock counts game hours from 06:00 and never goes back (a day runs 06:00 to 05:59)', rules.clock(3, 6) < rules.clock(3, 23) and rules.clock(3, 23) < rules.clock(3, 2)
+    and rules.clock(3, 2) < rules.clock(4, 6) and rules.clock(4, 6) - rules.clock(3, 6) == 24 and rules.clock(4, 6) - rules.clock(3, 5.99) < 1)
+  check('delivery takes 2 to 6 hours by distance', rules.delayHours(0) == 2 and rules.delayHours(3500) == 3 and rules.delayHours(9000) == 5 and rules.delayHours(99999) == 6)
+  local offer = { id = 'd1:dealer-3-1', name = 'Covet', price = 4000, mileage = 12, condition = 1, faults = {} }
+  local s = { money = 3000, bought = {}, orders = {} }
+  local ok, why = rules.canBuy(s, offer)
+  check('not enough money: refused with the amounts', not ok and why == 'It is $4000. You have $3000.')
+  s.money = 9000
+  check('enough money: allowed', rules.canBuy(s, offer))
+  local order = rules.place(s, offer, 'd1', 5000, rules.clock(3, 10))
+  check('an order is due after its delay and marks the offer bought', s.bought[offer.id] and #s.orders == 1 and order.hours == 3 and order.due == rules.clock(3, 10) + 3 and rules.ordered(s, offer.id))
+  check('the same car cannot be bought twice', not rules.canBuy(s, offer))
+  check('nothing is due before the delay, the order is due after', rules.nextDue(s, rules.clock(3, 12)) == nil and rules.nextDue(s, rules.clock(3, 13.01)) == order)
+  check('a delivered order is removed', rules.remove(s, order) and #s.orders == 0 and s.bought[offer.id])
+
+  -- sl/dealers.lua with stubbed game globals: the lot's own offers, money once, delivery after the delay, across a save
+  local function deepcopy(t) if type(t) ~= 'table' then return t end local c = {} for k, v in pairs(t) do c[k] = deepcopy(v) end return c end
+  local function P(x) return setmetatable({ x = x }, { __sub = function(a, b) return P(a.x - b.x) end, __index = { length = function(a) return math.abs(a.x) end } }) end
+  local events, toasts, built, texts, charged = {}, {}, {}, {}, 0
+  guihooks = { trigger = function(name, data) events[#events + 1] = { name = name, data = data } if name == 'slPhoneToast' then toasts[#toasts + 1] = data.text end end }
+  extensions = { hook = function() end }
+  local state = { money = 9000, day = 3, cars = {}, bought = {}, orders = {} }
+  local hourNow = 10
+  sl_career = { isActive = function() return true end, getState = function() return state end, hour = function() return hourNow end,
+    addMoney = function(amount) if state.money + amount < 0 then return false end state.money = state.money + amount charged = charged + 1 return true end,
+    getPlaces = function() return { d1 = { id = 'd1', name = 'Jefferson Motors', pos = P(5000), stock = { kind = 'dealer' } }, g = { id = 'g', name = 'Not a stock dealer', pos = P(1) } } end,
+    sendText = function(_, text) texts[#texts + 1] = text end }
+  local lotOffers = function() return { { id = 'd1:dealer-3-1', name = 'Covet', price = 4000, mileage = 12, condition = 1, faults = {}, kind = 'dealer', value = 5000 },
+    { id = 'd1:dealer-3-2', name = 'Bolide', price = 7000, mileage = 20, condition = 1, faults = {}, kind = 'dealer', value = 8000 } } end
+  sl_lot = { offersFor = function(place, s)      -- (the lot's own rule: what is bought is not offered)
+    local out = {} for _, o in ipairs(lotOffers()) do if not (s.bought or {})[o.id] then out[#out + 1] = o end end return out end }
+  sl_fleet = { forecourt = function() return P(0), 'rot' end,
+    registerVehicle = function(vid, info) local car = { id = #state.cars + 1, name = info.name } state.cars[#state.cars + 1] = car state.activeCar = car.id return car end }
+  core_jobsystem = { create = function(f) f({ sleep = function() end }) end }
+  getPlayerVehicle = function() return { getPosition = function() return P(0) end } end
+  local vehicle = { getID = function() return 77 end, queueLuaCommand = function() end }
+  package.loaded['sl/carBuilder'] = { buildOffer = function(job, offer) built[#built + 1] = offer.id return vehicle end }
+  local dealers = require('sl/dealers')
+  local function last(name) for i = #events, 1, -1 do if events[i].name == name then return events[i].data end end end
+  dealers.list()
+  local list = last('slLaptopDealers')
+  check('the dealers list has the stock dealers only, with their car count', #list.dealers == 1 and list.dealers[1].name == 'Jefferson Motors' and list.dealers[1].count == 2 and list.dealers[1].metres == 5000)
+  dealers.offers('d1')
+  local shown = last('slLaptopOffers')
+  check('the cards are the own offers of the lot, in the same order', #shown.offers == 2 and shown.offers[1].id == 'd1:dealer-3-1' and shown.offers[2].price == 7000)
+  dealers.buy('d1', 'd1:dealer-3-1')
+  check('buy takes the money once and orders the car', state.money == 5000 and charged == 1 and #state.orders == 1 and state.bought['d1:dealer-3-1'])
+  dealers.buy('d1', 'd1:dealer-3-1')
+  check('a second buy of the same car takes nothing', state.money == 5000 and charged == 1 and toasts[#toasts] == 'That car has gone.')
+  check('it is gone from the lot and the laptop', #sl_lot.offersFor(nil, state) == 1 and #last('slLaptopOffers').offers == 1)
+  check('and the list shows the order on its way', #last('slLaptopDealers').coming == 1 and last('slLaptopDealers').coming[1].hours >= 1)
+  dealers.onUpdate(5)
+  check('nothing is built before the delay', #built == 0 and #state.cars == 0)
+  local saved = deepcopy(state)                   -- a save and a load before the car arrives
+  state = saved
+  hourNow = 14                                    -- the dealer is 5 km away: 3 hours; it is now 4 hours later
+  dealers.onUpdate(5)
+  check('after the delay the car is built and registered, once, from the saved order', #built == 1 and built[1] == 'd1:dealer-3-1' and #state.cars == 1 and #state.orders == 0)
+  check('the car you drive stays the car you drive, and a text says it has arrived', state.activeCar == nil and texts[#texts]:find('delivered') ~= nil)
+  dealers.onUpdate(5)
+  check('and it is not delivered again or offered again', #built == 1 and #sl_lot.offersFor(nil, state) == 1 and state.bought['d1:dealer-3-1'])
 end
 
 print(string.format('lua tests passed: %d checks', passed))

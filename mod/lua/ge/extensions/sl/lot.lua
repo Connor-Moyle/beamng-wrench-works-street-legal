@@ -231,16 +231,9 @@ end
 ----------------------------------------------------------------------------------------------
 -- opening and closing
 
-local function open(place, mode, given)
-  local s = career()
-  if not s or lot then return end
-  local tod = core_environment and core_environment.getTimeOfDay and core_environment.getTimeOfDay()
-  local closed = type(tod) == 'table' and tod.time and hours.closedText(place.kind, tod.time)
-  if closed then
-    armedAt[place.id] = false      -- (said once; it prompts again after you have left)
-    guihooks.trigger('slPhoneToast', { text = closed })
-    return
-  end
+-- what stands on a lot today (the lot and the laptop's Dealers list the same cars): its offers, in order, and their kind.
+-- `given`: a private seller's own offers. An offer already bought (at the lot or on the laptop) is not offered again.
+function M.offersFor(place, s, given)
   local stock = place.stock      -- a stock dealer (the map's own): new or used by its filter, its own cars
   local kind = stock and stock.kind or KIND[place.kind] or 'used'
   -- how many stand on the lot today: 2 to 6, the same all day
@@ -256,6 +249,20 @@ local function open(place, mode, given)
     if stock then o.id = place.id .. ':' .. o.id end      -- (an offer is bought once: a stock dealer's ids are its own)
     if not (s.bought or {})[o.id] and #offers < count then offers[#offers + 1] = o end
   end
+  return offers, kind
+end
+
+local function open(place, mode, given)
+  local s = career()
+  if not s or lot then return end
+  local tod = core_environment and core_environment.getTimeOfDay and core_environment.getTimeOfDay()
+  local closed = type(tod) == 'table' and tod.time and hours.closedText(place.kind, tod.time)
+  if closed then
+    armedAt[place.id] = false      -- (said once; it prompts again after you have left)
+    guihooks.trigger('slPhoneToast', { text = closed })
+    return
+  end
+  local offers, kind = M.offersFor(place, s, given)
   lot = { place = place, kind = kind, offers = offers, index = 1, cars = {}, mode = mode or 'browse', previousCamera = core_camera.getActiveCamName(0),
     private = place.private }
   armedAt[place.id] = false

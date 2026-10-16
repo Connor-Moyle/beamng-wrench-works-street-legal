@@ -9,7 +9,7 @@ local M = {}
 M.TILES = {
   { id = 'vehicleInventory', label = 'My cars', group = 'general', page = 'cars' },
   { id = 'partInventory', label = 'My parts', group = 'general', page = 'parts' },
-  { id = 'vehicleShop', label = 'Dealers', group = 'general', soon = true, shop = true },
+  { id = 'vehicleShop', label = 'Dealers', group = 'general', page = 'dealers', shop = true },
   { id = 'insurances', label = 'Bank / insurance', group = 'general', page = 'bank' },
   { id = 'playerAbstract', label = 'Street cred', group = 'general', page = 'cred' },
   { id = 'partShop', label = 'Part customization', group = 'car', mode = 'catalog' },
@@ -33,7 +33,8 @@ function M.build(functions, state, defs)
     if functions[def.id] and (not def.needs or has[def.needs]) then
       local tile = { id = def.id, label = def.label, page = def.page, mode = def.mode, enabled = true }
       local onCar = def.group == 'car' and lists
-      if (onCar or def.shop) and state.busy then tile.enabled, tile.reason = false, 'Not during a race or a job.'
+      if def.group == 'car' and not lists then tile.enabled, tile.reason = false, 'Use a computer in a garage for this.'
+      elseif (onCar or def.shop) and state.busy then tile.enabled, tile.reason = false, 'Not during a race or a job.'
       elseif onCar and not state.hasCar then tile.enabled, tile.reason = false, 'You have no car yet.'
       elseif def.soon then tile.enabled, tile.reason = false, 'Coming soon.'
       elseif onCar and state.carHere == false then tile.enabled, tile.reason = false, 'Bring the car into the garage first.' end

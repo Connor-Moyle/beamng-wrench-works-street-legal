@@ -21,7 +21,7 @@ const nav = (name, value) => win.document.dispatchEvent(new win.CustomEvent('ui_
 const tile = (id, label, enabled, reason, page, mode) => ({ id, label, enabled, reason, page, mode });
 const general = { id: 'general', title: 'General', tiles: [
   tile('vehicleInventory', 'My cars', true, null, 'cars'), tile('partInventory', 'My parts', true, null, 'parts'),
-  tile('vehicleShop', 'Dealers', false, 'Coming soon.'), tile('insurances', 'Bank / insurance', true, null, 'bank'), tile('playerAbstract', 'Street cred', true, null, 'cred')] };
+  tile('vehicleShop', 'Dealers', true, null, 'dealers'), tile('insurances', 'Bank / insurance', true, null, 'bank'), tile('playerAbstract', 'Street cred', true, null, 'cred')] };
 // car 1 stands at this garage (its tiles work), car 2 does not (the reason is shown)
 const view = {
   name: 'Commercial Garage', lists: true,
@@ -55,7 +55,7 @@ assert.ok(text().includes('Sunburst 2.0 Sport S AWD'), 'the chosen car in the ca
 const tiles = $$('.sll-tile');
 assert.ok(tiles.length === 7 && tiles.every((t) => t.hasAttribute('bng-nav-item') && t.getAttribute('tabindex') === '0'), 'every tile is a gamepad nav item');
 assert.ok($('.sll-body').hasAttribute('bng-nav-scroll'), 'the body scrolls on the right stick');
-assert.ok($$('.sll-tile.sll-off').length === 1, 'only Dealers is greyed for a car at the garage');
+assert.ok($$('.sll-tile.sll-off').length === 0, 'nothing is greyed for a car at the garage');
 
 // a garage tile sends the chosen car into the garage in its mode
 calls.length = 0;
@@ -63,14 +63,37 @@ click('tile', 'tuning');
 assert.ok(calls.includes('@sl_computer.enterGarage("tune",1)') && !$('[data-a="back"]'), 'Tuning: the garage opens on car 1 in tune mode');
 click('tile', 'partShop');
 assert.ok(calls.includes('@sl_computer.enterGarage("catalog",1)'), 'Part customization: the catalog');
-// a greyed tile says why and goes nowhere
+// the stock dealers: the same cars as the lots, bought remotely
+calls.length = 0;
 click('tile', 'vehicleShop');
-assert.ok(text().includes('Dealers: Coming soon.') && calls.length === 2, 'a greyed tile gives its reason and sends nothing');
+assert.ok(calls.includes('@sl_dealers.list()') && $('[data-a="back"]'), 'Dealers asks for the dealer list');
+laptop.handle('slLaptopDealers', { dealers: [{ id: 'jeff', name: 'Jefferson Motors', metres: 4200, count: 5 }, { id: 'quarry', name: 'Quarryside', metres: 800, count: 1 }], coming: [{ name: 'Covet', hours: 3 }] });
+assert.ok(text().includes('Jefferson Motors') && text().includes('4.2 km away') && text().includes('5 cars today') && text().includes('800 m away') && text().includes('1 car today'), 'dealers: name, distance, number of cars');
+assert.ok(text().includes('On the way to your garage') && text().includes('in about 3 h'), 'and what is on its way');
+click('dealer', 'jeff');
+assert.ok(calls.includes('@sl_dealers.offers("jeff")'), 'a dealer asks for its cars');
+laptop.handle('slLaptopOffers', { dealer: 'jeff', name: 'Jefferson Motors', money: 9000, offers: [
+  { id: 'jeff:dealer-3-1', name: 'Bolide', title: 'New', mileage: 20, condition: 1, price: 7000, faults: [] },
+  { id: 'jeff:dealer-3-2', name: 'Pessima', title: 'Tired', mileage: 150000, condition: 0.4, price: 9900, faults: ['battery'] }] });
+assert.ok(text().includes('Bolide') && text().includes('20 km') && text().includes('condition 100%') && text().includes('Buy · $7,000') || text().includes('Buy · $7,000'), 'offer cards: name, mileage, condition, price');
+assert.ok(text().includes('Needs: battery') && $$('.sll-btn.sll-off').length === 1, 'faults are listed and a car you cannot pay for is dimmed');
+click('buy', 'jeff|jeff:dealer-3-1');
+assert.ok(calls.includes('@sl_dealers.buy("jeff","jeff:dealer-3-1")'), 'Buy asks for that car');
+laptop.handle('slPhoneToast', { text: 'The Bolide will be at your garage in about 3 hours.' });
+assert.ok(text().includes('will be at your garage in about 3 hours'), 'the answer shows');
+laptop.handle('slLaptopOffers', { dealer: 'jeff', name: 'Jefferson Motors', money: 2000, offers: [{ id: 'jeff:dealer-3-2', name: 'Pessima', mileage: 1, condition: 1, price: 9900, faults: [] }] });
+const names = $$('.sll-card h4').map((h) => h.textContent);
+assert.ok(!names.some((n) => n.includes('Bolide')) && names.some((n) => n.includes('Pessima')), 'a bought car is gone from the list');
+calls.length = 0;
+nav('back');
+assert.ok(text().includes('Quarryside') && calls.includes('@sl_dealers.list()'), 'B goes back to the dealers');
+nav('back');
+assert.ok(text().includes('Vehicle management'), 'and then home');
 
 // the car band: next / previous car, and tab_l / tab_r on the pad
 click('car', '1');
 assert.ok(text().includes('Covet') && text().includes('Out on the street'), 'the next car');
-assert.ok($$('.sll-tile.sll-off').length === 3, 'the car away from the garage has its garage tiles greyed');
+assert.ok($$('.sll-tile.sll-off').length === 2, 'the car away from the garage has its garage tiles greyed');
 calls.length = 0;
 click('tile', 'tuning');
 assert.ok(text().includes('Tuning: Bring the car into the garage first.') && calls.length === 0, 'and the tile says why, sending nothing');
