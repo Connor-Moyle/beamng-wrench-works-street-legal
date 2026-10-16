@@ -891,4 +891,44 @@ do
   check('a map without computers (Valo City) has none', #computer.points(true, {}, posOf) == 0 and #computer.points(true, nil, posOf) == 0)
 end
 
+-- the laptop's menu (L1): the five West Coast USA computers' own `functions` decide the tiles
+do
+  local laptop = require('sl/core/laptop')
+  local function fn(...) local t = {} for _, k in ipairs({ ... }) do t[k] = true end return t end
+  local FULL = fn('apmLandingPage', 'insurances', 'painting', 'partInventory', 'partShop', 'playerAbstract', 'tuning', 'vehicleInventory', 'vehicleShop')
+  local computers = {
+    servicestationGarageComputer = FULL, commercialGarageComputer = FULL, commercialGarageComputer2 = FULL,
+    alderDragwayGarageComputer = fn('partInventory', 'partShop', 'tuning', 'vehicleInventory'),
+    servicestationOfficeComputer = fn('apmLandingPage', 'partShop', 'vehicleShop'),
+  }
+  local function labels(group) local out = {} for _, t in ipairs(group and group.tiles or {}) do out[#out + 1] = t.label end return table.concat(out, ',') end
+  local function view(id, state) local v = laptop.build(computers[id], state) return v, v.groups[1] and v.groups[1].id == 'car' and v.groups[1] or nil, v.groups[#v.groups] end
+  local ok = { hasCar = true }
+  for _, id in ipairs({ 'servicestationGarageComputer', 'commercialGarageComputer', 'commercialGarageComputer2' }) do
+    local v, car, general = view(id, ok)
+    check(id .. ': the car band and the general band', labels(car) == 'Part customization,Tuning,Painting' and labels(general) == 'My cars,My parts,Dealers,Bank / insurance,Street cred' and v.lists, labels(car) .. ' | ' .. labels(general))
+  end
+  local _, car, general = view('alderDragwayGarageComputer', ok)
+  check('the drag strip garage: cars, parts, customization and tuning only', labels(car) == 'Part customization,Tuning' and labels(general) == 'My cars,My parts')
+  local v, car2, general2 = view('servicestationOfficeComputer', ok)
+  check('the office lists no cars and no car band: dealers and the parts shop only', not v.lists and car2 == nil and labels(general2) == 'Dealers,Part customization')
+  -- reasons, in order: a race or job, no car, not built yet
+  local _, c1, g1 = view('commercialGarageComputer', { hasCar = false })
+  local reasons = {}
+  for _, t in ipairs(c1.tiles) do reasons[t.label] = t.reason end
+  check('no car yet: the car tiles say so, the pages that need none stay open', reasons.Tuning == 'You have no car yet.' and g1.tiles[1].enabled and g1.tiles[4].enabled and g1.tiles[5].enabled)
+  local _, c2, g2 = view('commercialGarageComputer', { hasCar = true })
+  check('with a car the garage tiles and Dealers are "coming soon" (L3/L4), the REUSE pages are open', c2.tiles[1].reason == 'Coming soon.' and not c2.tiles[1].enabled and g2.tiles[3].reason == 'Coming soon.'
+    and g2.tiles[1].enabled and g2.tiles[1].page == 'cars' and g2.tiles[2].page == 'parts' and g2.tiles[4].page == 'bank' and g2.tiles[5].page == 'cred')
+  local _, c3, g3 = view('commercialGarageComputer', { hasCar = true, busy = true })
+  check('in a race or on a job: car tiles and Dealers wait, reading pages stay', c3.tiles[2].reason == 'Not during a race or a job.' and g3.tiles[3].reason == 'Not during a race or a job.' and g3.tiles[1].enabled)
+  local _, c4 = view('commercialGarageComputer', { hasCar = true, carHere = false })
+  check('a car that is not in the garage (once the tiles are built)', c4.tiles[1].reason == 'Coming soon.')
+  local defs = { { id = 'club', label = 'Club', group = 'general', page = 'club', needs = 'clubs' }, { id = 'insurances', label = 'Bank', group = 'general', page = 'bank' } }
+  local both = laptop.build(fn('club', 'insurances'), { hasCar = true, has = { clubs = true } }, defs)
+  local wc = laptop.build(fn('club', 'insurances'), { hasCar = true, has = {} }, defs)
+  check('a release-2 tile shows where the map hosts it and is hidden where it does not', #both.groups[1].tiles == 2 and #wc.groups[1].tiles == 1 and wc.groups[1].tiles[1].label == 'Bank')
+  check('no computer function, no tiles', #laptop.build({}, ok).groups == 0)
+end
+
 print(string.format('lua tests passed: %d checks', passed))

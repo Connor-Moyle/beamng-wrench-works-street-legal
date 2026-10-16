@@ -1,11 +1,13 @@
 -- Wrench Works: Street Legal: the laptops (extension name: sl_computer)
 -- BeamNG's maps list computer facilities (West Coast USA has five); the stock career opens its menu there. In a
 -- Street Legal career they are a game marker (the ring and prompt the lots use): stopping or walking into it
--- offers "Use the laptop", which opens the phone. Valo City has none, so nothing happens there.
+-- offers "Use the laptop", which opens the laptop (sl/core/laptop: the tiles the computer's own `functions` table lists,
+-- greyed with a reason when they cannot be used; the screen is ui/modModules/slLaptop). Valo City has none.
 
 local M = {}
 
 local computer = require('sl/core/computer')
+local laptop = require('sl/core/laptop')
 
 local ICON = 'mission_arrival_triangle'
 
@@ -26,15 +28,74 @@ function M.onGetRawPoiListForLevel(level, elements)
   end
 end
 
+local function facilityById(id)
+  for _, f in ipairs(freeroam_facilities and freeroam_facilities.getFacilitiesByType and freeroam_facilities.getFacilitiesByType('computer') or {}) do
+    if f.id == id then return f end
+  end
+end
+
+local function name(f) return translateLanguage and translateLanguage(f.name, 'Computer', true) or 'Computer' end
+
+-- the shelf of Wrench Works (parts taken off and delivered), per model of the player's cars
+local function shelf(s)
+  local out, seen = {}, {}
+  for _, car in ipairs(s.cars) do
+    if car.model and not seen[car.model] then
+      seen[car.model] = true
+      for _, it in ipairs(slrr_garage and slrr_garage.shelfItems and slrr_garage.shelfItems(car.model) or {}) do
+        out[#out + 1] = { model = car.model, car = car.name, name = it.name, slot = it.slotId, count = it.count, value = it.value, wear = it.wear }
+      end
+    end
+  end
+  return out
+end
+
+local at          -- the laptop open now: { id, pos }
+
+function M.parts()
+  local s = careerOn() and sl_career.getState()
+  if s then guihooks.trigger('slLaptopParts', { parts = shelf(s) }) end
+end
+
+function M.close()
+  at = nil
+  guihooks.trigger('slLaptopClose', {})
+end
+
+-- "Use the laptop" at computer `id`: the screen gets its tiles, and the phone's data (cars, bank, street cred) comes as the phone's own event
+function M.open(id)
+  local f = careerOn() and facilityById(id)
+  if not f then return end
+  local s = sl_career.getState()
+  local state = { hasCar = #s.cars > 0, busy = (s.jobs and s.jobs.active ~= nil) or (sl_streets and sl_streets.isRacing and sl_streets.isRacing()) or false,
+    has = { clubs = sl_career.has('clubs'), crews = sl_career.has('crews'), classifieds = sl_career.has('classifieds') } }
+  local view = laptop.build(f.functions, state)
+  at = { id = id, pos = posOf(f) }
+  if sl_phone and sl_phone.request then sl_phone.request() end
+  guihooks.trigger('slLaptopOpen', { name = name(f), groups = view.groups, lists = view.lists, parts = shelf(s) })
+end
+
+-- walked or driven away from the computer: it closes
+local timer = 0
+function M.onUpdate(dtReal)
+  if not at then return end
+  timer = timer + (dtReal or 0)
+  if timer < 1 then return end
+  timer = 0
+  local v = getPlayerVehicle(0)
+  if not careerOn() or not v or (at.pos and (v:getPosition() - at.pos):length() > 25) then M.close() end
+end
+
 -- standing in the marker: the game's prompt gets our button
 function M.onActivityAcceptGatherData(elemData, activityData)
   if not careerOn() then return end
   for _, elem in ipairs(elemData or {}) do
     if elem.type == 'slrrComputer' then
       table.insert(activityData, {
-        icon = 'poi_arrival_round', heading = translateLanguage and translateLanguage(elem.name, 'Computer', true) or 'Computer',   -- (the facility's name is a translation key) preheadings = { 'Laptop' },
+        icon = 'poi_arrival_round', heading = translateLanguage and translateLanguage(elem.name, 'Computer', true) or 'Computer',   -- (the facility's name is a translation key)
+        preheadings = { 'Laptop' },
         sorting = { type = 'slrrComputer', id = elem.id },
-        buttonLabel = 'Use the laptop', buttonFun = function() if sl_phone then sl_phone.toggle() end end,
+        buttonLabel = 'Use the laptop', buttonFun = function() M.open(elem.id) end,
         buttonSoundClass = 'bng_hover_generic',
       })
     end
@@ -44,6 +105,6 @@ end
 -- the marker list is cached by the game: build it again when a career starts or stops
 local function refresh() if gameplay_rawPois and gameplay_rawPois.clear then gameplay_rawPois.clear() end end
 M.onStreetLegalStarted = refresh
-M.onStreetLegalStopped = refresh
+M.onStreetLegalStopped = function() refresh() M.close() end
 
 return M
