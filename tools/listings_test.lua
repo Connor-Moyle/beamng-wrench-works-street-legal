@@ -146,6 +146,35 @@ return function(check, rngLib)
   for _ = 1, D.MAX_TRIES do D.load(st2, 'west_coast_usa', function() return nil end) end
   check('asking stops after MAX_TRIES', st2.retry == false and st2.tries == D.MAX_TRIES)
   check('Valo City never asks again', #D.load({}, 'slrr_valo_city', function() return nil end) == 0 and ({ D.load(st2, 'slrr_valo_city', make) })[1] ~= nil and st2.retry == false)
+  -- T22: more cars on a lot, in slots beside the parking spots
+  local function rays(o)
+    o = o or {}
+    return { ground = function(x, y, z) if o.ground then return o.ground(x, y, z) end return z end,
+      free = function(x, y, z, dx, dy, dist) if o.free then return o.free(x, y, z, dx, dy, dist) end return true end }
+  end
+  local sp0 = { { x = 0, y = 0, z = 5, dx = 0, dy = 1 } }
+  local open = D.slots(sp0, rays())
+  check('a free lot: the spot first, then slots 3 m apart on both sides, six in all', #open == 6 and open[1] == sp0[1]
+    and open[2].x == 3 and open[3].x == -3 and open[4].x == 6 and open[5].x == -6 and open[6].x == 9 and open[2].dx == 0 and open[2].dy == 1)
+  check('every slot keeps the spot height and facing', open[3].z == 5 and open[6].dy == 1)
+  local walled = D.slots(sp0, rays({ free = function(x, y, z, dx, dy) return not (dx > 0.5 and x >= 6) end }))
+  check('a wall on one side: that side stops at the first slot that fails, the other goes on', #walled == 5 and walled[2].x == 3 and walled[4].x == -6)
+  local kerb = D.slots(sp0, rays({ ground = function(x, y, z) return x < 0 and z + 0.6 or z end }))
+  check('a slot whose ground is over 0.25 m off the spot (a kerb) is dropped', #kerb == 4 and kerb[2].x == 3 and kerb[4].x == 9)
+  local nearGround = D.slots(sp0, rays({ ground = function(x, y, z) return z + 0.2 end }))
+  check('...0.2 m off is still ground', #nearGround == 6 and nearGround[2].z == 5.2)
+  check('no room towards the arrival point (a ray towards it hits): the spot only', #D.slots(sp0, rays({ free = function(x, y, z, dx, dy) return not (dy > 0.3) end })) == 1)
+  local two = D.slots({ { x = 0, y = 0, z = 5, dx = 0, dy = 1 }, { x = 4, y = 0, z = 5, dx = 0, dy = 1 } }, rays())
+  local tooClose = false
+  for i = 1, #two do for j = i + 1, #two do if math.sqrt((two[i].x - two[j].x) ^ 2 + (two[i].y - two[j].y) ^ 2) < D.SLOT_MIN - 1e-9 then tooClose = true end end end
+  check('two spots 4 m apart: the originals first, no slot within 2.5 m of another', two[1].x == 0 and two[2].x == 4 and not tooClose and #two >= 3)
+  local many = {}
+  for i = 1, 8 do many[i] = { x = i * 10, y = 0, z = 0, dx = 0, dy = 1 } end
+  check('the cap is six, the originals first (even if there are more)', #D.slots(many, rays()) == 6 and D.slots(many, rays())[6].x == 60 and #D.slots(sp0, rays()) <= D.SLOT_CAP)
+  check('no rays: the spots as they are; a door spot (made up) gets none', #D.slots(sp0, nil) == 1 and #D.slots({ { x = 0, y = 0, z = 0, dx = 0, dy = 1, synthetic = true } }, rays()) == 1 and #D.slots({}, rays()) == 0)
+  local dealerWith = D.dealer({ id = 'belascoAuto', filter = newF }, sp0, tr, rays())
+  check('a stock dealer place lists every slot as a display, the spot first', #dealerWith.displays == 6 and dealerWith.display[1] == 0 and dealerWith.displays[2].pos[1] == 3)
+  check('...and none without rays (Valo City never gets them)', #D.dealer({ id = 'belascoAuto', filter = newF }, sp0, tr).displays == 1)
   -- a dealer with no parking spot stands on its door (T12 retest: the spots came back empty); no spot and no door = no place
   local doorApi = {
     list = function(kind) return kind == 'dealership' and { { id = 'belascoAuto' }, { id = 'lost' } } or {} end,

@@ -245,7 +245,7 @@ local function open(place, mode, given)
   local kind = stock and stock.kind or KIND[place.kind] or 'used'
   -- how many stand on the lot today: 2 to 6, the same all day
   local count = rngLib.new(rngLib.hash(place.id .. ':' .. s.day .. ':' .. s.seed)):int(M.MIN_CARS, M.MAX_CARS)
-  if stock and place.displays then count = math.min(count, #place.displays) end      -- (a stock dealer's cars stand on its own parking spots, none beside them)
+  if stock and place.displays then count = math.min(math.max(count, 4), #place.displays) end      -- (a stock dealer's cars stand on its parking spots and the slots beside them (sl/core/stockdealers): 4 to 6 where there is room)
   local offers = given or {}
   local pool = builder.configs()
   if stock and not given then

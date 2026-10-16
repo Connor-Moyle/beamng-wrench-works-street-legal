@@ -313,6 +313,16 @@ local function stockApi(level)
   local function tell1(f, why) if not told[f.id] then told[f.id] = true log('W', logTag, 'stock facility ' .. tostring(f.id) .. ': ' .. why) end end
   return {
     list = function(kind, lvl) return fac.getFacilitiesByType(kind, lvl) end,
+    rays = {
+      ground = function(x, y, z)
+        local ok, d = pcall(castRayStatic, vec3(x, y, z + 1.5), vec3(0, 0, -1), 4)
+        return ok and d and d < 4 and (z + 1.5 - d) or nil
+      end,
+      free = function(x, y, z, dx, dy, dist)
+        local ok, d = pcall(castRayStatic, vec3(x, y, z + 0.8), vec3(dx, dy, 0), dist)
+        return not ok or not d or d >= dist - 0.01
+      end,
+    },
     ownSpots = function()
       local out, sites = {}, garageModule('slrr/garageSites')
       local ok, list = pcall(function() return sites and sites.getSites() or {} end)
