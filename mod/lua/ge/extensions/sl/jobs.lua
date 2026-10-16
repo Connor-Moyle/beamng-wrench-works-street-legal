@@ -38,7 +38,7 @@ local function context(s)
     end
   end
   table.sort(shops, function(a, b) return a.id < b.id end)
-  return { places = places, shops = shops, garage = byId['slrrGarage' .. tostring(s.garageLevel or 1)], byId = byId }
+  return { places = places, shops = shops, garage = byId[(progression.garages[s.garageLevel or 1] or progression.garages[1]).site], byId = byId }
 end
 
 M.context = function(s) return context(s or career()) end      -- (the tutorial makes its part run with it)
@@ -612,7 +612,7 @@ function M.onStreetLegalGarageMoved(fromLevel, toLevel, cost)
   local s = career()
   if not s then return end
   local ctx = context(s)
-  local from, to = ctx.byId['slrrGarage' .. tostring(fromLevel)], ctx.byId['slrrGarage' .. tostring(toLevel)]
+  local from, to = ctx.byId[(progression.garages[fromLevel] or {}).site], ctx.byId[(progression.garages[toLevel] or {}).site]
   if not from or not to then return end
   local js = jobsState(s)
   for _, car in ipairs(s.cars) do

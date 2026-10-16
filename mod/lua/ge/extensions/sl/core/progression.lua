@@ -9,7 +9,18 @@
 local M = {}
 
 M.START_MONEY = 5000
-M.START_HOUR = 20.5          -- the first evening
+M.START_HOUR = 10            -- a daytime start (Connor, 2026-10-16); the races are still at night
+
+-- the maps a career is played on (W1). garages: Wrench Works' site ids for the garage ladder below, in order (none:
+-- the ladder as written); races: the map's own race extension, when it has one (none: nowhere to race until W3).
+M.MAPS = {
+  slrr_valo_city = { name = 'Valo City', races = 'slrrValoRaces' },
+  west_coast_usa = { name = 'West Coast USA', garages = {
+    { id = 'alderDragwayGarage', name = 'Alder Dragway Garage' }, { id = 'commercialGarage', name = 'Industrial Garage' },
+    { id = 'belascoCityGarage', name = 'Belasco City Garage' } } },
+}
+M.MAP_ORDER = { 'slrr_valo_city', 'west_coast_usa' }
+M.DEFAULT_MAP = 'slrr_valo_city'
 
 -- how hard the street gets, 0 (nobody) to 1 (the ROC crowd): from reputation
 function M.difficulty(rep) return math.max(0, math.min(1, (rep or 0) / 6000)) end
@@ -25,7 +36,8 @@ M.titles = {
   { rep = 6000, title = 'King of Valo City' },
 }
 
--- the garages, in order. Moving up needs the reputation and the money.
+-- the garages, in order. Moving up needs the reputation and the money. (site and name are Valo City's; the career
+-- sets them per map from MAPS, so every module reads one ladder)
 M.garages = {
   { level = 1, site = 'slrrGarage1', name = 'Club Garage 1', rep = 0, cost = 0 },
   { level = 2, site = 'slrrGarage2', name = 'Club Garage 2', rep = 1500, cost = 25000 },

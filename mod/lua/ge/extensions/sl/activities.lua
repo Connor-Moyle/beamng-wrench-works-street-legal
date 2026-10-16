@@ -29,7 +29,7 @@ local function career() return sl_career and sl_career.isActive() and sl_career.
 local function tell(text) guihooks.trigger('slPhoneToast', { text = text }) if ui_message then ui_message(text, 6, 'streetLegal') end end
 
 local function ruleFor(id)
-  if type(id) ~= 'string' or not id:find('^slrr_valo_city/') then return nil end
+  if type(id) ~= 'string' or not id:find('^' .. sl_career.LEVEL .. '/') then return nil end
   for _, r in ipairs(RULES) do if id:find(r.match, 1, true) then return r end end
 end
 

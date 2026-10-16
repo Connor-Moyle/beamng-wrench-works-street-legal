@@ -777,17 +777,33 @@
       }).join('') + '</div>';
     }
 
+    // the map a new career is on (W1): the installed ones as chips, the first picked unless the player picked another
+    function installedMaps(m) { return arr(m && m.maps).filter(function (x) { return x.installed; }); }
+    function newMapId() {
+      var maps = installedMaps(st.menu);
+      var picked = maps.filter(function (x) { return x.id === st.newMap; })[0] || maps[0];
+      return picked ? picked.id : null;
+    }
+    function newMapArg() { var id = newMapId(); return id ? ', nil, ' + JSON.stringify(id) : ''; }   // (none known: the career's default)
+    function mapsHtml(m) {
+      var maps = installedMaps(m), pick = newMapId();
+      if (maps.length < 2) return '';
+      return '<div class="slp-acts">' + maps.map(function (x) {
+        return '<div class="slp-btn slp-text' + (x.id === pick ? ' slp-tonal' : '') + '" data-a="newmap" data-v="' + esc(x.id) + '">' + esc(x.name) + '</div>';
+      }).join('') + '</div>';
+    }
+
     // the main menu's own Career button opens this: the game's career, or Wrench Works: Street Legal
     function menuView() {
       var m = st.menu;
       if (!m || !m.show || !st.chooser) return '';
       var sl = !m.installed
         ? '<div class="slp-chcard slp-chsl slp-off"><b>Wrench Works: Street Legal</b><span>Needs the Wrench Works: Valo City map (slrr_valo_city). Switch it on under Mods.</span></div>'
-        : '<div class="slp-chcard slp-chsl"><b>Wrench Works: Street Legal</b>' + (st.slrrArt ? slrrIcon(m.summary ? 'load_career_a.png' : 'new_career_a.png', 'slp-chimg') : '') + '<span>' + (m.summary ? 'Your career: ' + esc(m.summary) : 'Valo City at night. No car, $5,000 and a name nobody knows. Junkyard wrecks, street racers, pink slips and the ROC.') + '</span>' +
+        : '<div class="slp-chcard slp-chsl"><b>Wrench Works: Street Legal</b>' + (st.slrrArt ? slrrIcon(m.summary ? 'load_career_a.png' : 'new_career_a.png', 'slp-chimg') : '') + '<span>' + (m.summary ? 'Your career: ' + esc(m.summary) : 'No car, $5,000 and a name nobody knows. Junkyard wrecks, street racers, pink slips and the top garage.') + '</span>' +
           (m.summary ? '<div class="slp-btn slp-go" data-a="menustart" data-v="continue">Continue</div>' : '') +
           slotsHtml(m) +
           (arr(m.slots).length < (m.maxSlots || 6)
-            ? '<div class="slp-btn' + (m.summary ? ' slp-tonal' : ' slp-go') + '" data-a="menustart" data-v="new">New career</div>' +
+            ? mapsHtml(m) + '<div class="slp-btn' + (m.summary ? ' slp-tonal' : ' slp-go') + '" data-a="menustart" data-v="new">New career</div>' +
               '<div class="slp-btn slp-tonal" data-a="menustart" data-v="newskip">New career, no tutorial</div>'
             : '<span>Every career slot is taken: delete one to start another.</span>') + '</div>';
       return '<div class="slp-chooser"><div class="slp-chbox"><h1>Career</h1><div class="slp-chcards">' +
@@ -1025,7 +1041,7 @@
         case 'slotedit': st.slotEdit = true; render(); break;
         case 'gameover':
           st.gameOver = null; render();
-          if (v === 'new') lua('@sl_menuTile.startFromMenu(true)'); else lua('@sl_menuTile.toMainMenu()');
+          if (v === 'new') lua('@sl_menuTile.startFromMenu(true' + newMapArg() + ')'); else lua('@sl_menuTile.toMainMenu()');
           break;
         case 'slotplay': lua('@sl_menuTile.startFromMenu(false,' + Number(v) + ')'); st.menu = null; st.chooser = false; render(); break;
         case 'slotname':
@@ -1036,9 +1052,10 @@
           if (st.slotDel !== Number(v)) { st.slotDel = Number(v); toast('Click again to delete that career for good.'); render(); break; }
           st.slotDel = null; lua('@sl_menuTile.deleteSlot(' + Number(v) + ')');
           break;
+        case 'newmap': st.newMap = v; render(); break;
         case 'menustart':
           if (v === 'newskip') lua('@sl_tutorial.skipNextCareer()');
-          lua('@sl_menuTile.startFromMenu(' + (v === 'new' || v === 'newskip' ? 'true' : 'false') + ')');
+          lua('@sl_menuTile.startFromMenu(' + (v === 'new' || v === 'newskip' ? 'true' + newMapArg() : 'false') + ')');
           st.menu = null; st.chooser = false; render();
           break;
         case 'chooser':

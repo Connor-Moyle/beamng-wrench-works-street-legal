@@ -266,6 +266,12 @@ do
   state.recordRace(s2, { racer = racer.id, won = false, stake = 'money', bet = 300, at = 6 })
   check('a loss takes no more than you have', s2.money == 0)
   check('the old save comes back', state.migrate({ seed = 3, money = 5 }).racers ~= nil)
+  check('a save keeps its map (W1); one from before has none', state.migrate({ seed = 3, level = 'west_coast_usa' }).level == 'west_coast_usa' and state.migrate({ seed = 3 }).level == nil)
+  check('the career starts in daylight (W1)', not progression.isNight(progression.START_HOUR))
+  for _, id in ipairs(progression.MAP_ORDER) do
+    local m = progression.MAPS[id]
+    check('map ' .. id .. ' has a name and a full garage ladder', type(m.name) == 'string' and (m.garages == nil or #m.garages == #progression.garages))
+  end
   check('a broken save is refused', state.migrate({}) == nil)
 end
 

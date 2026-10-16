@@ -74,6 +74,20 @@ calls.length = 0;
 assert.ok(text().includes('Test') && text().includes('last played'), 'the careers are listed');
 click('menustart', 'new');
 assert.ok(calls.includes('@sl_menuTile.startFromMenu(true)'), 'a new career goes in a free slot, nothing is lost');
+// W1: with two maps installed the card offers both; the one picked goes with the new career
+const maps = [{ id: 'slrr_valo_city', name: 'Valo City', installed: true }, { id: 'west_coast_usa', name: 'West Coast USA', installed: true }];
+phone.handle('slMenu', { show: true, installed: true, maps, maxSlots: 6, slots: [] });
+pressCareer();
+calls.length = 0;
+assert.ok(text().includes('Valo City') && text().includes('West Coast USA'), 'both maps offered');
+click('newmap', 'west_coast_usa');
+click('menustart', 'new');
+assert.ok(calls.includes('@sl_menuTile.startFromMenu(true, nil, "west_coast_usa")'), 'the picked map starts the career');
+phone.handle('slMenu', { show: true, installed: true, maps: [maps[1]], maxSlots: 6, slots: [] });
+pressCareer();
+calls.length = 0;
+click('menustart', 'new');
+assert.ok(!text().includes('Valo City') && calls.includes('@sl_menuTile.startFromMenu(true, nil, "west_coast_usa")'), 'one map installed: no chips, that map');
 phone.handle('slMenu', { show: true, installed: true, summary: 'Day 4, $12300, Street kid', maxSlots: 6,
   slots: [{ slot: 1, name: 'Career 1', summary: 'Day 4', last: true }, { slot: 2, name: 'Test', summary: 'Day 1' }] });
 pressCareer();

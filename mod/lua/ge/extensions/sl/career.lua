@@ -17,7 +17,8 @@ local roster = require('sl/core/roster')
 local rngLib = require('sl/core/rng')
 
 local logTag = 'street_legal'
-M.LEVEL = 'slrr_valo_city'
+M.MAPS = progression.MAPS         -- the maps a career is played on (W1)
+M.LEVEL = progression.DEFAULT_MAP -- the map of the career being played (a new career picks one; the save keeps it)
 local SAVE_DIR = '/settings/street_legal/'
 -- save slots (X52): slot 1 is the original career.json (so the career from before slots is slot 1, untouched),
 -- slot n is careerN.json; their names and the last one played are in slots.json
@@ -125,9 +126,36 @@ local function writeMeta(m)
 end
 local function slotUsed(n) local f = slotFile(n) return FS:fileExists(f) or FS:fileExists(f .. '.bak') end
 
+local function mapOf(level) return progression.MAPS[level] or progression.MAPS[progression.DEFAULT_MAP] end
+
 local function summaryOf(data)
-  return data and string.format('Day %d, $%d, %s%s', data.day or 1, data.money or 0, (progression.titleFor(data.rep or 0)), data.ended and ' (ended)' or '') or nil
+  return data and string.format('Day %d, $%d, %s, %s%s', data.day or 1, data.money or 0, (progression.titleFor(data.rep or 0)),
+    mapOf(data.level).name, data.ended and ' (ended)' or '') or nil
 end
+
+-- every map a career can be played on, in order: { id, name, installed }
+function M.listMaps()
+  local out = {}
+  for _, id in ipairs(progression.MAP_ORDER) do
+    out[#out + 1] = { id = id, name = progression.MAPS[id].name,
+      installed = core_levels and core_levels.getLevelByName and core_levels.getLevelByName(id) ~= nil or false }
+  end
+  return out
+end
+
+-- the career's map: the garage ladder gets that map's Wrench Works sites (one ladder table, read by every module)
+local function useMap(level)
+  M.LEVEL = level
+  local map = mapOf(level)
+  for i, g in ipairs(progression.garages) do
+    g.site0, g.name0 = g.site0 or g.site, g.name0 or g.name
+    local site = map.garages and (map.garages[i] or map.garages[#map.garages])
+    g.site, g.name = site and site.id or g.site0, site and site.name or g.name0
+  end
+end
+
+-- the map's own race extension, on a map that has one (none: nowhere to race until W3)
+local function raceMod() return mapOf(M.LEVEL).races and slrrValoRaces or nil end
 
 -- every career there is: { { slot, name, summary, last } }
 function M.listSlots()
@@ -346,7 +374,7 @@ end
 -- starting and continuing
 
 local function welcome()
-  M.sendText('benny', "Welcome to Valo City, kid. This is Benny - I keep the garage. You've got a bit of money and no car, so first stop is the junkyard. Call a cab from your phone.", 3)
+  M.sendText('benny', "Welcome to " .. mapOf(M.LEVEL).name .. ", kid. This is Benny - I keep the garage. You've got a bit of money and no car, so first stop is the junkyard. Call a cab from your phone.", 3)
   M.sendText('benny', 'Street racers are in your contacts. Most of them will laugh at you until you have a car and a name. Races are at night, and night races are what people remember.', 12)
   M.sendText('benny', 'Press K for the phone. Bills, messages, calls, a cab: all in there.', 20)
 end
@@ -416,11 +444,11 @@ local function begin()
   log('I', logTag, fresh and 'new career started' or 'career continued')
 end
 
--- from the main menu: a new career (fresh = true, in the first free slot: never over another career) or a saved
--- one (n, or the one played last)
+-- from the main menu: a new career (fresh = true, in the first free slot: never over another career, on the map
+-- `level`: one of MAPS) or a saved one (n, or the one played last; its map is in the save)
 local stop                                 -- (defined below)
 
-function M.start(fresh, n)
+function M.start(fresh, n, level)
   if active then stop() end              -- (B26: the career being played is saved and stopped first, so nothing of it carries over)
   local m = slotsMeta()
   n = tonumber(n)
@@ -442,7 +470,9 @@ function M.start(fresh, n)
   s = (not fresh) and readSave() or nil
   if not s then
     s = stateLib.new((os.time() % 1000000) * 31 + math.random(1, 997), now())
+    s.level = progression.MAPS[level] and level or progression.DEFAULT_MAP
   end
+  useMap(progression.MAPS[s.level] and s.level or progression.DEFAULT_MAP)   -- (a save from before W1 has no level: Valo City)
   pending = 'start'
   if getCurrentLevelIdentifier and getCurrentLevelIdentifier() == M.LEVEL then
     begin()
@@ -452,7 +482,7 @@ function M.start(fresh, n)
   if pending == 'start' and not (getCurrentLevelIdentifier and getCurrentLevelIdentifier() == M.LEVEL) and freeroam_freeroam and freeroam_freeroam.startFreeroamByName then
     if not freeroam_freeroam.startFreeroamByName(M.LEVEL, nil, false, false) then
       pending = nil
-      tell('Wrench Works: Valo City (slrr_valo_city) is not installed: Wrench Works: Street Legal is played on that map.', 8)
+      tell(string.format('%s (%s) is not installed: this career is played on that map.', mapOf(M.LEVEL).name, M.LEVEL), 8)
     end
   end
 end
@@ -513,7 +543,7 @@ local listedAt
 -- the map lists every race as a BeamNG mission (slrrValoRaces.listRaces): night races and drags
 -- for the street, circuits and venues for the garage's Tracks list. Older maps: races.json.
 local function missionRaces()
-  if not (slrrValoRaces and slrrValoRaces.listRaces and slrrValoRaces.launch) then return nil end
+  if not (raceMod() and slrrValoRaces.listRaces and slrrValoRaces.launch) then return nil end
   if raceList and listedAt and os.clock() - listedAt < 10 then return raceList end
   local ok, list = pcall(slrrValoRaces.listRaces)
   if not ok or type(list) ~= 'table' then return nil end
@@ -587,7 +617,7 @@ function M.challenge(racerId, kind)
   end
   if answer.accept then
     local race = pickRace(rng, drag)
-    if not race then return { accept = false, text = drag and "There's no drag strip on this map." or "There's nowhere to race on this map." } end
+    if not race then return { accept = false, text = drag and "There's no drag strip on this map." or "There's nowhere to race on this map yet. Call me when there is." } end
     for i = #s.challenges, 1, -1 do
       if s.challenges[i].racer == racerId then table.remove(s.challenges, i) end      -- one date per racer
     end
@@ -674,7 +704,7 @@ local function offerFor(c, vid)
 end
 
 local function syncChallenge()
-  if not (slrrValoRaces and (slrrValoRaces.startChallenge or slrrValoRaces.launch)) then return end
+  if not (raceMod() and (slrrValoRaces.startChallenge or slrrValoRaces.launch)) then return end
   local night = progression.isNight(hour())
   local pick
   for _, c in ipairs(s.challenges) do
@@ -880,10 +910,10 @@ local function checkChallengeArrival()
         if c.nightOnly and not progression.isNight(hour()) then
           tell(roster.displayName(racer) .. ' only races at night. Come back after dark.', 6)
           c.notified = false
-        elseif slrrValoRaces and slrrValoRaces.launch and r.missionId then
+        elseif raceMod() and slrrValoRaces.launch and r.missionId then
           -- the race is a BeamNG mission now: start it with them in it
           slrrValoRaces.launch(r.missionId, offerFor(c, ownCar and ownCar.challenge == c.id and ownCar.vid or nil))
-        elseif slrrValoRaces and slrrValoRaces.startChallenge then
+        elseif raceMod() and slrrValoRaces.startChallenge then
           -- handed over already (syncChallenge): the start marker brings them
         else
           tell(roster.displayName(racer) .. ' is here. Pick them from the race menu.', 6)
