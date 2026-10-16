@@ -376,4 +376,23 @@ return function(check, rngLib)
   check('no places, no markers', #PO.records(nil) == 0 and #PO.records({}) == 0)
   local D2 = require('sl/core/stockdealers')
   check('a stock dealer place remembers which stock dealership it is, for its marker', D2.dealer({ id = 'jeffersonmotors', filter = {} }, { { x = 1, y = 2, z = 3, dx = 0, dy = 1 } }, nil).stockId == 'jeffersonmotors')
+
+  -- T39: how a part ad reads (sl/core/partinfo)
+  local PI = require('sl/core/partinfo')
+  check('a jbeam display name is kept as it is', PI.displayName('Sport exhaust', 'covet_exhaust_sport', 'covet') == 'Sport exhaust')
+  check('an internal id as the name becomes words (the model prefix dropped)', PI.displayName('covet_exhaust_sport_2', 'covet_exhaust_sport_2', 'covet') == 'Exhaust sport 2'
+    and PI.displayName(nil, 'etk800_body/fender_L', 'etk800') == 'Body fender l' and PI.displayName('', 'x', 'y') == 'X' and PI.displayName(nil, nil, nil) == 'Part')
+  local cat = {
+    classify = function(slotId) if slotId == 'exhaust' then return 'engine', 'exhaust' end return 'body', 'misc' end,
+    sections = { { id = 'engine', title = 'ENGINE', subs = { { id = 'exhaust', title = 'EXHAUST SYSTEMS' } } }, { id = 'body', title = 'BODY', subs = { { id = 'misc', title = 'MISC BODY' } } } },
+  }
+  local d = PI.describe({ part = 'covet_exhaust_sport', name = 'Sport exhaust', slotId = 'exhaust', model = 'covet' }, cat)
+  check('describe: name, category, its title and the catalog chapter', d.name == 'Sport exhaust' and d.category == 'engine' and d.categoryTitle == 'Engine' and d.chapter == 'Exhaust systems')
+  local g = PI.describe({ part = 'p', name = 'Rear bumper', slotId = 'etk800_bumper_R', model = 'etk800' }, nil)
+  check('without the catalog the category is guessed from the slot name, no chapter', g.category == 'body' and g.categoryTitle == 'Body' and g.chapter == nil)
+  check('guesses: engine, running gear, interior, paint; unknown is just a part', PI.describe({ slotId = 'turbo_main' }, nil).category == 'engine' and PI.describe({ slotId = 'wheel_F' }, nil).category == 'running'
+    and PI.describe({ slotId = 'seat_fl' }, nil).category == 'interior' and PI.describe({ slotId = 'paint_design' }, nil).category == 'paint'
+    and PI.describe({ slotId = 'zzz' }, nil).category == 'part' and PI.describe({ slotId = 'zzz' }, nil).categoryTitle == 'Part')
+  check('a catalog that errors or has no section still gives a category from the slot', PI.describe({ slotId = 'exhaust_x' }, { classify = function() error('x') end }).category == 'engine'
+    and PI.describe({ slotId = 'exhaust_x' }, { classify = function() return 'nonsense', 'x' end }).category == 'engine')
 end

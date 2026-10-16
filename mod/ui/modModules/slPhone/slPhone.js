@@ -67,7 +67,12 @@
     '.slp-card{margin:8px 16px;padding:14px 16px;border-radius:18px;background:#211f26}',
     /* a car ad as the stock shop lists a car: the config's picture first */
     '.slp-pic{margin:-14px -16px 10px -16px;aspect-ratio:16/9;border-radius:18px 18px 0 0;overflow:hidden;background:#0d0b12;display:flex;align-items:center;justify-content:center;color:#6f6a78;font-size:12px}',
-    '.slp-pic img{width:100%;height:100%;object-fit:cover}',
+    '.slp-pic{position:relative}',
+    '.slp-pic img{position:absolute;left:0;top:0;width:100%;height:100%;object-fit:cover}',
+    '.slp-pico svg{width:56px;height:56px;fill:#6f6a78}',
+    '.slp-pbadge{position:absolute;left:10px;bottom:10px;display:flex;align-items:center;gap:6px;padding:4px 10px 4px 6px;border-radius:14px;background:rgba(20,18,24,.82);color:#e6e1e5;font-size:12px}',
+    '.slp-pbadge svg{width:18px;height:18px;fill:#a8c7fa}',
+    '.slp-card.slp-mini .slp-pic{aspect-ratio:21/9}',
     '.slp-card h4{margin:0 0 4px 0;font-size:15px;font-weight:500}',
     '.slp-card p{margin:0;font-size:13px;color:#cac4d0;line-height:1.45}',
     '.slp-card .slp-acts{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}',
@@ -223,6 +228,14 @@
   var I = {
     wait: svg('M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 5v5.4l4 2.3-.8 1.3L11 13V7z'),
     market: svg('M3 4h18l-2 6H5zm2 8h14v8H5zm4 2v4h6v-4z'),
+    // what a part ad shows when there is no picture (and beside the picture): its category
+    cat_engine: svg('M7 5h4v2h2V5h4v3h2v3h2v6h-2v2H5v-2H3v-5h2V8h2zm2 6v4h8v-4z'),
+    cat_body: svg('M5 11l2-5h10l2 5h1v6h-2v1h-3v-1H9v1H6v-1H4v-6zm3-3l-1 3h10l-1-3zm0 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm8 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2z'),
+    cat_running: svg('M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zm0 3a6 6 0 1 1 0 12 6 6 0 0 1 0-12zm0 4a2 2 0 1 0 0 4 2 2 0 0 0 0-4z'),
+    cat_interior: svg('M7 3h6a3 3 0 0 1 3 3v6h3v5h-4v4h-2v-4H8v4H6v-4H4V7a4 4 0 0 1 3-4z'),
+    cat_paint: svg('M12 2.5s6 6.2 6 10.5a6 6 0 0 1-12 0C6 8.700 12 2.500 12 2.500z'),
+    cat_part: svg('M20.500 6.500a5 5 0 0 1-6.700 5.600L8 17.900 6 20 4 18l2.100-2L12 10.200A5 5 0 0 1 17.500 3.500l-3 3L16.500 8.500z'),
+    cat_car: svg('M5 11l1.500-4.500A2 2 0 0 1 8.400 5h7.200a2 2 0 0 1 1.900 1.500L19 11h1v6h-2v1.500h-3V17H9v1.500H6V17H4v-6zm3.200-4l-1 3.500h9.600L15.800 7z'),
     paper: svg('M4 4h13v14a2 2 0 0 0 2 2H6a2 2 0 0 1-2-2zm15 4h2v10a2 2 0 0 1-2 2zM7 7v3h7V7zm0 5v1h7v-1zm0 3v1h7v-1z'),
     bid: svg('M14 3l7 7-3 3-7-7zM9 8l7 7-2 2-7-7zM3 20l6-6 2 2-6 6zM13 21h8v-2h-8z'),
     phone: svg('M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z'),
@@ -424,7 +437,16 @@
     // one ad (Revline and the paper share it)
     // a car ad's picture, name line and facts (the stock shop's card: picture, year, name, brand, mileage, transmission, drivetrain, power, seller, distance)
     function adDist(m) { m = Number(m) || 0; return m >= 1000 ? (m / 1000).toFixed(1) + ' km' : Math.round(m) + ' m'; }
-    function adPic(l) { return '<div class="slp-pic">' + (l.preview ? '<img src="' + esc(l.preview) + '" alt="" onerror="this.style.display=\'none\'">' : 'no picture') + '</div>'; }
+    // the picture of an ad (car: the config's; part: the car it fits), always on top of its category icon: a picture that does not load
+    // shows the icon, never a broken image. A part ad carries its category in a badge.
+    function catKey(l) { return l.car ? 'cat_car' : (l.category && I['cat_' + l.category] ? 'cat_' + l.category : (l.category === 'car' ? 'cat_car' : 'cat_part')); }
+    function adPic(l) {
+      return '<div class="slp-pic"><div class="slp-pico">' + I[catKey(l)] + '</div>' +
+        (l.preview ? '<img src="' + esc(l.preview) + '" alt="" onerror="this.style.display=\'none\'">' : '') +
+        (!l.car && l.category && l.category !== 'car' ? '<div class="slp-pbadge">' + I[catKey(l)] + esc(l.categoryTitle || 'Part') + '</div>' : '') + '</div>';
+    }
+    // a part ad's second line: the catalog chapter and the car it fits
+    function partMeta(l) { return (l.chapter ? esc(l.chapter) + ' &middot; ' : '') + (l.fits ? 'fits the ' + esc(l.fits) : 'for the ' + esc(l.model)); }
     function adFacts(l) {
       var sp = obj(l.specs), out = [];
       if (l.mileage != null) out.push(Number(l.mileage).toLocaleString() + ' km');
@@ -474,8 +496,8 @@
           var amt = Math.round(l.ask * f / 10) * 10;
           return '<div class="slp-btn slp-text" data-a="mkoffer" data-v="' + esc(l.id) + '|' + amt + '">Offer ' + money(amt) + '</div>';
         }).join('');
-        return '<div class="slp-card"><h4>' + (l.rare ? '&#9733; ' : '') + esc(l.name) + '</h4>' +
-          '<p>' + (l.car ? 'Car' + (l.mileage ? ' &middot; ' + Math.round(l.mileage / 1000) + 'k km' : '') + (l.faults ? ' &middot; ' + l.faults + ' fault' + (l.faults > 1 ? 's' : '') : '') : 'For the ' + esc(l.model)) +
+        return '<div class="slp-card">' + adPic(l) + '<h4>' + (l.rare ? '&#9733; ' : '') + esc(l.name) + '</h4>' +
+          '<p>' + (l.car ? 'Car' + (l.mileage ? ' &middot; ' + Math.round(l.mileage / 1000) + 'k km' : '') + (l.faults ? ' &middot; ' + l.faults + ' fault' + (l.faults > 1 ? 's' : '') : '') : partMeta(l)) +
           ' &middot; ' + l.condition + '% condition &middot; ' + esc(l.seller) + ' ' + '&#9733;'.repeat(l.rating || 0) + ' &middot; ' + Math.max(0, l.hoursLeft | 0) + ' h left</p>' + tells +
           '<p><b>' + money(l.ask) + '</b>' + (l.agreed ? ' (agreed)' : '') + ' &middot; deposit ' + money(l.deposit) + (l.delivery != null ? ' &middot; delivery +' + money(l.delivery) : '') + '</p>' +
           '<div class="slp-acts">' + offers + '<div class="slp-btn" data-a="mkbuy" data-v="' + esc(l.id) + '|pickup">Pick up</div>' +
@@ -490,16 +512,16 @@
           : (arr(y.offers).length ? arr(y.offers).map(function (o) {
               return '<div class="slp-acts"><div class="slp-btn" data-a="mkaccept" data-v="' + esc(y.id) + '|' + o.index + '">Accept ' + money(o.amount) + ' from ' + esc(o.buyer || 'a buyer') + '</div></div>';
             }).join('') : '<p>No offers yet.</p>');
-        return '<div class="slp-card"><h4>Your ' + esc(y.name) + '</h4>' + body +
+        return '<div class="slp-card slp-mini">' + adPic(y) + '<h4>Your ' + esc(y.name) + '</h4>' + body +
           '<div class="slp-acts"><div class="slp-btn slp-text" data-a="mkwithdraw" data-v="' + esc(y.id) + '">Withdraw</div></div></div>';
       }).join('');
       var shelf = arr(m.shelf).map(function (it) {
-        return '<div class="slp-card"><h4>' + esc(it.name) + '</h4><p>On your shelf for the ' + esc(it.model) + ' &middot; buyers pay up to about ' + money(it.estimate) + '</p>' +
+        return '<div class="slp-card slp-mini">' + adPic(it) + '<h4>' + esc(it.name) + '</h4><p>' + partMeta(it) + ' &middot; on your shelf &middot; buyers pay up to about ' + money(it.estimate) + '</p>' +
           '<div class="slp-acts"><div class="slp-btn" data-a="mklist" data-v="' + esc(it.model) + '|' + it.id + '|app">List it</div>' +
           '<div class="slp-btn" data-a="mklist" data-v="' + esc(it.model) + '|' + it.id + '|auction">Auction it</div></div></div>';
       }).join('');
       var cars = arr(m.cars).map(function (c) {
-        return '<div class="slp-card"><h4>' + esc(c.name) + '</h4><p>Your car &middot; buyers pay up to about ' + money(c.estimate || 0) + '</p>' +
+        return '<div class="slp-card slp-mini">' + adPic({ car: true, preview: c.preview }) + '<h4>' + esc(c.name) + '</h4><p>Your car &middot; buyers pay up to about ' + money(c.estimate || 0) + '</p>' +
           '<div class="slp-acts"><div class="slp-btn" data-a="mkcar" data-v="' + esc(c.id) + '">List car</div></div></div>';
       }).join('');
       return (mine ? '<div class="slp-empty">Your listings</div>' + mine : '') + (shelf ? '<div class="slp-empty">Sell from your shelf</div>' + shelf : '') +
@@ -528,8 +550,8 @@
       var m = obj(st.data.market);
       var cards = arr(m.auctions).map(function (l) {
         var mine = l.high === 'you';
-        return '<div class="slp-card"><h4>' + (l.rare ? '&#9733; ' : '') + esc(l.name) + '</h4>' +
-          '<p>For the ' + esc(l.model) + ' &middot; ' + l.condition + '% condition &middot; ' + Math.max(0, l.hoursLeft | 0) + ' h left</p>' +
+        return '<div class="slp-card">' + adPic(l) + '<h4>' + (l.rare ? '&#9733; ' : '') + esc(l.name) + '</h4>' +
+          '<p>' + partMeta(l) + ' &middot; ' + l.condition + '% condition &middot; ' + Math.max(0, l.hoursLeft | 0) + ' h left</p>' +
           '<p><b>' + money(l.bid) + '</b> ' + (mine ? '(your bid)' : (l.high === 'ai' ? '(outbid)' : '(opening bid)')) + ' &middot; delivery +' + money(l.delivery || 0) + '</p>' +
           (mine ? '' : '<div class="slp-acts"><div class="slp-btn" data-a="mkbid" data-v="' + esc(l.id) + '">Bid ' + money(l.next) + '</div></div>') + '</div>';
       }).join('');
@@ -537,7 +559,7 @@
       if (meet.open) {
         stalls = '<div class="slp-empty">Swap meet today at the ' + esc(meet.place || 'Tuning shop lot') + (meet.here ? '. You are here.' : ': go and buy in person.') + '</div>' +
           arr(meet.listings).map(function (l) {
-            return '<div class="slp-card"><h4>' + (l.rare ? '&#9733; ' : '') + esc(l.name) + '</h4><p>For the ' + esc(l.model) + ' &middot; ' + l.condition + '% condition &middot; ' + esc(l.seller) + '\'s stall</p>' +
+            return '<div class="slp-card">' + adPic(l) + '<h4>' + (l.rare ? '&#9733; ' : '') + esc(l.name) + '</h4><p>' + partMeta(l) + ' &middot; ' + l.condition + '% condition &middot; ' + esc(l.seller) + '\'s stall</p>' +
               '<p><b>' + money(l.ask) + '</b></p>' + (meet.here ? '<div class="slp-acts"><div class="slp-btn" data-a="mkmeet" data-v="' + esc(l.id) + '">Buy it</div></div>' : '') + '</div>';
           }).join('');
       }

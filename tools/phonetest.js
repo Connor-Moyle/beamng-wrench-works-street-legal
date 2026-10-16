@@ -358,6 +358,40 @@ assert.ok(text().includes('Turbo kit') && text().includes('(outbid)') && text().
 calls.length = 0;
 click('mkbid', 'a1');
 assert.ok(calls.some(function (c) { return c.indexOf('marketBid("a1")') >= 0; }), 'a bid calls the market');
+// T39: every ad has a picture (the car it fits, with a category icon underneath), the part real name, its chapter and the car it fits
+phone.handle('slPhoneData', Object.assign({}, data, { market: { deliveries: 0, listings: [
+  { id: 'q1', name: 'Sport exhaust', model: 'covet', ask: 300, condition: 72, seller: 'Kenny', rating: 4, tells: [], delivery: 58, deposit: 30, hoursLeft: 40,
+    category: 'engine', categoryTitle: 'Engine', chapter: 'Exhaust systems', fits: 'Ibishu Covet', preview: '/vehicles/covet/13s_M.png' },
+  { id: 'q2', name: 'Front bumper', model: 'pessima', ask: 120, condition: 60, seller: 'Lex', rating: 3, tells: [], deposit: 12, hoursLeft: 9,
+    category: 'body', categoryTitle: 'Body', chapter: 'Front bumpers', fits: 'Ibishu Pessima' } ],
+  paper: { bought: true, edition: 1, hidden: 0, price: 2, listings: [ { id: 'q3', name: 'Rims', model: 'covet', ask: 90, condition: 60, seller: 'Rudi', rating: 3, tells: [], deposit: 9, hoursLeft: 12,
+    category: 'running', categoryTitle: 'Running gear', chapter: 'Front rims', fits: 'Ibishu Covet', preview: '/vehicles/covet/13s_M.png' } ] },
+  auctions: [ { id: 'q4', name: 'Turbo kit', model: 'covet', bid: 400, next: 420, high: 'ai', condition: 80, hoursLeft: 9, delivery: 64,
+    category: 'engine', categoryTitle: 'Engine', chapter: 'Turbos & superchargers', fits: 'Ibishu Covet', preview: '/vehicles/covet/13s_M.png' } ],
+  meet: { open: true, here: false, place: 'Tuning shop lot', listings: [ { id: 'q5', name: 'Bucket seat', model: 'covet', ask: 80, condition: 70, seller: 'Zsofi', rating: 2, hoursLeft: 30,
+    category: 'interior', categoryTitle: 'Interior', chapter: 'Seats', fits: 'Ibishu Covet' } ] },
+  mine: [ { id: 'y1', name: 'Hood', model: 'covet', channel: 'app', offers: [], category: 'body', categoryTitle: 'Body', chapter: 'Hoods', fits: 'Ibishu Covet', preview: '/vehicles/covet/13s_M.png' } ],
+  shelf: [ { model: 'covet', id: 7, name: 'Racing brakes', estimate: 200, category: 'running', categoryTitle: 'Running gear', chapter: 'Front brakes', fits: 'Ibishu Covet' } ],
+  cars: [ { id: 3, name: 'Sunburst', estimate: 5200, category: 'car' } ] } }));
+function cardWith(word) { return Array.prototype.filter.call(phone.root.querySelectorAll('.slp-card'), function (c) { return c.textContent.indexOf(word) >= 0; })[0]; }
+phone.act('home');
+phone.act('open', 'market');
+var ad1 = cardWith('Sport exhaust');
+assert.ok(ad1 && ad1.textContent.includes('Exhaust systems') && ad1.textContent.includes('fits the Ibishu Covet') && ad1.textContent.includes('Engine'), 'a part ad: its real name, the catalog chapter, the car it fits, the category');
+assert.ok(ad1.querySelector('.slp-pic img[src="/vehicles/covet/13s_M.png"]') && ad1.querySelector('.slp-pic .slp-pico svg') && ad1.querySelector('.slp-pbadge svg') && ad1.querySelector('.slp-pic img').getAttribute('onerror'), 'the picture is the fitting car, over a category icon that shows when the picture does not load');
+var ad2 = cardWith('Front bumper');
+assert.ok(ad2 && !ad2.querySelector('img') && ad2.querySelector('.slp-pic .slp-pico svg') && !ad2.textContent.includes('no picture') && ad2.textContent.includes('Front bumpers'), 'a part ad without a picture shows the category icon and no broken image');
+var mine = cardWith('Your Hood'), shelf = cardWith('Racing brakes'), mycar = cardWith('Sunburst');
+assert.ok(mine && mine.querySelector('.slp-pic img') && shelf && shelf.querySelector('.slp-pic .slp-pico svg') && shelf.textContent.includes('Front brakes') && mycar && mycar.querySelector('.slp-pic .slp-pico svg'), 'your listings, your shelf parts and your cars have a picture too');
+phone.act('home');
+phone.act('open', 'paper');
+assert.ok(cardWith('Rims').querySelector('.slp-pic .slp-pico svg') && text().includes('Front rims') && text().includes('fits the Ibishu Covet'), 'the paper ads have a picture and the part facts');
+phone.act('home');
+phone.act('open', 'bid');
+var lot1 = cardWith('Turbo kit');
+assert.ok(lot1 && lot1.querySelector('.slp-pic img') && lot1.textContent.includes('Turbos & superchargers') && lot1.textContent.includes('fits the Ibishu Covet'), 'Swap & Bid: the part name, its chapter, the car it fits and a picture');
+var stall = cardWith('Bucket seat');
+assert.ok(stall && stall.querySelector('.slp-pic .slp-pico svg') && stall.textContent.includes('Seats'), 'the swap meet stalls have a picture and the chapter');
 // selling your own parts on Revline
 phone.handle('slPhoneData', Object.assign({}, data, { market: { deliveries: 0, listings: [], auctions: [], paper: {},
   mine: [ { id: 'y1', name: 'Stock exhaust', model: 'covet', channel: 'app', offers: [ { index: 1, amount: 140, buyer: 'Kenny' } ] } ],
@@ -391,7 +425,7 @@ phone.act('home');
 phone.act('open', 'market');
 assert.ok(text().includes('2009 Covet 1.5') && text().includes('Ibishu') && text().includes('182,000 km') && text().includes('Manual') && text().includes('FWD') && text().includes('66 PS') && text().includes('2 faults'), 'a car ad: year, name, brand, mileage, transmission, drivetrain, power');
 assert.ok(text().includes('Big Tony') && text().includes('3.1 km away') && text().includes('delivered in about 4 h') && text().includes('$2,400'), 'seller, distance, delivery time, price');
-assert.ok(phone.root.querySelector('.slp-pic img[src="/vehicles/covet/13s_M.png"]') && text().includes('no picture') && phone.root.querySelector('[data-v="c1|delivery"]') && text().includes('List car'), 'the config\'s picture (a car without one says so), a car can be delivered, your car to list');
+assert.ok(phone.root.querySelector('.slp-pic img[src="/vehicles/covet/13s_M.png"]') && phone.root.querySelector('.slp-card .slp-pic .slp-pico svg') && phone.root.querySelector('[data-v="c1|delivery"]') && text().includes('List car'), 'the config\'s picture (a car without one shows its icon), a car can be delivered, your car to list');
 click('adview', 'c1');
 assert.ok(text().includes('2009 Covet 1.5') && text().includes('Gasoline') && text().includes('Hatchback') && text().includes('153 km/h') && text().includes('Needs') && text().includes('battery, exhaust') && text().includes('to your garage in about 4 h') && text().includes('Deposit (pick up)'), 'the detail view: every spec, the fault list, delivery and deposit');
 calls.length = 0;

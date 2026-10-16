@@ -14,6 +14,7 @@ local market = require('sl/core/market')
 local builder = require('sl/carBuilder')
 local dealersLib = require('sl/core/dealers')
 local carInfo = require('sl/carInfo')
+local partinfo = require('sl/core/partinfo')
 
 local REFRESH_HOURS = 6        -- new listings every few in-game hours
 local APP_LISTINGS = 12
@@ -44,6 +45,38 @@ end
 local function worth(it) return math.min(it.value or 0, it.price or it.value or 0) end
 
 local NAMES = { 'Dave', 'Kenny', 'Mirela', 'Gabor', 'Big Tony', 'Sanja', 'Rudi', 'Lex', 'Old Man Fekete', 'Zsofi', 'Marco', 'Petra' }
+
+-- The picture and the words of a part ad (T39; sl/core/partinfo): BeamNG has no picture file for a part, so the ad shows the car it
+-- fits (its own preview) with the part's category icon, and the part's real display name and catalog chapter.
+local catalogCache
+local function catalog()
+  if catalogCache == nil then
+    local ok, c = pcall(require, 'slrr/garageCatalog')
+    catalogCache = ok and type(c) == 'table' and c or false
+  end
+  return catalogCache or nil
+end
+local modelCache = {}
+local function modelInfo(model)
+  if modelCache[model] then return modelCache[model] end
+  local info = { name = tostring(model), preview = nil }
+  local ok, m = pcall(function() return core_vehicles.getModel(model) end)
+  local mm = ok and type(m) == 'table' and (m.model or m) or nil
+  if mm then
+    local name = tostring(mm.Name or model)
+    info = { name = (mm.Brand and not name:find(tostring(mm.Brand), 1, true)) and (tostring(mm.Brand) .. ' ' .. name) or name, preview = mm.preview }
+  end
+  modelCache[model] = info
+  return info
+end
+local function partFields(card, item)
+  if type(item) ~= 'table' then return card end
+  local d = partinfo.describe(item, catalog())
+  local mi = modelInfo(item.model or card.model)
+  card.name, card.category, card.categoryTitle, card.chapter = d.name, d.category, d.categoryTitle, d.chapter
+  card.fits, card.preview = mi.name, mi.preview
+  return card
+end
 
 -- parts of a model with their values (BeamNG's jbeam), cached per model
 local partsCache = {}
@@ -267,6 +300,7 @@ function M.summary()
       local card = { id = l.id, name = l.item.name, model = l.item.model, ask = l.agreed or l.ask, condition = math.floor(l.condition * 100 + 0.5),
         seller = l.seller, rating = l.rating, tells = L.tells(l), rare = l.rare, agreed = l.agreed ~= nil,
         delivery = not l.scam and L.delivery(l.agreed or l.ask) or nil, deposit = L.deposit(l.agreed or l.ask), hoursLeft = l.expires - now(s) }
+      if not (l.kind == 'car' and l.offer) then partFields(card, l.item) end
       if l.kind == 'car' and l.offer then
         card.car, card.mileage, card.faults = true, l.offer.mileage, #(l.offer.faults or {})
         -- as the stock shop lists a car: the config's picture, year, brand, specs, how far away, when it would arrive
@@ -304,15 +338,18 @@ function M.summary()
   for _, y in ipairs(m.mine) do
     local offers = {}
     for k, o in ipairs(y.offers or {}) do offers[#offers + 1] = { index = k, amount = o.amount, buyer = o.buyer } end
-    out.mine[#out.mine + 1] = { id = y.id, name = y.name, model = y.model, channel = y.channel, offers = offers, bid = y.bid,
+    local mineCard = { id = y.id, name = y.name, model = y.model, channel = y.channel, offers = offers, bid = y.bid,
       hoursLeft = y.expires and (y.expires - now(s)) or nil }
+    if y.kind == 'car' then mineCard.preview, mineCard.fits, mineCard.category = modelInfo(y.model).preview, modelInfo(y.model).name, 'car'
+    else partFields(mineCard, { part = y.item and y.item.part, name = y.name, slotId = y.item and y.item.slotId, model = y.model }) end
+    out.mine[#out.mine + 1] = mineCard
   end
   out.cars = {}
   if #m.mine < MINE_MAX then
     local listed = {}
     for _, y in ipairs(m.mine) do if y.carId then listed[y.carId] = true end end
     for _, c in ipairs(s.cars or {}) do
-      if not listed[c.id] then out.cars[#out.cars + 1] = { id = c.id, name = c.name, estimate = carCap(s, c.id) } end
+      if not listed[c.id] then out.cars[#out.cars + 1] = { id = c.id, name = c.name, estimate = carCap(s, c.id), preview = modelInfo(c.model).preview, category = 'car' } end
     end
   end
   if slrr_garage and slrr_garage.shelfItems and #m.mine < MINE_MAX then
@@ -322,8 +359,8 @@ function M.summary()
         seen[c.model] = true
         for _, it in ipairs(slrr_garage.shelfItems(c.model) or {}) do
           if L.canList(it) and #out.shelf < 12 then
-            out.shelf[#out.shelf + 1] = { model = c.model, id = it.id, name = it.name,
-              estimate = math.floor(L.resaleCap(worth(it), L.condition(it)) / 10) * 10 }
+            out.shelf[#out.shelf + 1] = partFields({ model = c.model, id = it.id, name = it.name,
+              estimate = math.floor(L.resaleCap(worth(it), L.condition(it)) / 10) * 10 }, { part = it.part, name = it.name, slotId = it.slotId, model = c.model })
           end
         end
       end
