@@ -350,7 +350,7 @@ local function endTest()
     j.sleep(0.4)
     if veh and lot then
       local spot = lot.spots[lot.index]
-      spawn.safeTeleport(veh, spot.pos + vec3(0, 0, 0.4), quatFromDir(spot.dir, vec3(0, 0, 1)), true)
+      spawn.safeTeleport(veh, spot.pos + vec3(0, 0, 0.4), quatFromDir(spot.dir, vec3(0, 0, 1)), true, nil, nil, nil, false)   -- (back as you left it: a teleport never repairs)
       veh:queueLuaCommand('input.event("parkingbrake", 1, FILTER_DIRECT) controller.setFreeze(1)')
     end
     if lot then
