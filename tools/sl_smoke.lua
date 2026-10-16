@@ -303,7 +303,8 @@ check('dealer showroom: display spots on a floor, exit on the street (B16)', fun
   local d
   for _, p in pairs(sl_career.getPlaces() or {}) do if p.kind == 'dealer' then d = p end end
   if not d then return nil, 'no dealer' end
-  if not d.displays or #d.displays < 7 or not d.exit then return false, 'no display spots or exit on the place' end
+  if not d.exit then return nil, 'the dealer here has no showroom exit (a Valo City showroom check)' end
+  if not d.displays or #d.displays < 7 then return false, 'no display spots on the place' end
   local bad = {}
   for i, sp in ipairs(d.displays) do
     local pos = vec3(sp.pos.x or sp.pos[1], sp.pos.y or sp.pos[2], sp.pos.z or sp.pos[3])
@@ -359,9 +360,10 @@ check('tow: a rollback is sent to the car (B11)', function(job)
   for _, o in ipairs(getAllVehicles()) do if o:getJBeamFilename() == 'pickup' and o:getID() ~= v:getID() then truck = o end end
   local sent = ok and sl_tow.busy() and truck ~= nil
   local fee = m0 - money()
+  local away = truck and string.format('%.0f m away', (truck:getPosition() - v:getPosition()):length()) or 'none'   -- (before the call-off deletes the truck)
   sl_tow.onStreetLegalStopped()                                      -- (called off: the fee back; the manual test rides it home)
   if fee > 0 then sl_career.addMoney(fee, 'Smoke tow back') end
-  return sent, string.format('%s; truck %s, fee $%d', tostring(text), truck and string.format('%.0f m away', (truck:getPosition() - v:getPosition()):length()) or 'none', fee)
+  return sent, string.format('%s; truck %s, fee $%d', tostring(text), away, fee)
 end)
 
 check('cab: a city lane near the garage door for a cab to pull up on', function()
@@ -590,12 +592,14 @@ check('services: drawer entries', function()
   return #list > 0, table.concat(out, ', ')
 end)
 check('tracks: the venue list', function()
+  if not sl_career.has('tracks') then return nil, 'this map has no circuit venues' end
   local n = #(sl_streets.tracks() or {})
   return n >= 10, n .. ' venues'
 end)
 
 -- a track race is refused when the bet is more than you have (B33: recordRace only ever took what you had)
 check('tracks: a bet you cannot cover is refused', function()
+  if not sl_career.has('tracks') then return nil, 'this map has no circuit venues' end
   local st = sl_career.getState()
   local track = (sl_streets.tracks() or {})[1]
   local racer = st.racers[1]
@@ -631,6 +635,7 @@ end)
 -- run them all, one after the other
 core_jobsystem.create(function(job)
   for _, c in ipairs(checks) do
+    pcall(backInOwnCar, job)                       -- (one failure, or the death check, must not leave the rest on foot)
     local ok, res, detail = pcall(c.fn, job)
     if not ok then line('FAIL', c.name, 'error: ' .. tostring(res))
     elseif res == nil then line('SKIP', c.name, detail)
