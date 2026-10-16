@@ -40,7 +40,7 @@ function M.configs()
   return configCache
 end
 
-M.RELATCH = true               -- a dented lot car shuts its doors before it freezes (false: the old way, to compare)
+M.RELATCH = false              -- a dented lot car shuts its doors before it freezes (false: the old way, to compare)
 
 -- the cars a lot or a private seller may offer: not the police, service or race cars (sl/core/stockdealers.forSale)
 local forSaleCache
