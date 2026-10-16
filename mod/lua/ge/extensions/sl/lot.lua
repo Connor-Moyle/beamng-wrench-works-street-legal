@@ -11,6 +11,7 @@ local M = {}
 local market = require('sl/core/market')
 local rngLib = require('sl/core/rng')
 local builder = require('sl/carBuilder')
+local hours = require('sl/core/hours')
 
 local KIND = { junkyard = 'used', dealer = 'dealer', scrapyard = 'scrap' }
 local TITLES = { used = 'Used cars', dealer = 'New cars', scrap = 'Scrap yard' }
@@ -232,6 +233,13 @@ end
 local function open(place, mode, given)
   local s = career()
   if not s or lot then return end
+  local tod = core_environment and core_environment.getTimeOfDay and core_environment.getTimeOfDay()
+  local closed = type(tod) == 'table' and tod.time and hours.closedText(place.kind, tod.time)
+  if closed then
+    armedAt[place.id] = false      -- (said once; it prompts again after you have left)
+    guihooks.trigger('slPhoneToast', { text = closed })
+    return
+  end
   local kind = KIND[place.kind] or 'used'
   -- how many stand on the lot today: 2 to 6, the same all day
   local count = rngLib.new(rngLib.hash(place.id .. ':' .. s.day .. ':' .. s.seed)):int(M.MIN_CARS, M.MAX_CARS)

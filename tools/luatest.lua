@@ -850,4 +850,17 @@ do
   check('then the leaders come', n == crews.TURF_WAR_AT and crews.turfWarReady(t))
 end
 
+-- opening hours: the hour is (time * 24 + 12) % 24
+do
+  local hours = require('sl/core/hours')
+  local function at(h) return ((h - 12) % 24) / 24 end
+  check('shop 08-18', hours.isOpen('shop', at(8)) and hours.isOpen('shop', at(17.5)) and not hours.isOpen('shop', at(18)) and not hours.isOpen('shop', at(7.9)))
+  check('dealer 09-17', hours.isOpen('dealer', at(9)) and not hours.isOpen('dealer', at(17)) and not hours.isOpen('dealer', at(8.5)))
+  check('junkyard and scrapyard 08-17', hours.isOpen('junkyard', at(16.9)) and not hours.isOpen('scrapyard', at(17)) and hours.isOpen('scrapyard', at(8)))
+  check('noon (time 0) is open, midnight (time 0.5) is closed', hours.isOpen('shop', 0) and not hours.isOpen('shop', 0.5))
+  check('opensAt', hours.opensAt('dealer') == 9 and hours.opensAt('shop') == 8 and hours.opensAt('nowhere') == nil)
+  check('closedText', hours.closedText('dealer', at(3)) == 'Closed. Opens at 09:00' and hours.closedText('dealer', at(10)) == nil)
+  check('unknown kind is open', hours.isOpen('nowhere', at(3)))
+end
+
 print(string.format('lua tests passed: %d checks', passed))
