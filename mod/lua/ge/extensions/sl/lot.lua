@@ -38,7 +38,7 @@ function M.toRoad(veh, from)
   for _, v in ipairs(getAllVehicles()) do if v:getID() ~= veh:getID() then others[#others + 1] = v:getPosition() end end
   local c = roadspot.pick(roadspot.candidates(map.getMap().nodes, from, not map.getRoadRules().rightHandDrive), others)
   if not c then return false end
-  veh:queueLuaCommand('if slLotHold then slLotHold.cancel() end controller.setFreeze(0) input.event("parkingbrake", 0, FILTER_DIRECT)')
+  veh:queueLuaCommand('controller.setFreeze(0) input.event("parkingbrake", 0, FILTER_DIRECT)')
   spawn.safeTeleport(veh, vec3(c.x, c.y, c.z + 0.4), quatFromDir(vec3(c.dx, c.dy, 0), vec3(0, 0, 1)), true, nil, nil, nil, false)   -- (not repaired)
   return true
 end
@@ -51,7 +51,7 @@ local function driveAwayFromRoad(veh, from, pic)
   core_jobsystem.create(function(j)
     guihooks.trigger('slFade', { on = true, pic = pic })
     j.sleep(0.6)
-    if not M.toRoad(veh, from) then veh:queueLuaCommand('if slLotHold then slLotHold.cancel() end controller.setFreeze(0) input.event("parkingbrake", 0, FILTER_DIRECT)') end
+    if not M.toRoad(veh, from) then veh:queueLuaCommand('controller.setFreeze(0) input.event("parkingbrake", 0, FILTER_DIRECT)') end
     j.sleep(0.3)
     if gameplay_walk and gameplay_walk.getInVehicle then gameplay_walk.getInVehicle(veh) else be:enterVehicle(0, veh) end
     j.sleep(0.3)

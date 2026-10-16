@@ -40,8 +40,6 @@ function M.configs()
   return configCache
 end
 
-M.RELATCH = false              -- a dented lot car shuts its doors before it freezes (false: the old way, to compare)
-
 -- the cars a lot or a private seller may offer: not the police, service or race cars (sl/core/stockdealers.forSale)
 local forSaleCache
 function M.forSale()
@@ -99,11 +97,13 @@ local function respawn(job, veh, config)
 end
 
 -- bend panels in the shape Wrench Works' vehicle extension knows (it keeps them through rebuilds)
-function M.applyDents(veh, dents)
+-- options.keepLatches: a car on show is bent without its latches being released (slrrGarageVeh would let them go and push
+-- them shut again later: a held car's pushes hung the game while the next lot car was built beside it, T27)
+function M.applyDents(veh, dents, options)
   if not veh or not dents or #dents == 0 then return end
   local beams = {}
   for _, d in ipairs(dents) do beams[#beams + 1] = { dent = d.dent, seed = d.seed, pa = d.partPath, pb = d.partPath } end
-  veh:queueLuaCommand('extensions.load("slrrGarageVeh") if slrrGarageVeh then slrrGarageVeh.apply(' .. serialize({ nodes = {}, beams = beams }) .. ') end')
+  veh:queueLuaCommand('extensions.load("slrrGarageVeh") if slrrGarageVeh then slrrGarageVeh.apply(' .. serialize({ nodes = {}, beams = beams }) .. ', ' .. serialize(options or {}) .. ') end')
 end
 
 function M.applyDamage(veh, damage)
@@ -192,16 +192,9 @@ function M.buildOffer(job, offer, pos, rot)
   end
   vd = vehData(id)
   local dents = carsLib.dents(vd and vd.config.partsTree or cfg.partsTree, classify(), rng, offer.damage)
-  M.applyDents(veh, dents)
-  -- Wrench Works' vehicle extension lets every door latch go to bend the panels and shuts them again over the next second
-  -- (slrrGarageVeh relatch, run by the car's own update): freezing the car before that leaves the doors and the bonnet of
-  -- every dented car hanging open. So a dented car freezes ITSELF (slLotHold: when its latches report shut, or after 2 s);
-  -- the game side does nothing more to it. M.RELATCH = false is the old way, frozen at once (for comparing in game).
-  if #dents > 0 and M.RELATCH then
-    veh:queueLuaCommand('extensions.load("slLotHold") slLotHold.hold()')
-  else
-    veh:queueLuaCommand('input.event("parkingbrake", 1, FILTER_DIRECT) controller.setFreeze(1)')      -- (a car on a lot does not roll away)
-  end
+  M.applyDents(veh, dents, { keepLatches = true })      -- (the doors stay shut: Wrench Works' apply does not release them)
+  -- a car on a lot does not roll away
+  veh:queueLuaCommand('input.event("parkingbrake", 1, FILTER_DIRECT) controller.setFreeze(1)')
   return veh, tweak
 end
 
