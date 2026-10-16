@@ -27,7 +27,8 @@ local COMMON_MODELS = { 'covet', 'pessima', 'vivace', 'etk800', 'sunburst2', 'ba
 local STOP_RADIUS = 9
 
 local atMeet       -- (defined further down, used by summary)
-local function career() return sl_career and sl_career.isActive() and sl_career.getState() or nil end
+-- nothing runs, is sent or is shown on a map that cannot host it (progression.MAPS has); the code and the save stay
+local function career() return sl_career and sl_career.isActive() and sl_career.has('classifieds') and sl_career.getState() or nil end
 local function toast(text) guihooks.trigger('slPhoneToast', { text = text }) if ui_message then ui_message(text, 5, 'streetLegal') end end
 local function now(s) return (s.day or 0) * 24 + math.floor(sl_career.hour and sl_career.hour() or 12) end
 local function state(s)

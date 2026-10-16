@@ -11,7 +11,8 @@ local rngLib = require('sl/core/rng')
 local roster = require('sl/core/roster')
 local stateLib = require('sl/core/state')
 
-local function career() return sl_career and sl_career.isActive() and sl_career.getState() or nil end
+-- nothing runs, is sent or is shown on a map that cannot host it (progression.MAPS has); the code and the save stay
+local function career() return sl_career and sl_career.isActive() and sl_career.has('crews') and sl_career.getState() or nil end
 local function toast(text) guihooks.trigger('slPhoneToast', { text = text }) end
 
 -- the map's districts, or the career's own places clustered (kept in the save so they stay put)

@@ -14,8 +14,9 @@ M.START_HOUR = 10            -- a daytime start (Connor, 2026-10-16); the races 
 -- the maps a career is played on (W1). garages: Wrench Works' site ids for the garage ladder below, in order (none:
 -- the ladder as written); races: the extension that runs its street races (the map's own, or the career's sl_races).
 -- has: what the map can host. The ROC needs its track and spawn_roc, tracks the multibot_tracks.json circuits, testdrive
--- racelines/tt_oval.json, clubDays the map's circuitOpponents, swapMeet the Tuning shop lot. A feature a map lacks is hidden, not half-run.
-local ALL = { roc = true, tracks = true, testdrive = true, clubDays = true, swapMeet = true }
+-- racelines/tt_oval.json, clubDays the map's circuitOpponents, swapMeet the Tuning shop lot; clubs, crews and classifieds
+-- (the phone's Club, Turf, Revline, Classifieds and Swap & Bid apps) are release 2 and Valo City's for now. A feature a map lacks is hidden, not half-run.
+local ALL = { roc = true, tracks = true, testdrive = true, clubDays = true, swapMeet = true, clubs = true, crews = true, classifieds = true }
 M.MAPS = {
   slrr_valo_city = { name = 'Valo City', races = 'slrrValoRaces', has = ALL },
   -- stockFacilities: the map's own dealerships and garages (game data) become places; Valo City has its own

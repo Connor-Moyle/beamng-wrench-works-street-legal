@@ -305,8 +305,9 @@
 
     function homePage() {
       var d = st.data;
+      var has = obj(d.has);      // what the map can host: an app of a feature it lacks is not shown
       var appsHtml = function (list) {
-        return list.map(function (a) {
+        return list.filter(function (a) { return !a.hide; }).map(function (a) {
           var badge = a.badge ? '<div class="slp-badge">' + a.badge + '</div>' : '';
           var ico = st.slrrArt && SLRR_ICON[a.id] ? slrrIcon(SLRR_ICON[a.id], 'slp-appimg') : a.icon;
           return '<div class="slp-app" data-a="open" data-v="' + a.id + '"><div class="slp-ico" style="background:' + APP_COLORS[a.id] + '">' + ico + '</div>' + badge + '<span>' + a.title + '</span></div>';
@@ -325,11 +326,11 @@
           { id: 'bank', title: 'Bank', icon: I.bank },
           { id: 'me', title: 'Street cred', icon: I.me },
           { id: 'jobs', title: 'Jobs', icon: I.jobs, badge: d.jobs && d.jobs.active ? 1 : 0 },
-          { id: 'club', title: 'Club', icon: I.club },
-          { id: 'turf', title: 'Turf', icon: I.turf },
-          { id: 'market', title: 'Revline', icon: I.market, badge: d.market && d.market.deliveries || 0 },
-          { id: 'paper', title: 'Classifieds', icon: I.paper },
-          { id: 'bid', title: 'Swap & Bid', icon: I.bid, badge: d.market ? arr(d.market.auctions).filter(function (l) { return l.high === 'you'; }).length : 0 },
+          { id: 'club', title: 'Club', icon: I.club, hide: has.clubs === false },
+          { id: 'turf', title: 'Turf', icon: I.turf, hide: has.crews === false },
+          { id: 'market', title: 'Revline', icon: I.market, badge: d.market && d.market.deliveries || 0, hide: has.classifieds === false },
+          { id: 'paper', title: 'Classifieds', icon: I.paper, hide: has.classifieds === false },
+          { id: 'bid', title: 'Swap & Bid', icon: I.bid, badge: d.market ? arr(d.market.auctions).filter(function (l) { return l.high === 'you'; }).length : 0, hide: has.classifieds === false },
         ]) + '</div>' +
         '<div class="slp-dock">' + appsHtml([
           { id: 'phone', title: 'Phone', icon: I.phone },

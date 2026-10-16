@@ -473,6 +473,7 @@ end)
 
 -- rival crews (X21): districts on this map, every racer in a crew, a win on a crew's own streets takes control
 check('crews: districts, crews, and a win on their streets takes control', function()
+  if not sl_career.has('crews') then return nil, 'rival crews are release 2 (this map does not host them)' end
   local s = sl_career.getState()
   local c = sl_crews.ensure(s)
   local d = c.districts[1]
@@ -531,6 +532,7 @@ check('death, Hardcore: the career ends, with what it came to', function()
 end)
 
 check('crews: a crew that lost a district calls you out to a race there', function()
+  if not sl_career.has('crews') then return nil, 'rival crews are release 2 (this map does not host them)' end
   local s = sl_career.getState()
   local c = sl_crews.ensure(s)
   local target, crewId
@@ -549,6 +551,7 @@ check('crews: a crew that lost a district calls you out to a race there', functi
 end)
 
 check('crews: holding four districts brings the turf war, a leader calls you out', function()
+  if not sl_career.has('crews') then return nil, 'rival crews are release 2 (this map does not host them)' end
   local s = sl_career.getState()
   local c = sl_crews.ensure(s)
   local saved = {}
@@ -565,6 +568,7 @@ check('crews: holding four districts brings the turf war, a leader calls you out
   return w ~= nil and #w.order == 3 and found ~= nil, found and found.raceName or 'no leader called'
 end)
 check('crews: a raid never touches a car at the garage or the one you drive', function()
+  if not sl_career.has('crews') then return nil, 'rival crews are release 2 (this map does not host them)' end
   local s = sl_career.getState()
   local c = sl_crews.ensure(s)
   c.raid = { crew = 'southside', day = s.day }
@@ -642,6 +646,7 @@ end)
 
 -- clubs and leagues (X20/X5)
 check('club: a season, a night-league entry, a scored result', function(job)
+  if not sl_career.has('clubs') then return nil, 'clubs and leagues are release 2 (this map does not host them)' end
   local sum = sl_clubs.summary()
   if not sum or not sum.today then return false, 'no season or no calendar' end
   if not sum.today.night or sum.today.night.done then return nil, 'no open night event today' end
@@ -693,6 +698,7 @@ end)
 
 -- the used-car market (X12): a car sold on Revline leaves the world with its record (B24). Last: it sells the car
 check('revline: a sold car leaves the world', function(job)
+  if not sl_career.has('classifieds') then return nil, 'the classifieds and Revline are release 2 (this map does not host them)' end
   local st = sl_career.getState()
   local car = sl_fleet.currentCar()
   if not car then return nil, 'not in own car' end

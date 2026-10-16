@@ -122,6 +122,13 @@ phone.handle('slPhoneToggle');
 assert.ok(!$('.slp-device.slp-away'), 'K takes it out');
 assert.ok(calls.includes('request()'), 'opening asks for fresh data');
 assert.ok(text().includes('21:05') && text().includes('Day 2'), 'clock and day on the home screen');
+const homeApps = () => ['Club', 'Turf', 'Revline', 'Classifieds', 'Swap & Bid'].filter((n) => text().includes(n));
+assert.ok(homeApps().length === 5, 'Valo City (no "has" sent): every app is on the home screen');
+phone.handle('slPhoneData', Object.assign({}, data, { has: { clubs: true, crews: true, classifieds: true } }));
+assert.ok(homeApps().length === 5, 'a map that hosts them shows Club, Turf, Revline, Classifieds and Swap & Bid');
+phone.handle('slPhoneData', Object.assign({}, data, { has: { clubs: false, crews: false, classifieds: false } }));
+assert.ok(homeApps().length === 0, 'West Coast USA: Club, Turf, Revline, Classifieds and Swap & Bid are hidden');
+phone.handle('slPhoneData', data);
 assert.strictEqual($('.slp-dock .slp-badge').textContent, '1', 'unread messages badge on Messages');
 
 // contacts -> a contact -> call; it rings, then they answer and the stakes are offered

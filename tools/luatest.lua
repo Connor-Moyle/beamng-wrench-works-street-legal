@@ -865,7 +865,7 @@ end
 
 -- per-map capabilities: Valo City hosts everything, West Coast USA hides what its data lacks (T9)
 do
-  local feats = { 'roc', 'tracks', 'testdrive', 'clubDays', 'swapMeet' }
+  local feats = { 'roc', 'tracks', 'testdrive', 'clubDays', 'swapMeet', 'clubs', 'crews', 'classifieds' }
   local valo, wc = true, true
   for _, f in ipairs(feats) do
     valo = valo and progression.has('slrr_valo_city', f)
