@@ -298,14 +298,20 @@ end
 
 -- the map's own dealerships and garages, from the game's facilities (data only: no career module of the game is
 -- loaded), as places in the json shape (T12). A map whose progression has no stockFacilities gets none.
-local function stockPlaces(level)
+local told = {}            -- the stock facilities already reported, once each
+local function stockApi(level)
+  if not progression.has(level, 'stockFacilities') then return nil end
+  -- a career can start before the level has loaded the facilities (a scripted load, a restart, the menu): load them
+  -- here, and the sites their parking spots are read from
+  if extensions and extensions.load then
+    pcall(extensions.load, 'freeroam_facilities')
+    pcall(extensions.load, 'gameplay_sites_sitesManager')
+  end
   local fac = freeroam_facilities
-  if not (fac and fac.getFacilitiesByType) then return {} end
-  if extensions and extensions.load then pcall(extensions.load, 'gameplay_sites_sitesManager') end      -- (the parking spots are read from the level's sites)
+  if not (fac and fac.getFacilitiesByType) then return nil end
   local function tr(key) local ok, t = pcall(translateLanguage, key, key, true) return ok and t or key end
-  local told = {}
   local function tell1(f, why) if not told[f.id] then told[f.id] = true log('W', logTag, 'stock facility ' .. tostring(f.id) .. ': ' .. why) end end
-  return stockLib.fromFacilities({
+  return {
     list = function(kind, lvl) return fac.getFacilitiesByType(kind, lvl) end,
     ownSpots = function()
       local out, sites = {}, garageModule('slrr/garageSites')
@@ -343,8 +349,11 @@ local function stockPlaces(level)
       if okr and r then dx, dy = r.x, r.y end
       return { x = c.x, y = c.y, z = c.z, dx = dx, dy = dy }
     end,
-  }, level, tr)
+  }, tr
 end
+
+local stockState = {}          -- stockLib.load's: whether the stock places are still to be had (retry), and how often it was tried
+local stockTriedAt = -1e9
 
 local function loadPlaces()
   places = {}
@@ -358,7 +367,10 @@ local function loadPlaces()
     local here = type(data) == 'table' and data[level]
     for _, p in ipairs(type(here) == 'table' and type(here.places) == 'table' and here.places or {}) do mine[#mine + 1] = p end
   end
-  for _, p in ipairs(stockLib.merge(stockPlaces(level), mine)) do addPlace(p, 'places') end      -- (stock wins where it is the same dealer)
+  if stockState.level ~= level then stockState = { level = level } end
+  stockTriedAt = os.clock()
+  local stock = stockLib.load(stockState, level, function() return stockApi(level) end)
+  for _, p in ipairs(stockLib.merge(stock, mine)) do addPlace(p, 'places') end      -- (stock wins where it is the same dealer)
   local data = FS:fileExists(USER_PLACES) and jsonReadFile(USER_PLACES)       -- the player's own come last
   local here = type(data) == 'table' and data[level]
   for _, p in ipairs(type(here) == 'table' and type(here.places) == 'table' and here.places or {}) do addPlace(p, USER_PLACES) end
@@ -374,7 +386,8 @@ local function loadPlaces()
 end
 
 function M.getPlaces()
-  if not places then loadPlaces() end
+  -- the stock facilities were not there yet at the first load: ask again, every 3 s, a few times
+  if not places or (stockState.retry and os.clock() - stockTriedAt > 3) then loadPlaces() end
   return places
 end
 

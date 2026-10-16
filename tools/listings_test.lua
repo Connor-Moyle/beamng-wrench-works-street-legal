@@ -136,6 +136,16 @@ return function(check, rngLib)
   check('...and one 40 m from the site is its own garage', #D.fromFacilities(garApi, 'west_coast_usa', tr) == 2)
   garApi.ownSpots = nil
   check('no site list: nothing is skipped', #D.fromFacilities(garApi, 'west_coast_usa', tr) == 2)
+  -- the facilities not loaded yet at the first load: no places and a retry; there at the second: the places, no retry
+  local st, there = {}, nil
+  local function make() return there, tr end
+  check('facilities absent at the first load: no stock places, and ask again', #D.load(st, 'west_coast_usa', make) == 0 and st.retry == true)
+  there = api
+  check('facilities there at the second load: the stock places appear and the asking stops', #D.load(st, 'west_coast_usa', make) == 2 and st.retry == false)
+  local st2 = {}
+  for _ = 1, D.MAX_TRIES do D.load(st2, 'west_coast_usa', function() return nil end) end
+  check('asking stops after MAX_TRIES', st2.retry == false and st2.tries == D.MAX_TRIES)
+  check('Valo City never asks again', #D.load({}, 'slrr_valo_city', function() return nil end) == 0 and ({ D.load(st2, 'slrr_valo_city', make) })[1] ~= nil and st2.retry == false)
   -- a dealer with no parking spot stands on its door (T12 retest: the spots came back empty); no spot and no door = no place
   local doorApi = {
     list = function(kind) return kind == 'dealership' and { { id = 'belascoAuto' }, { id = 'lost' } } or {} end,

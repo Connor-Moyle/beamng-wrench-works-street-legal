@@ -118,4 +118,16 @@ function M.fromFacilities(api, level, tr)
   return out
 end
 
+-- The places, and whether to ask again: a career can start before the level has loaded its facilities, and a map with
+-- stock facilities that gave none yet is tried again (state.retry) up to MAX_TRIES times. makeApi() -> api, tr
+-- (nil when the game's facilities are not there).
+M.MAX_TRIES = 20
+function M.load(state, level, makeApi)
+  local api, tr = makeApi()
+  local list = M.fromFacilities(api, level, tr)
+  state.tries = (state.tries or 0) + 1
+  state.retry = progression.has(level, 'stockFacilities') and #list == 0 and state.tries < M.MAX_TRIES
+  return list
+end
+
 return M
