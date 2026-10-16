@@ -167,7 +167,7 @@ local function refresh(s, force)
     for _, l in ipairs(m.listings) do if l.channel ~= 'meet' then others[#others + 1] = l end end
     m.listings = others
   end
-  if weekend and m.meetDay ~= s.day then
+  if weekend and m.meetDay ~= s.day and sl_career.has('swapMeet') then
     m.meetDay = s.day
     for _ = 1, MEET_STALLS do
       local pool = #ms > 0 and partsOf(ms[rng:int(#ms)]) or {}
@@ -284,7 +284,7 @@ function M.summary()
       end
     end
   end
-  out.meet.open = (s.day or 0) % 7 >= 5
+  out.meet.open = sl_career.has('swapMeet') and (s.day or 0) % 7 >= 5
   out.meet.here = out.meet.open and atMeet() or false
   out.mine, out.shelf = {}, {}
   for _, y in ipairs(m.mine) do

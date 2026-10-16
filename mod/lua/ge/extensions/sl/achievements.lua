@@ -16,7 +16,7 @@ function M.onUpdate(dt)
   timer = 0
   local s = career()
   if not s then return end
-  for _, a in ipairs(ach.update(s)) do toast('Achievement: ' .. a.title .. ' - ' .. a.desc) end
+  for _, a in ipairs(ach.update(s)) do toast('Achievement: ' .. sl_career.mapText(a.title) .. ' - ' .. sl_career.mapText(a.desc)) end
 end
 
 local function raceName(r)
@@ -45,7 +45,7 @@ function M.summary()
   local earned, all = {}, {}
   for _, a in ipairs(ach.LIST) do
     local day = s.achievements and s.achievements[a.id]
-    all[#all + 1] = { title = a.title, desc = a.desc, day = day }
+    all[#all + 1] = { title = sl_career.mapText(a.title), desc = sl_career.mapText(a.desc), day = day }
     if day then earned[#earned + 1] = a.id end
   end
   local bests = {}

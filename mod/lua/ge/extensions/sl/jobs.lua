@@ -183,6 +183,7 @@ local TYPES = {
     end },
   -- test driver: a prototype round the test track's oval against the clock, without a scratch
   { kind = 'testdrive', title = 'Test driver', unlock = 600, offer = function(ctx, rng)
+      if not sl_career.has('testdrive') then return nil end
       local rl = jsonReadFile('/levels/' .. sl_career.LEVEL .. '/racelines/tt_oval.json')
       local pts = type(rl) == 'table' and rl.points or {}
       if #pts < 8 then return nil end

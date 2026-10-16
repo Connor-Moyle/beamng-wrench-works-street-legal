@@ -21,7 +21,7 @@ local function career() return sl_career and sl_career.isActive() and sl_career.
 local function snapshot()
   local s = career()
   if not s then return { active = false } end
-  local title, nextRep, titleRep = progression.titleFor(s.rep)
+  local title, nextRep, titleRep = progression.titleFor(s.rep, sl_career.LEVEL)
   local h = sl_career.hour()
   local contacts = { { id = BENNY.id, name = BENNY.name, phone = BENNY.phone, system = true } }
   for _, r in ipairs(s.racers) do
@@ -55,7 +55,7 @@ local function snapshot()
     day = s.day, hour = math.floor(h), minute = math.floor((h % 1) * 60), night = progression.isNight(h),
     garage = (progression.garages[s.garageLevel] or {}).name,
     nextGarage = nextGarage and { name = nextGarage.garage.name, canMove = nextGarage.canMove, why = nextGarage.why } or nil,
-    roc = progression.rocOpen(s),
+    roc = progression.rocOpen(s) and sl_career.has('roc'), hasRoc = sl_career.has('roc'), mapName = sl_career.mapName(),
     contacts = contacts, threads = s.threads, unread = s.unread,
     challenges = challenges, ledger = ledger, places = placesOut,
     cars = #s.cars, stats = s.stats,

@@ -678,6 +678,7 @@ end
 -- ends there), a rally stage's is the finish, far from it
 
 function M.tracks()
+  if not sl_career.has('tracks') then return {} end
   local data = jsonReadFile('/levels/' .. sl_career.LEVEL .. '/multibot_tracks.json')
   local out = {}
   local function v3(t) return type(t) == 'table' and tonumber(t[1]) and vec3(tonumber(t[1]), tonumber(t[2]) or 0, tonumber(t[3]) or 0) or nil end
@@ -764,6 +765,7 @@ end
 function M.enterRoc()
   local s = career()
   if not s or race or busy then return false, 'Not now.' end
+  if not sl_career.has('roc') then return false, 'Not here.' end
   if not progression.rocOpen(s) then return false, 'The ROC is for the top garage and the top names.' end
   local roc = M.rocRound(s)
   if roc.champion then return false, 'You are the champion. Nobody is left to beat.' end
@@ -826,7 +828,7 @@ finish = function(playerWon)
       roc.champion = true
       sl_career.payOut(250000, 'ROC champion')
       stateLib.addRep(s, 2000)
-      sl_career.sendText('benny', 'You won the ROC. Champion of Valo City. I always said you had it in you. (I did not.)', 3)
+      sl_career.sendText('benny', sl_career.mapText('You won the ROC. Champion of Valo City. I always said you had it in you. (I did not.)'), 3)
     else
       sl_career.sendText('benny', string.format('Round %d of the ROC done. Two more, then one. Call it in from the phone when you are ready.', roc.round), 3)
     end

@@ -13,14 +13,27 @@ M.START_HOUR = 10            -- a daytime start (Connor, 2026-10-16); the races 
 
 -- the maps a career is played on (W1). garages: Wrench Works' site ids for the garage ladder below, in order (none:
 -- the ladder as written); races: the extension that runs its street races (the map's own, or the career's sl_races).
+-- has: what the map can host. The ROC needs its track and spawn_roc, tracks the multibot_tracks.json circuits, testdrive
+-- racelines/tt_oval.json, clubDays the map's circuitOpponents, swapMeet the Tuning shop lot. A feature a map lacks is hidden, not half-run.
+local ALL = { roc = true, tracks = true, testdrive = true, clubDays = true, swapMeet = true }
 M.MAPS = {
-  slrr_valo_city = { name = 'Valo City', races = 'slrrValoRaces' },
-  west_coast_usa = { name = 'West Coast USA', races = 'sl_races', garages = {
+  slrr_valo_city = { name = 'Valo City', races = 'slrrValoRaces', has = ALL },
+  west_coast_usa = { name = 'West Coast USA', races = 'sl_races', has = {}, garages = {
     { id = 'alderDragwayGarage', name = 'Alder Dragway Garage' }, { id = 'commercialGarage', name = 'Industrial Garage' },
     { id = 'belascoCityGarage', name = 'Belasco City Garage' } } },
 }
 M.MAP_ORDER = { 'slrr_valo_city', 'west_coast_usa' }
 M.DEFAULT_MAP = 'slrr_valo_city'
+
+function M.has(level, feature) return ((M.MAPS[level] or M.MAPS[M.DEFAULT_MAP]).has or {})[feature] == true end
+
+-- Valo-named text on another map says that map's name
+function M.mapText(text, level)
+  local map = M.MAPS[level] or M.MAPS[M.DEFAULT_MAP]
+  if map == M.MAPS.slrr_valo_city then return text end
+  local n = map.name:gsub('%%', '%%%%')
+  return (text:gsub('Valo City', n):gsub('%f[%w]Valo%f[%W]', n))
+end
 
 -- how hard the street gets, 0 (nobody) to 1 (the ROC crowd): from reputation
 function M.difficulty(rep) return math.max(0, math.min(1, (rep or 0) / 6000)) end
@@ -72,14 +85,14 @@ end
 -- the Race of Champions: the last garage and the top title
 M.ROC = { garageLevel = 3, rep = 6000, entry = 50000 }
 
-function M.titleFor(rep)
+function M.titleFor(rep, level)
   local current, nextOne = M.titles[1], nil
   for i, t in ipairs(M.titles) do
     if rep >= t.rep then
       current, nextOne = t, M.titles[i + 1]
     end
   end
-  return current.title, nextOne and nextOne.rep or nil, current.rep
+  return level and M.mapText(current.title, level) or current.title, nextOne and nextOne.rep or nil, current.rep
 end
 
 -- the next garage up from where the player is: { garage, canMove, why } (nil at the top)

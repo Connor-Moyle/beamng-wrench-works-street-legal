@@ -109,7 +109,7 @@ function M.onUpdate(dt)
   t.step = t.step + 1
   if t.step > #STEPS then
     t.step, t.done = nil, true
-    sl_career.addMoney(BONUS, 'Welcome to Valo City')
+    sl_career.addMoney(BONUS, sl_career.mapText('Welcome to Valo City'))
     sl_career.sendText('benny', string.format('That is the lot: a car, a job, a part, a race. $%d from me to get you going. Now go and make a name.', BONUS), 2)
     extensions.hook('onStreetLegalChanged')
   else

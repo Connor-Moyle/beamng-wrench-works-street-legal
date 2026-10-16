@@ -128,8 +128,13 @@ local function slotUsed(n) local f = slotFile(n) return FS:fileExists(f) or FS:f
 
 local function mapOf(level) return progression.MAPS[level] or progression.MAPS[progression.DEFAULT_MAP] end
 
+-- what this career's map can host (progression.MAPS has), and its name in texts
+function M.has(feature) return progression.has(M.LEVEL, feature) end
+function M.mapName() return mapOf(M.LEVEL).name end
+function M.mapText(text) return progression.mapText(text, M.LEVEL) end
+
 local function summaryOf(data)
-  return data and string.format('Day %d, $%d, %s, %s%s', data.day or 1, data.money or 0, (progression.titleFor(data.rep or 0)),
+  return data and string.format('Day %d, $%d, %s, %s%s', data.day or 1, data.money or 0, (progression.titleFor(data.rep or 0, data.level)),
     mapOf(data.level).name, data.ended and ' (ended)' or '') or nil
 end
 
@@ -845,9 +850,9 @@ function M.onSlrrRaceFinished(r)
     end
   end
   registered = nil
-  tell(string.format('%s %d reputation (%s)', repDelta >= 0 and '+' or '', repDelta, (progression.titleFor(s.rep))), 5)
+  tell(string.format('%s %d reputation (%s)', repDelta >= 0 and '+' or '', repDelta, (progression.titleFor(s.rep, M.LEVEL))), 5)
   if (progression.titleFor(s.rep)) ~= (progression.titleFor(repBefore)) then
-    M.sendText('benny', 'They call you "' .. (progression.titleFor(s.rep)) .. '" on the street now. Not bad.', 3)
+    M.sendText('benny', 'They call you "' .. (progression.titleFor(s.rep, M.LEVEL)) .. '" on the street now. Not bad.', 3)
   end
   refreshContacts(false)
   changed()
@@ -869,7 +874,7 @@ end
 -- (only once the map's circuit missions put our racer's own car on the grid: slrrValoRaces.circuitOpponents;
 -- before that the stock race brings its own cars, and Street Legal's own track race is used instead)
 function M.tracksList()
-  if not missionRaces() or not raceMod().circuitOpponents then return nil end
+  if not M.has('tracks') or not missionRaces() or not raceMod().circuitOpponents then return nil end
   return trackList
 end
 

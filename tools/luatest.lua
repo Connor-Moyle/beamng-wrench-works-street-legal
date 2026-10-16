@@ -863,4 +863,21 @@ do
   check('unknown kind is open', hours.isOpen('nowhere', at(3)))
 end
 
+-- per-map capabilities: Valo City hosts everything, West Coast USA hides what its data lacks (T9)
+do
+  local feats = { 'roc', 'tracks', 'testdrive', 'clubDays', 'swapMeet' }
+  local valo, wc = true, true
+  for _, f in ipairs(feats) do
+    valo = valo and progression.has('slrr_valo_city', f)
+    wc = wc and not progression.has('west_coast_usa', f)
+  end
+  check('Valo City offers every feature', valo)
+  check('West Coast USA hides every feature its data lacks', wc)
+  check('an unknown level or feature falls back to the default map / off', progression.has(nil, 'roc') and not progression.has('slrr_valo_city', 'nothing'))
+  check('Valo texts are untouched on Valo City', progression.mapText('King of Valo City. King of Valo!', 'slrr_valo_city') == 'King of Valo City. King of Valo!'
+    and progression.titleFor(6000, 'slrr_valo_city') == 'King of Valo City')
+  check('Valo texts name West Coast USA there', progression.mapText('King of Valo City. Every crew in Valo.', 'west_coast_usa') == 'King of West Coast USA. Every crew in West Coast USA.'
+    and progression.titleFor(6000, 'west_coast_usa') == 'King of West Coast USA' and progression.titleFor(6000) == 'King of Valo City')
+end
+
 print(string.format('lua tests passed: %d checks', passed))

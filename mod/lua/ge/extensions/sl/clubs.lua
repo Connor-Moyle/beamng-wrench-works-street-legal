@@ -77,7 +77,7 @@ end
 function M.listed()
   local out = {}
   for _, r in ipairs(sl_career.racesList() or {}) do out[#out + 1] = { id = r.id, missionId = r.missionId, name = r.name, kind = r.drag and 'drag' or (r.kind or 'night') } end
-  for _, t in ipairs(sl_career.tracksList and sl_career.tracksList() or {}) do out[#out + 1] = { id = t.id, missionId = t.missionId, name = t.name, kind = t.kind } end
+  for _, t in ipairs(sl_career.has('clubDays') and sl_career.tracksList and sl_career.tracksList() or {}) do out[#out + 1] = { id = t.id, missionId = t.missionId, name = t.name, kind = t.kind } end
   return out
 end
 
@@ -141,7 +141,7 @@ function M.enter(kind)
   local race = ev and ev[kind]
   if not race then return false, 'Nothing on in that league today.' end
   if c.raced[d .. kind] then return false, 'You have done that one today.' end
-  if kind == 'day' and race.kind ~= 'drag' and not (slrrValoRaces and slrrValoRaces.circuitOpponents) then
+  if kind == 'day' and race.kind ~= 'drag' and not (sl_career.has('clubDays') and slrrValoRaces and slrrValoRaces.circuitOpponents) then
     return false, 'The track events open soon. The drags run today.'
   end
   local car = sl_fleet and sl_fleet.currentCar()
@@ -210,7 +210,7 @@ function M.summary()
     club = clubs.CLUBS[c.club].name, season = c.season, day = d, days = clubs.SEASON_DAYS, class = c.class, carClass = car and car.class,
     today = ev and {
       night = ev.night and { name = ev.night.name, done = c.raced[d .. 'night'] ~= nil } or nil,
-      day = ev.day and { name = ev.day.name, done = c.raced[d .. 'day'] ~= nil, open = ev.day.kind == 'drag' or (slrrValoRaces and slrrValoRaces.circuitOpponents) == true } or nil,
+      day = ev.day and { name = ev.day.name, done = c.raced[d .. 'day'] ~= nil, open = ev.day.kind == 'drag' or (sl_career.has('clubDays') and slrrValoRaces and slrrValoRaces.circuitOpponents) == true } or nil,
       finale = ev.finale,
     } or nil,
     standings = tbl,

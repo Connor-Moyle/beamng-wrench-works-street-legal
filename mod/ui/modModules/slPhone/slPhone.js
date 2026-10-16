@@ -317,7 +317,7 @@
         '<div class="slp-acts"><div class="slp-btn slp-text" data-a="tutskip" data-v="1">Skip the tutorial</div></div></div>' : '';
       return '<div class="slp-wall"></div><div class="slp-home">' +
         '<div class="slp-clock">' + two(d.hour || 0) + ':' + two(d.minute || 0) + '</div>' +
-        '<div class="slp-date">Day ' + (d.day || 1) + ' &middot; Valo City' + (d.night ? ' &middot; night' : '') + '</div>' +
+        '<div class="slp-date">Day ' + (d.day || 1) + ' &middot; ' + esc(d.mapName || 'Valo City') + (d.night ? ' &middot; night' : '') + '</div>' +
         '<div><span class="slp-chip">' + esc(d.title || '') + ' &middot; ' + (d.rep || 0) + ' rep &middot; ' + money(d.money) + '</span></div>' +
         tut + '<div class="slp-grid">' + appsHtml([
           { id: 'races', title: 'Races', icon: I.flag, badge: arranged || 0 },
@@ -634,12 +634,12 @@
       return bar('Street cred') + '<div class="slp-body"><div class="slp-card"><h4>' + esc(d.title) + '</h4><p>' + (d.rep || 0) + ' reputation' + (to ? ' &middot; next title at ' + to : '') + '</p>' +
         '<div class="slp-meter"><i style="width:' + pct.toFixed(1) + '%"></i></div></div>' +
         '<div class="slp-card"><div class="slp-kv"><span>Garage</span><b>' + esc(d.garage || '') + '</b></div>' + next +
-        '<div class="slp-kv"><span>Race of Champions</span><b>' + (d.roc ? 'Open to you' : 'Not yet') + '</b></div>' +
+        (d.hasRoc === false ? '' : '<div class="slp-kv"><span>Race of Champions</span><b>' + (d.roc ? 'Open to you' : 'Not yet') + '</b></div>') +
         '<div class="slp-kv"><span>Cars</span><b>' + (d.cars || 0) + '</b></div>' +
         '<div class="slp-kv"><span>Races</span><b>' + (s.races || 0) + ' (' + (s.wins || 0) + ' won)</b></div>' +
         '<div class="slp-kv" style="border:none"><span>Pink slips</span><b>' + (s.pinksWon || 0) + ' won, ' + (s.pinksLost || 0) + ' lost</b></div>' +
         (acts.length ? '<div class="slp-acts">' + acts.join('') + '</div>' : '') + '</div>' +
-        (d.rocChampion ? '<div class="slp-card"><h4>ROC champion</h4><p>The best in Valo City. There is nobody left to beat.</p></div>' : '') +
+        (d.rocChampion ? '<div class="slp-card"><h4>ROC champion</h4><p>The best in ' + esc(d.mapName || 'Valo City') + '. There is nobody left to beat.</p></div>' : '') +
         achievementsCard(d.achievements) + hudCard(d.hud) + '</div>';
     }
 

@@ -202,7 +202,7 @@ turfWarResult = function(s, c, racerId, won)
     c.king, c.turfWar = s.day, nil
     stateLib.addRep(s, 1000)
     for _, t in pairs(c.territory) do t.owner, t.control = 'player', 100 end
-    sl_career.sendText('benny', 'You did it. Every crew in Valo answers to you now. King of Valo!', 3)
+    sl_career.sendText('benny', sl_career.mapText('You did it. Every crew in Valo answers to you now. King of Valo!'), 3)
     extensions.hook('onStreetLegalKingOfValo')
   else
     sl_career.sendText('benny', string.format('That is %d down. %s is next, tomorrow night.', w.stage - 1, crews.crew(w.order[w.stage]).name), 3)

@@ -69,7 +69,7 @@ end
 -- what the career came to, for the game-over screen
 function M.gameOverData(s, cause)
   local a = sl_achievements and sl_achievements.summary and sl_achievements.summary() or {}
-  return { day = s.day, money = s.money, rep = s.rep, title = progression.titleFor(s.rep or 0), races = s.stats.races, wins = s.stats.wins,
+  return { day = s.day, money = s.money, rep = s.rep, title = progression.titleFor(s.rep or 0, sl_career.LEVEL), races = s.stats.races, wins = s.stats.wins,
     pinksWon = s.stats.pinksWon, earned = s.stats.earned, cars = #(s.cars or {}), achievements = a.earned, achievementsTotal = a.total, cause = cause }
 end
 
