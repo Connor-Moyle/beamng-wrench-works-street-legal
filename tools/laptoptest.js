@@ -54,7 +54,10 @@ assert.ok(!$('.sll-screen.sll-gone'), 'it opens');
 assert.ok(text().includes('Sunburst 2.0 Sport S AWD'), 'the chosen car in the car band');
 const tiles = $$('.sll-tile');
 assert.ok(tiles.length === 7 && tiles.every((t) => t.hasAttribute('bng-nav-item') && t.getAttribute('tabindex') === '0'), 'every tile is a gamepad nav item');
-assert.ok($('.sll-body').hasAttribute('bng-nav-scroll'), 'the body scrolls on the right stick');
+assert.ok($('.sll-desk').hasAttribute('bng-nav-scroll'), 'the desktop scrolls on the right stick');
+assert.ok($('.sll-task') && text().includes('Start') && text().includes('Shut down') && text().includes('Street kid') && text().includes('Day 9') && text().includes('$12,400'), 'the taskbar: Start, rank, day, money, Shut down');
+assert.ok(!$('.sll-win') && !$('.sll-menu'), 'no window and no Start menu on the bare desktop');
+assert.ok($$('.sll-task [data-a]').every((e) => e.hasAttribute('bng-nav-item')), 'the taskbar is reachable by the pad');
 assert.ok($$('.sll-tile.sll-off').length === 0, 'nothing is greyed for a car at the garage');
 
 // a garage tile sends the chosen car into the garage in its mode
@@ -102,10 +105,23 @@ assert.ok(text().includes('Sunburst 2.0 Sport S AWD'), 'tab_l on the pad: the ca
 nav('tab_r');
 assert.ok(text().includes('Covet'), 'tab_r on the pad: the next car');
 
-// My cars: the phone's list
+// the Start menu: every tile again; B shuts the menu first
+click('start');
+assert.ok($('.sll-menu') && $$('.sll-mi').length === 7 && $('.sll-menu').textContent.includes('Vehicle management') && $('.sll-menu').textContent.includes('Street cred'), 'Start lists the tiles by group');
+assert.ok($$('.sll-mi').every((e) => e.hasAttribute('bng-nav-item')) && $$('.sll-tile').every((e) => !e.hasAttribute('bng-nav-item')), 'with the menu up the pad moves in the menu, not on the desktop behind it');
+nav('back');
+assert.ok(!$('.sll-menu') && !$('.sll-screen.sll-gone'), 'B closes the Start menu first, not the laptop');
+click('start');
+click('tile', 'vehicleInventory');
+assert.ok(!$('.sll-menu') && $('.sll-win') && $('.sll-title').textContent.includes('My cars'), 'a Start menu item opens its window and shuts the menu');
+click('back');
+assert.ok(!$('.sll-win'), 'the X in the title bar closes the window');
+
+// My cars: the phone's list, in a window
 calls.length = 0;
 click('tile', 'vehicleInventory');
-assert.ok(calls.includes('@sl_phone.request()') && $('[data-a="back"]'), 'a page asks for fresh data and has a back button');
+assert.ok(calls.includes('@sl_phone.request()') && $('[data-a="back"]') && $('.sll-title').textContent.includes('My cars') && $('.sll-taskwin').textContent.includes('My cars'), 'a page is a window with a title bar and a taskbar button, asking for fresh data');
+assert.ok($$('.sll-tile').every((e) => !e.hasAttribute('bng-nav-item')) && $$('.sll-win [data-a]').every((e) => e.hasAttribute('bng-nav-item')), 'with a window open the pad moves in the window');
 assert.ok(text().includes('Drive this one') && text().includes('Tow it home') && text().includes('Needs: battery'), 'cars: use, tow, faults');
 click('usecar', '2');
 assert.ok(calls.includes('@sl_phone.useCar(2)'), 'drive this one');

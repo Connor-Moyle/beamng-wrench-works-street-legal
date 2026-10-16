@@ -3,7 +3,8 @@
 // layer opened at a map's computer ("Use the laptop", sl/computer.lua). The tiles come from the Lua side, from the
 // computer's own function list (sl/core/laptop.lua); the cars, bank and street cred pages show the phone's data
 // (slPhoneData), the parts page the Wrench Works shelf. Tiles that cannot be used are greyed with the reason underneath.
-// The look is the phone's (colours and shapes copied, nothing edited into slPhone.js).
+// The look: a Windows-style desktop in the phone's colours (copied, nothing edited into slPhone.js): a wallpaper with the tiles as
+// desktop icons, a taskbar (Start, the open window, rank, clock, money, Shut down), a Start menu, and every page in a window with a title bar.
 //
 // createLaptop() is plain DOM, so tools/laptoptest.js can run it outside the game.
 
@@ -13,14 +14,35 @@
   var CSS = [
     '.sll-root{position:fixed;left:0;top:0;right:0;bottom:0;pointer-events:none;z-index:60;font-family:"Roboto","Noto Sans","Segoe UI",Arial,sans-serif;color:#e6e1e5;-webkit-user-select:none;user-select:none}',
     '.sll-root *{box-sizing:border-box}',
-    '.sll-screen{position:absolute;left:5vw;right:5vw;top:5vh;bottom:5vh;border-radius:24px;background:#141218;box-shadow:0 0 0 2px #2a2a2e,0 30px 80px rgba(0,0,0,.65);',
-    '  display:flex;flex-direction:column;padding:22px 28px;overflow:hidden;pointer-events:auto;transition:opacity .2s}',
+    '.sll-screen{position:absolute;left:3vw;right:3vw;top:3vh;bottom:3vh;border-radius:14px;overflow:hidden;pointer-events:auto;transition:opacity .2s;',
+    '  background:radial-gradient(120% 70% at 20% 0%,#3b2f6b 0%,rgba(59,47,107,0) 60%),radial-gradient(90% 60% at 100% 100%,#7a2e3d 0%,rgba(122,46,61,0) 65%),linear-gradient(#17121f,#0d0b12);',
+    '  box-shadow:0 0 0 2px #2a2a2e,0 30px 80px rgba(0,0,0,.65)}',
     '.sll-screen.sll-gone{opacity:0;pointer-events:none;visibility:hidden}',
-    '.sll-head{display:flex;align-items:center;gap:18px;flex:none}',
-    '.sll-head h1{font-size:26px;font-weight:400;margin:0}',
-    '.sll-head .sll-sp{flex:1}',
+    /* the desktop: icons, the car widget */
+    '.sll-desk{position:absolute;left:0;top:0;right:0;bottom:48px;padding:20px 26px;overflow-y:auto}',
+    '.sll-desk h1{font-size:22px;font-weight:400;margin:0 0 4px 0}',
     '.sll-chip{padding:6px 14px;border-radius:16px;background:rgba(255,255,255,.1);font-size:13px;color:#cac4d0}',
-    '.sll-money{font-size:20px}',
+    '.sll-money{font-size:15px}',
+    /* a window */
+    '.sll-win{position:absolute;left:9%;right:9%;top:7%;bottom:68px;display:flex;flex-direction:column;border-radius:10px;overflow:hidden;background:#141218;',
+    '  box-shadow:0 0 0 1px #3a3a42,0 18px 50px rgba(0,0,0,.6)}',
+    '.sll-title{flex:none;display:flex;align-items:center;gap:10px;height:38px;padding:0 6px 0 14px;background:#2b3a52;color:#d3e3fd;font-size:14px}',
+    '.sll-title .sll-sp{flex:1}',
+    '.sll-x{width:42px;height:30px;border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;border:2px solid transparent}',
+    '.sll-x:hover,.sll-x:focus{background:#c2412d;outline:none;border-color:#f2b8b5}',
+    '.sll-win .sll-body{padding:16px 22px 6px 22px}',
+    '.sll-win .sll-note{padding:0 22px 10px 22px}',
+    /* the taskbar and the Start menu */
+    '.sll-task{position:absolute;left:0;right:0;bottom:0;height:48px;display:flex;align-items:center;gap:10px;padding:0 10px;background:rgba(15,13,19,.96);border-top:1px solid #3a3a42;font-size:13px}',
+    '.sll-task .sll-sp{flex:1}',
+    '.sll-startbtn{height:34px;padding:0 16px;border-radius:6px;display:flex;align-items:center;background:#a8c7fa;color:#062e6f;font-weight:500;cursor:pointer;border:2px solid transparent}',
+    '.sll-taskwin{height:34px;padding:0 14px;border-radius:6px;display:flex;align-items:center;background:rgba(168,199,250,.16);border-bottom:2px solid #a8c7fa}',
+    '.sll-power{height:34px;padding:0 14px;border-radius:6px;display:flex;align-items:center;cursor:pointer;color:#f2b8b5;border:2px solid transparent}',
+    '.sll-startbtn:focus,.sll-power:focus,.sll-mi:focus{outline:none;border-color:#a8c7fa}',
+    '.sll-menu{position:absolute;left:10px;bottom:54px;width:300px;max-height:70%;overflow-y:auto;padding:10px;border-radius:10px;background:#1b1920;box-shadow:0 0 0 1px #3a3a42,0 18px 50px rgba(0,0,0,.6)}',
+    '.sll-menu .sll-band{margin:8px 6px 6px 6px}',
+    '.sll-mi{padding:9px 12px;border-radius:6px;font-size:14px;cursor:pointer;border:2px solid transparent}',
+    '.sll-mi:hover{background:rgba(168,199,250,.12)}.sll-mi.sll-off{opacity:.45}',
     '.sll-btn{display:inline-flex;align-items:center;justify-content:center;min-height:38px;padding:0 18px;border-radius:19px;background:#a8c7fa;color:#062e6f;font-size:14px;font-weight:500;cursor:pointer}',
     '.sll-btn.sll-tonal{background:#2b3a52;color:#d3e3fd}',
     '.sll-btn.sll-text{background:transparent;color:#a8c7fa}',
@@ -32,7 +54,7 @@
     '.sll-car b{font-size:18px;font-weight:500}',
     '.sll-car span{display:block;color:#cac4d0;font-size:13px;margin-top:3px}',
     '.sll-tiles{display:flex;flex-wrap:wrap;gap:14px;margin-top:12px}',
-    '.sll-tile{width:170px;min-height:104px;border-radius:18px;background:#211f26;padding:16px;display:flex;flex-direction:column;justify-content:flex-end;font-size:15px;cursor:pointer;border:2px solid transparent}',
+    '.sll-tile{width:128px;min-height:92px;border-radius:12px;background:rgba(33,31,38,.88);padding:12px;display:flex;flex-direction:column;justify-content:flex-end;font-size:14px;cursor:pointer;border:2px solid transparent}',
     '.sll-tile.sll-off{opacity:.45}',
     '.sll-tile:focus,.sll-btn:focus{outline:none;border-color:#a8c7fa}',
     '.sll-note{flex:none;min-height:24px;margin-top:10px;font-size:14px;color:#f2b8b5}',
@@ -69,12 +91,9 @@
     var st = { open: false, view: null, data: { active: false }, parts: [], page: 'home', car: 0, note: '', padAt: 0, dealers: null, offers: null };
 
     // ---------------------------------------------------------------- pages
+    // a window's title bar; the X goes back one level (an offer list to the dealers, a page to the desktop)
     function head(title) {
-      var d = st.data;
-      return '<div class="sll-head">' + (st.page !== 'home' ? '<div class="sll-btn sll-tonal" data-a="back">&#9664; Back</div>' : '') +
-        '<h1>' + esc(title) + '</h1><div class="sll-sp"></div>' +
-        (d.active ? '<div class="sll-chip">' + esc(d.title || '') + ' &middot; ' + (d.rep || 0) + ' rep</div><div class="sll-chip">Day ' + (d.day || 1) + '</div><div class="sll-money">' + money(d.money) + '</div>' : '') +
-        '<div class="sll-btn sll-text" data-a="close">Close</div></div>';
+      return '<div class="sll-title"><b>' + esc(title) + '</b><div class="sll-sp"></div><div class="sll-x" data-a="back" title="Close">&#10005;</div></div>';
     }
 
     function tileHtml(t) {
@@ -86,8 +105,8 @@
       var v = st.view || { groups: [] };
       return car && v.byCar && v.byCar[car.id] ? v.byCar[car.id] : v.groups;
     }
-    function homePage() {
-      var v = st.view || { groups: [] }, out = '';
+    function deskPage() {
+      var v = st.view || { groups: [] }, out = '<h1>' + esc(v.name || 'Laptop') + '</h1>';
       var fleet = arr(st.data.fleet);
       st.car = Math.max(0, Math.min(st.car, fleet.length - 1));
       var groups = groupsFor(fleet[st.car]);
@@ -103,7 +122,27 @@
         out += '<div class="sll-tiles">' + g.tiles.map(tileHtml).join('') + '</div>';
       });
       if (!groups.length) out += '<div class="sll-empty">This computer has nothing for you.</div>';
-      return head(v.name || 'Laptop') + '<div class="sll-body">' + out + '</div><div class="sll-note">' + esc(st.note) + '</div>';
+      return '<div class="sll-desk">' + out + '<div class="sll-note">' + (st.page === 'home' ? esc(st.note) : '') + '</div></div>';
+    }
+
+    // the Start menu: every tile again, in its group
+    function menuHtml() {
+      if (!st.menu) return '';
+      var groups = groupsFor(arr(st.data.fleet)[st.car]);
+      return '<div class="sll-menu">' + groups.map(function (g) {
+        return '<div class="sll-band">' + esc(g.title) + '</div>' + g.tiles.map(function (t) {
+          return '<div class="sll-mi' + (t.enabled ? '' : ' sll-off') + '" data-a="tile" data-v="' + esc(t.id) + '">' + esc(t.label) + '</div>';
+        }).join('');
+      }).join('') + '</div>';
+    }
+
+    function taskbarHtml() {
+      var d = st.data, h = d.hour || 0, m = d.minute || 0;
+      var titles = { cars: TITLES.cars, parts: TITLES.parts, bank: TITLES.bank, cred: TITLES.cred, dealers: TITLES.dealers, offers: (st.offers && st.offers.name) || TITLES.dealers };
+      return '<div class="sll-task"><div class="sll-startbtn" data-a="start">&#9638; Start</div>' +
+        (st.page !== 'home' ? '<div class="sll-taskwin">' + esc(titles[st.page] || '') + '</div>' : '') + '<div class="sll-sp"></div>' +
+        (d.active ? '<div class="sll-chip">' + esc(d.title || '') + ' &middot; ' + (d.rep || 0) + ' rep</div><div class="sll-chip">' + (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m + ' &middot; Day ' + (d.day || 1) + '</div><div class="sll-money">' + money(d.money) + '</div>' : '') +
+        '<div class="sll-power" data-a="close">Shut down</div></div>';
     }
 
     function carsPage() {
@@ -209,26 +248,31 @@
         else if (st.page === 'cred') html = credPage();
         else if (st.page === 'dealers') html = dealersPage();
         else if (st.page === 'offers') html = offersPage();
-        else html = homePage();
+        else html = '';
       }
-      layer.innerHTML = '<div class="sll-screen' + (st.open ? '' : ' sll-gone') + '">' + html + '</div>';
+      layer.innerHTML = '<div class="sll-screen' + (st.open ? '' : ' sll-gone') + '">' + (st.open ? deskPage() + (html ? '<div class="sll-win">' + html + '</div>' : '') + menuHtml() + taskbarHtml() : '') + '</div>';
       navify();
     }
     // the game moves the focus between [bng-nav-item] elements with the d-pad/stick and clicks the focused one on A
     function navify() {
       var items = layer.querySelectorAll('[data-a]');
       var first = null, again = null;
+      // the d-pad moves inside what is on top: the Start menu, else the window, else the desktop (the taskbar is always reachable)
+      var top = st.menu ? '.sll-menu' : (st.page !== 'home' ? '.sll-win' : '.sll-desk');
+      var scope = st.open ? layer.querySelector(top) : null;
       for (var i = 0; i < items.length; i++) {
         var el = items[i];
-        if (!st.open) { el.setAttribute('bng-no-nav', 'true'); continue; }
+        var live = st.open && ((scope && scope.contains(el)) || (el.closest && el.closest('.sll-task')));
+        if (!live) { el.setAttribute('bng-no-nav', 'true'); el.removeAttribute('bng-nav-item'); el.removeAttribute('tabindex'); continue; }
+        el.removeAttribute('bng-no-nav');
         el.setAttribute('bng-nav-item', '');
         el.setAttribute('tabindex', '0');
         var a = el.getAttribute('data-a');
-        if (!first && a !== 'back' && a !== 'close') first = el;
+        if (!first && a !== 'back' && a !== 'close' && a !== 'start' && !el.closest('.sll-task')) first = el;
         if (focusKey && !again && keyOf(el) === focusKey) again = el;
       }
-      var body = layer.querySelector('.sll-body');
-      if (body) body.setAttribute('bng-nav-scroll', '');
+      var bodies = layer.querySelectorAll('.sll-body, .sll-desk, .sll-menu');
+      for (var j = 0; j < bodies.length; j++) bodies[j].setAttribute('bng-nav-scroll', '');
       if (!st.open) return;
       var active = doc.activeElement;
       var inside = active && layer.contains(active) && active.hasAttribute && active.hasAttribute('bng-nav-item');
@@ -244,15 +288,18 @@
       return null;
     }
     function back() {
+      if (st.menu) { st.menu = false; render(); return; }
       if (st.page === 'offers') { st.page = 'dealers'; st.note = ''; focusKey = null; lua('@sl_dealers.list()'); render(); return; }
       if (st.page !== 'home') { st.page = 'home'; st.note = ''; render(); return; }
       close();
     }
     function close() { lua('@sl_computer.close()'); setOpen(false); }
-    function setOpen(open) { st.open = open; if (!open) { st.page = 'home'; st.note = ''; focusKey = null; } render(); }
+    function setOpen(open) { st.open = open; if (!open) { st.page = 'home'; st.note = ''; st.menu = false; focusKey = null; } render(); }
     function act(a, v) {
       switch (a) {
+        case 'start': st.menu = !st.menu; focusKey = null; render(); break;
         case 'tile':
+          st.menu = false;
           var t = tileById(v);
           if (!t) break;
           if (!t.enabled) { st.note = t.label + ': ' + (t.reason || 'Not available.'); render(); break; }
