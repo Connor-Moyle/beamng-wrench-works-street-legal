@@ -116,15 +116,19 @@ local cam             -- { yaw, pitch, dist, pos, look, previous }
 local function cameraOn()
   if cam then return end
   cam = { yaw = math.rad(35), pitch = math.rad(12), dist = 7.5, previous = lot and lot.previousCamera }
-  if commands and commands.setFreeCamera then commands.setFreeCamera() end
+  -- the script-driven camera (it takes its pose from us every frame and shows no free-camera help); the free camera as a fallback
+  local ok = core_camera and core_camera.setByName and pcall(core_camera.setByName, 0, 'scriptedFree', false, { locked = true })
+  if not ok and commands and commands.setFreeCamera then commands.setFreeCamera() end
 end
 
 local function cameraOff()
   if not cam then return end
   local previous = cam.previous
   cam = nil
-  if core_camera.getActiveCamName(0) == 'free' then
-    core_camera.setByName(0, (previous and previous ~= 'free' and previous ~= 'slrrGarage') and previous or 'orbit', false)
+  local active = core_camera.getActiveCamName(0)
+  if active == 'free' or active == 'scriptedFree' then
+    local bad = previous == 'free' or previous == 'scriptedFree' or previous == 'slrrGarage'
+    core_camera.setByName(0, (previous and not bad) and previous or 'orbit', false)
   end
 end
 
@@ -253,6 +257,8 @@ function M.offersFor(place, s, given)
 end
 
 local function open(place, mode, given)
+  -- the game's prompt that was pressed to get here ("Look at the cars") closes with it, also when the lot is shut or empty
+  if ui_missionInfo and ui_missionInfo.closeDialogue then pcall(ui_missionInfo.closeDialogue) end
   local s = career()
   if not s or lot then return end
   local tod = core_environment and core_environment.getTimeOfDay and core_environment.getTimeOfDay()
@@ -454,11 +460,13 @@ function M.onActivityAcceptGatherData(elemData, activityData)
       local selling = not onFoot and sl_fleet.currentCar() and kind ~= 'dealer'
       -- a dealer shows its cars to a driver too: Connor drove to Jefferson Motors and had nothing to press (T33)
       if onFoot or selling or kind == 'dealer' then
+        local tod = core_environment and core_environment.getTimeOfDay and core_environment.getTimeOfDay()
+        local closed = type(tod) == 'table' and tod.time and hours.closedText(place.kind, tod.time)      -- 'Closed. Opens at 09:00'
         table.insert(activityData, {
           icon = 'poi_arrival_round', heading = place.name, preheadings = { HEADINGS[kind] },
           sorting = { type = 'slrrPlace', id = place.id },
-          buttonLabel = selling and (kind == 'scrap' and 'Scrap your car' or 'Sell your car') or 'Look at the cars',
-          buttonFun = function() open(place, selling and 'sell' or 'browse') end,
+          buttonLabel = closed or (selling and (kind == 'scrap' and 'Scrap your car' or 'Sell your car') or 'Look at the cars'),
+          buttonFun = function() open(place, selling and 'sell' or 'browse') end,      -- (shut: open() says so and closes the prompt)
           buttonSoundClass = 'bng_hover_generic',
         })
       end
