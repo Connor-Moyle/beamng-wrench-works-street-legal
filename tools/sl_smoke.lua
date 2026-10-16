@@ -241,22 +241,30 @@ end)
 check('tutorial: four steps, then the bonus', function(job)
   local st = sl_career.getState()
   if #st.cars == 0 then return nil, 'needs a car' end
-  local m0 = money()                                             -- (steps already met pass within a tick: the bonus can land early)
+  local m0 = money()
+  -- a known start: this career has jobs done, a part fitted and races run by now, and a step whose condition is already
+  -- met would pass on whichever look comes first (a night run missed step 3 that way); put them back after
+  local saved = { done = st.jobs.done, upgraded = st.jobs.upgraded, races = st.stats.races }
+  st.jobs.done, st.jobs.upgraded, st.stats.races = 0, nil, 0
+  local function result(ok, detail)
+    st.jobs.done, st.jobs.upgraded, st.stats.races = saved.done, saved.upgraded, saved.races
+    return ok, detail
+  end
   sl_tutorial.begin()
   job.sleep(1.5)                                                  -- step 1 (a car) is already done
-  if st.tutorial.step ~= 2 then return false, 'step 1 did not pass with a car' end
+  if st.tutorial.step ~= 2 then return result(false, 'step 1 did not pass with a car (step ' .. tostring(st.tutorial.step) .. ')') end
   local any
   for _, j in ipairs(js().offers or {}) do if j.kind == 'part' or j.kind == 'courier' then any = true end end
-  if not any then return false, 'no part or courier run on the board for step 2' end
-  st.jobs.done = (st.jobs.done or 0) + 1 job.sleep(1.5)
-  if st.tutorial.step ~= 3 then return false, 'step 2 did not pass' end
+  if not any then return result(false, 'no part or courier run on the board for step 2') end
+  st.jobs.done = 1 job.sleep(1.5)
+  if st.tutorial.step ~= 3 then return result(false, 'step 2 did not pass (step ' .. tostring(st.tutorial.step) .. ')') end
   st.jobs.upgraded = true job.sleep(1.5)
-  if st.tutorial.step ~= 4 then return false, 'step 3 did not pass' end
+  if st.tutorial.step ~= 4 then return result(false, 'step 3 did not pass (step ' .. tostring(st.tutorial.step) .. ')') end
   local race
   for _, c in ipairs(st.challenges) do if c.id:find(':tutorial', 1, true) then race = c end end
-  if not race or race.bet ~= 100 then return false, 'no $100 race arranged for step 4' end
-  st.stats.races = st.stats.races + 1 job.sleep(1.5)
-  return st.tutorial.done == true and money() - m0 == 500, string.format('done, +$%d', money() - m0)
+  if not race or race.bet ~= 100 then return result(false, 'no $100 race arranged for step 4') end
+  st.stats.races = 1 job.sleep(1.5)
+  return result(st.tutorial.done == true and money() - m0 == 500, string.format('done, +$%d', money() - m0))
 end)
 
 -- achievements and best times (X23)

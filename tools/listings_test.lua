@@ -213,6 +213,24 @@ return function(check, rngLib)
   check('the courier run was put on the board for step 2 and the bonus paid once', s5.jobs.offers[1] and s5.jobs.offers[1].kind == 'courier' and sent.money == 500)
   T.advance(s5)
   check('...and not again', sent.money == 500)
+  -- T15 (night run): from a known start extra looks (a frame hitch) never carry it past a step whose condition is not met,
+  -- and the hour matters to none of them (only the street shops keep hours; the garage and the tutorial do not)
+  local hoursLib = require('sl/core/hours')
+  local midnight = 0.5
+  check('the garage and the tutorial have no hours; the street shop does', hoursLib.isOpen('garage', midnight) and hoursLib.isOpen('tutorial', midnight) and not hoursLib.isOpen('shop', midnight))
+  local s7 = { day = 3, cars = { 1 }, jobs = { offers = {}, done = 0 }, tutorial = { step = 1 }, racers = {}, known = {}, challenges = {}, stats = { races = 0 } }
+  sent.money = nil
+  for _ = 1, 3 do T.advance(s7) end
+  check('extra looks: with a car and nothing else it waits on step 2 (the run)', s7.tutorial.step == 2)
+  s7.jobs.done = 1
+  for _ = 1, 3 do T.advance(s7) end
+  check('...the run done: it waits on step 3 (a part), however often it looks', s7.tutorial.step == 3)
+  s7.jobs.upgraded = true
+  for _ = 1, 3 do T.advance(s7) end
+  check('...the part fitted (at any hour): it waits on step 4 (the race)', s7.tutorial.step == 4 and sent.money == nil)
+  s7.stats.races = 1
+  T.advance(s7)
+  check('...and the race run ends it, the bonus once', s7.tutorial.done == true and sent.money == 500)
   local s6 = { day = 3, cars = {}, jobs = { offers = {}, done = 0 }, tutorial = { step = 1 }, racers = {}, known = {}, challenges = {}, stats = { races = 0 } }
   T.advance(s6)
   check('no car: it waits on step 1', s6.tutorial.step == 1)
