@@ -170,6 +170,34 @@ function M.buildCustom(job, model, config, recipe, pos, rot, nobodyDrives)
   return veh
 end
 
+-- the game's slot rules for a car's parts tree: slotOf(node, parentNode) -> the slot's definition (from the parent part's
+-- slots), partSlotType(partName) -> what the part is. nil, nil when the game's jbeam data is not reachable.
+local function slotLookups(id)
+  local vd = vehData(id)
+  local ok, jbeamIO = pcall(require, 'jbeam/io')
+  if not (vd and ok and vd.ioCtx) then return nil, nil end
+  local cache = {}
+  local function part(name)
+    if type(name) ~= 'string' or name == '' then return nil end
+    if cache[name] == nil then
+      local okp, p = pcall(jbeamIO.getPart, vd.ioCtx, name)
+      cache[name] = okp and type(p) == 'table' and p or false
+    end
+    return cache[name] or nil
+  end
+  local function slotOf(node, parent)
+    local pp = parent and part(parent.chosenPartName)
+    for _, sl in ipairs(pp and (pp.slots2 or pp.slots) or {}) do
+      if (sl.name or sl.type) == node.id then return sl end
+    end
+  end
+  return slotOf, function(name) local p = part(name) return p and p.slotType end
+end
+
+-- Models whose parts are not swapped or taken off for a lot (they stand stock, dented): a midtruck crashed the game twice
+-- right after it was rebuilt that way (T29, the cause not found yet: tools/probe_tweak.lua finds it). Empty the list when it has.
+M.NO_TWEAK_MODELS = { midtruck = true }
+
 -- A car for sale, built as its offer describes: stock, then parts swapped and taken off, then dented.
 -- A track special is built as a race car instead. Returns the vehicle (nil if it could not be made).
 function M.buildOffer(job, offer, pos, rot)
@@ -184,7 +212,20 @@ function M.buildOffer(job, offer, pos, rot)
   local vd = vehData(id)
   local rng = rngLib.new(rngLib.hash(offer.id))
   local cfg = deepcopy(vd.config)
-  local tweak = carsLib.tweakTree(cfg.partsTree, { rng = rng, classify = classify(), valueOf = valueOf(id), faults = offer.faults, mods = offer.mods })
+  local tweak
+  if M.NO_TWEAK_MODELS[offer.model] then
+    tweak = { removed = {}, swapped = {}, refused = {} }
+  else
+    local slotOf, partSlotType = slotLookups(id)
+    tweak = carsLib.tweakTree(cfg.partsTree, { rng = rng, classify = classify(), valueOf = valueOf(id), faults = offer.faults, mods = offer.mods,
+      slotOf = slotOf, partSlotType = partSlotType })
+  end
+  if #tweak.removed + #tweak.swapped + #(tweak.refused or {}) > 0 then       -- (one line a car: the last one before a crash names the change)
+    local function paths(list, f) local t = {} for i, x in ipairs(list or {}) do t[i] = f(x) end return table.concat(t, ' ') end
+    log('I', 'street_legal', string.format('lot car %s (%s, %s): removed [%s] swapped [%s] refused [%s]', tostring(offer.id), tostring(offer.model), tostring(offer.config),
+      paths(tweak.removed, tostring), paths(tweak.swapped, function(x) return tostring(x.path) .. '=' .. tostring(x.from) .. '>' .. tostring(x.to) end),
+      paths(tweak.refused, function(x) return tostring(x.path) .. ':' .. tostring(x.why) end)))
+  end
   if #tweak.removed + #tweak.swapped > 0 then
     respawn(job, veh, cfg)
     veh = getObjectByID(id)

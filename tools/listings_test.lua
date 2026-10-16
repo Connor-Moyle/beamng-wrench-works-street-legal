@@ -300,4 +300,52 @@ return function(check, rngLib)
   -- the junkyard and the private sellers offer no police: the lot pool is the cars for sale
   check('forSale keeps a normal car and drops police, race and one-off configs', D.forSale({ raw = { ['Config Type'] = 'Factory', Population = 5000 } }) and not D.forSale({ raw = { ['Config Type'] = 'Police' } })
     and not D.forSale({ raw = { ['Config Type'] = 'Race' } }))
+
+  -- T29: the changes a car for sale gets are the ones the game's slot rules allow (sl/core/cars)
+  local C = require('sl/core/cars')
+  check('partFits: a list of types, allowTypes, denyTypes, a v1 type, no definition', C.partFits('rim', { allowTypes = { 'rim', 'wheel' } }) and not C.partFits('tire', { allowTypes = { 'rim' } })
+    and C.partFits({ 'x', 'rim' }, { allowTypes = { 'rim' } }) and not C.partFits({ 'rim', 'bad' }, { allowTypes = { 'rim', 'bad' }, denyTypes = { 'bad' } })
+    and C.partFits('rim', { type = 'rim' }) and not C.partFits('tire', { type = 'rim' }) and C.partFits('anything', nil))
+  local function tree()
+    return { chosenPartName = 'main', children = {
+      intake = { id = 'intake', path = '/intake/', chosenPartName = 'intake_a', suitablePartNames = { 'intake_a', 'intake_b' }, children = {} },
+      fuel = { id = 'fuel', path = '/fuel/', chosenPartName = 'tank', suitablePartNames = { 'tank' }, children = {} },
+      exhaust = { id = 'exhaust', path = '/exhaust/', chosenPartName = 'exh', suitablePartNames = { 'exh' }, children = {
+        tip = { id = 'tip', path = '/exhaust/tip/', chosenPartName = 'tip_a', suitablePartNames = { 'tip_a' }, children = {} } } },
+      rims_f = { id = 'rims_f', path = '/rims_f/', chosenPartName = 'rim_a', suitablePartNames = { 'rim_a', 'rim_b', 'rim_tyre' }, children = {} },
+    } }
+  end
+  local classifyKinds = { intake = { 'engine', 'intake' }, fuel = { 'engine', 'fuel' }, exhaust = { 'engine', 'exhaust' }, rims_f = { 'running', 'rims_f' } }
+  local function classifyStub(id) local k = classifyKinds[id] if k then return k[1], k[2] end return 'body', 'misc' end
+  local slots = { intake = { allowTypes = { 'intake' } }, fuel = { coreSlot = true, allowTypes = { 'tank' } }, exhaust = { allowTypes = { 'exh' } },
+    tip = { coreSlot = true, allowTypes = { 'tip' } }, rims_f = { allowTypes = { 'rim' } } }
+  local slotOf = function(node) return slots[node.id] end
+  local slotTypes = { rim_a = 'rim', rim_b = 'rim', rim_tyre = 'tire' }
+  local function tweak(faults, mods, seed, guarded)
+    local tr = tree()
+    local r = C.tweakTree(tr, { rng = rngLib.new(rngLib.hash('t' .. tostring(seed or 1))), classify = classifyStub, valueOf = function(n) return n == 'rim_tyre' and 100 or 1 end,
+      faults = faults, mods = mods, slotOf = guarded and slotOf or nil, partSlotType = guarded and function(n) return slotTypes[n] end or nil })
+    return r, tr
+  end
+  local r1, t1 = tweak({ 'engine' }, 0, 1, true)
+  check('a fault takes off a part from an ordinary slot', #r1.removed == 1 and r1.removed[1] == '/intake/intake_a' and t1.children.intake.chosenPartName == '' and #r1.refused == 0)
+  local r2, t2 = tweak({ 'battery' }, 0, 1, true)
+  check('...but never from a core slot', #r2.removed == 0 and #r2.refused == 1 and r2.refused[1].why == 'core slot' and t2.children.fuel.chosenPartName == 'tank')
+  local r3, t3 = tweak({ 'exhaust' }, 0, 1, true)
+  check('...nor from a part with a core slot below it', #r3.removed == 0 and r3.refused[1].why == 'core slot below' and t3.children.exhaust.chosenPartName == 'exh' and t3.children.exhaust.children.tip.chosenPartName == 'tip_a')
+  local r4 = tweak({ 'engine', 'battery', 'exhaust' }, 0, 1, false)
+  check('without the slot lookups the old rules apply: all three come off', #r4.removed == 3 and #r4.refused == 0)
+  local wrong, swappedOk = 0, 0
+  for seed = 1, 30 do
+    local r = tweak({}, 1, seed, true)
+    for _, x in ipairs(r.swapped) do if x.to == 'rim_tyre' then wrong = wrong + 1 elseif x.to == 'rim_b' then swappedOk = swappedOk + 1 end end
+  end
+  check('a swap goes only to a part the slot takes (the dearest, but a tyre in a rim slot never)', wrong == 0 and swappedOk > 0)
+  local unguardedWrong = 0
+  for seed = 1, 30 do for _, x in ipairs(tweak({}, 1, seed, false).swapped) do if x.to == 'rim_tyre' then unguardedWrong = unguardedWrong + 1 end end end
+  check('(the old rule did pick it: that is what the guard stops)', unguardedWrong > 0)
+  local r5 = tweak({}, 1, 1, true)
+  local refusedWrong = false
+  for _, x in ipairs(r5.refused) do if x.path:find('rim_tyre', 1, true) and x.why == 'does not fit the slot' then refusedWrong = true end end
+  check('a part refused for its slot is named', refusedWrong)
 end

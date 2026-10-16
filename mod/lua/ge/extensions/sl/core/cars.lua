@@ -61,7 +61,7 @@ local function nodes(root, classify)
     for _, child in pairs(node.children or {}) do
       if isChosen(child) then
         local section, sub = classify(child.id or '', child.chosenPartName, nil)
-        out[#out + 1] = { node = child, key = section .. '/' .. sub, depth = depth }
+        out[#out + 1] = { node = child, parent = node, key = section .. '/' .. sub, depth = depth }
         walk(child, depth + 1)
       end
     end
@@ -76,14 +76,49 @@ end
 
 local function partPath(node) return (node.path or '/') .. node.chosenPartName end
 
+-- Whether a part can go into a slot, as the game's own slot system decides it (jbeam/slotSystem partFitsSlot): the part's
+-- slotType (a string or a list) against the slot's allowTypes (slots2) or its single type (slots1); denyTypes refuse.
+-- No slot definition at all: it fits (the game will have its say).
+function M.partFits(slotType, slot)
+  if type(slot) ~= 'table' then return true end
+  local function has(list, x) for _, v in ipairs(list) do if v == x then return true end end return false end
+  local types = type(slotType) == 'table' and slotType or { slotType }
+  for _, t in ipairs(types) do
+    if type(slot.denyTypes) == 'table' and has(slot.denyTypes, t) then return false end
+  end
+  if slot.allowTypes then
+    for _, t in ipairs(types) do if has(slot.allowTypes, t) then return true end end
+    return false
+  elseif slot.type then
+    for _, t in ipairs(types) do if t == slot.type then return true end end
+    return false
+  end
+  return true
+end
+
 -- Make a stock parts tree into the car an offer describes. Changes the tree in place.
 -- opts: { rng, classify = function(slotId, partName, desc) -> section, sub,
---         valueOf = function(partName) -> number, faults = { 'engine', ... }, mods = n }
--- Returns { removed = { partPath }, swapped = { { path, from, to } } }
+--         valueOf = function(partName) -> number, faults = { 'engine', ... }, mods = n,
+--         slotOf = function(node, parentNode) -> the node's slot definition { coreSlot, allowTypes, denyTypes, type } or nil,
+--         partSlotType = function(partName) -> the part's slotType or nil }
+-- A part is never taken off from a core slot, nor from one with a core slot below it (the car would be missing what it
+-- needs: T29), and a part is swapped in only where the game's slot rules let it (partFits); without slotOf the old rules.
+-- Returns { removed = { partPath }, swapped = { { path, from, to } }, refused = { { path, why } } }
 function M.tweakTree(tree, opts)
   local rng, classify, valueOf = opts.rng, opts.classify, opts.valueOf or function() return 0 end
-  local result = { removed = {}, swapped = {} }
+  local result = { removed = {}, swapped = {}, refused = {} }
   if type(tree) ~= 'table' then return result end
+
+  local slotOf = opts.slotOf
+  local function coreBelow(node)
+    for _, child in pairs(node.children or {}) do
+      if isChosen(child) then
+        local slot = slotOf(child, node)
+        if (slot and slot.coreSlot) or coreBelow(child) then return true end
+      end
+    end
+    return false
+  end
 
   -- faults: the parts go
   for _, fault in ipairs(opts.faults or {}) do
@@ -91,8 +126,15 @@ function M.tweakTree(tree, opts)
     for _, entry in ipairs(nodes(tree, classify)) do
       local n = entry.node
       if wanted[entry.key] and isChosen(n) then
-        result.removed[#result.removed + 1] = partPath(n)
-        n.chosenPartName, n.partPath, n.children, n.decisionMethod = '', nil, nil, 'user-empty'
+        local slot = slotOf and slotOf(n, entry.parent)
+        if slot and slot.coreSlot then
+          result.refused[#result.refused + 1] = { path = partPath(n), why = 'core slot' }
+        elseif slotOf and coreBelow(n) then
+          result.refused[#result.refused + 1] = { path = partPath(n), why = 'core slot below' }
+        else
+          result.removed[#result.removed + 1] = partPath(n)
+          n.chosenPartName, n.partPath, n.children, n.decisionMethod = '', nil, nil, 'user-empty'
+        end
       end
     end
   end
@@ -101,10 +143,13 @@ function M.tweakTree(tree, opts)
   local mods = opts.mods or 0
   if mods > 0 then
     local wanted = set(M.MOD_PARTS)
-    local candidates = {}
+    local candidates, parents = {}, {}
     for _, entry in ipairs(nodes(tree, classify)) do
       local n = entry.node
-      if wanted[entry.key] and type(n.suitablePartNames) == 'table' and #n.suitablePartNames > 1 then candidates[#candidates + 1] = n end
+      if wanted[entry.key] and type(n.suitablePartNames) == 'table' and #n.suitablePartNames > 1 then
+        candidates[#candidates + 1] = n
+        parents[n] = entry.parent
+      end
     end
     local done = 0
     while done < mods and #candidates > 0 do
@@ -113,10 +158,18 @@ function M.tweakTree(tree, opts)
       if isChosen(n) then
         local current = n.chosenPartName
         local better, other = {}, {}
+        local slot = slotOf and slotOf(n, parents[n])
         for _, name in ipairs(n.suitablePartNames) do
-          if name ~= current then
+          local fits = true
+          if slot and opts.partSlotType then
+            local st = opts.partSlotType(name)
+            fits = st ~= nil and M.partFits(st, slot)
+          end
+          if name ~= current and fits then
             other[#other + 1] = name
             if valueOf(name) > valueOf(current) then better[#better + 1] = name end
+          elseif name ~= current then
+            result.refused[#result.refused + 1] = { path = (n.path or '/') .. name, why = 'does not fit the slot' }
           end
         end
         local pick = #better > 0 and better[rng:int(#better)] or (#other > 0 and other[rng:int(#other)] or nil)
