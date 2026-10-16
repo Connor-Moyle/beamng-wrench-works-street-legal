@@ -12,6 +12,7 @@ local market = require('sl/core/market')
 local rngLib = require('sl/core/rng')
 local builder = require('sl/carBuilder')
 local hours = require('sl/core/hours')
+local stockLib = require('sl/core/stockdealers')
 
 local KIND = { junkyard = 'used', dealer = 'dealer', scrapyard = 'scrap' }
 local TITLES = { used = 'Used cars', dealer = 'New cars', scrap = 'Scrap yard' }
@@ -240,11 +241,18 @@ local function open(place, mode, given)
     guihooks.trigger('slPhoneToast', { text = closed })
     return
   end
-  local kind = KIND[place.kind] or 'used'
+  local stock = place.stock      -- a stock dealer (the map's own): new or used by its filter, its own cars
+  local kind = stock and stock.kind or KIND[place.kind] or 'used'
   -- how many stand on the lot today: 2 to 6, the same all day
   local count = rngLib.new(rngLib.hash(place.id .. ':' .. s.day .. ':' .. s.seed)):int(M.MIN_CARS, M.MAX_CARS)
   local offers = given or {}
-  for _, o in ipairs(given and {} or market.offers(builder.configs(), kind, s.seed, s.day, count + 4)) do
+  local pool = builder.configs()
+  if stock and not given then
+    if extensions and extensions.load then pcall(extensions.load, 'util_configListGenerator') end      -- (only its filter test; no career module)
+    pool = stockLib.pool(pool, stock.filter, util_configListGenerator and function(c, f) return util_configListGenerator.doesVehiclePassFilter(c.raw, f) end)
+  end
+  for _, o in ipairs(given and {} or market.offers(pool, kind, stock and (s.seed .. ':' .. place.id) or s.seed, s.day, count + 4)) do
+    if stock then o.id = place.id .. ':' .. o.id end      -- (an offer is bought once: a stock dealer's ids are its own)
     if not (s.bought or {})[o.id] and #offers < count then offers[#offers + 1] = o end
   end
   lot = { place = place, kind = kind, offers = offers, index = 1, cars = {}, mode = mode or 'browse', previousCamera = core_camera.getActiveCamName(0),

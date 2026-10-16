@@ -18,7 +18,8 @@ M.START_HOUR = 10            -- a daytime start (Connor, 2026-10-16); the races 
 local ALL = { roc = true, tracks = true, testdrive = true, clubDays = true, swapMeet = true }
 M.MAPS = {
   slrr_valo_city = { name = 'Valo City', races = 'slrrValoRaces', has = ALL },
-  west_coast_usa = { name = 'West Coast USA', races = 'sl_races', has = {}, garages = {
+  -- stockFacilities: the map's own dealerships and garages (game data) become places; Valo City has its own
+  west_coast_usa = { name = 'West Coast USA', races = 'sl_races', has = { stockFacilities = true }, garages = {
     { id = 'alderDragwayGarage', name = 'Alder Dragway Garage' }, { id = 'commercialGarage', name = 'Industrial Garage' },
     { id = 'belascoCityGarage', name = 'Belasco City Garage' } } },
 }

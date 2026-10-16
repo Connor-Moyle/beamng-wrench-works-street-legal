@@ -55,4 +55,75 @@ return function(check, rngLib)
   check('a buyer can pay more than the counter for a nearly new part', L.resaleCap(1000, 1.0) > 500 and L.resaleCap(1000, 1.0) < 600, L.resaleCap(1000, 1.0))
   local honest = { ask = 900, item = { value = 1000 }, condition = 0.7, rating = 4 }
   check('an honest listing shows no tells', #L.tells(honest) == 0)
+
+  -- the game's own dealerships and garages as places (T12): sl/core/stockdealers
+  local D = require('sl/core/stockdealers')
+  local progression = require('sl/core/progression')
+  local market = require('sl/core/market')
+  local tr = function(k) return k == 'levels.x.jeff' and 'Jefferson Motors' or k end
+  local newF = { whiteList = { Value = { min = 1000 }, Mileage = { min = 10500000, max = 119000000 } } }
+  local oldF = { whiteList = { Mileage = { min = 135000000, max = 300000000 } } }
+  check('a dealer whose cars start at 50,000 km sells used cars, the others new', D.offerKind(oldF) == 'used' and D.offerKind(newF) == 'dealer' and D.offerKind(nil) == 'dealer')
+  check('a translated name is used, an id is read as words', D.nameOf({ id = 'jeffersonmotors', name = 'levels.x.jeff' }, tr) == 'Jefferson Motors'
+    and D.nameOf({ id = 'belascoAuto', name = 'levels.x.belasco' }, tr) == 'Belasco Auto' and D.nameOf({ id = 'truckShop' }) == 'Truck Shop')
+  local spots = { { x = 10, y = 20, z = 1, dx = 0, dy = 1 }, { x = 14, y = 20, z = 1, dx = 0, dy = 1 } }
+  local jeff = D.dealer({ id = 'jeffersonmotors', name = 'levels.x.jeff', filter = newF }, spots, tr)
+  check('a stock dealer is a dealer place on its first parking spot with every spot as a display', jeff.kind == 'dealer' and jeff.id == 'stock_jeffersonmotors'
+    and jeff.pos[1] == 10 and jeff.display[2] == 20 and #jeff.displays == 2 and jeff.displays[2].pos[1] == 14 and jeff.stock.kind == 'dealer' and jeff.stock.filter == newF)
+  check('a dealer without a parking spot has no place', D.dealer({ id = 'x' }, {}, tr) == nil and D.dealer({ id = 'x' }, nil, tr) == nil)
+  local gar = D.garage({ id = 'servicestationGarage' }, {}, { x = 5, y = 6, z = 0 }, tr)
+  check('a garage without a spot is placed at its door; with nothing it has no place', gar.kind == 'garage' and gar.pos[1] == 5 and D.garage({ id = 'g' }, {}, nil, tr) == nil)
+  local quarry = D.dealer({ id = 'quarrysideAutoSales', filter = oldF }, { { x = 900, y = 900, z = 0, dx = 1, dy = 0 } }, tr)
+  -- the map's Jefferson Motors (60 m away) is the stock one: it takes the map's id, "dealer"; the junkyard stays
+  local mine = { { id = 'dealer', kind = 'dealer', name = 'Jefferson Motors', pos = { 40, 70, 0 } }, { id = 'junkyard', kind = 'junkyard', name = 'Wrecks', pos = { 12, 22, 0 } },
+    { id = 'dealer2', kind = 'dealer', name = 'Far Dealer', pos = { 5000, 5000, 0 } } }
+  local merged = D.merge({ jeff, quarry }, mine)
+  local byId = {}
+  for _, p in ipairs(merged) do byId[p.id] = p end
+  check('stock dealers win where they are the same dealer and keep the map place id', byId.dealer == jeff and #merged == 4 and not byId.stock_jeffersonmotors)
+  check('the junkyard and a far-away map dealer stay; an unrelated stock dealer is untouched', byId.junkyard and byId.dealer2 and byId.dealer2.name == 'Far Dealer' and byId.stock_quarrysideautosales == quarry)
+  local near = D.merge({ D.dealer({ id = 'other', name = 'k' }, { { x = 0, y = 0, z = 0, dx = 0, dy = 1 } }, tr) }, { { id = 'dealer', kind = 'dealer', name = 'Elsewhere Cars', pos = { 30, 40, 0 } } })
+  check('a map dealer within 80 m of a stock dealer is the same dealer, whatever its name', #near == 1 and near[1].id == 'dealer')
+  check('a map place that is not a dealer is never merged away', #D.merge({ jeff }, { { id = 'j', kind = 'junkyard', name = 'Jefferson Motors', pos = { 10, 20, 0 } } }) == 2)
+  -- a dealer's stock: the cars that pass its filter; too few and it is every car
+  local cars = {}
+  for i = 1, 12 do cars[i] = { model = 'm' .. i, config = 'c' .. i, name = 'Car ' .. i, brand = 'B', value = i * 1000, raw = { Value = i * 1000 } } end
+  local passes = function(c, f) return c.raw.Value >= f.whiteList.Value.min end
+  check('the pool is the cars that pass the dealer filter', #D.pool(cars, { whiteList = { Value = { min = 6000 } } }, passes) == 7)
+  check('a filter that leaves fewer than MIN_POOL cars gives every car', #D.pool(cars, { whiteList = { Value = { min = 11000 } } }, passes) == 12
+    and #D.pool(cars, { whiteList = { Value = { min = 99000 } } }, passes) == 12)
+  check('no filter, no test or a test that errors gives every car', #D.pool(cars, nil, passes) == 12 and #D.pool(cars, { a = 1 }, nil) == 12
+    and #D.pool(cars, { a = 1 }, function() error('x') end) == 12)
+  -- priced with the existing rules: a stock dealer's new cars cost what the dealer's always did, used ones the used rules
+  local pool = D.pool(cars, { whiteList = { Value = { min = 6000 } } }, passes)
+  local newOffers = market.offers(pool, 'dealer', '7:' .. jeff.id, 3, 4)
+  local ok = #newOffers == 4
+  for _, o in ipairs(newOffers) do ok = ok and o.value >= 6000 and o.price >= o.value and o.price <= o.value * 1.7 + 50 end
+  check('a stock dealer sells only cars from its pool at the dealer prices', ok)
+  local first, differ = market.offers(pool, 'dealer', '7:a', 3, 4)[1].config, false
+  for _, id in ipairs({ 'b', 'c', 'd', 'e', 'f', 'g' }) do differ = differ or market.offers(pool, 'dealer', '7:' .. id, 3, 4)[1].config ~= first end
+  check('stock dealers (seeded by their place) do not all show the same cars', differ)
+  -- the facilities API stubbed: West Coast USA reads it, Valo City does not
+  local calls = 0
+  local api = {
+    list = function(kind)
+      calls = calls + 1
+      if kind == 'dealership' then
+        return { { id = 'jeffersonmotors', name = 'levels.x.jeff', filter = newF }, { id = 'apmStarterVehicles', remotePurchaseOnly = true }, { id = 'noLot' } }
+      end
+      return { { id = 'alderDragwayGarage' }, { id = 'servicestationGarage' }, { id = 'nowhereGarage' } }
+    end,
+    spots = function(f) return (f.id == 'jeffersonmotors' or f.id == 'servicestationGarage') and spots or {} end,
+    door = function(f) return nil end,
+  }
+  local wc = D.fromFacilities(api, 'west_coast_usa', tr)
+  local ids = {}
+  for _, p in ipairs(wc) do ids[p.id] = p end
+  check('West Coast USA: its dealer with a lot and a garage with a spot become places',
+    #wc == 2 and ids.stock_jeffersonmotors and ids.stock_jeffersonmotors.kind == 'dealer' and ids.stock_servicestationgarage and ids.stock_servicestationgarage.kind == 'garage')
+  check('the tutorial seller, a dealer without a lot, a Wrench Works garage and a garage with no position are left out',
+    not ids.stock_apmstartervehicles and not ids.stock_nolot and not ids.stock_alderdragwaygarage and not ids.stock_nowheregarage)
+  calls = 0
+  check('Valo City asks the facilities for nothing and gets no places', #D.fromFacilities(api, 'slrr_valo_city', tr) == 0 and calls == 0 and #D.fromFacilities(nil, 'west_coast_usa', tr) == 0)
+  check('only West Coast USA turns the stock facilities into places', progression.has('west_coast_usa', 'stockFacilities') and not progression.has('slrr_valo_city', 'stockFacilities'))
 end

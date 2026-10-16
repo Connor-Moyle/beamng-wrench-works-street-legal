@@ -15,6 +15,7 @@ local progression = require('sl/core/progression')
 local stateLib = require('sl/core/state')
 local roster = require('sl/core/roster')
 local rngLib = require('sl/core/rng')
+local stockLib = require('sl/core/stockdealers')
 
 local logTag = 'street_legal'
 M.MAPS = progression.MAPS         -- the maps a career is played on (W1)
@@ -255,54 +256,88 @@ end
 -- /street_legal/places/*.json (the map brings them) and the player's own places.json:
 -- { "slrr_valo_city": { "places": [ { "id": "junkyard", "kind": "junkyard", "name": "...", "pos": [x, y, z], "dir": [x, y] } ] } }
 
+-- one place from its json shape (the map's file, the player's, or the stock facilities) into places
+local function addPlace(p, file)
+  local pos = v3(p.pos)
+  if type(p.id) == 'string' and pos then
+    local function flat(t)
+      local d = v3(t)
+      if not d then return nil end
+      d.z = 0
+      return d:length() > 0.01 and d:normalized() or nil
+    end
+    local place = { id = p.id, kind = tostring(p.kind or p.id), name = tostring(p.name or p.id), pos = pos,
+      dir = flat(p.dir) or vec3(0, 1, 0), display = v3(p.display), displayDir = flat(p.displayDir),
+      stock = type(p.stock) == 'table' and p.stock or nil }      -- (stock: a stock dealer's { kind, filter }, sl_lot)
+    -- a lot's display spots, one car each: "displays": [ { "pos": [x, y, z], "dir": [x, y] } ]
+    if type(p.displays) == 'table' then
+      place.displays = {}
+      for _, d in ipairs(p.displays) do
+        local dp = type(d) == 'table' and v3(d.pos)
+        if dp then place.displays[#place.displays + 1] = { pos = dp, dir = flat(d.dir) or place.displayDir or -place.dir } end
+      end
+      if #place.displays == 0 then place.displays = nil end
+    end
+    -- a showroom's way out to the street: "exit": [ [x, y, z] ... ] from inside the door to a city lane
+    if type(p.exit) == 'table' then
+      place.exit = {}
+      for _, q in ipairs(p.exit) do place.exit[#place.exit + 1] = v3(q) end
+      if #place.exit == 0 then place.exit = nil end
+    end
+    -- a lot whose drop-off is the display spot itself: you arrive 8 m in front of the car, facing it
+    if place.kind ~= 'meet' and place.display and (place.display - place.pos):length() < 6 then
+      local facing = place.displayDir or -place.dir
+      place.pos = place.display + facing * 8
+      place.dir = -facing
+    end
+    places[p.id] = place
+  else
+    log('W', logTag, file .. ': a place without "id" or "pos" was left out')
+  end
+end
+
+-- the map's own dealerships and garages, from the game's facilities (data only: no career module of the game is
+-- loaded), as places in the json shape (T12). A map whose progression has no stockFacilities gets none.
+local function stockPlaces(level)
+  local fac = freeroam_facilities
+  if not (fac and fac.getFacilitiesByType) then return {} end
+  local function tr(key) local ok, t = pcall(translateLanguage, key, key, true) return ok and t or key end
+  return stockLib.fromFacilities({
+    list = function(kind, lvl) return fac.getFacilitiesByType(kind, lvl) end,
+    spots = function(f)
+      local out = {}
+      local ok, list = pcall(fac.getParkingSpotsForFacility, f)
+      for _, sp in ipairs(ok and type(list) == 'table' and list or {}) do
+        if sp.pos and sp.rot then
+          local d = sp.rot * vec3(0, 1, 0)
+          out[#out + 1] = { x = sp.pos.x, y = sp.pos.y, z = sp.pos.z, dx = d.x, dy = d.y }
+        end
+      end
+      return out
+    end,
+    door = function(f)
+      local ok, c = pcall(fac.getAverageDoorPositionForFacility, f)
+      return ok and c and (c.x ~= 0 or c.y ~= 0) and { x = c.x, y = c.y, z = c.z } or nil
+    end,
+  }, level, tr)
+end
+
 local function loadPlaces()
   places = {}
   local level = getCurrentLevelIdentifier and getCurrentLevelIdentifier()
   if not level then return end
   local files = FS:findFiles(PLACES_DIR, '*.json', 0, false, false) or {}
   table.sort(files)
-  files[#files + 1] = USER_PLACES
+  local mine = {}           -- the map's own places
   for _, file in ipairs(files) do
     local data = FS:fileExists(file) and jsonReadFile(file)
     local here = type(data) == 'table' and data[level]
-    for _, p in ipairs(type(here) == 'table' and type(here.places) == 'table' and here.places or {}) do
-      local pos = v3(p.pos)
-      if type(p.id) == 'string' and pos then
-        local function flat(t)
-          local d = v3(t)
-          if not d then return nil end
-          d.z = 0
-          return d:length() > 0.01 and d:normalized() or nil
-        end
-        local place = { id = p.id, kind = tostring(p.kind or p.id), name = tostring(p.name or p.id), pos = pos,
-          dir = flat(p.dir) or vec3(0, 1, 0), display = v3(p.display), displayDir = flat(p.displayDir) }
-        -- a lot's display spots, one car each: "displays": [ { "pos": [x, y, z], "dir": [x, y] } ]
-        if type(p.displays) == 'table' then
-          place.displays = {}
-          for _, d in ipairs(p.displays) do
-            local dp = type(d) == 'table' and v3(d.pos)
-            if dp then place.displays[#place.displays + 1] = { pos = dp, dir = flat(d.dir) or place.displayDir or -place.dir } end
-          end
-          if #place.displays == 0 then place.displays = nil end
-        end
-        -- a showroom's way out to the street: "exit": [ [x, y, z] ... ] from inside the door to a city lane
-        if type(p.exit) == 'table' then
-          place.exit = {}
-          for _, q in ipairs(p.exit) do place.exit[#place.exit + 1] = v3(q) end
-          if #place.exit == 0 then place.exit = nil end
-        end
-        -- a lot whose drop-off is the display spot itself: you arrive 8 m in front of the car, facing it
-        if place.kind ~= 'meet' and place.display and (place.display - place.pos):length() < 6 then
-          local facing = place.displayDir or -place.dir
-          place.pos = place.display + facing * 8
-          place.dir = -facing
-        end
-        places[p.id] = place
-      else
-        log('W', logTag, file .. ': a place without "id" or "pos" was left out')
-      end
-    end
+    for _, p in ipairs(type(here) == 'table' and type(here.places) == 'table' and here.places or {}) do mine[#mine + 1] = p end
   end
+  for _, p in ipairs(stockLib.merge(stockPlaces(level), mine)) do addPlace(p, 'places') end      -- (stock wins where it is the same dealer)
+  local data = FS:fileExists(USER_PLACES) and jsonReadFile(USER_PLACES)       -- the player's own come last
+  local here = type(data) == 'table' and data[level]
+  for _, p in ipairs(type(here) == 'table' and type(here.places) == 'table' and here.places or {}) do addPlace(p, USER_PLACES) end
   -- the garages are Wrench Works' own sites
   local sites = garageModule('slrr/garageSites')
   for _, g in ipairs(progression.garages) do

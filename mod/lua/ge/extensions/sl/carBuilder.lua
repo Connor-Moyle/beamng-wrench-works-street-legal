@@ -32,7 +32,7 @@ function M.configs()
       if info.Type == 'Car' or info.Type == 'Truck' then
         configCache[#configCache + 1] = {
           model = c.model_key, config = c.pcFilename, name = tostring(c.Name or c.model_key), brand = tostring(info.Brand or ''),
-          power = power, weight = weight, pw = power / weight, value = value,
+          power = power, weight = weight, pw = power / weight, value = value, raw = c,       -- (raw: the game's entry, for a dealer's filter)
         }
       end
     end
