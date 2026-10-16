@@ -309,6 +309,27 @@ end
 
 -- the map's own dealerships and garages, from the game's facilities (data only: no career module of the game is
 -- loaded), as places in the json shape (T12). A map whose progression has no stockFacilities gets none.
+-- The level's painted parking bays (the city parking sites parked traffic uses) around a point, and the public roads there
+-- (T37). nil, nil while the sites or the navgraph are not loaded yet (baysMissing then asks getPlaces to build the places again).
+local baysMissing = false
+function M.paintedBays(o)
+  local sites = gameplay_city and gameplay_city.getSites and gameplay_city.getSites()
+  local okm, nodes = pcall(function() return map.getMap().nodes end)
+  if not sites or not okm or type(nodes) ~= 'table' or next(nodes) == nil then
+    baysMissing = true
+    return nil, nil
+  end
+  local list = {}
+  for _, r in ipairs(sites:getRadialParkingSpots(vec3(o.x, o.y, o.z), 0, stockLib.BAY_RADIUS + 5) or {}) do
+    local ps = r.ps
+    if ps and ps.pos and ps.rot then
+      local d = ps.rot * vec3(0, 1, 0)
+      list[#list + 1] = { x = ps.pos.x, y = ps.pos.y, z = ps.pos.z, dx = d.x, dy = d.y, occupied = ps.vehicle ~= nil }
+    end
+  end
+  return list, require('sl/core/roadspot').roadSegments(nodes, o.x, o.y, stockLib.BAY_RADIUS + 40)
+end
+
 local told = {}            -- the stock facilities already reported, once each
 local function stockApi(level)
   if not progression.has(level, 'stockFacilities') then return nil end
@@ -324,16 +345,7 @@ local function stockApi(level)
   local function tell1(f, why) if not told[f.id] then told[f.id] = true log('W', logTag, 'stock facility ' .. tostring(f.id) .. ': ' .. why) end end
   return {
     list = function(kind, lvl) return fac.getFacilitiesByType(kind, lvl) end,
-    rays = {
-      ground = function(x, y, z)
-        local ok, d = pcall(castRayStatic, vec3(x, y, z + 1.5), vec3(0, 0, -1), 4)
-        return ok and d and d < 4 and (z + 1.5 - d) or nil
-      end,
-      free = function(x, y, z, dx, dy, dist)
-        local ok, d = pcall(castRayStatic, vec3(x, y, z + 0.8), vec3(dx, dy, 0), dist)
-        return not ok or not d or d >= dist - 0.01
-      end,
-    },
+    bays = function(o) return M.paintedBays(o) end,
     ownSpots = function()
       local out, sites = {}, garageModule('slrr/garageSites')
       local ok, list = pcall(function() return sites and sites.getSites() or {} end)
@@ -399,7 +411,8 @@ local function loadPlaces()
   for _, p in ipairs(type(here) == 'table' and type(here.places) == 'table' and here.places or {}) do addPlace(p, USER_PLACES) end
   -- the lots of a map with stock facilities stand where the game's data put them, not where a lane is: a lot whose
   -- nearest city lane is over 60 m away (the car leaves by it) is moved towards the lane, to 45 m (T15)
-  lanesPending = false
+  lanesPending = baysMissing
+  baysMissing = false
   if progression.has(level, 'stockFacilities') then
     local rs = require('sl/core/roadspot')
     local okm, nodes = pcall(function() return map.getMap().nodes end)
@@ -409,6 +422,17 @@ local function loadPlaces()
       lanesPending = true            -- (the navgraph is not there yet: getPlaces asks again)
     else
       for _, p in pairs(places) do
+        -- the used lot and the scrap yard stand in the map's painted bays too, where there are enough (T37)
+        if (p.kind == 'junkyard' or p.kind == 'scrapyard') and p.displays and #p.displays > 0 then
+          local plain = {}
+          for _, d in ipairs(p.displays) do plain[#plain + 1] = { x = d.pos.x, y = d.pos.y, z = d.pos.z, dx = d.dir.x, dy = d.dir.y } end
+          local cands, roads = M.paintedBays(plain[1])
+          local used = cands and stockLib.withBays(plain, cands, roads) or plain
+          if #used > #plain then
+            p.displays = {}
+            for _, u in ipairs(used) do p.displays[#p.displays + 1] = { pos = vec3(u.x, u.y, u.z), dir = vec3(u.dx, u.dy, 0):normalized() } end
+          end
+        end
         if p.kind == 'dealer' or p.kind == 'junkyard' or p.kind == 'scrapyard' then
           local to = rs.towards(p.pos, rs.candidates(nodes, p.pos, not rhd)[1], rs.LOT_REACH, rs.LOT_TARGET)
           if to then p.pos = vec3(to.x, to.y, to.z) end

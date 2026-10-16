@@ -68,4 +68,40 @@ function M.towards(from, c, limit, target)
   return { x = from.x + (c.x - from.x) * k, y = from.y + (c.y - from.y) * k, z = from.z + ((c.z or from.z) - from.z) * k }
 end
 
+-- The public roads near (cx, cy), as flat segments { x1, y1, x2, y2, half } with half the road's width (the narrower node radius),
+-- from the navgraph: any public, drivable, visible link, freeways too (a lot's bays are not on a road and not across one: T37).
+-- Links with an end within `reach` metres of the point.
+function M.roadSegments(nodes, cx, cy, reach)
+  local out, seen = {}, {}
+  for id, a in pairs(nodes or {}) do
+    for oid, e in pairs(a.links or {}) do
+      local key = id < oid and (id .. '|' .. oid) or (oid .. '|' .. id)
+      local b = nodes[oid]
+      if not seen[key] and b and (e.drivability or 1) >= 0.9 and not e.hiddenInNavi and (e.type == nil or e.type == 'public') then
+        seen[key] = true
+        local near = math.min((a.pos.x - cx) ^ 2 + (a.pos.y - cy) ^ 2, (b.pos.x - cx) ^ 2 + (b.pos.y - cy) ^ 2)
+        if near <= reach * reach then
+          out[#out + 1] = { x1 = a.pos.x, y1 = a.pos.y, x2 = b.pos.x, y2 = b.pos.y, half = math.min(a.radius or 2, b.radius or 2) }
+        end
+      end
+    end
+  end
+  return out
+end
+
+-- distance between two flat segments (0 when they cross)
+local function pointSeg(px, py, x1, y1, x2, y2)
+  local dx, dy = x2 - x1, y2 - y1
+  local l2 = dx * dx + dy * dy
+  local t = l2 > 0 and math.max(0, math.min(1, ((px - x1) * dx + (py - y1) * dy) / l2)) or 0
+  return math.sqrt((px - x1 - t * dx) ^ 2 + (py - y1 - t * dy) ^ 2)
+end
+function M.segDist(ax, ay, bx, by, cx, cy, dx, dy)
+  local function side(px, py, qx, qy, rx, ry) return (qx - px) * (ry - py) - (qy - py) * (rx - px) end
+  local d1, d2 = side(ax, ay, bx, by, cx, cy), side(ax, ay, bx, by, dx, dy)
+  local d3, d4 = side(cx, cy, dx, dy, ax, ay), side(cx, cy, dx, dy, bx, by)
+  if ((d1 > 0 and d2 < 0) or (d1 < 0 and d2 > 0)) and ((d3 > 0 and d4 < 0) or (d3 < 0 and d4 > 0)) then return 0 end
+  return math.min(pointSeg(ax, ay, cx, cy, dx, dy), pointSeg(bx, by, cx, cy, dx, dy), pointSeg(cx, cy, ax, ay, bx, by), pointSeg(dx, dy, ax, ay, bx, by))
+end
+
 return M

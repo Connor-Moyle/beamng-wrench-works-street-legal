@@ -169,35 +169,35 @@ return function(check, rngLib)
   for _ = 1, D.MAX_TRIES do D.load(st2, 'west_coast_usa', function() return nil end) end
   check('asking stops after MAX_TRIES', st2.retry == false and st2.tries == D.MAX_TRIES)
   check('Valo City never asks again', #D.load({}, 'slrr_valo_city', function() return nil end) == 0 and ({ D.load(st2, 'slrr_valo_city', make) })[1] ~= nil and st2.retry == false)
-  -- T22: more cars on a lot, in slots beside the parking spots
-  local function rays(o)
-    o = o or {}
-    return { ground = function(x, y, z) if o.ground then return o.ground(x, y, z) end return z end,
-      free = function(x, y, z, dx, dy, dist) if o.free then return o.free(x, y, z, dx, dy, dist) end return true end }
-  end
-  local sp0 = { { x = 0, y = 0, z = 5, dx = 0, dy = 1 } }
-  local open = D.slots(sp0, rays())
-  check('a free lot: the spot first, then slots 3 m apart on both sides, six in all', #open == 6 and open[1] == sp0[1]
-    and open[2].x == 3 and open[3].x == -3 and open[4].x == 6 and open[5].x == -6 and open[6].x == 9 and open[2].dx == 0 and open[2].dy == 1)
-  check('every slot keeps the spot height and facing', open[3].z == 5 and open[6].dy == 1)
-  local walled = D.slots(sp0, rays({ free = function(x, y, z, dx, dy) return not (dx > 0.5 and x >= 6) end }))
-  check('a wall on one side: that side stops at the first slot that fails, the other goes on', #walled == 5 and walled[2].x == 3 and walled[4].x == -6)
-  local kerb = D.slots(sp0, rays({ ground = function(x, y, z) return x < 0 and z + 0.6 or z end }))
-  check('a slot whose ground is over 0.25 m off the spot (a kerb) is dropped', #kerb == 4 and kerb[2].x == 3 and kerb[4].x == 9)
-  local nearGround = D.slots(sp0, rays({ ground = function(x, y, z) return z + 0.2 end }))
-  check('...0.2 m off is still ground', #nearGround == 6 and nearGround[2].z == 5.2)
-  check('no room towards the arrival point (a ray towards it hits): the spot only', #D.slots(sp0, rays({ free = function(x, y, z, dx, dy) return not (dy > 0.3) end })) == 1)
-  local two = D.slots({ { x = 0, y = 0, z = 5, dx = 0, dy = 1 }, { x = 4, y = 0, z = 5, dx = 0, dy = 1 } }, rays())
-  local tooClose = false
-  for i = 1, #two do for j = i + 1, #two do if math.sqrt((two[i].x - two[j].x) ^ 2 + (two[i].y - two[j].y) ^ 2) < D.SLOT_MIN - 1e-9 then tooClose = true end end end
-  check('two spots 4 m apart: the originals first, no slot within 2.5 m of another', two[1].x == 0 and two[2].x == 4 and not tooClose and #two >= 3)
-  local many = {}
-  for i = 1, 8 do many[i] = { x = i * 10, y = 0, z = 0, dx = 0, dy = 1 } end
-  check('the cap is six, the originals first (even if there are more)', #D.slots(many, rays()) == 6 and D.slots(many, rays())[6].x == 60 and #D.slots(sp0, rays()) <= D.SLOT_CAP)
-  check('no rays: the spots as they are; a door spot (made up) gets none', #D.slots(sp0, nil) == 1 and #D.slots({ { x = 0, y = 0, z = 0, dx = 0, dy = 1, synthetic = true } }, rays()) == 1 and #D.slots({}, rays()) == 0)
-  local dealerWith = D.dealer({ id = 'belascoAuto', filter = newF }, sp0, tr, rays())
-  check('a stock dealer place lists every slot as a display, the spot first', #dealerWith.displays == 6 and dealerWith.display[1] == 0 and dealerWith.displays[2].pos[1] == 3)
-  check('...and none without rays (Valo City never gets them)', #D.dealer({ id = 'belascoAuto', filter = newF }, sp0, tr).displays == 1)
+  -- T37: more cars on a lot, in the map's painted parking bays around it
+  local RSP = require('sl/core/roadspot')
+  local own = { { x = 0, y = 0, z = 5, dx = 0, dy = 1 } }
+  local function bay(x, y, o) o = o or {} return { x = x, y = y, z = o.z or 5, dx = o.dx or 0, dy = o.dy or 1, occupied = o.occupied } end
+  local row = { bay(4, 0), bay(8, 0), bay(12, 0), bay(16, 0), bay(20, 0), bay(24, 0), bay(28, 0) }
+  local w = D.withBays(own, row, {})
+  check('a lot gets its own spot first, then the nearest bays, six in all', #w == 6 and w[1] == own[1] and w[2].x == 4 and w[3].x == 8 and w[6].x == 20)
+  local far = D.withBays(own, { bay(4, 0), bay(8, 0), bay(100, 0), bay(40, 0) }, {})
+  check('a bay beyond 38 m is not used', #far == 3 and far[3].x == 8)
+  local mixed = D.withBays(own, { bay(4, 0, { z = 7 }), bay(8, 0), bay(12, 0, { occupied = true }), bay(16, 0), bay(20, 0, { z = 4.2 }) }, {})
+  check('a bay more than 1 m up or down, or taken by a parked car, is skipped (0.8 m is the same level)', #mixed == 4 and mixed[2].x == 8 and mixed[3].x == 16 and mixed[4].x == 20)
+  check('a bay carries its own position and facing (the car stands centred between the lines)', w[2].dx == 0 and w[2].dy == 1 and D.withBays(own, { bay(4, 0, { dx = 1, dy = 0 }), bay(8, 0), bay(12, 0) }, {})[2].dx == 1)
+  -- a road along y = 10 (7 m wide) between the lot and the bays above it; the bays at y = 3 are on the lot's side
+  local road = { { x1 = -50, y1 = 10, x2 = 50, y2 = 10, half = 3.5 } }
+  local side = D.withBays(own, { bay(3, 3), bay(-3, 3), bay(6, 3), bay(0, 14), bay(5, 14), bay(0, 10) }, road)
+  check('a bay across a road from the lot, or on the road, is not used', #side == 4 and side[2].y == 3 and side[3].y == 3 and side[4].y == 3)
+  check('a lot with fewer than three spots in all keeps its own', #D.withBays(own, { bay(4, 0) }, {}) == 1 and D.withBays(own, { bay(4, 0) }, {})[1] == own[1] and #D.withBays(own, {}, {}) == 1)
+  check('a bay on top of the lot spot is not used twice', #D.withBays(own, { bay(0.5, 0.5), bay(4, 0), bay(8, 0) }, {}) == 3)
+  check('a door spot (made up) and nothing at all stay as they are', #D.withBays({ { x = 0, y = 0, z = 5, dx = 0, dy = 1, synthetic = true } }, row, {}) == 1 and #D.withBays({}, row, {}) == 0 and #D.withBays(own, nil, {}) == 1)
+  check('the road geometry: crossing segments are 0 apart, parallel ones the gap, a point segment the point distance', RSP.segDist(0, 0, 10, 0, 5, -5, 5, 5) == 0
+    and math.abs(RSP.segDist(0, 0, 10, 0, 0, 3, 10, 3) - 3) < 1e-9 and math.abs(RSP.segDist(2, 2, 2, 2, 0, 0, 10, 0) - 2) < 1e-9)
+  local rn = { a = { pos = { x = 0, y = 0 }, radius = 3, links = { b = { drivability = 1 }, c = { drivability = 1, type = 'private' } } },
+    b = { pos = { x = 40, y = 0 }, radius = 4, links = { a = { drivability = 1 } } }, c = { pos = { x = 0, y = 30 }, radius = 3, links = { a = { type = 'private' } } },
+    far = { pos = { x = 900, y = 900 }, radius = 3, links = { far2 = { drivability = 1 } } }, far2 = { pos = { x = 940, y = 900 }, radius = 3, links = { far = { drivability = 1 } } } }
+  local segs = RSP.roadSegments(rn, 10, 5, 60)
+  check('road segments: the public link near the point (half = the narrower end), not the private one, not the far one', #segs == 1 and segs[1].half == 3 and segs[1].x2 == 40)
+  local dealerBays = D.dealer({ id = 'jeffersonmotors', filter = newF }, own, tr, function() return row, {} end)
+  check('a stock dealer place lists the bays as its display spots, its own spot first', #dealerBays.displays == 6 and dealerBays.display[1] == 0 and dealerBays.displays[2].pos[1] == 4)
+  check('...and only its own spot without a bay lookup (Valo City never gets any)', #D.dealer({ id = 'jeffersonmotors', filter = newF }, own, tr).displays == 1)
   -- a dealer with no parking spot stands on its door (T12 retest: the spots came back empty); no spot and no door = no place
   local doorApi = {
     list = function(kind) return kind == 'dealership' and { { id = 'belascoAuto' }, { id = 'lost' } } or {} end,
