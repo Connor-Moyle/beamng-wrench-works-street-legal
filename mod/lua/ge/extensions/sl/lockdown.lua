@@ -7,6 +7,7 @@
 local M = {}
 
 local progression = require('sl/core/progression')
+local rules = require('sl/core/flares')       -- (lockStep: apply only on a change)
 
 local FILTER = 0
 local GROUP = 'streetLegalBlocked'
@@ -25,6 +26,7 @@ end
 
 local navContext = require('ge/extensions/ui/router/services/navigationContext')
 local originalReset, originalContext
+local locked = false
 local offer                 -- { fee, until } while the reset is waiting for a second press
 
 local function toast(text) guihooks.trigger('slPhoneToast', { text = text }) end
@@ -51,7 +53,11 @@ local function reset(playerID)
   toast(string.format('A pull back to the nearest road, as the car is (no repairs): $%d. Press reset again to pay. Will it not drive? Phone > My cars > Tow it home.', offer.fee))
 end
 
+-- nothing runs per frame here: the input filters, the reset key and the pause menu's mode are set once on a
+-- change and put back once (a repeated hook is ignored: sl/core/flares.lockStep)
 local function lock(on)
+  if not rules.lockStep(locked, on) then return end
+  locked = on and true or false
   local af = core_input_actionFilter
   if af then
     if on then af.setGroup(GROUP, blockedActions()) end

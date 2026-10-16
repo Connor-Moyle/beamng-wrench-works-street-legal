@@ -375,6 +375,27 @@ do
   check('no opponent left: finishing wins', racesLib.step(goal, there, nil, 30, d) == 'won')
 end
 
+-- the race flares' flicker and the lockdown's one rule (W5 frames): engine writes only on a change or on the clock
+do
+  local flares = require('sl/core/flares')
+  local lights = {}
+  for i = 1, 40 do lights[i] = { phase = i * 1.7, x = i * 10, y = 0 } end
+  local writes, batches, last = 0, 0, nil
+  for f = 1, 60 do
+    local w
+    w, last = flares.flicker(lights, f / 60, last, { x = 0, y = 0 })
+    if #w > 0 then batches = batches + 1 end
+    writes = writes + #w
+  end
+  check('the flicker runs ten times a second, not every frame', batches >= 9 and batches <= 11, batches)
+  check('only the flares within reach are written', writes == batches * 12, writes)   -- (x <= 120: twelve of forty)
+  local w = flares.flicker(lights, 100, nil, { x = 5000, y = 5000 })
+  check('far from every flare nothing is written', #w == 0)
+  check('every write is a sane intensity', (function() for _, x in ipairs(flares.flicker(lights, 7, nil, nil)) do if x[2] < 0.2 or x[2] > 1.4 then return false end end return true end)())
+  check('the lockdown applies once per change', flares.lockStep(false, true) == 'lock' and flares.lockStep(true, true) == nil
+    and flares.lockStep(true, false) == 'unlock' and flares.lockStep(false, false) == nil and flares.lockStep(false, nil) == nil)
+end
+
 -- cars: classes, and making a stock car into the offer
 do
   local cars = require('sl/core/cars')

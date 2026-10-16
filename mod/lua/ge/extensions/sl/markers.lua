@@ -7,6 +7,8 @@
 
 local M = {}
 
+local flaresLib = require('sl/core/flares')
+
 local SHAPE_DIR = '/temp/street_legal/shapes/'
 local MATERIALS = '/art/street_legal/main.materials.json'
 local SPACING = 18            -- metres between flares along a route
@@ -14,6 +16,8 @@ local MAX_FLARES = 120
 local LIGHT_EVERY = 3         -- one flare in this many lights up the road round it
 
 local flares = {}             -- { obj, light, phase, base }
+local lights = {}             -- the lit ones, for the flicker: { phase, x, y, light }
+local lastFlicker
 local counter = 0
 local clearAt                 -- os.clock() at which the flares go out
 local flareShapePath
@@ -115,6 +119,7 @@ local function addFlare(pos, withLight)
     light:setTransform(lm)
   end
   flares[#flares + 1] = { obj = o, light = light, phase = counter * 1.7, base = 0.9 }
+  if light then lights[#lights + 1] = { phase = counter * 1.7, x = pos.x, y = pos.y, light = light } end
 end
 
 function M.clear()
@@ -122,7 +127,7 @@ function M.clear()
     pcall(function() f.obj:delete() end)
     if f.light then pcall(function() f.light:delete() end) end
   end
-  flares, clearAt = {}, nil
+  flares, lights, clearAt, lastFlicker = {}, {}, nil, nil
 end
 
 -- the flares go out a little after the race (so the finish is still lit as you cross it)
@@ -232,17 +237,15 @@ end
 ----------------------------------------------------------------------------------------------
 -- hooks
 
+-- nothing per frame without flares; with them, the flicker writes a few lights' intensity ten times a second
+-- (sl/core/flares: the rate and the reach are rules, tested outside the game)
 function M.onUpdate()
   if clearAt and os.clock() > clearAt then M.clear() end
-  if #flares == 0 then return end
-  -- the lights flicker like burning flares
-  local t = os.clock()
-  for _, f in ipairs(flares) do
-    if f.light then
-      f.light.intensity = 0.8 + 0.35 * math.sin(t * 13 + f.phase) + 0.2 * math.sin(t * 29 + f.phase * 2)
-      f.light.isEnabled = true
-    end
-  end
+  if #lights == 0 then return end
+  local cam = core_camera and core_camera.getPosition and core_camera.getPosition()
+  local writes
+  writes, lastFlicker = flaresLib.flicker(lights, os.clock(), lastFlicker, cam and { x = cam.x, y = cam.y } or nil)
+  for _, w in ipairs(writes) do lights[w[1]].light.intensity = w[2] end
 end
 
 -- the map's night races (see docs/integration.md)
@@ -254,7 +257,7 @@ function M.onSlrrRaceStarted(data)
 end
 
 function M.onSlrrRaceFinished() M.clearSoon(8) end
-function M.onClientEndMission() flares, clearAt, flareShapePath = {}, nil, nil end
+function M.onClientEndMission() flares, lights, clearAt, lastFlicker, flareShapePath = {}, {}, nil, nil, nil end
 M.onExtensionUnloaded = M.clear
 
 return M
