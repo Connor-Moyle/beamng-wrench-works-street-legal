@@ -100,7 +100,7 @@ function M.onSlrrRaceFinished(r)
   if not car then return end
   for _, x in ipairs(sl_career.racesList and sl_career.racesList() or {}) do
     if x.drag and (x.id == r.raceId or (r.missionId and x.missionId == r.missionId)) and tostring(x.name):find('1/4', 1, true) then
-      local best = (sl_career.getState().bests or {})[x.name]                     -- (a slow run on purpose is no baseline: your record counts)
+      local best = (sl_career.getState().bests or {})[tostring(x.missionId or x.id)]   -- (a slow run on purpose is no baseline: your record counts; sl/core/achievements keys bests by mission or race id)
       measured(best and best.time and math.min(r.time, best.time) or r.time, car)
       return
     end
