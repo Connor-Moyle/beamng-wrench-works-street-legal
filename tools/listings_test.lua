@@ -179,7 +179,7 @@ return function(check, rngLib)
   local old = { sl_jobs = _G.sl_jobs, sl_career = _G.sl_career, extensions = _G.extensions }
   local sent = {}
   _G.extensions = { hook = function() end }
-  _G.sl_career = { sendText = function(_, text) sent[#sent + 1] = text end, addMoney = function(n) sent.money = (sent.money or 0) + n end, mapText = function(x) return x end,
+  _G.sl_career = { sendText = function(_, text) sent[#sent + 1] = text end, addMoney = function(n, label) sent.money = (sent.money or 0) + n sent.label = label end, mapText = function(x) return x end,
     isActive = function() return false end }
   local leg = { id = 'x', name = 'a', x = 0, y = 0, z = 0 }
   local function jobs(withPart, withCourier)
@@ -213,6 +213,7 @@ return function(check, rngLib)
   check('the courier run was put on the board for step 2 and the bonus paid once', s5.jobs.offers[1] and s5.jobs.offers[1].kind == 'courier' and sent.money == 500)
   T.advance(s5)
   check('...and not again', sent.money == 500)
+  check('the bonus goes in the ledger as the welcome (what the smoke test looks for)', tostring(sent.label):find('Welcome to', 1, true) ~= nil)
   -- T15 (night run): from a known start extra looks (a frame hitch) never carry it past a step whose condition is not met,
   -- and the hour matters to none of them (only the street shops keep hours; the garage and the tutorial do not)
   local hoursLib = require('sl/core/hours')

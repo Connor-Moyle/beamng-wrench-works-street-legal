@@ -241,7 +241,17 @@ end)
 check('tutorial: four steps, then the bonus', function(job)
   local st = sl_career.getState()
   if #st.cars == 0 then return nil, 'needs a car' end
-  local m0 = money()
+  -- the bonus is looked for in the ledger (a money delta also sees what else moves money in those seconds: the day's
+  -- costs at midnight, a loan's interest)
+  local seen = {}
+  for i = 1, math.min(#st.ledger, 60) do seen[st.ledger[i]] = true end
+  local function bonusPaid()
+    for i = 1, math.min(#st.ledger, 60) do
+      local e = st.ledger[i]
+      if not seen[e] and e.amount == 500 and tostring(e.label):find('Welcome to', 1, true) then return true end
+    end
+    return false
+  end
   -- a known start: this career has jobs done, a part fitted and races run by now, and a step whose condition is already
   -- met would pass on whichever look comes first (a night run missed step 3 that way); put them back after
   local saved = { done = st.jobs.done, upgraded = st.jobs.upgraded, races = st.stats.races }
@@ -264,7 +274,8 @@ check('tutorial: four steps, then the bonus', function(job)
   for _, c in ipairs(st.challenges) do if c.id:find(':tutorial', 1, true) then race = c end end
   if not race or race.bet ~= 100 then return result(false, 'no $100 race arranged for step 4') end
   st.stats.races = 1 job.sleep(1.5)
-  return result(st.tutorial.done == true and money() - m0 == 500, string.format('done, +$%d', money() - m0))
+  local paid = bonusPaid()
+  return result(st.tutorial.done == true and paid, string.format('done, bonus %s', paid and 'paid ($500 in the ledger)' or 'NOT in the ledger'))
 end)
 
 -- achievements and best times (X23)
