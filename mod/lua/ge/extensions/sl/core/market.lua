@@ -169,10 +169,11 @@ function M.faultsFitted(partsTree, faults)
   return fitted
 end
 
--- a car's faults still open (car.fixed[fault] = what the part in its slot cost, set at drive-out; nil = still wrong)
+-- a car's faults still open (car.fixed[fault] = what the part in its slot cost, set at drive-out; nil or 0 = still
+-- wrong: one rule for the premium and the penalty alike)
 function M.unfixed(car)
   local out = {}
-  for _, f in ipairs(car.faults or {}) do if not (car.fixed and car.fixed[f]) then out[#out + 1] = f end end
+  for _, f in ipairs(car.faults or {}) do if not (car.fixed and (car.fixed[f] or 0) > 0) then out[#out + 1] = f end end
   return out
 end
 
@@ -181,7 +182,7 @@ end
 local function faultPenalty(car, base)
   local p = 0
   for _, f in ipairs(car.faults or {}) do
-    local paid = car.fixed and car.fixed[f]
+    local paid = car.fixed and (car.fixed[f] or 0) > 0 and car.fixed[f]
     p = p + (paid and math.max(0, 0.05 * base - M.REPAIR_BACK * paid) or 0.05 * base)
   end
   return p

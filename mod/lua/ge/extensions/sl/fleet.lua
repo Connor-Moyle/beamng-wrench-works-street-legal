@@ -127,7 +127,8 @@ function M.onWrenchWorksDriveOut(vid, info)
   local fitted = market.faultsFitted(info.partsTree, car.faults)
   local fixed = {}
   for _, f in ipairs(car.faults) do
-    if fitted[f] then fixed[f] = (car.partPaid or {})[f] or (car.fixed or {})[f] or 0 end
+    -- (a part with no price on record, off the shelf or another car, leaves the fault open everywhere: B38)
+    if fitted[f] then fixed[f] = (car.partPaid or {})[f] or (car.fixed or {})[f] end
   end
   car.fixed = fixed
   extensions.hook('onStreetLegalChanged')

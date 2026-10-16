@@ -190,6 +190,10 @@ do
     local proper = market.resaleValue(car, 0)
     check('proper parts get the whole fault back', proper > cheap and #market.unfixed(car) == 0)
     check('no fixed part, every fault open', #market.unfixed({ faults = { 'a', 'b' } }) == 2)
+    -- B38: a part with no price on record (0, from an old save) is no fix anywhere: open, no premium, the full penalty
+    local zero = { value = 20000, condition = 0.3, faults = { 'exhaust' }, boughtFor = 5000, repaired = 4100, fixed = { exhaust = 0 } }
+    local open = { value = 20000, condition = 0.3, faults = { 'exhaust' }, boughtFor = 5000, repaired = 4100 }
+    check('a $0 record leaves the fault open', #market.unfixed(zero) == 1 and not market.rebuilt(zero) and market.resaleValue(zero) == market.resaleValue(open))
     local tree = { children = { engine = { path = '/engine/', chosenPartName = 'engine_v8', children = { exhaust = { path = '/engine/exhaust/', chosenPartName = '' } } } } }
     local f = market.faultsFitted(tree, { 'engine', 'exhaust', 'battery' })
     check('faultsFitted: a part in the slot counts, an empty slot does not', f.engine == true and not f.exhaust and not f.battery)
