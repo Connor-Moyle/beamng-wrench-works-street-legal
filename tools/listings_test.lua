@@ -203,16 +203,19 @@ return function(check, rngLib)
   _G.sl_jobs = jobs(false, false)
   local s4 = { day = 3, cars = {}, jobs = { offers = {}, done = 0 } }
   check('nothing possible: no error, nothing added', pcall(T.ensureFirstJob, s4) and #s4.jobs.offers == 0)
-  -- step 1 met (a car) at once: advance goes to step 2 without waiting; the job done goes on to the part
-  local s5 = { day = 3, cars = { 1 }, jobs = { offers = {}, done = 0 }, tutorial = { step = 1 }, racers = {}, known = {}, challenges = {}, stats = { races = 0 } }
+  -- a career that already has a car, jobs done, a part fitted and races run (the smoke test's): the tutorial still goes
+  -- one step a call, each announced, and pays its bonus once at the end (T15: it once ran through all four at once)
+  local s5 = { day = 3, cars = { 1 }, jobs = { offers = {}, done = 5, upgraded = true }, tutorial = { step = 1 }, racers = {}, known = {}, challenges = {}, stats = { races = 3 } }
   _G.sl_jobs = jobs(false, true)
-  T.advance(s5)
-  check('a car already owned: the tutorial is on step 2 at once, with the courier run on the board', s5.tutorial.step == 2 and s5.jobs.offers[1].kind == 'courier')
-  s5.jobs.done = 1 s5.jobs.upgraded = true s5.stats.races = 1
-  T.advance(s5)
-  check('every step met: done, the bonus paid once', s5.tutorial.done == true and s5.tutorial.step == nil and sent.money == 500)
+  local steps = {}
+  for _ = 1, 4 do T.advance(s5) steps[#steps + 1] = s5.tutorial.step or 'done' end
+  check('four calls, four steps: 2, 3, 4, then done', steps[1] == 2 and steps[2] == 3 and steps[3] == 4 and steps[4] == 'done' and s5.tutorial.done == true)
+  check('the courier run was put on the board for step 2 and the bonus paid once', s5.jobs.offers[1] and s5.jobs.offers[1].kind == 'courier' and sent.money == 500)
   T.advance(s5)
   check('...and not again', sent.money == 500)
+  local s6 = { day = 3, cars = {}, jobs = { offers = {}, done = 0 }, tutorial = { step = 1 }, racers = {}, known = {}, challenges = {}, stats = { races = 0 } }
+  T.advance(s6)
+  check('no car: it waits on step 1', s6.tutorial.step == 1)
   _G.sl_jobs, _G.sl_career, _G.extensions = old.sl_jobs, old.sl_career, old.extensions
 
   -- T15 (c): a lot further than 60 m from its nearest lane is moved towards it, to 45 m

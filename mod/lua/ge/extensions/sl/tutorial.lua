@@ -23,6 +23,7 @@ local STEPS = {
 M.STEPS = STEPS
 local BONUS = 500
 
+local timer = 0                        -- seconds since the steps were last looked at
 local skipNext = false
 function M.skipNextCareer() skipNext = true end          -- the chooser's "New career, no tutorial"
 
@@ -50,8 +51,8 @@ function M.begin()                     -- (for the smoke test: on any career)
   local s = career()
   if not s then return false end
   s.tutorial = { step = 1 }
+  timer = 0                            -- (a full second to the first look: one step a second, however it is begun)
   announce(s)
-  M.advance(s)
   return true
 end
 
@@ -104,27 +105,25 @@ function M.arrangeFirstRace(s)
   sl_career.sendText(easiest.id, 'Benny says you are new. $100, ' .. race.name .. '. Nothing fancy.', 20)
 end
 
--- on to the next step(s) while the current one is met (a step already met passes at once, not a second later)
+-- on to the next step while the current one is met: one step a call (a career that already has jobs done, a part fitted
+-- or races run, as the smoke test's, still walks through the steps one at a time, each announced)
 function M.advance(s)
   local t = s and s.tutorial
-  for _ = 1, #STEPS + 1 do
-    local step = t and t.step and STEPS[t.step]
-    if not step then return end
-    local ok, done = pcall(step.done, s)
-    if not (ok and done) then return end
-    t.step = t.step + 1
-    if t.step > #STEPS then
-      t.step, t.done = nil, true
-      sl_career.addMoney(BONUS, sl_career.mapText('Welcome to Valo City'))
-      sl_career.sendText('benny', string.format('That is the lot: a car, a job, a part, a race. $%d from me to get you going. Now go and make a name.', BONUS), 2)
-      extensions.hook('onStreetLegalChanged')
-      return
-    end
+  local step = t and t.step and STEPS[t.step]
+  if not step then return end
+  local ok, done = pcall(step.done, s)
+  if not (ok and done) then return end
+  t.step = t.step + 1
+  if t.step > #STEPS then
+    t.step, t.done = nil, true
+    sl_career.addMoney(BONUS, sl_career.mapText('Welcome to Valo City'))
+    sl_career.sendText('benny', string.format('That is the lot: a car, a job, a part, a race. $%d from me to get you going. Now go and make a name.', BONUS), 2)
+    extensions.hook('onStreetLegalChanged')
+  else
     announce(s)
   end
 end
 
-local timer = 0
 function M.onUpdate(dt)
   timer = timer + dt
   if timer < 1 then return end
