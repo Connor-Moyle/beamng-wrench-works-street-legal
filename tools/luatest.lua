@@ -880,4 +880,15 @@ do
     and progression.titleFor(6000, 'west_coast_usa') == 'King of West Coast USA' and progression.titleFor(6000) == 'King of Valo City')
 end
 
+-- laptops: prompts only in a career, one per computer facility that has a position (T13)
+do
+  local computer = require('sl/core/computer')
+  local list = { { id = 'c1', name = 'Office' }, { id = 'c2' }, { id = 'c3', name = 'Lost' }, {} }
+  local function posOf(f) return f.id ~= 'c3' and { x = 1, y = 2, z = 3 } or nil end
+  check('no laptop prompts without a career', #computer.points(false, list, posOf) == 0)
+  local on = computer.points(true, list, posOf)
+  check('a laptop per computer with a position (not the one without doors, not the one without an id)', #on == 2 and on[1].id == 'c1' and on[2].name == 'Computer')
+  check('a map without computers (Valo City) has none', #computer.points(true, {}, posOf) == 0 and #computer.points(true, nil, posOf) == 0)
+end
+
 print(string.format('lua tests passed: %d checks', passed))
