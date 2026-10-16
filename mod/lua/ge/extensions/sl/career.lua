@@ -352,6 +352,7 @@ local function stockApi(level)
   }, tr
 end
 
+local lanesPending = false     -- the navgraph was not there yet at the last load of the places
 local stockState = {}          -- stockLib.load's: whether the stock places are still to be had (retry), and how often it was tried
 local stockTriedAt = -1e9
 
@@ -374,6 +375,25 @@ local function loadPlaces()
   local data = FS:fileExists(USER_PLACES) and jsonReadFile(USER_PLACES)       -- the player's own come last
   local here = type(data) == 'table' and data[level]
   for _, p in ipairs(type(here) == 'table' and type(here.places) == 'table' and here.places or {}) do addPlace(p, USER_PLACES) end
+  -- the lots of a map with stock facilities stand where the game's data put them, not where a lane is: a lot whose
+  -- nearest city lane is over 60 m away (the car leaves by it) is moved towards the lane, to 45 m (T15)
+  lanesPending = false
+  if progression.has(level, 'stockFacilities') then
+    local rs = require('sl/core/roadspot')
+    local okm, nodes = pcall(function() return map.getMap().nodes end)
+    local okr, roadRules = pcall(map.getRoadRules)
+    local rhd = okr and roadRules and roadRules.rightHandDrive
+    if not okm or type(nodes) ~= 'table' or next(nodes) == nil then
+      lanesPending = true            -- (the navgraph is not there yet: getPlaces asks again)
+    else
+      for _, p in pairs(places) do
+        if p.kind == 'dealer' or p.kind == 'junkyard' or p.kind == 'scrapyard' then
+          local to = rs.towards(p.pos, rs.candidates(nodes, p.pos, not rhd)[1], rs.LOT_REACH, rs.LOT_TARGET)
+          if to then p.pos = vec3(to.x, to.y, to.z) end
+        end
+      end
+    end
+  end
   -- the garages are Wrench Works' own sites
   local sites = garageModule('slrr/garageSites')
   for _, g in ipairs(progression.garages) do
@@ -387,7 +407,7 @@ end
 
 function M.getPlaces()
   -- the stock facilities were not there yet at the first load: ask again, every 3 s, a few times
-  if not places or (stockState.retry and os.clock() - stockTriedAt > 3) then loadPlaces() end
+  if not places or ((stockState.retry or (lanesPending and (stockState.tries or 0) < stockLib.MAX_TRIES)) and os.clock() - stockTriedAt > 3) then loadPlaces() end
   return places
 end
 

@@ -6,6 +6,8 @@
 local M = {}
 
 M.MAX_SPEED = 22          -- m/s: above this it is a freeway
+M.LOT_REACH = 60          -- m: a lot's nearest city lane is at most this far (the car leaves by it)
+M.LOT_TARGET = 45         -- m: a lot further than that is moved to this distance from its lane
 M.MIN_RADIUS = 1.5        -- m: a lane, not a path (Valo City's navgraph is one node per lane, radius 1.75)
 
 local function degree(node) local n = 0 for _ in pairs(node.links or {}) do n = n + 1 end return n end
@@ -56,6 +58,14 @@ function M.pick(cands, others, clear)
     end
     if free then return c end
   end
+end
+
+-- A lot whose nearest city lane c (a candidate, with .dist) is further than `limit` metres: where to stand so that it
+-- is `target` metres away, on the line to the lane. nil when it is near enough. (T15: West Coast USA's lots)
+function M.towards(from, c, limit, target)
+  if not c or c.dist <= limit then return nil end
+  local k = (c.dist - target) / c.dist
+  return { x = from.x + (c.x - from.x) * k, y = from.y + (c.y - from.y) * k, z = from.z + ((c.z or from.z) - from.z) * k }
 end
 
 return M

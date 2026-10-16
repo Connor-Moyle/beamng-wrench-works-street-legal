@@ -160,4 +160,66 @@ return function(check, rngLib)
   calls = 0
   check('Valo City asks the facilities for nothing and gets no places', #D.fromFacilities(api, 'slrr_valo_city', tr) == 0 and calls == 0 and #D.fromFacilities(nil, 'west_coast_usa', tr) == 0)
   check('only West Coast USA turns the stock facilities into places', progression.has('west_coast_usa', 'stockFacilities') and not progression.has('slrr_valo_city', 'stockFacilities'))
+
+  -- T15 (a): which missions pay, by level and mission type (sl/core/activityrules)
+  local AR = require('sl/core/activityrules')
+  local W, V = 'west_coast_usa', 'slrr_valo_city'
+  check('West Coast USA: a stock evade pays like a Valo City evade', AR.ruleFor(W, W .. '/evade/anyEvade').heat == -0.3 and AR.ruleFor(W, W .. '/evade/anyEvade').heatRep == 60)
+  check('West Coast USA: parking, drift and time trials are rules', AR.ruleFor(W, W .. '/precisionParking/p1').firstOnly and AR.ruleFor(W, W .. '/drift/d1').fee == 50
+    and AR.ruleFor(W, W .. '/timeTrial/t1').title == 'Street sprint')
+  local tt = AR.ruleFor(W, W .. '/timeTrial/t1')
+  check('a stock time trial pays its prize and rep once, not again and again (no money loop)', tt.prizeOnce and tt.firstOnly and tt.fee == 100 and tt.nightOnly)
+  check('Valo City is unchanged: its sprints and evades by their slrr_ names only', AR.ruleFor(V, V .. '/timeTrial/slrr_sprint_x').prizeOnce == nil
+    and AR.ruleFor(V, V .. '/evade/slrr_evade_x').heat == -0.3 and AR.ruleFor(V, V .. '/timeTrial/other') == nil and AR.ruleFor(V, V .. '/evade/other') == nil
+    and AR.ruleFor(V, V .. '/timeTrial/slrr_rally_x').firstOnly)
+  check('another level missions never pay, nor a missing id', AR.ruleFor(W, V .. '/evade/slrr_evade_x') == nil and AR.ruleFor(W, nil) == nil and AR.ruleFor(nil, 'a/evade/b') == nil)
+
+  -- T15 (a): the tutorial on a map with no parts shops: step 2 is a courier run, steps already met pass at once
+  local T = require('sl/tutorial')
+  local old = { sl_jobs = _G.sl_jobs, sl_career = _G.sl_career, extensions = _G.extensions }
+  local sent = {}
+  _G.extensions = { hook = function() end }
+  _G.sl_career = { sendText = function(_, text) sent[#sent + 1] = text end, addMoney = function(n) sent.money = (sent.money or 0) + n end, mapText = function(x) return x end,
+    isActive = function() return false end }
+  local leg = { id = 'x', name = 'a', x = 0, y = 0, z = 0 }
+  local function jobs(withPart, withCourier)
+    return { TYPES = { { kind = 'part', title = 'Part run', offer = function() return withPart and { legs = { leg, leg } } or nil end },
+      { kind = 'courier', title = 'Courier', offer = function() return withCourier and { legs = { leg, leg } } or nil end } },
+      summary = function() end }
+  end
+  local s1 = { day = 3, cars = { 1 }, jobs = { offers = {}, done = 0 }, racers = {}, known = {}, challenges = {}, stats = { races = 0 } }
+  _G.sl_jobs = jobs(false, true)
+  T.ensureFirstJob(s1)
+  check('no part run possible: the tutorial puts a courier run first on the board', #s1.jobs.offers == 1 and s1.jobs.offers[1].kind == 'courier' and s1.jobs.offers[1].id == 'tutorial:job')
+  T.ensureFirstJob(s1)
+  check('...once', #s1.jobs.offers == 1)
+  local s2 = { day = 3, cars = {}, jobs = { offers = { { kind = 'courier', id = 'courier:1' } }, done = 0 } }
+  T.ensureFirstJob(s2)
+  check('a courier already on the board is enough', #s2.jobs.offers == 1)
+  _G.sl_jobs = jobs(true, true)
+  local s3 = { day = 3, cars = {}, jobs = { offers = {}, done = 0 } }
+  T.ensureFirstJob(s3)
+  check('a part run is the first choice where there are shops', s3.jobs.offers[1].kind == 'part')
+  _G.sl_jobs = jobs(false, false)
+  local s4 = { day = 3, cars = {}, jobs = { offers = {}, done = 0 } }
+  check('nothing possible: no error, nothing added', pcall(T.ensureFirstJob, s4) and #s4.jobs.offers == 0)
+  -- step 1 met (a car) at once: advance goes to step 2 without waiting; the job done goes on to the part
+  local s5 = { day = 3, cars = { 1 }, jobs = { offers = {}, done = 0 }, tutorial = { step = 1 }, racers = {}, known = {}, challenges = {}, stats = { races = 0 } }
+  _G.sl_jobs = jobs(false, true)
+  T.advance(s5)
+  check('a car already owned: the tutorial is on step 2 at once, with the courier run on the board', s5.tutorial.step == 2 and s5.jobs.offers[1].kind == 'courier')
+  s5.jobs.done = 1 s5.jobs.upgraded = true s5.stats.races = 1
+  T.advance(s5)
+  check('every step met: done, the bonus paid once', s5.tutorial.done == true and s5.tutorial.step == nil and sent.money == 500)
+  T.advance(s5)
+  check('...and not again', sent.money == 500)
+  _G.sl_jobs, _G.sl_career, _G.extensions = old.sl_jobs, old.sl_career, old.extensions
+
+  -- T15 (c): a lot further than 60 m from its nearest lane is moved towards it, to 45 m
+  local RS = require('sl/core/roadspot')
+  local lane = { x = 100, y = 0, z = 10, dist = 100 }
+  local to = RS.towards({ x = 0, y = 0, z = 0 }, lane, RS.LOT_REACH, RS.LOT_TARGET)
+  check('a lot 100 m from its lane moves to 45 m from it, on the line', to and math.abs(to.x - 55) < 1e-9 and math.abs(to.y) < 1e-9 and math.abs(to.z - 5.5) < 1e-9)
+  check('a lot 65 m from its lane (the smoke test) ends 45 m away', math.abs(RS.towards({ x = 0, y = 0, z = 0 }, { x = 65, y = 0, z = 0, dist = 65 }, 60, 45).x - 20) < 1e-9)
+  check('a lot within 60 m stays; no lane at all stays', RS.towards({ x = 0, y = 0, z = 0 }, { x = 60, y = 0, z = 0, dist = 60 }, 60, 45) == nil and RS.towards({ x = 0, y = 0, z = 0 }, nil, 60, 45) == nil)
 end

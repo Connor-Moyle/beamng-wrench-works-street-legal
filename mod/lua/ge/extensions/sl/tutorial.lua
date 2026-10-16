@@ -11,8 +11,8 @@ local roster = require('sl/core/roster')
 local STEPS = {
   { id = 'car', title = 'Get a car', text = 'Take a cab (phone, Cab) to the junkyard and buy something that runs. Cheap is fine.',
     done = function(s) return #s.cars > 0 end },
-  { id = 'job', title = 'Earn your first money', text = 'Open the Jobs app and take the part run on the board: fetch it to your garage, in time, without wrecking it.',
-    start = function(s) M.ensurePartRun(s) end,
+  { id = 'job', title = 'Earn your first money', text = 'Open the Jobs app and take the first run on the board (a part run or a courier run): get it there in time, without wrecking the car.',
+    start = function(s) M.ensureFirstJob(s) end,
     done = function(s) return (s.jobs and s.jobs.done or 0) > 0 end },
   { id = 'part', title = 'Fit a first part', text = 'Drive into your garage. In the catalog, "Under $1,500" shows what you can afford: buy one and fit it.',
     done = function(s) return s.jobs and s.jobs.upgraded end },
@@ -51,6 +51,7 @@ function M.begin()                     -- (for the smoke test: on any career)
   if not s then return false end
   s.tutorial = { step = 1 }
   announce(s)
+  M.advance(s)
   return true
 end
 
@@ -62,23 +63,28 @@ function M.skip()
   extensions.hook('onStreetLegalChanged')
 end
 
--- the part run the second step needs: on the board even if the day's offers had none
-function M.ensurePartRun(s)
+-- the run the second step needs: a part run or a courier run on the board even if the day's offers had none (a map
+-- with no parts shops, as West Coast USA, has no part runs at all)
+function M.ensureFirstJob(s)
   if not sl_jobs or not sl_jobs.TYPES then return end
   local js = s.jobs or {}
-  for _, j in ipairs(js.offers or {}) do if j.kind == 'part' then return end end
+  for _, j in ipairs(js.offers or {}) do if j.kind == 'part' or j.kind == 'courier' then return end end
   sl_jobs.summary()                                    -- (makes today's board, if not yet made)
   js = s.jobs
-  for _, t in ipairs(sl_jobs.TYPES) do
-    if t.kind == 'part' then
-      local ok, j = pcall(t.offer, sl_jobs.context and sl_jobs.context(s) or nil, require('sl/core/rng').new(s.day * 7 + 1))
-      if ok and j and j.legs then
-        j.id, j.kind, j.title = 'tutorial:part', 'part', t.title
-        table.insert(js.offers, 1, j)
+  for _, kind in ipairs({ 'part', 'courier' }) do
+    for _, t in ipairs(sl_jobs.TYPES) do
+      if t.kind == kind then
+        local ok, j = pcall(t.offer, sl_jobs.context and sl_jobs.context(s) or nil, require('sl/core/rng').new(s.day * 7 + 1))
+        if ok and j and j.legs then
+          j.id, j.kind, j.title = 'tutorial:job', kind, t.title
+          table.insert(js.offers, 1, j)
+          return
+        end
       end
     end
   end
 end
+M.ensurePartRun = M.ensureFirstJob
 
 -- the fourth step's race: the easiest racer the player knows of (or the easiest there is), $100, near by
 function M.arrangeFirstRace(s)
@@ -87,7 +93,10 @@ function M.arrangeFirstRace(s)
     if not r.nightOnly and (not easiest or r.tier < easiest.tier or (r.tier == easiest.tier and r.skill < easiest.skill)) then easiest = r end
   end
   local race = sl_career.nearestRace and sl_career.nearestRace(false)
-  if not easiest or not race then return end
+  if not easiest or not race then
+    sl_career.sendText('benny', 'No easy race round here right now. Any street race will do: look in the Races app.', 20)
+    return
+  end
   s.known[easiest.id] = true
   for i = #s.challenges, 1, -1 do if s.challenges[i].racer == easiest.id then table.remove(s.challenges, i) end end
   s.challenges[#s.challenges + 1] = { id = easiest.id .. ':tutorial', racer = easiest.id, stake = 'money', bet = 100, race = race.id,
@@ -95,26 +104,32 @@ function M.arrangeFirstRace(s)
   sl_career.sendText(easiest.id, 'Benny says you are new. $100, ' .. race.name .. '. Nothing fancy.', 20)
 end
 
+-- on to the next step(s) while the current one is met (a step already met passes at once, not a second later)
+function M.advance(s)
+  local t = s and s.tutorial
+  for _ = 1, #STEPS + 1 do
+    local step = t and t.step and STEPS[t.step]
+    if not step then return end
+    local ok, done = pcall(step.done, s)
+    if not (ok and done) then return end
+    t.step = t.step + 1
+    if t.step > #STEPS then
+      t.step, t.done = nil, true
+      sl_career.addMoney(BONUS, sl_career.mapText('Welcome to Valo City'))
+      sl_career.sendText('benny', string.format('That is the lot: a car, a job, a part, a race. $%d from me to get you going. Now go and make a name.', BONUS), 2)
+      extensions.hook('onStreetLegalChanged')
+      return
+    end
+    announce(s)
+  end
+end
+
 local timer = 0
 function M.onUpdate(dt)
   timer = timer + dt
   if timer < 1 then return end
   timer = 0
-  local s = career()
-  local t = s and s.tutorial
-  local step = t and t.step and STEPS[t.step]
-  if not step then return end
-  local ok, done = pcall(step.done, s)
-  if not (ok and done) then return end
-  t.step = t.step + 1
-  if t.step > #STEPS then
-    t.step, t.done = nil, true
-    sl_career.addMoney(BONUS, sl_career.mapText('Welcome to Valo City'))
-    sl_career.sendText('benny', string.format('That is the lot: a car, a job, a part, a race. $%d from me to get you going. Now go and make a name.', BONUS), 2)
-    extensions.hook('onStreetLegalChanged')
-  else
-    announce(s)
-  end
+  M.advance(career())
 end
 
 -- for the phone's home screen

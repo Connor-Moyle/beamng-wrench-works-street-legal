@@ -138,8 +138,11 @@ check('quarter mile: 15.5 s on the 1/4 strip', function()
 end)
 
 -- the map's missions in the career (fake mission and attempt tables, as BeamNG hands them over)
+-- (a mission id is <level>/<type>/<name>: the career's own level; Valo City's sprints have slrr_ names, other maps' time trials any, fresh per run)
+local LEVEL = sl_career.LEVEL
+local valo = LEVEL == 'slrr_valo_city'
 check('activity: sprint fee and prize', function()
-  local id = 'slrr_valo_city/timeTrial/slrr_sprint_smoke'
+  local id = LEVEL .. '/timeTrial/' .. (valo and 'slrr_sprint_smoke' or ('smoke_' .. os.time()))
   local m0 = money()
   sl_activities.onAnyMissionChanged('started', { id = id })
   local fee = m0 - money()
@@ -153,11 +156,11 @@ check('activity: evade pays rep by heat, cools heat', function()
   local st = sl_career.getState()
   st.heat = 0.5
   local r0 = rep()
-  sl_activities.onMissionAttemptAggregated({ type = 'completed' }, { id = 'slrr_valo_city/evade/slrr_evade_smoke' })
+  sl_activities.onMissionAttemptAggregated({ type = 'completed' }, { id = LEVEL .. '/evade/' .. (valo and 'slrr_evade_smoke' or 'smoke') })
   return rep() - r0 == 50 and math.abs(st.heat - 0.2) < 1e-6, string.format('+%d rep, heat %.2f', rep() - r0, st.heat)
 end)
 check('activity: parking rep only the first time', function()
-  local id = 'slrr_valo_city/precisionParking/slrr_park_smoke_' .. os.time()       -- (fresh each run: the rep is first-time only)
+  local id = LEVEL .. '/precisionParking/slrr_park_smoke_' .. os.time()       -- (fresh each run: the rep is first-time only)
   local r0 = rep()
   sl_activities.onMissionAttemptAggregated({ type = 'passed' }, { id = id })
   local r1 = rep()
@@ -166,7 +169,7 @@ check('activity: parking rep only the first time', function()
 end)
 check('activity: a failed attempt pays nothing', function()
   local m0, r0 = money(), rep()
-  sl_activities.onMissionAttemptAggregated({ type = 'failed' }, { id = 'slrr_valo_city/drift/slrr_drift_smoke' })
+  sl_activities.onMissionAttemptAggregated({ type = 'failed' }, { id = LEVEL .. '/drift/slrr_drift_smoke' })
   return money() == m0 and rep() == r0, 'no change'
 end)
 
@@ -229,8 +232,8 @@ check('tutorial: four steps, then the bonus', function(job)
   job.sleep(1.5)                                                  -- step 1 (a car) is already done
   if st.tutorial.step ~= 2 then return false, 'step 1 did not pass with a car' end
   local any
-  for _, j in ipairs(js().offers or {}) do if j.kind == 'part' then any = true end end
-  if not any then return false, 'no part run on the board for step 2' end
+  for _, j in ipairs(js().offers or {}) do if j.kind == 'part' or j.kind == 'courier' then any = true end end
+  if not any then return false, 'no part or courier run on the board for step 2' end
   st.jobs.done = (st.jobs.done or 0) + 1 job.sleep(1.5)
   if st.tutorial.step ~= 3 then return false, 'step 2 did not pass' end
   st.jobs.upgraded = true job.sleep(1.5)
