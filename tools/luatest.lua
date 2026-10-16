@@ -972,6 +972,18 @@ do
   end
 end
 
+-- waiting on the phone (T34b)
+do
+  local plan = progression.skipPlan(20, 'morning')
+  check('morning from 20:00: ten hours and a few minutes, the day changes once', math.abs(plan.hours - 10.05) < 1e-9 and plan.days == 1 and math.abs(plan.to - 6.05) < 1e-9)
+  check('morning from 02:00: the same day ends, the new one begins', progression.skipPlan(2, 'morning').days == 1 and math.abs(progression.skipPlan(2, 'morning').hours - 4.05) < 1e-9)
+  check('morning from 06:03 is the next day, not now', progression.skipPlan(6.03, 'morning').hours > 23.9 and progression.skipPlan(6.03, 'morning').days == 1)
+  check('a few hours: no day change inside the day, one across 06:00', progression.skipPlan(10, '3').days == 0 and progression.skipPlan(10, '3').to == 13 and progression.skipPlan(4, '3').days == 1 and progression.skipPlan(23, '6').to == 5 and progression.skipPlan(23, '6').days == 0)
+  check('anything else is refused', progression.skipPlan(10, '5') == nil and progression.skipPlan(10, '-3') == nil and progression.skipPlan(10, nil) == nil)
+  check('refused in a race, on a job, with the police after you; fine otherwise', progression.skipRefusal({ racing = true }) ~= nil and progression.skipRefusal({ job = true }) ~= nil
+    and progression.skipRefusal({ heat = 0.5 }) ~= nil and progression.skipRefusal({ heat = 0.1 }) == nil and progression.skipRefusal({}) == nil)
+end
+
 -- buying from the stock dealers on the laptop (L3)
 do
   local rules = require('sl/core/dealers')

@@ -37,6 +37,26 @@ function M.mapText(text, level)
   return (text:gsub('Valo City', n):gsub('%f[%w]Valo%f[%W]', n))
 end
 
+-- Waiting (the phone's Wait app): 'morning' = the next 06:00 (a few minutes past it, so the day change is counted once), or 1, 3 or
+-- 6 hours. h0 = the hour now (0..24). Returns { hours, to (the hour it will be), days (06:00s passed: the day counter goes up by that) } or nil.
+M.WAIT_CHOICES = { morning = true, ['1'] = true, ['3'] = true, ['6'] = true }
+function M.skipPlan(h0, what)
+  what = tostring(what)
+  if not M.WAIT_CHOICES[what] then return nil end
+  local hours = what == 'morning' and (6.05 - h0) % 24 or tonumber(what)
+  if hours < 0.05 then hours = 24 end
+  local days = math.floor((h0 - 6 + hours) / 24) - math.floor((h0 - 6) / 24)
+  return { hours = hours, to = (h0 + hours) % 24, days = days }
+end
+
+-- no waiting in a race, on a job or with the police on you (state = { racing, job, heat })
+function M.skipRefusal(state)
+  if state.racing then return 'Not in the middle of a race.' end
+  if state.job then return 'Finish the job you are on first.' end
+  if (state.heat or 0) > 0.3 then return 'The police are after you. Lose them first.' end
+  return nil
+end
+
 -- how hard the street gets, 0 (nobody) to 1 (the ROC crowd): from reputation
 function M.difficulty(rep) return math.max(0, math.min(1, (rep or 0) / 6000)) end
 

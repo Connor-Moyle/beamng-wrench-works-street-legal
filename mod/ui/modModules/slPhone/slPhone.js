@@ -218,6 +218,7 @@
   // icons (Material-style shapes, drawn here)
   function svg(path, viewBox) { return '<svg viewBox="' + (viewBox || '0 0 24 24') + '"><path d="' + path + '"/></svg>'; }
   var I = {
+    wait: svg('M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 5v5.4l4 2.3-.8 1.3L11 13V7z'),
     market: svg('M3 4h18l-2 6H5zm2 8h14v8H5zm4 2v4h6v-4z'),
     paper: svg('M4 4h13v14a2 2 0 0 0 2 2H6a2 2 0 0 1-2-2zm15 4h2v10a2 2 0 0 1-2 2zM7 7v3h7V7zm0 5v1h7v-1zm0 3v1h7v-1z'),
     bid: svg('M14 3l7 7-3 3-7-7zM9 8l7 7-2 2-7-7zM3 20l6-6 2 2-6 6zM13 21h8v-2h-8z'),
@@ -248,7 +249,7 @@
   var SLRR_ART = '/ui/modModules/slHud/slrr/icons/';
   var SLRR_ICON = { races: 'cup.png', garage: 'garage.png', bank: 'dollar.png', cab: 'city.png', me: 'roc.png' };
   function slrrIcon(name, cls) { return '<img class="slp-slrr ' + (cls || '') + '" src="' + SLRR_ART + name + '" alt="">'; }
-  var APP_COLORS = { market: '#a3322c', paper: '#5b5346', bid: '#b5651d', club: '#6a2e7a', jobs: '#3d7a2e', phone: '#2e7d4f', messages: '#2f5fb3', contacts: '#7b4fb0', races: '#c2541e', bank: '#1f7a70', cab: '#b58a12', me: '#5c6474', garage: '#8a3b8f' };
+  var APP_COLORS = { wait: '#4a5d7a', market: '#a3322c', paper: '#5b5346', bid: '#b5651d', club: '#6a2e7a', jobs: '#3d7a2e', phone: '#2e7d4f', messages: '#2f5fb3', contacts: '#7b4fb0', races: '#c2541e', bank: '#1f7a70', cab: '#b58a12', me: '#5c6474', garage: '#8a3b8f' };
   var AV_COLORS = ['#a8c7fa', '#f2b8b5', '#c3e7c6', '#ffd8a8', '#d0bcff', '#9fe0e8', '#ffb4ab', '#e8def8'];
   var CLASS_NAMES = { beater: 'Beaters', compact: 'Compacts', muscle: 'Muscle', tuner: 'Tuners', sport: 'Sports cars', super: 'Supercars' };
 
@@ -326,6 +327,7 @@
           { id: 'bank', title: 'Bank', icon: I.bank },
           { id: 'me', title: 'Street cred', icon: I.me },
           { id: 'jobs', title: 'Jobs', icon: I.jobs, badge: d.jobs && d.jobs.active ? 1 : 0 },
+          { id: 'wait', title: 'Wait', icon: I.wait },
           { id: 'club', title: 'Club', icon: I.club, hide: has.clubs === false },
           { id: 'turf', title: 'Turf', icon: I.turf, hide: has.crews === false },
           { id: 'market', title: 'Revline', icon: I.market, badge: d.market && d.market.deliveries || 0, hide: has.classifieds === false },
@@ -569,6 +571,15 @@
       }
       return bar('Bank') + '<div class="slp-body"><div class="slp-bal"><small>Balance</small><div>' + money(st.data.money) + '</div></div>' + cards +
         (rows.join('') || '<div class="slp-empty">No transactions yet.</div>') + '</div>';
+    }
+
+    // waiting: to the next morning or a few hours on (the clock, deliveries and shop hours follow); refused in a race, on a job or with the police after you
+    function waitPage() {
+      var h = [['morning', 'Until the next morning'], ['1', 'One hour'], ['3', 'Three hours'], ['6', 'Six hours']].map(function (x) {
+        return '<div class="slp-btn' + (x[0] === 'morning' ? '' : ' slp-tonal') + '" data-a="wait" data-v="' + x[0] + '">' + x[1] + '</div>';
+      }).join('');
+      return bar('Wait') + '<div class="slp-body"><div class="slp-card"><h4>It is ' + two(st.data.hour || 0) + ':' + two(st.data.minute || 0) + '</h4><p>Skip ahead. Not in a race, on a job or with the police after you.</p>' +
+        '<div class="slp-acts">' + h + '</div></div></div>';
     }
 
     function cabPage() {
@@ -876,6 +887,7 @@
         case 'thread': page = threadPage(); break;
         case 'phone': page = phonePage(); break;
         case 'races': page = racesPage(); break;
+        case 'wait': page = waitPage(); break;
         case 'jobs': page = jobsPage(); break;
         case 'club': page = clubPage(); break;
         case 'turf': page = turfPage(); break;
@@ -1028,6 +1040,7 @@
         case 'cancel': lua('cancel(' + JSON.stringify(v) + ')'); break;
         case 'raise': lua('raise(' + JSON.stringify(v) + ')'); break;
         case 'league': lua('enterLeague(' + JSON.stringify(v) + ')'); break;
+        case 'wait': lua('wait(' + JSON.stringify(String(v)) + ')'); break;
         case 'borrow': lua('borrow(' + Number(v) + ')'); break;
         case 'repay': lua('repay(' + Number(v) + ')'); break;
         case 'insure': lua('insure(' + (v === 'true' ? 'true' : 'false') + ')'); break;

@@ -166,6 +166,7 @@ function M.release(carId) if career() then answer(sl_career.releaseCar(tonumber(
 function M.useItem(carId, itemId) if career() and sl_carcare then answer(sl_carcare.useItem(tonumber(carId), tostring(itemId))) end end
 function M.useCar(carId) if career() then answer(sl_fleet.setActive(tonumber(carId))) end end
 function M.moveGarage() if career() then answer(sl_career.moveGarage()) end end
+function M.wait(what) if career() then answer(sl_career.skipTime(tostring(what))) end end
 function M.enterRoc() if career() then answer(sl_streets.enterRoc()) end end
 function M.enterLeague(kind) if career() and sl_clubs then answer(sl_clubs.enter(tostring(kind))) end end
 function M.borrow(amount) if career() and sl_bank then answer(sl_bank.borrow(tonumber(amount))) end end
