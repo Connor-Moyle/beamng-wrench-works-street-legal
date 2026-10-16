@@ -38,6 +38,15 @@ function M.place(s, offer, placeId, metres, now)
   return order
 end
 
+-- a private seller's car (Revline) bought for delivery: the same order as a dealer's, its id the listing's
+function M.orderPrivate(s, listing, price, yard, now)
+  local offer = {}
+  for k, v in pairs(listing.offer) do offer[k] = v end
+  offer.id, offer.price = 'revline:' .. listing.id, price
+  local metres = math.sqrt((listing.where.x - yard.x) ^ 2 + (listing.where.y - yard.y) ^ 2)
+  return M.place(s, offer, 'revline', metres, now)
+end
+
 -- the first order that is due (one is delivered at a time)
 function M.nextDue(s, now)
   for _, o in ipairs(s.orders or {}) do if o.due <= now then return o end end

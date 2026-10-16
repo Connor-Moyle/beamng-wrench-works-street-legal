@@ -20,7 +20,7 @@ local ALL = { roc = true, tracks = true, testdrive = true, clubDays = true, swap
 M.MAPS = {
   slrr_valo_city = { name = 'Valo City', races = 'slrrValoRaces', has = ALL },
   -- stockFacilities: the map's own dealerships and garages (game data) become places; Valo City has its own
-  west_coast_usa = { name = 'West Coast USA', races = 'sl_races', has = { stockFacilities = true }, garages = {
+  west_coast_usa = { name = 'West Coast USA', races = 'sl_races', has = { stockFacilities = true, classifieds = true }, garages = {
     { id = 'alderDragwayGarage', name = 'Alder Dragway Garage' }, { id = 'commercialGarage', name = 'Industrial Garage' },
     { id = 'belascoCityGarage', name = 'Belasco City Garage' } } },
 }

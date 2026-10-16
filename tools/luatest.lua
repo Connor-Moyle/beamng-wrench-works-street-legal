@@ -865,13 +865,15 @@ end
 
 -- per-map capabilities: Valo City hosts everything, West Coast USA hides what its data lacks (T9)
 do
-  local feats = { 'roc', 'tracks', 'testdrive', 'clubDays', 'swapMeet', 'clubs', 'crews', 'classifieds' }
+  local feats = { 'roc', 'tracks', 'testdrive', 'clubDays', 'swapMeet', 'clubs', 'crews' }
   local valo, wc = true, true
   for _, f in ipairs(feats) do
     valo = valo and progression.has('slrr_valo_city', f)
     wc = wc and not progression.has('west_coast_usa', f)
   end
+  valo = valo and progression.has('slrr_valo_city', 'classifieds')
   check('Valo City offers every feature', valo)
+  check('the phone marketplace (Revline, the paper, Swap & Bid) is on West Coast USA too', progression.has('west_coast_usa', 'classifieds'))
   check('West Coast USA hides every feature its data lacks', wc)
   check('an unknown level or feature falls back to the default map / off', progression.has(nil, 'roc') and not progression.has('slrr_valo_city', 'nothing'))
   check('Valo texts are untouched on Valo City', progression.mapText('King of Valo City. King of Valo!', 'slrr_valo_city') == 'King of Valo City. King of Valo!'
@@ -983,6 +985,11 @@ do
   s.money = 9000
   check('enough money: allowed', rules.canBuy(s, offer))
   local order = rules.place(s, offer, 'd1', 5000, rules.clock(3, 10))
+  -- a private seller's car bought on Revline for delivery: the same order, its own id, due by the seller's distance
+  local rs = { money = 9000, bought = {}, orders = {} }
+  local ro = rules.orderPrivate(rs, { id = 'm7', where = { x = 6000, y = 0 }, offer = { id = 'used-0-1', name = 'Pessima', model = 'pessima', price = 900, faults = {} } }, 1200, { x = 0, y = 0 }, rules.clock(3, 10))
+  check('a Revline car for delivery: an order with its own id, the asking price, due by distance',
+    ro.offer.id == 'revline:m7' and ro.offer.price == 1200 and ro.offer.model == 'pessima' and ro.hours == 4 and rs.bought['revline:m7'] and #rs.orders == 1)
   check('an order is due after its delay and marks the offer bought', s.bought[offer.id] and #s.orders == 1 and order.hours == 3 and order.due == rules.clock(3, 10) + 3 and rules.ordered(s, offer.id))
   check('the same car cannot be bought twice', not rules.canBuy(s, offer))
   check('nothing is due before the delay, the order is due after', rules.nextDue(s, rules.clock(3, 12)) == nil and rules.nextDue(s, rules.clock(3, 13.01)) == order)

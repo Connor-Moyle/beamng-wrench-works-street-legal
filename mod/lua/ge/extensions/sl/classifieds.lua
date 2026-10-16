@@ -12,6 +12,7 @@ local stateLib = require('sl/core/state')
 local jbeamIO = require('jbeam/io')         -- (not a global on the game-engine side)
 local market = require('sl/core/market')
 local builder = require('sl/carBuilder')
+local dealersLib = require('sl/core/dealers')
 
 local REFRESH_HOURS = 6        -- new listings every few in-game hours
 local APP_LISTINGS = 12
@@ -264,7 +265,7 @@ function M.summary()
     if not l.taken then
       local card = { id = l.id, name = l.item.name, model = l.item.model, ask = l.agreed or l.ask, condition = math.floor(l.condition * 100 + 0.5),
         seller = l.seller, rating = l.rating, tells = L.tells(l), rare = l.rare, agreed = l.agreed ~= nil,
-        delivery = not l.scam and l.kind ~= 'car' and L.delivery(l.agreed or l.ask) or nil, deposit = L.deposit(l.agreed or l.ask), hoursLeft = l.expires - now(s) }
+        delivery = not l.scam and L.delivery(l.agreed or l.ask) or nil, deposit = L.deposit(l.agreed or l.ask), hoursLeft = l.expires - now(s) }
       if l.kind == 'car' and l.offer then
         card.car, card.mileage, card.faults = true, l.offer.mileage, #(l.offer.faults or {})
       end
@@ -344,7 +345,16 @@ function M.buy(id, how)
   if not l or l.taken or l.channel == 'auction' or l.channel == 'meet' then return false, 'That listing is gone.' end   -- (a lot is only bid on; a stall is bought there)
   local price = l.agreed or l.ask
   local part = { part = l.item.part, name = l.item.name, slotId = l.item.slotId, value = price, wear = l.wear }
-  if how == 'delivery' and l.kind == 'car' then return false, l.seller .. ': "Come and see it. Cash on the day."' end
+  if how == 'delivery' and l.kind == 'car' then
+    -- a car comes the way a dealer's does (sl_dealers): paid now with the delivery fee, built at your garage a few hours later
+    if l.scam then return false, l.seller .. ': "No delivery. Deposit by transfer, then you collect."' end
+    local yard = sl_fleet and sl_fleet.forecourt(s, 0)
+    if not (yard and l.offer and l.where) then return false, l.seller .. ': "Come and see it. Cash on the day."' end
+    if not sl_career.addMoney(-(price + L.delivery(price)), 'Revline: ' .. l.offer.name) then return false, 'Not enough money.' end
+    l.taken = true
+    local order = dealersLib.orderPrivate(s, l, price, yard, dealersLib.clock(s.day, sl_career.hour()))
+    return true, string.format('Paid. The %s comes to your garage in about %d hours.', l.offer.name, order.hours)
+  end
   if how == 'delivery' then
     if l.scam then return false, l.seller .. ': "No delivery. Deposit by transfer, then you collect."' end
     if not sl_career.addMoney(-(price + L.delivery(price)), 'Revline: ' .. l.item.name) then return false, 'Not enough money.' end
@@ -521,10 +531,10 @@ function M.buyPaper()
     if c and here and (here - vec3(c.x, c.y, c.z)):length() < PAPER_REACH then near = true end
   end
   if not near then return false, 'Pick up a copy at any gas station.' end
-  if not sl_career.addMoney(-L.PAPER_PRICE, 'Valo Classifieds') then return false, 'Not even $2?' end
+  if not sl_career.addMoney(-L.PAPER_PRICE, sl_career.mapText('Valo Classifieds')) then return false, 'Not even $2?' end
   m.paperRead = m.edition
   extensions.hook('onStreetLegalChanged')
-  return true, "This week's Valo Classifieds. A few ads in here you won't find on the phone."
+  return true, sl_career.mapText("This week's Valo Classifieds. A few ads in here you won't find on the phone.")
 end
 
 -- the pickup: at the seller's kerb, slow - pay the rest and the part goes on the shelf (or not, if it was a scam
