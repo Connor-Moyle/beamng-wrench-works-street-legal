@@ -129,6 +129,9 @@ local NOT_FOR_SALE = { Police = true, Service = true, Race = true, Rally = true,
 function M.forSale(c)
   local r = type(c) == 'table' and c.raw
   if type(r) ~= 'table' then return true end
+  -- the game's tutorial and scenario configs (covet_tutorial, apmTutorial_sunburst...) are props of its own missions, never stock
+  local ident = (tostring(r.key or '') .. ' ' .. tostring(r.pcFilename or '') .. ' ' .. tostring(r.Name or '')):lower()
+  if ident:find('tutorial', 1, true) or ident:find('scenario', 1, true) then return false end
   if type(r['Config Type']) == 'string' and NOT_FOR_SALE[r['Config Type']] then return false end
   local ag = type(r.aggregates) == 'table' and r.aggregates['Config Type']
   for k in pairs(type(ag) == 'table' and ag or {}) do if NOT_FOR_SALE[k] then return false end end

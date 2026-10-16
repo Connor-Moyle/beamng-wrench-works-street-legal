@@ -69,7 +69,7 @@ end
 
 -- the first order that is due (one is delivered at a time)
 function M.nextDue(s, now)
-  for _, o in ipairs(s.orders or {}) do if o.due <= now then return o end end
+  for _, o in ipairs(s.orders or {}) do if o.due <= now + 0.05 then return o end end      -- (three minutes of slack: the clock is read back from the sky's float)
 end
 
 function M.remove(s, order)

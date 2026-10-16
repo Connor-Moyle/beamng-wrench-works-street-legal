@@ -972,6 +972,14 @@ do
   end
 end
 
+-- the game's tutorial and scenario configs are never for sale (a Covet Career Tutorial on the junkyard)
+do
+  local D = require('sl/core/stockdealers')
+  check('tutorial and scenario configs are not for sale, ordinary ones are', not D.forSale({ raw = { key = 'covet_tutorial', Name = 'Covet Career Tutorial' } })
+    and not D.forSale({ raw = { key = 'apmTutorial_sunburst', pcFilename = 'apmTutorial_sunburst' } }) and not D.forSale({ raw = { Name = 'Some Scenario Car' } })
+    and D.forSale({ raw = { key = '13s_M', Name = 'Covet 1.3 S', ['Config Type'] = 'Factory' } }) and D.forSale({}))
+end
+
 -- the garage ladder (T34c)
 do
   local g = progression.garages
@@ -1081,6 +1089,34 @@ do
   check('the car you drive stays the car you drive, and a text says it has arrived', state.activeCar == nil and texts[#texts]:find('delivered') ~= nil)
   dealers.onUpdate(5)
   check('and it is not delivered again or offered again', #built == 1 and #sl_lot.offersFor(nil, state) == 1 and state.bought['d1:dealer-3-1'])
+
+  -- the phone: a Revline car ad bought for delivery, the clock skipped with the Wait app's plan, the car arrives and is registered
+  package.loaded['jbeam/io'] = {}
+  sl_career.has = function() return true end
+  sl_career.mapText = function(t) return t end
+  local yard0 = setmetatable({ x = 0, y = 0, z = 0 }, getmetatable(P(0)))
+  sl_fleet.forecourt = function() return yard0, 'rot' end
+  state.money, state.day, state.market = 9000, 3, { listings = {}, nextId = 1, refreshed = 0, deliveries = {}, rounds = {}, mine = {} }
+  state.market.listings[1] = { id = 'm1', kind = 'car', channel = 'app', ask = 900, condition = 0.8, seller = 'Dave', where = { x = 3000, y = 0, z = 0 },
+    item = { name = 'Pessima', model = 'pessima' }, offer = { id = 'used-0-1', name = 'Pessima', brand = 'Ibishu', model = 'pessima', config = 'vehicles/pessima/x.pc', price = 900,
+      value = 1500, condition = 0.8, faults = {}, mileage = 1000, kind = 'used' } }
+  hourNow = 12.5
+  local before, carsBefore, builtBefore = state.money, #state.cars, #built
+  local ok, text = require('sl/classifieds').buy('m1', 'delivery')
+  check('a Revline car bought for delivery: paid with the fee, an order in the save, nothing built yet', ok and state.money < before - 900 and #state.orders == 1
+    and state.orders[1].offer.id == 'revline:m1' and state.market.listings[1].taken and #built == builtBefore and #state.cars == carsBefore, text)
+  local function skip(what) local plan = progression.skipPlan(hourNow, what) hourNow = plan.to state.day = state.day + plan.days dealers.onUpdate(5) end
+  skip('1')
+  check('one hour on: not there yet', #state.orders == 1 and #built == builtBefore)
+  skip('3')
+  check('three hours more (the Wait app\'s own plan): the car is built and registered at the garage, the order gone',
+    #state.orders == 0 and #built == builtBefore + 1 and built[#built] == 'revline:m1' and #state.cars == carsBefore + 1 and state.cars[#state.cars].name == 'Pessima')
+  hourNow, state.day = 23, 4
+  state.market.listings[1] = { id = 'm2', kind = 'car', channel = 'app', ask = 900, condition = 0.8, seller = 'Dave', where = { x = 3000, y = 0, z = 0 }, item = { name = 'Covet', model = 'covet' },
+    offer = { id = 'used-0-2', name = 'Covet', model = 'covet', config = 'vehicles/covet/y.pc', price = 900, value = 1500, condition = 0.8, faults = {}, mileage = 1, kind = 'used' } }
+  require('sl/classifieds').buy('m2', 'delivery')
+  skip('morning')                                   -- across 06:00: the day counter moves, the order is still due
+  check('and a wait until the morning across the day change delivers it too', #state.orders == 0 and #built == builtBefore + 2)
 end
 
 print(string.format('lua tests passed: %d checks', passed))
