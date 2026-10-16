@@ -1,6 +1,6 @@
 # Changelog: Wrench Works: Street Legal (the career)
 
-## Unreleased (release 1 candidate; proposed version 0.4.0, mod_info says 0.2.0)
+## 0.4.0 (release 1 candidate, not yet released; needs Wrench Works 1.7.0)
 
 What is new for players. Release 1 is the career on **West Coast USA**; Valo City (optional) works as before.
 
