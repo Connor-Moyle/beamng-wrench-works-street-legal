@@ -9,6 +9,7 @@ local M = {}
 
 M.USED_MILEAGE = 50000000     -- the game's Mileage is in metres: a dealer whose cars start at 50,000 km sells used ones
 M.MIN_POOL = 4                -- a filter that leaves fewer cars than this is not used (every car is)
+M.SAME_GARAGE = 30            -- metres: a stock garage this close to a Wrench Works garage site is that garage
 M.SAME_PLACE = 80             -- metres: a map place this close to a stock dealer is the same dealer
 
 -- the dealer's filter says new or used by the mileage its cars start at
@@ -84,6 +85,7 @@ end
 
 -- the places of a level's stock facilities. api (the game's freeroam_facilities, read as data):
 --   api.list(type, level) -> the facilities of that type ('dealership', 'garage')
+--   api.ownSpots() -> { { x, y } } where Wrench Works' garage sites are
 --   api.spots(f) -> { { x, y, z, dx, dy } }   api.door(f) -> { x, y, z, dx, dy } or nil (dx, dy: the way it faces, if known)
 -- A map without stockFacilities gets none. A garage that is already one of the map's career garages (Wrench Works'
 -- sites) is not added again; the tutorial's seller (remotePurchaseOnly) has no lot.
@@ -103,8 +105,14 @@ function M.fromFacilities(api, level, tr)
     local p = not f.remotePurchaseOnly and M.dealer(f, spotsOrDoor(f), tr)
     if p then out[#out + 1] = p end
   end
+  -- Wrench Works' garages have their own ids on the stock facilities' (the same building): a stock garage next to
+  -- one of its sites is that garage
+  local sites = api.ownSpots and api.ownSpots() or {}
   for _, f in ipairs(api.list('garage', level) or {}) do
     local p = not own[f.id] and M.garage(f, api.spots(f), api.door(f), tr)
+    for _, q in ipairs(p and sites or {}) do
+      if apart(p.pos, { q.x, q.y }) < M.SAME_GARAGE then p = nil break end
+    end
     if p then out[#out + 1] = p end
   end
   return out

@@ -307,14 +307,27 @@ local function stockPlaces(level)
   local function tell1(f, why) if not told[f.id] then told[f.id] = true log('W', logTag, 'stock facility ' .. tostring(f.id) .. ': ' .. why) end end
   return stockLib.fromFacilities({
     list = function(kind, lvl) return fac.getFacilitiesByType(kind, lvl) end,
+    ownSpots = function()
+      local out, sites = {}, garageModule('slrr/garageSites')
+      local ok, list = pcall(function() return sites and sites.getSites() or {} end)
+      for _, site in ipairs(ok and list or {}) do if site.spot then out[#out + 1] = { x = site.spot.x, y = site.spot.y } end end
+      return out
+    end,
     spots = function(f)
       local out = {}
       local ok, list = pcall(fac.getParkingSpotsForFacility, f)
       if not ok then tell1(f, 'parking spots failed: ' .. tostring(list)) end
       for _, sp in ipairs(ok and type(list) == 'table' and list or {}) do
         if sp.pos and sp.rot then
-          local d = sp.rot * vec3(0, 1, 0)
-          out[#out + 1] = { x = sp.pos.x, y = sp.pos.y, z = sp.pos.z, dx = d.x, dy = d.y }
+          -- a spot with something above its ground (a kerb) is not a place to stand a car: the ray from 1.5 m up
+          -- should reach the spot's own height
+          local okg, hit = pcall(function() return sp.pos.z + 1.5 - castRayStatic(vec3(sp.pos.x, sp.pos.y, sp.pos.z + 1.5), vec3(0, 0, -1), 4) end)
+          if not okg or not hit or hit <= sp.pos.z + 0.25 then
+            local d = sp.rot * vec3(0, 1, 0)
+            out[#out + 1] = { x = sp.pos.x, y = sp.pos.y, z = sp.pos.z, dx = d.x, dy = d.y }
+          else
+            tell1(f, string.format('a parking spot at %.0f, %.0f is %.2f m above its ground: left out', sp.pos.x, sp.pos.y, hit - sp.pos.z))
+          end
         end
       end
       if #out == 0 and ok then tell1(f, 'no parking spots') end

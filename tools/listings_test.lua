@@ -123,6 +123,19 @@ return function(check, rngLib)
     #wc == 2 and ids.stock_jeffersonmotors and ids.stock_jeffersonmotors.kind == 'dealer' and ids.stock_servicestationgarage and ids.stock_servicestationgarage.kind == 'garage')
   check('the tutorial seller, a dealer without a lot, a Wrench Works garage and a garage with no position are left out',
     not ids.stock_apmstartervehicles and not ids.stock_nolot and not ids.stock_alderdragwaygarage and not ids.stock_nowheregarage)
+  -- a stock garage beside a Wrench Works garage site is that garage (the ids differ, the building is the same)
+  local garApi = {
+    list = function(kind) return kind == 'garage' and { { id = 'servicestationGarage' }, { id = 'farGarage' } } or {} end,
+    spots = function(f) return f.id == 'servicestationGarage' and { { x = 904.5, y = -546.3, z = 0, dx = 0, dy = 1 } } or { { x = 3000, y = 3000, z = 0, dx = 0, dy = 1 } } end,
+    door = function() return nil end,
+    ownSpots = function() return { { x = 920, y = -540 }, { x = -50, y = 10 } } end,
+  }
+  local gs = D.fromFacilities(garApi, 'west_coast_usa', tr)
+  check('a stock garage within 30 m of a Wrench Works site is skipped, a far one is kept', #gs == 1 and gs[1].id == 'stock_fargarage')
+  garApi.ownSpots = function() return { { x = 940, y = -540 } } end
+  check('...and one 40 m from the site is its own garage', #D.fromFacilities(garApi, 'west_coast_usa', tr) == 2)
+  garApi.ownSpots = nil
+  check('no site list: nothing is skipped', #D.fromFacilities(garApi, 'west_coast_usa', tr) == 2)
   -- a dealer with no parking spot stands on its door (T12 retest: the spots came back empty); no spot and no door = no place
   local doorApi = {
     list = function(kind) return kind == 'dealership' and { { id = 'belascoAuto' }, { id = 'lost' } } or {} end,
