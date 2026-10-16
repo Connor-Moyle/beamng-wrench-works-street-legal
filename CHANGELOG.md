@@ -22,6 +22,5 @@ What is new for players. Release 1 is the career on **West Coast USA**; Valo Cit
 **Calmer and faster**
 - Fewer per-frame costs from the markers, the lockdown and the race step.
 - Jobs count a stop by distance along the ground; a diner's stop covers its whole row of pumps.
-- Hurt and killed at the wheel, the hospital bill, insurance and the cab, tow truck and reset key keep the car's damage.
 
 **Already in the career (not part of the release 1 promise)**: classifieds (Revline, the paper, Swap & Bid), clubs and leagues, rival crews and the turf war, the bank, garage upgrades, achievements, save slots (up to six careers), settings group, gamepad phone. They are in the zip and may be visible, but release 1 testing did not cover them; some need Valo City data.
