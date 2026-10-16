@@ -54,8 +54,10 @@ local function waitData(job, id, seconds)
   return false
 end
 
--- a vehicle spawned, not driven by the player. config: a .pc path or a config table
-function M.spawn(job, model, config, pos, rot)
+-- a vehicle spawned, not driven by the player. config: a .pc path or a config table. nobodyDrives: a lot's display car
+-- or one of the player's own (the player's driver is a full one): Drivers & Pedestrians gives it no driver props
+function M.spawn(job, model, config, pos, rot, nobodyDrives)
+  if nobodyDrives and slrrDriverMount and slrrDriverMount.noPropsNext then slrrDriverMount.noPropsNext() end
   local ok, veh = pcall(core_vehicles.spawnNewVehicle, model, {
     config = config, pos = pos, rot = rot, autoEnterVehicle = false, canSpawnAnotherVehicleCheck = false,
   })
@@ -137,8 +139,8 @@ end
 
 -- A stock car made into a custom one. recipe = { stage = 0..3 | 'race', seed }: the parts the
 -- stage calls for, at their best, and the paint job that goes with the seed. Returns the vehicle.
-function M.buildCustom(job, model, config, recipe, pos, rot)
-  local veh = M.spawn(job, model, config, pos, rot)
+function M.buildCustom(job, model, config, recipe, pos, rot, nobodyDrives)
+  local veh = M.spawn(job, model, config, pos, rot, nobodyDrives)
   if not veh then return nil end
   local id = veh:getID()
   local vd = vehData(id)
@@ -161,11 +163,11 @@ end
 -- A track special is built as a race car instead. Returns the vehicle (nil if it could not be made).
 function M.buildOffer(job, offer, pos, rot)
   if offer.build then
-    local veh = M.buildCustom(job, offer.model, offer.config, { stage = offer.build, seed = rngLib.hash(offer.id) }, pos, rot)
+    local veh = M.buildCustom(job, offer.model, offer.config, { stage = offer.build, seed = rngLib.hash(offer.id) }, pos, rot, true)
     if veh then veh:queueLuaCommand('input.event("parkingbrake", 1, FILTER_DIRECT) controller.setFreeze(1)') end
     return veh, { removed = {}, swapped = {} }
   end
-  local veh = M.spawn(job, offer.model, offer.config, pos, rot)
+  local veh = M.spawn(job, offer.model, offer.config, pos, rot, true)
   if not veh then return nil end
   local id = veh:getID()
   local vd = vehData(id)
@@ -206,7 +208,7 @@ end
 function M.spawnOwned(job, car, pos, rot)
   if type(car.config) ~= 'table' then return nil end
   local cfg = { model = car.config.model or car.model, partsTree = car.config.partsTree, vars = car.config.vars, paints = car.config.paints }
-  local veh = M.spawn(job, car.model, cfg, pos, rot)
+  local veh = M.spawn(job, car.model, cfg, pos, rot, true)
   if not veh then return nil end
   job.sleep(0.3)
   M.applyDamage(veh, car.damage)
