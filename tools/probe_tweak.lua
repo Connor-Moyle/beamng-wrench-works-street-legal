@@ -1,24 +1,40 @@
 -- Finds the part change that crashes a car when a lot rebuilds it (T29). Runs in the game's GE Lua (run_lua), with a level loaded:
---   PROBE_MODEL = 'midtruck'   (optional, default midtruck)      PROBE_GUARDED = true  (optional: with the slot guards, default off)
---   node bng.js run_lua @tools/probe_tweak.lua                    then, to read the log:  see PROBE_FILE below
--- For every stock config of the model: spawn it stock 20 m ahead of the player, then ONE change at a time (each fault's parts
--- taken off, then single swaps with seeds 1..8) rebuilt in place exactly as carBuilder.buildOffer does, left 3 s, back to stock.
--- Every step is written to the file BEFORE it is done and flushed: after a crash the last "BEFORE" without its "OK" is the change.
+--   node bng.js run_lua @tools/probe_tweak.lua
+-- Settings (set as globals BEFORE running it, with run_lua "PROBE_MODEL='midtruck' PROBE_GUARDED=true"):
+--   PROBE_MODEL    the model, default 'midtruck'
+--   PROBE_GUARDED  true: with the slot guards of carsLib.tweakTree (core slots kept, only slot-legal swaps); default false (the old rules)
+--   PROBE_ONLY     a label to run alone, e.g. 'fault battery' or 'swap seed 3'; default every change
+--   PROBE_CONFIG   a config file name (part of it) to run alone; default every config of the model
+-- For every stock config of the model: spawn it stock 20 m ahead of the player, then ONE change at a time (each fault's parts taken
+-- off, then single swaps with seeds 1..8) rebuilt in place exactly as carBuilder.buildOffer does, left 3 s, back to stock.
+-- EVERY step is written BEFORE it is done, to three places: the game's log (beamng.log, lines "probe_tweak"), the file
+-- <user folder>/settings/street_legal/probe_tweak.txt (rewritten whole each step, flushed), and the global PROBE_LOG (a list of lines).
+-- After a crash the last "BEFORE" line without its "OK" is the change.
 
-local builder = require('sl/carBuilder')
-local cars = require('sl/core/cars')
-local rngLib = require('sl/core/rng')
+local buffer = {}
+local VFILE = '/settings/street_legal/probe_tweak.txt'
+local function note(text)
+  local line = os.date('%H:%M:%S ') .. text
+  buffer[#buffer + 1] = line
+  rawset(_G, 'PROBE_LOG', buffer)
+  pcall(log, 'I', 'probe_tweak', line)
+  pcall(writeFile, VFILE, table.concat(buffer, '\n') .. '\n')
+end
+note('probe_tweak starts; file ' .. VFILE .. ' (the game\'s virtual path: <user folder>/settings/street_legal/probe_tweak.txt)')
+
+local okReq, builder = pcall(require, 'sl/carBuilder')
+local okReq2, cars = pcall(require, 'sl/core/cars')
+local okReq3, rngLib = pcall(require, 'sl/core/rng')
+if not (okReq and okReq2 and okReq3) then
+  note('ERROR: could not load the career modules: ' .. tostring(builder) .. ' ' .. tostring(cars) .. ' ' .. tostring(rngLib))
+  return 'probe_tweak: modules missing, see PROBE_LOG'
+end
 
 local MODEL = rawget(_G, 'PROBE_MODEL') or 'midtruck'
 local GUARDED = rawget(_G, 'PROBE_GUARDED') == true
-local FILE = (FS:getUserPath() or '') .. 'settings/street_legal/probe_tweak.txt'
+local ONLY = rawget(_G, 'PROBE_ONLY')
+local CONFIG = rawget(_G, 'PROBE_CONFIG')
 local FAULTS = { 'engine', 'gearbox', 'radiator', 'battery', 'tyres', 'brakes', 'exhaust' }
-
-pcall(function() FS:directoryCreate((FS:getUserPath() or '') .. 'settings/street_legal/', true) end)
-local function note(text)
-  local f = io.open(FILE, 'a')
-  if f then f:write(os.date('%H:%M:%S ') .. text .. '\n') f:close() end
-end
 
 local function vehData(id) return id and core_vehicle_manager.getVehicleData(id) or nil end
 
@@ -50,17 +66,31 @@ local function lookups(id)
 end
 
 local list = {}
-for _, c in ipairs(builder.configs()) do if c.model == MODEL then list[#list + 1] = c end end
-if #list == 0 then return 'no config of ' .. MODEL end
+for _, c in ipairs(builder.configs()) do
+  if c.model == MODEL and (not CONFIG or tostring(c.config):find(CONFIG, 1, true)) then list[#list + 1] = c end
+end
+local total = #(builder.configs())
+note(string.format('%d stock configs of %s (of %d the career knows), guarded=%s, only=%s, config=%s', #list, MODEL, total, tostring(GUARDED), tostring(ONLY), tostring(CONFIG)))
+if #list == 0 then
+  local models = {}
+  for _, c in ipairs(builder.configs()) do models[c.model] = true end
+  local names = {}
+  for m in pairs(models) do names[#names + 1] = m end
+  table.sort(names)
+  note('no config of ' .. MODEL .. '; models the career knows: ' .. table.concat(names, ' '))
+  return 'probe_tweak: no config of ' .. MODEL .. ', see PROBE_LOG'
+end
 rawset(_G, 'PROBE_STATUS', 'running')
-note(string.format('== probe %s, %d configs, guarded=%s ==', MODEL, #list, tostring(GUARDED)))
 
-core_jobsystem.create(function(job)
+local function body(job)
   local pv = getPlayerVehicle(0)
+  note('player vehicle: ' .. tostring(pv and pv:getJBeamFilename()))
   local pos = (pv and (pv:getPosition() + vec3(pv:getDirectionVector()) * 20) or vec3(0, 0, 0)) + vec3(0, 0, 0.5)
   for _, c in ipairs(list) do
     note('config ' .. tostring(c.config))
+    note('BEFORE spawn ' .. tostring(c.config))
     local veh = builder.spawn(job, c.model, c.config, pos, quatFromDir(vec3(0, 1, 0), vec3(0, 0, 1)))
+    note((veh and 'OK' or 'FAILED') .. ' spawn')
     if veh then
       local id = veh:getID()
       local base = deepcopy(vehData(id).config)
@@ -68,26 +98,30 @@ core_jobsystem.create(function(job)
       for _, f in ipairs(FAULTS) do changes[#changes + 1] = { label = 'fault ' .. f, opts = { faults = { f }, mods = 0 } } end
       for seed = 1, 8 do changes[#changes + 1] = { label = 'swap seed ' .. seed, opts = { faults = {}, mods = 1, seed = seed } } end
       for _, ch in ipairs(changes) do
-        local cfg = deepcopy(base)
-        local slotOf, partSlotType = lookups(id)
-        local tw = cars.tweakTree(cfg.partsTree, { rng = rngLib.new(ch.opts.seed or 1), classify = builder.classify(), valueOf = function() return 0 end,
-          faults = ch.opts.faults, mods = ch.opts.mods, slotOf = slotOf, partSlotType = partSlotType })
-        if #tw.removed + #tw.swapped > 0 then
-          local what = {}
-          for _, p in ipairs(tw.removed) do what[#what + 1] = '-' .. p end
-          for _, x in ipairs(tw.swapped) do what[#what + 1] = tostring(x.path) .. ' ' .. tostring(x.from) .. '>' .. tostring(x.to) end
-          note('BEFORE ' .. ch.label .. ': ' .. table.concat(what, ' | '))
-          respawn(job, veh, cfg)
-          job.sleep(3)
-          veh = getObjectByID(id)
-          note('OK ' .. ch.label .. (veh and '' or ' (vehicle gone)'))
-          if not veh then break end
-          note('BEFORE back to stock')
-          respawn(job, veh, deepcopy(base))
-          job.sleep(1)
-          veh = getObjectByID(id)
-          note('OK back to stock')
-          if not veh then break end
+        if not ONLY or ONLY == ch.label then
+          local cfg = deepcopy(base)
+          local slotOf, partSlotType = lookups(id)
+          local tw = cars.tweakTree(cfg.partsTree, { rng = rngLib.new(ch.opts.seed or 1), classify = builder.classify(), valueOf = function() return 0 end,
+            faults = ch.opts.faults, mods = ch.opts.mods, slotOf = slotOf, partSlotType = partSlotType })
+          if #tw.removed + #tw.swapped > 0 then
+            local what = {}
+            for _, p in ipairs(tw.removed) do what[#what + 1] = '-' .. p end
+            for _, x in ipairs(tw.swapped) do what[#what + 1] = tostring(x.path) .. ' ' .. tostring(x.from) .. '>' .. tostring(x.to) end
+            note('BEFORE ' .. ch.label .. ': ' .. table.concat(what, ' | '))
+            respawn(job, veh, cfg)
+            job.sleep(3)
+            veh = getObjectByID(id)
+            note('OK ' .. ch.label .. (veh and '' or ' (vehicle gone)'))
+            if not veh then break end
+            note('BEFORE back to stock')
+            respawn(job, veh, deepcopy(base))
+            job.sleep(1)
+            veh = getObjectByID(id)
+            note('OK back to stock')
+            if not veh then break end
+          else
+            note('skip ' .. ch.label .. ' (the tweak changes nothing on this car)')
+          end
         end
       end
       if veh then veh:delete() end
@@ -95,5 +129,13 @@ core_jobsystem.create(function(job)
   end
   note('== DONE ==')
   rawset(_G, 'PROBE_STATUS', 'done')
+end
+
+core_jobsystem.create(function(job)
+  local ok, err = xpcall(function() body(job) end, debug.traceback)
+  if not ok then
+    note('ERROR in the probe: ' .. tostring(err))
+    rawset(_G, 'PROBE_STATUS', 'error')
+  end
 end)
-return 'probe started; progress in ' .. FILE
+return 'probe_tweak started; progress in the game log (grep probe_tweak), ' .. VFILE .. ' and PROBE_LOG'
