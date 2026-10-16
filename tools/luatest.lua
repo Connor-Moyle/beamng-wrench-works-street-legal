@@ -972,6 +972,19 @@ do
   end
 end
 
+-- the garage ladder (T34c)
+do
+  local g = progression.garages
+  check('the first garage is open from the start', progression.garageAccess({ garageLevel = 1, rep = 0 }, g[1].site))
+  local ok2, why2 = progression.garageAccess({ garageLevel = 1, rep = 100 }, g[2].site)
+  check('a higher garage is closed, with the reputation it needs', not ok2 and why2 == 'You need 1500 reputation to use Club Garage 2.')
+  local ok3, why3 = progression.garageAccess({ garageLevel = 1, rep = 1600 }, g[2].site)
+  check('with the rep but not moved yet: move up first', not ok3 and why3:find('Move up to Club Garage 2 first') ~= nil)
+  check('moved up: the garage and the ones below it are open, the one above is not',
+    progression.garageAccess({ garageLevel = 2, rep = 1600 }, g[2].site) and progression.garageAccess({ garageLevel = 2, rep = 1600 }, g[1].site) and not progression.garageAccess({ garageLevel = 2, rep = 1600 }, g[3].site))
+  check('a site that is not on the ladder is free', progression.garageAccess({ garageLevel = 1 }, 'someShop'))
+end
+
 -- waiting on the phone (T34b)
 do
   local plan = progression.skipPlan(20, 'morning')

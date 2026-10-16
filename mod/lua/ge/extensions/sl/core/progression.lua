@@ -130,6 +130,19 @@ function M.nextGarage(state)
   return { garage = nextOne, canMove = true }
 end
 
+-- the garage ladder: a garage above your level is not available (no marker, no way in). A site that is not on the ladder is free.
+-- -> true, or false and what to tell the player
+function M.garageAccess(state, siteId)
+  for _, g in ipairs(M.garages) do
+    if g.site == siteId then
+      if g.level <= (state.garageLevel or 1) then return true end
+      if (state.rep or 0) < g.rep then return false, string.format('You need %d reputation to use %s.', g.rep, g.name) end
+      return false, string.format('Move up to %s first (Street cred on your phone).', g.name)
+    end
+  end
+  return true
+end
+
 function M.rocOpen(state)
   return (state.garageLevel or 1) >= M.ROC.garageLevel and (state.rep or 0) >= M.ROC.rep
 end

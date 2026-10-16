@@ -232,6 +232,15 @@ local wallet = {
   walkIn = false,       -- no body shells over the counter: cars come from the lots
   -- on foot in a garage doorway Wrench Works takes you in with this car (your current one, if it is out)
   car = function() return s and s.activeCar and sl_fleet and sl_fleet.vehicleOf(s.activeCar) or nil end,
+  -- the garage ladder: the garages above your level are not available (Wrench Works shows no marker and says why at the door)
+  garageAccess = function(siteId) return progression.garageAccess(s or {}, siteId) end,
+  -- on foot at the doorway with your car stored in the garage: it is brought out front (My cars' "Drive this one"), then Wrench Works goes in with it
+  fetch = function()
+    if not (s and sl_fleet) then return false end
+    local pick
+    for _, c in ipairs(s.cars) do if not c.impounded and (not pick or c.id == s.activeCar) then pick = c end end
+    return pick ~= nil and sl_fleet.setActive(pick.id) == true
+  end,
 }
 
 local function connectWallet(on)
