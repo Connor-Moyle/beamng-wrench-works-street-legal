@@ -123,6 +123,17 @@ return function(check, rngLib)
     #wc == 2 and ids.stock_jeffersonmotors and ids.stock_jeffersonmotors.kind == 'dealer' and ids.stock_servicestationgarage and ids.stock_servicestationgarage.kind == 'garage')
   check('the tutorial seller, a dealer without a lot, a Wrench Works garage and a garage with no position are left out',
     not ids.stock_apmstartervehicles and not ids.stock_nolot and not ids.stock_alderdragwaygarage and not ids.stock_nowheregarage)
+  -- a dealer with no parking spot stands on its door (T12 retest: the spots came back empty); no spot and no door = no place
+  local doorApi = {
+    list = function(kind) return kind == 'dealership' and { { id = 'belascoAuto' }, { id = 'lost' } } or {} end,
+    spots = function() return {} end,
+    door = function(f) return f.id == 'belascoAuto' and { x = 100, y = 200, z = 5, dx = 1, dy = 0 } or nil end,
+  }
+  local onDoor = D.fromFacilities(doorApi, 'west_coast_usa', tr)
+  check('a dealer with no parking spot stands on its door, facing the way the door does', #onDoor == 1 and onDoor[1].id == 'stock_belascoauto' and onDoor[1].display[1] == 100
+    and onDoor[1].displayDir[1] == 1 and #onDoor[1].displays == 1 and onDoor[1].stock.kind == 'dealer')
+  doorApi.door = function() return { x = 1, y = 2, z = 0 } end
+  check('a door whose facing is unknown faces north', D.fromFacilities(doorApi, 'west_coast_usa', tr)[1].displayDir[2] == 1)
   calls = 0
   check('Valo City asks the facilities for nothing and gets no places', #D.fromFacilities(api, 'slrr_valo_city', tr) == 0 and calls == 0 and #D.fromFacilities(nil, 'west_coast_usa', tr) == 0)
   check('only West Coast USA turns the stock facilities into places', progression.has('west_coast_usa', 'stockFacilities') and not progression.has('slrr_valo_city', 'stockFacilities'))

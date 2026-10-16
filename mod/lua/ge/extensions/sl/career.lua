@@ -301,23 +301,34 @@ end
 local function stockPlaces(level)
   local fac = freeroam_facilities
   if not (fac and fac.getFacilitiesByType) then return {} end
+  if extensions and extensions.load then pcall(extensions.load, 'gameplay_sites_sitesManager') end      -- (the parking spots are read from the level's sites)
   local function tr(key) local ok, t = pcall(translateLanguage, key, key, true) return ok and t or key end
+  local told = {}
+  local function tell1(f, why) if not told[f.id] then told[f.id] = true log('W', logTag, 'stock facility ' .. tostring(f.id) .. ': ' .. why) end end
   return stockLib.fromFacilities({
     list = function(kind, lvl) return fac.getFacilitiesByType(kind, lvl) end,
     spots = function(f)
       local out = {}
       local ok, list = pcall(fac.getParkingSpotsForFacility, f)
+      if not ok then tell1(f, 'parking spots failed: ' .. tostring(list)) end
       for _, sp in ipairs(ok and type(list) == 'table' and list or {}) do
         if sp.pos and sp.rot then
           local d = sp.rot * vec3(0, 1, 0)
           out[#out + 1] = { x = sp.pos.x, y = sp.pos.y, z = sp.pos.z, dx = d.x, dy = d.y }
         end
       end
+      if #out == 0 and ok then tell1(f, 'no parking spots') end
       return out
     end,
     door = function(f)
       local ok, c = pcall(fac.getAverageDoorPositionForFacility, f)
-      return ok and c and (c.x ~= 0 or c.y ~= 0) and { x = c.x, y = c.y, z = c.z } or nil
+      if not (ok and c and (c.x ~= 0 or c.y ~= 0)) then return nil end
+      -- the way the first door's area faces (best effort: else the place faces north)
+      local dx, dy
+      local obj = f.doors and f.doors[1] and scenetree and scenetree.findObject(f.doors[1][1])
+      local okr, r = pcall(function() return obj and quat(obj:getRotation()) * vec3(0, 1, 0) end)
+      if okr and r then dx, dy = r.x, r.y end
+      return { x = c.x, y = c.y, z = c.z, dx = dx, dy = dy }
     end,
   }, level, tr)
 end

@@ -84,7 +84,7 @@ end
 
 -- the places of a level's stock facilities. api (the game's freeroam_facilities, read as data):
 --   api.list(type, level) -> the facilities of that type ('dealership', 'garage')
---   api.spots(f) -> { { x, y, z, dx, dy } }   api.door(f) -> { x, y, z } or nil
+--   api.spots(f) -> { { x, y, z, dx, dy } }   api.door(f) -> { x, y, z, dx, dy } or nil (dx, dy: the way it faces, if known)
 -- A map without stockFacilities gets none. A garage that is already one of the map's career garages (Wrench Works'
 -- sites) is not added again; the tutorial's seller (remotePurchaseOnly) has no lot.
 function M.fromFacilities(api, level, tr)
@@ -92,8 +92,15 @@ function M.fromFacilities(api, level, tr)
   local own = {}
   for _, g in ipairs((progression.MAPS[level] or {}).garages or {}) do own[g.id] = true end
   local out = {}
+  -- a dealer with no parking spot stands on its door (api.door: x, y, z and, if known, the way it faces dx, dy)
+  local function spotsOrDoor(f)
+    local spots = api.spots(f)
+    if spots and #spots > 0 then return spots end
+    local d = api.door(f)
+    return d and { { x = d.x, y = d.y, z = d.z, dx = d.dx or 0, dy = d.dy or 1 } } or {}
+  end
   for _, f in ipairs(api.list('dealership', level) or {}) do
-    local p = not f.remotePurchaseOnly and M.dealer(f, api.spots(f), tr)
+    local p = not f.remotePurchaseOnly and M.dealer(f, spotsOrDoor(f), tr)
     if p then out[#out + 1] = p end
   end
   for _, f in ipairs(api.list('garage', level) or {}) do
