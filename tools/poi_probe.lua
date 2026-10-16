@@ -21,10 +21,22 @@ for _, e in ipairs(raw) do
 end
 say('raw POIs: %d, ours %d, stock dealership/garage/computer POIs from the game itself: %d (must be 0 while the stock career is off)', #raw, #ours, stockOnes)
 
+-- which clusters (the markers drawn in the world) hold each of our elements: a mission marker's cluster lists containedIds, a walking
+-- marker's only has its elemData (the first version of this probe looked only at containedIds and called every dealer "not drawn")
 local clustered = {}
 local okc, clusters = pcall(gameplay_playmodeMarkers.getPlaymodeClusters)
 for _, c in ipairs(okc and clusters or {}) do
-  for _, id in ipairs(c.containedIds or {}) do clustered[id] = c end
+  local kind = tostring(c.id):match('^(%a+)#') or '?'
+  for _, id in ipairs(c.containedIds or {}) do clustered[id] = clustered[id] or {} clustered[id][kind] = true end
+  for _, d in ipairs(c.elemData or {}) do
+    if type(d) == 'table' and d.id then clustered[d.id] = clustered[d.id] or {} clustered[d.id][kind] = true end
+  end
+end
+local function drawnList(id)
+  local t = {}
+  for k in pairs(clustered[id] or {}) do t[#t + 1] = k end
+  table.sort(t)
+  return #t > 0 and table.concat(t, ',') or 'NO'
 end
 
 for _, e in ipairs(ours) do
@@ -36,7 +48,7 @@ for _, e in ipairs(ours) do
   local pos = (mi.walkingMarker and mi.walkingMarker.pos) or (mi.missionMarker and mi.missionMarker.pos) or (bm and bm.pos)
   say('%-28s type=%-10s place=%-14s markers=[%s]  at %s  bigmap=%s (%s)  drawn-in-world=%s', tostring(e.id), tostring(d.type), tostring(d.placeId),
     table.concat(kinds, ','), pos and string.format('%.0f,%.0f,%.0f', pos.x, pos.y, pos.z) or '?', bm and 'yes' or 'NO',
-    bm and tostring(bm.name) or '-', clustered[e.id] and 'yes' or 'NO')
+    bm and tostring(bm.name) or '-', drawnList(e.id))
   -- the prompt the game would put up here
   local act = {}
   extensions.hook('onActivityAcceptGatherData', { d }, act)
