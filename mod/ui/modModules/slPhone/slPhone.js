@@ -65,6 +65,9 @@
     '.slp-btn.slp-red{background:#f2b8b5;color:#601410}',
     '.slp-btn.slp-off{opacity:.38;pointer-events:none}',
     '.slp-card{margin:8px 16px;padding:14px 16px;border-radius:18px;background:#211f26}',
+    /* a car ad as the stock shop lists a car: the config's picture first */
+    '.slp-pic{margin:-14px -16px 10px -16px;aspect-ratio:16/9;border-radius:18px 18px 0 0;overflow:hidden;background:#0d0b12;display:flex;align-items:center;justify-content:center;color:#6f6a78;font-size:12px}',
+    '.slp-pic img{width:100%;height:100%;object-fit:cover}',
     '.slp-card h4{margin:0 0 4px 0;font-size:15px;font-weight:500}',
     '.slp-card p{margin:0;font-size:13px;color:#cac4d0;line-height:1.45}',
     '.slp-card .slp-acts{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}',
@@ -419,7 +422,53 @@
     // the job board: what is on offer now, the one you are on, your record
     // Revline: used parts from private sellers (sl_classifieds)
     // one ad (Revline and the paper share it)
+    // a car ad's picture, name line and facts (the stock shop's card: picture, year, name, brand, mileage, transmission, drivetrain, power, seller, distance)
+    function adDist(m) { m = Number(m) || 0; return m >= 1000 ? (m / 1000).toFixed(1) + ' km' : Math.round(m) + ' m'; }
+    function adPic(l) { return '<div class="slp-pic">' + (l.preview ? '<img src="' + esc(l.preview) + '" alt="" onerror="this.style.display=\'none\'">' : 'no picture') + '</div>'; }
+    function adFacts(l) {
+      var sp = obj(l.specs), out = [];
+      if (l.mileage != null) out.push(Number(l.mileage).toLocaleString() + ' km');
+      if (sp.transmission) out.push(esc(sp.transmission));
+      if (sp.drivetrain) out.push(esc(sp.drivetrain));
+      if (sp.power) out.push(Math.round(sp.power) + ' PS');
+      return out.join(' &middot; ');
+    }
+    function adButtons(l) {
+      var offers = l.agreed ? '' : [0.9, 0.8, 0.7].map(function (f) {
+        var amt = Math.round(l.ask * f / 10) * 10;
+        return '<div class="slp-btn slp-text" data-a="mkoffer" data-v="' + esc(l.id) + '|' + amt + '">Offer ' + money(amt) + '</div>';
+      }).join('');
+      return '<div class="slp-acts">' + offers + '<div class="slp-btn" data-a="mkbuy" data-v="' + esc(l.id) + '|pickup">Pick up</div>' +
+        (l.delivery != null ? '<div class="slp-btn" data-a="mkbuy" data-v="' + esc(l.id) + '|delivery">Deliver</div>' : '') + '</div>';
+    }
+    function carAdCard(l) {
+      var tells = arr(l.tells).length ? '<p class="slp-warn">&#9888; ' + arr(l.tells).map(esc).join(' &middot; ') + '</p>' : '';
+      return '<div class="slp-card">' + adPic(l) + '<h4 data-a="adview" data-v="' + esc(l.id) + '">' + (l.rare ? '&#9733; ' : '') + (l.year ? l.year + ' ' : '') + esc(l.name) + '</h4>' +
+        '<p>' + esc(l.brand || '') + '</p><p>' + adFacts(l) + '</p>' +
+        '<p>' + esc(l.seller) + ' ' + '&#9733;'.repeat(l.rating || 0) + (l.metres != null ? ' &middot; ' + adDist(l.metres) + ' away' : '') + (l.hours ? ' &middot; delivered in about ' + l.hours + ' h' : '') +
+        ' &middot; ' + l.condition + '% condition' + (l.faults ? ' &middot; ' + l.faults + ' fault' + (l.faults > 1 ? 's' : '') : '') + ' &middot; ' + Math.max(0, l.hoursLeft | 0) + ' h left</p>' + tells +
+        '<p><b>' + money(l.ask) + '</b>' + (l.agreed ? ' (agreed)' : '') + ' &middot; deposit ' + money(l.deposit) + (l.delivery != null ? ' &middot; delivery +' + money(l.delivery) : '') + '</p>' +
+        adButtons(l).replace('<div class="slp-acts">', '<div class="slp-acts"><div class="slp-btn slp-tonal" data-a="adview" data-v="' + esc(l.id) + '">Details</div>') + '</div>';
+    }
+    // the detail view: the picture, every spec, the seller and the price
+    function adPage() {
+      var m = obj(st.data.market), l = null;
+      arr(m.listings).concat(arr(obj(m.paper).listings)).forEach(function (x) { if (x.id === st.adId) l = x; });
+      if (!l) return bar('Ad') + '<div class="slp-body"><div class="slp-empty">This ad has gone.</div></div>';
+      var sp = obj(l.specs), faults = l.faultList ? arr(l.faultList) : [];
+      var row = function (k, v) { return v == null || v === '' ? '' : '<div class="slp-kv"><span>' + k + '</span><b>' + v + '</b></div>'; };
+      return bar((l.year ? l.year + ' ' : '') + l.name) + '<div class="slp-body"><div class="slp-card">' + adPic(l) +
+        row('Brand', esc(l.brand)) + row('Year', l.year) + row('Mileage', l.mileage != null ? Number(l.mileage).toLocaleString() + ' km' : null) + row('Condition', l.condition + '%') +
+        row('Power', sp.power ? Math.round(sp.power) + ' PS' : null) + row('Weight', sp.weight ? Math.round(sp.weight).toLocaleString() + ' kg' : null) +
+        row('Transmission', esc(sp.transmission)) + row('Drivetrain', esc(sp.drivetrain)) + row('Fuel', esc(sp.fuel)) + row('Body', esc(sp.body)) +
+        row('Top speed', sp.topSpeed ? Math.round(sp.topSpeed * 3.6) + ' km/h' : null) + (faults.length ? row('Needs', esc(faults.join(', '))) : '') + '</div>' +
+        '<div class="slp-card">' + row('Seller', esc(l.seller) + ' ' + '&#9733;'.repeat(l.rating || 0)) + row('Distance', l.metres != null ? adDist(l.metres) : null) +
+        row('Delivery', l.hours ? 'to your garage in about ' + l.hours + ' h' : null) + row('Asking', money(l.ask)) + row('Deposit (pick up)', money(l.deposit)) +
+        (l.delivery != null ? row('Delivery fee', money(l.delivery)) : '') + adButtons(l) + '</div></div>';
+    }
+
     function adCard(l) {
+        if (l.car) return carAdCard(l);
         var tells = arr(l.tells).length ? '<p class="slp-warn">&#9888; ' + arr(l.tells).map(esc).join(' &middot; ') + '</p>' : '';
         var offers = l.agreed ? '' : [0.9, 0.8, 0.7].map(function (f) {
           var amt = Math.round(l.ask * f / 10) * 10;
@@ -894,6 +943,7 @@
         case 'market': page = marketPage(); break;
         case 'paper': page = paperPage(); break;
         case 'bid': page = bidPage(); break;
+        case 'ad': page = adPage(); break;
         case 'bank': page = bankPage(); break;
         case 'cab': page = cabPage(); break;
         case 'me': page = mePage(); break;
@@ -1040,6 +1090,7 @@
         case 'cancel': lua('cancel(' + JSON.stringify(v) + ')'); break;
         case 'raise': lua('raise(' + JSON.stringify(v) + ')'); break;
         case 'league': lua('enterLeague(' + JSON.stringify(v) + ')'); break;
+        case 'adview': go('ad', { adId: v }); break;
         case 'wait': lua('wait(' + JSON.stringify(String(v)) + ')'); break;
         case 'borrow': lua('borrow(' + Number(v) + ')'); break;
         case 'repay': lua('repay(' + Number(v) + ')'); break;

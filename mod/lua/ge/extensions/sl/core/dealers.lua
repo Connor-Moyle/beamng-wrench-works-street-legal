@@ -4,10 +4,30 @@
 -- delivered to the garage when the order is due.
 local M = {}
 
+local rngLib = require('sl/core/rng')
+
 M.MIN_HOURS, M.MAX_HOURS, M.METRES_PER_HOUR = 2, 6, 3000
 
 -- game hours since the start: the day changes at 06:00 (sl_career), so the clock counts from then
 function M.clock(day, hour) return (day or 1) * 24 + ((hour or 0) - 6) % 24 end
+
+-- the year of a listed car, as the stock shop gives one: somewhere in the config's years (aggregates.Years { min, max }), the same
+-- for the same offer every time
+function M.yearOf(id, years)
+  local lo, hi = 2000, 2023
+  if type(years) == 'table' then lo, hi = tonumber(years.min) or lo, tonumber(years.max) or hi
+  elseif tonumber(years) then lo = tonumber(years) hi = lo end
+  if hi < lo then hi = lo end
+  return lo + rngLib.hash(tostring(id)) % (hi - lo + 1)
+end
+
+-- what a stock listing shows of a car, from the game's config entry (core_vehicles.getConfigList): nil where the config has none
+function M.specs(raw)
+  raw = type(raw) == 'table' and raw or {}
+  local function str(v) return type(v) == 'string' and v ~= '' and v or nil end
+  return { power = tonumber(raw.Power), weight = tonumber(raw.Weight), drivetrain = str(raw.Drivetrain), transmission = str(raw.Transmission),
+    fuel = str(raw['Fuel Type']), body = str(raw['Body Style']), topSpeed = tonumber(raw['Top Speed']) }
+end
 
 -- 2 to 6 hours, by the distance from the dealer to the garage
 function M.delayHours(metres)

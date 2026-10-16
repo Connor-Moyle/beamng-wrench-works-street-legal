@@ -76,10 +76,23 @@ assert.ok(text().includes('On the way to your garage') && text().includes('in ab
 click('dealer', 'jeff');
 assert.ok(calls.includes('@sl_dealers.offers("jeff")'), 'a dealer asks for its cars');
 laptop.handle('slLaptopOffers', { dealer: 'jeff', name: 'Jefferson Motors', money: 9000, offers: [
-  { id: 'jeff:dealer-3-1', name: 'Bolide', title: 'New', mileage: 20, condition: 1, price: 7000, faults: [] },
+  { id: 'jeff:dealer-3-1', name: 'Bolide', brand: 'Bruckell', year: 2012, title: 'New', mileage: 20, condition: 1, price: 7000, faults: [], seller: 'Jefferson Motors', metres: 4200, hours: 3,
+    preview: '/vehicles/bolide/sport.png', specs: { power: 310, weight: 1250, transmission: 'Manual', drivetrain: 'RWD', fuel: 'Gasoline', body: 'Coupe', topSpeed: 75 } },
   { id: 'jeff:dealer-3-2', name: 'Pessima', title: 'Tired', mileage: 150000, condition: 0.4, price: 9900, faults: ['battery'] }] });
-assert.ok(text().includes('Bolide') && text().includes('20 km') && text().includes('condition 100%') && text().includes('Buy · $7,000') || text().includes('Buy · $7,000'), 'offer cards: name, mileage, condition, price');
+assert.ok(text().includes('2012 Bolide') && text().includes('Bruckell') && text().includes('20 km') && text().includes('Manual') && text().includes('RWD') && text().includes('310 PS') && text().includes('1,250 kg'), 'offer cards: year, name, brand, mileage, transmission, drivetrain, power, weight');
+assert.ok(text().includes('Jefferson Motors') && text().includes('4.2 km away') && text().includes('arrives in about 3 h') && text().includes('condition 100%') && text().includes('$7,000'), 'seller, distance, delivery time, condition, price');
+assert.ok($('.sll-pic img') && $('.sll-pic img').getAttribute('src') === '/vehicles/bolide/sport.png', 'the card shows the config\'s preview picture');
+assert.ok($$('.sll-pic')[1].textContent.includes('no picture'), 'a car without a picture says so');
 assert.ok(text().includes('Needs: battery') && $$('.sll-btn.sll-off').length === 1, 'faults are listed and a car you cannot pay for is dimmed');
+// the detail view of a car
+click('offer', 'jeff:dealer-3-1');
+assert.ok($('.sll-title').textContent.includes('2012 Bolide') && $('.sll-detail .sll-pic img') && $('.sll-taskwin').textContent.includes('Jefferson Motors'), 'a card opens its detail view: the picture and a window of its own');
+['Bruckell', '2012', '20 km', '310 PS', '1,250 kg', 'Manual', 'RWD', 'Gasoline', 'Coupe', '270 km/h', 'Jefferson Motors', '4.2 km', 'to your garage in about 3 h', '$7,000'].forEach((x) => assert.ok($('.sll-win').textContent.includes(x), 'detail shows ' + x));
+calls.length = 0;
+click('buy', 'jeff|jeff:dealer-3-1');
+assert.ok(calls.includes('@sl_dealers.buy("jeff","jeff:dealer-3-1")'), 'Buy in the detail view asks for that car');
+click('back');
+assert.ok($('.sll-title').textContent.includes('Jefferson Motors') && text().includes('Pessima'), 'the X goes back from the detail view to the list');
 click('buy', 'jeff|jeff:dealer-3-1');
 assert.ok(calls.includes('@sl_dealers.buy("jeff","jeff:dealer-3-1")'), 'Buy asks for that car');
 laptop.handle('slPhoneToast', { text: 'The Bolide will be at your garage in about 3 hours.' });

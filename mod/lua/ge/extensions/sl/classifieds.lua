@@ -13,6 +13,7 @@ local jbeamIO = require('jbeam/io')         -- (not a global on the game-engine 
 local market = require('sl/core/market')
 local builder = require('sl/carBuilder')
 local dealersLib = require('sl/core/dealers')
+local carInfo = require('sl/carInfo')
 
 local REFRESH_HOURS = 6        -- new listings every few in-game hours
 local APP_LISTINGS = 12
@@ -268,6 +269,17 @@ function M.summary()
         delivery = not l.scam and L.delivery(l.agreed or l.ask) or nil, deposit = L.deposit(l.agreed or l.ask), hoursLeft = l.expires - now(s) }
       if l.kind == 'car' and l.offer then
         card.car, card.mileage, card.faults = true, l.offer.mileage, #(l.offer.faults or {})
+        -- as the stock shop lists a car: the config's picture, year, brand, specs, how far away, when it would arrive
+        local info = carInfo.of({ id = 'revline:' .. l.id, model = l.offer.model, config = l.offer.config })
+        card.preview, card.year, card.specs, card.brand = info.preview, info.year, info.specs, info.brand
+        card.faultList = l.offer.faults
+        local v = getPlayerVehicle(0)
+        local yard = sl_fleet and sl_fleet.forecourt(s, 0)
+        if v and l.where then
+          local p = v:getPosition()
+          card.metres = math.floor(math.sqrt((p.x - l.where.x) ^ 2 + (p.y - l.where.y) ^ 2))
+        end
+        if yard and l.where then card.hours = dealersLib.delayHours(math.sqrt((yard.x - l.where.x) ^ 2 + (yard.y - l.where.y) ^ 2)) end
       end
       if l.channel == 'auction' then
         card.bid, card.high, card.next = l.bid, l.high, l.bid + math.max(10, math.floor(l.bid * 0.05 / 10 + 0.5) * 10)

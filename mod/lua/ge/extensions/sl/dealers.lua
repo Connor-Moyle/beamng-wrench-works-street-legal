@@ -7,6 +7,7 @@ local M = {}
 
 local rules = require('sl/core/dealers')
 local builder = require('sl/carBuilder')
+local carInfo = require('sl/carInfo')
 
 local function career() return sl_career and sl_career.isActive() and sl_career.getState() or nil end
 local function now(s) return rules.clock(s.day, sl_career.hour()) end
@@ -24,9 +25,13 @@ end
 
 local function metres(a, b) return a and b and (a - b):length() or 0 end
 
-local function card(o)
-  return { id = o.id, name = o.name, brand = o.brand, title = o.title, mileage = o.mileage, condition = o.condition, price = o.price,
-    faults = o.faults or {}, kind = o.kind }
+-- a listing as the stock shop shows one: the config's picture, year, brand, mileage, price, the seller, how far it is and when it arrives
+local function card(o, place, yard)
+  local info = carInfo.of(o)
+  local away = metres(place.pos, yard)
+  return { id = o.id, name = o.name, brand = info.brand or o.brand, title = o.title, mileage = o.mileage, condition = o.condition, price = o.price,
+    faults = o.faults or {}, kind = o.kind, preview = info.preview, year = info.year, specs = info.specs,
+    seller = place.name, metres = math.floor(away), hours = rules.delayHours(away) }
 end
 
 -- sent to the laptop: the dealers (name, distance, how many cars today) and what is on the way
@@ -54,7 +59,8 @@ function M.offers(placeId)
   local place = (sl_career.getPlaces() or {})[placeId]
   if not (place and place.stock) then return end
   local cards = {}
-  for _, o in ipairs(sl_lot.offersFor(place, s)) do cards[#cards + 1] = card(o) end
+  local yard = sl_fleet.forecourt(s, 0)
+  for _, o in ipairs(sl_lot.offersFor(place, s)) do cards[#cards + 1] = card(o, place, yard) end
   guihooks.trigger('slLaptopOffers', { dealer = place.id, name = place.name, offers = cards, money = s.money })
 end
 

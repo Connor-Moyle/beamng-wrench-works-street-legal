@@ -380,13 +380,25 @@ assert.ok(text().includes('Swap meet today') && text().includes('Coilovers') && 
 calls.length = 0;
 click('mkmeet', 's1');
 assert.ok(calls.some(function (c) { return c.indexOf('buyAtMeet("s1")') >= 0; }), 'buying at a stall calls the market');
-// cars on Revline: a private car ad (pickup only) and selling yours
+// cars on Revline: a private car ad the way the stock shop lists a car (picture, year, specs, seller, distance, delivery), its detail view, and selling yours
 phone.handle('slPhoneData', Object.assign({}, data, { market: { deliveries: 0, auctions: [], paper: {}, mine: [], shelf: [],
-  listings: [ { id: 'c1', name: 'Covet 1.5', model: 'covet', car: true, mileage: 182000, faults: 2, ask: 2400, condition: 55, seller: 'Big Tony', rating: 4, tells: [], deposit: 240, hoursLeft: 30 } ],
+  listings: [ { id: 'c1', name: 'Covet 1.5', model: 'covet', car: true, mileage: 182000, faults: 2, ask: 2400, condition: 55, seller: 'Big Tony', rating: 4, tells: [], deposit: 240, hoursLeft: 30,
+    year: 2009, brand: 'Ibishu', preview: '/vehicles/covet/13s_M.png', metres: 3100, hours: 4, delivery: 180, faultList: ['battery', 'exhaust'],
+    specs: { power: 66, weight: 995, transmission: 'Manual', drivetrain: 'FWD', fuel: 'Gasoline', body: 'Hatchback', topSpeed: 42.5 } },
+    { id: 'c2', name: 'Pessima', model: 'pessima', car: true, mileage: 1000, faults: 0, ask: 900, condition: 90, seller: 'Kenny', rating: 3, tells: [], deposit: 90, hoursLeft: 10 } ],
   cars: [ { id: 3, name: 'Sunburst', estimate: 5200 } ] } }));
 phone.act('home');
 phone.act('open', 'market');
-assert.ok(text().includes('Covet 1.5') && text().includes('182k km') && text().includes('2 faults') && !phone.root.querySelector('[data-v="c1|delivery"]') && text().includes('List car'), 'a car ad (no delivery) and your car to list');
+assert.ok(text().includes('2009 Covet 1.5') && text().includes('Ibishu') && text().includes('182,000 km') && text().includes('Manual') && text().includes('FWD') && text().includes('66 PS') && text().includes('2 faults'), 'a car ad: year, name, brand, mileage, transmission, drivetrain, power');
+assert.ok(text().includes('Big Tony') && text().includes('3.1 km away') && text().includes('delivered in about 4 h') && text().includes('$2,400'), 'seller, distance, delivery time, price');
+assert.ok(phone.root.querySelector('.slp-pic img[src="/vehicles/covet/13s_M.png"]') && text().includes('no picture') && phone.root.querySelector('[data-v="c1|delivery"]') && text().includes('List car'), 'the config\'s picture (a car without one says so), a car can be delivered, your car to list');
+click('adview', 'c1');
+assert.ok(text().includes('2009 Covet 1.5') && text().includes('Gasoline') && text().includes('Hatchback') && text().includes('153 km/h') && text().includes('Needs') && text().includes('battery, exhaust') && text().includes('to your garage in about 4 h') && text().includes('Deposit (pick up)'), 'the detail view: every spec, the fault list, delivery and deposit');
+calls.length = 0;
+click('mkbuy', 'c1|delivery');
+assert.ok(calls.some(function (c) { return c.indexOf('marketBuy("c1","delivery")') >= 0; }), 'a car can be bought for delivery from its detail view');
+click('back');
+assert.ok(text().includes('Pessima'), 'back to the list');
 calls.length = 0;
 click('mkcar', '3');
 assert.ok(calls.some(function (c) { return c.indexOf('listCar("3")') >= 0; }), 'listing a car calls the market');

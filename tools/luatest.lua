@@ -1002,6 +1002,16 @@ do
   local rules = require('sl/core/dealers')
   check('the clock counts game hours from 06:00 and never goes back (a day runs 06:00 to 05:59)', rules.clock(3, 6) < rules.clock(3, 23) and rules.clock(3, 23) < rules.clock(3, 2)
     and rules.clock(3, 2) < rules.clock(4, 6) and rules.clock(4, 6) - rules.clock(3, 6) == 24 and rules.clock(4, 6) - rules.clock(3, 5.99) < 1)
+  local y1, y2 = rules.yearOf('d1:dealer-3-1', { min = 2005, max = 2013 }), rules.yearOf('d1:dealer-3-1', { min = 2005, max = 2013 })
+  local inRange, spread = true, {}
+  for i = 1, 60 do local y = rules.yearOf('o' .. i, { min = 2005, max = 2013 }) inRange = inRange and y >= 2005 and y <= 2013 spread[y] = true end
+  local kinds = 0 for _ in pairs(spread) do kinds = kinds + 1 end
+  check('a listed car\'s year is in the config\'s years, the same every time, and varies between cars', y1 == y2 and inRange and kinds >= 5
+    and rules.yearOf('x', { min = 2010, max = 2010 }) == 2010 and rules.yearOf('x', nil) >= 2000 and rules.yearOf('x', 1999) == 1999 and rules.yearOf('x', { min = 2012, max = 2008 }) == 2012)
+  local sp = rules.specs({ Power = 66, Weight = 995, Drivetrain = 'FWD', Transmission = 'Manual', ['Fuel Type'] = 'Gasoline', ['Body Style'] = 'Hatchback', ['Top Speed'] = 42.5 })
+  check('the stock listing\'s facts are read from the config entry', sp.power == 66 and sp.weight == 995 and sp.drivetrain == 'FWD' and sp.transmission == 'Manual' and sp.fuel == 'Gasoline' and sp.body == 'Hatchback' and sp.topSpeed == 42.5)
+  local none = rules.specs(nil)
+  check('and missing ones are nil, not errors', none.power == nil and none.drivetrain == nil and rules.specs({ Drivetrain = '' }).drivetrain == nil)
   check('delivery takes 2 to 6 hours by distance', rules.delayHours(0) == 2 and rules.delayHours(3500) == 3 and rules.delayHours(9000) == 5 and rules.delayHours(99999) == 6)
   local offer = { id = 'd1:dealer-3-1', name = 'Covet', price = 4000, mileage = 12, condition = 1, faults = {} }
   local s = { money = 3000, bought = {}, orders = {} }
@@ -1042,6 +1052,8 @@ do
   getPlayerVehicle = function() return { getPosition = function() return P(0) end } end
   local vehicle = { getID = function() return 77 end, queueLuaCommand = function() end }
   package.loaded['sl/carBuilder'] = { buildOffer = function(job, offer) built[#built + 1] = offer.id return vehicle end }
+  package.loaded['sl/carInfo'] = { of = function(offer) return { preview = '/vehicles/' .. tostring(offer.model) .. '/x.png', year = 2011, brand = 'Ibishu',
+    specs = { power = 120, weight = 1100, drivetrain = 'RWD', transmission = 'Manual' } } end }
   local dealers = require('sl/dealers')
   local function last(name) for i = #events, 1, -1 do if events[i].name == name then return events[i].data end end end
   dealers.list()
@@ -1050,6 +1062,9 @@ do
   dealers.offers('d1')
   local shown = last('slLaptopOffers')
   check('the cards are the own offers of the lot, in the same order', #shown.offers == 2 and shown.offers[1].id == 'd1:dealer-3-1' and shown.offers[2].price == 7000)
+  local c1 = shown.offers[1]
+  check('each card has what the stock listing shows: picture, year, brand, specs, seller, distance, arrival', c1.preview == '/vehicles/nil/x.png' and c1.year == 2011 and c1.brand == 'Ibishu'
+    and c1.specs.power == 120 and c1.specs.drivetrain == 'RWD' and c1.seller == 'Jefferson Motors' and c1.metres == 5000 and c1.hours == 3 and c1.mileage == 12 and c1.condition == 1)
   dealers.buy('d1', 'd1:dealer-3-1')
   check('buy takes the money once and orders the car', state.money == 5000 and charged == 1 and #state.orders == 1 and state.bought['d1:dealer-3-1'])
   dealers.buy('d1', 'd1:dealer-3-1')

@@ -53,6 +53,18 @@
     '.sll-car{flex:1;background:#211f26;border-radius:18px;padding:14px 20px}',
     '.sll-car b{font-size:18px;font-weight:500}',
     '.sll-car span{display:block;color:#cac4d0;font-size:13px;margin-top:3px}',
+    /* a listing as the stock shop shows one: the config's picture, name, specs, seller, price */
+    '.sll-listing{display:flex;gap:16px;align-items:stretch;cursor:pointer;border:2px solid transparent}',
+    '.sll-listing:focus{outline:none;border-color:#a8c7fa}',
+    '.sll-pic{flex:none;width:210px;aspect-ratio:16/9;border-radius:10px;overflow:hidden;background:#0d0b12;display:flex;align-items:center;justify-content:center;color:#6f6a78;font-size:12px}',
+    '.sll-pic img{width:100%;height:100%;object-fit:cover}',
+    '.sll-li{flex:1;min-width:0}',
+    '.sll-brand{color:#cac4d0;font-size:12px;margin-bottom:4px}',
+    '.sll-props{color:#cac4d0;font-size:13px;margin-top:3px}',
+    '.sll-lbuy{flex:none;display:flex;flex-direction:column;align-items:flex-end;justify-content:space-between}',
+    '.sll-lbuy b{font-size:20px;font-weight:500}',
+    '.sll-detail{display:flex;gap:22px;flex-wrap:wrap}',
+    '.sll-detail .sll-pic{width:min(520px,100%)}',
     '.sll-tiles{display:flex;flex-wrap:wrap;gap:14px;margin-top:12px}',
     '.sll-tile{width:128px;min-height:92px;border-radius:12px;background:rgba(33,31,38,.88);padding:12px;display:flex;flex-direction:column;justify-content:flex-end;font-size:14px;cursor:pointer;border:2px solid transparent}',
     '.sll-tile.sll-off{opacity:.45}',
@@ -138,7 +150,7 @@
 
     function taskbarHtml() {
       var d = st.data, h = d.hour || 0, m = d.minute || 0;
-      var titles = { cars: TITLES.cars, parts: TITLES.parts, bank: TITLES.bank, cred: TITLES.cred, dealers: TITLES.dealers, offers: (st.offers && st.offers.name) || TITLES.dealers };
+      var titles = { cars: TITLES.cars, parts: TITLES.parts, bank: TITLES.bank, cred: TITLES.cred, dealers: TITLES.dealers, offers: (st.offers && st.offers.name) || TITLES.dealers, offer: (st.offers && st.offers.name) || TITLES.dealers };
       return '<div class="sll-task"><div class="sll-startbtn" data-a="start">&#9638; Start</div>' +
         (st.page !== 'home' ? '<div class="sll-taskwin">' + esc(titles[st.page] || '') + '</div>' : '') + '<div class="sll-sp"></div>' +
         (d.active ? '<div class="sll-chip">' + esc(d.title || '') + ' &middot; ' + (d.rep || 0) + ' rep</div><div class="sll-chip">' + (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m + ' &middot; Day ' + (d.day || 1) + '</div><div class="sll-money">' + money(d.money) + '</div>' : '') +
@@ -172,15 +184,50 @@
         (rows || '<div class="sll-empty">No dealers on this map.</div>') + '</div><div class="sll-note">' + esc(st.note) + '</div>';
     }
 
+    function dist(m) { m = Number(m) || 0; return m >= 1000 ? (m / 1000).toFixed(1) + ' km' : Math.round(m) + ' m'; }
+    function pic(c) {
+      return '<div class="sll-pic">' + (c.preview ? '<img src="' + esc(c.preview) + '" alt="" onerror="this.style.display=\'none\'">' : 'no picture') + '</div>';
+    }
+    // the stock card's one-line facts: mileage, transmission, drivetrain, power, weight
+    function facts(c) {
+      var sp = obj(c.specs), out = [];
+      if (c.mileage != null) out.push(Number(c.mileage).toLocaleString() + ' km');
+      if (sp.transmission) out.push(esc(sp.transmission));
+      if (sp.drivetrain) out.push(esc(sp.drivetrain));
+      if (sp.power) out.push(Math.round(sp.power) + ' PS');
+      if (sp.weight) out.push(Math.round(sp.weight).toLocaleString() + ' kg');
+      return out.join(' &middot; ');
+    }
     function offersPage() {
       var o = st.offers || { name: 'Dealer', offers: [] };
       var cards = arr(o.offers).map(function (c) {
         var faults = arr(c.faults);
-        return '<div class="sll-card"><h4>' + esc(c.name) + (c.title ? ' &middot; ' + esc(c.title) : '') + '</h4><p>' + (c.mileage != null ? Number(c.mileage).toLocaleString() + ' km' : '') +
-          ' &middot; condition ' + Math.round((c.condition || 0) * 100) + '%' + (faults.length ? '<br>Needs: ' + esc(faults.join(', ')) : '') + '</p>' +
-          '<div class="sll-acts"><div class="sll-btn' + ((o.money || 0) < c.price ? ' sll-off' : '') + '" data-a="buy" data-v="' + esc(o.dealer) + '|' + esc(c.id) + '">Buy &middot; ' + money(c.price) + '</div></div></div>';
+        return '<div class="sll-card sll-listing" data-a="offer" data-v="' + esc(c.id) + '">' + pic(c) + '<div class="sll-li"><h4>' + (c.year ? c.year + ' ' : '') + esc(c.name) + '</h4>' +
+          '<div class="sll-brand">' + esc(c.brand || '') + (c.title ? ' &middot; ' + esc(c.title) : '') + '</div><div class="sll-props">' + facts(c) + '</div>' +
+          '<div class="sll-props">' + esc(c.seller || o.name) + ' &middot; ' + dist(c.metres) + ' away &middot; arrives in about ' + (c.hours || 0) + ' h</div>' +
+          '<div class="sll-props">condition ' + Math.round((c.condition || 0) * 100) + '%' + (faults.length ? '<br>Needs: ' + esc(faults.join(', ')) : '') + '</div></div>' +
+          '<div class="sll-lbuy"><b>' + money(c.price) + '</b><div class="sll-btn' + ((o.money || 0) < c.price ? ' sll-off' : '') + '" data-a="buy" data-v="' + esc(o.dealer) + '|' + esc(c.id) + '">Buy</div></div></div>';
       }).join('');
       return head(o.name) + '<div class="sll-body">' + (cards || '<div class="sll-empty">Nothing left on the lot today.</div>') + '</div><div class="sll-note">' + esc(st.note) + '</div>';
+    }
+
+    // the detail view: the picture, every spec, the seller, the delivery and the price
+    function offerPage() {
+      var o = st.offers || { offers: [] }, c = null;
+      arr(o.offers).forEach(function (x) { if (x.id === st.offerId) c = x; });
+      if (!c) return head('Sold') + '<div class="sll-body"><div class="sll-empty">This car has gone.</div></div><div class="sll-note">' + esc(st.note) + '</div>';
+      var sp = obj(c.specs), faults = arr(c.faults);
+      var row = function (k, v) { return v == null || v === '' ? '' : '<div class="sll-kv"><span>' + k + '</span><b>' + v + '</b></div>'; };
+      return head((c.year ? c.year + ' ' : '') + c.name) + '<div class="sll-body"><div class="sll-detail">' + pic(c) +
+        '<div class="sll-li"><div class="sll-card">' + row('Brand', esc(c.brand)) + row('Year', c.year) + row('Mileage', c.mileage != null ? Number(c.mileage).toLocaleString() + ' km' : null) +
+        row('Condition', Math.round((c.condition || 0) * 100) + '%' + (c.title ? ' (' + esc(c.title) + ')' : '')) + row('Power', sp.power ? Math.round(sp.power) + ' PS' : null) +
+        row('Weight', sp.weight ? Math.round(sp.weight).toLocaleString() + ' kg' : null) + row('Transmission', esc(sp.transmission)) + row('Drivetrain', esc(sp.drivetrain)) +
+        row('Fuel', esc(sp.fuel)) + row('Body', esc(sp.body)) + row('Top speed', sp.topSpeed ? Math.round(sp.topSpeed * 3.6) + ' km/h' : null) +
+        (faults.length ? row('Needs', esc(faults.join(', '))) : '') + '</div>' +
+        '<div class="sll-card">' + row('Seller', esc(c.seller || o.name)) + row('Distance', dist(c.metres)) + row('Delivery', 'to your garage in about ' + (c.hours || 0) + ' h') +
+        '<div class="sll-kv"><span>Price</span><b style="font-size:20px">' + money(c.price) + '</b></div>' +
+        '<div class="sll-acts"><div class="sll-btn' + ((o.money || 0) < c.price ? ' sll-off' : '') + '" data-a="buy" data-v="' + esc(o.dealer) + '|' + esc(c.id) + '">Buy &middot; ' + money(c.price) + '</div></div></div></div></div></div>' +
+        '<div class="sll-note">' + esc(st.note) + '</div>';
     }
 
     function partsPage() {
@@ -248,6 +295,7 @@
         else if (st.page === 'cred') html = credPage();
         else if (st.page === 'dealers') html = dealersPage();
         else if (st.page === 'offers') html = offersPage();
+        else if (st.page === 'offer') html = offerPage();
         else html = '';
       }
       layer.innerHTML = '<div class="sll-screen' + (st.open ? '' : ' sll-gone') + '">' + (st.open ? deskPage() + (html ? '<div class="sll-win">' + html + '</div>' : '') + menuHtml() + taskbarHtml() : '') + '</div>';
@@ -289,6 +337,7 @@
     }
     function back() {
       if (st.menu) { st.menu = false; render(); return; }
+      if (st.page === 'offer') { st.page = 'offers'; st.note = ''; focusKey = null; render(); return; }
       if (st.page === 'offers') { st.page = 'dealers'; st.note = ''; focusKey = null; lua('@sl_dealers.list()'); render(); return; }
       if (st.page !== 'home') { st.page = 'home'; st.note = ''; render(); return; }
       close();
@@ -316,6 +365,7 @@
           }
           break;
         case 'dealer': st.page = 'offers'; st.offers = { name: 'Dealer', offers: [], dealer: v }; st.note = ''; focusKey = null; lua('@sl_dealers.offers(' + JSON.stringify(v) + ')'); render(); break;
+        case 'offer': st.page = 'offer'; st.offerId = v; st.note = ''; focusKey = null; render(); break;
         case 'buy':
           var pair = String(v).split('|');
           lua('@sl_dealers.buy(' + JSON.stringify(pair[0]) + ',' + JSON.stringify(pair[1]) + ')');
@@ -362,7 +412,7 @@
         case 'slLaptopClose': if (st.open) setOpen(false); break;
         case 'slLaptopParts': st.parts = arr(data.parts); if (st.open) render(); break;
         case 'slLaptopDealers': st.dealers = data; if (st.open) render(); break;
-        case 'slLaptopOffers': st.offers = data; if (st.open && st.page === 'offers') render(); break;
+        case 'slLaptopOffers': st.offers = data; if (st.open && (st.page === 'offers' || st.page === 'offer')) render(); break;
         case 'slPhoneData': st.data = data || { active: false }; if (st.open) render(); break;
         case 'slPhoneToast': if (st.open && data && data.text) { st.note = data.text; render(); } break;
       }
