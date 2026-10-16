@@ -574,9 +574,15 @@ check('budget: no stray spawned vehicles', function()
   if p then keep[p:getID()] = true end
   for _, id in ipairs(gameplay_traffic and gameplay_traffic.getTrafficList and gameplay_traffic.getTrafficList() or {}) do keep[id] = true end
   for _, c in ipairs(sl_career.getState().cars or {}) do local v = sl_fleet.vehicleOf(c.id) if v then keep[v:getID()] = true end end
-  local extra = {}
-  for _, v in ipairs(getAllVehicles()) do if not keep[v:getID()] and v:getJBeamFilename() ~= 'unicycle' then extra[#extra + 1] = v:getJBeamFilename() .. ' (' .. (SL_SMOKE_SPAWNS[v:getID()] or 'spawned elsewhere') .. ')' end end
-  return #extra <= 3, #extra .. ' extra: ' .. table.concat(extra, ', ')
+  local ours, info = {}, {}      -- only what a Street Legal file spawned counts; the game's own cars are listed for information
+  for _, v in ipairs(getAllVehicles()) do
+    if not keep[v:getID()] and v:getJBeamFilename() ~= 'unicycle' then
+      local src = SL_SMOKE_SPAWNS[v:getID()]
+      local list = src and src:find('^sl/') and ours or info
+      list[#list + 1] = v:getJBeamFilename() .. ' (' .. (src or 'spawned elsewhere') .. ')'
+    end
+  end
+  return #ours <= 3, string.format('%d of ours: %s; other (the game): %s', #ours, table.concat(ours, ', '), table.concat(info, ', '))
 end)
 
 -- no freeroam shortcuts in the career (playtest #2, #3)
