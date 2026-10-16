@@ -179,7 +179,7 @@ local TYPES = {
       if metres < 1000 then return nil end
       return { item = 'hot car', legs = { { id = 'kerb', name = 'a back street', x = k.x, y = k.y, z = k.z }, leg(to) }, metres = math.floor(metres),
         fragile = false, heat = 0.4, car = { model = ({ 'scintilla', 'sbr', 'bolide', 'etkc' })[rng:int(4)], wear = 0.1 },
-        seconds = math.max(240, math.floor(metres * 1.4 / jobsLib.SPEED * 1.3)), pay = 450 + math.floor(metres / 1000 * 250 / 100) * 100 }   -- keep in step with economy_sim's hot_base/hot_per_km (H5: ≤ 2x median $/min)
+        seconds = math.max(240, math.floor(metres * 1.4 / jobsLib.SPEED * 1.3)), pay = 400 + math.floor(metres / 1000 * 220 / 100) * 100 }   -- keep in step with economy_sim's hot_base/hot_per_km (H5: ≤ 2x median $/min)
     end },
   -- test driver: a prototype round the test track's oval against the clock, without a scratch
   { kind = 'testdrive', title = 'Test driver', unlock = 600, offer = function(ctx, rng)

@@ -30,7 +30,7 @@ TUNE = dict(               # the game's numbers since the balance pass (DESIGN3_
     job_rep=10,             # sl_jobs: rep per job done
     fine_base=250, fine_offence=150, fine_racing=500,    # progression.policeFine
     heat_decay_per_min=0.01,  # sl_police: heat cooling per real minute (on top of the daily x0.7)
-    crush_pay=250, hot_base=450, hot_per_km=250, test_top=1200, test_slope=3000,
+    crush_pay=250, hot_base=400, hot_per_km=220, test_top=1200, test_slope=3000,
 )
 if '--old' in sys.argv:
     TUNE.update(race_rep_base=20, job_rep=6, fine_base=400, fine_offence=300, fine_racing=1000, heat_decay_per_min=0.0, crush_pay=150,
