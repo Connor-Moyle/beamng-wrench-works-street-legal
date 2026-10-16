@@ -812,7 +812,7 @@ function M.onSlrrRaceFinished(r)
   if racer then
     local x = stateLib.racer(s, racer)
     if r.won then x.losses = x.losses + 1 else x.wins = x.wins + 1 end
-    if r.won and r.stake ~= 'pink' then M.rematchMaybe(racer) end
+    M.afterRace(racer, r.won, tonumber(r.margin))
     extensions.hook('onStreetLegalRaceResult', r.won, r.opponent, racer, r.stake)
   end
   -- an abandoned pink-slip race (false start, out of time, the opponent gone) costs no car: the map leaves it with you
@@ -890,18 +890,31 @@ function M.launchTrack(racerId, missionId)
   return true, string.format('%s, against %s for $%d.', track.name, roster.displayName(racer), bet)
 end
 
--- a racer you beat may want another go: a text a little later (answer it from their thread)
-local REMATCH = {
-  "You got lucky. Rematch - same stakes or more. Text me when you're ready.",
-  "That wasn't a real race. Again. Name the night.",
-  "Everybody's talking about you beating me. I want that back. Rematch?",
-}
-function M.rematchMaybe(racerId)
-  if not active or type(racerId) ~= 'string' or not stateLib.racer(s, racerId) then return end
-  local rng = rngLib.new(rngLib.hash(racerId .. ':rematch:' .. s.day .. ':' .. #s.ledger))
-  if not rng:chance(0.4) then return end
-  s.known[racerId] = true
-  M.sendText(racerId, REMATCH[rng:int(#REMATCH)], 45 + rng:range(0, 90))
+-- after a race against a contact (the map's races, sl_races and sl_streets all end up here): now and then a text
+-- (a sore loser, or a winner's mockery), and a racer you beat will not race you again until they text for a
+-- rematch some game hours later (roster.afterRace keeps the state in the racer's record)
+function M.afterRace(racerId, won, margin)
+  local x = active and type(racerId) == 'string' and stateLib.racer(s, racerId)
+  if not x then return end
+  local rng = rngLib.new(rngLib.hash(racerId .. ':after:' .. s.day .. ':' .. #s.ledger))
+  local r = roster.afterRace(x, won, margin, rng)
+  if r.taunt then M.sendText(racerId, r.taunt, 20 + rng:range(0, 40)) end
+  -- game hours (the day turns at six: a rematch due across it comes at six, which is fine)
+  if r.rematchIn then x.rematchAt = s.day * 24 + hour() + r.rematchIn end
+  changed()
+end
+M.rematchMaybe = function(racerId) M.afterRace(racerId, true) end   -- (older callers)
+
+local function dueRematches()
+  local t = s.day * 24 + hour()
+  for _, x in ipairs(s.racers) do
+    if x.rematchAt and t >= x.rematchAt then
+      x.rematchAt = nil
+      s.known[x.id] = true
+      M.sendText(x.id, roster.rematchText(x, rngLib.new(rngLib.hash(x.id .. ':rematch:' .. math.floor(t)))), 1)
+      changed()
+    end
+  end
 end
 
 -- with a race arranged, arriving at its start brings the racer (when the map's races can be told)
@@ -1039,7 +1052,7 @@ local function onUpdate(dtReal)
   updateClock()
   checkChallengeArrival()
   syncTimer = syncTimer + dtReal
-  if syncTimer > 2 then syncTimer = 0 syncChallenge() end
+  if syncTimer > 2 then syncTimer = 0 syncChallenge() dueRematches() end
   saveTimer = saveTimer + dtReal
   if dirty and saveTimer > 3 then
     saveTimer = 0

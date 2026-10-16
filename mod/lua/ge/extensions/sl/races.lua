@@ -109,9 +109,10 @@ local function finish(won, abandoned)
       core_jobsystem.create(function(job) job.sleep(1) local v = getObjectByID(vid) if v then v:delete() end end)
     end
   end
+  local mine, theirs = c.done[c.playerVid], c.oppVid and c.done[c.oppVid]
   extensions.hook('onSlrrRaceFinished', { won = won, stake = o.stake, bet = o.bet or 0, value = o.value, raceId = c.race.id,
-    opponent = o.name, racerId = o.racerId, time = c.done[c.playerVid], missionId = c.race.missionId, place = won and 1 or 2,
-    abandoned = abandoned or false, opponentVid = c.oppVid })
+    opponent = o.name, racerId = o.racerId, time = mine, missionId = c.race.missionId, place = won and 1 or 2,
+    abandoned = abandoned or false, opponentVid = c.oppVid, margin = mine and theirs and math.abs(theirs - mine) or nil })
   if opp then                                 -- they drive off, and are gone after a while
     opp:queueLuaCommand('controller.setFreeze(0) input.event("parkingbrake", 0, FILTER_DIRECT) ai.setMode("traffic") ai.setAggression(0.5)')
     local vid = c.oppVid

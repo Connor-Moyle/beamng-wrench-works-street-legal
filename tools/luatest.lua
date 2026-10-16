@@ -94,6 +94,28 @@ do
   check('a stake goes up in tenths, at least $50', roster.stakeStep(1000) == 100 and roster.stakeStep(200) == 50)
   check('how far a stake goes depends on their car: 2x a beater, 4x a supercar',
     roster.maxStake({ class = 'beater' }, 1000) == 2000 and roster.maxStake({ class = 'super' }, 1000) == 4000 and roster.maxStake({ class = 'tuner' }, 1000) == 3500)
+  -- the rematch rule (W3): beaten, they refuse until their rematch text; a winner races again at once
+  local beat = roster.generate(5, 36)[1]
+  roster.afterRace(beat, true, nil, rngLib.new(3))
+  check('a beaten racer is marked', beat.beaten == true)
+  check('a beaten racer refuses', roster.respond(beat, 'race', { rep = 1e6, money = 1e6, hasCar = true }, rngLib.new(1)).accept == false)
+  check('the rematch text clears it', type(roster.rematchText(beat, rngLib.new(2))) == 'string' and beat.beaten == nil)
+  roster.afterRace(beat, false, 1, rngLib.new(4))
+  check('a racer who beat you races again at once', beat.beaten == nil)
+  local taunts, rematches, narrow = 0, 0, 0
+  for i = 1, 400 do
+    local x = { style = 'trash' }
+    local o = roster.afterRace(x, true, i % 2 == 0 and 1 or 10, rngLib.new(rngLib.hash('after:' .. i)))   -- (seeded by a hash, as the career does: a small seed's first draw is tiny)
+    if o.taunt then taunts = taunts + 1 end
+    if o.rematchIn then
+      rematches = rematches + 1
+      if i % 2 == 0 then narrow = narrow + 1 end
+      check('a rematch comes 1-6 game hours later', o.rematchIn >= 1 and o.rematchIn <= 6)
+    end
+  end
+  check('about 40 % of races get a text', taunts > 120 and taunts < 200, taunts)
+  check('a narrow loss makes a rematch likelier', narrow > rematches - narrow, narrow .. ' of ' .. rematches)
+  check('ten or more lines each', #roster._TAUNTS.sore >= 10 and #roster._TAUNTS.mock >= 10)
   r = roster.respond(bottom, 'race', { rep = 0, money = 1e6, hasCar = true }, rng)
   check('a bottom racer takes a money race', r.accept and r.stake == 'money' and r.bet >= bottom.betMin and r.bet <= bottom.betMax, r.bet)
   local high = roster.respond(bottom, 'high', { rep = 0, money = 1e6, hasCar = true }, rngLib.new(5))

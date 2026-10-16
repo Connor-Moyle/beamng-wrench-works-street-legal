@@ -135,6 +135,12 @@ local LINES = {
     roller = "Now we're talking. Pinks, %s.",
     careful = "Fine. Pink slips, %s. Don't back out.",
   },
+  beaten = {
+    easy = "You had me last time. Give me a while, I'll text you when I want another go.",
+    trash = "I'm not racing you again until I've sorted the car. You'll hear from me.",
+    roller = "No. When I want a rematch, you'll get a text.",
+    careful = "Not yet. I'll let you know when I'm ready to race you again.",
+  },
 }
 
 local function line(kind, style, ...)
@@ -142,6 +148,71 @@ local function line(kind, style, ...)
   if select('#', ...) > 0 and text:find('%%') then return string.format(text, ...) end
   return text
 end
+
+-- After a race (W3 rematch rule). A racer you beat will not race you again until they text for a rematch some
+-- game hours later (racer.beaten; roughly half do, likelier after a narrow loss); a racer who beat you races you
+-- again at once. Now and then one of them texts: a sore loser, or a winner's mockery.
+M.TAUNT_CHANCE, M.REMATCH_CHANCE, M.REMATCH_NARROW = 0.4, 0.5, 0.75
+M.NARROW_SECONDS = 3
+local TAUNTS = {
+  sore = {   -- they lost
+    "You cut that corner. Everyone saw it.",
+    "My tyres were gone. Wait till I've got new ones on.",
+    "That wasn't a race, that was a traffic jam. Doesn't count.",
+    "Cheater. I don't know how, but you cheated.",
+    "I lifted for a cop. You didn't. Says it all.",
+    "Missed a shift at the start. Won't happen twice.",
+    "Nice car. Shame about the driver. Lucky driver.",
+    "Nobody's going to hear about this. Nobody.",
+    "You got the inside line because I let you. Enjoy it.",
+    "Engine's down on power. Doesn't count, that.",
+    "Your car's quicker. Mine's better. Big difference.",
+    "I'll have that money back, don't you worry.",
+  },
+  mock = {   -- they won
+    "Was that your race pace, or were you looking for a parking space?",
+    "Thanks for the money. Petrol's not cheap.",
+    "Next time bring a car.",
+    "I had the radio on. Did you even start?",
+    "Easy money. Call me again when you've found the throttle.",
+    "You drive like my gran. She's faster, mind.",
+    "Everyone's asking who the slow one was. I told them.",
+    "Did you stop for a coffee halfway?",
+    "Nice try. No, actually, it wasn't.",
+    "Keep practising. I could use the money.",
+    "You should see your face in my mirror. All race long.",
+    "Lost by that much? Ouch. Same stakes next time?",
+  },
+}
+local REMATCH = {
+  "You got lucky. Rematch - same stakes or more. Text me when you're ready.",
+  "That wasn't a real race. Again. Name the night.",
+  "Everybody's talking about you beating me. I want that back. Rematch?",
+  "Car's sorted. Fancy losing that money back to me?",
+  "Right. I've had time to think about it. You and me, again.",
+  "I want a rematch. Properly this time, no excuses.",
+}
+--   won: the player won; margin: seconds between the two cars (nil: not known); rng: an rng from sl/core/rng
+-- Returns { taunt = text or nil, rematchIn = game hours or nil }
+function M.afterRace(racer, won, margin, rng)
+  local out = {}
+  rng:next() rng:next()      -- (the first draw of a Park-Miller rng barely differs between neighbouring seeds)
+  if rng:chance(M.TAUNT_CHANCE) then out.taunt = rng:pick(won and TAUNTS.sore or TAUNTS.mock) end
+  if won then
+    racer.beaten = true
+    local narrow = tonumber(margin) ~= nil and math.abs(margin) < M.NARROW_SECONDS
+    if rng:chance(narrow and M.REMATCH_NARROW or M.REMATCH_CHANCE) then out.rematchIn = rng:range(1, 6) end
+  else
+    racer.beaten = nil
+  end
+  return out
+end
+-- the rematch text: from then on they race you again
+function M.rematchText(racer, rng)
+  racer.beaten = nil
+  return rng:pick(REMATCH)
+end
+M._TAUNTS, M._REMATCH = TAUNTS, REMATCH   -- (for the tests)
 
 -- Pink slips are special: on any one night only a few of the racers who would ever bet their car
 -- are up for it (a different few each night, the same all night). day: the career's day number.
@@ -161,6 +232,7 @@ function M.respond(racer, kind, player, rng)
   local floor = TIERS[racer.tier].rep[1] * 0.5           -- below this they will not take you seriously
   if (player.rep or 0) < floor then return { accept = false, text = line('nobody', racer.style) } end
   if not player.hasCar then return { accept = false, text = line('noCar', racer.style) } end
+  if racer.beaten then return { accept = false, text = line('beaten', racer.style) } end   -- (until they text for a rematch)
   if kind == 'pink' then
     if not racer.pinkOK or (player.rep or 0) < TIERS[racer.tier].rep[1] then
       return { accept = false, text = line('noPink', racer.style) }
