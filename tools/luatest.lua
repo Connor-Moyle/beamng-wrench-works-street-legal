@@ -903,7 +903,7 @@ do
   }
   local function labels(group) local out = {} for _, t in ipairs(group and group.tiles or {}) do out[#out + 1] = t.label end return table.concat(out, ',') end
   local function view(id, state) local v = laptop.build(computers[id], state) return v, v.groups[1] and v.groups[1].id == 'car' and v.groups[1] or nil, v.groups[#v.groups] end
-  local ok = { hasCar = true }
+  local ok = { hasCar = true, carHere = true }
   for _, id in ipairs({ 'servicestationGarageComputer', 'commercialGarageComputer', 'commercialGarageComputer2' }) do
     local v, car, general = view(id, ok)
     check(id .. ': the car band and the general band', labels(car) == 'Part customization,Tuning,Painting' and labels(general) == 'My cars,My parts,Dealers,Bank / insurance,Street cred' and v.lists, labels(car) .. ' | ' .. labels(general))
@@ -917,18 +917,57 @@ do
   local reasons = {}
   for _, t in ipairs(c1.tiles) do reasons[t.label] = t.reason end
   check('no car yet: the car tiles say so, the pages that need none stay open', reasons.Tuning == 'You have no car yet.' and g1.tiles[1].enabled and g1.tiles[4].enabled and g1.tiles[5].enabled)
-  local _, c2, g2 = view('commercialGarageComputer', { hasCar = true })
-  check('with a car the garage tiles and Dealers are "coming soon" (L3/L4), the REUSE pages are open', c2.tiles[1].reason == 'Coming soon.' and not c2.tiles[1].enabled and g2.tiles[3].reason == 'Coming soon.'
+  local _, c2, g2 = view('commercialGarageComputer', { hasCar = true, carHere = true })
+  check('a car at the garage: the garage tiles open the garage in their mode, Dealers are "coming soon" (L3), the reading pages are open',
+    c2.tiles[1].enabled and c2.tiles[1].mode == 'catalog' and c2.tiles[2].mode == 'tune' and c2.tiles[3].mode == 'paint' and g2.tiles[3].reason == 'Coming soon.' and not g2.tiles[3].enabled
     and g2.tiles[1].enabled and g2.tiles[1].page == 'cars' and g2.tiles[2].page == 'parts' and g2.tiles[4].page == 'bank' and g2.tiles[5].page == 'cred')
   local _, c3, g3 = view('commercialGarageComputer', { hasCar = true, busy = true })
   check('in a race or on a job: car tiles and Dealers wait, reading pages stay', c3.tiles[2].reason == 'Not during a race or a job.' and g3.tiles[3].reason == 'Not during a race or a job.' and g3.tiles[1].enabled)
-  local _, c4 = view('commercialGarageComputer', { hasCar = true, carHere = false })
-  check('a car that is not in the garage (once the tiles are built)', c4.tiles[1].reason == 'Coming soon.')
+  local _, c4, g4 = view('commercialGarageComputer', { hasCar = true, carHere = false })
+  check('a car that is not at this garage: the garage tiles say so, the reading pages stay open',
+    c4.tiles[1].reason == 'Bring the car into the garage first.' and not c4.tiles[3].enabled and g4.tiles[1].enabled)
+  check('carHere: the same garage id on both sides, never nil', laptop.carHere('a', 'a') and not laptop.carHere('a', 'b') and not laptop.carHere('a', nil) and not laptop.carHere(nil, nil))
+  local rep = laptop.build(fn('repair', 'vehicleInventory'), { hasCar = true, carHere = true })
+  check('the repair tile opens the repair tool', rep.groups[1].tiles[1].mode == 'repair' and rep.groups[1].tiles[1].enabled)
   local defs = { { id = 'club', label = 'Club', group = 'general', page = 'club', needs = 'clubs' }, { id = 'insurances', label = 'Bank', group = 'general', page = 'bank' } }
   local both = laptop.build(fn('club', 'insurances'), { hasCar = true, has = { clubs = true } }, defs)
   local wc = laptop.build(fn('club', 'insurances'), { hasCar = true, has = {} }, defs)
   check('a release-2 tile shows where the map hosts it and is hidden where it does not', #both.groups[1].tiles == 2 and #wc.groups[1].tiles == 1 and wc.groups[1].tiles[1].label == 'Bank')
   check('no computer function, no tiles', #laptop.build({}, ok).groups == 0)
+
+  -- sl/computer.lua with stubbed game globals: per-car tiles by where the car stands, and the garage tile's action
+  do
+    local function P(x) return setmetatable({ x = x }, { __sub = function(a, b) return P(a.x - b.x) end, __index = { length = function(a) return math.abs(a.x) end } }) end
+    local sent, toasts, entered = {}, {}, {}
+    guihooks = { trigger = function(name, data) sent[#sent + 1] = { name = name, data = data } if name == 'slPhoneToast' then toasts[#toasts + 1] = data.text end end }
+    local cars = { { id = 1, name = 'Here', model = 'a' }, { id = 2, name = 'Away', model = 'b' }, { id = 3, name = 'Stored', model = 'c' } }
+    sl_career = { isActive = function() return true end, getState = function() return { cars = cars, jobs = {} } end, has = function() return false end }
+    local at = { [0] = 'gA', [100] = 'gB' }   -- a position's x -> the garage id there
+    sl_fleet = { vehicleOf = function(id) if id == 3 then return nil end local x = id == 1 and 0 or 100 return { getID = function() return 70 + id end, getPosition = function() return P(x) end } end }
+    slrr_garage = { garageAt = function(pos) return at[pos.x] end, shelfItems = function() return {} end,
+      enterWith = function(vid, mode) entered[#entered + 1] = vid .. ':' .. mode return true end }
+    freeroam_facilities = { getFacilitiesByType = function() return { { id = 'c1', name = 'Garage', functions = { vehicleInventory = true, tuning = true, partShop = true } } } end,
+      getAverageDoorPositionForFacility = function() return P(1) end }
+    P1 = P
+    at[1] = 'gA'                                  -- the computer's door is at garage gA
+    translateLanguage = function(k, f) return f end
+    getPlayerVehicle = function() return { getPosition = function() return P(1) end } end
+    local computer = require('sl/computer')
+    computer.open('c1')
+    local open = sent[#sent].data
+    local function tile(carId, id) for _, g in ipairs(open.byCar[carId]) do for _, t in ipairs(g.tiles) do if t.id == id then return t end end end end
+    check('the laptop opens with tiles per car', sent[#sent].name == 'slLaptopOpen' and open.byCar[1] and open.byCar[2] and open.byCar[3])
+    check('a car at the computer garage can go in; one at another garage or in storage cannot',
+      tile(1, 'tuning').enabled and tile(1, 'tuning').mode == 'tune' and tile(2, 'tuning').reason == 'Bring the car into the garage first.' and tile(3, 'partShop').reason == 'Bring the car into the garage first.')
+    computer.enterGarage('tune', 1)
+    check('the garage tile sends that car into the garage in that mode, and the laptop closes', entered[1] == '71:tune' and sent[#sent].name == 'slLaptopClose')
+    computer.open('c1')
+    computer.enterGarage('catalog', 2)
+    check('a car elsewhere is refused with the reason and nothing is sent to the garage', #entered == 1 and toasts[#toasts] == 'Bring the car into the garage first.')
+    slrr_garage.enterWith = function() return false, 'The garage is busy.' end
+    computer.enterGarage('tune', 1)
+    check('the garage saying no keeps the laptop open and shows its reason', toasts[#toasts] == 'The garage is busy.' and sent[#sent].name ~= 'slLaptopClose')
+  end
 end
 
 print(string.format('lua tests passed: %d checks', passed))

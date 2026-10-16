@@ -12,11 +12,15 @@ M.TILES = {
   { id = 'vehicleShop', label = 'Dealers', group = 'general', soon = true, shop = true },
   { id = 'insurances', label = 'Bank / insurance', group = 'general', page = 'bank' },
   { id = 'playerAbstract', label = 'Street cred', group = 'general', page = 'cred' },
-  { id = 'partShop', label = 'Part customization', group = 'car', soon = true },
-  { id = 'tuning', label = 'Tuning', group = 'car', soon = true },
-  { id = 'painting', label = 'Painting', group = 'car', soon = true },
-  { id = 'repair', label = 'Repair', group = 'car', soon = true },
+  { id = 'partShop', label = 'Part customization', group = 'car', mode = 'catalog' },
+  { id = 'tuning', label = 'Tuning', group = 'car', mode = 'tune' },
+  { id = 'painting', label = 'Painting', group = 'car', mode = 'paint' },
+  { id = 'repair', label = 'Repair', group = 'car', mode = 'repair' },
 }
+
+-- mode: the Wrench Works garage opens on the chosen car in that mode (slrr_garage.enterWith).
+-- A car is "here" when it stands at the very garage the computer belongs to (both ids from slrr_garage.garageAt).
+function M.carHere(computerGarage, carGarage) return computerGarage ~= nil and computerGarage == carGarage end
 
 -- functions: the facility's table; state = { hasCar, busy (a race or a job), has = capabilities, carHere (the chosen car stands in this garage) };
 -- defs: the tile list (the default one, replaceable for tests)
@@ -27,7 +31,7 @@ function M.build(functions, state, defs)
   local car, general = {}, {}
   for _, def in ipairs(defs or M.TILES) do
     if functions[def.id] and (not def.needs or has[def.needs]) then
-      local tile = { id = def.id, label = def.label, page = def.page, enabled = true }
+      local tile = { id = def.id, label = def.label, page = def.page, mode = def.mode, enabled = true }
       local onCar = def.group == 'car' and lists
       if (onCar or def.shop) and state.busy then tile.enabled, tile.reason = false, 'Not during a race or a job.'
       elseif onCar and not state.hasCar then tile.enabled, tile.reason = false, 'You have no car yet.'

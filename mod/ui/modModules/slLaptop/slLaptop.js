@@ -81,11 +81,17 @@
       return '<div class="sll-tile' + (t.enabled ? '' : ' sll-off') + '" data-a="tile" data-v="' + esc(t.id) + '">' + esc(t.label) + '</div>';
     }
 
+    // the tiles for the chosen car (whether it stands at this garage differs per car); without cars, the general ones
+    function groupsFor(car) {
+      var v = st.view || { groups: [] };
+      return car && v.byCar && v.byCar[car.id] ? v.byCar[car.id] : v.groups;
+    }
     function homePage() {
       var v = st.view || { groups: [] }, out = '';
       var fleet = arr(st.data.fleet);
       st.car = Math.max(0, Math.min(st.car, fleet.length - 1));
-      v.groups.forEach(function (g) {
+      var groups = groupsFor(fleet[st.car]);
+      groups.forEach(function (g) {
         out += '<div class="sll-band">' + esc(g.title) + '</div>';
         if (g.id === 'car') {
           var c = fleet[st.car];
@@ -96,7 +102,7 @@
         }
         out += '<div class="sll-tiles">' + g.tiles.map(tileHtml).join('') + '</div>';
       });
-      if (!v.groups.length) out += '<div class="sll-empty">This computer has nothing for you.</div>';
+      if (!groups.length) out += '<div class="sll-empty">This computer has nothing for you.</div>';
       return head(v.name || 'Laptop') + '<div class="sll-body">' + out + '</div><div class="sll-note">' + esc(st.note) + '</div>';
     }
 
@@ -206,7 +212,7 @@
 
     // ---------------------------------------------------------------- what the buttons do
     function tileById(id) {
-      var groups = st.view ? st.view.groups : [];
+      var groups = groupsFor(arr(st.data.fleet)[st.car]);
       for (var i = 0; i < groups.length; i++) for (var j = 0; j < groups[i].tiles.length; j++) if (groups[i].tiles[j].id === id) return groups[i].tiles[j];
       return null;
     }
@@ -227,6 +233,10 @@
             if (t.page === 'parts') lua('@sl_computer.parts()');
             lua('@sl_phone.request()');
             render();
+          } else if (t.mode) {
+            // the garage tiles: the Wrench Works garage opens on the chosen car (the game closes this screen when it has)
+            var car = arr(st.data.fleet)[st.car];
+            if (car) lua('@sl_computer.enterGarage(' + JSON.stringify(t.mode) + ',' + Number(car.id) + ')');
           }
           break;
         case 'back': back(); break;
@@ -264,7 +274,7 @@
     function handle(name, data) {
       switch (name) {
         case 'slLaptopOpen':
-          st.view = { name: data.name, groups: arr(data.groups), lists: !!data.lists };
+          st.view = { name: data.name, groups: arr(data.groups), byCar: obj(data.byCar), lists: !!data.lists };
           st.parts = arr(data.parts); st.page = 'home'; st.note = ''; st.car = 0; focusKey = null;
           setOpen(true);
           break;

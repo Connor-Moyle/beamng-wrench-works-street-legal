@@ -50,7 +50,25 @@ local function shelf(s)
   return out
 end
 
-local at          -- the laptop open now: { id, pos }
+local at          -- the laptop open now: { id, pos, functions }
+
+-- the id of the Wrench Works garage a point is at (nil: none, or Wrench Works is not running)
+local function garageOf(pos) return pos and slrr_garage and slrr_garage.garageAt and slrr_garage.garageAt(pos) or nil end
+
+-- the tiles for a car (carHere is per car), and for the no-car case; byCar is keyed by the car's id
+local function buildViews(s)
+  local base = { busy = (s.jobs and s.jobs.active ~= nil) or (sl_streets and sl_streets.isRacing and sl_streets.isRacing()) or false,
+    has = { clubs = sl_career.has('clubs'), crews = sl_career.has('crews'), classifieds = sl_career.has('classifieds') } }
+  local function state(extra) local t = {} for k, v in pairs(base) do t[k] = v end for k, v in pairs(extra) do t[k] = v end return t end
+  local computerGarage = garageOf(at.pos)
+  local byCar, first = {}, nil
+  for _, car in ipairs(s.cars) do
+    local veh = sl_fleet.vehicleOf(car.id)
+    local v = laptop.build(at.functions, state({ hasCar = true, carHere = veh ~= nil and laptop.carHere(computerGarage, garageOf(veh:getPosition())) }))
+    byCar[car.id], first = v.groups, first or v
+  end
+  return first or laptop.build(at.functions, state({ hasCar = false })), byCar
+end
 
 function M.parts()
   local s = careerOn() and sl_career.getState()
@@ -67,12 +85,21 @@ function M.open(id)
   local f = careerOn() and facilityById(id)
   if not f then return end
   local s = sl_career.getState()
-  local state = { hasCar = #s.cars > 0, busy = (s.jobs and s.jobs.active ~= nil) or (sl_streets and sl_streets.isRacing and sl_streets.isRacing()) or false,
-    has = { clubs = sl_career.has('clubs'), crews = sl_career.has('crews'), classifieds = sl_career.has('classifieds') } }
-  local view = laptop.build(f.functions, state)
-  at = { id = id, pos = posOf(f) }
+  at = { id = id, pos = posOf(f), functions = f.functions }
+  local view, byCar = buildViews(s)
   if sl_phone and sl_phone.request then sl_phone.request() end
-  guihooks.trigger('slLaptopOpen', { name = name(f), groups = view.groups, lists = view.lists, parts = shelf(s) })
+  guihooks.trigger('slLaptopOpen', { name = name(f), groups = view.groups, byCar = byCar, lists = view.lists, parts = shelf(s) })
+end
+
+-- the player's car `carId` is at this computer's garage and ready to go into it: the Wrench Works garage opens on it in `mode`
+function M.enterGarage(mode, carId)
+  local s = careerOn() and at and sl_career.getState()
+  if not s then return end
+  local veh = sl_fleet.vehicleOf(tonumber(carId))
+  local here = veh ~= nil and laptop.carHere(garageOf(at.pos), garageOf(veh:getPosition()))
+  if not here then return guihooks.trigger('slPhoneToast', { text = 'Bring the car into the garage first.' }) end
+  local ok, why = slrr_garage.enterWith(veh:getID(), tostring(mode))
+  if ok then M.close() else guihooks.trigger('slPhoneToast', { text = why or 'Not now.' }) end
 end
 
 -- walked or driven away from the computer: it closes

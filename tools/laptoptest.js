@@ -18,15 +18,18 @@ const click = (a, v) => $('[data-a="' + a + '"]' + (v === undefined ? '' : '[dat
 const nav = (name, value) => win.document.dispatchEvent(new win.CustomEvent('ui_nav', { detail: { name, value: value === undefined ? 1 : value } }));
 
 // what sl/core/laptop.lua gives a garage computer once the player has a car (the car tiles wait: L3/L4)
-const tile = (id, label, enabled, reason, page) => ({ id, label, enabled, reason, page });
+const tile = (id, label, enabled, reason, page, mode) => ({ id, label, enabled, reason, page, mode });
+const general = { id: 'general', title: 'General', tiles: [
+  tile('vehicleInventory', 'My cars', true, null, 'cars'), tile('partInventory', 'My parts', true, null, 'parts'),
+  tile('vehicleShop', 'Dealers', false, 'Coming soon.'), tile('insurances', 'Bank / insurance', true, null, 'bank'), tile('playerAbstract', 'Street cred', true, null, 'cred')] };
+// car 1 stands at this garage (its tiles work), car 2 does not (the reason is shown)
 const view = {
   name: 'Commercial Garage', lists: true,
-  groups: [
-    { id: 'car', title: 'Vehicle management', tiles: [tile('partShop', 'Part customization', false, 'Coming soon.'), tile('tuning', 'Tuning', false, 'Coming soon.')] },
-    { id: 'general', title: 'General', tiles: [
-      tile('vehicleInventory', 'My cars', true, null, 'cars'), tile('partInventory', 'My parts', true, null, 'parts'),
-      tile('vehicleShop', 'Dealers', false, 'Coming soon.'), tile('insurances', 'Bank / insurance', true, null, 'bank'), tile('playerAbstract', 'Street cred', true, null, 'cred')] },
-  ],
+  groups: [general],
+  byCar: {
+    1: [{ id: 'car', title: 'Vehicle management', tiles: [tile('partShop', 'Part customization', true, null, null, 'catalog'), tile('tuning', 'Tuning', true, null, null, 'tune')] }, general],
+    2: [{ id: 'car', title: 'Vehicle management', tiles: [tile('partShop', 'Part customization', false, 'Bring the car into the garage first.', null, 'catalog'), tile('tuning', 'Tuning', false, 'Bring the car into the garage first.', null, 'tune')] }, general],
+  },
 };
 const data = {
   active: true, money: 12400, rep: 140, title: 'Street kid', titleRep: 100, nextRep: 300, day: 9, garage: 'Industrial Garage', cars: 2, stats: { races: 4, wins: 3 },
@@ -52,17 +55,25 @@ assert.ok(text().includes('Sunburst 2.0 Sport S AWD'), 'the chosen car in the ca
 const tiles = $$('.sll-tile');
 assert.ok(tiles.length === 7 && tiles.every((t) => t.hasAttribute('bng-nav-item') && t.getAttribute('tabindex') === '0'), 'every tile is a gamepad nav item');
 assert.ok($('.sll-body').hasAttribute('bng-nav-scroll'), 'the body scrolls on the right stick');
-assert.ok($$('.sll-tile.sll-off').length === 3, 'the tiles that cannot be used are greyed');
+assert.ok($$('.sll-tile.sll-off').length === 1, 'only Dealers is greyed for a car at the garage');
 
-// a greyed tile says why and goes nowhere
+// a garage tile sends the chosen car into the garage in its mode
+calls.length = 0;
 click('tile', 'tuning');
-assert.ok(text().includes('Tuning: Coming soon.') && !$('[data-a="back"]'), 'a greyed tile gives its reason, no page opens');
+assert.ok(calls.includes('@sl_computer.enterGarage("tune",1)') && !$('[data-a="back"]'), 'Tuning: the garage opens on car 1 in tune mode');
+click('tile', 'partShop');
+assert.ok(calls.includes('@sl_computer.enterGarage("catalog",1)'), 'Part customization: the catalog');
+// a greyed tile says why and goes nowhere
 click('tile', 'vehicleShop');
-assert.ok(text().includes('Dealers: Coming soon.'), 'and so does Dealers');
+assert.ok(text().includes('Dealers: Coming soon.') && calls.length === 2, 'a greyed tile gives its reason and sends nothing');
 
 // the car band: next / previous car, and tab_l / tab_r on the pad
 click('car', '1');
 assert.ok(text().includes('Covet') && text().includes('Out on the street'), 'the next car');
+assert.ok($$('.sll-tile.sll-off').length === 3, 'the car away from the garage has its garage tiles greyed');
+calls.length = 0;
+click('tile', 'tuning');
+assert.ok(text().includes('Tuning: Bring the car into the garage first.') && calls.length === 0, 'and the tile says why, sending nothing');
 nav('tab_l');
 assert.ok(text().includes('Sunburst 2.0 Sport S AWD'), 'tab_l on the pad: the car before');
 nav('tab_r');
