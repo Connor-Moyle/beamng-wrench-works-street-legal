@@ -40,7 +40,17 @@ function M.configs()
   return configCache
 end
 
-M.RELATCH_SECONDS = 1.2        -- how long a dented car is left to shut its doors before it is frozen
+M.RELATCH = true               -- a dented lot car shuts its doors before it freezes (false: the old way, to compare)
+
+-- the cars a lot or a private seller may offer: not the police, service or race cars (sl/core/stockdealers.forSale)
+local forSaleCache
+function M.forSale()
+  if forSaleCache then return forSaleCache end
+  local D = require('sl/core/stockdealers')
+  forSaleCache = {}
+  for _, c in ipairs(M.configs()) do if D.forSale(c) then forSaleCache[#forSaleCache + 1] = c end end
+  return forSaleCache
+end
 
 local function vehData(id) return id and core_vehicle_manager.getVehicleData(id) or nil end
 
@@ -61,6 +71,7 @@ function M.spawn(job, model, config, pos, rot, nobodyDrives)
   local ok, veh = pcall(core_vehicles.spawnNewVehicle, model, {
     config = config, pos = pos, rot = rot, autoEnterVehicle = false, canSpawnAnotherVehicleCheck = false,
   })
+  if nobodyDrives and slrrDriverMount and slrrDriverMount.noPropsDone then slrrDriverMount.noPropsDone() end   -- (the hook has run inside the call)
   if not ok or not veh then
     log('W', 'street_legal', 'could not spawn ' .. tostring(model) .. ': ' .. tostring(veh))
     return nil
@@ -184,16 +195,13 @@ function M.buildOffer(job, offer, pos, rot)
   M.applyDents(veh, dents)
   -- Wrench Works' vehicle extension lets every door latch go to bend the panels and shuts them again over the next second
   -- (slrrGarageVeh relatch, run by the car's own update): freezing the car before that leaves the doors and the bonnet of
-  -- every dented car hanging open (a damaged car on a used lot). Wait for it, then freeze.
-  if #dents > 0 then
-    job.sleep(M.RELATCH_SECONDS)
-    veh = getObjectByID(id)
-    if not veh then return nil end
-    veh:queueLuaCommand('extensions.load("slrrGarageVeh") if slrrGarageVeh and slrrGarageVeh.shutLatches then slrrGarageVeh.shutLatches() end')
-    job.sleep(0.6)
+  -- every dented car hanging open. So a dented car freezes ITSELF (slLotHold: when its latches report shut, or after 2 s);
+  -- the game side does nothing more to it. M.RELATCH = false is the old way, frozen at once (for comparing in game).
+  if #dents > 0 and M.RELATCH then
+    veh:queueLuaCommand('extensions.load("slLotHold") slLotHold.hold()')
+  else
+    veh:queueLuaCommand('input.event("parkingbrake", 1, FILTER_DIRECT) controller.setFreeze(1)')      -- (a car on a lot does not roll away)
   end
-  -- a car on a lot does not roll away
-  veh:queueLuaCommand('input.event("parkingbrake", 1, FILTER_DIRECT) controller.setFreeze(1)')
   return veh, tweak
 end
 

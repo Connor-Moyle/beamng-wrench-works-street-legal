@@ -38,7 +38,7 @@ function M.toRoad(veh, from)
   for _, v in ipairs(getAllVehicles()) do if v:getID() ~= veh:getID() then others[#others + 1] = v:getPosition() end end
   local c = roadspot.pick(roadspot.candidates(map.getMap().nodes, from, not map.getRoadRules().rightHandDrive), others)
   if not c then return false end
-  veh:queueLuaCommand('controller.setFreeze(0) input.event("parkingbrake", 0, FILTER_DIRECT)')
+  veh:queueLuaCommand('if slLotHold then slLotHold.cancel() end controller.setFreeze(0) input.event("parkingbrake", 0, FILTER_DIRECT)')
   spawn.safeTeleport(veh, vec3(c.x, c.y, c.z + 0.4), quatFromDir(vec3(c.dx, c.dy, 0), vec3(0, 0, 1)), true, nil, nil, nil, false)   -- (not repaired)
   return true
 end
@@ -51,7 +51,7 @@ local function driveAwayFromRoad(veh, from, pic)
   core_jobsystem.create(function(j)
     guihooks.trigger('slFade', { on = true, pic = pic })
     j.sleep(0.6)
-    if not M.toRoad(veh, from) then veh:queueLuaCommand('controller.setFreeze(0) input.event("parkingbrake", 0, FILTER_DIRECT)') end
+    if not M.toRoad(veh, from) then veh:queueLuaCommand('if slLotHold then slLotHold.cancel() end controller.setFreeze(0) input.event("parkingbrake", 0, FILTER_DIRECT)') end
     j.sleep(0.3)
     if gameplay_walk and gameplay_walk.getInVehicle then gameplay_walk.getInVehicle(veh) else be:enterVehicle(0, veh) end
     j.sleep(0.3)
@@ -247,7 +247,7 @@ local function open(place, mode, given)
   local count = rngLib.new(rngLib.hash(place.id .. ':' .. s.day .. ':' .. s.seed)):int(M.MIN_CARS, M.MAX_CARS)
   if stock and place.displays then count = math.min(math.max(count, 4), #place.displays) end      -- (a stock dealer's cars stand on its parking spots and the slots beside them (sl/core/stockdealers): 4 to 6 where there is room)
   local offers = given or {}
-  local pool = builder.configs()
+  local pool = builder.forSale()
   if stock and not given then
     if extensions and extensions.load then pcall(extensions.load, 'util_configListGenerator') end      -- (only its filter test; no career module)
     pool = stockLib.pool(pool, stock.filter, util_configListGenerator and function(c, f) return util_configListGenerator.doesVehiclePassFilter(c.raw, f) end)
@@ -276,7 +276,7 @@ end
 -- a private seller's car (the used-car ads, sl_classifieds): offer as the lots make them ({ name, model, config,
 -- condition, faults, mileage, price, value } + listingId), standing on the street by the seller's kerb at pos.
 -- Looked round, test driven and bought as at a lot; a sale calls sl_classifieds.onPrivateSold(listingId, carId)
-function M.privateOffers(seed, count) return market.offers(builder.configs(), 'used', seed or 1, 0, count or 6) end
+function M.privateOffers(seed, count) return market.offers(builder.forSale(), 'used', seed or 1, 0, count or 6) end
 function M.openPrivate(offer, pos, sellerName)
   if not career() or lot or type(offer) ~= 'table' or not pos then return false end
   pos = vec3(pos.x, pos.y, pos.z or 0)

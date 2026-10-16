@@ -296,4 +296,29 @@ return function(check, rngLib)
   check('a lot 100 m from its lane moves to 45 m from it, on the line', to and math.abs(to.x - 55) < 1e-9 and math.abs(to.y) < 1e-9 and math.abs(to.z - 5.5) < 1e-9)
   check('a lot 65 m from its lane (the smoke test) ends 45 m away', math.abs(RS.towards({ x = 0, y = 0, z = 0 }, { x = 65, y = 0, z = 0, dist = 65 }, 60, 45).x - 20) < 1e-9)
   check('a lot within 60 m stays; no lane at all stays', RS.towards({ x = 0, y = 0, z = 0 }, { x = 60, y = 0, z = 0, dist = 60 }, 60, 45) == nil and RS.towards({ x = 0, y = 0, z = 0 }, nil, 60, 45) == nil)
+
+  -- T27: a dented lot car freezes itself once its latches are shut (sl_lothold, run by the vehicle extension slLotHold)
+  local LH = require('sl_lothold')
+  local function run(frames, dt, states)
+    local h, acts = LH.new(), {}
+    for i = 1, frames do
+      local a = LH.step(h, dt, states(h.t + dt))
+      if a then acts[#acts + 1] = { a = a, t = h.t } end
+      if a == 'freeze' then break end
+    end
+    return acts
+  end
+  local shut = run(100, 0.05, function() return { 'attached', 'attached' } end)
+  check('all latches shut: it still waits MIN (0.5 s) for the damage to have let them go, then freezes', #shut == 1 and shut[1].a == 'freeze' and shut[1].t >= LH.MIN - 1e-9 and shut[1].t < LH.MIN + 0.06)
+  local opening = run(100, 0.05, function(t) return { 'attached', t < 1.2 and 'detached' or 'attached' } end)
+  local pushes = 0
+  for _, x in ipairs(opening) do if x.a == 'push' then pushes = pushes + 1 end end
+  check('an open door is pushed shut (every 0.5 s) and the freeze comes only once it is shut', pushes >= 2 and opening[#opening].a == 'freeze' and opening[#opening].t >= 1.2 and opening[#opening].t < 1.3)
+  local stuck = run(200, 0.05, function() return { 'detached' } end)
+  check('a latch that never shuts: frozen after MAX (2 s) all the same', stuck[#stuck].a == 'freeze' and stuck[#stuck].t >= LH.MAX - 1e-9 and stuck[#stuck].t < LH.MAX + 0.06)
+  check('no latch groups at all (a car without doors): frozen after MIN', run(100, 0.05, function() return {} end)[1].a == 'freeze')
+  check('the first push is not before 0.3 s', (function() for _, x in ipairs(run(100, 0.05, function() return { 'detached' } end)) do if x.a == 'push' then return x.t >= 0.3 - 1e-9 end end end)())
+  -- the junkyard and the private sellers offer no police: the lot pool is the cars for sale
+  check('forSale keeps a normal car and drops police, race and one-off configs', D.forSale({ raw = { ['Config Type'] = 'Factory', Population = 5000 } }) and not D.forSale({ raw = { ['Config Type'] = 'Police' } })
+    and not D.forSale({ raw = { ['Config Type'] = 'Race' } }))
 end

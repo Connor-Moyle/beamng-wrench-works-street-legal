@@ -158,7 +158,7 @@ function M.registerVehicle(vid, info)
   if info.price then car.partsAtBuy = builder.partsValue(vid) end   -- (the sell-back cap: parts added after this count)
   spawned[car.id] = vid
   s.activeCar = car.id
-  veh:queueLuaCommand('controller.setFreeze(0) extensions.load("slrrGarageVeh")')
+  veh:queueLuaCommand('if slLotHold then slLotHold.cancel() end controller.setFreeze(0) extensions.load("slrrGarageVeh")')
   extensions.hook('onStreetLegalChanged')
   return car
 end
