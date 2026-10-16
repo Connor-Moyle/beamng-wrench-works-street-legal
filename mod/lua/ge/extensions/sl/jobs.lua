@@ -292,7 +292,11 @@ end
 local function spawnJobCar(j, stop)
   local ok, veh = pcall(core_vehicles.spawnNewVehicle, j.car.model, { config = j.car.config, pos = vec3(stop.x, stop.y, (stop.z or 0) + 0.5),
     autoEnterVehicle = false, canSpawnAnotherVehicleCheck = false })
-  if not ok or not veh then return nil end
+  if not ok or not veh then
+    j.spawnError = tostring(ok and 'no vehicle' or veh)                 -- (kept on the job: the smoke test reports it; B34)
+    log('W', 'sl_jobs', 'the job car (' .. tostring(j.car.model) .. ') did not spawn: ' .. j.spawnError)
+    return nil
+  end
   if j.car.wear then veh:queueLuaCommand(string.format('partCondition.initConditions(nil, %d, %f, %f)', math.floor(j.car.wear * 300000000), 1 - j.car.wear * 0.5, 1 - j.car.wear)) end
   if slrrDrivers and slrrDrivers.setDriver then slrrDrivers.setDriver(veh:getID(), nil) end
   -- a breakdown: the engine down to limp power, a tyre going down
@@ -433,7 +437,10 @@ function M.onUpdate(dtReal)
   if j.heat and j.startedAt then s.heat = math.min(1, (s.heat or 0) + j.heat / 120) end    -- a hot car: the police hear more of it every second
   local stop = j.legs[j.leg]
   local here = v:getPosition()
-  local d = (here - vec3(stop.x, stop.y, stop.z or here.z)):length()
+  -- how far from the stop along the ground: a stop's z is recorded data (a raceline, a kerb node) and the car
+  -- stands on whatever the surface is now, so height counts only when it is far off (under a bridge, a floor up)
+  local dz = stop.z and math.abs(here.z - stop.z) or 0
+  local d = dz < 12 and math.sqrt((here.x - stop.x) ^ 2 + (here.y - stop.y) ^ 2) or math.huge
   if (stop.through and d < 15) or (d < (stop.radius or STOP_RADIUS) and v:getVelocity():length() < 2) then
     if j.leg == 1 then
       if j.car then

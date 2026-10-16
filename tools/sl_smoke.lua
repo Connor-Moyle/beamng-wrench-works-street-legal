@@ -59,10 +59,13 @@ local function runJob(kind)
     for i, stop in ipairs(pick.legs) do
       teleportTo(job, stop)
       local a = js().active
+      if i < #pick.legs and (not a or a.leg ~= i + 1) then job.sleep(3) a = js().active end     -- (a zone loading under the car, a job car spawning: one more look)
       if i < #pick.legs and (not a or a.leg ~= i + 1) then
         local v = player()
-        local d = v and (v:getPosition() - vec3(stop.x, stop.y, stop.z or v:getPosition().z)):length() or -1
-        return false, string.format('stop %d not counted (leg %s, %.1f m from it, %.1f m/s, in %s)', i, tostring(a and a.leg), d, v and v:getVelocity():length() or -1, v and v:getJBeamFilename() or '?')
+        local p = v and v:getPosition()
+        local d = p and math.sqrt((p.x - stop.x) ^ 2 + (p.y - stop.y) ^ 2) or -1
+        return false, string.format('stop %d not counted (leg %s, %.1f m from it, dz %.1f, %.1f m/s, in %s%s)', i, tostring(a and a.leg), d, p and stop.z and (p.z - stop.z) or 0,
+          v and v:getVelocity():length() or -1, v and v:getJBeamFilename() or '?', a and a.spawnError and (', job car: ' .. a.spawnError) or '')
       end
       if i == 1 and pick.car and not (a and a.carVid and player() and player():getID() == a.carVid) then return false, 'not put in the job car' end
     end
