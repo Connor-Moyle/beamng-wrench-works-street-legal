@@ -657,7 +657,7 @@ do
     ns.l2.links.l3 = lane('l3', 'l2') ns.l3.links.l2 = ns.l2.links.l3      -- (seen from l2's side: the far node is the inNode)
     ns.l3.links.l4 = lane('l3', 'l4') ns.l4.links.l3 = ns.l3.links.l4
     local c = rs.candidates(ns, P(60, 10), true)
-    check('road spot: a 1.75 m one-way lane counts (between two plain nodes)', #c == 1)
+    check('road spot: a 1.75 m one-way lane counts, lane ends too (B35/B36: 17,174 of Valo City's 19,339 lane nodes have one link)', #c == 3)
     check('road spot: a one-way lane is faced the way it runs', c[1] and c[1].x == 60 and c[1].dx == -1 and math.abs(c[1].y) < 0.01)
   end
   check('road spot: hidden and private roads are not city lanes', #rs.candidates({ a = { pos = P(0, 0), radius = 4, links = { b = link('a', 'b', { type = 'private' }) } },

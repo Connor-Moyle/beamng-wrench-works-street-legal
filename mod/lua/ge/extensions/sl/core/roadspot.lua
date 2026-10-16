@@ -23,7 +23,7 @@ function M.candidates(nodes, from, rightHand, maxDist)
     for oid, e in pairs(a.links or {}) do
       local key = id < oid and (id .. '|' .. oid) or (oid .. '|' .. id)
       local b = nodes[oid]
-      if not seen[key] and b and cityLink(e) and degree(a) == 2 and degree(b) == 2 then
+      if not seen[key] and b and cityLink(e) and degree(a) <= 2 and degree(b) <= 2 then     -- (no junction; a lane end is fine: Valo City's one-way lanes are mostly two-node links)
         seen[key] = true
         local p, q = nodes[e.inNode or id].pos, nodes[e.outNode or oid].pos
         local r = math.min(a.radius or 0, b.radius or 0)
