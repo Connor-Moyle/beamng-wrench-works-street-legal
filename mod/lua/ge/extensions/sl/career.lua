@@ -154,8 +154,11 @@ local function useMap(level)
   end
 end
 
--- the map's own race extension, on a map that has one (none: nowhere to race until W3)
-local function raceMod() return mapOf(M.LEVEL).races and slrrValoRaces or nil end
+-- the extension that runs this map's street races (the map's own slrrValoRaces, or the career's sl_races), if loaded
+local function raceMod()
+  local name = mapOf(M.LEVEL).races
+  return name and rawget(_G, name) or nil
+end
 
 -- every career there is: { { slot, name, summary, last } }
 function M.listSlots()
@@ -543,9 +546,10 @@ local listedAt
 -- the map lists every race as a BeamNG mission (slrrValoRaces.listRaces): night races and drags
 -- for the street, circuits and venues for the garage's Tracks list. Older maps: races.json.
 local function missionRaces()
-  if not (raceMod() and slrrValoRaces.listRaces and slrrValoRaces.launch) then return nil end
+  local rm = raceMod()
+  if not (rm and rm.listRaces and rm.launch) then return nil end
   if raceList and listedAt and os.clock() - listedAt < 10 then return raceList end
-  local ok, list = pcall(slrrValoRaces.listRaces)
+  local ok, list = pcall(rm.listRaces)
   if not ok or type(list) ~= 'table' then return nil end
   raceList, trackList, listedAt = {}, {}, os.clock()
   for _, r in ipairs(list) do
@@ -665,14 +669,16 @@ local registered = false
 local ownCar             -- { challenge = id, vid, building }
 local function dropOwnCar()
   if ownCar and ownCar.vid then
-    local v = getObjectByID(ownCar.vid)
-    if v and slrrValoRaces.getState and slrrValoRaces.getState() ~= 'countdown' and slrrValoRaces.getState() ~= 'racing' then v:delete() end
+    local v, rm = getObjectByID(ownCar.vid), raceMod()
+    local st = rm and rm.getState and rm.getState()
+    if v and st ~= 'countdown' and st ~= 'racing' then v:delete() end
   end
   ownCar = nil
 end
 
 local function updateOwnCar(pick)
-  if not slrrValoRaces.acceptsVehicleId or not (sl_streets and sl_streets.buildRacerCar) then return end
+  local rm = raceMod()
+  if not (rm and rm.acceptsVehicleId) or not (sl_streets and sl_streets.buildRacerCar) then return end
   if not pick then if ownCar then dropOwnCar() end return end
   if ownCar and ownCar.challenge ~= pick.id then dropOwnCar() end
   local start
@@ -704,23 +710,24 @@ local function offerFor(c, vid)
 end
 
 local function syncChallenge()
-  if not (raceMod() and (slrrValoRaces.startChallenge or slrrValoRaces.launch)) then return end
+  local rm = raceMod()
+  if not (rm and (rm.startChallenge or rm.launch)) then return end
   local night = progression.isNight(hour())
   local pick
   for _, c in ipairs(s.challenges) do
     if not c.nightOnly or night then pick = c end
   end
   updateOwnCar(pick)
-  if slrrValoRaces.launch and missionRaces() then return end           -- started from here, at the line (checkChallengeArrival)
+  if rm.launch and missionRaces() then return end           -- started from here, at the line (checkChallengeArrival)
   local key = pick and (pick.id .. ':' .. tostring(ownCar and ownCar.vid)) or false
   if key == registered then return end
   registered = key
   if not pick then
-    slrrValoRaces.startChallenge(nil)
+    rm.startChallenge(nil)
     return
   end
   local racer = stateLib.racer(s, pick.racer)
-  slrrValoRaces.startChallenge(pick.race, { name = roster.displayName(racer), racerId = racer.id, class = racer.class,
+  rm.startChallenge(pick.race, { name = roster.displayName(racer), racerId = racer.id, class = racer.class,
     skill = racer.skill, aggression = sl_streets and sl_streets.aggression and sl_streets.aggression(racer.skill) or 0.6, stake = pick.stake, bet = pick.bet,
     car = racer.car and racer.car.name, vehicleId = ownCar and ownCar.vid or nil })
 end
@@ -859,7 +866,7 @@ end
 -- (only once the map's circuit missions put our racer's own car on the grid: slrrValoRaces.circuitOpponents;
 -- before that the stock race brings its own cars, and Street Legal's own track race is used instead)
 function M.tracksList()
-  if not missionRaces() or not slrrValoRaces.circuitOpponents then return nil end
+  if not missionRaces() or not raceMod().circuitOpponents then return nil end
   return trackList
 end
 
@@ -878,7 +885,7 @@ function M.launchTrack(racerId, missionId)
   s.challenges[#s.challenges + 1] = c
   changed()
   sl_streets.buildRacerCar(racerId, track.start + vec3(0, 0, 0.5), nil, function(veh)
-    slrrValoRaces.launch(missionId, offerFor(c, veh and veh:getID() or nil))
+    raceMod().launch(missionId, offerFor(c, veh and veh:getID() or nil))
   end)
   return true, string.format('%s, against %s for $%d.', track.name, roster.displayName(racer), bet)
 end
@@ -910,10 +917,10 @@ local function checkChallengeArrival()
         if c.nightOnly and not progression.isNight(hour()) then
           tell(roster.displayName(racer) .. ' only races at night. Come back after dark.', 6)
           c.notified = false
-        elseif raceMod() and slrrValoRaces.launch and r.missionId then
+        elseif raceMod() and raceMod().launch and r.missionId then
           -- the race is a BeamNG mission now: start it with them in it
-          slrrValoRaces.launch(r.missionId, offerFor(c, ownCar and ownCar.challenge == c.id and ownCar.vid or nil))
-        elseif raceMod() and slrrValoRaces.startChallenge then
+          raceMod().launch(r.missionId, offerFor(c, ownCar and ownCar.challenge == c.id and ownCar.vid or nil))
+        elseif raceMod() and raceMod().startChallenge then
           -- handed over already (syncChallenge): the start marker brings them
         else
           tell(roster.displayName(racer) .. ' is here. Pick them from the race menu.', 6)

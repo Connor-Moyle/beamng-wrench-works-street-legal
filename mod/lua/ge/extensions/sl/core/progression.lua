@@ -12,10 +12,10 @@ M.START_MONEY = 5000
 M.START_HOUR = 10            -- a daytime start (Connor, 2026-10-16); the races are still at night
 
 -- the maps a career is played on (W1). garages: Wrench Works' site ids for the garage ladder below, in order (none:
--- the ladder as written); races: the map's own race extension, when it has one (none: nowhere to race until W3).
+-- the ladder as written); races: the extension that runs its street races (the map's own, or the career's sl_races).
 M.MAPS = {
   slrr_valo_city = { name = 'Valo City', races = 'slrrValoRaces' },
-  west_coast_usa = { name = 'West Coast USA', garages = {
+  west_coast_usa = { name = 'West Coast USA', races = 'sl_races', garages = {
     { id = 'alderDragwayGarage', name = 'Alder Dragway Garage' }, { id = 'commercialGarage', name = 'Industrial Garage' },
     { id = 'belascoCityGarage', name = 'Belasco City Garage' } } },
 }

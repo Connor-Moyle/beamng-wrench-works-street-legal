@@ -275,6 +275,71 @@ do
   check('a broken save is refused', state.migrate({}) == nil)
 end
 
+-- the career's own street races (W3, sl/core/races): start lines on wide straight roads, routes 1.5-4 km to a
+-- junction, the two cars lined up facing the route's first edge. A mock navgraph: a 2 km grid, streets every
+-- 250 m, a node every 50 m; the avenues (x = 0, 1000, 2000) are wide, the rest narrow
+do
+  local racesLib = require('sl/core/races')
+  local nodes = {}
+  local function nm(x, y) return string.format('n_%d_%d', x, y) end
+  local function add(x, y)
+    local name = nm(x, y)
+    if not nodes[name] then nodes[name] = { pos = { x = x, y = y, z = 10 }, radius = (x % 1000 == 0) and 4 or 2.5, links = {} } end
+    return name
+  end
+  local function link(a, b) nodes[a].links[b] = {} nodes[b].links[a] = {} end
+  for x = 0, 2000, 250 do           -- north-south streets
+    for y = 0, 1950, 50 do link(add(x, y), add(x, y + 50)) end
+  end
+  for y = 0, 2000, 250 do           -- east-west streets
+    for x = 0, 1950, 50 do link(add(x, y), add(x + 50, y)) end
+  end
+  local function pathFn(a, b)       -- Dijkstra over the mock, the shortest 2-D path
+    local dist, prev, done = { [a] = 0 }, {}, {}
+    while true do
+      local u, best
+      for n, d in pairs(dist) do if not done[n] and (not best or d < best) then u, best = n, d end end
+      if not u then return {} end
+      if u == b then break end
+      done[u] = true
+      for v in pairs(nodes[u].links) do
+        local d = best + racesLib.dist2d(nodes[u].pos, nodes[v].pos)
+        if not dist[v] or d < dist[v] then dist[v], prev[v] = d, u end
+      end
+    end
+    local path, n = {}, b
+    while n do table.insert(path, 1, n) n = prev[n] end
+    return path
+  end
+  check('a junction has degree 4, a street node 2', racesLib.degree(nodes, nm(250, 250)) == 4 and racesLib.degree(nodes, nm(250, 100)) == 2)
+  local run = racesLib.straightRun(nodes, nm(0, 50), nm(0, 100))
+  check('a straight run stops at the next junction', run == 200, run)
+  local rng = rngLib.new(5)
+  local starts = racesLib.pickStarts(nodes, rng, 6, 400)
+  check('start lines found', #starts >= 3, #starts)
+  local ok = true
+  for i, s in ipairs(starts) do
+    if nodes[s.node].radius < racesLib.WIDE then ok = false end
+    if math.abs(s.dir.x ^ 2 + s.dir.y ^ 2 - 1) > 1e-6 then ok = false end
+    if racesLib.straightRun(nodes, s.node, s.next) < racesLib.RUN then ok = false end
+    for j = 1, i - 1 do if racesLib.dist2d(s.pos, starts[j].pos) < 400 then ok = false end end
+  end
+  check('every start is on a wide road with a straight run, apart from the others', ok)
+  local again = racesLib.pickStarts(nodes, rngLib.new(5), 6, 400)
+  check('the same seed picks the same starts', again[1].node == starts[1].node and #again == #starts)
+  local goal, path, len = racesLib.pickGoal(nodes, starts[1].node, pathFn, rng)
+  check('a goal is a junction 1.5-4 km along the path', goal and racesLib.degree(nodes, goal) >= 3 and len >= racesLib.MIN_LEN and len <= racesLib.MAX_LEN
+    and path[1] == starts[1].node and path[#path] == goal, len)
+  check('the path length adds up', math.abs(racesLib.pathLength(nodes, path) - len) < 1e-6)
+  local dir = racesLib.routeDir(nodes, path)
+  check('the route direction is the first edge', dir and math.abs(dir.x ^ 2 + dir.y ^ 2 - 1) < 1e-6)
+  local line = racesLib.lineUp({ x = 100, y = 100, z = 10 }, { x = 0, y = 1 })
+  check('the player lines up on the right of the direction of travel, the opponent on the left, 3.2 m apart',
+    line.player.pos.x > line.opponent.pos.x and math.abs(line.player.pos.x - line.opponent.pos.x - racesLib.GAP) < 1e-6
+    and line.player.pos.y == 100 and line.player.pos.z == 10 and line.player.dir.y == 1)
+  check('near the goal within 10 m', racesLib.nearGoal({ x = 5, y = 8, z = 0 }, { x = 0, y = 0, z = 50 }) and not racesLib.nearGoal({ x = 11, y = 0, z = 0 }, { x = 0, y = 0, z = 0 }))
+end
+
 -- cars: classes, and making a stock car into the offer
 do
   local cars = require('sl/core/cars')
