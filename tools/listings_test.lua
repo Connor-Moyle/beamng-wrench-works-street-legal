@@ -94,6 +94,29 @@ return function(check, rngLib)
     and #D.pool(cars, { whiteList = { Value = { min = 99000 } } }, passes) == 12)
   check('no filter, no test or a test that errors gives every car', #D.pool(cars, nil, passes) == 12 and #D.pool(cars, { a = 1 }, nil) == 12
     and #D.pool(cars, { a = 1 }, function() error('x') end) == 12)
+  -- T22: never police, service or race cars, and a short pool widens the dealer's own filter, narrowest key first
+  local function raw(i, t) local r = { Value = i * 1000, Years = 1990 + i, ['Config Type'] = 'Factory', Population = 5000 } for k, v in pairs(t or {}) do r[k] = v end return r end
+  local lots = {}
+  for i = 1, 12 do lots[i] = { model = 'm' .. i, config = 'c' .. i, raw = raw(i) } end
+  lots[13] = { model = 'cop', config = 'cop', raw = raw(13, { ['Config Type'] = 'Police' }) }
+  lots[14] = { model = 'amb', config = 'amb', raw = raw(14, { ['Config Type'] = 'Service' }) }
+  lots[15] = { model = 'race', config = 'race', raw = raw(15, { ['Config Type'] = 'Race' }) }
+  lots[16] = { model = 'oneoff', config = 'oneoff', raw = raw(16, { Population = 1 }) }
+  lots[17] = { model = 'agg', config = 'agg', raw = raw(17, { ['Config Type'] = 'Factory', aggregates = { ['Config Type'] = { Police = true } } }) }
+  local function has(list, config) for _, c in ipairs(list) do if c.config == config then return true end end return false end
+  local ge = function(c, f) for k, v in pairs(f.whiteList or {}) do if v.min and not (c.raw[k] and c.raw[k] >= v.min) then return false end end
+    for k, v in pairs(f.blackList or {}) do if v.max and c.raw[k] and c.raw[k] <= v.max then return false end end return true end
+  check('police, service, race, one-off and aggregate-police configs are not for sale', not D.forSale(lots[13]) and not D.forSale(lots[14]) and not D.forSale(lots[15])
+    and not D.forSale(lots[16]) and not D.forSale(lots[17]) and D.forSale(lots[1]) and D.forSale({ model = 'x' }))
+  local plain = D.pool(lots, { whiteList = { Value = { min = 6000 } } }, ge)
+  check('a pool that passes its filter has none of them either', #plain == 7 and not has(plain, 'cop') and not has(plain, 'amb') and not has(plain, 'race') and not has(plain, 'oneoff') and not has(plain, 'agg'))
+  local wide = D.pool(lots, { whiteList = { Value = { min = 11000 }, Years = { min = 1995 } } }, ge)
+  check('too few: the narrowest key (Value, 2 cars) goes first, Years stays: 8 cars from 1995', #wide == 8 and has(wide, 'c5') and not has(wide, 'c4') and not has(wide, 'cop'))
+  local all = D.pool(lots, { whiteList = { Value = { min = 99000 }, Years = { min = 2500 } } }, ge)
+  check('nothing left to drop: every car for sale, still no police', #all == 12 and not has(all, 'cop') and not has(all, 'race') and not has(all, 'agg'))
+  local black = D.pool(lots, { whiteList = { Value = { min = 99000 } }, blackList = { Value = { max = 4000 } } }, ge)
+  check('the blackList is kept while widening', #black == 8 and not has(black, 'c4') and has(black, 'c5'))
+  check('no filter: the cars for sale', #D.pool(lots, nil, ge) == 12 and #D.pool(lots, { whiteList = { Value = { min = 1 } } }, nil) == 12)
   -- priced with the existing rules: a stock dealer's new cars cost what the dealer's always did, used ones the used rules
   local pool = D.pool(cars, { whiteList = { Value = { min = 6000 } } }, passes)
   local newOffers = market.offers(pool, 'dealer', '7:' .. jeff.id, 3, 4)

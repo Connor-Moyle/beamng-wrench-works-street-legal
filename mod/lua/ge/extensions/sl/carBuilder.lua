@@ -40,6 +40,8 @@ function M.configs()
   return configCache
 end
 
+M.RELATCH_SECONDS = 1.2        -- how long a dented car is left to shut its doors before it is frozen
+
 local function vehData(id) return id and core_vehicle_manager.getVehicleData(id) or nil end
 
 local function waitData(job, id, seconds)
@@ -178,6 +180,16 @@ function M.buildOffer(job, offer, pos, rot)
   vd = vehData(id)
   local dents = carsLib.dents(vd and vd.config.partsTree or cfg.partsTree, classify(), rng, offer.damage)
   M.applyDents(veh, dents)
+  -- Wrench Works' vehicle extension lets every door latch go to bend the panels and shuts them again over the next second
+  -- (slrrGarageVeh relatch, run by the car's own update): freezing the car before that leaves the doors and the bonnet of
+  -- every dented car hanging open (a damaged car on a used lot). Wait for it, then freeze.
+  if #dents > 0 then
+    job.sleep(M.RELATCH_SECONDS)
+    veh = getObjectByID(id)
+    if not veh then return nil end
+    veh:queueLuaCommand('extensions.load("slrrGarageVeh") if slrrGarageVeh and slrrGarageVeh.shutLatches then slrrGarageVeh.shutLatches() end')
+    job.sleep(0.6)
+  end
   -- a car on a lot does not roll away
   veh:queueLuaCommand('input.event("parkingbrake", 1, FILTER_DIRECT) controller.setFreeze(1)')
   return veh, tweak

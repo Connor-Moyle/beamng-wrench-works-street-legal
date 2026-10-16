@@ -116,17 +116,53 @@ function M.merge(stock, mine)
   return out
 end
 
--- configs: the cars the game has ({ model, config, ... }); passes(config, filter) -> bool is the game's own
--- filter test. shortcut: only the dealer's main filter, not its subFilters (the age bands); upgrade if the
--- stock should follow them.
+-- Never on a dealer's lot, whatever its filter or fallback: the police, service (ambulance, fire...), race, rally, drift and
+-- show cars (the game's "Config Type"), and one-offs (a Population of 1). c.raw is the game's own entry.
+local NOT_FOR_SALE = { Police = true, Service = true, Race = true, Rally = true, Drift = true, Powerglow = true }
+function M.forSale(c)
+  local r = type(c) == 'table' and c.raw
+  if type(r) ~= 'table' then return true end
+  if type(r['Config Type']) == 'string' and NOT_FOR_SALE[r['Config Type']] then return false end
+  local ag = type(r.aggregates) == 'table' and r.aggregates['Config Type']
+  for k in pairs(type(ag) == 'table' and ag or {}) do if NOT_FOR_SALE[k] then return false end end
+  local pop = tonumber(r.Population)
+  return not (pop and pop <= 1)
+end
+
+-- configs: the cars the game has ({ model, config, raw, ... }); passes(config, filter) -> bool is the game's own filter
+-- test. The dealer's cars are the ones for sale that pass its filter. Too few (under MIN_POOL): the filter is widened a
+-- key at a time, the narrowest key (the one that lets the fewest cars through alone) dropped first, until there are
+-- enough; the blackList is never dropped. With nothing left to drop, every car for sale. shortcut: only the dealer's
+-- main filter, not its subFilters (the age bands); upgrade if the stock should follow them.
 function M.pool(configs, filter, passes)
-  if type(filter) ~= 'table' or not passes then return configs end
-  local out = {}
-  for _, c in ipairs(configs or {}) do
-    local ok, yes = pcall(passes, c, filter)
-    if ok and yes then out[#out + 1] = c end
+  local base = {}
+  for _, c in ipairs(configs or {}) do if M.forSale(c) then base[#base + 1] = c end end
+  if type(filter) ~= 'table' or not passes then return base end
+  local function count(f)
+    local out = {}
+    for _, c in ipairs(base) do
+      local ok, yes = pcall(passes, c, f)
+      if ok and yes then out[#out + 1] = c end
+    end
+    return out
   end
-  return #out >= M.MIN_POOL and out or configs
+  local white = type(filter.whiteList) == 'table' and filter.whiteList or {}
+  local keys = {}
+  for k in pairs(white) do
+    local alone = count({ whiteList = { [k] = white[k] }, blackList = filter.blackList })
+    keys[#keys + 1] = { key = k, n = #alone }
+  end
+  table.sort(keys, function(a, b) if a.n ~= b.n then return a.n < b.n end return tostring(a.key) < tostring(b.key) end)
+  local kept = {}
+  for k, v in pairs(white) do kept[k] = v end
+  local i = 0
+  repeat
+    local out = count({ whiteList = kept, blackList = filter.blackList })
+    if #out >= M.MIN_POOL then return out end
+    i = i + 1
+    if keys[i] then kept[keys[i].key] = nil end
+  until i > #keys
+  return base
 end
 
 -- the places of a level's stock facilities. api (the game's freeroam_facilities, read as data):
