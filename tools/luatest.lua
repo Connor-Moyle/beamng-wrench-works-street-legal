@@ -360,6 +360,19 @@ do
     line.player.pos.x > line.opponent.pos.x and math.abs(line.player.pos.x - line.opponent.pos.x - racesLib.GAP) < 1e-6
     and line.player.pos.y == 100 and line.player.pos.z == 10 and line.player.dir.y == 1)
   check('near the goal within 10 m', racesLib.nearGoal({ x = 5, y = 8, z = 0 }, { x = 0, y = 0, z = 50 }) and not racesLib.nearGoal({ x = 11, y = 0, z = 0 }, { x = 0, y = 0, z = 0 }))
+  -- the racing step: positions against the goal only (the game-side onUpdate does nothing else: no navgraph)
+  local goal, far, there = { x = 1000, y = 0, z = 0 }, { x = 0, y = 0, z = 0 }, { x = 995, y = 3, z = 0 }
+  local d = {}
+  check('still racing', racesLib.step(goal, far, far, 10, d) == nil and d.player == nil)
+  check('the opponent in first, the player has 60 s', racesLib.step(goal, far, there, 20, d) == nil and d.opponent == 20)
+  check('still racing at 59 s behind', racesLib.step(goal, far, far, 79, d) == nil)
+  check('lost 60 s behind', racesLib.step(goal, far, far, 81, d) == 'lost')
+  d = {}
+  check('the player in first wins', racesLib.step(goal, there, far, 30, d) == 'won' and d.player == 30)
+  d = { opponent = 10 }
+  check('in second is a loss', racesLib.step(goal, there, far, 30, d) == 'lost')
+  d = {}
+  check('no opponent left: finishing wins', racesLib.step(goal, there, nil, 30, d) == 'won')
 end
 
 -- cars: classes, and making a stock car into the offer

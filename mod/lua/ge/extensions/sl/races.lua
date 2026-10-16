@@ -12,8 +12,9 @@ local races = require('sl/core/races')
 local rngLib = require('sl/core/rng')
 
 local ROAD_STARTS, MIN_APART = 7, 400         -- start lines on the roads, and the least distance between any two
-local COUNTDOWN, BEHIND_S = 3, 60             -- seconds
+local COUNTDOWN = 3                           -- seconds
 local LINGER = 30                             -- seconds the opponent stays after the race
+local prof = {frames = 0, ms = 0, max = 0}    -- onUpdate's cost (getProfile)
 
 local list, listLevel                         -- the races of the level loaded
 local state = 'idle'                          -- 'idle' | 'countdown' | 'racing'
@@ -115,7 +116,7 @@ local function finish(won, abandoned)
       core_jobsystem.create(function(job) job.sleep(1) local v = getObjectByID(vid) if v then v:delete() end end)
     end
   end
-  local mine, theirs = c.done[c.playerVid], c.oppVid and c.done[c.oppVid]
+  local mine, theirs = c.done.player, c.oppVid and c.done.opponent
   extensions.hook('onSlrrRaceFinished', { won = won, stake = o.stake, bet = o.bet or 0, value = o.value, raceId = c.race.id,
     opponent = o.name, racerId = o.racerId, time = mine, missionId = c.race.missionId, place = won and 1 or 2,
     abandoned = abandoned or false, opponentVid = c.oppVid, margin = mine and theirs and math.abs(theirs - mine) or nil })
@@ -186,15 +187,19 @@ local function go()
   local pv, opp = getObjectByID(c.playerVid), c.oppVid and getObjectByID(c.oppVid)
   if pv then pv:queueLuaCommand('controller.setFreeze(0)') end
   if opp then
+    -- one target, the goal node: the car's own AI plans the route (as sl_streets' races do). A full node list as
+    -- `path` had the vehicle AI replanning hundreds of names each frame, and the whole game waits for vehicle Lua
     local a = tonumber(c.offer.aggression) or 0.6
-    opp:queueLuaCommand(string.format("controller.setFreeze(0) input.event('parkingbrake', 0, FILTER_DIRECT) ai.setSpeedMode('off') ai.setRecoverOnCrash(true) ai.setAvoidCars('on') ai.driveInLane('off') ai.setAggression(%f) ai.driveUsingPath({path = %s, aggression = %f})", a, serialize(c.race.path), a))
+    opp:queueLuaCommand(string.format("controller.setFreeze(0) input.event('parkingbrake', 0, FILTER_DIRECT) ai.setSpeedMode('off') ai.setRecoverOnCrash(true) ai.setAvoidCars('on') ai.driveInLane('off') ai.setAggression(%f) ai.driveUsingPath({wpTargetList = {%q}, aggression = %f})", a, c.race.path[#c.race.path], a))
   end
   extensions.hook('onSlrrRaceStarted', c.race.missionId, c.race.id)
   tell('GO!', 2)
 end
 
+-- racing: two positions against the goal, once a frame, and nothing else (sl/core/races.step)
 function M.onUpdate(dtReal)
   if not cur or not cur.ready then return end
+  local t0 = os.clock()
   cur.t = cur.t + dtReal
   local pv = getObjectByID(cur.playerVid)
   if not pv or pv:getJBeamFilename() == 'unicycle' then return finish(false, true) end     -- out of the car: called off
@@ -205,13 +210,16 @@ function M.onUpdate(dtReal)
     return
   end
   local opp = cur.oppVid and getObjectByID(cur.oppVid)
-  for _, v in ipairs({ pv, opp }) do
-    local vid = v:getID()
-    if not cur.done[vid] and races.nearGoal(p3(v:getPosition()), cur.race.finish) then cur.done[vid] = cur.t end
-  end
-  local mine, theirs = cur.done[cur.playerVid], opp and cur.done[cur.oppVid]
-  if mine then return finish(not theirs or mine <= theirs) end
-  if theirs and cur.t - theirs > BEHIND_S then return finish(false) end
+  local result = races.step(cur.race.finish, p3(pv:getPosition()), opp and p3(opp:getPosition()) or nil, cur.t, cur.done)
+  local ms = (os.clock() - t0) * 1000
+  prof.frames, prof.ms, prof.max = prof.frames + 1, prof.ms + ms, math.max(prof.max, ms)
+  if result then finish(result == 'won') end
+end
+-- ms per onUpdate since the last call: { frames, avg, max }
+M.getProfile = function()
+  local out = { frames = prof.frames, avg = prof.frames > 0 and prof.ms / prof.frames or 0, max = prof.max }
+  prof.frames, prof.ms, prof.max = 0, 0, 0
+  return out
 end
 
 local function drop()

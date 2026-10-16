@@ -12,6 +12,7 @@ M.BEND = 12           -- degrees the heading may drift over that run
 M.MIN_LEN, M.MAX_LEN = 1500, 4000   -- m along the route
 M.GAP = 3.2           -- m between the two cars on the line
 M.GOAL_RADIUS = 10    -- m: within this of the goal is finished
+M.BEHIND_S = 60       -- s the second car has after the first is in
 
 local atan2 = math.atan2 or math.atan
 
@@ -126,6 +127,17 @@ end
 
 function M.nearGoal(pos, goalPos, radius)
   return M.dist2d(pos, goalPos) <= (radius or M.GOAL_RADIUS)
+end
+
+-- one step of the racing phase: nothing but the two positions against the goal (no navgraph, no paths).
+-- done = { player = s, opponent = s } is filled in as each car gets within GOAL_RADIUS; oppPos nil = no opponent
+-- left. Returns 'won' | 'lost' | nil (still racing).
+function M.step(goalPos, playerPos, oppPos, t, done)
+  if playerPos and not done.player and M.nearGoal(playerPos, goalPos) then done.player = t end
+  if oppPos and not done.opponent and M.nearGoal(oppPos, goalPos) then done.opponent = t end
+  if done.player then return (not oppPos or not done.opponent or done.player <= done.opponent) and 'won' or 'lost' end
+  if done.opponent and t - done.opponent > M.BEHIND_S then return 'lost' end
+  return nil
 end
 
 return M
