@@ -59,7 +59,11 @@ local function runJob(kind)
     for i, stop in ipairs(pick.legs) do
       teleportTo(job, stop)
       local a = js().active
-      if i < #pick.legs and (not a or a.leg ~= i + 1) then return false, 'stop ' .. i .. ' not counted' end
+      if i < #pick.legs and (not a or a.leg ~= i + 1) then
+        local v = player()
+        local d = v and (v:getPosition() - vec3(stop.x, stop.y, stop.z or v:getPosition().z)):length() or -1
+        return false, string.format('stop %d not counted (leg %s, %.1f m from it, %.1f m/s, in %s)', i, tostring(a and a.leg), d, v and v:getVelocity():length() or -1, v and v:getJBeamFilename() or '?')
+      end
       if i == 1 and pick.car and not (a and a.carVid and player() and player():getID() == a.carVid) then return false, 'not put in the job car' end
     end
     job.sleep(1.5)
@@ -150,7 +154,7 @@ check('activity: evade pays rep by heat, cools heat', function()
   return rep() - r0 == 50 and math.abs(st.heat - 0.2) < 1e-6, string.format('+%d rep, heat %.2f', rep() - r0, st.heat)
 end)
 check('activity: parking rep only the first time', function()
-  local id = 'slrr_valo_city/precisionParking/slrr_park_smoke'
+  local id = 'slrr_valo_city/precisionParking/slrr_park_smoke_' .. os.time()       -- (fresh each run: the rep is first-time only)
   local r0 = rep()
   sl_activities.onMissionAttemptAggregated({ type = 'passed' }, { id = id })
   local r1 = rep()
@@ -254,7 +258,7 @@ for _, kind in ipairs({ 'junkyard', 'dealer', 'scrapyard' }) do
     for _, p in pairs(sl_career.getPlaces() or {}) do
       if p.kind == kind then
         local c = rs.pick(rs.candidates(map.getMap().nodes, p.pos, not map.getRoadRules().rightHandDrive), {})
-        return c ~= nil and c.dist < 250, c and string.format('%.0f m from the lot', c.dist) or 'none within 400 m'
+        return c ~= nil and c.dist <= 60, c and string.format('%.0f m from the lot (B36: 60 m at most)', c.dist) or 'none within 400 m'
       end
     end
     return false, 'no ' .. kind .. ' on this map'
@@ -361,14 +365,14 @@ check('cab: a city lane near the garage door for a cab to pull up on', function(
   local rs = require('sl/core/roadspot')
   local pos = sl_fleet.forecourt(sl_career.getState(), 0)
   local c = pos and rs.pick(rs.candidates(map.getMap().nodes, pos, not map.getRoadRules().rightHandDrive, 300), {})
-  return c ~= nil, c and string.format('%.0f m', c.dist) or 'none'
+  return c ~= nil and c.dist <= 60, c and string.format('%.0f m (60 m at most)', c.dist) or 'none'
 end)
 
 check('tow: a city lane near the garage for the truck to drop the car at', function()
   local rs = require('sl/core/roadspot')
   local pos = sl_fleet.forecourt(sl_career.getState(), 0)
   local c = pos and rs.pick(rs.candidates(map.getMap().nodes, pos, not map.getRoadRules().rightHandDrive, 200), {})
-  return c ~= nil and sl_tow ~= nil, c and string.format('%.0f m', c.dist) or 'none'
+  return c ~= nil and c.dist <= 60 and sl_tow ~= nil, c and string.format('%.0f m (60 m at most)', c.dist) or 'none'
 end)
 
 check('slots: the career being played is one of the saved ones', function()
