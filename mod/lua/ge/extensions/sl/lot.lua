@@ -338,14 +338,15 @@ end
 
 -- the test drive is over: the car goes back on its spot, the player back out of it
 local function endTest()
-  if not lot or not test then return end
-  test = nil
+  if not lot or not test or test.ending then return end
+  test.ending = true                     -- (test stays set until you are back: the 30 m rule would close the lot under you)
   local veh = lot.veh and getObjectByID(lot.veh)
   if core_groundMarkers then core_groundMarkers.setPath(nil) end
   core_jobsystem.create(function(j)
     guihooks.trigger('slFade', { on = true, pic = 'loading_dealer_used_enter.png' })
     j.sleep(0.6)
     if gameplay_walk then gameplay_walk.setWalkingMode(true, lot and lot.place.pos + vec3(0, 0, 0.3) or nil, nil, true) end
+    test = nil
     j.sleep(0.4)
     if veh and lot then
       local spot = lot.spots[lot.index]
@@ -388,7 +389,7 @@ local function update(dt)
     test.timeLeft = test.timeLeft - dt
     test.driven = test.driven + dt
     local back = (v:getPosition() - lot.place.pos):length() < 12 and v:getVelocity():length() < 1 and test.driven > 15
-    if back or test.timeLeft <= 0 then endTest() end
+    if not test.ending and (back or test.timeLeft <= 0) then endTest() end
     return
   end
   -- walked or driven off (or taken a cab) while the lot was open: it closes
