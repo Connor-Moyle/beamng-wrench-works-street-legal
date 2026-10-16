@@ -52,6 +52,14 @@ end
 
 local at          -- the laptop open now: { id, pos, functions }
 
+-- the player's own Windows wallpaper, if tools/wallpaper.ps1 has copied it into the user folder (the UI can read only the game's
+-- virtual file system, not the registry or the Pictures folder); the setting can choose the built-in one instead
+local WALLPAPER = '/settings/street_legal/wallpaper.jpg'
+local function wallpaper()
+  if sl_options and sl_options.get and sl_options.get('slWallpaper') == 'builtin' then return nil end
+  return FS and FS.fileExists and FS:fileExists(WALLPAPER) and WALLPAPER or nil
+end
+
 -- the id of the Wrench Works garage a point is at (nil: none, or Wrench Works is not running)
 local function garageOf(pos) return pos and slrr_garage and slrr_garage.garageAt and slrr_garage.garageAt(pos) or nil end
 
@@ -88,7 +96,7 @@ function M.open(id)
   at = { id = id, pos = posOf(f), functions = f.functions }
   local view, byCar = buildViews(s)
   if sl_phone and sl_phone.request then sl_phone.request() end
-  guihooks.trigger('slLaptopOpen', { name = name(f), groups = view.groups, byCar = byCar, lists = view.lists, parts = shelf(s) })
+  guihooks.trigger('slLaptopOpen', { name = name(f), groups = view.groups, byCar = byCar, lists = view.lists, parts = shelf(s), wallpaper = wallpaper() })
 end
 
 -- the player's car `carId` is at this computer's garage and ready to go into it: the Wrench Works garage opens on it in `mode`

@@ -41,6 +41,10 @@ SLRR's own art (the dials, icons and loading screens) is not shipped: it belongs
 
 Off at first (the game's own apps show the speed, damage and minimap): turn it on with phone > Street cred > Dashboard, or bind a key to "Wrench Works: Street Legal: dashboard" in Options > Controls; the choice is kept. While you drive in the career: a rev counter (with the gear) and a speedometer, SLRR's round white-on-black dials, a road map that turns with the car (your garage, the lots and meets marked, the way to a race in red), and a damage diagram (six body zones, burst tyres, the engine). The game's own rev counter and damage app make way for it. Each part can be switched off, km/h or mph, and it can be used outside the career too: phone > Street cred > Dashboard.
 
+## The laptop
+
+Walk or drive into a computer's marker on West Coast USA and press "Use the laptop": a Windows-style desktop opens full screen, with an icon for each thing that computer does (My cars, My parts, Dealers, Bank / insurance, Street cred, and Part customization, Tuning, Painting, Repair at a garage computer), each opening in a window with a title bar and minimise / maximise / close buttons, a taskbar with a button per open window, a Start menu, and the clock, day and money in the tray. On a pad the d-pad moves, A opens, B closes the top window. For your own Windows wallpaper on the desktop run `tools/wallpaper.ps1` (also in the mod as `street_legal/wallpaper.ps1`) once; it copies the wallpaper into the game's user folder (`settings/street_legal/wallpaper.jpg`). Settings > Street Legal > Laptop wallpaper switches back to the built-in one.
+
 ## The phone
 
 Press **K** (Options > Controls > Gameplay to change it). It is an Android-style phone: home screen with a dock, three-button navigation, notifications that drop in when a text arrives.
