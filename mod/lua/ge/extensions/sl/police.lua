@@ -13,6 +13,7 @@ local M = {}
 local strings = require('sl/core/strings')
 
 local heatLib = require('sl/core/heat')
+local chaseLib = require('sl/core/chase')
 local spawnplan = require('sl/core/spawnplan')
 
 local PATROLS = 2
@@ -56,8 +57,27 @@ local function applyVars()
   local key = tostring(sl_career.phase()) .. level
   if key == appliedVars then return end
   appliedVars = key
-  gameplay_police.setPoliceVars(heatLib.policeVars(sl_career.phase(), level))
+  gameplay_police.setPoliceVars(chaseLib.vars(sl_career.phase(), level))
 end
+
+-- the chase, once a second: out of sight or under a roof the game's evade timer runs faster (core/chase), and the HUD gets the meters.
+-- chaseState is nil outside a chase; stripsHit counts the strips this chase has put under you (the escape pays for them)
+local chaseState, lastEvade, stripsHit = nil, 0, 0
+local function chaseTick(dt)
+  local v = getPlayerVehicle(0)
+  local pur = v and night() and gameplay_police and gameplay_police.getPursuitData and gameplay_police.getPursuitData(v:getID())
+  if not (pur and (pur.mode or 0) >= 1 and pur.timers) then chaseState, lastEvade, stripsHit = nil, 0, 0 return end
+  local up = castRayStatic and castRayStatic(v:getPosition() + vec3(0, 0, 1), vec3(0, 0, 1), 30) or 30
+  local covered, hidden = chaseLib.covered(up), pur.policeVisible == false
+  local rate = chaseLib.evadeRate(hidden, covered)
+  local tm = pur.timers
+  if rate > 1 and (tm.evade or 0) > lastEvade then tm.evade = tm.evade + (rate - 1) * dt end      -- (only while the game is counting: patrols far enough off)
+  lastEvade = tm.evade or 0
+  chaseState = { evade = tm.evadeValue or 0, arrest = tm.arrestValue or 0, hidden = hidden, covered = covered, rate = rate }
+  if rate > 1 then log('D', 'street_legal', string.format('chase: hidden=%s covered=%s rate=%.2f evade=%.2f', tostring(hidden), tostring(covered), rate, lastEvade)) end
+end
+function M.chaseHud() return chaseState end
+function M.stripsSurvived() return stripsHit end
 
 -- a road node some way off, to start a patrol where you will not see it appear
 local function nodeAround(from, minD, maxD)
@@ -199,7 +219,7 @@ function M.onUpdate(dtReal)
   end
   timer = timer + dtReal
   nearTimer = nearTimer + dtReal
-  if nearTimer > 1 then nearTimer = 0 nearMiss(os.clock()) end
+  if nearTimer > 1 then chaseTick(nearTimer) nearTimer = 0 nearMiss(os.clock()) end
   if timer > 5 then
     timer = 0
     updatePatrols()
