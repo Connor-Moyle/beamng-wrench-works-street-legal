@@ -125,6 +125,67 @@ function M.framed(pos, look, drop, side)
   return { x = look.x + (dy / flat) * side * d, y = look.y - (dx / flat) * side * d, z = look.z - drop * d }
 end
 
+-- A path round the car (C6): from pose a to pose b about the car's centre c, by angle and radius, so a move between two shots swings
+-- round the car instead of cutting through it. u in 0..1. Returns the eye.
+function M.arc(c, a, b, u)
+  local atan = math.atan2 or math.atan
+  local a1, a2 = atan(a.y - c.y, a.x - c.x), atan(b.y - c.y, b.x - c.x)
+  local d = (a2 - a1 + math.pi) % (2 * math.pi) - math.pi
+  local r1, r2 = math.sqrt((a.x - c.x) ^ 2 + (a.y - c.y) ^ 2), math.sqrt((b.x - c.x) ^ 2 + (b.y - c.y) ^ 2)
+  local ang, r = a1 + d * u, r1 + (r2 - r1) * u
+  return { x = c.x + math.cos(ang) * r, y = c.y + math.sin(ang) * r, z = a.z + (b.z - a.z) * u }
+end
+
+-- The browsing shots as one flowing camera (C6). st = the state (nil = at rest on the normal orbit), auto = the shots may run (false: the
+-- player moved the camera), orbit = { pos, look } the normal orbit pose now, ctx = { c, f, L, W } the car, pick() = the next usable shot kind or
+-- nil. Phases: in (orbit -> the first shot), shot (the live shot), trans (the end of one shot -> the start of the next along an arc round the
+-- car: never via the orbit pose), out (the pose it was in -> the orbit; only when the player moves the camera or no shot is usable).
+-- Returns the new state, the eye, the look-at point, the shot weight 0..1 (how far the picture is the shots' rather than the orbit's), and
+-- true when no shot was usable at the start.
+function M.chain(st, dt, auto, orbit, ctx, pick)
+  local function smooth(u) u = math.max(0, math.min(1, u)) return u * u * (3 - 2 * u) end
+  local function mix(a, b, e) return { x = a.x + (b.x - a.x) * e, y = a.y + (b.y - a.y) * e, z = a.z + (b.z - a.z) * e } end
+  local function live(kind, s) return M.shot(kind, ctx.c, ctx.f, ctx.L, ctx.W, s) end
+  if not st then
+    if not auto then return nil end
+    local kind = pick()
+    if not kind then return nil, nil, nil, 0, true end
+    st = { phase = 'in', kind = kind, u = 0, t = 0, pos = orbit.pos, look = orbit.look }
+  end
+  if not auto and st.phase ~= 'out' then st = { phase = 'out', u = 0, fromPos = st.pos, fromLook = st.look } end
+  local pos, look, w
+  if st.phase == 'in' then
+    st.u, st.t = st.u + dt / M.SHOT_EASE, st.t + dt
+    local p, l = live(st.kind, st.t / M.SHOT_TIME)
+    local e = smooth(st.u)
+    pos, look, w = mix(orbit.pos, p, e), mix(orbit.look, l, e), e
+    if st.u >= 1 then st.phase = 'shot' end
+  elseif st.phase == 'shot' then
+    st.t = st.t + dt
+    pos, look = live(st.kind, st.t / M.SHOT_TIME)
+    w = 1
+    if st.t >= M.SHOT_TIME then
+      local nextKind = pick()
+      if nextKind then st.phase, st.nextKind, st.u, st.fromPos, st.fromLook = 'trans', nextKind, 0, pos, look
+      else st.phase, st.u, st.fromPos, st.fromLook = 'out', 0, pos, look end
+    end
+  elseif st.phase == 'trans' then
+    st.u = st.u + dt / M.SHOT_TRANS
+    local p, l = live(st.nextKind, 0)
+    local e = smooth(st.u)
+    pos, look, w = M.arc(ctx.c, st.fromPos, p, e), mix(st.fromLook, l, e), 1
+    if st.u >= 1 then st.phase, st.kind, st.t = 'shot', st.nextKind, 0 end
+  else
+    st.u = st.u + dt / M.SHOT_EASE
+    local e = smooth(st.u)
+    pos, look, w = mix(st.fromPos, orbit.pos, e), mix(st.fromLook, orbit.look, e), 1 - e
+    if st.u >= 1 then return nil, orbit.pos, orbit.look, 0 end
+  end
+  st.pos, st.look = pos, look
+  return st, pos, look, w
+end
+
+M.SHOT_TRANS = 1.4                    -- s a move from the end of one shot to the start of the next takes
 M.SIDE = 0.16                         -- of the distance the look-at point is moved right: the car stands left of the middle
 M.SHOT_TIME = 5                       -- s a browsing shot lasts
 M.SHOT_EASE = 1.0                     -- s it takes to ease in from, and out to, the normal orbit

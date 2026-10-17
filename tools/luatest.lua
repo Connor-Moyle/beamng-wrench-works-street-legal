@@ -1311,6 +1311,43 @@ do
     and not lotcam.shotClear('side', c, f, 4.5, 1.9, function(a, b) return 1.0 end))
   local look = lotcam.framed({ x = 0, y = 0, z = 1 }, { x = 0, y = 10, z = 1 }, 0.1, 0.2)
   check('framing moves the look-at point right of and below the car (looking along +y, right is +x)', math.abs(look.x - 2) < 1e-6 and look.y == 10 and math.abs(look.z - 0) < 1e-6)
+  -- the browsing shots flow: one into the next along an arc, never back through the orbit pose, never a jump; only the player's input eases out
+  do
+    local orbit = { pos = { x = 10, y = 14, z = 2.5 }, look = { x = 10, y = 20, z = 1 } }
+    local ctx = { c = c, f = f, L = 4.5, W = 1.9 }
+    local kinds, n = lotcam.BROWSE_SHOTS, 0
+    local function pick() n = n + 1 return kinds[(n - 1) % #kinds + 1] end
+    local st, last, shots, minOrbit, maxStep, atRest = nil, nil, 0, 1e9, 0, false
+    local seen = {}
+    for i = 1, 30 * 80 do
+      local pos
+      st, pos = lotcam.chain(st, 1 / 30, true, orbit, ctx, pick)
+      if st then
+        if last then maxStep = math.max(maxStep, math.sqrt((pos.x - last.x) ^ 2 + (pos.y - last.y) ^ 2 + (pos.z - last.z) ^ 2)) end
+        last = pos
+        if st.phase == 'shot' or st.phase == 'trans' then
+          seen[st.kind] = true
+          minOrbit = math.min(minOrbit, math.sqrt((pos.x - orbit.pos.x) ^ 2 + (pos.y - orbit.pos.y) ^ 2 + (pos.z - orbit.pos.z) ^ 2))
+        end
+      end
+    end
+    local count = 0
+    for _ in pairs(seen) do count = count + 1 end
+    check('shots follow each other (all the kinds come round) and never go back through the orbit pose', count == #kinds and minOrbit > 0.5, minOrbit)
+    check('no jump: a frame moves the camera less than 0.8 m', maxStep < 0.8, maxStep)
+    -- the player moves the camera: it eases back to the orbit, in about SHOT_EASE seconds, and ends at rest
+    local out, rest = st, false
+    for i = 1, 60 do
+      local pos
+      out, pos = lotcam.chain(out, 1 / 30, false, orbit, ctx, pick)
+      if not out then rest = true break end
+    end
+    check('the player input eases back to the orbit and rests', rest)
+    local _, _, _, _, failed = lotcam.chain(nil, 0.03, true, orbit, ctx, function() return nil end)
+    check('no usable shot at the start: it stays on the orbit and says so', failed == true)
+    local pa = lotcam.arc(c, { x = c.x + 5, y = c.y, z = c.z }, { x = c.x - 5, y = c.y, z = c.z }, 0.5)
+    check('an arc swings round the car at its radius, not through it', math.abs(math.sqrt((pa.x - c.x) ^ 2 + (pa.y - c.y) ^ 2) - 5) < 1e-6)
+  end
   local worst = 0
   for i = 0, 400 do worst = math.max(worst, math.abs(lotcam.sway(i * 0.25))) end
   check('sway is bounded', worst <= lotcam.SWAY + 1e-9 and worst > lotcam.SWAY * 0.9)

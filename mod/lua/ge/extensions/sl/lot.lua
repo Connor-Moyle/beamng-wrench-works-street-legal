@@ -175,7 +175,7 @@ local function updateCamera(dt)
       local fp, fl = cam.shown and cam.shown.pos or cam.pos, cam.shown and cam.shown.look or cam.look      -- (from what the player sees, also in a detail shot)
       cam.glide = { t = 0, fp = { x = fp.x, y = fp.y, z = fp.z }, fl = { x = fl.x, y = fl.y, z = fl.z } }
     end
-    cam.idle, cam.shot = 0, nil
+    cam.idle, cam.chain = 0, nil
   end
   cam.t = (cam.t or 0) + math.min(dt, 0.1)
   local eye = lotcam.pull(t, lotcam.eyeAt(t, dir, cam.yaw + lotcam.sway(cam.t), cam.pitch, cam.dist), wallRay)       -- (never inside a building)
@@ -196,27 +196,20 @@ local function updateCamera(dt)
   local ds = math.min(dt, 0.1)
   cam.idle = (cam.idle or 0) + ds
   local auto = cam.idle > lotcam.IDLE and not cam.glide and not M.NO_SHOTS
-  if auto and not cam.shot then
-    -- the next shot whose whole drift has a clear view of the car (not through or inside a wall or pillar); none: try again after another idle time
+  -- the next shot whose whole drift has a clear view of the car (not through or inside a wall or pillar)
+  local function pick()
     for _ = 1, #lotcam.BROWSE_SHOTS do
       cam.shotIdx = (cam.shotIdx or 0) % #lotcam.BROWSE_SHOTS + 1
       local kind = lotcam.BROWSE_SHOTS[cam.shotIdx]
-      if lotcam.shotClear(kind, t, dir, cam.L or 4.5, cam.W or 1.9, wallRay) then cam.shot = { kind = kind, t = 0, b = 0 } break end
+      if lotcam.shotClear(kind, t, dir, cam.L or 4.5, cam.W or 1.9, wallRay) then return kind end
     end
-    if not cam.shot then cam.idle = 0 end
   end
+  local failed, sp2, sl2, e
+  cam.chain, sp2, sl2, e, failed = lotcam.chain(cam.chain, ds, auto, { pos = cam.pos, look = cam.look }, { c = t, f = dir, L = cam.L or 4.5, W = cam.W or 1.9 }, pick)
+  if failed then cam.idle = 0 end             -- (none usable: try again after another idle time)
   local pos, look = cam.pos, cam.look
-  local shot, e = cam.shot, 0
-  if shot then
-    shot.t = shot.t + ds
-    local out = not auto or shot.t > lotcam.SHOT_TIME
-    shot.b = math.max(0, math.min(1, shot.b + (out and -ds or ds) / lotcam.SHOT_EASE))
-    if out and shot.b <= 0 then cam.shot = nil end
-    e = shot.b * shot.b * (3 - 2 * shot.b)
-    local sp2, sl2 = lotcam.shot(shot.kind, t, dir, cam.L or 4.5, cam.W or 1.9, shot.t / lotcam.SHOT_TIME)
-    pos = cam.pos + (vec3(sp2.x, sp2.y, sp2.z) - cam.pos) * e
-    look = cam.look + (vec3(sl2.x, sl2.y, sl2.z) - cam.look) * e
-  end
+  if sp2 then pos, look = vec3(sp2.x, sp2.y, sp2.z), vec3(sl2.x, sl2.y, sl2.z) end
+  e = e or 0
   local fl = lotcam.framed(pos, look, lotcam.DROP * e, lotcam.SIDE)       -- (the car stands upper left, clear of the card at the bottom centre)
   look = vec3(fl.x, fl.y, fl.z)
   cam.shown = { pos = pos, look = look }
@@ -548,7 +541,11 @@ local function getInWhereItStands(veh)
       reveal.skip = false
       local p1, l1 = lotcam.chase(cc, ff)
       local sp, sl = pos, look
-      run(MOVE_TIME, function(t) local p, l = lotcam.glide(sp, p1, sl, l1, t, MOVE_TIME, 0); put(p, l) end)
+      run(MOVE_TIME, function(t)
+        local _, l = lotcam.glide(sp, p1, sl, l1, t, MOVE_TIME, 0)
+        local u = t / MOVE_TIME
+        put(lotcam.arc(cc, sp, p1, u * u * (3 - 2 * u)), l)       -- (round the car to the chase pose, not through it)
+      end)
     end
     reveal = nil
     guihooks.trigger('slLotData', { open = false })
