@@ -74,6 +74,14 @@ calls.length = 0;
 click('tile', 'vehicleInventory', 1);
 assert.ok(wins().length === 1 && titles()[0] === 'My cars' && calls.includes('@sl_phone.request()'), 'one mouse click opens an icon in a window (and asks for fresh data)');
 { const keep = $('.sll-win'); laptop.handle('slPhoneData', data); assert.ok($('.sll-win') === keep, 'the same data again does not rebuild the screen (a click between press and release would be lost)'); }
+// a real mouse click on a desktop icon is press, release, click, and the game sends fresh data in between (the screen must not be rebuilt under the pointer)
+{
+  click('winclose', 'cars');
+  const icon = $(sel('tile', 'vehicleInventory'));
+  const ev = (t) => icon.dispatchEvent(new win.MouseEvent(t, { bubbles: true, detail: 1 }));
+  ev('mousedown'); laptop.handle('slPhoneData', laptop.state.data); ev('mouseup'); ev('click');
+  assert.ok(wins().length === 1 && titles()[0] === 'My cars', 'press, fresh data, release, click: the icon opens its window on the first click');
+}
 click('winclose', 'cars');
 assert.ok(!wins().length, 'the window closes');
 click('tile', 'vehicleInventory');

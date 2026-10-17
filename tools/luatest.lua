@@ -939,7 +939,7 @@ do
   local function hasTile(v, id) for _, g in ipairs(v.groups) do for _, t in ipairs(g.tiles) do if t.id == id then return true end end end return false end
   check('#41: a Club tile on a map that hosts clubs, none where it does not', hasTile(vcl, 'clubs') and not hasTile(view('alderDragwayGarageComputer', { hasCar = true }), 'clubs'))
   local _, car, general = view('alderDragwayGarageComputer', ok)
-  check('the drag strip garage: cars, parts, the part market, help, customization and tuning only', labels(car) == 'Part customization,Tuning' and labels(general) == 'My cars,My parts,Part market,Help')
+  check('the drag strip garage: cars, parts, the car and part markets (every computer has them: the laptops are the internet), help, customization and tuning only', labels(car) == 'Part customization,Tuning' and labels(general) == 'My cars,My parts,Car market,Part market,Help')
   local v, car2, general2 = view('servicestationOfficeComputer', ok)
   check('the office lists no cars and no car band: dealers and the parts shop only', not v.lists and car2 == nil and labels(general2) == 'Car market,Part market,Help,Part customization' and general2.tiles[1].enabled and general2.tiles[2].enabled and general2.tiles[3].enabled and not general2.tiles[4].enabled and general2.tiles[4].reason == 'Use a computer in a garage for this.')
   -- reasons, in order: a race or job, no car, not built yet
@@ -963,7 +963,8 @@ do
   local both = laptop.build(fn('club', 'insurances'), { hasCar = true, has = { clubs = true } }, defs)
   local wc = laptop.build(fn('club', 'insurances'), { hasCar = true, has = {} }, defs)
   check('a release-2 tile shows where the map hosts it and is hidden where it does not', #both.groups[1].tiles == 2 and #wc.groups[1].tiles == 1 and wc.groups[1].tiles[1].label == 'Bank')
-  check('no computer function, no tiles', #laptop.build({}, ok).groups == 0)
+  local bare = laptop.build({}, ok)
+  check('no computer function: only the car and part markets (every computer is the internet), no car band', #bare.groups == 1 and bare.groups[1].id == 'general' and #bare.groups[1].tiles == 2 and bare.groups[1].tiles[1].label == 'Car market' and bare.groups[1].tiles[2].label == 'Part market' and not bare.lists)
 
   -- sl/computer.lua with stubbed game globals: per-car tiles by where the car stands, and the garage tile's action
   do

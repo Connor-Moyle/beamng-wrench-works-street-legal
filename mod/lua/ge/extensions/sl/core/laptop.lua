@@ -8,13 +8,14 @@ local strings = require('sl/core/strings')
 -- id = the stock function key. group: 'car' tiles act on the chosen car (only at a computer that lists cars), 'general' ones do not.
 -- page: what opens in the laptop; soon: not built yet (L3 dealers, L4 garage entry: delete the flag when it is).
 -- ids: a tile of ours that stands for any of several stock functions (the parts market needs a parts shop or a dealer).
+-- always: on every computer, whatever the facility lists (D-2026-10-17d: the laptops and the phone are the internet, they all buy cars and parts).
 -- needs: a map capability (progression.MAPS has) the tile depends on, hidden where the map lacks it.
 local S = require('sl/core/strings')
 M.TILES = {
   { id = 'vehicleInventory', label = S.t('laptop.mycars'), group = 'general', page = 'cars' },
   { id = 'partInventory', label = S.t('laptop.myparts'), group = 'general', page = 'parts' },
-  { id = 'vehicleShop', label = S.t('laptop.carmarket'), group = 'general', page = 'dealers', shop = true },
-  { id = 'partsMarket', ids = { 'partShop', 'vehicleShop' }, label = S.t('laptop.partmarket'), group = 'general', page = 'partmarket', shop = true, needs = 'classifieds' },
+  { id = 'vehicleShop', label = S.t('laptop.carmarket'), group = 'general', page = 'dealers', shop = true, always = true },
+  { id = 'partsMarket', ids = { 'partShop', 'vehicleShop' }, label = S.t('laptop.partmarket'), group = 'general', page = 'partmarket', shop = true, always = true, needs = 'classifieds' },
   { id = 'clubs', ids = { 'vehicleInventory', 'vehicleShop', 'partShop' }, label = S.t('laptop.club'), group = 'general', page = 'club', needs = 'clubs' },
   { id = 'help', ids = { 'vehicleInventory', 'vehicleShop', 'partShop', 'insurances', 'playerAbstract' }, label = S.t('laptop.help'), group = 'general', page = 'help' },
   { id = 'insurances', label = S.t('laptop.bank'), group = 'general', page = 'bank' },
@@ -38,7 +39,7 @@ function M.build(functions, state, defs)
   local lists = functions.vehicleInventory ~= nil          -- a garage computer lists cars; an office one does not
   local car, general = {}, {}
   for _, def in ipairs(defs or M.TILES) do
-    local offered = functions[def.id]
+    local offered = def.always or functions[def.id]
     for _, other in ipairs(def.ids or {}) do offered = offered or functions[other] end
     if offered and (not def.needs or has[def.needs]) then
       local tile = { id = def.id, label = def.label, page = def.page, mode = def.mode, enabled = true }
