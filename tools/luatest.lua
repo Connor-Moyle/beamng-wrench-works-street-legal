@@ -1361,4 +1361,11 @@ do -- A8: events are called off when too long or too far from the route
   check('too far is off', rc.reason(10, 400, 900) ~= nil and rc.reason(10, 400, 300) == nil)
 end
 
+do -- A10: a street race is run by road cars
+  local cars = require('sl/core/cars')
+  check('no buggy races on a street', not cars.racerOk({ name = 'Buggy', raw = { ['Body Style'] = 'Buggy' } }))
+  check('no off-road config races on a street', not cars.racerOk({ name = 'Truck', raw = { ['Config Type'] = 'Offroad' } }))
+  check('a coupe still does', cars.racerOk({ name = 'Coupe', raw = { ['Body Style'] = 'Coupe', ['Config Type'] = 'Street' } }))
+end
+
 print(string.format('lua tests passed: %d checks', passed))
