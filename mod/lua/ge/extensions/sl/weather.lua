@@ -30,7 +30,9 @@ local PUDDLE_TEX = 'art/street_legal/decals/puddle.png'
 local puddleMode = 'mesh'        -- 'mesh' (a thin textured plane per puddle, a stock-style translucent decal material: the dynamic decal manager drew nothing), 'decal' (the
                                  -- dynamic decal manager) or 'prism' (flat dark shapes with the debug drawer). sl_weather.puddleMode('prism') forces one for a test.
 local MATERIALS = '/art/street_legal/main.materials.json'
-local SHAPE_PATH = '/temp/street_legal/shapes/puddle_v1.dae'
+local MATERIAL_NAMES = { map = 'sl_puddle', alpha = 'sl_puddle_a', opaque = 'sl_puddle_opaque' }      -- map: alpha from its own opacity map; alpha: from the colour map's alpha; opaque: dark grey, no maps
+local puddleMaterial = 'map'
+local function shapePath(kind) return '/temp/street_legal/shapes/puddle_' .. MATERIAL_NAMES[kind or puddleMaterial] .. '_v2.dae' end
 local meshes = {}                -- the plane objects, reused: { obj, shown }
 local PUDDLE_RADIUS = { 8, 70 }  -- puddles stand between these distances from the player; further than FORGET_AT they are dropped
 local FORGET_AT = 95
@@ -253,38 +255,44 @@ local function updatePuddles(dtReal)
 end
 
 -- the plane's model: one unit square on the ground with its texture coordinates, written once
-local function planeDae()
+local function planeDae(material)
   return table.concat({
     '<?xml version="1.0" encoding="utf-8"?>',
     '<COLLADA xmlns="http://www.collada.org/2005/11/COLLADASchema" version="1.4.1">',
     '<asset><unit name="meter" meter="1"/><up_axis>Z_UP</up_axis></asset>',
     '<library_effects><effect id="fx"><profile_COMMON><technique sid="common"><phong><diffuse><color>1 1 1 1</color></diffuse></phong></technique></profile_COMMON></effect></library_effects>',
-    '<library_materials><material id="sl_puddle" name="sl_puddle"><instance_effect url="#fx"/></material></library_materials>',
+    '<library_materials><material id="' .. material .. '" name="' .. material .. '"><instance_effect url="#fx"/></material></library_materials>',
     '<library_geometries><geometry id="mesh" name="mesh"><mesh>',
-    '<source id="pos"><float_array id="pos-array" count="12">-0.5 -0.5 0 0.5 -0.5 0 0.5 0.5 0 -0.5 0.5 0</float_array><technique_common><accessor source="#pos-array" count="4" stride="3"><param name="X" type="float"/><param name="Y" type="float"/><param name="Z" type="float"/></accessor></technique_common></source>',
-    '<source id="nrm"><float_array id="nrm-array" count="3">0 0 1</float_array><technique_common><accessor source="#nrm-array" count="1" stride="3"><param name="X" type="float"/><param name="Y" type="float"/><param name="Z" type="float"/></accessor></technique_common></source>',
+    '<source id="pos"><float_array id="pos-array" count="24">-0.5 -0.5 0 0.5 -0.5 0 0.5 0.5 0 -0.5 0.5 0 -0.5 -0.5 0.01 0.5 -0.5 0.01 0.5 0.5 0.01 -0.5 0.5 0.01</float_array><technique_common><accessor source="#pos-array" count="8" stride="3"><param name="X" type="float"/><param name="Y" type="float"/><param name="Z" type="float"/></accessor></technique_common></source>',
+    '<source id="nrm"><float_array id="nrm-array" count="6">0 0 1 0 0 -1</float_array><technique_common><accessor source="#nrm-array" count="2" stride="3"><param name="X" type="float"/><param name="Y" type="float"/><param name="Z" type="float"/></accessor></technique_common></source>',
     '<source id="uv"><float_array id="uv-array" count="8">0 0 1 0 1 1 0 1</float_array><technique_common><accessor source="#uv-array" count="4" stride="2"><param name="S" type="float"/><param name="T" type="float"/></accessor></technique_common></source>',
     '<vertices id="vtx"><input semantic="POSITION" source="#pos"/></vertices>',
-    '<triangles material="sl_puddle" count="2"><input semantic="VERTEX" source="#vtx" offset="0"/><input semantic="NORMAL" source="#nrm" offset="1"/><input semantic="TEXCOORD" source="#uv" offset="2" set="0"/>',
-    '<p>0 0 0 1 0 1 2 0 2 0 0 0 2 0 2 3 0 3</p></triangles>',
+    '<triangles material="' .. material .. '" count="4"><input semantic="VERTEX" source="#vtx" offset="0"/><input semantic="NORMAL" source="#nrm" offset="1"/><input semantic="TEXCOORD" source="#uv" offset="2" set="0"/>',
+    '<p>4 0 0 5 0 1 6 0 2 4 0 0 6 0 2 7 0 3 0 1 0 2 1 2 1 1 1 0 1 0 3 1 3 2 1 2</p></triangles>',
     '</mesh></geometry></library_geometries>',
-    '<library_visual_scenes><visual_scene id="Scene" name="Scene"><node id="slpuddle" name="slpuddle" type="NODE"><instance_geometry url="#mesh" name="slpuddle"><bind_material><technique_common><instance_material symbol="sl_puddle" target="#sl_puddle"/></technique_common></bind_material></instance_geometry></node></visual_scene></library_visual_scenes>',
+    '<library_visual_scenes><visual_scene id="Scene" name="Scene"><node id="slpuddle" name="slpuddle" type="NODE"><instance_geometry url="#mesh" name="slpuddle"><bind_material><technique_common><instance_material symbol="' .. material .. '" target="#' .. material .. '"/></technique_common></bind_material></instance_geometry></node></visual_scene></library_visual_scenes>',
     '<scene><instance_visual_scene url="#Scene"/></scene></COLLADA>',
   }, '\n')
+end
+
+local function newPlane(name, kind)
+  local material = MATERIAL_NAMES[kind or puddleMaterial]
+  if FS:fileExists(MATERIALS) and not scenetree.findObject(material) then loadJsonMaterialsFile(MATERIALS) end
+  local path = shapePath(kind)
+  if not FS:fileExists(path) then writeFile(path, planeDae(material)) end
+  local o = createObject('TSStatic')
+  o:setField('shapeName', 0, path)
+  o:setField('collisionType', 0, 'None')
+  o:setField('decalType', 0, 'None')
+  o.canSave = false
+  o:registerObject(name)
+  return { obj = o, shown = false, kind = kind or puddleMaterial }
 end
 
 local function meshObject(i)
   local m = meshes[i]
   if m then return m end
-  if FS:fileExists(MATERIALS) and not scenetree.findObject('sl_puddle') then loadJsonMaterialsFile(MATERIALS) end
-  if not FS:fileExists(SHAPE_PATH) then writeFile(SHAPE_PATH, planeDae()) end
-  local o = createObject('TSStatic')
-  o:setField('shapeName', 0, SHAPE_PATH)
-  o:setField('collisionType', 0, 'None')
-  o:setField('decalType', 0, 'None')
-  o.canSave = false
-  o:registerObject('sl_puddle_' .. i)
-  m = { obj = o, shown = false }
+  m = newPlane('sl_puddle_' .. i)
   meshes[i] = m
   return m
 end
@@ -343,28 +351,20 @@ end
 
 -- for a game test: one 4 m puddle on the ground 6 m in front of the player's car, at once; returns where it is and the box it covers
 local debugMesh
-function M.puddleNear()
+function M.puddleNear(kind)
+  kind = MATERIAL_NAMES[kind] and kind or puddleMaterial
   local v = getPlayerVehicle(0)
   if not v then return 'no player vehicle' end
   local pos, dir = v:getPosition(), v:getDirectionVector()
   local x, y = pos.x + dir.x * 6, pos.y + dir.y * 6
   local z = groundZ(x, y, pos.z + 12) or pos.z
-  if not debugMesh then
-    if FS:fileExists(MATERIALS) and not scenetree.findObject('sl_puddle') then loadJsonMaterialsFile(MATERIALS) end
-    if not FS:fileExists(SHAPE_PATH) then writeFile(SHAPE_PATH, planeDae()) end
-    local o = createObject('TSStatic')
-    o:setField('shapeName', 0, SHAPE_PATH)
-    o:setField('collisionType', 0, 'None')
-    o:setField('decalType', 0, 'None')
-    o.canSave = false
-    o:registerObject('sl_puddle_debug')
-    debugMesh = { obj = o }
-  end
+  if debugMesh and debugMesh.kind ~= kind then pcall(function() debugMesh.obj:delete() end) debugMesh = nil end
+  if not debugMesh then debugMesh = newPlane('sl_puddle_debug_' .. kind, kind) end
   local len = math.sqrt(dir.x * dir.x + dir.y * dir.y)
   local p = { x = x, y = y, z = z, sx = 4, sy = 4, dx = dir.x / len, dy = dir.y / len }
   putMesh(debugMesh, p, 1)
   local box = worldBox(debugMesh)
-  log('I', TAG, string.format('puddleNear: a 4 m plane at %.1f, %.1f, %.2f (the road under it %.2f, the car at %.2f); world box %s; material %s', x, y, z + 0.05, z, pos.z, box, tostring(scenetree.findObject('sl_puddle') ~= nil)))
+  log('I', TAG, string.format('puddleNear(%s): a 4 m plane at %.1f, %.1f, %.2f (the road under it %.2f, the car at %.2f); world box %s; material %s %s', kind, x, y, z + 0.05, z, pos.z, box, MATERIAL_NAMES[kind], tostring(scenetree.findObject(MATERIAL_NAMES[kind]) ~= nil)))
   return { x = x, y = y, z = z + 0.05 }, box
 end
 
@@ -380,6 +380,16 @@ local function checkTexture()
   end
   if textureChecked ~= 'found' then puddleMode = 'prism' end
   log(textureChecked == 'found' and 'I' or 'W', TAG, 'puddle texture: ' .. table.concat(found, ', ') .. (textureChecked == 'found' and '' or ': not found, drawing flat shapes instead'))
+end
+
+-- which material the real puddles use ('map', 'alpha' or 'opaque'), for a game test; the planes are made again
+function M.puddleMaterial(kind)
+  if MATERIAL_NAMES[kind] then
+    puddleMaterial = kind
+    for _, m in ipairs(meshes) do pcall(function() m.obj:delete() end) end
+    meshes = {}
+  end
+  return puddleMaterial
 end
 
 function M.puddleMode(m) if m == 'prism' or m == 'decal' or m == 'mesh' then puddleMode = m textureChecked = true end return puddleMode end
