@@ -613,7 +613,6 @@ M.TEXT = {
   ["carcare.it_is_d_you_have"] = "It is $%d. You have $%d.",
   ["carcare.lost_to"] = "Lost to ",
   ["carcare.new_battery_in"] = "New battery in.",
-  ["carcare.obj_queuegameenginelua_string_format_if"] = "[obj:queueGameEngineLua(string.format('if sl_carcare then sl_carcare.onConditions(%d,%s) end', obj:getId(), serialize(partCondition.getConditions())))]",
   ["carcare.oil_topped_up"] = "Oil topped up.",
   ["carcare.the_can_went_in_the"] = "The can went in the tank.",
   ["career.1_is_here_pick_them"] = "{1} is here. Pick them from the race menu.",

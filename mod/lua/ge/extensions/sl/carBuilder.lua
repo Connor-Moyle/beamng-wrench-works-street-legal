@@ -7,8 +7,6 @@
 
 local M = {}
 
-local strings = require('sl/core/strings')
-
 local carsLib = require('sl/core/cars')
 local buildsLib = require('sl/core/builds')
 local rngLib = require('sl/core/rng')
@@ -116,7 +114,7 @@ local function respawn(job, veh, config)
     job.sleep(0.1)
     ok = vehData(id) ~= nil and vehData(id) ~= before
   until ok or os.clock() - started > M.RESPAWN_WAIT
-  if not ok then log('W', 'street_legal', strings.t('carBuilder.timeout_vehicle') .. tostring(id) .. ' did not report its rebuild in ' .. M.RESPAWN_WAIT .. strings.t('carBuilder.s_dropped')) end
+  if not ok then log('W', 'street_legal', 'TIMEOUT: vehicle ' .. tostring(id) .. ' did not report its rebuild in ' .. M.RESPAWN_WAIT .. ' s: dropped') end
   job.sleep(0.4)
   respawnBusy = nil
   return ok
@@ -129,12 +127,12 @@ function M.applyDents(veh, dents, options)
   if not veh or not dents or #dents == 0 then return end
   local beams = {}
   for _, d in ipairs(dents) do beams[#beams + 1] = { dent = d.dent, seed = d.seed, pa = d.partPath, pb = d.partPath } end
-  veh:queueLuaCommand(strings.t('carBuilder.extensions_load_slrrgarageveh_if_slrrgarageveh') .. serialize({ nodes = {}, beams = beams }) .. ', ' .. serialize(options or {}) .. ') end')
+  veh:queueLuaCommand('extensions.load("slrrGarageVeh") if slrrGarageVeh then slrrGarageVeh.apply(' .. serialize({ nodes = {}, beams = beams }) .. ', ' .. serialize(options or {}) .. ') end')
 end
 
 function M.applyDamage(veh, damage)
   if not veh or type(damage) ~= 'table' or #(damage.beams or {}) == 0 then return end
-  veh:queueLuaCommand(strings.t('carBuilder.extensions_load_slrrgarageveh_if_slrrgarageveh') .. serialize(damage) .. ') end')
+  veh:queueLuaCommand('extensions.load("slrrGarageVeh") if slrrGarageVeh then slrrGarageVeh.apply(' .. serialize(damage) .. ') end')
 end
 
 -- what a part is worth, from its jbeam
@@ -239,14 +237,14 @@ function M.dentCar(job, veh, dents, offer)
   local id = veh:getID()
   local t = {}
   for i, d in ipairs(dents) do t[i] = string.format('%s:%.3f', tostring(d.partPath), d.dent or 0) end
-  log('I', 'street_legal', string.format(strings.t('carBuilder.lot_car_s_dents_s'), tostring(offer and (offer.id .. ' ' .. tostring(offer.model)) or id), table.concat(t, ' ')))
+  log('I', 'street_legal', string.format('lot car %s: dents [%s]', tostring(offer and (offer.id .. ' ' .. tostring(offer.model)) or id), table.concat(t, ' ')))
   dentsDone[id] = nil
   M.applyDents(veh, dents, { keepLatches = true, done = string.format("require('sl/carBuilder').onDentsDone(%d)", id) })
   local started = os.clock()
   while not dentsDone[id] and os.clock() - started < M.DENTS_WAIT do job.sleep(0.1) end
   local ok = dentsDone[id] == true
   dentsDone[id] = nil
-  if not ok then log('W', 'street_legal', strings.t('carBuilder.timeout_vehicle') .. tostring(id) .. ' did not report its dents in ' .. M.DENTS_WAIT .. ' s') end
+  if not ok then log('W', 'street_legal', 'TIMEOUT: vehicle ' .. tostring(id) .. ' did not report its dents in ' .. M.DENTS_WAIT .. ' s') end
   job.sleep(1)
   local v = getObjectByID(id)
   if v then v:queueLuaCommand('input.event("parkingbrake", 1, FILTER_DIRECT) controller.setFreeze(1)') end
@@ -277,7 +275,7 @@ function M.buildOffer(job, offer, pos, rot, opts)
   end
   if #tweak.removed + #tweak.swapped + #(tweak.refused or {}) > 0 then       -- (one line a car: the last one before a crash names the change)
     local function paths(list, f) local t = {} for i, x in ipairs(list or {}) do t[i] = f(x) end return table.concat(t, ' ') end
-    log('I', 'street_legal', string.format(strings.t('carBuilder.lot_car_s_s_s'), tostring(offer.id), tostring(offer.model), tostring(offer.config),
+    log('I', 'street_legal', string.format('lot car %s (%s, %s): removed [%s] swapped [%s] refused [%s]', tostring(offer.id), tostring(offer.model), tostring(offer.config),
       paths(tweak.removed, tostring), paths(tweak.swapped, function(x) return tostring(x.path) .. '=' .. tostring(x.from) .. '>' .. tostring(x.to) end),
       paths(tweak.refused, function(x) return tostring(x.path) .. ':' .. tostring(x.why) end)))
   end

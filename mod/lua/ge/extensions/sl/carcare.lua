@@ -18,7 +18,7 @@ local CRASH_DAMAGE = 2000     -- this much more since the last report (2 s) is a
 local settleUntil = {}        -- vehicle id -> clock: its saved dents are still going back on until then
 local lookAgain = {}          -- vehicle id -> clock: a crash was caught mid-way; look again once it has settled
 
-local ASK_CONDITIONS = strings.t('carcare.obj_queuegameenginelua_string_format_if')
+local ASK_CONDITIONS = [[obj:queueGameEngineLua(string.format('if sl_carcare then sl_carcare.onConditions(%d,%s) end', obj:getId(), serialize(partCondition.getConditions())))]]
 
 local function career() return sl_career and sl_career.isActive() and sl_career.getState() or nil end
 
