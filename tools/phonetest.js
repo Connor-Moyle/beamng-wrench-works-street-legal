@@ -496,6 +496,15 @@ phone.handle('slPhoneData', Object.assign({}, data, { turf: { held: 1, turfWar: 
 phone.act('home');
 phone.act('open', 'turf');
 assert.ok(text().includes('The Docks') && text().includes('you are here') && text().includes('home of the North End crew') && text().includes('led by Nina'), 'Turf lists districts and crews');
+// #42 the turf map: a circle for every district at its place, coloured by its owner, and where you are
+assert.ok(!phone.root.querySelector('.slp-turfmap'), 'no positions, no map');
+phone.handle('slPhoneData', Object.assign({}, data, { turf: { held: 1, turfWar: false, you: { x: 100, y: 100 }, districts: [
+  { id: 'd1', name: 'Belasco City', owner: 'You', yours: true, control: 50, here: true, x: 0, y: 0 },
+  { id: 'd2', name: 'Alder Dragway', owner: 'Riverbed Runners', crew: 'riverbed', control: 75, x: 1000, y: 800 },
+  { id: 'd3', name: 'Industrial', owner: 'Ring Road Ghosts', crew: 'ringroad', control: 40, x: -600, y: 500 } ], crews: [] } }));
+const map = phone.root.querySelector('.slp-turfmap');
+assert.ok(map && map.querySelectorAll('circle[fill-opacity]').length === 3 && map.textContent.includes('Belasco City') && map.textContent.includes('Alder Dragway') && map.innerHTML.includes('#34c759') && map.innerHTML.includes('#3b82f6') && map.innerHTML.includes('#a855f7') && map.querySelectorAll('circle[fill="none"]').length === 1, 'the map: three districts in their colours and you');
+
 // Hardcore game over
 phone.handle('slPhoneData', { active: false });
 phone.handle('slGameOver', { day: 12, money: 4300, rep: 640, title: 'Known face', races: 20, wins: 9, pinksWon: 1, cars: 2, achievements: 5, achievementsTotal: 24 });

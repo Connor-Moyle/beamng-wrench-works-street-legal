@@ -645,6 +645,23 @@
 
     // the club: today's league events, the standings
     // Turf: the city's districts, who holds them and how firmly (sl_crews, X21)
+    // the turf map: every district a circle at its place on the map, in its owner's colour (yours in green), bigger with more control; you are the white ring
+    var CREW_COLOURS = { southside: '#e5484d', riverbed: '#3b82f6', northend: '#f5a623', ringroad: '#a855f7' };
+    function turfMap(t) {
+      var ds = arr(t.districts).filter(function (d) { return typeof d.x === 'number' && typeof d.y === 'number'; });
+      if (ds.length < 2) return '';
+      var xs = ds.map(function (d) { return d.x; }).concat(t.you ? [t.you.x] : []), ys = ds.map(function (d) { return d.y; }).concat(t.you ? [t.you.y] : []);
+      var x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs), y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
+      var W = 300, H = 200, pad = 30, k = Math.min((W - 2 * pad) / Math.max(1, x1 - x0), (H - 2 * pad) / Math.max(1, y1 - y0));
+      var px = function (x) { return Math.round(W / 2 + (x - (x0 + x1) / 2) * k); }, py = function (y) { return Math.round(H / 2 - (y - (y0 + y1) / 2) * k); };      // (north up)
+      var dots = ds.map(function (d) {
+        var col = d.yours ? '#34c759' : (CREW_COLOURS[d.crew] || '#8e8e93');
+        return '<circle cx="' + px(d.x) + '" cy="' + py(d.y) + '" r="' + (8 + Math.round((d.control || 0) / 12)) + '" fill="' + col + '" fill-opacity="0.75" stroke="' + col + '"/>' +
+          '<text x="' + px(d.x) + '" y="' + (py(d.y) + 24) + '" text-anchor="middle" font-size="9" fill="#e6e1e5">' + esc(d.name) + '</text>';
+      }).join('');
+      var you = t.you ? '<circle cx="' + px(t.you.x) + '" cy="' + py(t.you.y) + '" r="4" fill="none" stroke="#fff" stroke-width="2"/>' : '';
+      return '<div class="slp-card"><svg class="slp-turfmap" viewBox="0 0 ' + W + ' ' + H + '" width="100%">' + dots + you + '</svg></div>';
+    }
     function turfPage() {
       var t = obj(st.data.turf);
       var rows = arr(t.districts).map(function (d) {
@@ -652,7 +669,7 @@
           (d.yours ? 'Yours' : esc(d.owner)) + ' &middot; ' + d.control + '% control' + (d.home ? ' &middot; home of ' + esc(d.home) : '') + '</span></div></div>';
       }).join('');
       var crews = arr(t.crews).map(function (c) { return '<p>' + esc(c.name) + (c.leader ? ' &middot; led by ' + esc(c.leader) : '') + '</p>'; }).join('');
-      return bar('Turf') + '<div class="slp-body">' +
+      return bar('Turf') + '<div class="slp-body">' + turfMap(t) +
         '<div class="slp-empty">Beat a crew on its own streets to take the district. You hold ' + (t.held || 0) + '.' + (t.turfWar ? ' The leaders want a word.' : '') + '</div>' +
         (rows || '<div class="slp-empty">No districts on this map.</div>') + '<div class="slp-card"><h4>The crews</h4>' + crews + '</div></div>';
     }

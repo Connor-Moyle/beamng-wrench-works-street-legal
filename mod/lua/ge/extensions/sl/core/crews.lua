@@ -92,6 +92,40 @@ function M.cluster(points, k)
   return out
 end
 
+-- (#42) a place's name as an area's: 'Alder Dragway Garage' -> 'Alder Dragway', 'Quarryside Auto Sales' -> 'Quarryside'
+local TRAILING = { 'garage', 'autos', 'auto', 'sales', 'motors', 'motor', 'dealership', 'dealer', 'cars', 'car', 'used', 'shop', 'yard', 'junkyard', 'scrapyard' }
+function M.areaName(name)
+  local words = {}
+  for w in tostring(name or ''):gmatch('%S+') do words[#words + 1] = w end
+  if words[1] and words[1]:lower() == 'the' then table.remove(words, 1) end
+  local function trailing(w) w = w:lower() for _, t in ipairs(TRAILING) do if w == t then return true end end end
+  while #words > 1 and trailing(words[#words]) do words[#words] = nil end
+  return table.concat(words, ' ')
+end
+
+-- districts (with a centre) named after the nearest named place, so the turf map reads like the map: places = { { name, x, y } }.
+-- Two districts with the same place: the second gets a number. With no places the compass names stay.
+function M.nameByPlaces(districts, places)
+  local used = {}
+  for _, d in ipairs(districts) do
+    local best, bd
+    for _, p in ipairs(places or {}) do
+      if p.name and p.x and p.y and d.centre then
+        local dist = (p.x - d.centre.x) ^ 2 + (p.y - d.centre.y) ^ 2
+        if not bd or dist < bd then best, bd = p, dist end
+      end
+    end
+    if best then
+      local name = M.areaName(best.name)
+      if name ~= '' then
+        used[name] = (used[name] or 0) + 1
+        d.name = used[name] > 1 and (name .. ' ' .. used[name]) or name
+      end
+    end
+  end
+  return districts
+end
+
 -- the district a position is in: inside its polygon, else the nearest centre
 function M.districtOf(districts, x, y)
   local best, bd

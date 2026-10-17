@@ -884,7 +884,7 @@ do
   local valo, wc = true, true
   for _, f in ipairs(feats) do
     valo = valo and progression.has('slrr_valo_city', f)
-    wc = wc and (f == 'clubs' or f == 'swapMeet' or not progression.has('west_coast_usa', f))      -- (clubs: #41 hosts them there, with the stock track events)
+    wc = wc and (f == 'clubs' or f == 'swapMeet' or f == 'crews' or not progression.has('west_coast_usa', f))      -- (clubs: #41 hosts them there, with the stock track events)
   end
   valo = valo and progression.has('slrr_valo_city', 'classifieds')
   check('Valo City offers every feature', valo)
@@ -1077,6 +1077,14 @@ do
   check('the meet place: the fixed one when the map has it, else the lot with most spots (the lowest id on a tie; no garages, no place without a position)', sm.pickPlace(places) == 'big' and sm.pickPlace(places, 'small') == 'small' and sm.pickPlace(places, 'meet_tuning') == 'big' and sm.pickPlace({ meet_tuning = { kind = 'meet', pos = {} }, big = places.big }, 'meet_tuning') == 'meet_tuning' and sm.pickPlace({}) == nil)
   check('the meet is on the weekend (day % 7 is 5 or 6, as before); a night meet only at night', sm.isOpen(5, false, false) and sm.isOpen(6, false, false) and not sm.isOpen(7, false, false) and not sm.isOpen(8, false, false) and sm.isOpen(13, true, true) and not sm.isOpen(13, false, true) and not sm.isOpen(10, true, true))
   check('West Coast USA hosts the swap meet, as a night meet; Valo does not have the night meet', progression.has('west_coast_usa', 'swapMeet') and progression.has('west_coast_usa', 'nightMeet') and not progression.has('slrr_valo_city', 'nightMeet'))
+
+  -- #42 crews on West Coast USA: districts named after the map's own places
+  local crewsCore = require('sl/core/crews')
+  check('an area name drops the trade word: Garage, Auto Sales, Motors...', crewsCore.areaName('Alder Dragway Garage') == 'Alder Dragway' and crewsCore.areaName('Quarryside Auto Sales') == 'Quarryside' and crewsCore.areaName('Jefferson Motors') == 'Jefferson' and crewsCore.areaName('The Industrial Garage') == 'Industrial' and crewsCore.areaName('Garage') == 'Garage' and crewsCore.areaName(nil) == '')
+  local ds = { { id = 'd1', name = 'Downtown', centre = { x = 0, y = 0 } }, { id = 'd2', name = 'East Side', centre = { x = 1000, y = 0 } }, { id = 'd3', name = 'Northside', centre = { x = 1100, y = 50 } } }
+  crewsCore.nameByPlaces(ds, { { name = 'Belasco City Garage', x = 20, y = 10 }, { name = 'Alder Dragway Garage', x = 990, y = 20 }, { name = 'Alder Dragway Auto Sales', x = 1090, y = 60 } })
+  check('districts take the name of the nearest place; a second one with the same area is numbered; with no places the old names stay', ds[1].name == 'Belasco City' and ds[2].name == 'Alder Dragway' and ds[3].name == 'Alder Dragway 2' and crewsCore.nameByPlaces({ { id = 'x', name = 'Southside', centre = { x = 1, y = 1 } } }, {})[1].name == 'Southside')
+  check('West Coast USA hosts crews', progression.has('west_coast_usa', 'crews'))
 
   -- the sun, for a sky without core_celestial
   local sun = require('sl/core/sun')

@@ -38,7 +38,14 @@ local function clustered()
   end
   local ds = crews.cluster(pts, 6)
   for _, d in ipairs(ds) do d.centre = { x = math.floor(d.centre.x), y = math.floor(d.centre.y) } end
-  return ds
+  local named = {}
+  for _, p in pairs(sl_career.getPlaces() or {}) do
+    if p.pos and p.name and (p.kind == 'garage' or p.kind == 'dealer' or p.kind == 'junkyard' or p.kind == 'scrapyard' or p.kind == 'shop') then
+      named[#named + 1] = { name = p.name, x = p.pos.x, y = p.pos.y }
+    end
+  end
+  table.sort(named, function(a, b) return a.name < b.name end)
+  return crews.nameByPlaces(ds, named)        -- (#42) the map's own names: West Coast USA's districts are 'Alder Dragway', 'Belasco City', 'Industrial'...
 end
 
 -- the career's crews, built once; built again if the map's districts are new or changed
@@ -350,15 +357,24 @@ function M.summary()
   for _, d in ipairs(c.districts or {}) do
     local t = c.territory[d.id] or {}
     local crew = crews.crew(t.owner)
+    local c0 = d.centre or d.label
+    if not c0 and d.polygon then          -- (a polygon's middle: the average of its corners)
+      local sx, sy = 0, 0
+      for _, p in ipairs(d.polygon) do sx, sy = sx + p[1], sy + p[2] end
+      c0 = { x = sx / #d.polygon, y = sy / #d.polygon }
+    end
     list[#list + 1] = { id = d.id, name = d.name, owner = t.owner == 'player' and 'You' or (crew and crew.name or '?'), yours = t.owner == 'player',
-      control = t.control or 0, home = t.home and crews.crew(t.home).name or nil, here = d.id == here }
+      crew = t.owner ~= 'player' and t.owner or nil,
+      control = t.control or 0, home = t.home and crews.crew(t.home).name or nil, here = d.id == here,
+      x = c0 and (c0.x or c0[1]) or nil, y = c0 and (c0.y or c0[2]) or nil }
   end
   local members = {}
   for _, cr in ipairs(crews.CREWS) do
     local lead = c.leader[cr.id] and stateLib.racer(s, c.leader[cr.id])
     members[#members + 1] = { name = cr.name, leader = lead and roster.displayName(lead) or nil }
   end
-  return { districts = list, crews = members, held = crews.held(c.territory), turfWar = crews.turfWarReady(c.territory) }
+  local pp = v and v:getPosition()
+  return { districts = list, crews = members, held = crews.held(c.territory), turfWar = crews.turfWarReady(c.territory), you = pp and { x = pp.x, y = pp.y } or nil }
 end
 
 function M.onStreetLegalStarted() local s = career() if s then M.ensure(s) end end
