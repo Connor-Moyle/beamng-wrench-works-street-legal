@@ -456,15 +456,29 @@
       return stars + ' &middot; ' + esc(CLASS_NAMES[c.class] || c.class || '') + (c.nightOnly ? ' &middot; nights' : '') + (c.pinkTonight ? (' ' + '&middot;' + ' ' + '<span class="slp-pink">' + T('ui.pinks_tonight', 'pinks tonight') + '</span>') : '');
     }
 
+    // the people you have met (rivals, crew leaders, dealers): a line, where you met them and a route to that place; a rival is listed here and not twice
+    function peopleIds() { var ids = {}; arr(obj(st.people).people).forEach(function (p) { if (p.kind === 'rival') ids[p.id] = true; }); return ids; }
+    function peopleHtml() {
+      var list = arr(obj(st.people).people);
+      if (!list.length) return '';
+      var places = {};
+      arr(st.data.places).forEach(function (p) { places[p.id] = p.name; });
+      return '<div class="slp-seth">' + T('ui.people_you_have_met', 'People you have met') + '</div>' + list.map(function (p) {
+        var where = p.placeId && places[p.placeId] ? ' &middot; ' + esc(T('ui.met_at_1', 'Met at {1}', places[p.placeId])) : '';
+        return '<div class="slp-row"' + (p.kind === 'rival' ? ' data-a="contact" data-v="' + esc(p.id) + '"' : '') + '><div class="slp-rt"><b>' + esc(p.name) + '</b><span>' + esc(p.line || '') + where + '</span></div>' +
+          (p.placeId ? '<div class="slp-btn slp-tonal" data-a="route" data-v="' + esc(p.placeId) + '">' + T('ui.route_to', 'Route to') + '</div>' : '') + '</div>';
+      }).join('');
+    }
     function contactsPage() {
-      var list = arr(st.data.contacts), out = [], last = null;
+      var hidden = peopleIds();
+      var list = arr(st.data.contacts).filter(function (c) { return !hidden[c.id]; }), out = [], last = null;
       list.forEach(function (c) {
         var letter = c.system ? '★' : (c.short || c.name || '?')[0].toUpperCase();
         if (letter !== last) { out.push('<div class="slp-letter">' + esc(letter) + '</div>'); last = letter; }
         out.push('<div class="slp-row" data-a="contact" data-v="' + esc(c.id) + '">' + avatar(c) + '<div class="slp-rt"><b>' + esc(c.name) + '</b><span>' + contactLine(c) + '</span></div></div>');
       });
       if (list.length <= 1) out.push(('<div class="slp-empty">' + T('ui.nobody_else_has_given_you', 'Nobody else has given you their number yet. Win a few races and they will.') + '</div>'));
-      return bar(T('app.contacts', 'Contacts')) + '<div class="slp-body">' + out.join('') + '</div>';
+      return bar(T('app.contacts', 'Contacts')) + '<div class="slp-body">' + out.join('') + peopleHtml() + '</div>';
     }
 
     function contactPage() {
@@ -1571,6 +1585,7 @@
       st.app = app;
       if (app === 'settings') lua('settings()');
       if (app === 'gallery') lua('photos()');
+      if (app === 'contacts') lua('people()');
       if (app === 'map') { st.mapAt = Date.now(); lua('mapPlaces()'); }
       if (app === 'help' && !arr(st.help).length) lua('requestHelp()');
       if (app === 'carmarket') { st.cmView = 'dealers'; lua('@sl_dealers.list()'); }
@@ -1832,6 +1847,7 @@
         case 'slSettings': st.settings = data; render(); break;
         case 'slPhotos': st.photos = data; render(); break;
         case 'slMap': st.map = data; render(); break;
+        case 'slPeople': st.people = data; render(); break;
         case 'slHelp': st.help = arr(data && data.pages); render(); break;
         case 'slStrings': TABLE = (data && data.text) || {}; render(); break;
         case 'slLaptopDealers': st.dealers = data; render(); break;
@@ -1869,7 +1885,7 @@
       var probe = new Image();
       probe.onload = function () { phone.handle('slArt'); };
       probe.src = '/ui/modModules/slHud/slrr/icons/cup.png';
-      ['slPhoneData', 'slPhoneToggle', 'slPhoneGo', 'slPhoneCall', 'slPhoneCallReply', 'slPhoneNotify', 'slPhoneToast', 'slFade', 'slLotBars', 'slLotData', 'slMeet', 'slRace', 'slMenu', 'slStation', 'slGarage', 'slSettings', 'slPhotos', 'slMap', 'slLaptopDealers', 'slAuctions', 'slRivals', 'slLaptopOffers', 'slHelp', 'slStrings'].forEach(function (name) {
+      ['slPhoneData', 'slPhoneToggle', 'slPhoneGo', 'slPhoneCall', 'slPhoneCallReply', 'slPhoneNotify', 'slPhoneToast', 'slFade', 'slLotBars', 'slLotData', 'slMeet', 'slRace', 'slMenu', 'slStation', 'slGarage', 'slSettings', 'slPhotos', 'slMap', 'slPeople', 'slLaptopDealers', 'slAuctions', 'slRivals', 'slLaptopOffers', 'slHelp', 'slStrings'].forEach(function (name) {
         $rootScope.$on(name, function (ev, data) { phone.handle(name, data); });
       });
       if (window.bngApi) window.bngApi.engineLua('if sl_phone then sl_phone.request() end if sl_menuTile then sl_menuTile.request() end');

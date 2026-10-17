@@ -19,7 +19,9 @@ M.PAGES = {
     '- When you are ready, start the night and race.',
   } },
   { id = 'phone', title = 'The phone', body = {
-    'The home screen has the apps: Races, My cars, Bank, Street cred, Jobs, Wait, Settings, Club, Turf, Car market, Part market, Map, Camera, Gallery and Help. Messages, Contacts, Phone and Cab are in the dock. The Map lists the places by kind with their distance; tap one and the route shows on the road (it clears when you get there, or with Clear route); Route to my garage on the home screen does the same for your garage. The Camera takes a picture without any screen (also kept in screenshots/street_legal); in the Gallery a photo can be the wallpaper of the phone or the laptop; a new car is photographed at the end of its purchase scene (Settings: Photo of a new car).',
+    'The home screen has the apps: Races, My cars, Bank, Street cred, Jobs, Wait, Settings, Club, Turf, Car market, Part market, Map, Camera, Gallery and Help. Messages, Contacts, Phone and Cab are in the dock.',
+    'The Map lists the places by kind with their distance; tap one and the route shows on the road (it clears when you get there, or with Clear route); Route to my garage on the home screen does the same for your garage. The Camera takes a picture without any screen (also kept in screenshots/street_legal); in the Gallery a photo can be the wallpaper of the phone or the laptop; a new car is photographed at the end of its purchase scene (Settings: Photo of a new car).',
+    'Contacts also lists the people you have met (rivals, crew leaders, dealers) with where you met them and a Route to button.',
     'Press K to open and close it. B (or Back) goes one step back. On a pad the d-pad moves and A opens.',
   } },
   { id = 'garage', title = 'The garage', body = {

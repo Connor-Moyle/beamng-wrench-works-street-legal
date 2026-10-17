@@ -46,6 +46,18 @@ function M.stillActive(endWP, p)
   return math.abs(endWP[1].x - p.x) < 1 and math.abs(endWP[1].y - p.y) < 1
 end
 
+-- the people you have met for the Contacts app: { id, name, kind = 'rival' | 'crew' | 'dealer', line, placeId (may be nil) }; rivals first, then crew leaders, then
+-- dealers; an id comes once (a rival who is also a crew leader is a rival)
+function M.people(rivals, crews, dealers)
+  local out, seen = {}, {}
+  for _, list in ipairs({ rivals or {}, crews or {}, dealers or {} }) do
+    for _, p in ipairs(list) do
+      if p.id and not seen[p.id] then seen[p.id] = true out[#out + 1] = p end
+    end
+  end
+  return out
+end
+
 function M.arrived(from, p) return from ~= nil and p ~= nil and M.distance(from, p) <= M.ARRIVED end
 
 return M

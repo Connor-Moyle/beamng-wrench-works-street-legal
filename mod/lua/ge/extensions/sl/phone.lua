@@ -220,6 +220,30 @@ function M.mapPlaces()
   guihooks.trigger('slMap', { groups = mapLib.groups(list, playerAt()), route = route and { id = route.id, name = route.name } or nil })
 end
 
+-- the Contacts app's people: rivals (sl_rivals), the crews' leaders you know, the dealers on the map
+function M.people()
+  local s = career()
+  if not s then return end
+  local rivals = sl_rivals and sl_rivals.met and sl_rivals.met() or {}
+  local crews = {}
+  local cs = sl_crews and sl_crews.ensure and sl_crews.ensure(s)
+  for _, cr in ipairs(require('sl/core/crews').CREWS) do
+    local id = cs and cs.leader and cs.leader[cr.id]
+    local racer = id and s.known[id] and require('sl/core/state').racer(s, id)
+    if racer then crews[#crews + 1] = { id = id, name = roster.displayName(racer), kind = 'crew', line = strings.t('phone.leader_of_1', cr.name) } end
+  end
+  local dealers = {}
+  for id, p in pairs(sl_career.getPlaces() or {}) do
+    if p.kind == 'dealer' or p.stock then
+      local _, tierLabel = nil, nil
+      if sl_career.placeTier then _, tierLabel = sl_career.placeTier(id) end
+      dealers[#dealers + 1] = { id = 'dealer:' .. id, name = p.name, kind = 'dealer', line = tierLabel and strings.t('phone.dealer_1', tierLabel) or strings.t('phone.dealer'), placeId = id }
+    end
+  end
+  table.sort(dealers, function(a, b) return tostring(a.name) < tostring(b.name) end)
+  guihooks.trigger('slPeople', { people = mapLib.people(rivals, crews, dealers) })
+end
+
 function M.routeTo(id)
   local s = career()
   local p = s and core_groundMarkers and sl_career.getPlaces()[tostring(id)]

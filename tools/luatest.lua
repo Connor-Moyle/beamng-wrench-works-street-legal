@@ -419,6 +419,8 @@ do
   check('map: the route is active only while it is the single end point at its place', mapapp.stillActive({ { x = 100, y = 200 } }, { x = 100.4, y = 199.6 })
     and not mapapp.stillActive({ { x = 500, y = 0 } }, { x = 100, y = 200 }) and not mapapp.stillActive(nil, { x = 1, y = 1 }) and not mapapp.stillActive({}, { x = 1, y = 1 })
     and not mapapp.stillActive({ { x = 100, y = 200 }, { x = 5, y = 5 } }, { x = 100, y = 200 }))
+  local ppl = mapapp.people({ { id = 'r1', name = 'Rival', kind = 'rival', line = 'x' } }, { { id = 'r1', name = 'Dup', kind = 'crew' }, { id = 'r2', name = 'Lead', kind = 'crew' } }, { { id = 'dealer:d', name = 'D', kind = 'dealer', placeId = 'd' } })
+  check('map: people rivals first, an id once', #ppl == 3 and ppl[1].kind == 'rival' and ppl[2].id == 'r2' and ppl[3].kind == 'dealer' and #mapapp.people(nil, nil, nil) == 0)
   check('map: arrival within 15 m', mapapp.arrived({ x = 10, y = 0 }, { x = 20, y = 0 }) and not mapapp.arrived({ x = 0, y = 0 }, { x = 20, y = 0 }) and not mapapp.arrived(nil, { x = 0, y = 0 }))
 end
 

@@ -803,6 +803,19 @@ assert.ok(calls.includes('setWallpaper("laptop","/settings/street_legal/photos/2
 phone.act('home');
 phone.handle('slPhoneData', Object.assign({}, data, { wall: '/settings/street_legal/photos/20261018_a.png' }));
 assert.ok(/20261018_a\.png/.test(phone.root.querySelector('.slp-wall').getAttribute('style') || ''), 'a photo wallpaper is the home screen');
+// Contacts: the people you have met, a rival is listed once, Route to
+phone.act('home');
+if (!phone.state.open) phone.handle('slPhoneToggle');
+calls.length = 0;
+phone.act('open', 'contacts');
+assert.ok(calls.includes('people()'), 'opening Contacts asks for the people');
+phone.handle('slPeople', { people: [{ id: 'r01', name: 'Rival One', kind: 'rival', line: 'Nemesis - Ring Road Ghosts', placeId: 'g1' }, { id: 'dealer:d1', name: 'Hilltop Motors', kind: 'dealer', line: 'Dealer - High', placeId: 'd1' }, { id: 'r09', name: 'Boss', kind: 'crew', line: 'Leader of X' }] });
+assert.ok(/People you have met/.test(phone.root.textContent) && /Nemesis - Ring Road Ghosts/.test(phone.root.textContent), 'the people section');
+assert.strictEqual(phone.root.querySelectorAll('[data-a="route"]').length, 2, 'Route to only where the place is known');
+assert.strictEqual(Array.from(phone.root.querySelectorAll('[data-a="contact"] b')).filter((e) => e.textContent === 'Rival One').length, 1, 'a rival is listed once in Contacts');
+calls.length = 0;
+click('route', 'd1');
+assert.ok(calls.includes('routeTo("d1")'), 'Route to sets the route');
 // Map: groups with distances, a tap sets the route, the home shortcut, clear route
 phone.act('home');
 if (!phone.state.open) phone.handle('slPhoneToggle');
