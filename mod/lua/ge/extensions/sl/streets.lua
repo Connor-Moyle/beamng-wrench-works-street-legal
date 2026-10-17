@@ -433,6 +433,10 @@ local function spawnCruiser(s)
   local near = {}
   for _, r in ipairs(list) do if math.abs(r.tier - mine) <= 1 then near[#near + 1] = r end end
   if #near > 0 and rng:chance(0.8) then list = near end
+  -- a racer whose car waits in the pool comes back first: putting it on a road costs a teleport, a build costs a freeze
+  local back = {}
+  for _, r in ipairs(list) do if pool[r.id] and getObjectByID(pool[r.id]) then back[#back + 1] = r end end
+  if #back > 0 then list = back end
   local racer = list[rng:int(#list)]
   -- out of his sight and off his way (#19): not in the camera's view, not ahead of where he is going
   local pp, pv = v:getPosition(), v:getVelocity()
@@ -502,7 +506,7 @@ local function updateCruisers(s, dt)
   -- one build at a time, a gap between, and not while he races along (spawnplan.canBuild); the timer restarts only when a car is really begun
   local speed = v and v:getVelocity():length() or 0
   tryTimer = tryTimer + dt
-  if tryTimer >= 1 and night() and count < MAX_CRUISERS and not race and spawnplan.canBuild(speed, spawnTimer, busy) then
+  if tryTimer >= 1 and night() and count < MAX_CRUISERS and not race and spawnplan.canBuild(speed, spawnTimer, busy, next(pool) ~= nil) then
     tryTimer = 0                                 -- (looking for a hidden road costs a pass over the graph: once a second at most)
     if spawnCruiser(s) then spawnTimer = 0 end
   end

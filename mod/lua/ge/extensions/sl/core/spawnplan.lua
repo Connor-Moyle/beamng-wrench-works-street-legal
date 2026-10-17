@@ -9,7 +9,8 @@ M.FOV = 110              -- degrees across: in view
 M.VIEW_UP_TO = 500       -- m: further than this nothing counts as in view
 M.AHEAD = 60             -- degrees: inside this of the way he is going (fast enough) is "on his way"
 M.MOVING = 4             -- m/s: slower than this he is not going anywhere
-M.MIN_GAP = 8            -- s between two builds
+M.MIN_GAP = 20           -- s between two builds (a build is a 1.1-1.7 s freeze and a run of slow frames after it: hitch recording, 3 min of night driving)
+M.POOL_GAP = 4           -- s after which a pooled car may be put back on a road (a teleport, not a build)
 M.FAST = 15              -- m/s: above this nothing is built ...
 M.PATIENCE = 45          -- ... until this many seconds have passed since the last
 
@@ -34,9 +35,9 @@ function M.hidden(pos, player, cam)
 end
 
 -- may a car be built now: none being built, a gap since the last, and not while he drives fast (unless it has been long)
-function M.canBuild(speed, since, busy)
+function M.canBuild(speed, since, busy, pooled)
   if busy then return false end
-  if (since or 1e9) < M.MIN_GAP then return false end
+  if (since or 1e9) < (pooled and M.POOL_GAP or M.MIN_GAP) then return false end
   if (speed or 0) > M.FAST and (since or 1e9) < M.PATIENCE then return false end
   return true
 end

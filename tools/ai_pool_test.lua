@@ -177,8 +177,8 @@ return function(check, rngLib)
   check('standing still: only the camera counts (his way is nowhere yet)', SPN.hidden({ x = 0, y = -200 }, { x = 0, y = 0, vx = 0, vy = 0 }, cam) and SPN.hidden({ x = 0, y = 200 }, { x = 0, y = 0, vx = 0, vy = 0 }, { x = 0, y = 0, fx = 0, fy = -1 })
     and not SPN.hidden({ x = 0, y = 200 }, { x = 0, y = 0, vx = 0, vy = 0 }, cam))
   check('far beyond sight range a spot in the camera direction is fine; unknown camera or player: allowed', SPN.hidden({ x = 0, y = 800 }, { x = 0, y = 0, vx = 0, vy = 0 }, cam) and SPN.hidden({ x = 5, y = 5 }, nil, nil))
-  check('one build at a time, with a gap, and not while he races along (until it has been long)', not SPN.canBuild(5, 100, true) and not SPN.canBuild(5, 3, false) and SPN.canBuild(5, 10, false)
-    and not SPN.canBuild(25, 20, false) and SPN.canBuild(25, 50, false) and SPN.canBuild(14, 9, false) and SPN.canBuild(0, nil, false))
+  check('one build at a time, with a gap, and not while he races along (until it has been long)', not SPN.canBuild(5, 100, true) and not SPN.canBuild(5, 3, false) and SPN.canBuild(5, 25, false)
+    and not SPN.canBuild(25, 20, false) and SPN.canBuild(25, 50, false) and SPN.canBuild(14, 21, false) and not SPN.canBuild(14, 9, false) and SPN.canBuild(5, 5, false, true) and not SPN.canBuild(5, 3, false, true) and SPN.canBuild(0, nil, false))
 
   -- #18: a race route as a small map
   local RP = require('sl/core/routepreview')

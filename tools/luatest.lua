@@ -1932,7 +1932,7 @@ do -- the night is never empty: the first meet 30 s in, retried 20 s after a mis
   end
   local SPC = require('sl/core/spawnplan')
   local firstCar = function(speed) for t = 0, 600 do if SPC.canBuild(speed, t, false) then return t end end end
-  check('cruisers: at night the first car may be built after 8 s standing or cruising, after 45 s at full speed (both inside 2 minutes)', firstCar(0) == 8 and firstCar(10) == 8 and firstCar(30) == 45)
+  check('cruisers: at night the first car may be built after 20 s standing or cruising, after 45 s at full speed (both inside 2 minutes); a pooled one after 4 s', firstCar(0) == 20 and firstCar(10) == 20 and firstCar(30) == 45 and SPC.canBuild(0, 4, false, true) and not SPC.canBuild(0, 3, false, true))
   -- frame by frame (60 fps, a meet that always starts and lasts 60 s): a later meet comes about every 90 / 0.35 s, not every 90 s
   do
     math.randomseed(7)
