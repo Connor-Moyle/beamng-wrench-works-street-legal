@@ -6,11 +6,12 @@ Part of the **Wrench Works** family. BeamNG.drive 0.39.
 
 ## What you need
 
-- **Wrench Works: Garage** (`wrench_works.zip`): the garage this career works in. Required.
-- **Wrench Works: Drivers & Pedestrians** (`slrr_drivers.zip`): a driver in every car and people on the sidewalks. Optional, recommended.
-- The map **West Coast USA** that comes with the game.
+- BeamNG.drive 0.39 and its map **West Coast USA** (it comes with the game).
+- **Wrench Works: Garage 1.7.0** (`wrench_works.zip`): the garage this career works in. Required.
+- **Wrench Works: Drivers & Pedestrians 1.4.0** (`slrr_drivers.zip`): a driver in every car and people on the sidewalks. Optional, recommended.
+- **Wrench Works: Driver Injuries** (`slrr_injury.zip`, an add-on to Drivers): optional.
 
-The download **Wrench Works Street Legal - West Coast** has all three in one file, with the versions each one needs of the others.
+The download **Wrench Works Street Legal - West Coast** (`wrench_works_street_legal_west_coast.zip`) holds all four mods with the versions each one needs of the others, and a checksum list. You can also install the single zips.
 
 ## Install
 
@@ -27,6 +28,12 @@ The download **Wrench Works Street Legal - West Coast** has all three in one fil
 5. When you are ready, open **Wait** and **Start the night**. Racers are in your **Contacts**: ask for a race for money or pink slips.
 
 The whole guide is in the game: the phone's **Help** app and the **Help** icon on every laptop. It is also in `docs/PLAYER_GUIDE.md`, made from the same words.
+
+## Dealers and buying
+
+Every dealership, junkyard and scrap yard on the map is a place to buy or sell: walk (or drive) to its marker and choose **Look at the cars**. The cars stand in the lot's painted bays; each has a card with **Test drive**, **Buy** and **Show full car report** (every part by section with its condition, dents, faults and a repair estimate). The camera glides from car to car; leave it alone for a few seconds and it plays film-style shots of the car in focus (press any camera control to take it back). Buying removes the other cars, plays a short reveal you can skip and puts you in your new car.
+
+High-end dealers also take **factory orders**: pick a model, a trim, a colour and the factory options (wheels, interior, steering wheel and so on) and the car is delivered to your garage six game hours later. The models too odd for any lot (quad bike, buggy, crawlers, loaders) are available only here, as special orders.
 
 ## Day and night
 
@@ -58,6 +65,13 @@ The career is single-player: it spawns and removes cars, moves you around and ke
 - everything else the mod adds (the markers, the phone, the ambience, the weather, the drag strip, the rally stages) only runs inside a career, so on a server it is idle.
 
 Detection is BeamMP's own: `MPCoreNetwork.isMPSession()` or `MPGameNetwork.connectionStatus() == 1`. Wrench Works (the garage and the shops) and SLRR Drivers are separate mods; the garage respawns your car and is best left alone on a server.
+
+## Known issues
+
+- A few stock models (the midtruck) are kept off the lots: they can crash the game on a second lot build.
+- Some pedestrians stand still; frame time rises in the busy parts of the map with traffic and pedestrians on.
+- The Valo City map and the original SLRR cars and traffic are on hold and not part of this release.
+- Depth of field, the car lights and the hood opening in the dealers' camera shots depend on each car's own setup; switches for them are in `sl_lot.FX`.
 
 ## Also in the repository
 
