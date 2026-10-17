@@ -192,13 +192,20 @@ local function surfaceZ(x, y, zTop)
   if ok and type(z) == 'number' and z > -1e5 then return z end
 end
 
+-- the height of what is there to drive on: a ray down onto the static geometry (as the flares do), else the surface height
+local function groundZ(x, y, zTop)
+  local ok, d = pcall(function() return castRayStatic(vec3(x, y, zTop), vec3(0, 0, -1), 40) end)
+  if ok and type(d) == 'number' and d < 40 then return zTop - d end
+  return surfaceZ(x, y, zTop)
+end
+
 -- a flat spot on a road: the ground under four points round it is level, and a road runs through it
 local function roadSpot(x, y, zTop)
   stats.tries = stats.tries + 1
-  local z = surfaceZ(x, y, zTop)
+  local z = groundZ(x, y, zTop)
   if not z then stats.noSurface = stats.noSurface + 1 return nil end
   for _, d in ipairs({ { 0.9, 0 }, { -0.9, 0 }, { 0, 0.9 }, { 0, -0.9 } }) do
-    local zz = surfaceZ(x + d[1], y + d[2], zTop)
+    local zz = groundZ(x + d[1], y + d[2], zTop)
     if not zz or math.abs(zz - z) > 0.12 then stats.notFlat = stats.notFlat + 1 return nil end
   end
   local ok, n1, _, dist = pcall(function() return map.findClosestRoad(vec3(x, y, z), 25) end)
@@ -237,7 +244,7 @@ local function updatePuddles(dtReal)
       -- every third one is a big faint damp patch (the road looks wet round the puddles: there is no wet material to reach); the others are puddles 2-4 m across
       local damp = stats.placed % 3 == 2
       local size = damp and (7 + math.random() * 5) or (2 + math.random() * 2)
-      puddles[#puddles + 1] = { x = x, y = y, z = z + 0.02, sx = size, sy = size * (0.6 + math.random() * 0.5), dx = math.cos(rot), dy = math.sin(rot), born = os.clock(), damp = damp }
+      puddles[#puddles + 1] = { x = x, y = y, z = z, sx = size, sy = size * (0.6 + math.random() * 0.5), dx = math.cos(rot), dy = math.sin(rot), born = os.clock(), damp = damp }
       stats.placed = stats.placed + 1
       log('I', TAG, string.format('puddle placed at %.0f, %.0f, %.2f (%d of %d, wet %.2f)', x, y, z, #puddles, want, wet))
       break
@@ -291,6 +298,25 @@ local function hideMesh(m)
   end
 end
 
+-- a plane on the road: p = { x, y, z, sx, sy, dx, dy }, k the size factor; 5 cm above the surface, facing up
+local function putMesh(m, p, k)
+  local mx = MatrixF(true)
+  mx:createOrientFromDirUp(vec3(p.dx, p.dy, 0), vec3(0, 0, 1))
+  mx:setPosition(vec3(p.x, p.y, p.z + 0.05))
+  m.obj:setTransform(mx)
+  m.obj:setScale(vec3(p.sx * k, p.sy * k, 1))
+  m.shown, m.lastK, m.owner = true, k, p
+end
+
+-- the box the object really covers (once per call site: a plane that did not load has no size)
+local function worldBox(m)
+  local ok, box = pcall(function() return m.obj:getWorldBox() end)
+  if not ok or not box then return 'no world box' end
+  local text = tostring(box)
+  pcall(function() text = string.format('min %s max %s', tostring(box.minExtents), tostring(box.maxExtents)) end)
+  return text
+end
+
 -- one plane per puddle: put on the road when drawn first, grown while it is new, shrunk as the road dries (the scale is the only thing that changes after that)
 local function updateMeshes()
   for i = 1, math.max(#puddles, #meshes) do
@@ -301,20 +327,45 @@ local function updateMeshes()
       if f < 0.03 then hideMesh(m)
       else
         m = meshObject(i)
-        local k = (p.damp and 0.9 or 1) * (0.35 + 0.65 * f)
+        local k = 0.6 + 0.4 * f                 -- (at least 60 % of its size from the start: a puddle is 2-4 m, a damp patch 7-12 m)
         if not m.shown or math.abs((m.lastK or 0) - k) > 0.02 or m.owner ~= p then
-          local mx = MatrixF(true)
-          mx:createOrientFromDirUp(vec3(p.dx, p.dy, 0), vec3(0, 0, 1))
-          mx:setPosition(vec3(p.x, p.y, p.z + 0.03 + (p.damp and 0 or 0.01)))
-          m.obj:setTransform(mx)
-          m.obj:setScale(vec3(p.sx * k, p.sy * k, 1))
-          m.shown, m.lastK, m.owner = true, k, p
-          if stats.drawn == 0 then log('I', TAG, string.format('puddle planes: first one put at %.0f, %.0f (scale %.1f x %.1f, material sl_puddle %s)', p.x, p.y, p.sx * k, p.sy * k, tostring(scenetree.findObject('sl_puddle') ~= nil))) end
+          putMesh(m, p, k)
+          if stats.drawn == 0 then
+            log('I', TAG, string.format('puddle planes: first one put at %.0f, %.0f, %.2f (scale %.1f x %.1f, material sl_puddle %s, world box %s)', p.x, p.y, p.z + 0.05, p.sx * k, p.sy * k,
+              tostring(scenetree.findObject('sl_puddle') ~= nil), worldBox(m)))
+          end
           stats.drawn = stats.drawn + 1
         end
       end
     end
   end
+end
+
+-- for a game test: one 4 m puddle on the ground 6 m in front of the player's car, at once; returns where it is and the box it covers
+local debugMesh
+function M.puddleNear()
+  local v = getPlayerVehicle(0)
+  if not v then return 'no player vehicle' end
+  local pos, dir = v:getPosition(), v:getDirectionVector()
+  local x, y = pos.x + dir.x * 6, pos.y + dir.y * 6
+  local z = groundZ(x, y, pos.z + 12) or pos.z
+  if not debugMesh then
+    if FS:fileExists(MATERIALS) and not scenetree.findObject('sl_puddle') then loadJsonMaterialsFile(MATERIALS) end
+    if not FS:fileExists(SHAPE_PATH) then writeFile(SHAPE_PATH, planeDae()) end
+    local o = createObject('TSStatic')
+    o:setField('shapeName', 0, SHAPE_PATH)
+    o:setField('collisionType', 0, 'None')
+    o:setField('decalType', 0, 'None')
+    o.canSave = false
+    o:registerObject('sl_puddle_debug')
+    debugMesh = { obj = o }
+  end
+  local len = math.sqrt(dir.x * dir.x + dir.y * dir.y)
+  local p = { x = x, y = y, z = z, sx = 4, sy = 4, dx = dir.x / len, dy = dir.y / len }
+  putMesh(debugMesh, p, 1)
+  local box = worldBox(debugMesh)
+  log('I', TAG, string.format('puddleNear: a 4 m plane at %.1f, %.1f, %.2f (the road under it %.2f, the car at %.2f); world box %s; material %s', x, y, z + 0.05, z, pos.z, box, tostring(scenetree.findObject('sl_puddle') ~= nil)))
+  return { x = x, y = y, z = z + 0.05 }, box
 end
 
 local textureChecked = false
@@ -332,16 +383,6 @@ local function checkTexture()
 end
 
 function M.puddleMode(m) if m == 'prism' or m == 'decal' or m == 'mesh' then puddleMode = m textureChecked = true end return puddleMode end
-
--- for a game test: another rain datablock on the level's rain object (e.g. 'rain_medium'), if it exists
-function M.rainBlock(name)
-  local rain = first('Precipitation')
-  if not rain then return 'no Precipitation' end
-  local there = scenetree.findObject(name) ~= nil
-  if there then rain:setField('dataBlock', 0, name) end
-  log('I', TAG, string.format('rain datablock %s: exists %s; the rain now uses %s', tostring(name), tostring(there), tostring(rain:getField('dataBlock', 0))))
-  return there
-end
 
 -- a puddle as three flat bars turned 60 degrees apart (a rough hexagon), drawn with the debug drawer
 local function drawPrisms(p, alpha)
@@ -481,6 +522,7 @@ end
 local function clearMeshes()
   for _, m in ipairs(meshes) do pcall(function() m.obj:delete() end) end
   meshes = {}
+  if debugMesh then pcall(function() debugMesh.obj:delete() end) debugMesh = nil end
 end
 
 local function reset()
