@@ -22,7 +22,7 @@ START_MONEY = 5000
 TIERS = [  # roster.TIERS: rep range, bet range
     dict(rep=(0, 150), bet=(100, 400)), dict(rep=(150, 600), bet=(300, 1000)), dict(rep=(600, 1800), bet=(800, 3000)),
     dict(rep=(1800, 4000), bet=(2500, 8000)), dict(rep=(4000, 9000), bet=(6000, 20000))]
-GARAGES = [(1500, 25000), (3000, 75000)]
+GARAGES = [(300, 6000), (1000, 25000)]   # = progression.garages (balance pass: garage 2 in about 5 h of play, was never inside 12 h)
 ROC = dict(rep=6000, entry=50000)
 # cars by class: (value new, how well it races 1..6)
 TUNE = dict(               # the game's numbers since the balance pass (DESIGN3_jobs.md); --old: before it

@@ -78,8 +78,8 @@ M.titles = {
 -- sets them per map from MAPS, so every module reads one ladder)
 M.garages = {
   { level = 1, site = 'slrrGarage1', name = strings.t('progression.club_garage_1'), rep = 0, cost = 0 },
-  { level = 2, site = 'slrrGarage2', name = strings.t('progression.club_garage_2'), rep = 1500, cost = 25000 },
-  { level = 3, site = 'slrrGarage3', name = strings.t('progression.club_garage_3'), rep = 3000, cost = 75000 },
+  { level = 2, site = 'slrrGarage2', name = strings.t('progression.club_garage_2'), rep = 300, cost = 6000 },
+  { level = 3, site = 'slrrGarage3', name = strings.t('progression.club_garage_3'), rep = 1000, cost = 25000 },
 }
 
 -- garage upgrades (X58, Design 7): what a garage has is bought, and kept with that garage. The club garages (2, 3)
