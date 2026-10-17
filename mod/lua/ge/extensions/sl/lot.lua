@@ -14,6 +14,7 @@ local builder = require('sl/carBuilder')
 local hours = require('sl/core/hours')
 local stockLib = require('sl/core/stockdealers')
 local lotcam = require('sl/core/lotcam')
+local lotbuild = require('sl/core/lotbuild')
 
 local KIND = { junkyard = 'used', dealer = 'dealer', scrapyard = 'scrap' }
 local TITLES = { used = 'Used cars', dealer = 'New cars', scrap = 'Scrap yard' }
@@ -101,7 +102,7 @@ local function send()
   local parts = mineVeh and builder.partsValue(mineVeh:getID())       -- (what was fitted since counts, as at the sale)
   guihooks.trigger('slLotData', {
     open = true, mode = lot.mode, name = lot.place.name, kindTitle = lot.private and 'Private sale' or TITLES[lot.kind], kind = lot.kind,
-    index = lot.index, count = #lot.offers, offer = offerForUi(lot.offers[lot.index]), building = lot.mode == 'browse' and lot.veh == nil,
+    index = lot.index, count = #lot.offers, offer = offerForUi(lot.offers[lot.index]), building = lot.mode == 'browse' and lot.building == true, progress = lot.progress,
     money = s.money, testLeft = test and math.ceil(test.timeLeft) or nil,
     sellCar = mine and { name = mine.name, price = lot.kind == 'scrap' and market.scrapValue(mine, parts) or market.resaleValue(mine, parts) } or nil,
   })
@@ -212,7 +213,9 @@ end
 function M.next() if lot and lot.mode == 'browse' then show(lot.index + 1) end end
 function M.prev() if lot and lot.mode == 'browse' then show(lot.index - 1) end end
 
--- the whole row is brought out, one car after another (the first one as soon as it is there)
+-- The whole row is made before the lot shows (the screen says so while it is): first every car is spawned and rebuilt, one at a time
+-- (no dents yet), THEN the dents go on one car at a time, each waited for until the car says they are on, with nothing spawning or
+-- rebuilding meanwhile (T43: dents applied while the next car spawned beside it killed the game).
 -- One lot builds its row at a time: the next lot's build waits for the one still running (or 30 s of its silence), so two lots never
 -- spawn and rebuild cars side by side (T29). A build that makes no progress for BUILD_STUCK seconds is given up by onUpdate.
 local buildingNow                  -- os.clock() of the last sign of life of the running build
@@ -221,28 +224,51 @@ local function buildRow()
   local mine = lot
   lot.building = true
   mine.buildAlive = os.clock()
+  mine.progress = { phase = 'cars', done = 0, total = #mine.offers }
   send()
   job = core_jobsystem.create(function(j)
     local gate = os.clock()
     while buildingNow and os.clock() - buildingNow < 30 and os.clock() - gate < 45 and lot == mine do j.sleep(0.2) end
     if lot ~= mine or mine.abandoned then return end
     buildingNow = os.clock()
+    local function alive() mine.buildAlive, buildingNow = os.clock(), os.clock() return lot == mine and not mine.abandoned end
+    local pending = {}                    -- car index -> its dents, to go on in the second round
     for i, offer in ipairs(mine.offers) do
       local spot = mine.spots[i]
-      local veh = builder.buildOffer(j, offer, spot.pos + vec3(0, 0, 0.4), quatFromDir(spot.dir, vec3(0, 0, 1)))
-      mine.buildAlive, buildingNow = os.clock(), os.clock()
-      if lot ~= mine or mine.abandoned then if veh then veh:delete() end buildingNow = nil return end
+      local veh, _, dents = builder.buildOffer(j, offer, spot.pos + vec3(0, 0, 0.4), quatFromDir(spot.dir, vec3(0, 0, 1)), { deferDents = true })
+      if not alive() then if veh then veh:delete() end buildingNow = nil return end
       if veh then
         if slrrDrivers and slrrDrivers.setDriver then slrrDrivers.setDriver(veh:getID(), nil) end   -- a car for sale: nobody in it
         mine.cars[i] = veh:getID()
-        if i == mine.index then mine.veh = mine.cars[i] end
+        if dents and #dents > 0 then pending[i] = dents end
       else
         log('W', 'street_legal', 'lot car ' .. tostring(offer.id) .. ' could not be built: left out of the row')
       end
+      mine.progress.done = i
+      send()
+    end
+    local order = lotbuild.plan(#mine.offers, pending).dent
+    mine.progress = { phase = 'bodywork', done = 0, total = #order }
+    send()
+    for k, i in ipairs(order) do
+      local veh = mine.cars[i] and getObjectByID(mine.cars[i])
+      if veh then builder.dentCar(j, veh, pending[i], mine.offers[i]) end
+      mine.progress.done = k
+      if not alive() then buildingNow = nil return end
       send()
     end
     buildingNow = nil
+    -- the car to show: the one asked for, else the first that was made
+    mine.index = lotbuild.shown(#mine.offers, mine.index, function(i) return mine.cars[i] and getObjectByID(mine.cars[i]) end)
+    if not mine.index then
+      mine.building = false
+      guihooks.trigger('slPhoneToast', { text = 'Nothing to see here today. Come back tomorrow.' })
+      M.close()
+      return
+    end
+    mine.veh = mine.cars[mine.index]
     mine.building = false
+    mine.progress = nil
     send()
   end)
 end

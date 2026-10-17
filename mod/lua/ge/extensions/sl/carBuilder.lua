@@ -222,9 +222,34 @@ M.REFUSE_DENTS = {}             -- see carsLib.REFUSE_DENTS: panels a car is nev
 M.NO_DENTS = false              -- true: a car for sale is not dented (to find out whether the dents crash the game: T29)
 M.REFUSE = { 'sparewheel', 'spare_wheel', 'spare' }       -- (pieces of a slot path, slot id or part name that are never taken off or swapped)
 
+-- Dents on one car, and a wait for the car itself to say they are on (a callback from its own Lua, slrrGarageVeh's options.done), then a
+-- second for the engine to settle; then the car is frozen. Meant to run with nothing else spawning or rebuilding. Real-time end:
+-- M.DENTS_WAIT seconds, logged. offer is only for the log.
+M.DENTS_WAIT = 5
+local dentsDone = {}
+function M.onDentsDone(vid) dentsDone[vid] = true end
+function M.dentCar(job, veh, dents, offer)
+  if M.NO_DENTS or not veh or not dents or #dents == 0 then return true end
+  local id = veh:getID()
+  local t = {}
+  for i, d in ipairs(dents) do t[i] = string.format('%s:%.3f', tostring(d.partPath), d.dent or 0) end
+  log('I', 'street_legal', string.format('lot car %s: dents [%s]', tostring(offer and (offer.id .. ' ' .. tostring(offer.model)) or id), table.concat(t, ' ')))
+  dentsDone[id] = nil
+  M.applyDents(veh, dents, { keepLatches = true, done = string.format("require('sl/carBuilder').onDentsDone(%d)", id) })
+  local started = os.clock()
+  while not dentsDone[id] and os.clock() - started < M.DENTS_WAIT do job.sleep(0.1) end
+  local ok = dentsDone[id] == true
+  dentsDone[id] = nil
+  if not ok then log('W', 'street_legal', 'TIMEOUT: vehicle ' .. tostring(id) .. ' did not report its dents in ' .. M.DENTS_WAIT .. ' s') end
+  job.sleep(1)
+  local v = getObjectByID(id)
+  if v then v:queueLuaCommand('input.event("parkingbrake", 1, FILTER_DIRECT) controller.setFreeze(1)') end
+  return ok
+end
+
 -- A car for sale, built as its offer describes: stock, then parts swapped and taken off, then dented.
 -- A track special is built as a race car instead. Returns the vehicle (nil if it could not be made).
-function M.buildOffer(job, offer, pos, rot)
+function M.buildOffer(job, offer, pos, rot, opts)
   if offer.build then
     local veh = M.buildCustom(job, offer.model, offer.config, { stage = offer.build, seed = rngLib.hash(offer.id) }, pos, rot, true)
     if veh then veh:queueLuaCommand('input.event("parkingbrake", 1, FILTER_DIRECT) controller.setFreeze(1)') end
@@ -257,12 +282,14 @@ function M.buildOffer(job, offer, pos, rot)
   end
   vd = vehData(id)
   local dents = carsLib.dents(vd and vd.config.partsTree or cfg.partsTree, classify(), rng, offer.damage, M.REFUSE_DENTS)
-  if #dents > 0 and not M.NO_DENTS then          -- (one line a car, before the dents go on: the last one before a crash names the panels)
-    local t = {}
-    for i, d in ipairs(dents) do t[i] = string.format('%s:%.3f', tostring(d.partPath), d.dent or 0) end
-    log('I', 'street_legal', string.format('lot car %s (%s, %s): dents [%s]', tostring(offer.id), tostring(offer.model), tostring(offer.config), table.concat(t, ' ')))
+  if M.NO_DENTS then dents = {} end
+  if #dents > 0 and opts and opts.deferDents then
+    -- The dents go on later, one car at a time with nothing spawning meanwhile (T43: dents applied while the next car spawned beside
+    -- it killed the game, with the dents of the car just rebuilt and the next car's spawn at the same instant). Until then: brake on.
+    veh:queueLuaCommand('input.event("parkingbrake", 1, FILTER_DIRECT)')
+    return veh, tweak, dents
   end
-  if not M.NO_DENTS then M.applyDents(veh, dents, { keepLatches = true }) end      -- (the doors stay shut: Wrench Works' apply does not release them)
+  if #dents > 0 then M.dentCar(job, veh, dents, offer) end
   -- a car on a lot does not roll away
   veh:queueLuaCommand('input.event("parkingbrake", 1, FILTER_DIRECT) controller.setFreeze(1)')
   return veh, tweak

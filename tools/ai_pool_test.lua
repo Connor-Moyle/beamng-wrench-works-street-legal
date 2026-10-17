@@ -24,4 +24,14 @@ return function(check, rngLib)
     end
   end
   check('(and the unfiltered pool did give them one: the rule is what keeps them out)', truckBefore > 0)
+
+  -- T43: a lot is made in two rounds: every car first, then the dents one car at a time
+  local LB = require('sl/core/lotbuild')
+  local plan = LB.plan(5, { [2] = { 'a' }, [4] = { 'b', 'c' }, [5] = {} })
+  check('the plan spawns every car in order, and only then dents the ones that have dents, in order', table.concat(plan.spawn, ',') == '1,2,3,4,5' and table.concat(plan.dent, ',') == '2,4')
+  check('no dents anywhere: nothing to dent; no pending table at all too', #LB.plan(3, {}).dent == 0 and #LB.plan(3, nil).dent == 0 and #LB.plan(0, nil).spawn == 0)
+  local madeSet = { [1] = false, [2] = true, [3] = true }
+  local function made(i) return madeSet[i] end
+  check('the car shown is the one asked for if it was made, else the first that was', LB.shown(3, 3, made) == 3 and LB.shown(3, 1, made) == 2 and LB.shown(3, nil, made) == 2)
+  check('nothing made: nothing to show', LB.shown(3, 1, function() return false end) == nil and LB.shown(0, 1, made) == nil)
 end
