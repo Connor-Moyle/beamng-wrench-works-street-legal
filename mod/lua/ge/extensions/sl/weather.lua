@@ -265,13 +265,14 @@ end
 -- and moved to the camera each frame as well)
 local followLogged = false
 local noCamLogged = false
+M.RAIN_MOVE_EVERY, M.RAIN_MOVE_DIST = 0.25, 4      -- (seconds, metres)
 local rainObj, rainAt, rainMovedAt, rainSet = nil, -99, -99, nil      -- the rain object is looked up every 5 s, not every frame; it is moved when the camera is 4 m away from where it was put (profile: 8 ms a frame in heavy rain)
 local function followRain()
   local now = os.clock()
   if not rainObj or now - rainAt > 5 then rainObj, rainAt = first('Precipitation'), now end
   local rain = rainObj
   if not rain then return end
-  if now - rainMovedAt < 0.25 then return end
+  if now - rainMovedAt < M.RAIN_MOVE_EVERY then return end
   -- where the player looks from: the active camera; failing that the player's own vehicle (the rain box must be over the player, wherever it was left)
   local ok, cam = pcall(function() return core_camera and core_camera.getPosition and core_camera.getPosition() end)
   local source = 'camera'
@@ -291,7 +292,7 @@ local function followRain()
     pcall(function() rain:setField('followCam', 0, 'true') rain:setField('boxWidth', 0, '70') rain:setField('boxHeight', 0, '70') end)
     log('I', TAG, string.format('rain follows the %s: followCam was %s, the rain stood at %s, the %s is at %s', source, tostring(f), tostring(at), source, tostring(cam)))
   end
-  if rainSet and (cam.x - rainSet.x) ^ 2 + (cam.y - rainSet.y) ^ 2 + (cam.z - rainSet.z) ^ 2 < 16 then return end
+  if rainSet and (cam.x - rainSet.x) ^ 2 + (cam.y - rainSet.y) ^ 2 + (cam.z - rainSet.z) ^ 2 < M.RAIN_MOVE_DIST ^ 2 then return end
   rainMovedAt, rainSet = now, { x = cam.x, y = cam.y, z = cam.z }
   pcall(function() rain:setPosition(vec3(cam.x, cam.y, cam.z)) end)
 end

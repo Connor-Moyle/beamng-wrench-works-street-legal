@@ -1701,6 +1701,7 @@ do
     stats = function() return {}, 0 end })
   package.loaded['sl/weather'] = nil
   local W = require('sl/weather')
+  W.RAIN_MOVE_EVERY, W.RAIN_MOVE_DIST = 0, 0          -- (these frames test the following itself; the throttle has its own check below)
   W.debugForce('rain', 'heavy')
   W.onUpdate(0.1)
   check('weather smoke: the rain box is moved to the camera', rain.pos.x == -750 and rain.pos.y == 396 and rain.pos.z == 144)
@@ -1710,6 +1711,17 @@ do
   local before = updates
   W.onUpdate(0.1)
   check('weather smoke: and keeps following on the next frame', rain.pos.x == -750 and updates == before + 1)
+  -- the throttle (heavy rain cost 8 ms a frame): the box is not moved again while the camera stays within 4 m of where it was put, and is when it goes further
+  W.RAIN_MOVE_EVERY, W.RAIN_MOVE_DIST = 0, 4
+  rain.pos = { x = 1, y = 2, z = 3 }
+  W.onUpdate(0.1)
+  check('weather smoke: a camera that has not moved leaves the rain box alone', rain.pos.x == 1)
+  core_camera.getPosition = function() return { x = -700, y = 396, z = 144 } end
+  W.onUpdate(0.1)
+  check('weather smoke: a camera 50 m away takes the rain box along', rain.pos.x == -700)
+  core_camera.getPosition = function() return { x = -750, y = 396, z = 144 } end
+  W.RAIN_MOVE_DIST = 0
+  before = before + 2          -- (the two frames above)
   -- no career at all (a game test, the career not started): the forced weather still runs
   active = false
   rain.pos = { x = 1, y = 2, z = 3 }
