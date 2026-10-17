@@ -22,9 +22,9 @@ M.STATES = {
 -- overcast is what darkens it), cirrus / density (the high cloud over it), fog (kept thin: a thick fog takes the sun's colour, and at dawn that is an orange
 -- dust storm), tint (0..1: how far the sky's sun, fog and ambient colours are pulled to grey), dark (0..1: how much darker the sky's light, ambient, fog and clouds are made: moody, still day), grip, pay, wet (how wet the roads get at most, 0..1)
 M.RAIN_LEVELS = {
-  light = { id = 'light', name = 'Light rain', drops = 600, speed = 0.85, cloud = 1.3, cirrus = 0.6, density = 0.6, fog = 0.0005, grip = 0.88, pay = 1.04, wet = 0.45, tint = 0.5, dark = 0.4 },
-  medium = { id = 'medium', name = 'Rain', drops = 1500, speed = 1, cloud = 1.8, cirrus = 0.85, density = 0.85, fog = 0.0006, grip = 0.78, pay = 1.08, wet = 0.8, tint = 0.75, dark = 0.65 },
-  heavy = { id = 'heavy', name = 'Heavy rain', drops = 3000, speed = 1.25, cloud = 2.4, cirrus = 1, density = 1, fog = 0.0008, grip = 0.68, pay = 1.12, wet = 1, tint = 0.95, dark = 0.85 },
+  light = { id = 'light', name = 'Light rain', drops = 600, speed = 0.85, cloud = 1.3, cirrus = 0.6, density = 0.6, fog = 0.0005, grip = 0.88, pay = 1.04, wet = 0.45, tint = 0.5, dark = 0.4, haze = 0.5 },
+  medium = { id = 'medium', name = 'Rain', drops = 1500, speed = 1, cloud = 1.8, cirrus = 0.85, density = 0.85, fog = 0.0006, grip = 0.78, pay = 1.08, wet = 0.8, tint = 0.75, dark = 0.65, haze = 0.75 },
+  heavy = { id = 'heavy', name = 'Heavy rain', drops = 3000, speed = 1.25, cloud = 2.4, cirrus = 1, density = 1, fog = 0.0008, grip = 0.68, pay = 1.12, wet = 1, tint = 0.95, dark = 0.85, haze = 1 },
 }
 M.LEVEL_ODDS = { { 'light', 0.35 }, { 'medium', 0.45 }, { 'heavy', 0.20 } }
 
@@ -67,7 +67,7 @@ function M.resolve(id, level)
     for k, v in pairs(l) do out[k] = v end
     out.id = 'rain'
   elseif base.id == 'cloudy' then
-    out.cirrus, out.density, out.tint, out.dark = 0.45, 0.4, 0.35, 0.18        -- grey, no rain
+    out.cirrus, out.density, out.tint, out.dark, out.haze = 0.45, 0.4, 0.35, 0.18, 0.25        -- grey, no rain
   elseif base.id == 'fog' then
     out.cirrus, out.density = 0.3, 0.3
   end
@@ -122,6 +122,12 @@ function M.skyFactors(elevation, dark, amount)
   if e < 25 then grey = math.max(grey, 0.98) end
   return (dark or 0) * dayK, grey
 end
+-- haze (0..1): the sky's scattering made white and grey: the Mie term (wavelength-independent, a grey haze) up to 7 times, the Rayleigh term (the blue and, at a low sun, the orange)
+-- down to half: the dusk glow of a rainy sky is a grey one
+function M.scatter(mie, rayleigh, haze)
+  haze = math.max(0, math.min(3, haze or 0))      -- (1 is the heaviest rain; a game test may push it further)
+  return (mie or 0) * (1 + 6 * haze), (rayleigh or 0) * (1 - 0.5 * haze)
+end
 function M.darker(c, factor) return { c[1] * factor, c[2] * factor, c[3] * factor } end
 
 -- the tyres' grip follows how wet the road is, not the state: it falls as the road soaks and comes back as it dries. rain is the state table of the rain that
@@ -173,7 +179,7 @@ function M.earned(amount, id) return math.floor((amount or 0) * M.pay(id) / 10 +
 function M.blend(a, b, t)
   t = math.max(0, math.min(1, t or 1))
   local out = {}
-  for _, k in ipairs({ 'drops', 'cloud', 'fog', 'grip', 'wet', 'cirrus', 'density', 'speed', 'tint', 'dark' }) do
+  for _, k in ipairs({ 'drops', 'cloud', 'fog', 'grip', 'wet', 'cirrus', 'density', 'speed', 'tint', 'dark', 'haze' }) do
     local x, y = a[k], b[k]
     if x ~= nil and y ~= nil then out[k] = x + (y - x) * t else out[k] = y ~= nil and y or x end
   end

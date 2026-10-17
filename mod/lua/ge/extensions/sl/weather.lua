@@ -128,14 +128,15 @@ end
 -- and the cloud exposure field are lowered; all from the values the game itself wrote last (orig), so a repeat does not darken twice: if the field still holds what we wrote, it is left alone.
 local TINT_FIELDS = { sun = 'sunScale', fog = 'fogScale', ambient = 'ambientScale', colorize = 'colorize' }      -- (colorize: the sky's own tint, orange at dusk)
 local orig, written = {}, {}
-local skyOrig, exposureOrig
+local skyOrig, exposureOrig, scatterOrig
+M.hazeScale = 1                   -- a game test: sl_weather.hazeScale = 2 doubles the haze (scattering) of the rain sky
 M.skyNumbers = {}                  -- what the last tint pass did, for a game test: { part = { from = .., to = .. } }
 local function parseColor(text)
   local r, g, b, a = tostring(text):match('([%-%d%.e]+)%s+([%-%d%.e]+)%s+([%-%d%.e]+)%s*([%-%d%.e]*)')
   if not r then return nil end
   return { tonumber(r), tonumber(g), tonumber(b) }, a ~= '' and a or '1'
 end
-local function applyTint(amount, dark)
+local function applyTint(amount, dark, haze)
   local sky = first('ScatterSky')
   if not sky then return end
   local elevation = tonumber(sky.elevation)
@@ -161,6 +162,15 @@ local function applyTint(amount, dark)
       M.skyNumbers.skyBrightness = { from = skyOrig, to = tonumber(sky.skyBrightness) }
     end
   end)
+  pcall(function()                                             -- the sky's scattering: more Mie (a grey haze), less Rayleigh (the blue / the orange of a low sun)
+    scatterOrig = scatterOrig or { mie = tonumber(sky.mieScattering), ray = tonumber(sky.rayleighScattering) }
+    if scatterOrig.mie and scatterOrig.ray then
+      local mie, ray = rules.scatter(scatterOrig.mie, scatterOrig.ray, (haze or 0) * (M.hazeScale or 1))
+      sky:setField('mieScattering', 0, string.format('%.9f', mie))
+      sky:setField('rayleighScattering', 0, string.format('%.9f', ray))
+      M.skyNumbers.scatter = { mie = { from = scatterOrig.mie, to = tonumber(sky.mieScattering) }, rayleigh = { from = scatterOrig.ray, to = tonumber(sky.rayleighScattering) } }
+    end
+  end)
   pcall(function()                                             -- the clouds' own brightness (exposure) and the fog's colour
     local cloud = first('CloudLayer')
     if cloud then
@@ -181,11 +191,12 @@ local function restoreTint()
   if sky then
     for _, k in pairs(TINT_FIELDS) do if orig[k] and sky:getField(k, 0) == written[k] then pcall(function() sky:setField(k, 0, orig[k]) end) end end
     if skyOrig then pcall(function() sky:setField('skyBrightness', 0, tostring(skyOrig)) end) end
+    if scatterOrig and scatterOrig.mie then pcall(function() sky:setField('mieScattering', 0, string.format('%.9f', scatterOrig.mie)) sky:setField('rayleighScattering', 0, string.format('%.9f', scatterOrig.ray)) end) end
     pcall(function() if sky.postApply then sky:postApply() end end)
   end
   local cloud = first('CloudLayer')
   if cloud and exposureOrig then pcall(function() cloud:setField('exposure', 0, tostring(exposureOrig)) if cloud.postApply then cloud:postApply() end end) end
-  orig, written, skyOrig, exposureOrig = {}, {}, nil, nil
+  orig, written, skyOrig, exposureOrig, scatterOrig = {}, {}, nil, nil, nil
 end
 
 -- the state of this phase of this day; a new one is blended in
@@ -208,7 +219,7 @@ local function sync()
   if st.id == 'rain' then lastRain = st end
   -- (rain's grip comes from the wetness, not from the state: a road stays slippery after the rain has stopped)
   target = { drops = st.drops, cloud = st.cloud, fog = st.id == 'clear' and baseline.fog or st.fog, grip = st.id == 'rain' and 1 or st.grip, wet = st.wet or 0, tint = st.tint or 0,
-    cirrus = st.cirrus or baseline.cirrus, density = st.density or baseline.density, speed = st.speed or 1, dark = st.dark or 0 }
+    cirrus = st.cirrus or baseline.cirrus, density = st.density or baseline.density, speed = st.speed or 1, dark = st.dark or 0, haze = st.haze or 0 }
   blendFrom, blendT = current, 0
   extensions.hook('onStreetLegalWeather', stateId)
 end
@@ -299,8 +310,8 @@ function M.onUpdate(dtReal)
   tintTimer = tintTimer + dtReal
   if tintTimer > 0.5 then
     tintTimer = 0
-    local amount, dark = current and current.tint or 0, current and current.dark or 0
-    if amount > 0.02 or dark > 0.02 then guarded('applyTint', applyTint, amount, dark) tinted = true
+    local amount, dark, haze = current and current.tint or 0, current and current.dark or 0, current and current.haze or 0
+    if amount > 0.02 or dark > 0.02 then guarded('applyTint', applyTint, amount, dark, haze) tinted = true
     elseif tinted then tinted = false guarded('restoreTint', restoreTint) end
   end
   gripTimer = gripTimer + dtReal
@@ -315,7 +326,7 @@ function M.debugForce(id, level)
   local st = rules.resolve(stateId, levelId)
   if st.id == 'rain' then lastRain = st end
   target = { drops = st.drops, cloud = st.cloud, fog = st.id == 'clear' and baseline.fog or st.fog, grip = st.id == 'rain' and 1 or st.grip, wet = st.wet or 0, tint = st.tint or 0,
-    cirrus = st.cirrus or baseline.cirrus, density = st.density or baseline.density, speed = st.speed or 1, dark = st.dark or 0 }
+    cirrus = st.cirrus or baseline.cirrus, density = st.density or baseline.density, speed = st.speed or 1, dark = st.dark or 0, haze = st.haze or 0 }
   current, blendT = rules.blend(current, target, 1), 1
   wet = target.wet
   M.lastLoggedDrops = nil

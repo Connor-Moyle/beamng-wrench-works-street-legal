@@ -1645,6 +1645,10 @@ do
   check('low sun: the darkening is cut to a quarter and the colours greyed all the way; full day: as asked', d1 == 0.85 and g1 == 0.9 and math.abs(d2 - 0.85 * 0.25) < 1e-9 and g2 >= 0.98 and d3 == 0.85 and g3 == 0.9
     and select(1, wx.skyFactors(20, 0.8, 0.5)) > select(1, wx.skyFactors(10, 0.8, 0.5)) and wx.skyFactors(0, 0, 0) == 0)
   check('the sky colorize tint is darkened too', wx.keep('colorize', 1) == 0.5)
+  local mie, ray = wx.scatter(9.58e-5, 0.0005, 1)
+  check('haze: heavy rain makes the Mie scattering 7 times and the Rayleigh half; none leaves them; light < medium < heavy', math.abs(mie - 9.58e-5 * 7) < 1e-12 and math.abs(ray - 0.00025) < 1e-12
+    and select(1, wx.scatter(1, 1, 0)) == 1 and select(2, wx.scatter(1, 1, 0)) == 1 and wx.resolve('rain', 'light').haze < wx.resolve('rain', 'medium').haze and wx.resolve('rain', 'medium').haze < wx.resolve('rain', 'heavy').haze
+    and wx.resolve('cloudy').haze > 0 and wx.resolve('clear').haze == nil)
   check('the forecast names the rain strength', wx.text('day', 'rain', nil, 'heavy'):find('Heavy rain') and wx.text('day', 'rain', nil, 'light'):find('Light rain') and wx.text('day', 'rain'):find('Rain'))
 end
 
