@@ -9,6 +9,7 @@ local M = {}
 local strings = require('sl/core/strings')
 
 local builder = require('sl/carBuilder')
+local carsLib = require('sl/core/cars')
 local stateLib = require('sl/core/state')
 local progression = require('sl/core/progression')
 local market = require('sl/core/market')
@@ -98,6 +99,11 @@ function M.onWrenchWorksDamage(vid, data)
   local car = carById(s, carId)
   if car then
     car.damage = { nodes = data.nodes or {}, beams = data.beams or {}, latches = data.latches }   -- latches: shut doors are shut again
+    -- a part that fell off on the road is not part of the car in the garage (A13)
+    if type(data.lost) == 'table' and #data.lost > 0 and car.config and car.config.partsTree then
+      local gone = carsLib.stripParts(car.config.partsTree, data.lost)
+      if #gone > 0 then log('I', 'street_legal', 'parts that fell off, taken out of ' .. tostring(car.name) .. ': ' .. table.concat(gone, ' ')) end
+    end
     extensions.hook('onStreetLegalChanged')
   end
 end

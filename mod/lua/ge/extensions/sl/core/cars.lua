@@ -115,8 +115,9 @@ end
 -- "limo" or "bus" in it is out too. Without raw: allowed.
 M.RACER_BODY_NOT = { ['limousine'] = true, ['bus'] = true, ['van'] = true, ['minivan'] = true, ['fifth wheel truck'] = true, ['flatbed'] = true,
   ['box truck'] = true, ['ambulance'] = true, ['tanker truck'] = true, ['dump truck'] = true, ['armored'] = true, ['chassis cab'] = true,
-  ['logging truck'] = true, ['mixer truck'] = true, ['haul truck'] = true, ['jato truck'] = true, ['wheel loader'] = true, ['atv'] = true }
-M.RACER_CONFIG_NOT = { ['police'] = true, ['service'] = true }
+  ['logging truck'] = true, ['mixer truck'] = true, ['haul truck'] = true, ['jato truck'] = true, ['wheel loader'] = true, ['atv'] = true,
+  ['buggy'] = true, ['rock crawler'] = true }                 -- (A10: a street race is on tarmac: no buggy, no crawler)
+M.RACER_CONFIG_NOT = { ['police'] = true, ['service'] = true, ['offroad'] = true, ['crawler'] = true, ['rock crawler'] = true, ['mudder'] = true }
 local function trimmed(w) return (w:lower():gsub('^%s+', ''):gsub('%s+$', '')) end
 local function wordsOf(v)
   local out = {}
@@ -167,6 +168,24 @@ function M.withoutModels(configs, excluded)
   for _, c in ipairs(configs or {}) do
     if not (excluded and excluded[c.model]) and not M.isSpecialOrder(c) then out[#out + 1] = c end
   end
+  return out
+end
+
+-- Parts that fell off (A13): the nodes of a parts tree whose partPath is in `paths` (a list) are emptied the way a removed part is (and everything
+-- fitted below them goes with them). Changes the tree in place; returns the paths taken out.
+function M.stripParts(tree, paths)
+  local wanted, out = {}, {}
+  for _, p in ipairs(paths or {}) do wanted[p] = true end
+  local function walk(n)
+    if type(n) ~= 'table' then return end
+    if n.partPath and wanted[n.partPath] and n.chosenPartName and n.chosenPartName ~= '' then
+      out[#out + 1] = n.partPath
+      n.chosenPartName, n.partPath, n.children, n.decisionMethod = '', nil, nil, 'user-empty'
+      return
+    end
+    for _, child in pairs(n.children or {}) do walk(child) end
+  end
+  walk(tree)
   return out
 end
 
