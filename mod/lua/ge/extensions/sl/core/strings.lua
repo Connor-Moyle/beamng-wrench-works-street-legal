@@ -1096,6 +1096,7 @@ M.TEXT = {
   ["pois.used_cars"] = "Used cars",
   ["police.back_at_the_garage_d"] = "Back at the garage: %d reputation banked.",
   ["police.strip_ahead"] = "Spike strip ahead!",
+  ["police.breaker"] = "Pursuit breaker! A wall of tyres drops behind you.",
   ["police.bust_fuel"] = "You ran out of fuel.",
   ["police.bust_strip"] = "A spike strip stopped you.",
   ["police.bust_roadblock"] = "Caught at a roadblock.",

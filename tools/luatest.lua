@@ -2224,6 +2224,7 @@ end
 
 do -- the depth of a night chase (core/chase)
   local CH = require('sl/core/chase')
+  local RNG = require('sl/core/rng')
   check('chase: roadblocks from heat 2 at night (0 / 0.25 / 0.5 / 0.75 / 1), none by day, the arrest quicker and wider as it heats',
     CH.vars('night', 1).roadblockFrequency == 0 and CH.vars('night', 2).roadblockFrequency == 0.25 and CH.vars('night', 5).roadblockFrequency == 1
     and CH.vars('day', 5).roadblockFrequency == 0 and CH.vars('night', 5).arrestTime == 3 and CH.vars('night', 0).arrestTime == 5 and CH.vars('night', 5).arrestRadius == 30
@@ -2248,7 +2249,23 @@ do -- the depth of a night chase (core/chase)
   check('chase: the bust cause: fuel first, then a strip, a roadblock within 40 m, two or more cars round you, else none',
     CH.bustCause({ fuelLitres = 0.1, strips = 1, cops = 3 }) == 'fuel' and CH.bustCause({ fuelLitres = 20, strips = 1 }) == 'strip' and CH.bustCause({ roadblockDist = 30, cops = 3 }) == 'roadblock'
     and select(2, CH.bustCause({ roadblockDist = 90, cops = 3 })) == 3 and CH.bustCause({ cops = 1, roadblockDist = 90 }) == nil and CH.bustCause({}) == nil)
-  check('chase: a breaker is hit within 6 m at speed with a patrol inside 40 m', CH.breakerHit(4, 20, 30) and not CH.breakerHit(8, 20, 30) and not CH.breakerHit(4, 5, 30) and not CH.breakerHit(4, 20, 60))
+  local nodes = {}                                                           -- a wide avenue east (A0..A8, 100 m apart), a side street (S) and a corner (C)
+  for i = 0, 8 do nodes['A' .. i] = { pos = { x = i * 100, y = 0, z = 0 }, radius = 6, links = {} } end
+  for i = 0, 7 do nodes['A' .. i].links['A' .. (i + 1)] = {} nodes['A' .. (i + 1)].links['A' .. i] = {} end
+  nodes.S = { pos = { x = 0, y = 500, z = 0 }, radius = 6, links = { A0 = {}, S2 = {} } } nodes.S2 = { pos = { x = 0, y = 600, z = 0 }, radius = 6, links = { S = {} } }
+  nodes.C = { pos = { x = 0, y = 1000, z = 0 }, radius = 6, links = { S2 = {}, D = {} } } nodes.D = { pos = { x = 100, y = 1000, z = 0 }, radius = 6, links = { C = {} } }
+  nodes.N = { pos = { x = 400, y = 50, z = 0 }, radius = 2, links = { A4 = {}, A5 = {} } }                   -- a narrow lane
+  local spots = CH.breakerSpots(nodes, 3, { x = 400, y = 0, z = 0 }, 450, RNG.new(7))
+  local okSpots = #spots >= 2 and #spots <= 3
+  for i, a in ipairs(spots) do
+    okSpots = okSpots and a.y == 0 and a.x >= 100 and a.x <= 700 and a.dy == 0 and math.abs(a.dx) == 1       -- on the avenue, not the corner, the lane or the end nodes
+    for j = i + 1, #spots do okSpots = okSpots and math.abs(spots[j].x - a.x) >= 300 end
+  end
+  check('chase: breaker spots are on the straight avenue, 300 m apart, and not on the corner, the lane or the ends', okSpots)
+  check('chase: no spots when the avenue is out of range or the road is narrow', #CH.breakerSpots(nodes, 3, { x = 400, y = 5000, z = 0 }, 1500, RNG.new(7)) == 0)
+  check('chase: a breaker is passed at speed with a patrol 25-55 m back, once the distance grows', CH.breakerPassed(4, 6, 20, 30) and not CH.breakerPassed(12, 14, 20, 30)
+    and not CH.breakerPassed(6, 4, 20, 30) and not CH.breakerPassed(4, 6, 5, 30) and not CH.breakerPassed(4, 6, 20, 10) and not CH.breakerPassed(4, 6, 20, 80))
+  check('chase: a breaker is ready again after 60 s', CH.breakerReady(60) and not CH.breakerReady(59) and CH.breakerReady(nil))
 end
 
 print(string.format('lua tests passed: %d checks', passed))
