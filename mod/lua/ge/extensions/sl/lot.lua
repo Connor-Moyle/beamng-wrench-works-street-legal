@@ -749,12 +749,14 @@ local function getInWhereItStands(veh, car, wait)
   end
   -- whatever happens in the reveal (an error included), the screen, the camera and the game's UI come back
   core_jobsystem.create(function(j)
+    local t0 = os.clock()
     local ok, err = pcall(revealJob, j)
     if not ok then log('E', 'street_legal', 'the purchase reveal failed: ' .. tostring(err)) end
     reveal = nil
     setBars(false)
     guihooks.trigger('slLotData', { open = false })
     local v = id and getObjectByID(id)
+    log('I', 'street_legal', string.format('purchase: the reveal took %.1f s, the player gets into %s', os.clock() - t0, v and tostring(v:getJBeamFilename()) or 'nothing (the car is gone)'))
     if v then
       pcall(function() if gameplay_walk and gameplay_walk.getInVehicle then gameplay_walk.getInVehicle(v) else be:enterVehicle(0, v) end end)
     end
