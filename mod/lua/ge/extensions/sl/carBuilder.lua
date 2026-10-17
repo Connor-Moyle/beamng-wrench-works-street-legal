@@ -45,6 +45,32 @@ end
 -- another does the same: require('sl/carBuilder').LOT_EXCLUDE_MODELS.somecar = true.
 M.LOT_EXCLUDE_MODELS = { midtruck = true }
 
+-- the special-order cars (sl/core/cars SPECIAL_ORDER: the Wydra and the other odd models), for the factory's "Special order" group: every drivable
+-- config of those models, in the same shape as configs() but without its power and weight limits (a quad bike is light). Props, trailers and the
+-- unicycle are special-order for the pools (nobody sees them) but nothing to order, so not here.
+local NOT_ORDERABLE = { unicycle = true, simple_traffic = true }
+local specialCache
+function M.specialOrder()
+  if specialCache then return specialCache end
+  specialCache = {}
+  local ok, list = pcall(function() return core_vehicles.getConfigList(true).configs end)
+  for _, c in ipairs(ok and type(list) == 'table' and list or {}) do
+    local value = tonumber(c.Value)
+    if value and value > 0 and c.pcFilename and (c.Source == nil or c.Source == 'BeamNG - Official') and not NOT_ORDERABLE[c.model_key] then
+      local model = core_vehicles.getModel(c.model_key)
+      local info = model and model.model or {}
+      local entry = { model = c.model_key, config = c.pcFilename, name = tostring(c.Name or c.model_key), brand = tostring(info.Brand or ''),
+        power = tonumber(c.Power) or 0, weight = tonumber(c.Weight) or 0, value = value, raw = c }
+      local drivable = info.Type == 'Car' or info.Type == 'Truck' or info.Type == 'Heavy Machinery'
+      if drivable and carsLib.isSpecialOrder(entry) then
+        entry.pw = entry.weight > 0 and entry.power / entry.weight or 0
+        specialCache[#specialCache + 1] = entry
+      end
+    end
+  end
+  return specialCache
+end
+
 -- the cars the career builds for its AI (street racers and their opponents): every config except the excluded models (a racer may drive a
 -- race car or a police car; no lot sells those)
 function M.aiPool()

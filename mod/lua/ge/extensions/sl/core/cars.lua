@@ -140,13 +140,40 @@ function M.racerOk(c)
   return true
 end
 
--- The configs without the excluded models ({ model = true }): ONE rule for every pool the career builds cars from (lots, dealers,
--- private ads, street racers and their opponents), so a model the game cannot build safely never appears (T29: the midtruck).
+-- Special-order models: the joke and odd ones, which no lot, junkyard, private ad, street racer or cruiser ever shows; they can only be ordered
+-- from the factory (sl/core/factory, the "Special order" group at the high-end dealer: carBuilder.specialOrder() lists them). By the game's
+-- model key: atv = Wydra (the amphibious quad), utv = Aurata (buggy), unicycle, pigeon, rockbouncer = Rockbasher, racetruck = Dunekicker,
+-- dumptruck = HT-55 and wl40 = WL-40 (heavy machinery). Anything else whose info says Prop, Trailer, Debug or Traffic, or whose body is an
+-- ATV, buggy, wheel loader or haul truck, counts too (isSpecialOrder).
+M.SPECIAL_ORDER = { atv = true, utv = true, unicycle = true, pigeon = true, rockbouncer = true, racetruck = true, dumptruck = true, wl40 = true,
+  simple_traffic = true }
+local SPECIAL_TYPE = { Prop = true, Trailer = true, Debug = true, Traffic = true, ['Heavy Machinery'] = true }
+local SPECIAL_BODY = { ATV = true, Buggy = true, ['Wheel Loader'] = true, ['Haul Truck'] = true }
+function M.isSpecialOrder(c)
+  if type(c) ~= 'table' then return false end
+  if M.SPECIAL_ORDER[c.model] then return true end
+  local r = type(c.raw) == 'table' and c.raw or {}
+  local ag = type(r.aggregates) == 'table' and r.aggregates or {}
+  if SPECIAL_TYPE[r.Type] or SPECIAL_BODY[r['Body Style']] then return true end
+  for k in pairs(type(ag['Body Style']) == 'table' and ag['Body Style'] or {}) do if SPECIAL_BODY[k] then return true end end
+  return false
+end
+
+-- The configs without the excluded models ({ model = true }) and without the special-order ones: ONE rule for every pool the career builds
+-- cars from (lots, dealers, private ads, street racers and their opponents), so a model the game cannot build safely never appears (T29: the
+-- midtruck) and nothing silly stands on a lot.
 function M.withoutModels(configs, excluded)
   local out = {}
   for _, c in ipairs(configs or {}) do
-    if not (excluded and excluded[c.model]) then out[#out + 1] = c end
+    if not (excluded and excluded[c.model]) and not M.isSpecialOrder(c) then out[#out + 1] = c end
   end
+  return out
+end
+
+-- only the special-order configs, for the factory's "Special order" group
+function M.onlySpecialOrder(configs)
+  local out = {}
+  for _, c in ipairs(configs or {}) do if M.isSpecialOrder(c) then out[#out + 1] = c end end
   return out
 end
 

@@ -1314,4 +1314,22 @@ do
   check('an order says the day and hour it arrives', day == 5 and hr == 7)
 end
 
+do -- special-order models: on no lot, ad, racer pool or cruiser; only in the factory's special-order list
+  local cars, stock, factory = require('sl/core/cars'), require('sl/core/stockdealers'), require('sl/core/factory')
+  local function c(model, raw) return { model = model, config = model .. '_a', name = model, brand = 'X', value = 20000, power = 100, weight = 900, raw = raw or {} } end
+  local pool = { c('bx'), c('atv'), c('pigeon'), c('utv'), c('wl40'), c('dumptruck'), c('rockbouncer'), c('racetruck'), c('unicycle'), c('covet'),
+    c('mystery', { ['Body Style'] = 'Buggy' }), c('oddball', { Type = 'Trailer' }), c('other', { aggregates = { ['Body Style'] = { ATV = true } } }) }
+  local bad = { atv = 1, pigeon = 1, utv = 1, wl40 = 1, dumptruck = 1, rockbouncer = 1, racetruck = 1, unicycle = 1, mystery = 1, oddball = 1, other = 1 }
+  local function clean(list) for _, x in ipairs(list) do if bad[x.model] then return false end end return #list > 0 end
+  check('the lot pool has no special-order model', clean(stock.lotPool(pool, {})) and #stock.lotPool(pool, {}) == 2, (function() local t = {} for _, x in ipairs(stock.lotPool(pool, {})) do t[#t + 1] = x.model end return table.concat(t, ',') end)())
+  check('the stock dealer pool has none', clean(stock.pool(cars.withoutModels(pool, {}), nil, nil)))
+  check('the racer pool rule has none', clean(cars.withoutModels(pool, { midtruck = true })))
+  local special = cars.onlySpecialOrder(pool)
+  check('all of them are in the special-order list', #special == 11, #special)
+  local cat = factory.catalogue(special)
+  local found = false
+  for _, m in ipairs(cat) do if m.model == 'atv' then found = true end end
+  check('the Wydra is in the factory catalogue of the special-order list', found)
+end
+
 print(string.format('lua tests passed: %d checks', passed))
