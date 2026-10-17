@@ -1288,10 +1288,20 @@ end
 do
   local lotcam = require('sl/core/lotcam')
   local c, f = { x = 10, y = 20, z = 1 }, { x = 0, y = 1 }
-  local p1 = lotcam.reveal(c, f, 1)
-  check('reveal ends 7.5 m behind and 2.4 m up', math.abs(p1.x - 10) < 1e-6 and math.abs(p1.y - 12.5) < 1e-6 and math.abs(p1.z - 3.4) < 1e-6)
+  local p1 = lotcam.chase(c, f)
+  check('the chase pose is 7.5 m behind and 2.4 m up', math.abs(p1.x - 10) < 1e-6 and math.abs(p1.y - 12.5) < 1e-6 and math.abs(p1.z - 3.4) < 1e-6)
   local function dist(p) return math.sqrt((p.x - c.x) ^ 2 + (p.y - c.y) ^ 2) end
-  check('reveal starts at 7.5 m and pushes in to 5.2 m', math.abs(dist(lotcam.reveal(c, f, 0)) - 7.5) < 1e-6 and math.abs(dist(lotcam.reveal(c, f, 0.5)) - 5.2) < 1e-6)
+  local ok = true
+  for _, kind in ipairs({ 'front', 'side', 'wheel', 'cabin', 'badge', 'rear' }) do
+    for _, s in ipairs({ 0, 0.5, 1 }) do
+      local p, l = lotcam.shot(kind, c, f, 4.5, 1.9, s)
+      if not (p.x == p.x and l.x == l.x and dist(p) < 9 and math.abs(p.z - c.z) < 1) then ok = false end
+    end
+  end
+  check('every detail shot is finite, close to the car and low', ok)
+  local pw = lotcam.shot('wheel', c, f, 4.5, 1.9, 0)
+  local pc = lotcam.shot('cabin', c, f, 4.5, 1.9, 0)
+  check('the wheel shot stands by the front wheel, the cabin shot inside the car', pw.y > c.y + 1 and math.abs(pw.x - c.x) > 2 and dist(pc) < 1.5)
   local worst = 0
   for i = 0, 400 do worst = math.max(worst, math.abs(lotcam.sway(i * 0.25))) end
   check('sway is bounded', worst <= lotcam.SWAY + 1e-9 and worst > lotcam.SWAY * 0.9)

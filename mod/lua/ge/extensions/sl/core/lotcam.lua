@@ -83,19 +83,32 @@ end
 M.SWAY = math.rad(10)
 function M.sway(t) return M.SWAY * math.sin((tonumber(t) or 0) * 0.35) end
 
--- The purchase reveal (C2): s in 0..1 runs an orbit round the car from its front quarter to the back, pushing in at the middle, and ends
--- exactly where the game's chase camera stands (7.5 m behind, 2.4 m up) so the hand-over to the driver's seat has no jump.
--- c = the car's centre, f = its flat unit forward {x, y}. Returns the eye and the look-at point.
-M.REVEAL_FROM = math.rad(40)          -- degrees from the car's facing at s = 0 (180 = straight behind)
-function M.reveal(c, f, s)
-  s = math.max(0, math.min(1, s))
-  local e = s * s * (3 - 2 * s)
-  local a = M.REVEAL_FROM + (math.pi - M.REVEAL_FROM) * e
-  local d = 7.5 - 2.3 * math.sin(math.pi * e)
-  local ca, sa = math.cos(a), math.sin(a)
-  local side = { x = f.y, y = -f.x }
-  local pos = { x = c.x + (f.x * ca + side.x * sa) * d, y = c.y + (f.y * ca + side.y * sa) * d, z = c.z + 0.6 + 1.8 * e }
-  return pos, { x = c.x, y = c.y, z = c.z + 0.4 }
+-- Detail shots (C5 purchase reveal, C6 browsing): kind in front | side | wheel | cabin | badge | rear, s in 0..1 along a slow drift. c = the car's
+-- centre, f = its flat forward {x, y}, L and W = its length and width. Returns the eye and the look-at point.
+M.REVEAL_SHOTS = { 'front', 'wheel', 'cabin', 'rear' }
+M.BROWSE_SHOTS = { 'side', 'wheel', 'cabin', 'badge', 'rear', 'front' }
+function M.shot(kind, c, f, L, W, s)
+  s = math.max(0, math.min(1, s or 0))
+  local r = { x = f.y, y = -f.x }
+  local function at(af, ar, z) return { x = c.x + f.x * af + r.x * ar, y = c.y + f.y * af + r.y * ar, z = c.z + z } end
+  if kind == 'side' then return at(L * 0.7 - L * 1.4 * s, W / 2 + 3.2, -0.15), at(L * 0.45 - L * 0.9 * s, 0, 0.05)
+  elseif kind == 'wheel' then return at(L * 0.36, W / 2 + 1.5 - 0.3 * s, -0.3), at(L * 0.34, W / 2, -0.3)
+  elseif kind == 'cabin' then return at(-0.05 * L, -0.25 * W, 0.3), at(6, (-2 + 4 * s) , 0.2)
+  elseif kind == 'badge' then return at(L / 2 + 2 - 0.5 * s, 0.4, -0.1), at(L / 2, 0, 0)
+  elseif kind == 'rear' then return at(-(L / 2 + 2.4 - 0.6 * s), 1.2 - 0.8 * s, 0), at(-L / 2, 0, 0.1)
+  end
+  local a = math.rad(35 + 10 * s)       -- front quarter, the hero shot
+  local d = L * 0.8 + 2.5 - 0.8 * s
+  return at(math.cos(a) * d, math.sin(a) * d, -0.1), at(0, 0, 0.1)
+end
+
+M.SHOT_TIME = 5                       -- s a browsing shot lasts
+M.SHOT_EASE = 1.0                     -- s it takes to ease in from, and out to, the normal orbit
+M.IDLE = 6                            -- s without input before the browsing shots start
+
+-- where the game's chase camera stands (7.5 m behind, 2.4 m up): where the purchase reveal ends and hands over to the driver's seat
+function M.chase(c, f)
+  return { x = c.x - f.x * 7.5, y = c.y - f.y * 7.5, z = c.z + 2.4 }, { x = c.x, y = c.y, z = c.z + 0.4 }
 end
 
 return M
