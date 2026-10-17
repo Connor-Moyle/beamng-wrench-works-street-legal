@@ -1450,4 +1450,33 @@ do -- A11: meet cars stand in free bays off the road, nearest first
   check('meet spots: no bays, no spots', #ms.pick({ x = 0, y = 0 }, nil, nil, 4) == 0)
 end
 
+-- weather (#45, B-weather): rain strengths, the sky numbers, the roads getting wet and drying out, the puddles
+do
+  local wx = require('sl/core/weather')
+  local counts = { light = 0, medium = 0, heavy = 0 }
+  for day = 1, 300 do counts[wx.level('seed', day, 'day')] = counts[wx.level('seed', day, 'day')] + 1 end
+  check('all three rain levels turn up, medium most, heavy least', counts.light > 40 and counts.heavy > 20 and counts.medium > counts.light and counts.heavy < counts.light, counts.light .. '/' .. counts.medium .. '/' .. counts.heavy)
+  check('the level is the same every time for a seed and day', wx.level('s', 4, 'night') == wx.level('s', 4, 'night'))
+  local l, m, h = wx.resolve('rain', 'light'), wx.resolve('rain', 'medium'), wx.resolve('rain', 'heavy')
+  check('harder rain: more drops, faster, thicker cloud, more fog, less grip, wetter roads',
+    l.drops < m.drops and m.drops < h.drops and l.speed < m.speed and m.speed < h.speed and l.cloud < m.cloud and m.cloud < h.cloud and l.fog < m.fog and m.fog < h.fog
+    and l.grip > m.grip and m.grip > h.grip and l.wet < m.wet and m.wet <= h.wet)
+  check('rain is overcast and wet, clear and cloudy are neither', m.cloud > wx.resolve('cloudy').cloud and wx.resolve('clear').wet == 0 and wx.resolve('cloudy').drops == 0 and wx.resolve('cloudy').cirrus > 0)
+  check('an unknown level is medium rain', wx.resolve('rain', 'nope').drops == m.drops)
+  local b = wx.blend({ drops = 0, cloud = 1, fog = 0.1, grip = 1 }, h, 0.5)
+  check('the blend moves the new numbers and keeps the missing ones (no nil maths)', b.drops == h.drops / 2 and b.wet == h.wet and b.speed == h.speed and b.cirrus == h.cirrus)
+  check('the blend with the level not knowing cirrus stays nil', wx.blend({ drops = 0, cloud = 1, fog = 0, grip = 1 }, { drops = 0, cloud = 1, fog = 0, grip = 1 }, 1).cirrus == nil)
+  local w = 0
+  for _ = 1, 60 do w = wx.wetStep(w, 0.8, 1) end
+  check('the roads soak in about two minutes, never past the rain level', w > 0.3 and w < 0.8, w)
+  for _ = 1, 120 do w = wx.wetStep(w, 0.8, 1) end
+  check('and stop at the level', w == 0.8)
+  local d = w
+  for _ = 1, 60 do d = wx.wetStep(d, 0, 1) end
+  check('they dry slower than they soak, and fully in the end', d < w and d > 0.4 and wx.wetStep(0.001, 0, 100) == 0)
+  check('no puddles on a dry road, more when it is wetter, a cap', wx.puddleCount(0) == 0 and wx.puddleCount(0.14) == 0 and wx.puddleCount(0.5) < wx.puddleCount(1) and wx.puddleCount(1) == wx.MAX_PUDDLES)
+  check('a puddle fades in over a few seconds and follows the wetness', wx.puddleAlpha(1, 0) == 0 and wx.puddleAlpha(1, 6) > wx.puddleAlpha(1, 2) and wx.puddleAlpha(0.2, 10) < wx.puddleAlpha(1, 10) and wx.puddleAlpha(0.05, 10) == 0)
+  check('the forecast names the rain strength', wx.text('day', 'rain', nil, 'heavy'):find('Heavy rain') and wx.text('day', 'rain', nil, 'light'):find('Light rain') and wx.text('day', 'rain'):find('Rain'))
+end
+
 print(string.format('lua tests passed: %d checks', passed))

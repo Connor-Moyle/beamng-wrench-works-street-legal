@@ -17,6 +17,16 @@ M.STATES = {
   fog = { id = 'fog', name = 'Fog', drops = 0, cloud = 0.8, fog = 0.02, grip = 0.96, pay = 1.04 },
 }
 
+-- rain comes in three strengths (the state stays 'rain'; the level of it is drawn from the seed too). A level changes what the sky does:
+-- drops (Precipitation numOfDrops), speed (a factor on the drops' own speeds), cloud (CloudLayer coverage; the game has no sky brightness any more, a thick
+-- overcast is what darkens it), cirrus / density (the high cloud over it), fog, grip, pay, wet (how wet the roads get at most, 0..1)
+M.RAIN_LEVELS = {
+  light = { id = 'light', name = 'Light rain', drops = 150, speed = 0.85, cloud = 1.15, cirrus = 0.55, density = 0.5, fog = 0.0011, grip = 0.88, pay = 1.04, wet = 0.45 },
+  medium = { id = 'medium', name = 'Rain', drops = 350, speed = 1, cloud = 1.45, cirrus = 0.8, density = 0.75, fog = 0.0018, grip = 0.78, pay = 1.08, wet = 0.8 },
+  heavy = { id = 'heavy', name = 'Heavy rain', drops = 700, speed = 1.25, cloud = 1.9, cirrus = 1, density = 1, fog = 0.0032, grip = 0.68, pay = 1.12, wet = 1 },
+}
+M.LEVEL_ODDS = { { 'light', 0.35 }, { 'medium', 0.45 }, { 'heavy', 0.20 } }
+
 -- chance of each state by phase (cumulative order below); fog banks only at night
 local ODDS = {
   day = { { 'clear', 0.55 }, { 'cloudy', 0.25 }, { 'rain', 0.20 } },
@@ -35,6 +45,50 @@ function M.forecast(seed, day, phase)
   return ODDS[phase][#ODDS[phase]][1]
 end
 
+-- how hard it rains in a phase of a day (only meaningful when the state is rain)
+function M.level(seed, day, phase)
+  phase = phase == 'night' and 'night' or 'day'
+  local r = rngLib.new(rngLib.hash('rainlevel:' .. tostring(seed) .. ':' .. tostring(day) .. ':' .. phase)):float()
+  local acc = 0
+  for _, o in ipairs(M.LEVEL_ODDS) do
+    acc = acc + o[2]
+    if r < acc then return o[1] end
+  end
+  return 'heavy'
+end
+
+-- the sky numbers of a state (and rain level): a copy, with the keys the sky blend moves. cirrus / density / speed are nil where the level's own are kept.
+function M.resolve(id, level)
+  local base = M.state(id)
+  local out = { id = base.id, name = base.name, drops = base.drops, cloud = base.cloud, fog = base.fog, grip = base.grip, pay = base.pay, wet = 0 }
+  if base.id == 'rain' then
+    local l = M.RAIN_LEVELS[level] or M.RAIN_LEVELS.medium
+    for k, v in pairs(l) do out[k] = v end
+    out.id = 'rain'
+  elseif base.id == 'cloudy' then
+    out.cirrus, out.density = 0.45, 0.4        -- grey, no rain
+  elseif base.id == 'fog' then
+    out.cirrus, out.density = 0.3, 0.3
+  end
+  return out
+end
+
+-- how wet the roads are, 0..1: it rises while it rains (a few minutes to soak) and dries slowly afterwards. wetTarget is the state's wet (0 when dry), dt in seconds
+M.SOAK_SECONDS, M.DRY_SECONDS = 120, 420
+function M.wetStep(wet, wetTarget, dt)
+  wet, wetTarget, dt = wet or 0, wetTarget or 0, dt or 0
+  if wet < wetTarget then return math.min(wetTarget, wet + dt / M.SOAK_SECONDS) end
+  return math.max(wetTarget, wet - dt / M.DRY_SECONDS)
+end
+
+-- puddles: how many may stand at this wetness, and how opaque they are (nothing below a damp road)
+M.MAX_PUDDLES = 18
+function M.puddleCount(wet) return wet < 0.15 and 0 or math.floor(M.MAX_PUDDLES * math.min(1, (wet - 0.1) / 0.9) + 0.5) end
+function M.puddleAlpha(wet, age)
+  local fade = math.min(1, (age or 0) / 6)
+  return math.max(0, math.min(1, (wet - 0.1) / 0.5)) * 0.8 * fade
+end
+
 -- the phase after this one: { phase, day } (the night is followed by the next day)
 function M.after(phase, day)
   if phase == 'night' then return 'day', (day or 1) + 1 end
@@ -50,10 +104,12 @@ local WORDS = {
 }
 
 -- the forecast line: now and what the next phase brings
-function M.text(phase, nowId, nextId)
+function M.text(phase, nowId, nextId, nowLevel)
   local now = M.state(nowId)
   local nextPhase = M.after(phase, 1)
-  local line = string.format('%s %s', WORDS[now.id], phase == 'night' and 'tonight' or 'today')
+  local word = WORDS[now.id]
+  if now.id == 'rain' and M.RAIN_LEVELS[nowLevel] then word = M.RAIN_LEVELS[nowLevel].name end
+  local line = string.format('%s %s', word, phase == 'night' and 'tonight' or 'today')
   if now.id == 'rain' then line = strings.t('weather.1_wet_roads_less_grip', (line))
   elseif now.id == 'fog' then line = strings.t('weather.1_visibility_is_poor_by', (line)) end
   if nextId then line = line .. string.format('. %s %s', WORDS[M.state(nextId).id], nextPhase == 'night' and 'tonight' or strings.t('weather.by_day')) end
@@ -67,7 +123,10 @@ function M.earned(amount, id) return math.floor((amount or 0) * M.pay(id) / 10 +
 function M.blend(a, b, t)
   t = math.max(0, math.min(1, t or 1))
   local out = {}
-  for _, k in ipairs({ 'drops', 'cloud', 'fog', 'grip' }) do out[k] = a[k] + (b[k] - a[k]) * t end
+  for _, k in ipairs({ 'drops', 'cloud', 'fog', 'grip', 'wet', 'cirrus', 'density', 'speed' }) do
+    local x, y = a[k], b[k]
+    if x ~= nil and y ~= nil then out[k] = x + (y - x) * t else out[k] = y ~= nil and y or x end
+  end
   return out
 end
 
