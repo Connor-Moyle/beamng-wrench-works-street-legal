@@ -87,13 +87,24 @@
     }
 
     // ---------------------------------------------------------------- SLRR's own dial: its face, a needle on it
+    // a dial's face does not change between frames: it is drawn once into a canvas of its own and copied under the needle (only the needle layer is redrawn)
+    function faceOf(c, key, drawFace) {
+      if (!c.__face || c.__faceKey !== key) {
+        var f = doc.createElement('canvas'); f.width = c.width; f.height = c.height;
+        drawFace(f.getContext('2d'), c.width, c.width / 2);
+        c.__face = f; c.__faceKey = key;
+      }
+      return c.__face;
+    }
     function slrrDial(c, sp, value, digits) {
       var g = c.getContext('2d'), W = c.width, r = W / 2;
       g.clearRect(0, 0, W, W);
-      g.save();
-      g.beginPath(); g.arc(r, r, r - 1, 0, Math.PI * 2); g.clip();          // just this dial, not the edge of its neighbour
-      g.drawImage(assets.gauge, sp.sx, sp.sy, sp.s, sp.s, 0, 0, W, W);
-      g.restore();
+      g.drawImage(faceOf(c, 'slrr' + W + (sp.sx | 0) + ',' + (sp.sy | 0), function (fg, w, rr) {
+        fg.save();
+        fg.beginPath(); fg.arc(rr, rr, rr - 1, 0, Math.PI * 2); fg.clip();          // just this dial, not the edge of its neighbour
+        fg.drawImage(assets.gauge, sp.sx, sp.sy, sp.s, sp.s, 0, 0, w, w);
+        fg.restore();
+      }), 0, 0);
       if (digits != null) {                                                  // in the dial's own window, as SLRR shows the speed
         g.font = 'bold ' + Math.round(r * 0.2) + 'px Overpass, Roboto, sans-serif';
         g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#141414';
@@ -124,37 +135,41 @@
     function dial(c, value, max, opts) {
       var g = c.getContext('2d'), W = c.width, r = W / 2;
       g.clearRect(0, 0, W, W);
-      g.save();
-      g.translate(r, r);
-      // face
-      g.beginPath(); g.arc(0, 0, r - 4, 0, Math.PI * 2);
-      var face = g.createRadialGradient(0, -r * 0.3, r * 0.1, 0, 0, r);
-      face.addColorStop(0, '#2a2a2e'); face.addColorStop(1, '#070708');
-      g.fillStyle = face; g.fill();
-      g.lineWidth = 6; g.strokeStyle = '#8c8c94'; g.stroke();
       var a0 = Math.PI * 0.75, a1 = Math.PI * 2.25;           // 270 degrees, from bottom-left round to bottom-right
       var ang = function (v) { return a0 + (a1 - a0) * Math.max(0, Math.min(1, v / max)); };
-      // red zone
-      if (opts.red) {
-        g.beginPath(); g.arc(0, 0, r * 0.82, ang(opts.red), a1);
-        g.lineWidth = r * 0.09; g.strokeStyle = '#d4141c'; g.stroke();
-      }
-      // ticks and numbers
-      var step = opts.step, minor = step / (opts.minor || 5);
-      g.fillStyle = '#f2f2f2'; g.strokeStyle = '#f2f2f2';
-      g.font = 'bold ' + Math.round(r * 0.15) + 'px Overpass, Roboto, sans-serif';
+      // the face (drawn once per configuration): the disc, the red zone, the ticks and numbers, the caption
+      g.drawImage(faceOf(c, [W, max, opts.step, opts.minor, opts.red, opts.labelDiv, opts.caption].join('|'), function (fg, w, rr) {
+        fg.save();
+        fg.translate(rr, rr);
+        fg.beginPath(); fg.arc(0, 0, rr - 4, 0, Math.PI * 2);
+        var face = fg.createRadialGradient(0, -rr * 0.3, rr * 0.1, 0, 0, rr);
+        face.addColorStop(0, '#2a2a2e'); face.addColorStop(1, '#070708');
+        fg.fillStyle = face; fg.fill();
+        fg.lineWidth = 6; fg.strokeStyle = '#8c8c94'; fg.stroke();
+        if (opts.red) {
+          fg.beginPath(); fg.arc(0, 0, rr * 0.82, ang(opts.red), a1);
+          fg.lineWidth = rr * 0.09; fg.strokeStyle = '#d4141c'; fg.stroke();
+        }
+        var step = opts.step, minor = step / (opts.minor || 5);
+        fg.fillStyle = '#f2f2f2'; fg.strokeStyle = '#f2f2f2';
+        fg.font = 'bold ' + Math.round(rr * 0.15) + 'px Overpass, Roboto, sans-serif';
+        fg.textAlign = 'center'; fg.textBaseline = 'middle';
+        for (var v = 0; v <= max + 1e-6; v += minor) {
+          var a = ang(v), major = Math.abs(v / step - Math.round(v / step)) < 1e-6;
+          var r1 = rr * (major ? 0.7 : 0.76), r2 = rr * 0.86;
+          fg.beginPath(); fg.moveTo(Math.cos(a) * r1, Math.sin(a) * r1); fg.lineTo(Math.cos(a) * r2, Math.sin(a) * r2);
+          fg.lineWidth = major ? 4 : 2; fg.stroke();
+          if (major) fg.fillText(String(Math.round(v / (opts.labelDiv || 1))), Math.cos(a) * rr * 0.55, Math.sin(a) * rr * 0.55);
+        }
+        fg.font = Math.round(rr * 0.11) + 'px Overpass, Roboto, sans-serif';
+        fg.fillStyle = '#9a9aa2';
+        fg.fillText(opts.caption, 0, -rr * 0.28);
+        fg.restore();
+      }), 0, 0);
+      // the needle layer: the digits, the needle and its hub
+      g.save();
+      g.translate(r, r);
       g.textAlign = 'center'; g.textBaseline = 'middle';
-      for (var v = 0; v <= max + 1e-6; v += minor) {
-        var a = ang(v), major = Math.abs(v / step - Math.round(v / step)) < 1e-6;
-        var r1 = r * (major ? 0.7 : 0.76), r2 = r * 0.86;
-        g.beginPath(); g.moveTo(Math.cos(a) * r1, Math.sin(a) * r1); g.lineTo(Math.cos(a) * r2, Math.sin(a) * r2);
-        g.lineWidth = major ? 4 : 2; g.stroke();
-        if (major) g.fillText(String(Math.round(v / (opts.labelDiv || 1))), Math.cos(a) * r * 0.55, Math.sin(a) * r * 0.55);
-      }
-      // caption and digits
-      g.font = Math.round(r * 0.11) + 'px Overpass, Roboto, sans-serif';
-      g.fillStyle = '#9a9aa2';
-      g.fillText(opts.caption, 0, -r * 0.28);
       if (opts.digits != null) {
         g.font = 'bold ' + Math.round(r * 0.24) + 'px Overpass, Roboto, sans-serif';
         g.fillStyle = opts.digitsColour || '#ffffff';
@@ -317,6 +332,43 @@
       if (typeof window !== 'undefined' && window.bngApi) window.bngApi.engineLua('if sl_uipush then sl_uipush.js("hud",' + draws + ',' + skips + ') end');
       draws = 0; skips = 0;
     }
+    // ---------------------------------------------------------------- the needles ease between pushes
+    var anim = { key: '', cfg: null, speed: null, rpm: 0, speedTo: 0, rpmTo: 0, raf: 0, last: 0 };
+    var view = doc.defaultView || null;
+    function raf(f) { return view && view.requestAnimationFrame ? view.requestAnimationFrame(f) : setTimeout(function () { f(Date.now()); }, 16); }
+    function drawDials() {
+      var c = anim.cfg, speed = anim.speed, rpm = anim.rpm;
+      if (!c) return;
+      if (c.speedo && c.slrr && !c.mph) {
+        slrrDial(speedoC, SPRITES.speedo, speed, String(Math.round(speed)));
+      } else if (c.speedo) {
+        var top = c.mph ? 160 : 280;
+        dial(speedoC, speed, top, { step: c.mph ? 20 : 40, minor: 4, caption: c.mph ? (labels.mph || 'MPH') : (labels.kmh || 'KM/H'), digits: String(Math.round(speed)) });
+      }
+      if (c.tacho && c.slrr) {
+        slrrDial(tachoC, SPRITES.tacho, rpm);
+        slrrGear(c.gear);
+      } else if (c.tacho) {
+        var max = Math.max(6000, Math.ceil((c.redline + 500) / 1000) * 1000);
+        dial(tachoC, rpm, max, { step: 1000, minor: 4, labelDiv: 1000, red: c.redline, caption: labels.rpm || 'RPM x1000',
+          digits: c.gear, digitsColour: rpm > c.redline * 0.97 ? '#ff2a1a' : '#ffd400' });
+      }
+    }
+    function tick(ts) {
+      anim.raf = 0;
+      var dt = anim.last ? Math.min(0.1, Math.max(0.001, (ts - anim.last) / 1000)) : 0.016;
+      anim.last = ts;
+      var k = 1 - Math.exp(-dt / 0.06);                        // about one push interval to close most of the gap
+      anim.speed += (anim.speedTo - anim.speed) * k;
+      anim.rpm += (anim.rpmTo - anim.rpm) * k;
+      var settled = Math.abs(anim.speedTo - anim.speed) < 0.1 && Math.abs(anim.rpmTo - anim.rpm) < 6;
+      if (settled) { anim.speed = anim.speedTo; anim.rpm = anim.rpmTo; }
+      drawDials(); draws++;
+      if (!settled) anim.raf = raf(tick); else anim.last = 0;     // (the loop stops when the needles have arrived)
+    }
+    function kick() { if (!anim.raf) anim.raf = raf(tick); }
+    // for a test: the needles arrive at once
+    function settle() { if (anim.raf && view && view.cancelAnimationFrame) view.cancelAnimationFrame(anim.raf); anim.raf = 0; anim.speed = anim.speedTo; anim.rpm = anim.rpmTo; anim.last = 0; drawDials(); }
     function handle(name, data) {
       data = data || {};
       if (name === 'slHudSettings') { for (var k in data) settings[k] = data[k]; return; }
@@ -338,25 +390,17 @@
       var speed = Math.abs(data.speed || 0) * (mph ? 2.23694 : 3.6);
       var slrr = ready(assets.gauge);
       gearC.classList.toggle('slh-gone', !(slrr && settings.tacho));
-      var sKey = Math.round(speed * 2) + (settings.speedo ? 's' : '') + (mph ? 'm' : '') + (slrr ? 'r' : ''), rKey = Math.round((data.rpm || 0) / 20) + ':' + data.gear + (settings.tacho ? 't' : '') + (slrr ? 'r' : '') + (data.maxRpm | 0);
-      var sameSpeed = last.speed === sKey, sameRpm = last.rpm === rKey;
-      last.speed = sKey; last.rpm = rKey;
-      if (sameSpeed) skips++; else draws++;
-      if (sameRpm) skips++; else draws++;
-      if (settings.speedo && slrr && !mph) {
-        if (!sameSpeed) slrrDial(speedoC, SPRITES.speedo, speed, String(Math.round(speed)));
-      } else if (settings.speedo && !sameSpeed) {
-        var top = mph ? 160 : 280;
-        dial(speedoC, speed, top, { step: mph ? 20 : 40, minor: mph ? 4 : 4, caption: mph ? (labels.mph || 'MPH') : (labels.kmh || 'KM/H'), digits: String(Math.round(speed)) });
-      }
-      if (settings.tacho && slrr) {
-        if (!sameRpm) { slrrDial(tachoC, SPRITES.tacho, data.rpm || 0); slrrGear(gearText(data.gear)); }
-      } else if (settings.tacho && !sameRpm) {
-        var redline = data.maxRpm > 1000 ? data.maxRpm : 7000;
-        var max = Math.max(6000, Math.ceil((redline + 500) / 1000) * 1000);
-        dial(tachoC, data.rpm || 0, max, { step: 1000, minor: 4, labelDiv: 1000, red: redline, caption: labels.rpm || 'RPM x1000',
-          digits: gearText(data.gear), digitsColour: (data.rpm || 0) > redline * 0.97 ? '#ff2a1a' : '#ffd400' });
-      }
+      // the numbers arrive 10 times a second; the needles ease towards them between pushes (animation frames, stopped when they have arrived), so they never step.
+      // What the dials are (units, the artwork, the gear, the redline) changes the whole dial at once.
+      var redline = data.maxRpm > 1000 ? data.maxRpm : 7000;
+      var cfgKey = [mph, slrr, settings.speedo, settings.tacho, gearText(data.gear), redline, labels.mph, labels.kmh, labels.rpm].join('|');
+      anim.cfg = { mph: mph, slrr: slrr, speedo: !!settings.speedo, tacho: !!settings.tacho, gear: gearText(data.gear), redline: redline };
+      var rpmNow = data.rpm || 0, snap = anim.key !== cfgKey || anim.speed === null;
+      var same = Math.abs(anim.speedTo - speed) < 0.05 && Math.abs(anim.rpmTo - rpmNow) < 2;
+      anim.key = cfgKey; anim.speedTo = speed; anim.rpmTo = rpmNow;
+      if (snap) { anim.speed = speed; anim.rpm = rpmNow; drawDials(); draws++; }
+      else if (same) skips += 2;
+      else kick();
       var mKey = Math.round((data.x || 0) * 4) + ',' + Math.round((data.y || 0) * 4) + ',' + Math.round((data.heading || 0) * 100) + ',' + (data.target ? Math.round(data.target.x) + ',' + Math.round(data.target.y) : '-');
       if (settings.map) { if (mKey !== last.map) { last.map = mKey; draws++; drawMap(data); } else skips++; }
       var dKey = JSON.stringify([data.body, data.engine, data.tyres]);
@@ -377,7 +421,7 @@
       status.classList.remove('slh-gone');
     }
 
-    return { handle: handle, root: root, settings: settings };
+    return { handle: handle, root: root, settings: settings, settle: settle, anim: anim };
   }
 
   if (typeof window !== 'undefined') window.__slHudCreate = createHud;

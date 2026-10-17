@@ -119,3 +119,21 @@ if (i > 0) {
     console.log('drew with SLRR textures:', !!gauge, !!osd);
   });
 }
+
+// the needles ease between pushes (10 Hz data): a new speed does not jump, the animation frames carry it there, and the loop stops when it has arrived
+(async () => {
+  hud.handle('slHud', frame); hud.settle();
+  const from = hud.anim.speed;
+  hud.handle('slHud', Object.assign({}, frame, { speed: 60 }));
+  assert.ok(hud.anim.speedTo > from + 50 && hud.anim.speed === from, 'a changed speed is the new target, the needle has not jumped: ' + hud.anim.speed + ' -> ' + hud.anim.speedTo);
+  assert.ok(hud.anim.raf !== 0, 'and the animation loop runs');
+  await new Promise((r) => setTimeout(r, 120));
+  assert.ok(hud.anim.speed > from && hud.anim.speed <= hud.anim.speedTo, 'the needle moves towards it between pushes: ' + hud.anim.speed);
+  await new Promise((r) => setTimeout(r, 900));
+  assert.ok(Math.abs(hud.anim.speed - hud.anim.speedTo) < 0.2 && hud.anim.raf === 0, 'it arrives and the loop stops: ' + hud.anim.speed + ' raf ' + hud.anim.raf);
+  hud.handle('slHud', Object.assign({}, frame, { speed: 60 }));
+  assert.ok(hud.anim.raf === 0, 'the same speed again starts no loop');
+  hud.handle('slHud', Object.assign({}, frame, { speed: 60, gear: 'R' }));
+  assert.ok(hud.anim.raf === 0 && hud.anim.cfg.gear === 'R', 'a changed gear redraws the dial at once (no easing needed)');
+  console.log('hud easing test passed');
+})();
