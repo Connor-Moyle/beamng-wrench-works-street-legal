@@ -10,6 +10,14 @@
 (function () {
   'use strict';
 
+  // the player-facing text: sl/core/strings (sl_phone.requestStrings, event slStrings). T('key', 'the text', a, b): the second argument shows until the table has
+  // arrived and for a key the table lacks; {1}, {2} are the extra arguments. One table for the whole module.
+  var TABLE = null;
+  function T(key, fallback) {
+    var text = TABLE && TABLE[key] !== undefined ? TABLE[key] : fallback, a = arguments;
+    return String(text).replace(/\{(\d+)\}/g, function (m, i) { var v = a[Number(i) + 1]; return v === undefined ? '' : v; });
+  }
+
   var CSS = [
     '.slp-root{position:fixed;left:0;top:0;right:0;bottom:0;pointer-events:none;z-index:50;font-family:"Roboto","Noto Sans","Segoe UI",Arial,sans-serif;color:#e6e1e5;-webkit-user-select:none;user-select:none}',
     '.slp-root *{box-sizing:border-box}',
@@ -299,7 +307,7 @@
   function slrrIcon(name, cls) { return '<img class="slp-slrr ' + (cls || '') + '" src="' + SLRR_ART + name + '" alt="">'; }
   var APP_COLORS = { carmarket: '#2e7d4f', partmarket: '#a3322c', settings: '#5c6474', wait: '#4a5d7a', market: '#a3322c', paper: '#5b5346', bid: '#b5651d', club: '#6a2e7a', jobs: '#3d7a2e', phone: '#2e7d4f', messages: '#2f5fb3', contacts: '#7b4fb0', races: '#c2541e', bank: '#1f7a70', cab: '#b58a12', me: '#5c6474', garage: '#8a3b8f' };
   var AV_COLORS = ['#a8c7fa', '#f2b8b5', '#c3e7c6', '#ffd8a8', '#d0bcff', '#9fe0e8', '#ffb4ab', '#e8def8'];
-  var CLASS_NAMES = { beater: 'Beaters', compact: 'Compacts', muscle: 'Muscle', tuner: 'Tuners', sport: 'Sports cars', super: 'Supercars' };
+  var CLASS_NAMES = { beater: T('ui.beaters', 'Beaters'), compact: T('ui.compacts', 'Compacts'), muscle: T('ui.muscle', 'Muscle'), tuner: T('ui.tuners', 'Tuners'), sport: T('ui.sports_cars', 'Sports cars'), super: T('ui.supercars', 'Supercars') };
 
   function esc(t) {
     return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; });
@@ -319,8 +327,8 @@
   function arr(x) { return Array.isArray(x) ? x : []; }
   function obj(x) { return x && typeof x === 'object' && !Array.isArray(x) ? x : {}; }
 
-  var STAKE_TEXT = { race: 'Race for money', high: 'High stakes', drag: 'Drag race', pink: 'Pink slips' };
-  var QUICK = { race: 'Up for a race?', high: 'Race me. High stakes.', drag: 'Drag race at the test track?', pink: 'Pink slips. You and me.' };
+  var STAKE_TEXT = { race: T('ui.race_for_money', 'Race for money'), high: T('ui.high_stakes', 'High stakes'), drag: T('ui.drag_race', 'Drag race'), pink: T('crews.pink_slips', 'Pink slips') };
+  var QUICK = { race: T('phone.up_for_a_race', 'Up for a race?'), high: T('phone.race_me_high_stakes', 'Race me. High stakes.'), drag: T('phone.drag_race_at_the_test', 'Drag race at the test track?'), pink: T('phone.pink_slips_you_and_me', 'Pink slips. You and me.') };
 
   function createPhone(doc, lua, clock) {
     clock = clock || { set: function (f, ms) { return setTimeout(f, ms); }, clear: function (t) { clearTimeout(t); }, now: function () { return Date.now(); } };
@@ -349,11 +357,6 @@
     function thread(id) { return arr(obj(st.data.threads)[id]); }
 
     // ---------------------------------------------------------------- pages
-    // the player-facing text: sl/core/strings (sl_phone.requestStrings); the second argument shows until it has arrived. {1}, {2} are the extra arguments.
-    function T(key, fallback) {
-      var text = st.strings && st.strings[key] !== undefined ? st.strings[key] : fallback, a = arguments;
-      return String(text).replace(/\{(\d+)\}/g, function (m, i) { var v = a[Number(i) + 1]; return v === undefined ? '' : v; });
-    }
     function bar(title, extra) {
       return '<div class="slp-bar"><div class="slp-ib" data-a="back">' + I.back + '</div><b>' + esc(title) + '</b>' + (extra || '') + '</div>';
     }
@@ -369,11 +372,11 @@
         }).join('');
       };
       var arranged = arr(d.challenges).length;
-      var tut = d.tutorial ? '<div class="slp-card slp-tut"><h4>Getting started ' + d.tutorial.step + '/' + d.tutorial.total + ': ' + esc(d.tutorial.title) + '</h4><p>' + esc(d.tutorial.text) + '</p>' +
-        '<div class="slp-acts"><div class="slp-btn slp-text" data-a="tutskip" data-v="1">Skip the tutorial</div></div></div>' : '';
+      var tut = d.tutorial ? ('<div class="slp-card slp-tut"><h4>' + T('ui.getting_started', 'Getting started ')) + d.tutorial.step + '/' + d.tutorial.total + ': ' + esc(d.tutorial.title) + '</h4><p>' + esc(d.tutorial.text) + '</p>' +
+        ('<div class="slp-acts"><div class="slp-btn slp-text" data-a="tutskip" data-v="1">' + T('ui.skip_the_tutorial', 'Skip the tutorial') + '</div></div></div>') : '';
       return '<div class="slp-wall"></div><div class="slp-home">' +
         '<div class="slp-clock">' + two(d.hour || 0) + ':' + two(d.minute || 0) + '</div>' +
-        '<div class="slp-date">Day ' + (d.day || 1) + ' &middot; ' + esc(d.mapName || 'Valo City') + (d.night ? ' &middot; night' : '') + '</div>' +
+        ('<div class="slp-date">' + T('ui.day_2', 'Day ')) + (d.day || 1) + ' &middot; ' + esc(d.mapName || T('progression.valo_city', 'Valo City')) + (d.night ? ' &middot; night' : '') + '</div>' +
         (d.weather ? '<div class="slp-date" style="opacity:.85">' + (d.weather.wet ? '&#127783; ' : '') + esc(d.weather.text) + '</div>' : '') +
         '<div><span class="slp-chip">' + esc(d.title || '') + ' &middot; ' + (d.rep || 0) + ' rep &middot; ' + money(d.money) + '</span></div>' +
         tut + '<div class="slp-grid">' + appsHtml([
@@ -399,9 +402,9 @@
     }
 
     function contactLine(c) {
-      if (c.system) return 'Your garage';
+      if (c.system) return T('ui.your_garage', 'Your garage');
       var stars = '<span class="slp-stars">' + new Array((c.tier || 1) + 1).join('&#9733;') + '</span>';
-      return stars + ' &middot; ' + esc(CLASS_NAMES[c.class] || c.class || '') + (c.nightOnly ? ' &middot; nights' : '') + (c.pinkTonight ? ' &middot; <span class="slp-pink">pinks tonight</span>' : '');
+      return stars + ' &middot; ' + esc(CLASS_NAMES[c.class] || c.class || '') + (c.nightOnly ? ' &middot; nights' : '') + (c.pinkTonight ? (' ' + '&middot;' + ' ' + '<span class="slp-pink">' + T('ui.pinks_tonight', 'pinks tonight') + '</span>') : '');
     }
 
     function contactsPage() {
@@ -411,17 +414,17 @@
         if (letter !== last) { out.push('<div class="slp-letter">' + esc(letter) + '</div>'); last = letter; }
         out.push('<div class="slp-row" data-a="contact" data-v="' + esc(c.id) + '">' + avatar(c) + '<div class="slp-rt"><b>' + esc(c.name) + '</b><span>' + contactLine(c) + '</span></div></div>');
       });
-      if (list.length <= 1) out.push('<div class="slp-empty">Nobody else has given you their number yet. Win a few races and they will.</div>');
+      if (list.length <= 1) out.push(('<div class="slp-empty">' + T('ui.nobody_else_has_given_you', 'Nobody else has given you their number yet. Win a few races and they will.') + '</div>'));
       return bar(T('app.contacts', 'Contacts')) + '<div class="slp-body">' + out.join('') + '</div>';
     }
 
     function contactPage() {
       var c = contactById(st.contact);
-      if (!c) return bar(T('app.contact', 'Contact')) + '<div class="slp-empty">Gone.</div>';
-      var record = c.system ? '' : '<div class="slp-card"><div class="slp-kv"><span>You beat them</span><b>' + (c.losses || 0) + '</b></div><div class="slp-kv" style="border:none"><span>They beat you</span><b>' + (c.wins || 0) + '</b></div></div>';
+      if (!c) return bar(T('app.contact', 'Contact')) + ('<div class="slp-empty">' + T('ui.gone', 'Gone.') + '</div>');
+      var record = c.system ? '' : ('<div class="slp-card"><div class="slp-kv"><span>' + T('ui.you_beat_them', 'You beat them') + '</span><b>') + (c.losses || 0) + ('</b></div><div class="slp-kv" style="border:none"><span>' + T('ui.they_beat_you', 'They beat you') + '</span><b>') + (c.wins || 0) + '</b></div></div>';
       return bar('') + '<div class="slp-body"><div class="slp-hero">' + avatar(c) + '<b>' + esc(c.name) + '</b><span>' + esc(c.phone) + '</span><span>' + contactLine(c) + '</span></div>' +
-        '<div class="slp-acts3"><div class="slp-act" data-a="call" data-v="' + esc(c.id) + '"><i>' + I.phone + '</i>Call</div>' +
-        '<div class="slp-act" data-a="thread" data-v="' + esc(c.id) + '"><i>' + I.msg + '</i>Message</div></div>' + record + '</div>';
+        '<div class="slp-acts3"><div class="slp-act" data-a="call" data-v="' + esc(c.id) + '"><i>' + I.phone + ('</i>' + T('ui.call', 'Call') + '</div>') +
+        '<div class="slp-act" data-a="thread" data-v="' + esc(c.id) + '"><i>' + I.msg + ('</i>' + T('ui.message', 'Message') + '</div></div>') + record + '</div>';
     }
 
     function messagesPage() {
@@ -432,9 +435,9 @@
         var c = contactById(id) || { id: id, name: id };
         var list = arr(threads[id]), lastMsg = list[list.length - 1], n = unread(id);
         return '<div class="slp-row" data-a="thread" data-v="' + esc(id) + '">' + avatar(c) + '<div class="slp-rt"><b>' + esc(c.name) + '</b><span' + (n ? ' class="slp-unread"' : '') + '>' +
-          (lastMsg.from === 'me' ? 'You: ' : '') + esc(lastMsg.text) + '</span></div>' + (n ? '<div class="slp-badge" style="position:static;margin:0">' + n + '</div>' : '') + '</div>';
+          (lastMsg.from === 'me' ? T('ui.you', 'You: ') : '') + esc(lastMsg.text) + '</span></div>' + (n ? '<div class="slp-badge" style="position:static;margin:0">' + n + '</div>' : '') + '</div>';
       });
-      return bar(T('app.messages', 'Messages')) + '<div class="slp-body">' + (rows.join('') || '<div class="slp-empty">No messages.</div>') + '</div>';
+      return bar(T('app.messages', 'Messages')) + '<div class="slp-body">' + (rows.join('') || ('<div class="slp-empty">' + T('ui.no_messages', 'No messages.') + '</div>')) + '</div>';
     }
 
     function threadPage() {
@@ -442,10 +445,10 @@
       var bubbles = thread(st.thread).map(function (m) { return '<div class="slp-bub ' + (m.from === 'me' ? 'slp-me' : 'slp-them') + '">' + esc(m.text) + '</div>'; }).join('');
       var quick = c.system ? '' : '<div class="slp-quick">' + Object.keys(QUICK).filter(function (k) { return k !== 'pink' || c.pinkTonight; }).map(function (k) { return '<div class="slp-qc" data-a="text" data-v="' + k + '">' + esc(QUICK[k]) + '</div>'; }).join('') + '</div>';
       return bar(c.name, '<div style="margin-left:auto" class="slp-ib" data-a="call" data-v="' + esc(c.id) + '">' + I.phone + '</div>') +
-        '<div class="slp-msgs">' + (bubbles || '<div class="slp-empty">Say something.</div>') + '</div>' + quick;
+        '<div class="slp-msgs">' + (bubbles || ('<div class="slp-empty">' + T('ui.say_something', 'Say something.') + '</div>')) + '</div>' + quick;
     }
 
-    var KEYS = [['1', ''], ['2', 'ABC'], ['3', 'DEF'], ['4', 'GHI'], ['5', 'JKL'], ['6', 'MNO'], ['7', 'PQRS'], ['8', 'TUV'], ['9', 'WXYZ'], ['*', ''], ['0', '+'], ['#', '']];
+    var KEYS = [['1', ''], ['2', T('ui.abc', 'ABC')], ['3', T('ui.def', 'DEF')], ['4', T('ui.ghi', 'GHI')], ['5', T('ui.jkl', 'JKL')], ['6', T('ui.mno', 'MNO')], ['7', T('ui.pqrs', 'PQRS')], ['8', T('ui.tuv', 'TUV')], ['9', T('ui.wxyz', 'WXYZ')], ['*', ''], ['0', '+'], ['#', '']];
     function dialMatch() {
       var digits = st.dial.replace(/\D/g, '');
       if (!digits) return null;
@@ -455,7 +458,7 @@
     }
     function phonePage() {
       var who = dialMatch();
-      return bar('Phone', st.dial ? '<div style="margin-left:auto" class="slp-ib" data-a="del">' + I.back + '</div>' : '') +
+      return bar(T('ui.phone', 'Phone'), st.dial ? '<div style="margin-left:auto" class="slp-ib" data-a="del">' + I.back + '</div>' : '') +
         '<div class="slp-num">' + esc(st.dial || ' ') + '</div><div class="slp-who">' + (who ? esc(who.name) : '') + '</div>' +
         '<div class="slp-keys">' + KEYS.map(function (k) { return '<div class="slp-key" data-a="key" data-v="' + k[0] + '">' + k[0] + '<small>' + k[1] + '</small></div>'; }).join('') + '</div>' +
         '<div class="slp-dial" data-a="dial">' + I.phone + '</div>';
@@ -464,20 +467,20 @@
     function racesPage() {
       var list = arr(st.data.challenges);
       var cards = list.map(function (c) {
-        var stake = c.stake === 'pink' ? 'Pink slips' : money(c.bet);
+        var stake = c.stake === 'pink' ? T('crews.pink_slips', 'Pink slips') : money(c.bet);
         var pv = obj(c.preview);
         // the route as a small map (#18): the road it takes, the start (green) and the finish (red)
         var map = pv.points ? '<svg class="slp-rmap" viewBox="0 0 ' + (pv.w || 240) + ' ' + (pv.h || 140) + '"><polyline points="' + esc(pv.points) + '" fill="none" stroke="#a8c7fa" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>' +
           '<circle cx="' + obj(pv.start).x + '" cy="' + obj(pv.start).y + '" r="5" fill="#7bd88f"/><rect x="' + (obj(pv.finish).x - 5) + '" y="' + (obj(pv.finish).y - 5) + '" width="10" height="10" fill="#f2b8b5"/></svg>' +
           '<p class="slp-rmeta"><span class="slp-rs">&#9679; ' + esc(T('status.start', 'start')) + '</span> <span class="slp-rf">&#9632; ' + esc(T('status.finish', 'finish')) + '</span> &middot; ' + ((pv.metres || 0) / 1000).toFixed(1) + ' km</p>' : '';
-        return '<div class="slp-card">' + map + '<h4>' + esc(c.name) + '</h4><p>' + esc(c.raceName) + ' &middot; ' + stake + (c.nightOnly ? ' &middot; after dark' : '') + '</p>' +
-          '<div class="slp-acts"><div class="slp-btn" data-a="gps" data-v="' + esc(c.id) + '">Show the way</div>' + (c.stake === 'money' ? '<div class="slp-btn slp-tonal" data-a="raise" data-v="' + esc(c.id) + '">Raise the stake</div>' : '') + '<div class="slp-btn slp-text" data-a="cancel" data-v="' + esc(c.id) + '">Call it off</div></div></div>';
+        return '<div class="slp-card">' + map + '<h4>' + esc(c.name) + '</h4><p>' + esc(c.raceName) + ' &middot; ' + stake + (c.nightOnly ? T('ui.middot_after_dark', ' &middot; after dark') : '') + '</p>' +
+          '<div class="slp-acts"><div class="slp-btn" data-a="gps" data-v="' + esc(c.id) + ('">' + T('ui.show_the_way', 'Show the way') + '</div>') + (c.stake === 'money' ? '<div class="slp-btn slp-tonal" data-a="raise" data-v="' + esc(c.id) + ('">' + T('ui.raise_the_stake', 'Raise the stake') + '</div>') : '') + '<div class="slp-btn slp-text" data-a="cancel" data-v="' + esc(c.id) + ('">' + T('ui.call_it_off', 'Call it off') + '</div></div></div>');
       });
       var rp = st.data.replay;          // #48 the last race, recorded: watch it, keep it
-      if (rp) cards.unshift('<div class="slp-card"><h4>Last race</h4><p>' + esc(rp.name) + (rp.saved ? ' &middot; saved' : '') + '</p><div class="slp-acts"><div class="slp-btn" data-a="watchreplay" data-v="1">Watch replay</div>' +
-        (rp.saved ? '' : '<div class="slp-btn slp-tonal" data-a="saveclip" data-v="1">Save clip</div>') + '</div></div>');
+      if (rp) cards.unshift(('<div class="slp-card"><h4>' + T('ui.last_race', 'Last race') + '</h4><p>') + esc(rp.name) + (rp.saved ? ' &middot; saved' : '') + ('</p><div class="slp-acts"><div class="slp-btn" data-a="watchreplay" data-v="1">' + T('ui.watch_replay', 'Watch replay') + '</div>') +
+        (rp.saved ? '' : ('<div class="slp-btn slp-tonal" data-a="saveclip" data-v="1">' + T('ui.save_clip', 'Save clip') + '</div>')) + '</div></div>');
       return bar(T('app.races', 'Races')) + '<div class="slp-body">' + (cards.join('') ||
-        '<div class="slp-empty">No races arranged. Call or text one of your contacts to set one up: for money, for high stakes, or for pink slips.</div>') + '</div>';
+        ('<div class="slp-empty">' + T('ui.no_races_arranged_call_or', 'No races arranged. Call or text one of your contacts to set one up: for money, for high stakes, or for pink slips.') + '</div>')) + '</div>';
     }
 
     // the job board: what is on offer now, the one you are on, your record
@@ -491,10 +494,10 @@
     function adPic(l) {
       return '<div class="slp-pic"><div class="slp-pico">' + I[catKey(l)] + '</div>' +
         ((l.partPic || l.preview) ? '<img' + (l.partPic ? ' class="slp-partpic"' : '') + ' src="' + esc(l.partPic || l.preview) + '" alt="" onerror="this.style.display=\'none\'">' : '') +
-        (!l.car && l.category && l.category !== 'car' ? '<div class="slp-pbadge">' + I[catKey(l)] + esc(l.categoryTitle || 'Part') + '</div>' : '') + '</div>';
+        (!l.car && l.category && l.category !== 'car' ? '<div class="slp-pbadge">' + I[catKey(l)] + esc(l.categoryTitle || T('ui.part', 'Part')) + '</div>' : '') + '</div>';
     }
     // a part ad's second line: the catalog chapter and the car it fits
-    function partMeta(l) { return (l.chapter ? esc(l.chapter) + ' &middot; ' : '') + (l.fits ? 'fits the ' + esc(l.fits) : 'for the ' + esc(l.model)); }
+    function partMeta(l) { return (l.chapter ? esc(l.chapter) + ' &middot; ' : '') + (l.fits ? T('ui.fits_the_1', 'fits the {1}', esc(l.fits)) : T('ui.for_the_1', 'for the {1}', esc(l.model))); }
     function adFacts(l) {
       var sp = obj(l.specs), out = [];
       if (l.mileage != null) out.push(Number(l.mileage).toLocaleString() + ' km');
@@ -506,55 +509,55 @@
     function adButtons(l) {
       var offers = l.agreed ? '' : [0.9, 0.8, 0.7].map(function (f) {
         var amt = Math.round(l.ask * f / 10) * 10;
-        return '<div class="slp-btn slp-text" data-a="mkoffer" data-v="' + esc(l.id) + '|' + amt + '">Offer ' + money(amt) + '</div>';
+        return '<div class="slp-btn slp-text" data-a="mkoffer" data-v="' + esc(l.id) + '|' + amt + ('">' + T('ui.offer', 'Offer ')) + money(amt) + '</div>';
       }).join('');
-      return '<div class="slp-acts">' + offers + '<div class="slp-btn" data-a="mkbuy" data-v="' + esc(l.id) + '|pickup">Pick up</div>' +
-        (l.delivery != null ? '<div class="slp-btn" data-a="mkbuy" data-v="' + esc(l.id) + '|delivery">Deliver</div>' : '') + '</div>';
+      return '<div class="slp-acts">' + offers + '<div class="slp-btn" data-a="mkbuy" data-v="' + esc(l.id) + ('|pickup">' + T('classifieds.pick_up', 'Pick up') + '</div>') +
+        (l.delivery != null ? '<div class="slp-btn" data-a="mkbuy" data-v="' + esc(l.id) + ('|delivery">' + T('ui.deliver', 'Deliver') + '</div>') : '') + '</div>';
     }
     // the full car report (#58): every part by section with its condition, the dents, the faults and a repair estimate per section
     function reportBlock(key, rp) {
       if (!rp || !rp.sections) return '';
       var on = !!st.rep[key];
-      var head = '<div class="slp-btn slp-tonal" data-a="report" data-v="' + esc(key) + '">' + (on ? 'Hide car report' : 'Show full car report') + '</div>';
+      var head = '<div class="slp-btn slp-tonal" data-a="report" data-v="' + esc(key) + '">' + (on ? T('ui.hide_car_report', 'Hide car report') : T('ui.show_full_car_report', 'Show full car report')) + '</div>';
       if (!on) return '<div class="slp-acts">' + head + '</div>';
       var secs = arr(rp.sections).map(function (sc) {
         var parts = arr(sc.parts).map(function (p) {
           return '<div class="slp-kv"><span>' + esc(p.name) + (p.fault ? ' <b class="slp-rbad">&#9888; ' + esc(p.fault) + '</b>' : '') + '</span><b class="slp-r' + (p.condition < 30 ? 'bad' : p.condition < 50 ? 'mid' : 'ok') + '">' + p.condition + '% ' + esc(p.label) + '</b></div>';
         }).join('');
         return '<div class="slp-rsec"><h5>' + esc(sc.title) + ' &middot; ' + sc.condition + '% ' + esc(sc.label) + '</h5>' + parts +
-          '<div class="slp-kv"><span>Repair estimate</span><b>' + (sc.estimate > 0 ? money(sc.estimate) : 'none') + '</b></div></div>';
+          ('<div class="slp-kv"><span>' + T('ui.repair_estimate', 'Repair estimate') + '</span><b>') + (sc.estimate > 0 ? money(sc.estimate) : 'none') + '</b></div></div>';
       }).join('');
       var dm = obj(rp.damage);
-      return '<div class="slp-acts">' + head + '</div><div class="slp-report"><div class="slp-kv"><span>Overall</span><b>' + rp.condition + '% ' + esc(rp.label) + '</b></div>' +
-        '<div class="slp-kv"><span>Mileage</span><b>' + Number(rp.mileage || 0).toLocaleString() + ' km</b></div><div class="slp-kv"><span>Dents and damage</span><b>' + esc(dm.label) + ' (' + (dm.amount || 0) + '%)</b></div>' +
-        '<div class="slp-kv"><span>Known faults</span><b>' + (arr(rp.faults).length ? esc(arr(rp.faults).join(', ')) : 'none') + '</b></div>' + secs +
-        '<div class="slp-kv"><span><b>Repair estimate, to 95 %</b></span><b>' + money(rp.total) + '</b></div></div>';
+      return '<div class="slp-acts">' + head + ('</div><div class="slp-report"><div class="slp-kv"><span>' + T('ui.overall', 'Overall') + '</span><b>') + rp.condition + '% ' + esc(rp.label) + '</b></div>' +
+        ('<div class="slp-kv"><span>' + T('ui.mileage', 'Mileage') + '</span><b>') + Number(rp.mileage || 0).toLocaleString() + (' km' + '</b></div><div class="slp-kv"><span>' + T('ui.dents_and_damage', 'Dents and damage') + '</span><b>') + esc(dm.label) + ' (' + (dm.amount || 0) + '%)</b></div>' +
+        ('<div class="slp-kv"><span>' + T('ui.known_faults', 'Known faults') + '</span><b>') + (arr(rp.faults).length ? esc(arr(rp.faults).join(', ')) : 'none') + '</b></div>' + secs +
+        ('<div class="slp-kv"><span><b>' + T('ui.repair_estimate_to_95', 'Repair estimate, to 95 %') + '</b></span><b>') + money(rp.total) + '</b></div></div>';
     }
     function carAdCard(l) {
       var tells = arr(l.tells).length ? '<p class="slp-warn">&#9888; ' + arr(l.tells).map(esc).join(' &middot; ') + '</p>' : '';
       return '<div class="slp-card">' + adPic(l) + '<h4 data-a="adview" data-v="' + esc(l.id) + '">' + (l.rare ? '&#9733; ' : '') + (l.year ? l.year + ' ' : '') + esc(l.name) + '</h4>' +
         '<p>' + esc(l.brand || '') + '</p><p>' + adFacts(l) + '</p>' +
-        '<p>' + esc(l.seller) + ' ' + '&#9733;'.repeat(l.rating || 0) + (l.metres != null ? ' &middot; ' + adDist(l.metres) + ' away' : '') + (l.hours ? ' &middot; delivered in about ' + l.hours + ' h' : '') +
-        ' &middot; ' + l.condition + '% condition' + (l.faults ? ' &middot; ' + l.faults + ' fault' + (l.faults > 1 ? 's' : '') : '') + ' &middot; ' + Math.max(0, l.hoursLeft | 0) + ' h left</p>' + tells +
-        '<p><b>' + money(l.ask) + '</b>' + (l.agreed ? ' (agreed)' : '') + ' &middot; deposit ' + money(l.deposit) + (l.delivery != null ? ' &middot; delivery +' + money(l.delivery) : '') + '</p>' +
+        '<p>' + esc(l.seller) + ' ' + '&#9733;'.repeat(l.rating || 0) + (l.metres != null ? T('ui.middot_1_away', ' &middot; {1} away', adDist(l.metres)) : '') + (l.hours ? T('ui.middot_delivered_in_about_1', ' &middot; delivered in about {1} h', l.hours) : '') +
+        ' &middot; ' + l.condition + T('ui.condition', '% condition') + (l.faults ? T('ui.middot_1_fault_2', ' &middot; {1} fault{2}', l.faults, (l.faults > 1 ? 's' : '')) : '') + ' &middot; ' + Math.max(0, l.hoursLeft | 0) + (T('ui.h_left', ' h left') + '</p>') + tells +
+        '<p><b>' + money(l.ask) + '</b>' + (l.agreed ? T('ui.agreed', ' (agreed)') : '') + ' &middot; deposit ' + money(l.deposit) + (l.delivery != null ? T('ui.middot_delivery_1', ' &middot; delivery +{1}', money(l.delivery)) : '') + '</p>' +
         reportBlock('ad:' + l.id, l.report) +
-        adButtons(l).replace('<div class="slp-acts">', '<div class="slp-acts"><div class="slp-btn slp-tonal" data-a="adview" data-v="' + esc(l.id) + '">Details</div>') + '</div>';
+        adButtons(l).replace('<div class="slp-acts">', '<div class="slp-acts"><div class="slp-btn slp-tonal" data-a="adview" data-v="' + esc(l.id) + ('">' + T('ui.details', 'Details') + '</div>')) + '</div>';
     }
     // the detail view: the picture, every spec, the seller and the price
     function adPage() {
       var m = obj(st.data.market), l = null;
       arr(m.listings).concat(arr(obj(m.paper).listings)).forEach(function (x) { if (x.id === st.adId) l = x; });
-      if (!l) return bar(T('app.ad', 'Ad')) + '<div class="slp-body"><div class="slp-empty">This ad has gone.</div></div>';
+      if (!l) return bar(T('app.ad', 'Ad')) + ('<div class="slp-body"><div class="slp-empty">' + T('ui.this_ad_has_gone', 'This ad has gone.') + '</div></div>');
       var sp = obj(l.specs), faults = l.faultList ? arr(l.faultList) : [];
       var row = function (k, v) { return v == null || v === '' ? '' : '<div class="slp-kv"><span>' + k + '</span><b>' + v + '</b></div>'; };
       return bar((l.year ? l.year + ' ' : '') + l.name) + '<div class="slp-body"><div class="slp-card">' + adPic(l) +
-        row('Brand', esc(l.brand)) + row('Year', l.year) + row('Mileage', l.mileage != null ? Number(l.mileage).toLocaleString() + ' km' : null) + row('Condition', l.condition + '%') +
-        row('Power', sp.power ? Math.round(sp.power) + ' PS' : null) + row('Weight', sp.weight ? Math.round(sp.weight).toLocaleString() + ' kg' : null) +
-        row('Transmission', esc(sp.transmission)) + row('Drivetrain', esc(sp.drivetrain)) + row('Fuel', esc(sp.fuel)) + row('Body', esc(sp.body)) +
-        row('Top speed', sp.topSpeed ? Math.round(sp.topSpeed * 3.6) + ' km/h' : null) + (faults.length ? row('Needs', esc(faults.join(', '))) : '') + reportBlock('ad:' + l.id, l.report) + '</div>' +
-        '<div class="slp-card">' + row('Seller', esc(l.seller) + ' ' + '&#9733;'.repeat(l.rating || 0)) + row('Distance', l.metres != null ? adDist(l.metres) : null) +
-        row('Delivery', l.hours ? 'to your garage in about ' + l.hours + ' h' : null) + row('Asking', money(l.ask)) + row('Deposit (pick up)', money(l.deposit)) +
-        (l.delivery != null ? row('Delivery fee', money(l.delivery)) : '') + adButtons(l) + '</div></div>';
+        row(T('ui.brand', 'Brand'), esc(l.brand)) + row(T('ui.year', 'Year'), l.year) + row(T('ui.mileage', 'Mileage'), l.mileage != null ? Number(l.mileage).toLocaleString() + ' km' : null) + row(T('ui.condition_2', 'Condition'), l.condition + '%') +
+        row(T('ui.power', 'Power'), sp.power ? Math.round(sp.power) + ' PS' : null) + row(T('ui.weight', 'Weight'), sp.weight ? Math.round(sp.weight).toLocaleString() + ' kg' : null) +
+        row(T('ui.transmission', 'Transmission'), esc(sp.transmission)) + row(T('ui.drivetrain', 'Drivetrain'), esc(sp.drivetrain)) + row(T('ui.fuel', 'Fuel'), esc(sp.fuel)) + row(T('ui.body', 'Body'), esc(sp.body)) +
+        row(T('ui.top_speed', 'Top speed'), sp.topSpeed ? Math.round(sp.topSpeed * 3.6) + ' km/h' : null) + (faults.length ? row(T('ui.needs', 'Needs'), esc(faults.join(', '))) : '') + reportBlock('ad:' + l.id, l.report) + '</div>' +
+        '<div class="slp-card">' + row(T('ui.seller', 'Seller'), esc(l.seller) + ' ' + '&#9733;'.repeat(l.rating || 0)) + row(T('ui.distance', 'Distance'), l.metres != null ? adDist(l.metres) : null) +
+        row(T('ui.delivery', 'Delivery'), l.hours ? T('ui.to_your_garage_in_about', 'to your garage in about {1} h', l.hours) : null) + row(T('ui.asking', 'Asking'), money(l.ask)) + row(T('ui.deposit_pick_up', 'Deposit (pick up)'), money(l.deposit)) +
+        (l.delivery != null ? row(T('ui.delivery_fee', 'Delivery fee'), money(l.delivery)) : '') + adButtons(l) + '</div></div>';
     }
 
     function adCard(l) {
@@ -562,55 +565,55 @@
         var tells = arr(l.tells).length ? '<p class="slp-warn">&#9888; ' + arr(l.tells).map(esc).join(' &middot; ') + '</p>' : '';
         var offers = l.agreed ? '' : [0.9, 0.8, 0.7].map(function (f) {
           var amt = Math.round(l.ask * f / 10) * 10;
-          return '<div class="slp-btn slp-text" data-a="mkoffer" data-v="' + esc(l.id) + '|' + amt + '">Offer ' + money(amt) + '</div>';
+          return '<div class="slp-btn slp-text" data-a="mkoffer" data-v="' + esc(l.id) + '|' + amt + ('">' + T('ui.offer', 'Offer ')) + money(amt) + '</div>';
         }).join('');
         return '<div class="slp-card">' + adPic(l) + '<h4>' + (l.rare ? '&#9733; ' : '') + esc(l.name) + '</h4>' +
-          '<p>' + (l.car ? 'Car' + (l.mileage ? ' &middot; ' + Math.round(l.mileage / 1000) + 'k km' : '') + (l.faults ? ' &middot; ' + l.faults + ' fault' + (l.faults > 1 ? 's' : '') : '') : partMeta(l)) +
-          ' &middot; ' + l.condition + '% condition &middot; ' + esc(l.seller) + ' ' + '&#9733;'.repeat(l.rating || 0) + ' &middot; ' + Math.max(0, l.hoursLeft | 0) + ' h left</p>' + tells +
-          '<p><b>' + money(l.ask) + '</b>' + (l.agreed ? ' (agreed)' : '') + ' &middot; deposit ' + money(l.deposit) + (l.delivery != null ? ' &middot; delivery +' + money(l.delivery) : '') + '</p>' +
-          '<div class="slp-acts">' + offers + '<div class="slp-btn" data-a="mkbuy" data-v="' + esc(l.id) + '|pickup">Pick up</div>' +
-          (l.delivery != null ? '<div class="slp-btn" data-a="mkbuy" data-v="' + esc(l.id) + '|delivery">Deliver</div>' : '') + '</div></div>';
+          '<p>' + (l.car ? T('ui.car_1_2', 'Car{1}{2}', (l.mileage ? ' &middot; ' + Math.round(l.mileage / 1000) + 'k km' : ''), (l.faults ? ' &middot; ' + l.faults + ' fault' + (l.faults > 1 ? 's' : '') : '')) : partMeta(l)) +
+          ' &middot; ' + l.condition + T('ui.condition_middot', '% condition &middot; ') + esc(l.seller) + ' ' + '&#9733;'.repeat(l.rating || 0) + ' &middot; ' + Math.max(0, l.hoursLeft | 0) + (T('ui.h_left', ' h left') + '</p>') + tells +
+          '<p><b>' + money(l.ask) + '</b>' + (l.agreed ? T('ui.agreed', ' (agreed)') : '') + ' &middot; deposit ' + money(l.deposit) + (l.delivery != null ? T('ui.middot_delivery_1', ' &middot; delivery +{1}', money(l.delivery)) : '') + '</p>' +
+          '<div class="slp-acts">' + offers + '<div class="slp-btn" data-a="mkbuy" data-v="' + esc(l.id) + ('|pickup">' + T('classifieds.pick_up', 'Pick up') + '</div>') +
+          (l.delivery != null ? '<div class="slp-btn" data-a="mkbuy" data-v="' + esc(l.id) + ('|delivery">' + T('ui.deliver', 'Deliver') + '</div>') : '') + '</div></div>';
     }
 
     // selling: your listings (offers to accept) and your shelf parts to list
     function sellCards(m, kind) {      // kind: 'parts' | 'cars' | undefined (both)
       var mine = arr(m.mine).filter(function (y) { return !kind || (kind === 'cars') === (y.carId != null); }).map(function (y) {
         var body = y.channel === 'auction'
-          ? '<p>At auction &middot; ' + (y.bid ? 'top bid ' + money(y.bid) : 'no bids yet') + ' &middot; ' + Math.max(0, y.hoursLeft | 0) + ' h left</p>'
+          ? ('<p>' + T('ui.at_auction', 'At auction ') + '&middot;' + ' ') + (y.bid ? T('ui.top_bid_1', 'top bid {1}', money(y.bid)) : T('ui.no_bids_yet', 'no bids yet')) + ' &middot; ' + Math.max(0, y.hoursLeft | 0) + (T('ui.h_left', ' h left') + '</p>')
           : (arr(y.offers).length ? arr(y.offers).map(function (o) {
-              return '<div class="slp-acts"><div class="slp-btn" data-a="mkaccept" data-v="' + esc(y.id) + '|' + o.index + '">Accept ' + money(o.amount) + ' from ' + esc(o.buyer || 'a buyer') + '</div></div>';
-            }).join('') : '<p>No offers yet.</p>');
-        return '<div class="slp-card slp-mini">' + adPic(y) + '<h4>Your ' + esc(y.name) + '</h4>' + body +
-          '<div class="slp-acts"><div class="slp-btn slp-text" data-a="mkwithdraw" data-v="' + esc(y.id) + '">Withdraw</div></div></div>';
+              return '<div class="slp-acts"><div class="slp-btn" data-a="mkaccept" data-v="' + esc(y.id) + '|' + o.index + ('">' + T('ui.accept', 'Accept ')) + money(o.amount) + ' from ' + esc(o.buyer || T('ui.a_buyer', 'a buyer')) + '</div></div>';
+            }).join('') : ('<p>' + T('ui.no_offers_yet', 'No offers yet.') + '</p>'));
+        return '<div class="slp-card slp-mini">' + adPic(y) + ('<h4>' + T('ui.your', 'Your ')) + esc(y.name) + '</h4>' + body +
+          '<div class="slp-acts"><div class="slp-btn slp-text" data-a="mkwithdraw" data-v="' + esc(y.id) + ('">' + T('ui.withdraw', 'Withdraw') + '</div></div></div>');
       }).join('');
       var shelf = kind === 'cars' ? [] : arr(m.shelf).map(function (it) {
-        return '<div class="slp-card slp-mini">' + adPic(it) + '<h4>' + esc(it.name) + '</h4><p>' + partMeta(it) + ' &middot; on your shelf &middot; buyers pay up to about ' + money(it.estimate) + '</p>' +
-          '<div class="slp-acts"><div class="slp-btn" data-a="mklist" data-v="' + esc(it.model) + '|' + it.id + '|app">List it</div>' +
-          '<div class="slp-btn" data-a="mklist" data-v="' + esc(it.model) + '|' + it.id + '|auction">Auction it</div></div></div>';
+        return '<div class="slp-card slp-mini">' + adPic(it) + '<h4>' + esc(it.name) + '</h4><p>' + partMeta(it) + T('ui.middot_on_your_shelf_middot', ' &middot; on your shelf &middot; buyers pay up to about ') + money(it.estimate) + '</p>' +
+          '<div class="slp-acts"><div class="slp-btn" data-a="mklist" data-v="' + esc(it.model) + '|' + it.id + ('|app">' + T('ui.list_it', 'List it') + '</div>') +
+          '<div class="slp-btn" data-a="mklist" data-v="' + esc(it.model) + '|' + it.id + ('|auction">' + T('ui.auction_it', 'Auction it') + '</div></div></div>');
       }).join('');
       var cars = kind === 'parts' ? [] : arr(m.cars).map(function (c) {
-        return '<div class="slp-card slp-mini">' + adPic({ car: true, preview: c.preview }) + '<h4>' + esc(c.name) + '</h4><p>Your car &middot; buyers pay up to about ' + money(c.estimate || 0) + '</p>' +
-          '<div class="slp-acts"><div class="slp-btn" data-a="mkcar" data-v="' + esc(c.id) + '">List car</div></div></div>';
+        return '<div class="slp-card slp-mini">' + adPic({ car: true, preview: c.preview }) + '<h4>' + esc(c.name) + ('</h4><p>' + T('ui.your_car', 'Your car ') + '&middot;' + T('ui.buyers_pay_up_to_about', ' buyers pay up to about ')) + money(c.estimate || 0) + '</p>' +
+          '<div class="slp-acts"><div class="slp-btn" data-a="mkcar" data-v="' + esc(c.id) + ('">' + T('ui.list_car', 'List car') + '</div></div></div>');
       }).join('');
-      return (mine ? '<div class="slp-empty">Your listings</div>' + mine : '') + (shelf ? '<div class="slp-empty">Sell from your shelf</div>' + shelf : '') +
-        (cars ? '<div class="slp-empty">Sell a car</div>' + cars : '');
+      return (mine ? ('<div class="slp-empty">' + T('ui.your_listings', 'Your listings') + '</div>') + mine : '') + (shelf ? ('<div class="slp-empty">' + T('ui.sell_from_your_shelf', 'Sell from your shelf') + '</div>') + shelf : '') +
+        (cars ? ('<div class="slp-empty">' + T('ui.sell_a_car', 'Sell a car') + '</div>') + cars : '');
     }
 
     function marketPage() {
       var m = obj(st.data.market);
       var cards = arr(m.listings).map(adCard).join('');
-      return bar(T('app.revline', 'Revline')) + '<div class="slp-body">' + (m.deliveries ? '<div class="slp-empty">' + m.deliveries + ' on the way to your garage.</div>' : '') +
-        (cards || '<div class="slp-empty">Nothing listed right now. New ads come in through the day.</div>') + sellCards(m) + '</div>';
+      return bar(T('app.revline', 'Revline')) + '<div class="slp-body">' + (m.deliveries ? '<div class="slp-empty">' + m.deliveries + (T('ui.on_the_way_to_your', ' on the way to your garage.') + '</div>') : '') +
+        (cards || ('<div class="slp-empty">' + T('ui.nothing_listed_right_now_new', 'Nothing listed right now. New ads come in through the day.') + '</div>')) + sellCards(m) + '</div>';
     }
 
     // Valo Classifieds: the weekly paper (some ads only in the printed copy, $2 at a gas station)
     function paperPage() {
       var p = obj(obj(st.data.market).paper);
-      var cards = arr(p.listings).map(function (l) { return adCard(l).replace('<h4>', '<h4>' + (l.printOnly ? '<span class="slp-warn">[print only]</span> ' : '')); }).join('');
-      var head = '<div class="slp-empty">Edition ' + (p.edition || 1) + '. Small ads go fast.' +
-        (p.bought ? ' You have the printed copy.' : (p.hidden ? ' ' + p.hidden + ' more in the printed copy.' : '')) + '</div>' +
-        (p.bought ? '' : '<div class="slp-acts"><div class="slp-btn" data-a="buypaper" data-v="1">Buy the paper (' + money(p.price || 2) + ', at a gas station)</div></div>');
-      return bar(st.data.mapName && st.data.mapName !== 'Valo City' ? st.data.mapName + ' Classifieds' : 'Valo Classifieds') + '<div class="slp-body">' + head + (cards || '<div class="slp-empty">No ads right now. New ones come out through the week.</div>') + '</div>';
+      var cards = arr(p.listings).map(function (l) { return adCard(l).replace('<h4>', '<h4>' + (l.printOnly ? ('<span class="slp-warn">' + T('ui.print_only', '[print only]') + '</span>' + ' ') : '')); }).join('');
+      var head = ('<div class="slp-empty">' + T('ui.edition', 'Edition ')) + (p.edition || 1) + T('ui.small_ads_go_fast', '. Small ads go fast.') +
+        (p.bought ? T('ui.you_have_the_printed_copy', ' You have the printed copy.') : (p.hidden ? T('ui.1_more_in_the_printed', ' {1} more in the printed copy.', p.hidden) : '')) + '</div>' +
+        (p.bought ? '' : ('<div class="slp-acts"><div class="slp-btn" data-a="buypaper" data-v="1">' + T('ui.buy_the_paper', 'Buy the paper (')) + money(p.price || 2) + (T('ui.at_a_gas_station', ', at a gas station)') + '</div></div>'));
+      return bar(st.data.mapName && st.data.mapName !== 'Valo City' ? st.data.mapName + T('ui.classifieds', ' Classifieds') : T('classifieds.valo_classifieds', 'Valo Classifieds')) + '<div class="slp-body">' + head + (cards || ('<div class="slp-empty">' + T('ui.no_ads_right_now_new', 'No ads right now. New ones come out through the week.') + '</div>')) + '</div>';
     }
 
     // Swap & Bid: auctions against other bidders; the lot is paid for and delivered when it ends
@@ -619,39 +622,39 @@
       var cards = arr(m.auctions).map(function (l) {
         var mine = l.high === 'you';
         return '<div class="slp-card">' + adPic(l) + '<h4>' + (l.rare ? '&#9733; ' : '') + esc(l.name) + '</h4>' +
-          '<p>' + partMeta(l) + ' &middot; ' + l.condition + '% condition &middot; ' + Math.max(0, l.hoursLeft | 0) + ' h left</p>' +
-          '<p><b>' + money(l.bid) + '</b> ' + (mine ? '(your bid)' : (l.high === 'ai' ? '(outbid)' : '(opening bid)')) + ' &middot; delivery +' + money(l.delivery || 0) + '</p>' +
-          (mine ? '' : '<div class="slp-acts"><div class="slp-btn" data-a="mkbid" data-v="' + esc(l.id) + '">Bid ' + money(l.next) + '</div></div>') + '</div>';
+          '<p>' + partMeta(l) + ' &middot; ' + l.condition + T('ui.condition_middot', '% condition &middot; ') + Math.max(0, l.hoursLeft | 0) + (T('ui.h_left', ' h left') + '</p>') +
+          '<p><b>' + money(l.bid) + '</b> ' + (mine ? T('ui.your_bid', '(your bid)') : (l.high === 'ai' ? T('ui.outbid', '(outbid)') : T('ui.opening_bid', '(opening bid)'))) + T('ui.middot_delivery', ' &middot; delivery +') + money(l.delivery || 0) + '</p>' +
+          (mine ? '' : '<div class="slp-acts"><div class="slp-btn" data-a="mkbid" data-v="' + esc(l.id) + ('">' + T('ui.bid', 'Bid ')) + money(l.next) + '</div></div>') + '</div>';
       }).join('');
       var meet = obj(m.meet), stalls = '';
       if (meet.open) {
-        stalls = '<div class="slp-empty">Swap meet ' + (meet.night ? 'tonight' : 'today') + ' at the ' + esc(meet.place || 'Tuning shop lot') + (meet.here ? '. You are here.' : ': go and buy in person.') + '</div>' +
+        stalls = ('<div class="slp-empty">' + T('ui.swap_meet', 'Swap meet ')) + (meet.night ? 'tonight' : 'today') + T('ui.at_the', ' at the ') + esc(meet.place || T('classifieds.tuning_shop_lot', 'Tuning shop lot')) + (meet.here ? T('ui.you_are_here', '. You are here.') : T('ui.go_and_buy_in_person', ': go and buy in person.')) + '</div>' +
           arr(meet.listings).map(function (l) {
-            return '<div class="slp-card">' + adPic(l) + '<h4>' + (l.rare ? '&#9733; ' : '') + esc(l.name) + '</h4><p>' + partMeta(l) + ' &middot; ' + l.condition + '% condition &middot; ' + esc(l.seller) + '\'s stall</p>' +
-              '<p><b>' + money(l.ask) + '</b></p>' + (meet.here ? '<div class="slp-acts"><div class="slp-btn" data-a="mkmeet" data-v="' + esc(l.id) + '">Buy it</div></div>' : '') + '</div>';
+            return '<div class="slp-card">' + adPic(l) + '<h4>' + (l.rare ? '&#9733; ' : '') + esc(l.name) + '</h4><p>' + partMeta(l) + ' &middot; ' + l.condition + T('ui.condition_middot', '% condition &middot; ') + esc(l.seller) + (T('ui.s_stall', '\'s stall') + '</p>') +
+              '<p><b>' + money(l.ask) + '</b></p>' + (meet.here ? '<div class="slp-acts"><div class="slp-btn" data-a="mkmeet" data-v="' + esc(l.id) + ('">' + T('ui.buy_it', 'Buy it') + '</div></div>') : '') + '</div>';
           }).join('');
       }
-      return bar(T('app.bid', 'Swap & Bid')) + '<div class="slp-body">' + stalls + (cards || '<div class="slp-empty">No lots right now.</div>') + '</div>';
+      return bar(T('app.bid', 'Swap & Bid')) + '<div class="slp-body">' + stalls + (cards || ('<div class="slp-empty">' + T('ui.no_lots_right_now', 'No lots right now.') + '</div>')) + '</div>';
     }
 
     function jobsPage() {
       var j = obj(st.data.jobs), a = j.active;
       var mmss = function (sec) { sec = Math.max(0, sec | 0); return Math.floor(sec / 60) + ':' + two(sec % 60); };
       var activeCard = a ? '<div class="slp-card"><h4>' + esc(a.title) + ': ' + esc(a.item || '') + (a.fragile ? ' &middot; fragile' : '') + '</h4>' +
-        '<p>Next stop: ' + esc(a.next) + (a.timeLeft != null ? ' &middot; ' + (a.timeLeft > 0 ? mmss(a.timeLeft) + ' left' : 'late') : '') + ' &middot; ' + money(a.pay) + '</p>' +
-        '<div class="slp-acts"><div class="slp-btn" data-a="jobway" data-v="1">Show the way</div><div class="slp-btn slp-text" data-a="jobquit" data-v="1">Give up</div></div></div>' : '';
+        ('<p>' + T('ui.next_stop', 'Next stop: ')) + esc(a.next) + (a.timeLeft != null ? ' &middot; ' + (a.timeLeft > 0 ? mmss(a.timeLeft) + ' left' : 'late') : '') + ' &middot; ' + money(a.pay) + '</p>' +
+        ('<div class="slp-acts"><div class="slp-btn" data-a="jobway" data-v="1">' + T('ui.show_the_way', 'Show the way') + '</div><div class="slp-btn slp-text" data-a="jobquit" data-v="1">' + T('ui.give_up', 'Give up') + '</div></div></div>') : '';
       var cards = arr(j.offers).map(function (o) {
         return '<div class="slp-card"><h4>' + esc(o.title) + ': ' + esc(o.item || '') + (o.fragile ? ' &middot; fragile' : '') + '</h4>' +
           '<p>' + esc(o.from) + ' &rarr; ' + esc(o.to) + ' &middot; ' + (o.metres ? (o.metres / 1000).toFixed(1) + ' km &middot; ' : '') + (o.seconds ? mmss(o.seconds) + ' &middot; ' : '') + '<b>' + money(o.pay) + '</b></p>' +
-          (a ? '' : '<div class="slp-acts"><div class="slp-btn" data-a="jobtake" data-v="' + esc(o.id) + '">Take it</div></div>') + '</div>';
+          (a ? '' : '<div class="slp-acts"><div class="slp-btn" data-a="jobtake" data-v="' + esc(o.id) + ('">' + T('ui.take_it', 'Take it') + '</div></div>')) + '</div>';
       }).join('');
-      var boostLine = j.boost && j.boost > 1.04 ? '<div class="slp-empty">New in town: jobs pay &times;' + j.boost.toFixed(1) + ' until you make a name or buy your first part.</div>' : '';
-      return bar(T('app.jobs', 'Jobs')) + '<div class="slp-body">' + boostLine + activeCard + (cards || '<div class="slp-empty">Nothing on the board. New jobs come in the morning and at dusk.</div>') +
-        (j.crew ? '<div class="slp-card"><h4>Crew contract: ' + esc(j.crew.boss) + '</h4><p>Beat ' + j.crew.need + ' racers of tier ' + j.crew.tier + ' or better: ' + j.crew.won + ' so far, ' + j.crew.daysLeft + ' days left. ' + money(j.crew.pay) + '</p></div>' : '') +
-        (j.sponsor ? '<div class="slp-card"><h4>Sponsor: ' + esc(j.sponsor.name) + '</h4><p>' + money(j.sponsor.weekly) + ' a week for two wins a week: ' + j.sponsor.weekWins + ' this week.</p></div>' : '') +
-        (j.quarter || j.dyno ? '<div class="slp-card"><h4>Tuning challenges</h4><p>' + (j.quarter ? 'Quarter mile at the test track under ' + j.quarter + ' s. ' : '') + (j.dyno ? 'Dyno: ' + j.dyno + ' PS on the car info sheet in your garage.' : '') + '</p></div>' : '') +
-        (j.flip ? '<div class="slp-card"><h4>Junkyard challenge: flip a car</h4><p>Sell one for ' + money(j.flip.target) + ' more than you paid for a bonus. Best so far: ' + money(j.flip.best || 0) + '.</p></div>' : '') +
-        '<div class="slp-empty">' + (j.done || 0) + ' jobs done, ' + money(j.earned || 0) + ' earned.</div></div>';
+      var boostLine = j.boost && j.boost > 1.04 ? ('<div class="slp-empty">' + T('ui.new_in_town_jobs_pay', 'New in town: jobs pay ') + '&times;') + j.boost.toFixed(1) + (T('ui.until_you_make_a_name', ' until you make a name or buy your first part.') + '</div>') : '';
+      return bar(T('app.jobs', 'Jobs')) + '<div class="slp-body">' + boostLine + activeCard + (cards || ('<div class="slp-empty">' + T('ui.nothing_on_the_board_new', 'Nothing on the board. New jobs come in the morning and at dusk.') + '</div>')) +
+        (j.crew ? ('<div class="slp-card"><h4>' + T('ui.crew_contract', 'Crew contract: ')) + esc(j.crew.boss) + ('</h4><p>' + T('ui.beat', 'Beat ')) + j.crew.need + T('ui.racers_of_tier', ' racers of tier ') + j.crew.tier + T('ui.or_better', ' or better: ') + j.crew.won + T('ui.so_far', ' so far, ') + j.crew.daysLeft + T('ui.days_left', ' days left. ') + money(j.crew.pay) + '</p></div>' : '') +
+        (j.sponsor ? ('<div class="slp-card"><h4>' + T('ui.sponsor', 'Sponsor: ')) + esc(j.sponsor.name) + '</h4><p>' + money(j.sponsor.weekly) + T('ui.a_week_for_two_wins', ' a week for two wins a week: ') + j.sponsor.weekWins + (T('ui.this_week', ' this week.') + '</p></div>') : '') +
+        (j.quarter || j.dyno ? ('<div class="slp-card"><h4>' + T('ui.tuning_challenges', 'Tuning challenges') + '</h4><p>') + (j.quarter ? T('ui.quarter_mile_at_the_test', 'Quarter mile at the test track under {1} s. ', j.quarter) : '') + (j.dyno ? T('ui.dyno_1_ps_on_the', 'Dyno: {1} PS on the car info sheet in your garage.', j.dyno) : '') + '</p></div>' : '') +
+        (j.flip ? ('<div class="slp-card"><h4>' + T('ui.junkyard_challenge_flip_a_car', 'Junkyard challenge: flip a car') + '</h4><p>' + T('ui.sell_one_for', 'Sell one for ')) + money(j.flip.target) + T('ui.more_than_you_paid_for', ' more than you paid for a bonus. Best so far: ') + money(j.flip.best || 0) + '.</p></div>' : '') +
+        '<div class="slp-empty">' + (j.done || 0) + T('ui.jobs_done', ' jobs done, ') + money(j.earned || 0) + ' earned.</div></div>';
     }
 
     // the club: today's league events, the standings
@@ -679,31 +682,31 @@
     function turfPage() {
       var t = obj(st.data.turf);
       var rows = arr(t.districts).map(function (d) {
-        return '<div class="slp-row"><div class="slp-rt"><b>' + esc(d.name) + (d.here ? ' &middot; you are here' : '') + '</b><span>' +
-          (d.yours ? 'Yours' : esc(d.owner)) + ' &middot; ' + d.control + '% control' + (d.home ? ' &middot; home of ' + esc(d.home) : '') + '</span></div></div>';
+        return '<div class="slp-row"><div class="slp-rt"><b>' + esc(d.name) + (d.here ? T('ui.middot_you_are_here', ' &middot; you are here') : '') + '</b><span>' +
+          (d.yours ? T('ui.yours', 'Yours') : esc(d.owner)) + ' &middot; ' + d.control + T('ui.control', '% control') + (d.home ? T('ui.middot_home_of_1', ' &middot; home of {1}', esc(d.home)) : '') + '</span></div></div>';
       }).join('');
-      var crews = arr(t.crews).map(function (c) { return '<p>' + esc(c.name) + (c.leader ? ' &middot; led by ' + esc(c.leader) : '') + '</p>'; }).join('');
+      var crews = arr(t.crews).map(function (c) { return '<p>' + esc(c.name) + (c.leader ? T('ui.middot_led_by_1', ' &middot; led by {1}', esc(c.leader)) : '') + '</p>'; }).join('');
       return bar(T('app.turf', 'Turf')) + '<div class="slp-body">' + turfMap(t) +
-        '<div class="slp-empty">Beat a crew on its own streets to take the district. You hold ' + (t.held || 0) + '.' + (t.turfWar ? ' The leaders want a word.' : '') + '</div>' +
-        (rows || '<div class="slp-empty">No districts on this map.</div>') + '<div class="slp-card"><h4>The crews</h4>' + crews + '</div></div>';
+        ('<div class="slp-empty">' + T('ui.beat_a_crew_on_its', 'Beat a crew on its own streets to take the district. You hold ')) + (t.held || 0) + '.' + (t.turfWar ? T('ui.the_leaders_want_a_word', ' The leaders want a word.') : '') + '</div>' +
+        (rows || ('<div class="slp-empty">' + T('ui.no_districts_on_this_map', 'No districts on this map.') + '</div>')) + ('<div class="slp-card"><h4>' + T('ui.the_crews', 'The crews') + '</h4>') + crews + '</div></div>';
     }
 
     function clubPage() {
       var c = st.data.club;
-      if (!c) return bar(T('app.club', 'Club')) + '<div class="slp-body"><div class="slp-empty">No club yet.</div></div>';
+      if (!c) return bar(T('app.club', 'Club')) + ('<div class="slp-body"><div class="slp-empty">' + T('ui.no_club_yet', 'No club yet.') + '</div></div>');
       var ev = c.today || {};
       var row = function (kind, label, e) {
         if (!e) return '';
-        var act = e.done ? '<b>Done</b>' : (kind === 'day' && !e.open ? '<b>Soon</b>' : '<div class="slp-btn" data-a="league" data-v="' + kind + '">Enter</div>');
+        var act = e.done ? ('<b>' + T('ui.done', 'Done') + '</b>') : (kind === 'day' && !e.open ? ('<b>' + T('ui.soon', 'Soon') + '</b>') : '<div class="slp-btn" data-a="league" data-v="' + kind + ('">' + T('ui.enter', 'Enter') + '</div>'));
         return '<div class="slp-kv"><span>' + label + '<br><small>' + esc(e.name) + '</small></span>' + act + '</div>';
       };
       var table = arr(c.standings).map(function (r) {
         return '<div class="slp-kv"' + (r.you ? ' style="font-weight:700"' : '') + '><span>' + r.place + '. ' + esc(r.name) + '</span><b>' + r.points + '</b></div>';
       }).join('');
-      return bar(c.club) + '<div class="slp-body"><div class="slp-card"><h4>Season ' + c.season + ', day ' + c.day + ' of ' + c.days + (ev.finale ? ' &middot; finale, double points' : '') + '</h4>' +
-        '<p>Class ' + esc(c['class'] || '?') + (c.carClass && c.carClass !== c['class'] ? ' &middot; this car: ' + esc(c.carClass) : '') + ' &middot; skip any event, it only costs its points</p>' +
-        row('night', 'Night league', ev.night) + row('day', 'Day league', ev.day) + '</div>' +
-        '<div class="slp-card"><h4>Standings</h4>' + table + '</div></div>';
+      return bar(c.club) + ('<div class="slp-body"><div class="slp-card"><h4>' + T('ui.season', 'Season ')) + c.season + T('ui.day', ', day ') + c.day + ' of ' + c.days + (ev.finale ? T('ui.middot_finale_double_points', ' &middot; finale, double points') : '') + '</h4>' +
+        ('<p>' + T('ui.class', 'Class ')) + esc(c['class'] || '?') + (c.carClass && c.carClass !== c['class'] ? T('ui.middot_this_car_1', ' &middot; this car: {1}', esc(c.carClass)) : '') + (' ' + '&middot;' + T('ui.skip_any_event_it_only', ' skip any event, it only costs its points') + '</p>') +
+        row('night', T('clubs.night_league', 'Night league'), ev.night) + row('day', T('clubs.day_league', 'Day league'), ev.day) + '</div>' +
+        ('<div class="slp-card"><h4>' + T('ui.standings', 'Standings') + '</h4>') + table + '</div></div>';
     }
 
     function bankPage() {
@@ -715,21 +718,21 @@
       var bk = st.data.bank, cards = '';
       if (bk) {
         if (bk.loan) {
-          cards += '<div class="slp-card"><h4>Loan: ' + money(bk.loan.owed) + ' owed</h4><p>Next payment ' + money(bk.loan.due) + ' in ' + bk.loan.dueIn + ' day' + (bk.loan.dueIn === 1 ? '' : 's') +
+          cards += ('<div class="slp-card"><h4>' + T('ui.loan', 'Loan: ')) + money(bk.loan.owed) + (' owed' + '</h4><p>' + T('ui.next_payment', 'Next payment ')) + money(bk.loan.due) + ' in ' + bk.loan.dueIn + ' day' + (bk.loan.dueIn === 1 ? '' : 's') +
             (bk.loan.missed ? ' &middot; <span class="slp-pink">' + bk.loan.missed + ' missed</span>' : '') + '</p>' +
-            '<div class="slp-acts"><div class="slp-btn" data-a="repay" data-v="' + Math.min(bk.loan.owed, st.data.money || 0) + '">Pay ' + money(Math.min(bk.loan.owed, st.data.money || 0)) + '</div></div></div>';
+            '<div class="slp-acts"><div class="slp-btn" data-a="repay" data-v="' + Math.min(bk.loan.owed, st.data.money || 0) + ('">' + T('ui.pay', 'Pay ')) + money(Math.min(bk.loan.owed, st.data.money || 0)) + '</div></div></div>';
         } else {
           var half = Math.floor(bk.limit / 200) * 100, quarter = Math.floor(bk.limit / 400) * 100;
-          cards += '<div class="slp-card"><h4>Borrow</h4><p>Up to ' + money(bk.limit) + ' &middot; ' + Math.round(bk.rate * 100) + '% a day &middot; a quarter due each week</p>' +
+          cards += ('<div class="slp-card"><h4>' + T('ui.borrow', 'Borrow') + '</h4><p>' + 'Up to ') + money(bk.limit) + ' &middot; ' + Math.round(bk.rate * 100) + (T('ui.a_day', '% a day ') + '&middot;' + T('ui.a_quarter_due_each_week', ' a quarter due each week') + '</p>') +
             '<div class="slp-acts">' + (quarter >= 100 && quarter < half ? '<div class="slp-btn slp-tonal" data-a="borrow" data-v="' + quarter + '">' + money(quarter) + '</div>' : '') + '<div class="slp-btn slp-tonal" data-a="borrow" data-v="' + half + '">' + money(half) + '</div><div class="slp-btn slp-tonal" data-a="borrow" data-v="' + bk.limit + '">' + money(bk.limit) + '</div></div></div>';
         }
-        cards += bk.policy ? '<div class="slp-card"><h4>Insured</h4><p>' + (bk.policy.startsIn ? 'Cover starts tomorrow' : 'Covering half of repairs and impound bills over ' + money(bk.deductible)) + '</p>' +
-            '<div class="slp-acts"><div class="slp-btn slp-text" data-a="insure" data-v="false">Cancel</div></div></div>'
-          : '<div class="slp-card"><h4>Insurance</h4><p>' + money(bk.premium) + ' a week: half of repairs and impound bills over ' + money(bk.deductible) + ', from the next day</p>' +
-            '<div class="slp-acts"><div class="slp-btn slp-tonal" data-a="insure" data-v="true">Insure</div></div></div>';
+        cards += bk.policy ? ('<div class="slp-card"><h4>' + T('ui.insured', 'Insured') + '</h4><p>') + (bk.policy.startsIn ? T('ui.cover_starts_tomorrow', 'Cover starts tomorrow') : T('ui.covering_half_of_repairs_and', 'Covering half of repairs and impound bills over {1}', money(bk.deductible))) + '</p>' +
+            ('<div class="slp-acts"><div class="slp-btn slp-text" data-a="insure" data-v="false">' + T('ui.cancel', 'Cancel') + '</div></div></div>')
+          : ('<div class="slp-card"><h4>' + T('ui.insurance', 'Insurance') + '</h4><p>') + money(bk.premium) + T('ui.a_week_half_of_repairs', ' a week: half of repairs and impound bills over ') + money(bk.deductible) + (T('ui.from_the_next_day', ', from the next day') + '</p>') +
+            ('<div class="slp-acts"><div class="slp-btn slp-tonal" data-a="insure" data-v="true">' + T('ui.insure', 'Insure') + '</div></div></div>');
       }
-      return bar(T('app.bank', 'Bank')) + '<div class="slp-body"><div class="slp-bal"><small>Balance</small><div>' + money(st.data.money) + '</div></div>' + cards +
-        (rows.join('') || '<div class="slp-empty">No transactions yet.</div>') + '</div>';
+      return bar(T('app.bank', 'Bank')) + ('<div class="slp-body"><div class="slp-bal"><small>' + T('ui.balance', 'Balance') + '</small><div>') + money(st.data.money) + '</div></div>' + cards +
+        (rows.join('') || ('<div class="slp-empty">' + T('ui.no_transactions_yet', 'No transactions yet.') + '</div>')) + '</div>';
     }
 
     // the two marketplaces: cars (the dealers and the private ads) and parts (Revline, Swap & Bid, the paper, the Wrench Works catalog).
@@ -744,62 +747,62 @@
     function dealerCards() {
       var d = obj(st.dealers);
       var coming = arr(d.coming).map(function (c) {
-        return '<div class="slp-kv"><span>' + esc(c.name) + '</span><b>' + (c.hours > 0 ? 'in about ' + c.hours + ' h' : 'arriving') + '</b></div>';
+        return '<div class="slp-kv"><span>' + esc(c.name) + '</span><b>' + (c.hours > 0 ? T('ui.in_about_1_h', 'in about {1} h', c.hours) : 'arriving') + '</b></div>';
       }).join('');
       var rows = arr(d.dealers).map(function (x) {
         return '<div class="slp-card" data-a="mdealer" data-v="' + esc(x.id) + '"><h4>' + esc(x.name) + '</h4><p>' + adDist(x.metres) + ' away &middot; ' + x.count + ' car' + (x.count === 1 ? '' : 's') + ' today</p></div>';
       }).join('');
-      return '<div class="slp-body">' + (coming ? '<div class="slp-card"><h4>On the way to your garage</h4>' + coming + '</div>' : '') + (rows || '<div class="slp-empty">No dealers on this map.</div>') + '</div>';
+      return '<div class="slp-body">' + (coming ? ('<div class="slp-card"><h4>' + T('ui.on_the_way_to_your_2', 'On the way to your garage') + '</h4>') + coming + '</div>' : '') + (rows || ('<div class="slp-empty">' + T('ui.no_dealers_on_this_map', 'No dealers on this map.') + '</div>')) + '</div>';
     }
     function dealerOffers() {
       var o = obj(st.offers);
       var cards = arr(o.offers).map(function (c) {
         var faults = arr(c.faults);
         return '<div class="slp-card">' + adPic(c) + '<h4 data-a="moffer" data-v="' + esc(c.id) + '">' + (c.year ? c.year + ' ' : '') + esc(c.name) + '</h4><p>' + esc(c.brand || '') + (c.title ? ' &middot; ' + esc(c.title) : '') + '</p><p>' + adFacts(c) + '</p>' +
-          '<p>' + esc(c.seller || o.name) + ' &middot; ' + adDist(c.metres) + ' away &middot; arrives in about ' + (c.hours || 0) + ' h &middot; condition ' + Math.round((c.condition || 0) * 100) + '%' + (faults.length ? '<br>Needs: ' + esc(faults.join(', ')) : '') + '</p>' +
-          '<p><b>' + money(c.price) + '</b></p><div class="slp-acts"><div class="slp-btn slp-tonal" data-a="moffer" data-v="' + esc(c.id) + '">Details</div>' +
-          '<div class="slp-btn' + ((o.money || 0) < c.price ? ' slp-off' : '') + '" data-a="mbuy" data-v="' + esc(o.dealer) + '|' + esc(c.id) + '">Buy</div></div></div>';
+          '<p>' + esc(c.seller || o.name) + ' &middot; ' + adDist(c.metres) + T('ui.away_middot_arrives_in_about', ' away &middot; arrives in about ') + (c.hours || 0) + T('ui.h_middot_condition', ' h &middot; condition ') + Math.round((c.condition || 0) * 100) + '%' + (faults.length ? ('<br>' + T('ui.needs_2', 'Needs: ')) + esc(faults.join(', ')) : '') + '</p>' +
+          '<p><b>' + money(c.price) + '</b></p><div class="slp-acts"><div class="slp-btn slp-tonal" data-a="moffer" data-v="' + esc(c.id) + ('">' + T('ui.details', 'Details') + '</div>') +
+          '<div class="slp-btn' + ((o.money || 0) < c.price ? ' slp-off' : '') + '" data-a="mbuy" data-v="' + esc(o.dealer) + '|' + esc(c.id) + ('">' + T('ui.buy', 'Buy') + '</div></div></div>');
       }).join('');
-      return '<div class="slp-body"><div class="slp-empty">' + esc(o.name || 'Dealer') + '</div>' + (cards || '<div class="slp-empty">Nothing left on the lot today.</div>') + '</div>';
+      return '<div class="slp-body"><div class="slp-empty">' + esc(o.name || T('ui.dealer', 'Dealer')) + '</div>' + (cards || ('<div class="slp-empty">' + T('ui.nothing_left_on_the_lot', 'Nothing left on the lot today.') + '</div>')) + '</div>';
     }
     function dealerOffer() {
       var o = obj(st.offers), c = null;
       arr(o.offers).forEach(function (x) { if (x.id === st.cmOffer) c = x; });
-      if (!c) return '<div class="slp-body"><div class="slp-empty">This car has gone.</div></div>';
+      if (!c) return ('<div class="slp-body"><div class="slp-empty">' + T('ui.this_car_has_gone', 'This car has gone.') + '</div></div>');
       var sp = obj(c.specs), faults = arr(c.faults);
       var row = function (k, v) { return v == null || v === '' ? '' : '<div class="slp-kv"><span>' + k + '</span><b>' + v + '</b></div>'; };
       return '<div class="slp-body"><div class="slp-card">' + adPic(c) + '<h4>' + (c.year ? c.year + ' ' : '') + esc(c.name) + '</h4>' +
-        row('Brand', esc(c.brand)) + row('Year', c.year) + row('Mileage', c.mileage != null ? Number(c.mileage).toLocaleString() + ' km' : null) + row('Condition', Math.round((c.condition || 0) * 100) + '%') +
-        row('Power', sp.power ? Math.round(sp.power) + ' PS' : null) + row('Weight', sp.weight ? Math.round(sp.weight).toLocaleString() + ' kg' : null) + row('Transmission', esc(sp.transmission)) +
-        row('Drivetrain', esc(sp.drivetrain)) + row('Fuel', esc(sp.fuel)) + row('Body', esc(sp.body)) + row('Top speed', sp.topSpeed ? Math.round(sp.topSpeed * 3.6) + ' km/h' : null) +
-        (faults.length ? row('Needs', esc(faults.join(', '))) : '') + reportBlock('offer:' + c.id, c.report) + '</div><div class="slp-card">' + row('Seller', esc(c.seller || o.name)) + row('Distance', adDist(c.metres)) +
-        row('Delivery', 'to your garage in about ' + (c.hours || 0) + ' h') + row('Price', money(c.price)) +
-        '<div class="slp-acts"><div class="slp-btn' + ((o.money || 0) < c.price ? ' slp-off' : '') + '" data-a="mbuy" data-v="' + esc(o.dealer) + '|' + esc(c.id) + '">Buy &middot; ' + money(c.price) + '</div></div></div></div>';
+        row(T('ui.brand', 'Brand'), esc(c.brand)) + row(T('ui.year', 'Year'), c.year) + row(T('ui.mileage', 'Mileage'), c.mileage != null ? Number(c.mileage).toLocaleString() + ' km' : null) + row(T('ui.condition_2', 'Condition'), Math.round((c.condition || 0) * 100) + '%') +
+        row(T('ui.power', 'Power'), sp.power ? Math.round(sp.power) + ' PS' : null) + row(T('ui.weight', 'Weight'), sp.weight ? Math.round(sp.weight).toLocaleString() + ' kg' : null) + row(T('ui.transmission', 'Transmission'), esc(sp.transmission)) +
+        row(T('ui.drivetrain', 'Drivetrain'), esc(sp.drivetrain)) + row(T('ui.fuel', 'Fuel'), esc(sp.fuel)) + row(T('ui.body', 'Body'), esc(sp.body)) + row(T('ui.top_speed', 'Top speed'), sp.topSpeed ? Math.round(sp.topSpeed * 3.6) + ' km/h' : null) +
+        (faults.length ? row(T('ui.needs', 'Needs'), esc(faults.join(', '))) : '') + reportBlock('offer:' + c.id, c.report) + '</div><div class="slp-card">' + row(T('ui.seller', 'Seller'), esc(c.seller || o.name)) + row(T('ui.distance', 'Distance'), adDist(c.metres)) +
+        row(T('ui.delivery', 'Delivery'), T('ui.to_your_garage_in_about', 'to your garage in about {1} h', (c.hours || 0))) + row(T('ui.price', 'Price'), money(c.price)) +
+        '<div class="slp-acts"><div class="slp-btn' + ((o.money || 0) < c.price ? ' slp-off' : '') + '" data-a="mbuy" data-v="' + esc(o.dealer) + '|' + esc(c.id) + ('">' + T('ui.buy_2', 'Buy ') + '&middot;' + ' ') + money(c.price) + '</div></div></div></div>';
     }
     function carMarketPage() {
       var m = obj(st.data.market), tab = st.tab.cars;
       var body;
       if (tab === 'ads') {
         var cards = arr(m.listings).filter(function (l) { return l.car; }).map(adCard).join('');
-        body = '<div class="slp-body">' + (cards || '<div class="slp-empty">No private cars for sale right now. New ads come in through the day.</div>') + sellCards(m, 'cars') + '</div>';
+        body = '<div class="slp-body">' + (cards || ('<div class="slp-empty">' + T('ui.no_private_cars_for_sale', 'No private cars for sale right now. New ads come in through the day.') + '</div>')) + sellCards(m, 'cars') + '</div>';
       } else {
         body = st.cmView === 'offer' ? dealerOffer() : (st.cmView === 'offers' ? dealerOffers() : dealerCards());
       }
-      return bar(T('app.carmarket', 'Car market')) + tabsHtml('cars', [['dealers', 'Dealers'], ['ads', 'Private ads']]) + body;
+      return bar(T('app.carmarket', 'Car market')) + tabsHtml('cars', [['dealers', T('ui.dealers', 'Dealers')], ['ads', T('ui.private_ads', 'Private ads')]]) + body;
     }
     function partMarketPage() {
       var m = obj(st.data.market), tab = st.tab.parts, body;
       if (tab === 'auctions') body = bodyOf(bidPage());
       else if (tab === 'paper') body = bodyOf(paperPage());
       else if (tab === 'catalog') {
-        body = '<div class="slp-body"><div class="slp-card"><h4>The Wrench Works catalog</h4><p>Every part that fits your car, new, with its price. Open it from the garage: the car goes in, the catalog opens, what you order is delivered to your shelf.</p>' +
-          '<div class="slp-acts"><div class="slp-btn" data-a="pcatalog" data-v="1">Open the catalog</div></div></div></div>';
+        body = ('<div class="slp-body"><div class="slp-card"><h4>' + T('ui.the_wrench_works_catalog', 'The Wrench Works catalog') + '</h4><p>' + T('ui.every_part_that_fits_your', 'Every part that fits your car, new, with its price. Open it from the garage: the car goes in, the catalog opens, what you order is delivered to your shelf.') + '</p>') +
+          ('<div class="slp-acts"><div class="slp-btn" data-a="pcatalog" data-v="1">' + T('ui.open_the_catalog', 'Open the catalog') + '</div></div></div></div>');
       } else {
         var cards = arr(m.listings).filter(function (l) { return !l.car; }).map(adCard).join('');
-        body = '<div class="slp-body">' + (m.deliveries ? '<div class="slp-empty">' + m.deliveries + ' on the way to your garage.</div>' : '') +
-          (cards || '<div class="slp-empty">Nothing listed right now. New ads come in through the day.</div>') + sellCards(m, 'parts') + '</div>';
+        body = '<div class="slp-body">' + (m.deliveries ? '<div class="slp-empty">' + m.deliveries + (T('ui.on_the_way_to_your', ' on the way to your garage.') + '</div>') : '') +
+          (cards || ('<div class="slp-empty">' + T('ui.nothing_listed_right_now_new', 'Nothing listed right now. New ads come in through the day.') + '</div>')) + sellCards(m, 'parts') + '</div>';
       }
-      return bar(T('app.partmarket', 'Part market')) + tabsHtml('parts', [['revline', 'Revline'], ['auctions', 'Swap & Bid'], ['paper', 'Classifieds'], ['catalog', 'Catalog']]) + body;
+      return bar(T('app.partmarket', 'Part market')) + tabsHtml('parts', [['revline', T('ui.revline', 'Revline')], ['auctions', T('ui.swap_bid', 'Swap & Bid')], ['paper', T('ui.classifieds_2', 'Classifieds')], ['catalog', T('ui.catalog', 'Catalog')]]) + body;
     }
 
     // Settings: Wrench Works' settings and the career's, as Android lists them
@@ -809,7 +812,7 @@
       return null;
     }
     function settingValue(d) {
-      if (d.type === 'bool') return d.value ? 'On' : 'Off';
+      if (d.type === 'bool') return d.value ? 'On' : T('ui.off', 'Off');
       if (d.type === 'choice') { var o = arr(d.options).filter(function (x) { return x.id === d.value; })[0]; return o ? o.label : String(d.value); }
       return (typeof d.value === 'number' ? Math.round(d.value * 1000) / 1000 : d.value) + (d.unit ? ' ' + d.unit : '');
     }
@@ -832,11 +835,11 @@
       var rows = arr(st.help).map(function (p) {
         return '<div class="slp-row" data-a="helppage" data-v="' + esc(p.id) + '"><div class="slp-rt"><b>' + esc(p.title) + '</b></div></div>';
       }).join('');
-      return bar(T('app.help', 'Help')) + '<div class="slp-body">' + (rows || '<div class="slp-empty">Loading the help...</div>') + '</div>';
+      return bar(T('app.help', 'Help')) + '<div class="slp-body">' + (rows || ('<div class="slp-empty">' + T('ui.loading_the_help', 'Loading the help...') + '</div>')) + '</div>';
     }
     function helpTopicPage() {
       var p = arr(st.help).filter(function (x) { return x.id === st.helpId; })[0];
-      if (!p) return bar(T('app.help', 'Help')) + '<div class="slp-body"><div class="slp-empty">No such page.</div></div>';
+      if (!p) return bar(T('app.help', 'Help')) + ('<div class="slp-body"><div class="slp-empty">' + T('ui.no_such_page', 'No such page.') + '</div></div>');
       var inList = false, html = '';
       arr(p.body).forEach(function (t) {
         var bullet = String(t).indexOf('- ') === 0;
@@ -850,12 +853,12 @@
 
     function settingsPage() {
       var defs = arr(obj(st.settings).defs), groups = [], by = {};
-      defs.forEach(function (d) { var g = d.group || 'Other'; if (!by[g]) { by[g] = []; groups.push(g); } by[g].push(d); });
+      defs.forEach(function (d) { var g = d.group || T('ui.other', 'Other'); if (!by[g]) { by[g] = []; groups.push(g); } by[g].push(d); });
       var out = groups.map(function (g) { return '<div class="slp-seth">' + esc(g) + '</div>' + by[g].map(settingRow).join(''); }).join('');
-      return bar(T('app.settings', 'Settings')) + '<div class="slp-body">' + (out || '<div class="slp-empty">No settings yet.</div>') +
-        '<div class="slp-seth">Settings</div><div class="slp-acts"><div class="slp-btn slp-tonal" data-a="setreset">Reset to defaults</div></div>' +
-        '<div class="slp-seth">Developer</div><div class="slp-set"><div class="slp-st"><b>All the money</b><small>For testing: the money goes to $99,999,999.</small></div></div>' +
-        '<div class="slp-acts"><div class="slp-btn slp-pinkbtn" data-a="devmoney">Give all the money</div></div></div>';
+      return bar(T('app.settings', 'Settings')) + '<div class="slp-body">' + (out || ('<div class="slp-empty">' + T('ui.no_settings_yet', 'No settings yet.') + '</div>')) +
+        ('<div class="slp-seth">' + T('ui.settings', 'Settings') + '</div><div class="slp-acts"><div class="slp-btn slp-tonal" data-a="setreset">' + T('ui.reset_to_defaults', 'Reset to defaults') + '</div></div>') +
+        ('<div class="slp-seth">' + T('ui.developer', 'Developer') + '</div><div class="slp-set"><div class="slp-st"><b>' + T('ui.all_the_money', 'All the money') + '</b><small>' + T('ui.for_testing_the_money_goes', 'For testing: the money goes to $99,999,999.') + '</small></div></div>') +
+        ('<div class="slp-acts"><div class="slp-btn slp-pinkbtn" data-a="devmoney">' + T('ui.give_all_the_money', 'Give all the money') + '</div></div></div>');
     }
 
     // waiting: to the next morning or a few hours on (the clock, deliveries and shop hours follow); refused in a race, on a job or with the police after you
@@ -871,7 +874,7 @@
 
     // the cab's places by category (#21): garages, shops, dealers (by the price tier of their cars), junkyards
     var CAB_KINDS = { all: null, garage: ['garage'], shop: ['shop', 'parts'], dealer: ['dealer'], junk: ['junkyard', 'scrapyard'] };
-    var CAB_TIERS = [['all', 'Any'], ['high', 'High'], ['mid', 'Mid'], ['low', 'Low'], ['junk', 'Junk']];
+    var CAB_TIERS = [['all', T('ui.any', 'Any')], ['high', T('ui.high', 'High')], ['mid', T('ui.mid', 'Mid')], ['low', T('ui.low', 'Low')], ['junk', T('ui.junk', 'Junk')]];
     function cabShown(p) {
       var kinds = CAB_KINDS[st.tab.cab];
       if (kinds && kinds.indexOf(p.kind) < 0) return false;
@@ -883,35 +886,35 @@
         return '<div class="slp-row" data-a="taxi" data-v="' + esc(p.id) + '"><div class="slp-av" style="background:#ffd8a8">' + I.cab.replace('<svg', '<svg style="width:22px;height:22px;fill:#5b3d00"') + '</div>' +
           '<div class="slp-rt"><b>' + esc(p.name) + '</b><span>' + esc(p.kind) + (p.tierLabel ? ' &middot; ' + esc(p.tierLabel) : '') + '</span></div><div class="slp-ib" data-a="gps" data-v="' + esc(p.id) + '">' + I.gps + '</div></div>';
       });
-      return bar(T('app.cab', 'Cab')) + tabsHtml('cab', [['all', 'All'], ['garage', 'Garages'], ['shop', 'Shops'], ['dealer', 'Dealers'], ['junk', 'Junkyards']]) +
+      return bar(T('app.cab', 'Cab')) + tabsHtml('cab', [['all', T('ui.all', 'All')], ['garage', T('ui.garages', 'Garages')], ['shop', T('ui.shops', 'Shops')], ['dealer', T('ui.dealers', 'Dealers')], ['junk', T('ui.junkyards', 'Junkyards')]]) +
         (st.tab.cab === 'dealer' ? tabsHtml('cabtier', CAB_TIERS) : '') +
-        '<div class="slp-body"><div class="slp-card"><p>On foot, a cab takes you anywhere in town. In a car, the pin shows you the way.</p></div>' +
-        (rows.join('') || '<div class="slp-empty">' + (st.tab.cab === 'all' ? 'The cab company does not know any places on this map yet.' : 'No such place here.') + '</div>') + '</div>';
+        ('<div class="slp-body"><div class="slp-card"><p>' + T('ui.on_foot_a_cab_takes', 'On foot, a cab takes you anywhere in town. In a car, the pin shows you the way.') + '</p></div>') +
+        (rows.join('') || '<div class="slp-empty">' + (st.tab.cab === 'all' ? T('ui.the_cab_company_does_not', 'The cab company does not know any places on this map yet.') : T('ui.no_such_place_here', 'No such place here.')) + '</div>') + '</div>';
     }
 
     // a car's health, its trunk (use what is in it) and its history
-    var ITEM_NAMES = { fuelCan: 'Fuel can', oil: 'Engine oil', coolant: 'Coolant', battery: '12 V battery' };
+    var ITEM_NAMES = { fuelCan: T('ui.fuel_can', 'Fuel can'), oil: T('ui.engine_oil', 'Engine oil'), coolant: T('ui.coolant', 'Coolant'), battery: T('ui.12_v_battery', '12 V battery') };
     function careView(c) {
       var k = c.care;
       if (!k) return '';
       var pct = function (v) { return v == null ? '-' : Math.round(v * 100) + '%'; };
       var warn = function (v, low) { return v != null && v < low ? ' class="slp-warn"' : ''; };
       var mark = function (v, low) { return v != null && v < low ? '&#9888; ' : ''; };      // (#51: a mark as well as a colour)
-      var rows = '<div class="slp-kv"><span>Battery</span><b' + warn(k.battery, 0.3) + '>' + mark(k.battery, 0.3) + pct(k.battery) + '</b></div>' +
-        '<div class="slp-kv"><span>Oil</span><b' + warn(k.oilLevel, 0.5) + '>' + mark(k.oilLevel, 0.5) + pct(k.oilLevel) + ' &middot; ' + (k.oilKm || 0).toLocaleString() + ' km old</b></div>' +
-        '<div class="slp-kv"><span>Coolant</span><b' + warn(k.coolantLevel, 0.5) + '>' + mark(k.coolantLevel, 0.5) + pct(k.coolantLevel) + '</b></div>' +
-        '<div class="slp-kv"><span>Fuel</span><b>' + pct(k.fuelLevel) + ' &middot; ' + esc(k.fuel) + '</b></div>' +
-        (k.n2o != null ? '<div class="slp-kv"><span>Nitrous</span><b>' + pct(k.n2o) + '</b></div>' : '') +
-        '<div class="slp-kv"><span>Engine</span><b>' + (k.engineKm || 0).toLocaleString() + ' km &middot; ' + Math.round((k.performance || 1) * 100) + '% power</b></div>';
+      var rows = ('<div class="slp-kv"><span>' + T('ui.battery', 'Battery') + '</span><b') + warn(k.battery, 0.3) + '>' + mark(k.battery, 0.3) + pct(k.battery) + '</b></div>' +
+        ('<div class="slp-kv"><span>' + T('ui.oil', 'Oil') + '</span><b') + warn(k.oilLevel, 0.5) + '>' + mark(k.oilLevel, 0.5) + pct(k.oilLevel) + ' &middot; ' + (k.oilKm || 0).toLocaleString() + (T('ui.km_old', ' km old') + '</b></div>') +
+        ('<div class="slp-kv"><span>' + T('ui.coolant', 'Coolant') + '</span><b') + warn(k.coolantLevel, 0.5) + '>' + mark(k.coolantLevel, 0.5) + pct(k.coolantLevel) + '</b></div>' +
+        ('<div class="slp-kv"><span>' + T('ui.fuel', 'Fuel') + '</span><b>') + pct(k.fuelLevel) + ' &middot; ' + esc(k.fuel) + '</b></div>' +
+        (k.n2o != null ? ('<div class="slp-kv"><span>' + T('ui.nitrous', 'Nitrous') + '</span><b>') + pct(k.n2o) + '</b></div>' : '') +
+        ('<div class="slp-kv"><span>' + T('ui.engine', 'Engine') + '</span><b>') + (k.engineKm || 0).toLocaleString() + ' km &middot; ' + Math.round((k.performance || 1) * 100) + (T('ui.power_2', '% power') + '</b></div>');
       var counts = {};
       arr(k.trunk).forEach(function (i) { counts[i] = (counts[i] || 0) + 1; });
       var trunk = Object.keys(counts).map(function (i) {
-        return '<div class="slp-kv slp-hudrow" data-a="useitem" data-v="' + c.id + '|' + i + '"><span>' + esc(ITEM_NAMES[i] || i) + ' &times;' + counts[i] + '</span><b class="slp-on">Use</b></div>';
+        return '<div class="slp-kv slp-hudrow" data-a="useitem" data-v="' + c.id + '|' + i + '"><span>' + esc(ITEM_NAMES[i] || i) + ' &times;' + counts[i] + ('</span><b class="slp-on">' + T('ui.use', 'Use') + '</b></div>');
       }).join('');
       var h = k.history || {};
-      var hist = '<div class="slp-kv" style="border:none"><span>History</span><b>' + (h.owners || 0) + ' owners before you &middot; ' + (h.wins || 0) + '/' + (h.races || 0) + ' races won' +
-        (h.wrecks ? ' &middot; wrecked ' + h.wrecks + '&times;' : '') + '</b></div>';
-      return '<div class="slp-carcare">' + rows + (trunk ? '<div class="slp-trunk">Trunk</div>' + trunk : '') + hist + reportBlock('car:' + c.id, c.report) + '</div>';
+      var hist = ('<div class="slp-kv" style="border:none"><span>' + T('ui.history', 'History') + '</span><b>') + (h.owners || 0) + T('ui.owners_before_you_middot', ' owners before you &middot; ') + (h.wins || 0) + '/' + (h.races || 0) + T('ui.races_won', ' races won') +
+        (h.wrecks ? T('ui.middot_wrecked_1_times', ' &middot; wrecked {1}&times;', h.wrecks) : '') + '</b></div>';
+      return '<div class="slp-carcare">' + rows + (trunk ? ('<div class="slp-trunk">' + T('ui.trunk', 'Trunk') + '</div>') + trunk : '') + hist + reportBlock('car:' + c.id, c.report) + '</div>';
     }
 
     function garagePage() {
@@ -919,39 +922,39 @@
       var cards = cars.map(function (c) {
         var faults = arr(c.faults);
         var acts = [];
-        if (c.impounded) acts.push('<div class="slp-btn" data-a="release" data-v="' + c.id + '">Get it out of the impound &middot; ' + money(c.impounded) + '</div>');
-        else if (!c.active) acts.push('<div class="slp-btn" data-a="usecar" data-v="' + c.id + '">Drive this one</div>');
-        if (c.out && c.towFee && c.where === 'Out on the street') acts.push('<div class="slp-btn slp-tonal" data-a="tow" data-v="' + c.id + '">Tow it home &middot; ' + money(c.towFee) + '</div>');
-        if (c.out && !c.impounded) acts.push('<div class="slp-btn slp-text" data-a="despawn" data-v="' + c.id + '">Put it away</div>');
+        if (c.impounded) acts.push('<div class="slp-btn" data-a="release" data-v="' + c.id + ('">' + T('ui.get_it_out_of_the', 'Get it out of the impound ') + '&middot;' + ' ') + money(c.impounded) + '</div>');
+        else if (!c.active) acts.push('<div class="slp-btn" data-a="usecar" data-v="' + c.id + ('">' + T('ui.drive_this_one', 'Drive this one') + '</div>'));
+        if (c.out && c.towFee && c.where === 'Out on the street') acts.push('<div class="slp-btn slp-tonal" data-a="tow" data-v="' + c.id + ('">' + T('ui.tow_it_home', 'Tow it home ') + '&middot;' + ' ') + money(c.towFee) + '</div>');
+        if (c.out && !c.impounded) acts.push('<div class="slp-btn slp-text" data-a="despawn" data-v="' + c.id + ('">' + T('ui.put_it_away', 'Put it away') + '</div>'));
         return '<div class="slp-card"><h4>' + esc(c.name) + (c.active ? ' &#9733;' : '') + '</h4><p>' + esc(c.where) + ' &middot; condition ' + Math.round((c.condition || 0) * 100) + '%' +
-          (faults.length ? '<br>Needs: ' + esc(faults.join(', ')) : '') + '</p>' + careView(c) + (acts.length ? '<div class="slp-acts">' + acts.join('') + '</div>' : '') + '</div>';
+          (faults.length ? ('<br>' + T('ui.needs_2', 'Needs: ')) + esc(faults.join(', ')) : '') + '</p>' + careView(c) + (acts.length ? '<div class="slp-acts">' + acts.join('') + '</div>' : '') + '</div>';
       });
       // the garage's own kit (X58): what it has, and what can be put in
       var ups = arr(st.data.upgrades).map(function (u) {
         return '<div class="slp-kv"><span>' + esc(u.name) + '<br><small>' + esc(u.desc) + '</small></span><b>' +
-          (u.has ? 'In the garage' : '<div class="slp-btn slp-tonal" data-a="upgrade" data-v="' + esc(u.id) + '">' + money(u.price) + '</div>') + '</b></div>';
+          (u.has ? T('fleet.in_the_garage', 'In the garage') : '<div class="slp-btn slp-tonal" data-a="upgrade" data-v="' + esc(u.id) + '">' + money(u.price) + '</div>') + '</b></div>';
       }).join('');
       return bar(T('app.garage', 'My cars')) + '<div class="slp-body">' + (cards.join('') ||
-        '<div class="slp-empty">You have no car. The junkyard sells cheap ones that need work, the dealership new ones. The Cab app gets you there.</div>') +
-        (ups ? '<div class="slp-card"><h4>The garage</h4>' + ups + '</div>' : '') + '</div>';
+        ('<div class="slp-empty">' + T('ui.you_have_no_car_the', 'You have no car. The junkyard sells cheap ones that need work, the dealership new ones. The Cab app gets you there.') + '</div>')) +
+        (ups ? ('<div class="slp-card"><h4>' + T('ui.the_garage', 'The garage') + '</h4>') + ups + '</div>' : '') + '</div>';
     }
 
     function mePage() {
       var d = st.data, s = obj(d.stats);
       var from = d.titleRep || 0, to = d.nextRep, pct = to ? Math.max(0, Math.min(100, ((d.rep || 0) - from) / (to - from) * 100)) : 100;
-      var next = d.nextGarage ? '<div class="slp-kv"><span>Next garage</span><b>' + esc(d.nextGarage.name) + (d.nextGarage.canMove ? ' - ready' : ' - ' + esc(d.nextGarage.why)) + '</b></div>' : '';
+      var next = d.nextGarage ? ('<div class="slp-kv"><span>' + T('ui.next_garage', 'Next garage') + '</span><b>') + esc(d.nextGarage.name) + (d.nextGarage.canMove ? T('ui.ready', ' - ready') : ' - ' + esc(d.nextGarage.why)) + '</b></div>' : '';
       var acts = [];
-      if (d.nextGarage && d.nextGarage.canMove) acts.push('<div class="slp-btn" data-a="move">Move to ' + esc(d.nextGarage.name) + '</div>');
-      if (d.roc && !d.rocChampion) acts.push('<div class="slp-btn" data-a="roc">' + (d.rocRound ? 'ROC round ' + (d.rocRound + 1) + ' of 3' : 'Enter the ROC &middot; ' + money(d.rocEntry)) + '</div>');
-      return bar(T('app.me', 'Street cred')) + '<div class="slp-body"><div class="slp-card"><h4>' + esc(d.title) + '</h4><p>' + (d.rep || 0) + ' reputation' + (to ? ' &middot; next title at ' + to : '') + '</p>' +
+      if (d.nextGarage && d.nextGarage.canMove) acts.push(('<div class="slp-btn" data-a="move">' + T('ui.move_to', 'Move to ')) + esc(d.nextGarage.name) + '</div>');
+      if (d.roc && !d.rocChampion) acts.push('<div class="slp-btn" data-a="roc">' + (d.rocRound ? T('ui.roc_round_1_of_3', 'ROC round {1} of 3', (d.rocRound + 1)) : T('ui.enter_the_roc_middot_1', 'Enter the ROC &middot; {1}', money(d.rocEntry))) + '</div>');
+      return bar(T('app.me', 'Street cred')) + '<div class="slp-body"><div class="slp-card"><h4>' + esc(d.title) + '</h4><p>' + (d.rep || 0) + ' reputation' + (to ? T('ui.middot_next_title_at_1', ' &middot; next title at {1}', to) : '') + '</p>' +
         '<div class="slp-meter"><i style="width:' + pct.toFixed(1) + '%"></i></div></div>' +
-        '<div class="slp-card"><div class="slp-kv"><span>Garage</span><b>' + esc(d.garage || '') + '</b></div>' + next +
-        (d.hasRoc === false ? '' : '<div class="slp-kv"><span>Race of Champions</span><b>' + (d.roc ? 'Open to you' : 'Not yet') + '</b></div>') +
-        '<div class="slp-kv"><span>Cars</span><b>' + (d.cars || 0) + '</b></div>' +
-        '<div class="slp-kv"><span>Races</span><b>' + (s.races || 0) + ' (' + (s.wins || 0) + ' won)</b></div>' +
-        '<div class="slp-kv" style="border:none"><span>Pink slips</span><b>' + (s.pinksWon || 0) + ' won, ' + (s.pinksLost || 0) + ' lost</b></div>' +
+        ('<div class="slp-card"><div class="slp-kv"><span>' + T('ui.garage', 'Garage') + '</span><b>') + esc(d.garage || '') + '</b></div>' + next +
+        (d.hasRoc === false ? '' : ('<div class="slp-kv"><span>' + T('activityrules.race_of_champions', 'Race of Champions') + '</span><b>') + (d.roc ? T('ui.open_to_you', 'Open to you') : T('ui.not_yet', 'Not yet')) + '</b></div>') +
+        ('<div class="slp-kv"><span>' + T('ui.cars', 'Cars') + '</span><b>') + (d.cars || 0) + '</b></div>' +
+        ('<div class="slp-kv"><span>' + T('ui.races', 'Races') + '</span><b>') + (s.races || 0) + ' (' + (s.wins || 0) + (T('ui.won_2', ' won)') + '</b></div>') +
+        ('<div class="slp-kv" style="border:none"><span>' + T('crews.pink_slips', 'Pink slips') + '</span><b>') + (s.pinksWon || 0) + T('ui.won_3', ' won, ') + (s.pinksLost || 0) + ' lost</b></div>' +
         (acts.length ? '<div class="slp-acts">' + acts.join('') + '</div>' : '') + '</div>' +
-        (d.rocChampion ? '<div class="slp-card"><h4>ROC champion</h4><p>The best in ' + esc(d.mapName || 'Valo City') + '. There is nobody left to beat.</p></div>' : '') +
+        (d.rocChampion ? ('<div class="slp-card"><h4>' + T('streets.roc_champion', 'ROC champion') + '</h4><p>' + T('ui.the_best_in', 'The best in ')) + esc(d.mapName || T('progression.valo_city', 'Valo City')) + (T('ui.there_is_nobody_left_to', '. There is nobody left to beat.') + '</p></div>') : '') +
         achievementsCard(d.achievements) + hudCard(d.hud) + '</div>';
     }
 
@@ -959,28 +962,28 @@
     function achievementsCard(a) {
       if (!a) return '';
       var rows = arr(a.list).map(function (x) {
-        return '<div class="slp-kv"' + (x.day != null ? '' : ' style="opacity:.45"') + '><span>' + esc(x.title) + '<br><small>' + esc(x.desc) + '</small></span><b>' + (x.day != null ? 'Day ' + x.day : '') + '</b></div>';
+        return '<div class="slp-kv"' + (x.day != null ? '' : ' style="opacity:.45"') + '><span>' + esc(x.title) + '<br><small>' + esc(x.desc) + '</small></span><b>' + (x.day != null ? T('ui.day_1', 'Day {1}', x.day) : '') + '</b></div>';
       }).join('');
       var bests = arr(a.bests).map(function (b) { return '<div class="slp-kv"><span>' + esc(b.name) + '</span><b>' + Number(b.time).toFixed(2) + ' s</b></div>'; }).join('');
-      return '<div class="slp-card"><h4>Achievements ' + (a.earned || 0) + ' / ' + (a.total || 0) + '</h4>' + rows + '</div>' +
-        (bests ? '<div class="slp-card"><h4>Best times</h4>' + bests + '</div>' : '');
+      return ('<div class="slp-card"><h4>' + T('ui.achievements', 'Achievements ')) + (a.earned || 0) + ' / ' + (a.total || 0) + '</h4>' + rows + '</div>' +
+        (bests ? ('<div class="slp-card"><h4>' + T('ui.best_times', 'Best times') + '</h4>') + bests + '</div>' : '');
     }
 
     // the SLRR dashboard's switches
     function hudCard(h) {
       if (!h) return '';
       var row = function (key, label, on, text) {
-        return '<div class="slp-kv slp-hudrow" data-a="hud" data-v="' + key + '"><span>' + label + '</span><b class="' + (on ? 'slp-on' : 'slp-offtxt') + '">' + (text || (on ? 'On' : 'Off')) + '</b></div>';
+        return '<div class="slp-kv slp-hudrow" data-a="hud" data-v="' + key + '"><span>' + label + '</span><b class="' + (on ? 'slp-on' : 'slp-offtxt') + '">' + (text || (on ? 'On' : T('ui.off', 'Off'))) + '</b></div>';
       };
-      return '<div class="slp-card"><h4>Dashboard</h4><p>The SLRR gauges, map and damage diagram while you drive.</p>' +
-        row('enabled', 'Dashboard', h.enabled) +
-        (h.enabled ? row('tacho', 'Rev counter', h.tacho) + row('speedo', 'Speedometer', h.speedo) + row('map', 'Map', h.map) + row('damage', 'Damage', h.damage) +
-          row('units', 'Units', true, h.units === 'mph' ? 'mph' : 'km/h') + row('freeroam', 'Also outside the career', h.freeroam) : '') + '</div>';
+      return ('<div class="slp-card"><h4>' + T('ui.dashboard', 'Dashboard') + '</h4><p>' + T('ui.the_slrr_gauges_map_and', 'The SLRR gauges, map and damage diagram while you drive.') + '</p>') +
+        row('enabled', T('ui.dashboard', 'Dashboard'), h.enabled) +
+        (h.enabled ? row('tacho', T('ui.rev_counter', 'Rev counter'), h.tacho) + row('speedo', T('ui.speedometer', 'Speedometer'), h.speedo) + row('map', T('ui.map', 'Map'), h.map) + row('damage', T('ui.damage', 'Damage'), h.damage) +
+          row('units', T('ui.units', 'Units'), true, h.units === 'mph' ? 'mph' : 'km/h') + row('freeroam', T('ui.also_outside_the_career', 'Also outside the career'), h.freeroam) : '') + '</div>';
     }
 
     function callPage() {
       var c = st.call, who = contactById(c.id) || { id: c.id, name: c.id };
-      var status = c.phase === 'ringing' ? 'Calling…' : (c.phase === 'ended' ? 'Call ended' : 'Connected');
+      var status = c.phase === 'ringing' ? 'Calling…' : (c.phase === 'ended' ? T('ui.call_ended', 'Call ended') : T('ui.connected', 'Connected'));
       var body = '';
       if (c.phase === 'talking' || c.phase === 'ended') {
         if (c.greeting) body += '<div class="slp-said">' + esc(c.greeting) + '</div>';
@@ -989,7 +992,7 @@
         if (c.phase === 'talking' && !c.reply && arr(c.options).length) {
           body += '<div class="slp-opts">' + c.options.map(function (k) { return '<div class="slp-btn slp-tonal" data-a="stake" data-v="' + k + '">' + STAKE_TEXT[k] + '</div>'; }).join('') + '</div>';
         }
-        if (c.challenge) body += '<div class="slp-opts"><div class="slp-btn" data-a="gps" data-v="' + esc(c.challenge.id) + '">Show the way to ' + esc(c.challenge.raceName) + '</div></div>';
+        if (c.challenge) body += '<div class="slp-opts"><div class="slp-btn" data-a="gps" data-v="' + esc(c.challenge.id) + ('">' + T('ui.show_the_way_to', 'Show the way to ')) + esc(c.challenge.raceName) + '</div></div>';
       }
       return '<div class="slp-call' + (c.phase === 'ringing' ? ' slp-ring' : '') + '">' + avatar(who) + '<b>' + esc(who.name) + '</b><div class="slp-cs">' + status + '</div>' + body +
         '<div class="slp-hang" data-a="hang">' + I.phone + '</div></div>';
@@ -1002,38 +1005,38 @@
       var l = st.lot;
       if (!l || !l.open) return '';
       if (l.mode === 'test') {
-        return '<div class="slp-hudtest">Test drive &middot; ' + mmss(l.testLeft) + ' left &middot; bring it back to ' + esc(l.name) +
-          '<div class="slp-btn slp-tonal" data-a="lot" data-v="endTest()">Done</div></div>';
+        return ('<div class="slp-hudtest">' + T('ui.test_drive', 'Test drive ') + '&middot;' + ' ') + mmss(l.testLeft) + T('ui.left_middot_bring_it_back', ' left &middot; bring it back to ') + esc(l.name) +
+          ('<div class="slp-btn slp-tonal" data-a="lot" data-v="endTest()">' + T('ui.done', 'Done') + '</div></div>');
       }
       if (l.mode === 'sell') {
         var c = l.sellCar || {};
         return '<div class="slp-lot"><div class="slp-lothead"><span>' + esc(l.kindTitle) + ' &middot; ' + esc(l.name) + '</span></div>' +
-          '<div class="slp-lotname">They will give you<b>' + money(c.price) + ' for the ' + esc(c.name) + '</b></div>' +
-          '<div class="slp-lotbtns"><div class="slp-btn" data-a="lot" data-v="sell()">' + (l.kind === 'scrap' ? 'Scrap it' : 'Sell it') + '</div>' +
-          '<div class="slp-btn slp-tonal" data-a="lot" data-v="browse()">Look at their cars</div></div>' +
-          '<div class="slp-lotleave"><div class="slp-btn slp-text" data-a="lot" data-v="close()">Not today</div></div></div>';
+          ('<div class="slp-lotname">' + T('ui.they_will_give_you', 'They will give you') + '<b>') + money(c.price) + T('ui.for_the', ' for the ') + esc(c.name) + '</b></div>' +
+          '<div class="slp-lotbtns"><div class="slp-btn" data-a="lot" data-v="sell()">' + (l.kind === 'scrap' ? T('ui.scrap_it', 'Scrap it') : T('ui.sell_it', 'Sell it')) + '</div>' +
+          ('<div class="slp-btn slp-tonal" data-a="lot" data-v="browse()">' + T('ui.look_at_their_cars', 'Look at their cars') + '</div></div>') +
+          ('<div class="slp-lotleave"><div class="slp-btn slp-text" data-a="lot" data-v="close()">' + T('ui.not_today', 'Not today') + '</div></div></div>');
       }
       if (l.building) {         // the row is being made: a loading screen, the lot shows when all is done
         var pr = obj(l.progress), tot = pr.total || 0, dn = Math.min(pr.done || 0, tot);
-        return '<div class="slp-lotload"><div class="slp-lcard"><div class="slp-spin"></div><b>Getting the cars out&hellip;</b>' +
-          '<span>' + esc(l.name) + '</span><span>' + (tot ? (pr.phase === 'bodywork' ? 'Bodywork ' : 'Car ') + dn + ' of ' + tot : 'One moment') + '</span>' +
+        return ('<div class="slp-lotload"><div class="slp-lcard"><div class="slp-spin"></div><b>' + T('ui.getting_the_cars_out', 'Getting the cars out') + '&hellip;</b>') +
+          '<span>' + esc(l.name) + '</span><span>' + (tot ? (pr.phase === 'bodywork' ? T('ui.bodywork', 'Bodywork ') : T('ui.car', 'Car ')) + dn + ' of ' + tot : T('ui.one_moment', 'One moment')) + '</span>' +
           '<div class="slp-lbar"><i style="width:' + (tot ? Math.round(100 * dn / tot) : 5) + '%"></i></div>' +
-          '<div class="slp-btn slp-text" data-a="lot" data-v="close()" style="margin-top:10px">Cancel</div></div></div>';
+          ('<div class="slp-btn slp-text" data-a="lot" data-v="close()" style="margin-top:10px">' + T('ui.cancel', 'Cancel') + '</div></div></div>');
       }
       var o = l.offer || {};
       var faults = arr(o.faults);
-      var body = l.building ? '<div class="slp-lotname"><b>Bringing it round\u2026</b></div>' :
+      var body = l.building ? ('<div class="slp-lotname"><b>' + T('ui.bringing_it_round', 'Bringing it round…') + '</b></div>') :
         '<div class="slp-lotname">' + esc(o.brand) + '<b>' + esc(o.name) + '</b></div><div class="slp-lottitle">' + esc(o.title) + '</div>' +
-        '<div class="slp-lotstats"><div>Condition<b>' + Math.round((o.condition || 0) * 100) + '%</b></div><div>Mileage<b>' + String(Math.round(o.mileage || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ',') + ' km</b></div>' +
-        '<div>Bodywork<b>' + (o.damage > 0.5 ? 'Bad' : o.damage > 0.15 ? 'Dented' : 'Clean') + '</b></div>' + (o.mods ? '<div>Modified<b>' + o.mods + ' parts</b></div>' : '') + '</div>' +
-        '<div class="slp-lotfaults' + (faults.length ? '' : ' slp-ok') + '">' + (faults.length ? 'Needs: ' + esc(faults.join(', ')) : 'Runs and drives') + '</div>' +
+        ('<div class="slp-lotstats"><div>' + T('ui.condition_2', 'Condition') + '<b>') + Math.round((o.condition || 0) * 100) + ('%' + '</b></div><div>' + T('ui.mileage', 'Mileage') + '<b>') + String(Math.round(o.mileage || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ',') + ' km</b></div>' +
+        ('<div>' + T('ui.bodywork_2', 'Bodywork') + '<b>') + (o.damage > 0.5 ? T('ui.bad', 'Bad') : o.damage > 0.15 ? T('ui.dented', 'Dented') : T('ui.clean', 'Clean')) + '</b></div>' + (o.mods ? ('<div>' + T('ui.modified', 'Modified') + '<b>') + o.mods + ' parts</b></div>' : '') + '</div>' +
+        '<div class="slp-lotfaults' + (faults.length ? '' : ' slp-ok') + '">' + (faults.length ? T('ui.needs_1', 'Needs: {1}', esc(faults.join(', '))) : T('ui.runs_and_drives', 'Runs and drives')) + '</div>' +
         reportBlock('lot', o.report) + '<div class="slp-lotprice">' + money(o.price) + '</div>';
       return '<div class="slp-catch" data-catch="lot"></div><div class="slp-lot"><div class="slp-lothead"><span>' + esc(l.kindTitle) + ' &middot; ' + esc(l.name) + '</span><span>' + (l.index || 0) + ' / ' + (l.count || 0) + '</span></div>' + body +
         '<div class="slp-lotbtns"><div class="slp-arrow" data-a="lot" data-v="prev()">' + (st.slrrArt ? slrrIcon('left.png') : '&#9664;') + '</div>' +
-        (l.kind !== 'scrap' ? '<div class="slp-btn slp-tonal' + (l.building ? ' slp-off' : '') + '" data-a="lot" data-v="testDrive()">Test drive</div>' : '') +
-        '<div class="slp-btn' + (l.building || (o.price > l.money) ? ' slp-off' : '') + '" data-a="lot" data-v="buy()">Buy &middot; ' + money(o.price) + '</div>' +
+        (l.kind !== 'scrap' ? '<div class="slp-btn slp-tonal' + (l.building ? ' slp-off' : '') + ('" data-a="lot" data-v="testDrive()">' + T('ui.test_drive_2', 'Test drive') + '</div>') : '') +
+        '<div class="slp-btn' + (l.building || (o.price > l.money) ? ' slp-off' : '') + ('" data-a="lot" data-v="buy()">' + T('ui.buy_2', 'Buy ') + '&middot;' + ' ') + money(o.price) + '</div>' +
         '<div class="slp-arrow" data-a="lot" data-v="next()">' + (st.slrrArt ? slrrIcon('right.png') : '&#9654;') + '</div></div>' +
-        '<div class="slp-lotleave"><div class="slp-btn slp-text" data-a="lot" data-v="close()">Leave</div></div></div>';
+        ('<div class="slp-lotleave"><div class="slp-btn slp-text" data-a="lot" data-v="close()">' + T('ui.leave', 'Leave') + '</div></div></div>');
     }
 
     // the gas station: a grade, fill the tank or a can, and the shop
@@ -1043,18 +1046,18 @@
       if (!g || !g.open) return '';
       var rows = arr(st.data.fleet).map(function (c) {
         var acts = [];
-        if (c.impounded) acts.push('<div class="slp-btn slp-tonal slp-off">Impounded</div>');
+        if (c.impounded) acts.push(('<div class="slp-btn slp-tonal slp-off">' + T('ui.impounded', 'Impounded') + '</div>'));
         else {
-          acts.push('<div class="slp-btn" data-a="workon" data-v="' + c.id + '">' + (c.out ? 'Work on it' : 'Take out and work on it') + '</div>');
-          if (!c.out) acts.push('<div class="slp-btn slp-tonal" data-a="usecar" data-v="' + c.id + '">Take out</div>');
-          else acts.push('<div class="slp-btn slp-tonal" data-a="despawn" data-v="' + c.id + '">Put away</div>');
+          acts.push('<div class="slp-btn" data-a="workon" data-v="' + c.id + '">' + (c.out ? T('ui.work_on_it', 'Work on it') : T('ui.take_out_and_work_on', 'Take out and work on it')) + '</div>');
+          if (!c.out) acts.push('<div class="slp-btn slp-tonal" data-a="usecar" data-v="' + c.id + ('">' + T('ui.take_out', 'Take out') + '</div>'));
+          else acts.push('<div class="slp-btn slp-tonal" data-a="despawn" data-v="' + c.id + ('">' + T('ui.put_away', 'Put away') + '</div>'));
         }
         return '<div class="slp-kv"><span>' + esc(c.name) + (c.active ? ' &#9733;' : '') + '<br><small>' + esc(c.where) + ' &middot; condition ' + Math.round((c.condition || 0) * 100) + '%</small></span></div>' +
           '<div class="slp-lotbtns">' + acts.join('') + '</div>';
       }).join('');
-      return '<div class="slp-lot"><div class="slp-lothead"><span>Garage &middot; ' + esc(g.name) + '</span></div>' +
-        '<div class="slp-lotname">Your cars</div>' + (rows || '<div class="slp-empty">You have no car.</div>') +
-        '<div class="slp-lotleave"><div class="slp-btn slp-text" data-a="garageclose">Leave</div></div></div>';
+      return ('<div class="slp-lot"><div class="slp-lothead"><span>' + T('ui.garage_2', 'Garage ') + '&middot;' + ' ') + esc(g.name) + '</span></div>' +
+        ('<div class="slp-lotname">' + T('ui.your_cars', 'Your cars') + '</div>') + (rows || ('<div class="slp-empty">' + T('ui.you_have_no_car', 'You have no car.') + '</div>')) +
+        ('<div class="slp-lotleave"><div class="slp-btn slp-text" data-a="garageclose">' + T('ui.leave', 'Leave') + '</div></div></div>');
     }
 
     function stationView() {
@@ -1064,18 +1067,17 @@
       var grades = arr(g.fuels).map(function (f) {
         return '<div class="slp-btn' + (f.id === pick ? '' : ' slp-tonal') + '" data-a="fuelpick" data-v="' + esc(f.id) + '">' + esc(f.name) + '<br><small>$' + Number(f.price).toFixed(2) + '/L</small></div>';
       }).join('');
-      var tank = g.car ? 'Your ' + esc(g.car) + ': ' + (g.tank != null ? Math.round(g.tank * 100) + '% full' : '') + (g.inTank ? ' &middot; ' + esc(g.inTank) : '') +
-        (g.litresToFull != null ? ' &middot; ' + Math.round(g.litresToFull) + ' L to fill' : '') : 'Come in your car to fill it up.';
+      var tank = g.car ? T('ui.your_1_2_3_4', 'Your {1}: {2}{3}{4}', esc(g.car), (g.tank != null ? Math.round(g.tank * 100) + '% full' : ''), (g.inTank ? ' &middot; ' + esc(g.inTank) : ''), (g.litresToFull != null ? ' &middot; ' + Math.round(g.litresToFull) + ' L to fill' : '')) : T('ui.come_in_your_car_to', 'Come in your car to fill it up.');
       var shop = arr(g.items).map(function (it) {
         return '<div class="slp-kv slp-hudrow" data-a="station" data-v="buy|' + esc(it.id) + '"><span>' + esc(it.name) + '</span><b class="slp-on">' + money(it.price) + '</b></div>';
       }).join('');
-      return '<div class="slp-lot"><div class="slp-lothead"><span>Gas station &middot; ' + esc(g.name) + '</span><span>' + money(g.money) + '</span></div>' +
+      return ('<div class="slp-lot"><div class="slp-lothead"><span>' + T('ui.gas_station', 'Gas station ') + '&middot;' + ' ') + esc(g.name) + '</span><span>' + money(g.money) + '</span></div>' +
         '<div class="slp-lotname">' + tank + '</div>' +
         '<div class="slp-lotbtns slp-grades">' + grades + '</div>' +
-        '<div class="slp-lotbtns"><div class="slp-btn slp-go" data-a="station" data-v="fill|' + esc(pick) + '">Fill the tank</div>' +
-        (g.washPrice != null ? '<div class="slp-btn slp-tonal" data-a="station" data-v="wash">Car wash &middot; ' + money(g.washPrice) + '</div>' : '') + '</div>' +
-        '<div class="slp-trunk">Shop &middot; into the trunk (' + (g.trunk || 0) + '/' + (g.trunkSlots || 6) + ')' + ' &middot; a fuel can takes the grade above</div>' + shop +
-        '<div class="slp-lotleave"><div class="slp-btn slp-text" data-a="station" data-v="close">Drive on</div></div></div>';
+        '<div class="slp-lotbtns"><div class="slp-btn slp-go" data-a="station" data-v="fill|' + esc(pick) + ('">' + T('ui.fill_the_tank', 'Fill the tank') + '</div>') +
+        (g.washPrice != null ? ('<div class="slp-btn slp-tonal" data-a="station" data-v="wash">' + T('ui.car_wash', 'Car wash ') + '&middot;' + ' ') + money(g.washPrice) + '</div>' : '') + '</div>' +
+        ('<div class="slp-trunk">' + T('ui.shop', 'Shop ') + '&middot;' + T('ui.into_the_trunk', ' into the trunk (')) + (g.trunk || 0) + '/' + (g.trunkSlots || 6) + ')' + (' ' + '&middot;' + T('ui.a_fuel_can_takes_the', ' a fuel can takes the grade above') + '</div>') + shop +
+        ('<div class="slp-lotleave"><div class="slp-btn slp-text" data-a="station" data-v="close">' + T('ui.drive_on', 'Drive on') + '</div></div></div>');
     }
 
     function meetView() {
@@ -1084,41 +1086,41 @@
       var rows = arr(m.racers).map(function (r) {
         return '<div class="slp-row">' + avatar(r) + '<div class="slp-rt"><b>' + esc(r.name) + '</b><span><span class="slp-stars">' + new Array((r.tier || 1) + 1).join('&#9733;') + '</span> &middot; ' +
           esc(r.car) + ' &middot; ' + money(r.betMin) + '-' + money(r.betMax) + '</span></div><div class="slp-acts">' +
-          '<div class="slp-btn slp-tonal" data-a="meet" data-v="' + esc(r.id) + '|race">Race</div>' +
-          '<div class="slp-btn slp-tonal" data-a="meet" data-v="' + esc(r.id) + '|high">High</div>' +
-          (r.pinkTonight ? '<div class="slp-btn slp-pinkbtn" data-a="meet" data-v="' + esc(r.id) + '|pink">Pinks</div>' : '') + '</div></div>';
+          '<div class="slp-btn slp-tonal" data-a="meet" data-v="' + esc(r.id) + ('|race">' + T('ui.race', 'Race') + '</div>') +
+          '<div class="slp-btn slp-tonal" data-a="meet" data-v="' + esc(r.id) + ('|high">' + T('ui.high', 'High') + '</div>') +
+          (r.pinkTonight ? '<div class="slp-btn slp-pinkbtn" data-a="meet" data-v="' + esc(r.id) + ('|pink">' + T('ui.pinks', 'Pinks') + '</div>') : '') + '</div></div>';
       });
       var owners = arr(m.owners).map(function (o) {
-        return '<div class="slp-row"><div class="slp-rt"><b>' + esc(o.name) + '</b><span>' + esc(o.car) + (o.talked ? ' &middot; spoken to' : '') + '</span></div><div class="slp-acts">' +
-          '<div class="slp-btn slp-tonal" data-a="meettalk" data-v="' + esc(o.id) + '">Talk</div></div></div>';
+        return '<div class="slp-row"><div class="slp-rt"><b>' + esc(o.name) + '</b><span>' + esc(o.car) + (o.talked ? T('ui.middot_spoken_to', ' &middot; spoken to') : '') + '</span></div><div class="slp-acts">' +
+          '<div class="slp-btn slp-tonal" data-a="meettalk" data-v="' + esc(o.id) + ('">' + T('ui.talk', 'Talk') + '</div></div></div>');
       }).join('');
-      return '<div class="slp-meet"><h3>' + (m.theme ? esc(m.theme) + ' &middot; ' : 'Car meet &middot; ') + esc(m.name) + '</h3><div class="slp-card" style="margin:6px 0 4px 0"><p>Pick somebody. The race is to the other side of town; first one there wins.</p></div>' +
-        (rows.join('') || '<div class="slp-empty">Everybody has gone home.</div>') +
-        (owners ? '<div class="slp-trunk">Owners by their cars</div>' + owners : '') +
-        (m.canShow ? '<div class="slp-lotbtns"><div class="slp-btn slp-tonal" data-a="meetshow" data-v="1">Show and shine (' + money(m.showFee || 50) + ')</div></div>' : '') +
-        '<div class="slp-lotleave"><div class="slp-btn slp-text" data-a="meetclose">Just looking</div></div></div>';
+      return '<div class="slp-meet"><h3>' + (m.theme ? esc(m.theme) + ' &middot; ' : T('ui.car_meet_middot', 'Car meet &middot; ')) + esc(m.name) + '</h3><div class="slp-card" style="margin:6px 0 4px 0"><p>Pick somebody. The race is to the other side of town; first one there wins.</p></div>' +
+        (rows.join('') || ('<div class="slp-empty">' + T('ui.everybody_has_gone_home', 'Everybody has gone home.') + '</div>')) +
+        (owners ? ('<div class="slp-trunk">' + T('ui.owners_by_their_cars', 'Owners by their cars') + '</div>') + owners : '') +
+        (m.canShow ? ('<div class="slp-lotbtns"><div class="slp-btn slp-tonal" data-a="meetshow" data-v="1">' + T('ui.show_and_shine', 'Show and shine (')) + money(m.showFee || 50) + ')</div></div>' : '') +
+        ('<div class="slp-lotleave"><div class="slp-btn slp-text" data-a="meetclose">' + T('ui.just_looking', 'Just looking') + '</div></div></div>');
     }
 
     function raceView() {
       var r = st.race;
       if (!r || !r.on) return '';
-      var stake = r.stake === 'pink' ? 'Pink slips' : money(r.bet);
-      var dist = r.laps ? 'Lap ' + r.lap + ' of ' + r.laps : (r.mine != null ? 'You ' + r.mine + ' m' : '') + (r.theirs != null ? ' &middot; them ' + r.theirs + ' m' : '');
+      var stake = r.stake === 'pink' ? T('crews.pink_slips', 'Pink slips') : money(r.bet);
+      var dist = r.laps ? T('ui.lap_1_of_2', 'Lap {1} of {2}', r.lap, r.laps) : (r.mine != null ? T('ui.you_1_m', 'You {1} m', r.mine) : '') + (r.theirs != null ? T('ui.middot_them_1_m', ' &middot; them {1} m', r.theirs) : '');
       return (r.countdown ? '<div class="slp-count">' + r.countdown + '</div>' : '') +
         '<div class="slp-race"><b>vs ' + esc(r.name) + ' &middot; ' + stake + '</b><span>To ' + esc(r.destName) + '</span><span>' + dist + '</span>' +
-        (r.ahead != null ? '<i class="' + (r.ahead ? 'slp-ahead' : 'slp-behind') + '">' + (r.ahead ? 'Ahead' : 'Behind') + '</i>' : '') + '</div>';
+        (r.ahead != null ? '<i class="' + (r.ahead ? 'slp-ahead' : 'slp-behind') + '">' + (r.ahead ? T('ui.ahead', 'Ahead') : T('ui.behind', 'Behind')) + '</i>' : '') + '</div>';
     }
 
     // the careers saved (X52): play, rename, delete (twice to be sure); each keeps its own backup
     function slotsHtml(m) {
       var list = arr(m.slots);
-      if (list.length < 2 && !st.slotEdit) return list.length ? '<div class="slp-btn slp-text" data-a="slotedit" data-v="1">Manage careers</div>' : '';
+      if (list.length < 2 && !st.slotEdit) return list.length ? ('<div class="slp-btn slp-text" data-a="slotedit" data-v="1">' + T('ui.manage_careers', 'Manage careers') + '</div>') : '';
       return '<div class="slp-slots">' + list.map(function (c) {
-        return '<div class="slp-slot"><b>' + esc(c.name) + (c.last ? ' &middot; last played' : '') + '</b><span>' + esc(c.summary || '') + '</span>' +
-          '<div class="slp-acts"><div class="slp-btn slp-text" data-a="slotplay" data-v="' + c.slot + '">Play</div>' +
+        return '<div class="slp-slot"><b>' + esc(c.name) + (c.last ? T('ui.middot_last_played', ' &middot; last played') : '') + '</b><span>' + esc(c.summary || '') + '</span>' +
+          '<div class="slp-acts"><div class="slp-btn slp-text" data-a="slotplay" data-v="' + c.slot + ('">' + T('ui.play', 'Play') + '</div>') +
           '<input class="slp-slotname" data-slot="' + c.slot + '" value="' + esc(c.name) + '" maxlength="32">' +
-          '<div class="slp-btn slp-text" data-a="slotname" data-v="' + c.slot + '">Rename</div>' +
-          '<div class="slp-btn slp-text" data-a="slotdel" data-v="' + c.slot + '">' + (st.slotDel === c.slot ? 'Sure? Delete' : 'Delete') + '</div></div></div>';
+          '<div class="slp-btn slp-text" data-a="slotname" data-v="' + c.slot + ('">' + T('ui.rename', 'Rename') + '</div>') +
+          '<div class="slp-btn slp-text" data-a="slotdel" data-v="' + c.slot + '">' + (st.slotDel === c.slot ? T('ui.sure_delete', 'Sure? Delete') : T('ui.delete', 'Delete')) + '</div></div></div>';
       }).join('') + '</div>';
     }
 
@@ -1129,7 +1131,7 @@
       var picked = maps.filter(function (x) { return x.id === st.newMap; })[0] || maps[0];
       return picked ? picked.id : null;
     }
-    function newMapArg() { var id = newMapId(); return id ? ', nil, ' + JSON.stringify(id) : ''; }   // (none known: the career's default)
+    function newMapArg() { var id = newMapId(); return id ? T('ui.nil_1', ', nil, {1}', JSON.stringify(id)) : ''; }   // (none known: the career's default)
     function mapsHtml(m) {
       var maps = installedMaps(m), pick = newMapId();
       if (maps.length < 2) return '';
@@ -1143,17 +1145,17 @@
       var m = st.menu;
       if (!m || !m.show || !st.chooser) return '';
       var sl = !m.installed
-        ? '<div class="slp-chcard slp-chsl slp-off"><b>Wrench Works: Street Legal</b><span>Needs the Wrench Works: Valo City map (slrr_valo_city). Switch it on under Mods.</span></div>'
-        : '<div class="slp-chcard slp-chsl"><b>Wrench Works: Street Legal</b>' + (st.slrrArt ? slrrIcon(m.summary ? 'load_career_a.png' : 'new_career_a.png', 'slp-chimg') : '') + '<span>' + (m.summary ? 'Your career: ' + esc(m.summary) : 'No car, $5,000 and a name nobody knows. Junkyard wrecks, street racers, pink slips and the top garage.') + '</span>' +
-          (m.summary ? '<div class="slp-btn slp-go" data-a="menustart" data-v="continue">Continue</div>' : '') +
+        ? ('<div class="slp-chcard slp-chsl slp-off"><b>' + T('menuTile.wrench_works_street_legal', 'Wrench Works: Street Legal') + '</b><span>' + T('ui.needs_the_wrench_works_valo', 'Needs the Wrench Works: Valo City map (slrr_valo_city). Switch it on under Mods.') + '</span></div>')
+        : ('<div class="slp-chcard slp-chsl"><b>' + T('menuTile.wrench_works_street_legal', 'Wrench Works: Street Legal') + '</b>') + (st.slrrArt ? slrrIcon(m.summary ? 'load_career_a.png' : 'new_career_a.png', 'slp-chimg') : '') + '<span>' + (m.summary ? T('ui.your_career_1', 'Your career: {1}', esc(m.summary)) : T('ui.no_car_5_000_and', 'No car, $5,000 and a name nobody knows. Junkyard wrecks, street racers, pink slips and the top garage.')) + '</span>' +
+          (m.summary ? ('<div class="slp-btn slp-go" data-a="menustart" data-v="continue">' + T('ui.continue', 'Continue') + '</div>') : '') +
           slotsHtml(m) +
           (arr(m.slots).length < (m.maxSlots || 6)
-            ? mapsHtml(m) + '<div class="slp-btn' + (m.summary ? ' slp-tonal' : ' slp-go') + '" data-a="menustart" data-v="new">New career</div>' +
-              '<div class="slp-btn slp-tonal" data-a="menustart" data-v="newskip">New career, no tutorial</div>'
-            : '<span>Every career slot is taken: delete one to start another.</span>') + '</div>';
-      return '<div class="slp-chooser"><div class="slp-chbox"><h1>Career</h1><div class="slp-chcards">' +
-        '<div class="slp-chcard" data-a="chooser" data-v="beamng"><b>BeamNG Career</b><span>The game\'s own career mode: jobs, missions, your garage and vehicles.</span></div>' +
-        sl + '</div><div class="slp-chback"><div class="slp-btn slp-text" data-a="chooser" data-v="close" style="display:inline-block">Back</div></div></div></div>';
+            ? mapsHtml(m) + '<div class="slp-btn' + (m.summary ? ' slp-tonal' : ' slp-go') + ('" data-a="menustart" data-v="new">' + T('ui.new_career', 'New career') + '</div>') +
+              ('<div class="slp-btn slp-tonal" data-a="menustart" data-v="newskip">' + T('ui.new_career_no_tutorial', 'New career, no tutorial') + '</div>')
+            : ('<span>' + T('ui.every_career_slot_is_taken', 'Every career slot is taken: delete one to start another.') + '</span>')) + '</div>';
+      return ('<div class="slp-chooser"><div class="slp-chbox"><h1>' + T('ui.career', 'Career') + '</h1><div class="slp-chcards">') +
+        ('<div class="slp-chcard" data-a="chooser" data-v="beamng"><b>' + T('ui.beamng_career', 'BeamNG Career') + '</b><span>' + T('ui.the_game_s_own_career', 'The game\'s own career mode: jobs, missions, your garage and vehicles.') + '</span></div>') +
+        sl + ('</div><div class="slp-chback"><div class="slp-btn slp-text" data-a="chooser" data-v="close" style="display:inline-block">' + T('ui.back', 'Back') + '</div></div></div></div>');
     }
 
     // catch the main menu's Career button before the game sees it (and let it through for its own career)
@@ -1192,12 +1194,12 @@
       var g = st.gameOver;
       if (!g) return '';
       var line = function (k, v) { return '<p><b>' + k + '</b> ' + v + '</p>'; };
-      return '<div class="slp-chooser"><div class="slp-chbox"><h1>Game over</h1><div class="slp-chcard slp-chsl"><b>Your career ended on day ' + (g.day || 1) + '</b>' +
+      return ('<div class="slp-chooser"><div class="slp-chbox"><h1>' + T('ui.game_over', 'Game over') + '</h1><div class="slp-chcard slp-chsl"><b>' + T('ui.your_career_ended_on_day', 'Your career ended on day ')) + (g.day || 1) + '</b>' +
         '<span>' + esc(g.title || '') + ' &middot; ' + money(g.money || 0) + ' &middot; ' + (g.rep || 0) + ' rep</span>' +
-        line('Races', (g.races || 0) + ', won ' + (g.wins || 0)) + line('Pink slips won', g.pinksWon || 0) + line('Cars', g.cars || 0) +
-        line('Achievements', (g.achievements || 0) + ' of ' + (g.achievementsTotal || 0)) +
-        '<div class="slp-btn slp-go" data-a="gameover" data-v="new">New career</div>' +
-        '<div class="slp-btn slp-tonal" data-a="gameover" data-v="menu">Main menu</div></div></div></div>';
+        line(T('ui.races', 'Races'), (g.races || 0) + T('ui.won', ', won ') + (g.wins || 0)) + line(T('ui.pink_slips_won', 'Pink slips won'), g.pinksWon || 0) + line(T('ui.cars', 'Cars'), g.cars || 0) +
+        line(T('ui.achievements_2', 'Achievements'), (g.achievements || 0) + ' of ' + (g.achievementsTotal || 0)) +
+        ('<div class="slp-btn slp-go" data-a="gameover" data-v="new">' + T('ui.new_career', 'New career') + '</div>') +
+        ('<div class="slp-btn slp-tonal" data-a="gameover" data-v="menu">' + T('ui.main_menu', 'Main menu') + '</div></div></div></div>');
     }
 
     // ---------------------------------------------------------------- drawing
@@ -1249,10 +1251,10 @@
         '<div class="slp-nav"><div data-a="back">' + NAV.back + '</div><div data-a="home">' + NAV.home + '</div><div data-a="away">' + NAV.recent + '</div></div></div>';
       var hu = st.hu;
       var huHtml = '<div class="slp-hu' + (hu && !st.open ? '' : ' slp-gone') + '" data-a="openthread" data-v="' + esc(hu ? hu.thread : '') + '">' +
-        (hu ? avatar({ id: hu.thread, name: hu.name }) + '<div><small>Messages &middot; now</small><b>' + esc(hu.name) + '</b><span>' + esc(hu.text) + '</span></div>' : '') + '</div>';
+        (hu ? avatar({ id: hu.thread, name: hu.name }) + ('<div><small>' + T('ui.messages', 'Messages ') + '&middot;' + ' now' + '</small><b>') + esc(hu.name) + '</b><span>' + esc(hu.text) + '</span></div>' : '') + '</div>';
       layer.innerHTML =
         '<div class="slp-pill"' + (st.open ? ' style="display:none"' : '') + '><b>' + money(d.money) + '</b><span>' + esc(d.title) + '</span>' +
-          (d.phase ? '<span>' + (d.phase === 'night' ? '&#9790;' : '&#9728;') + '</span>' : '') + (d.heat > 0 ? '<span style="color:#ff6a4a">' + '&#9650;'.repeat(d.heat) + '</span>' : '') + (d.phase === 'night' && d.atRisk > 0 ? '<span style="color:#ffb74a">+' + d.atRisk + ' at risk</span>' : '') + '<span>' + two(d.hour || 0) + ':' + two(d.minute || 0) + '</span></div>' +
+          (d.phase ? '<span>' + (d.phase === 'night' ? '&#9790;' : '&#9728;') + '</span>' : '') + (d.heat > 0 ? '<span style="color:#ff6a4a">' + '&#9650;'.repeat(d.heat) + '</span>' : '') + (d.phase === 'night' && d.atRisk > 0 ? '<span style="color:#ffb74a">+' + d.atRisk + (T('ui.at_risk', ' at risk') + '</span>') : '') + '<span>' + two(d.hour || 0) + ':' + two(d.minute || 0) + '</span></div>' +
         '<div class="slp-device' + (st.open ? '' : ' slp-away') + '" style="transform:' + (st.open ? '' : 'translateY(70%) ') + 'scale(' + scale() + ')">' + screen + '</div>' +
         lotView() + garageView() + stationView() + meetView() + raceView() +
         huHtml +
@@ -1354,7 +1356,7 @@
     function home() { st.stack = []; st.app = 'home'; render(); }
     function setOpen(open) {
       st.open = open;
-      if (open && !st.strings) lua('requestStrings()');
+      if (open && !TABLE) lua('requestStrings()');
       if (open) lua('request()'); else { st.stack = []; st.app = 'home'; }      // (B68: closed, it opens on the home screen next time)
       render();
     }
@@ -1388,7 +1390,7 @@
         case 'hang': hang(); break;
         case 'stake': lua('challenge(' + JSON.stringify(st.call.id) + ',' + JSON.stringify(v) + ')'); st.call.options = []; render(); break;
         case 'text': lua('text(' + JSON.stringify(st.thread) + ',' + JSON.stringify(v) + ')'); break;
-        case 'gps': lua('waypoint(' + JSON.stringify(v) + ')'); toast('The route is on your road.'); break;
+        case 'gps': lua('waypoint(' + JSON.stringify(v) + ')'); toast(T('ui.the_route_is_on_your', 'The route is on your road.')); break;
         case 'cancel': lua('cancel(' + JSON.stringify(v) + ')'); break;
         case 'raise': lua('raise(' + JSON.stringify(v) + ')'); break;
         case 'league': lua('enterLeague(' + JSON.stringify(v) + ')'); break;
@@ -1419,7 +1421,7 @@
         case 'setreset': lua('setSetting("__reset",true)'); break;
         case 'devmoney': lua('devMoney()'); break;
         case 'mtab': var tp = String(v).split('|'); st.tab[tp[0]] = tp[1]; if (tp[0] === 'cars' && tp[1] === 'dealers') { st.cmView = 'dealers'; lua('@sl_dealers.list()'); } render(); break;
-        case 'mdealer': st.cmView = 'offers'; st.offers = { name: 'Dealer', offers: [], dealer: v }; lua('@sl_dealers.offers(' + JSON.stringify(v) + ')'); render(); break;
+        case 'mdealer': st.cmView = 'offers'; st.offers = { name: T('ui.dealer', 'Dealer'), offers: [], dealer: v }; lua('@sl_dealers.offers(' + JSON.stringify(v) + ')'); render(); break;
         case 'moffer': st.cmView = 'offer'; st.cmOffer = v; render(); break;
         case 'mbuy': var bp = String(v).split('|'); lua('@sl_dealers.buy(' + JSON.stringify(bp[0]) + ',' + JSON.stringify(bp[1]) + ')'); break;
         case 'pcatalog': lua('catalog()'); break;
@@ -1439,7 +1441,7 @@
         case 'buypaper': lua('buyPaper()'); break;
         case 'mkbuy': lua('marketBuy(' + JSON.stringify(String(v).split('|')[0]) + ',' + JSON.stringify(String(v).split('|')[1]) + ')'); break;
         case 'jobquit': lua('giveUpJob()'); break;
-        case 'jobway': lua('jobWay()'); toast('The route is on your road.'); break;
+        case 'jobway': lua('jobWay()'); toast(T('ui.the_route_is_on_your', 'The route is on your road.')); break;
         case 'taxi': lua('taxi(' + JSON.stringify(v) + ')'); break;
         case 'tow': lua('tow(' + Number(v) + ')'); break;
         case 'upgrade': lua('upgrade(' + JSON.stringify(v) + ')'); break;
@@ -1460,7 +1462,7 @@
           if (inp) lua('@sl_menuTile.renameSlot(' + Number(v) + ',' + JSON.stringify(String(inp.value || '')) + ')');
           break;
         case 'slotdel':
-          if (st.slotDel !== Number(v)) { st.slotDel = Number(v); toast('Click again to delete that career for good.'); render(); break; }
+          if (st.slotDel !== Number(v)) { st.slotDel = Number(v); toast(T('ui.click_again_to_delete_that', 'Click again to delete that career for good.')); render(); break; }
           st.slotDel = null; lua('@sl_menuTile.deleteSlot(' + Number(v) + ')');
           break;
         case 'newmap': st.newMap = v; render(); break;
@@ -1488,7 +1490,7 @@
         case 'meettalk': lua('@sl_streets.meetTalk(' + JSON.stringify(String(v)) + ')'); break;
         case 'key': if (st.dial.length < 12) st.dial += v; render(); break;
         case 'del': st.dial = st.dial.slice(0, -1); render(); break;
-        case 'dial': var who = dialMatch(); if (who) startCall(who.id); else if (st.dial) toast('The number you have dialled is not available.'); break;
+        case 'dial': var who = dialMatch(); if (who) startCall(who.id); else if (st.dial) toast(T('phone.the_number_you_have_dialled', 'The number you have dialled is not available.')); break;
       }
     }
 
@@ -1567,7 +1569,7 @@
         case 'slGarage': st.garage = data.open ? data : null; render(); break;
         case 'slSettings': st.settings = data; render(); break;
         case 'slHelp': st.help = arr(data && data.pages); render(); break;
-        case 'slStrings': st.strings = obj(data && data.text); render(); break;
+        case 'slStrings': TABLE = (data && data.text) || {}; render(); break;
         case 'slLaptopDealers': st.dealers = data; render(); break;
         case 'slLaptopOffers': st.offers = data; render(); break;
         case 'slRace': st.race = data.on ? data : null; render(); break;

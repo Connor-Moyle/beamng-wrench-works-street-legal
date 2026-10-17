@@ -12,6 +12,9 @@ FILES = [
     'mod/ui/modModules/slPhone/slPhone.js', 'mod/ui/modModules/slLaptop/slLaptop.js', 'mod/ui/modModules/slHud/slHud.js',
     'mod/lua/ge/extensions/sl/career.lua', 'mod/lua/ge/extensions/sl/phone.lua', 'mod/lua/ge/extensions/sl/police.lua', 'mod/lua/ge/extensions/sl/jobs.lua',
     'mod/lua/ge/extensions/sl/classifieds.lua', 'mod/lua/ge/extensions/sl/dealers.lua', 'mod/lua/ge/extensions/sl/crews.lua', 'mod/lua/ge/extensions/sl/clubs.lua',
+    'mod/lua/ge/extensions/sl/streets.lua', 'mod/lua/ge/extensions/sl/fleet.lua', 'mod/lua/ge/extensions/sl/bank.lua', 'mod/lua/ge/extensions/sl/lot.lua',
+    'mod/lua/ge/extensions/sl/options.lua', 'mod/lua/ge/extensions/sl/services.lua', 'mod/lua/ge/extensions/sl/tutorial.lua', 'mod/lua/ge/extensions/sl/core/roster.lua',
+    'mod/lua/ge/extensions/sl/core/progression.lua', 'mod/lua/ge/extensions/sl/core/nightlife.lua', 'mod/lua/ge/extensions/sl/core/market.lua',
 ]
 LITERAL = re.compile(r"'((?:[^'\\n]|\.){12,})'")
 
@@ -23,6 +26,8 @@ def texts(path):
             code = re.sub(r'(--|//).*$', '', line) if not re.search(r"'[^']*(//|--)[^']*'", line) else line
             n_table += len(re.findall(r"\bT\('|strings\.t\('|\$scope\.t\('", code))
             for m in LITERAL.finditer(code):
+                if re.search(r"T\('[^']*', *$", code[:m.start()]):
+                    continue                      # (the fallback of a T(): the text is in the table)
                 t = m.group(1)
                 if ' ' in t and re.search('[A-Za-z]{3}', t) and not re.search(r'[<>{};=]|^[.#]|data-a|px|rgba?\(', t):
                     n_code += 1

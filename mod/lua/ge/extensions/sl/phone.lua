@@ -166,7 +166,13 @@ end
 function M.request() wantSend = true end
 -- the help pages (sl/core/help), for the phone's Help app and the laptop's Help window
 -- all the player-facing text (sl/core/strings), once, for the UI's T()
-function M.requestStrings() guihooks.trigger('slStrings', { text = require('sl/core/strings').TEXT }) end
+function M.requestStrings()
+  local out = {}
+  for k, v in pairs(require('sl/core/strings').TEXT) do      -- (only what the screens use: the rest is for the Lua side)
+    if k:find('^ui%.') or k:find('^app%.') or k:find('^laptop%.') or k:find('^status%.') or k:find('^phase%.') or k:find('^wait%.') or k:find('^hud%.') or k:find('^settings%.') then out[k] = v end
+  end
+  guihooks.trigger('slStrings', { text = out })
+end
 function M.requestHelp() guihooks.trigger('slHelp', { pages = require('sl/core/help').PAGES }) end
 function M.markRead(thread) if career() then sl_career.markRead(thread) end end
 function M.waypoint(id) if career() then sl_career.waypoint(id) end end

@@ -12,6 +12,14 @@
 (function () {
   'use strict';
 
+  // the player-facing text: sl/core/strings (sl_phone.requestStrings, event slStrings). T('key', 'the text', a, b): the second argument shows until the table has
+  // arrived and for a key the table lacks; {1}, {2} are the extra arguments. One table for the whole module.
+  var TABLE = null;
+  function T(key, fallback) {
+    var text = TABLE && TABLE[key] !== undefined ? TABLE[key] : fallback, a = arguments;
+    return String(text).replace(/\{(\d+)\}/g, function (m, i) { var v = a[Number(i) + 1]; return v === undefined ? '' : v; });
+  }
+
   var CSS = [
     '.sll-root{position:fixed;left:0;top:0;right:0;bottom:0;pointer-events:none;z-index:60;font-family:"Segoe UI","Roboto","Noto Sans",Arial,sans-serif;color:#e6e1e5;-webkit-user-select:none;user-select:none}',
     '.sll-root *{box-sizing:border-box}',
@@ -158,7 +166,7 @@
     // ---------------------------------------------------------------- what the windows hold
     function dist(m) { m = Number(m) || 0; return m >= 1000 ? (m / 1000).toFixed(1) + ' km' : Math.round(m) + ' m'; }
     function pic(c) {
-      return '<div class="sll-pic">' + (c.preview ? '<img src="' + esc(c.preview) + '" alt="" onerror="this.style.display=\'none\'">' : 'no picture') + '</div>';
+      return '<div class="sll-pic">' + (c.preview ? '<img src="' + esc(c.preview) + '" alt="" onerror="this.style.display=\'none\'">' : T('ui.no_picture', 'no picture')) + '</div>';
     }
     // the stock card's one-line facts: mileage, transmission, drivetrain, power, weight
     function facts(c) {
@@ -175,15 +183,15 @@
     function carsBody() {
       var cards = arr(st.data.fleet).map(function (c) {
         var acts = [];
-        if (c.impounded) acts.push('<div class="sll-btn" data-a="release" data-v="' + c.id + '">Get it out of the impound &middot; ' + money(c.impounded) + '</div>');
-        else if (!c.active) acts.push('<div class="sll-btn" data-a="usecar" data-v="' + c.id + '">Drive this one</div>');
-        if (c.out && c.towFee && c.where === 'Out on the street') acts.push('<div class="sll-btn sll-tonal" data-a="tow" data-v="' + c.id + '">Tow it home &middot; ' + money(c.towFee) + '</div>');
-        if (c.out && !c.impounded) acts.push('<div class="sll-btn sll-text" data-a="despawn" data-v="' + c.id + '">Put it away</div>');
+        if (c.impounded) acts.push('<div class="sll-btn" data-a="release" data-v="' + c.id + ('">' + T('ui.get_it_out_of_the', 'Get it out of the impound ') + '&middot;' + ' ') + money(c.impounded) + '</div>');
+        else if (!c.active) acts.push('<div class="sll-btn" data-a="usecar" data-v="' + c.id + ('">' + T('ui.drive_this_one', 'Drive this one') + '</div>'));
+        if (c.out && c.towFee && c.where === 'Out on the street') acts.push('<div class="sll-btn sll-tonal" data-a="tow" data-v="' + c.id + ('">' + T('ui.tow_it_home', 'Tow it home ') + '&middot;' + ' ') + money(c.towFee) + '</div>');
+        if (c.out && !c.impounded) acts.push('<div class="sll-btn sll-text" data-a="despawn" data-v="' + c.id + ('">' + T('ui.put_it_away', 'Put it away') + '</div>'));
         var faults = arr(c.faults);
-        return '<div class="sll-card"><h4>' + esc(c.name) + (c.active ? ' &#9733;' : '') + '</h4><p>' + esc(c.where) + ' &middot; condition ' + Math.round((c.condition || 0) * 100) + '% &middot; value ' + money(c.value) +
-          (faults.length ? '<br>Needs: ' + esc(faults.join(', ')) : '') + '</p>' + reportBlock('car:' + c.id, c.report) + (acts.length ? '<div class="sll-acts">' + acts.join('') + '</div>' : '') + '</div>';
+        return '<div class="sll-card"><h4>' + esc(c.name) + (c.active ? ' &#9733;' : '') + '</h4><p>' + esc(c.where) + ' &middot; condition ' + Math.round((c.condition || 0) * 100) + T('ui.middot_value', '% &middot; value ') + money(c.value) +
+          (faults.length ? ('<br>' + T('ui.needs_2', 'Needs: ')) + esc(faults.join(', ')) : '') + '</p>' + reportBlock('car:' + c.id, c.report) + (acts.length ? '<div class="sll-acts">' + acts.join('') + '</div>' : '') + '</div>';
       });
-      return body(cards.join('') || '<div class="sll-empty">You have no car.</div>');
+      return body(cards.join('') || ('<div class="sll-empty">' + T('ui.you_have_no_car', 'You have no car.') + '</div>'));
     }
 
     function dealersBody() {
@@ -193,22 +201,22 @@
           ' away &middot; ' + x.count + ' car' + (x.count === 1 ? '' : 's') + ' today</p></div>';
       }).join('');
       var coming = arr(d.coming).map(function (c) {
-        return '<div class="sll-kv"><span>' + esc(c.name) + '</span><b>' + (c.hours > 0 ? 'in about ' + c.hours + ' h' : 'arriving') + '</b></div>';
+        return '<div class="sll-kv"><span>' + esc(c.name) + '</span><b>' + (c.hours > 0 ? T('ui.in_about_1_h', 'in about {1} h', c.hours) : 'arriving') + '</b></div>';
       }).join('');
-      return body((coming ? '<div class="sll-card"><h4>On the way to your garage</h4>' + coming + '</div>' : '') + (rows || '<div class="sll-empty">No dealers on this map.</div>'));
+      return body((coming ? ('<div class="sll-card"><h4>' + T('ui.on_the_way_to_your_2', 'On the way to your garage') + '</h4>') + coming + '</div>' : '') + (rows || ('<div class="sll-empty">' + T('ui.no_dealers_on_this_map', 'No dealers on this map.') + '</div>')));
     }
 
     function offersBody() {
-      var o = st.offers || { name: 'Dealer', offers: [] };
+      var o = st.offers || { name: T('ui.dealer', 'Dealer'), offers: [] };
       var cards = arr(o.offers).map(function (c) {
         var faults = arr(c.faults);
         return '<div class="sll-card sll-listing" data-a="offer" data-v="' + esc(c.id) + '">' + pic(c) + '<div class="sll-li"><h4>' + (c.year ? c.year + ' ' : '') + esc(c.name) + '</h4>' +
           '<div class="sll-brand">' + esc(c.brand || '') + (c.title ? ' &middot; ' + esc(c.title) : '') + '</div><div class="sll-props">' + facts(c) + '</div>' +
-          '<div class="sll-props">' + esc(c.seller || o.name) + ' &middot; ' + dist(c.metres) + ' away &middot; arrives in about ' + (c.hours || 0) + ' h</div>' +
-          '<div class="sll-props">condition ' + Math.round((c.condition || 0) * 100) + '%' + (faults.length ? '<br>Needs: ' + esc(faults.join(', ')) : '') + '</div></div>' +
-          '<div class="sll-lbuy"><b>' + money(c.price) + '</b><div class="sll-btn' + ((o.money || 0) < c.price ? ' sll-off' : '') + '" data-a="buy" data-v="' + esc(o.dealer) + '|' + esc(c.id) + '">Buy</div></div></div>';
+          '<div class="sll-props">' + esc(c.seller || o.name) + ' &middot; ' + dist(c.metres) + T('ui.away_middot_arrives_in_about', ' away &middot; arrives in about ') + (c.hours || 0) + ' h</div>' +
+          '<div class="sll-props">condition ' + Math.round((c.condition || 0) * 100) + '%' + (faults.length ? ('<br>' + T('ui.needs_2', 'Needs: ')) + esc(faults.join(', ')) : '') + '</div></div>' +
+          '<div class="sll-lbuy"><b>' + money(c.price) + '</b><div class="sll-btn' + ((o.money || 0) < c.price ? ' sll-off' : '') + '" data-a="buy" data-v="' + esc(o.dealer) + '|' + esc(c.id) + ('">' + T('ui.buy', 'Buy') + '</div></div></div>');
       }).join('');
-      return body(cards || '<div class="sll-empty">Nothing left on the lot today.</div>');
+      return body(cards || ('<div class="sll-empty">' + T('ui.nothing_left_on_the_lot', 'Nothing left on the lot today.') + '</div>'));
     }
 
     function currentOffer() {
@@ -219,18 +227,18 @@
     // the detail view: the picture, every spec, the seller, the delivery and the price
     function offerBody() {
       var o = st.offers || { offers: [] }, c = currentOffer();
-      if (!c) return body('<div class="sll-empty">This car has gone.</div>');
+      if (!c) return body(('<div class="sll-empty">' + T('ui.this_car_has_gone', 'This car has gone.') + '</div>'));
       var sp = obj(c.specs), faults = arr(c.faults);
       var row = function (k, v) { return v == null || v === '' ? '' : '<div class="sll-kv"><span>' + k + '</span><b>' + v + '</b></div>'; };
       return body('<div class="sll-detail">' + pic(c) +
-        '<div class="sll-li"><div class="sll-card">' + row('Brand', esc(c.brand)) + row('Year', c.year) + row('Mileage', c.mileage != null ? Number(c.mileage).toLocaleString() + ' km' : null) +
-        row('Condition', Math.round((c.condition || 0) * 100) + '%' + (c.title ? ' (' + esc(c.title) + ')' : '')) + row('Power', sp.power ? Math.round(sp.power) + ' PS' : null) +
-        row('Weight', sp.weight ? Math.round(sp.weight).toLocaleString() + ' kg' : null) + row('Transmission', esc(sp.transmission)) + row('Drivetrain', esc(sp.drivetrain)) +
-        row('Fuel', esc(sp.fuel)) + row('Body', esc(sp.body)) + row('Top speed', sp.topSpeed ? Math.round(sp.topSpeed * 3.6) + ' km/h' : null) +
-        (faults.length ? row('Needs', esc(faults.join(', '))) : '') + reportBlock('offer:' + c.id, c.report) + '</div>' +
-        '<div class="sll-card">' + row('Seller', esc(c.seller || o.name)) + row('Distance', dist(c.metres)) + row('Delivery', 'to your garage in about ' + (c.hours || 0) + ' h') +
-        '<div class="sll-kv"><span>Price</span><b style="font-size:18px">' + money(c.price) + '</b></div>' +
-        '<div class="sll-acts"><div class="sll-btn' + ((o.money || 0) < c.price ? ' sll-off' : '') + '" data-a="buy" data-v="' + esc(o.dealer) + '|' + esc(c.id) + '">Buy &middot; ' + money(c.price) + '</div></div></div></div></div>');
+        '<div class="sll-li"><div class="sll-card">' + row(T('ui.brand', 'Brand'), esc(c.brand)) + row(T('ui.year', 'Year'), c.year) + row(T('ui.mileage', 'Mileage'), c.mileage != null ? Number(c.mileage).toLocaleString() + ' km' : null) +
+        row(T('ui.condition_2', 'Condition'), Math.round((c.condition || 0) * 100) + '%' + (c.title ? ' (' + esc(c.title) + ')' : '')) + row(T('ui.power', 'Power'), sp.power ? Math.round(sp.power) + ' PS' : null) +
+        row(T('ui.weight', 'Weight'), sp.weight ? Math.round(sp.weight).toLocaleString() + ' kg' : null) + row(T('ui.transmission', 'Transmission'), esc(sp.transmission)) + row(T('ui.drivetrain', 'Drivetrain'), esc(sp.drivetrain)) +
+        row(T('ui.fuel', 'Fuel'), esc(sp.fuel)) + row(T('ui.body', 'Body'), esc(sp.body)) + row(T('ui.top_speed', 'Top speed'), sp.topSpeed ? Math.round(sp.topSpeed * 3.6) + ' km/h' : null) +
+        (faults.length ? row(T('ui.needs', 'Needs'), esc(faults.join(', '))) : '') + reportBlock('offer:' + c.id, c.report) + '</div>' +
+        '<div class="sll-card">' + row(T('ui.seller', 'Seller'), esc(c.seller || o.name)) + row(T('ui.distance', 'Distance'), dist(c.metres)) + row(T('ui.delivery', 'Delivery'), T('ui.to_your_garage_in_about', 'to your garage in about {1} h', (c.hours || 0))) +
+        ('<div class="sll-kv"><span>' + T('ui.price', 'Price') + '</span><b style="font-size:18px">') + money(c.price) + '</b></div>' +
+        '<div class="sll-acts"><div class="sll-btn' + ((o.money || 0) < c.price ? ' sll-off' : '') + '" data-a="buy" data-v="' + esc(o.dealer) + '|' + esc(c.id) + ('">' + T('ui.buy_2', 'Buy ') + '&middot;' + ' ') + money(c.price) + '</div></div></div></div></div>');
     }
 
     // ---- the marketplaces: the car market (dealers + private ads) and the part market (Revline, Swap & Bid, the paper, the catalog): the phone's data
@@ -243,93 +251,93 @@
     function mkButtons(l) {
       var offers = l.agreed ? '' : [0.9, 0.8, 0.7].map(function (f) {
         var amt = Math.round(l.ask * f / 10) * 10;
-        return '<div class="sll-btn sll-text" data-a="mkoffer" data-v="' + esc(l.id) + '|' + amt + '">Offer ' + money(amt) + '</div>';
+        return '<div class="sll-btn sll-text" data-a="mkoffer" data-v="' + esc(l.id) + '|' + amt + ('">' + T('ui.offer', 'Offer ')) + money(amt) + '</div>';
       }).join('');
-      return '<div class="sll-acts">' + offers + '<div class="sll-btn" data-a="mkbuy" data-v="' + esc(l.id) + '|pickup">Pick up</div>' +
-        (l.delivery != null ? '<div class="sll-btn sll-tonal" data-a="mkbuy" data-v="' + esc(l.id) + '|delivery">Deliver &middot; +' + money(l.delivery) + '</div>' : '') + '</div>';
+      return '<div class="sll-acts">' + offers + '<div class="sll-btn" data-a="mkbuy" data-v="' + esc(l.id) + ('|pickup">' + T('classifieds.pick_up', 'Pick up') + '</div>') +
+        (l.delivery != null ? '<div class="sll-btn sll-tonal" data-a="mkbuy" data-v="' + esc(l.id) + ('|delivery">' + T('ui.deliver_2', 'Deliver ') + '&middot;' + ' +') + money(l.delivery) + '</div>' : '') + '</div>';
     }
     // the full car report (#58): every part by section with its condition, the dents, the faults and a repair estimate per section
     function reportBlock(key, rp) {
       if (!rp || !rp.sections) return '';
       var on = !!st.rep[key];
-      var head = '<div class="sll-btn sll-tonal" data-a="report" data-v="' + esc(key) + '">' + (on ? 'Hide car report' : 'Show full car report') + '</div>';
+      var head = '<div class="sll-btn sll-tonal" data-a="report" data-v="' + esc(key) + '">' + (on ? T('ui.hide_car_report', 'Hide car report') : T('ui.show_full_car_report', 'Show full car report')) + '</div>';
       if (!on) return '<div class="sll-acts">' + head + '</div>';
       var secs = arr(rp.sections).map(function (sc) {
         var parts = arr(sc.parts).map(function (p) {
           return '<div class="sll-kv"><span>' + esc(p.name) + (p.fault ? ' <b class="sll-rbad">&#9888; ' + esc(p.fault) + '</b>' : '') + '</span><b class="sll-r' + (p.condition < 30 ? 'bad' : p.condition < 50 ? 'mid' : 'ok') + '">' + p.condition + '% ' + esc(p.label) + '</b></div>';
         }).join('');
         return '<div class="sll-rsec"><h5>' + esc(sc.title) + ' &middot; ' + sc.condition + '% ' + esc(sc.label) + '</h5>' + parts +
-          '<div class="sll-kv"><span>Repair estimate</span><b>' + (sc.estimate > 0 ? money(sc.estimate) : 'none') + '</b></div></div>';
+          ('<div class="sll-kv"><span>' + T('ui.repair_estimate', 'Repair estimate') + '</span><b>') + (sc.estimate > 0 ? money(sc.estimate) : 'none') + '</b></div></div>';
       }).join('');
       var dm = obj(rp.damage);
-      return '<div class="sll-acts">' + head + '</div><div class="sll-report"><div class="sll-kv"><span>Overall</span><b>' + rp.condition + '% ' + esc(rp.label) + '</b></div>' +
-        '<div class="sll-kv"><span>Mileage</span><b>' + Number(rp.mileage || 0).toLocaleString() + ' km</b></div><div class="sll-kv"><span>Dents and damage</span><b>' + esc(dm.label) + ' (' + (dm.amount || 0) + '%)</b></div>' +
-        '<div class="sll-kv"><span>Known faults</span><b>' + (arr(rp.faults).length ? esc(arr(rp.faults).join(', ')) : 'none') + '</b></div>' + secs +
-        '<div class="sll-kv"><span><b>Repair estimate, to 95 %</b></span><b>' + money(rp.total) + '</b></div></div>';
+      return '<div class="sll-acts">' + head + ('</div><div class="sll-report"><div class="sll-kv"><span>' + T('ui.overall', 'Overall') + '</span><b>') + rp.condition + '% ' + esc(rp.label) + '</b></div>' +
+        ('<div class="sll-kv"><span>' + T('ui.mileage', 'Mileage') + '</span><b>') + Number(rp.mileage || 0).toLocaleString() + (' km' + '</b></div><div class="sll-kv"><span>' + T('ui.dents_and_damage', 'Dents and damage') + '</span><b>') + esc(dm.label) + ' (' + (dm.amount || 0) + '%)</b></div>' +
+        ('<div class="sll-kv"><span>' + T('ui.known_faults', 'Known faults') + '</span><b>') + (arr(rp.faults).length ? esc(arr(rp.faults).join(', ')) : 'none') + '</b></div>' + secs +
+        ('<div class="sll-kv"><span><b>' + T('ui.repair_estimate_to_95', 'Repair estimate, to 95 %') + '</b></span><b>') + money(rp.total) + '</b></div></div>';
     }
     function adCardL(l) {
       var tells = arr(l.tells).length ? '<div class="sll-props" style="color:#f2b8b5">&#9888; ' + arr(l.tells).map(esc).join(' &middot; ') + '</div>' : '';
       if (l.car) {
         return '<div class="sll-card sll-listing">' + pic(l) + '<div class="sll-li"><h4>' + (l.year ? l.year + ' ' : '') + esc(l.name) + '</h4><div class="sll-brand">' + esc(l.brand || '') + '</div>' +
-          '<div class="sll-props">' + facts(l) + '</div><div class="sll-props">' + esc(l.seller) + ' ' + '&#9733;'.repeat(l.rating || 0) + (l.metres != null ? ' &middot; ' + dist(l.metres) + ' away' : '') +
-          (l.hours ? ' &middot; delivered in about ' + l.hours + ' h' : '') + ' &middot; condition ' + l.condition + '%' + (l.faults ? ' &middot; ' + l.faults + ' fault' + (l.faults > 1 ? 's' : '') : '') + '</div>' + tells +
-          '<div class="sll-props"><b>' + money(l.ask) + '</b>' + (l.agreed ? ' (agreed)' : '') + ' &middot; deposit ' + money(l.deposit) + '</div>' + reportBlock('ad:' + l.id, l.report) + mkButtons(l) + '</div></div>';
+          '<div class="sll-props">' + facts(l) + '</div><div class="sll-props">' + esc(l.seller) + ' ' + '&#9733;'.repeat(l.rating || 0) + (l.metres != null ? T('ui.middot_1_away', ' &middot; {1} away', dist(l.metres)) : '') +
+          (l.hours ? T('ui.middot_delivered_in_about_1', ' &middot; delivered in about {1} h', l.hours) : '') + ' &middot; condition ' + l.condition + '%' + (l.faults ? T('ui.middot_1_fault_2', ' &middot; {1} fault{2}', l.faults, (l.faults > 1 ? 's' : '')) : '') + '</div>' + tells +
+          '<div class="sll-props"><b>' + money(l.ask) + '</b>' + (l.agreed ? T('ui.agreed', ' (agreed)') : '') + ' &middot; deposit ' + money(l.deposit) + '</div>' + reportBlock('ad:' + l.id, l.report) + mkButtons(l) + '</div></div>';
       }
-      return '<div class="sll-card"><h4>' + (l.rare ? '&#9733; ' : '') + esc(l.name) + '</h4><p>For the ' + esc(l.model) + ' &middot; ' + l.condition + '% condition &middot; ' + esc(l.seller) + ' ' + '&#9733;'.repeat(l.rating || 0) +
-        ' &middot; ' + Math.max(0, l.hoursLeft | 0) + ' h left</p>' + tells + '<p><b>' + money(l.ask) + '</b>' + (l.agreed ? ' (agreed)' : '') + ' &middot; deposit ' + money(l.deposit) + '</p>' + mkButtons(l) + '</div>';
+      return '<div class="sll-card"><h4>' + (l.rare ? '&#9733; ' : '') + esc(l.name) + ('</h4><p>' + T('ui.for_the_2', 'For the ')) + esc(l.model) + ' &middot; ' + l.condition + T('ui.condition_middot', '% condition &middot; ') + esc(l.seller) + ' ' + '&#9733;'.repeat(l.rating || 0) +
+        ' &middot; ' + Math.max(0, l.hoursLeft | 0) + (T('ui.h_left', ' h left') + '</p>') + tells + '<p><b>' + money(l.ask) + '</b>' + (l.agreed ? T('ui.agreed', ' (agreed)') : '') + ' &middot; deposit ' + money(l.deposit) + '</p>' + mkButtons(l) + '</div>';
     }
     function sellL(m, kind) {
       var mine = arr(m.mine).filter(function (y) { return (kind === 'cars') === (y.carId != null); }).map(function (y) {
-        var inner = y.channel === 'auction' ? '<p>At auction &middot; ' + (y.bid ? 'top bid ' + money(y.bid) : 'no bids yet') + ' &middot; ' + Math.max(0, y.hoursLeft | 0) + ' h left</p>'
+        var inner = y.channel === 'auction' ? ('<p>' + T('ui.at_auction', 'At auction ') + '&middot;' + ' ') + (y.bid ? T('ui.top_bid_1', 'top bid {1}', money(y.bid)) : T('ui.no_bids_yet', 'no bids yet')) + ' &middot; ' + Math.max(0, y.hoursLeft | 0) + (T('ui.h_left', ' h left') + '</p>')
           : (arr(y.offers).length ? arr(y.offers).map(function (o) {
-              return '<div class="sll-acts"><div class="sll-btn" data-a="mkaccept" data-v="' + esc(y.id) + '|' + o.index + '">Accept ' + money(o.amount) + ' from ' + esc(o.buyer || 'a buyer') + '</div></div>';
-            }).join('') : '<p>No offers yet.</p>');
-        return '<div class="sll-card"><h4>Your ' + esc(y.name) + '</h4>' + inner + '<div class="sll-acts"><div class="sll-btn sll-text" data-a="mkwithdraw" data-v="' + esc(y.id) + '">Withdraw</div></div></div>';
+              return '<div class="sll-acts"><div class="sll-btn" data-a="mkaccept" data-v="' + esc(y.id) + '|' + o.index + ('">' + T('ui.accept', 'Accept ')) + money(o.amount) + ' from ' + esc(o.buyer || T('ui.a_buyer', 'a buyer')) + '</div></div>';
+            }).join('') : ('<p>' + T('ui.no_offers_yet', 'No offers yet.') + '</p>'));
+        return ('<div class="sll-card"><h4>' + T('ui.your', 'Your ')) + esc(y.name) + '</h4>' + inner + '<div class="sll-acts"><div class="sll-btn sll-text" data-a="mkwithdraw" data-v="' + esc(y.id) + ('">' + T('ui.withdraw', 'Withdraw') + '</div></div></div>');
       }).join('');
       var lists = kind === 'cars' ? arr(m.cars).map(function (c) {
-        return '<div class="sll-card"><h4>' + esc(c.name) + '</h4><p>Your car &middot; buyers pay up to about ' + money(c.estimate || 0) + '</p><div class="sll-acts"><div class="sll-btn" data-a="mkcar" data-v="' + esc(c.id) + '">List car</div></div></div>';
+        return '<div class="sll-card"><h4>' + esc(c.name) + ('</h4><p>' + T('ui.your_car', 'Your car ') + '&middot;' + T('ui.buyers_pay_up_to_about', ' buyers pay up to about ')) + money(c.estimate || 0) + '</p><div class="sll-acts"><div class="sll-btn" data-a="mkcar" data-v="' + esc(c.id) + ('">' + T('ui.list_car', 'List car') + '</div></div></div>');
       }).join('') : arr(m.shelf).map(function (it) {
-        return '<div class="sll-card"><h4>' + esc(it.name) + '</h4><p>On your shelf &middot; buyers pay up to about ' + money(it.estimate) + '</p><div class="sll-acts">' +
-          '<div class="sll-btn" data-a="mklist" data-v="' + esc(it.model) + '|' + it.id + '|app">List it</div><div class="sll-btn sll-tonal" data-a="mklist" data-v="' + esc(it.model) + '|' + it.id + '|auction">Auction it</div></div></div>';
+        return '<div class="sll-card"><h4>' + esc(it.name) + ('</h4><p>' + T('ui.on_your_shelf', 'On your shelf ') + '&middot;' + T('ui.buyers_pay_up_to_about', ' buyers pay up to about ')) + money(it.estimate) + '</p><div class="sll-acts">' +
+          '<div class="sll-btn" data-a="mklist" data-v="' + esc(it.model) + '|' + it.id + ('|app">' + T('ui.list_it', 'List it') + '</div><div class="sll-btn sll-tonal" data-a="mklist" data-v="') + esc(it.model) + '|' + it.id + ('|auction">' + T('ui.auction_it', 'Auction it') + '</div></div></div>');
       }).join('');
-      return (mine ? '<div class="sll-band" style="margin:8px 0">Your listings</div>' + mine : '') + (lists ? '<div class="sll-band" style="margin:8px 0">' + (kind === 'cars' ? 'Sell a car' : 'Sell from your shelf') + '</div>' + lists : '');
+      return (mine ? ('<div class="sll-band" style="margin:8px 0">' + T('ui.your_listings', 'Your listings') + '</div>') + mine : '') + (lists ? '<div class="sll-band" style="margin:8px 0">' + (kind === 'cars' ? T('ui.sell_a_car', 'Sell a car') : T('ui.sell_from_your_shelf', 'Sell from your shelf')) + '</div>' + lists : '');
     }
     function carAdsBody() {
       var m = obj(st.data.market);
       var cards = arr(m.listings).filter(function (l) { return l.car; }).map(adCardL).join('');
-      return body((cards || '<div class="sll-empty">No private cars for sale right now. New ads come in through the day.</div>') + sellL(m, 'cars'));
+      return body((cards || ('<div class="sll-empty">' + T('ui.no_private_cars_for_sale', 'No private cars for sale right now. New ads come in through the day.') + '</div>')) + sellL(m, 'cars'));
     }
     function partMarketBody() {
       var m = obj(st.data.market), tab = st.tab.partmarket;
       if (tab === 'auctions') {
         var lots = arr(m.auctions).map(function (l) {
           var mine = l.high === 'you';
-          return '<div class="sll-card"><h4>' + (l.rare ? '&#9733; ' : '') + esc(l.name) + '</h4><p>For the ' + esc(l.model) + ' &middot; ' + l.condition + '% condition &middot; ' + Math.max(0, l.hoursLeft | 0) + ' h left</p>' +
-            '<p><b>' + money(l.bid) + '</b> ' + (mine ? '(your bid)' : (l.high === 'ai' ? '(outbid)' : '(opening bid)')) + ' &middot; delivery +' + money(l.delivery || 0) + '</p>' +
-            (mine ? '' : '<div class="sll-acts"><div class="sll-btn" data-a="mkbid" data-v="' + esc(l.id) + '">Bid ' + money(l.next) + '</div></div>') + '</div>';
+          return '<div class="sll-card"><h4>' + (l.rare ? '&#9733; ' : '') + esc(l.name) + ('</h4><p>' + T('ui.for_the_2', 'For the ')) + esc(l.model) + ' &middot; ' + l.condition + T('ui.condition_middot', '% condition &middot; ') + Math.max(0, l.hoursLeft | 0) + (T('ui.h_left', ' h left') + '</p>') +
+            '<p><b>' + money(l.bid) + '</b> ' + (mine ? T('ui.your_bid', '(your bid)') : (l.high === 'ai' ? T('ui.outbid', '(outbid)') : T('ui.opening_bid', '(opening bid)'))) + T('ui.middot_delivery', ' &middot; delivery +') + money(l.delivery || 0) + '</p>' +
+            (mine ? '' : '<div class="sll-acts"><div class="sll-btn" data-a="mkbid" data-v="' + esc(l.id) + ('">' + T('ui.bid', 'Bid ')) + money(l.next) + '</div></div>') + '</div>';
         }).join('');
         var meet = obj(m.meet), stalls = '';
         if (meet.open) {
-          stalls = '<div class="sll-empty">Swap meet ' + (meet.night ? 'tonight' : 'today') + ' at the ' + esc(meet.place || 'Tuning shop lot') + (meet.here ? '. You are here.' : ': go and buy in person.') + '</div>' + arr(meet.listings).map(function (l) {
-            return '<div class="sll-card"><h4>' + esc(l.name) + '</h4><p>' + esc(l.seller) + '\'s stall &middot; ' + l.condition + '% condition</p><p><b>' + money(l.ask) + '</b></p>' +
-              (meet.here ? '<div class="sll-acts"><div class="sll-btn" data-a="mkmeet" data-v="' + esc(l.id) + '">Buy it</div></div>' : '') + '</div>';
+          stalls = ('<div class="sll-empty">' + T('ui.swap_meet', 'Swap meet ')) + (meet.night ? 'tonight' : 'today') + T('ui.at_the', ' at the ') + esc(meet.place || T('classifieds.tuning_shop_lot', 'Tuning shop lot')) + (meet.here ? T('ui.you_are_here', '. You are here.') : T('ui.go_and_buy_in_person', ': go and buy in person.')) + '</div>' + arr(meet.listings).map(function (l) {
+            return '<div class="sll-card"><h4>' + esc(l.name) + '</h4><p>' + esc(l.seller) + T('ui.s_stall_middot', '\'s stall &middot; ') + l.condition + (T('ui.condition', '% condition') + '</p><p><b>') + money(l.ask) + '</b></p>' +
+              (meet.here ? '<div class="sll-acts"><div class="sll-btn" data-a="mkmeet" data-v="' + esc(l.id) + ('">' + T('ui.buy_it', 'Buy it') + '</div></div>') : '') + '</div>';
           }).join('');
         }
-        return body(stalls + (lots || '<div class="sll-empty">No lots right now.</div>'));
+        return body(stalls + (lots || ('<div class="sll-empty">' + T('ui.no_lots_right_now', 'No lots right now.') + '</div>')));
       }
       if (tab === 'paper') {
         var p = obj(m.paper);
-        var ads = arr(p.listings).map(function (l) { return adCardL(l).replace('<h4>', '<h4>' + (l.printOnly ? '[print only] ' : '')); }).join('');
-        return body('<div class="sll-empty">Edition ' + (p.edition || 1) + '. Small ads go fast.' + (p.bought ? ' You have the printed copy.' : (p.hidden ? ' ' + p.hidden + ' more in the printed copy.' : '')) + '</div>' +
-          (p.bought ? '' : '<div class="sll-acts"><div class="sll-btn" data-a="buypaper" data-v="1">Buy the paper (' + money(p.price || 2) + ', at a gas station)</div></div>') +
-          (ads || '<div class="sll-empty">No ads right now. New ones come out through the week.</div>'));
+        var ads = arr(p.listings).map(function (l) { return adCardL(l).replace('<h4>', '<h4>' + (l.printOnly ? T('ui.print_only_2', '[print only] ') : '')); }).join('');
+        return body(('<div class="sll-empty">' + T('ui.edition', 'Edition ')) + (p.edition || 1) + T('ui.small_ads_go_fast', '. Small ads go fast.') + (p.bought ? T('ui.you_have_the_printed_copy', ' You have the printed copy.') : (p.hidden ? T('ui.1_more_in_the_printed', ' {1} more in the printed copy.', p.hidden) : '')) + '</div>' +
+          (p.bought ? '' : ('<div class="sll-acts"><div class="sll-btn" data-a="buypaper" data-v="1">' + T('ui.buy_the_paper', 'Buy the paper (')) + money(p.price || 2) + (T('ui.at_a_gas_station', ', at a gas station)') + '</div></div>')) +
+          (ads || ('<div class="sll-empty">' + T('ui.no_ads_right_now_new', 'No ads right now. New ones come out through the week.') + '</div>')));
       }
       if (tab === 'catalog') {
-        return body('<div class="sll-card"><h4>The Wrench Works catalog</h4><p>Every part that fits your car, new, with its price. The car goes into the garage it stands at and the catalog opens; what you order is delivered to your shelf.</p>' +
-          '<div class="sll-acts"><div class="sll-btn" data-a="pcatalog" data-v="1">Open the catalog</div></div></div>');
+        return body(('<div class="sll-card"><h4>' + T('ui.the_wrench_works_catalog', 'The Wrench Works catalog') + '</h4><p>' + 'Every part that fits your car, new, with its price. The car goes into the garage it stands at and the catalog opens; what you order is delivered to your shelf.' + '</p>') +
+          ('<div class="sll-acts"><div class="sll-btn" data-a="pcatalog" data-v="1">' + T('ui.open_the_catalog', 'Open the catalog') + '</div></div></div>'));
       }
       var cards = arr(m.listings).filter(function (l) { return !l.car; }).map(adCardL).join('');
-      return body((m.deliveries ? '<div class="sll-empty">' + m.deliveries + ' on the way to your garage.</div>' : '') + (cards || '<div class="sll-empty">Nothing listed right now. New ads come in through the day.</div>') + sellL(m, 'parts'));
+      return body((m.deliveries ? '<div class="sll-empty">' + m.deliveries + (T('ui.on_the_way_to_your', ' on the way to your garage.') + '</div>') : '') + (cards || ('<div class="sll-empty">' + T('ui.nothing_listed_right_now_new', 'Nothing listed right now. New ads come in through the day.') + '</div>')) + sellL(m, 'parts'));
     }
 
     function partsBody() {
@@ -340,16 +348,16 @@
           return '<div class="sll-kv"><span>' + esc(p.name) + (p.count > 1 ? ' &times;' + p.count : '') + '</span><b>' + money(p.value) + '</b></div>';
         }).join('') + '</div>';
       });
-      return body(cards.join('') || '<div class="sll-empty">The shelf in your garage is empty. Parts you take off a car, and parts delivered to you, wait there.</div>');
+      return body(cards.join('') || ('<div class="sll-empty">' + T('ui.the_shelf_in_your_garage', 'The shelf in your garage is empty. Parts you take off a car, and parts delivered to you, wait there.') + '</div>'));
     }
 
     // Help: the topics, then one page (sl/core/help: the same words as the phone's Help and docs/PLAYER_GUIDE.md)
     function helpBody() {
       var pages = arr(st.help);
-      if (!pages.length) return body('<div class="sll-empty">Loading the help...</div>');
+      if (!pages.length) return body(('<div class="sll-empty">' + T('ui.loading_the_help', 'Loading the help...') + '</div>'));
       var p = pages.filter(function (x) { return x.id === st.helpId; })[0];
       if (!p) {
-        return body('<div class="sll-card"><h4>What would you like to know?</h4>' + pages.map(function (x) {
+        return body(('<div class="sll-card"><h4>' + T('ui.what_would_you_like_to', 'What would you like to know?') + '</h4>') + pages.map(function (x) {
           return '<div class="sll-kv" data-a="helptopic" data-v="' + esc(x.id) + '" style="cursor:pointer"><span>' + esc(x.title) + '</span><b>&rsaquo;</b></div>';
         }).join('') + '</div>');
       }
@@ -361,80 +369,75 @@
         html += bullet ? '<li style="margin:4px 0">' + esc(String(t).slice(2)) + '</li>' : '<p>' + esc(t) + '</p>';
       });
       if (inList) html += '</ul>';
-      return body('<div class="sll-btn sll-text" data-a="helpindex" data-v="1">&lsaquo; All topics</div><div class="sll-card"><h4>' + esc(p.title) + '</h4>' + html + '</div>');
+      return body(('<div class="sll-btn sll-text" data-a="helpindex" data-v="1">&lsaquo;' + T('ui.all_topics', ' All topics') + '</div><div class="sll-card"><h4>') + esc(p.title) + '</h4>' + html + '</div>');
     }
 
     // the club: the season, today's two events and the standings (the same data as the phone's Club app)
     function clubBody() {
       var c = st.data.club;
-      if (!c) return body('<div class="sll-empty">No club yet.</div>');
+      if (!c) return body(('<div class="sll-empty">' + T('ui.no_club_yet', 'No club yet.') + '</div>'));
       var ev = c.today || {};
       var row = function (kind, label, e) {
         if (!e) return '';
-        var act = e.done ? '<b>Done</b>' : (kind === 'day' && !e.open ? '<b>Soon</b>' : '<div class="sll-btn" data-a="league" data-v="' + kind + '">Enter</div>');
+        var act = e.done ? ('<b>' + T('ui.done', 'Done') + '</b>') : (kind === 'day' && !e.open ? ('<b>' + T('ui.soon', 'Soon') + '</b>') : '<div class="sll-btn" data-a="league" data-v="' + kind + ('">' + T('ui.enter', 'Enter') + '</div>'));
         return '<div class="sll-kv"><span>' + label + ' &middot; ' + esc(e.name) + '</span>' + act + '</div>';
       };
       var table = arr(c.standings).map(function (r) {
         return '<div class="sll-kv"' + (r.you ? ' style="font-weight:700"' : '') + '><span>' + r.place + '. ' + esc(r.name) + '</span><b>' + r.points + '</b></div>';
       }).join('');
-      return body('<div class="sll-card"><h4>' + esc(c.club) + ': season ' + c.season + ', day ' + c.day + ' of ' + c.days + (ev.finale ? ' &middot; finale, double points' : '') + '</h4>' +
-        '<p>Class ' + esc(c['class'] || '?') + (c.carClass && c.carClass !== c['class'] ? ' &middot; this car: ' + esc(c.carClass) : '') + ' &middot; skip any event, it only costs its points</p>' +
-        row('night', 'Night league', ev.night) + row('day', 'Day league', ev.day) + '</div>' +
-        '<div class="sll-card"><h4>Standings</h4>' + table + '</div>');
+      return body('<div class="sll-card"><h4>' + esc(c.club) + T('ui.season_2', ': season ') + c.season + T('ui.day', ', day ') + c.day + ' of ' + c.days + (ev.finale ? T('ui.middot_finale_double_points', ' &middot; finale, double points') : '') + '</h4>' +
+        ('<p>' + T('ui.class', 'Class ')) + esc(c['class'] || '?') + (c.carClass && c.carClass !== c['class'] ? T('ui.middot_this_car_1', ' &middot; this car: {1}', esc(c.carClass)) : '') + (' ' + '&middot;' + T('ui.skip_any_event_it_only', ' skip any event, it only costs its points') + '</p>') +
+        row('night', T('clubs.night_league', 'Night league'), ev.night) + row('day', T('clubs.day_league', 'Day league'), ev.day) + '</div>' +
+        ('<div class="sll-card"><h4>' + T('ui.standings', 'Standings') + '</h4>') + table + '</div>');
     }
 
     function bankBody() {
       var d = st.data, bk = d.bank, cards = '';
       if (bk) {
         if (bk.loan) {
-          cards += '<div class="sll-card"><h4>Loan: ' + money(bk.loan.owed) + ' owed</h4><p>Next payment ' + money(bk.loan.due) + ' in ' + bk.loan.dueIn + ' day' + (bk.loan.dueIn === 1 ? '' : 's') + '</p>' +
-            '<div class="sll-acts"><div class="sll-btn" data-a="repay" data-v="' + Math.min(bk.loan.owed, d.money || 0) + '">Pay ' + money(Math.min(bk.loan.owed, d.money || 0)) + '</div></div></div>';
+          cards += ('<div class="sll-card"><h4>' + T('ui.loan', 'Loan: ')) + money(bk.loan.owed) + (' owed' + '</h4><p>' + T('ui.next_payment', 'Next payment ')) + money(bk.loan.due) + ' in ' + bk.loan.dueIn + ' day' + (bk.loan.dueIn === 1 ? '' : 's') + '</p>' +
+            '<div class="sll-acts"><div class="sll-btn" data-a="repay" data-v="' + Math.min(bk.loan.owed, d.money || 0) + ('">' + T('ui.pay', 'Pay ')) + money(Math.min(bk.loan.owed, d.money || 0)) + '</div></div></div>';
         } else {
           var half = Math.floor(bk.limit / 200) * 100, quarter = Math.floor(bk.limit / 400) * 100;
-          cards += '<div class="sll-card"><h4>Borrow</h4><p>Up to ' + money(bk.limit) + ' &middot; ' + Math.round(bk.rate * 100) + '% a day &middot; a quarter due each week</p>' +
+          cards += ('<div class="sll-card"><h4>' + T('ui.borrow', 'Borrow') + '</h4><p>' + 'Up to ') + money(bk.limit) + ' &middot; ' + Math.round(bk.rate * 100) + (T('ui.a_day', '% a day ') + '&middot;' + T('ui.a_quarter_due_each_week', ' a quarter due each week') + '</p>') +
             '<div class="sll-acts">' + (quarter >= 100 && quarter < half ? '<div class="sll-btn sll-tonal" data-a="borrow" data-v="' + quarter + '">' + money(quarter) + '</div>' : '') + '<div class="sll-btn sll-tonal" data-a="borrow" data-v="' + half + '">' + money(half) + '</div><div class="sll-btn sll-tonal" data-a="borrow" data-v="' + bk.limit + '">' + money(bk.limit) + '</div></div></div>';
         }
-        cards += bk.policy ? '<div class="sll-card"><h4>Insured</h4><p>' + (bk.policy.startsIn ? 'Cover starts tomorrow' : 'Covering half of repairs and impound bills over ' + money(bk.deductible)) + '</p>' +
-            '<div class="sll-acts"><div class="sll-btn sll-text" data-a="insure" data-v="false">Cancel</div></div></div>'
-          : '<div class="sll-card"><h4>Insurance</h4><p>' + money(bk.premium) + ' a week: half of repairs and impound bills over ' + money(bk.deductible) + ', from the next day</p>' +
-            '<div class="sll-acts"><div class="sll-btn sll-tonal" data-a="insure" data-v="true">Insure</div></div></div>';
+        cards += bk.policy ? ('<div class="sll-card"><h4>' + T('ui.insured', 'Insured') + '</h4><p>') + (bk.policy.startsIn ? T('ui.cover_starts_tomorrow', 'Cover starts tomorrow') : T('ui.covering_half_of_repairs_and', 'Covering half of repairs and impound bills over {1}', money(bk.deductible))) + '</p>' +
+            ('<div class="sll-acts"><div class="sll-btn sll-text" data-a="insure" data-v="false">' + T('ui.cancel', 'Cancel') + '</div></div></div>')
+          : ('<div class="sll-card"><h4>' + T('ui.insurance', 'Insurance') + '</h4><p>') + money(bk.premium) + T('ui.a_week_half_of_repairs', ' a week: half of repairs and impound bills over ') + money(bk.deductible) + (T('ui.from_the_next_day', ', from the next day') + '</p>') +
+            ('<div class="sll-acts"><div class="sll-btn sll-tonal" data-a="insure" data-v="true">' + T('ui.insure', 'Insure') + '</div></div></div>');
       }
       var rows = arr(d.ledger).map(function (e) {
         return '<div class="sll-kv"><span>' + esc(e.label || '') + '</span><b class="' + (e.amount >= 0 ? 'sll-plus' : 'sll-minus') + '">' + (e.amount >= 0 ? '+' : '') + money(e.amount) + '</b></div>';
       }).join('');
-      return body('<div class="sll-card"><h4>Balance</h4><p style="font-size:24px;color:#e6e1e5">' + money(d.money) + '</p></div>' + cards + '<div class="sll-card">' + (rows || '<p>No transactions yet.</p>') + '</div>');
+      return body(('<div class="sll-card"><h4>' + T('ui.balance', 'Balance') + '</h4><p style="font-size:24px;color:#e6e1e5">') + money(d.money) + '</p></div>' + cards + '<div class="sll-card">' + (rows || ('<p>' + T('ui.no_transactions_yet', 'No transactions yet.') + '</p>')) + '</div>');
     }
 
     function credBody() {
       var d = st.data, s = obj(d.stats);
       var from = d.titleRep || 0, to = d.nextRep, pct = to ? Math.max(0, Math.min(100, ((d.rep || 0) - from) / (to - from) * 100)) : 100;
-      var next = d.nextGarage ? '<div class="sll-kv"><span>Next garage</span><b>' + esc(d.nextGarage.name) + (d.nextGarage.canMove ? ' - ready' : ' - ' + esc(d.nextGarage.why)) + '</b></div>' : '';
-      var acts = d.nextGarage && d.nextGarage.canMove ? '<div class="sll-acts"><div class="sll-btn" data-a="move">Move to ' + esc(d.nextGarage.name) + '</div></div>' : '';
+      var next = d.nextGarage ? ('<div class="sll-kv"><span>' + T('ui.next_garage', 'Next garage') + '</span><b>') + esc(d.nextGarage.name) + (d.nextGarage.canMove ? T('ui.ready', ' - ready') : ' - ' + esc(d.nextGarage.why)) + '</b></div>' : '';
+      var acts = d.nextGarage && d.nextGarage.canMove ? ('<div class="sll-acts"><div class="sll-btn" data-a="move">' + T('ui.move_to', 'Move to ')) + esc(d.nextGarage.name) + '</div></div>' : '';
       var a = d.achievements, ach = '';
       if (a) {
-        ach = '<div class="sll-card"><h4>Achievements ' + (a.earned || 0) + ' / ' + (a.total || 0) + '</h4>' + arr(a.list).map(function (x) {
-          return '<div class="sll-kv"' + (x.day != null ? '' : ' style="opacity:.45"') + '><span>' + esc(x.title) + ' &middot; ' + esc(x.desc) + '</span><b>' + (x.day != null ? 'Day ' + x.day : '') + '</b></div>';
+        ach = ('<div class="sll-card"><h4>' + T('ui.achievements', 'Achievements ')) + (a.earned || 0) + ' / ' + (a.total || 0) + '</h4>' + arr(a.list).map(function (x) {
+          return '<div class="sll-kv"' + (x.day != null ? '' : ' style="opacity:.45"') + '><span>' + esc(x.title) + ' &middot; ' + esc(x.desc) + '</span><b>' + (x.day != null ? T('ui.day_1', 'Day {1}', x.day) : '') + '</b></div>';
         }).join('') + '</div>';
       }
-      return body('<div class="sll-card"><h4>' + esc(d.title) + '</h4><p>' + (d.rep || 0) + ' reputation' + (to ? ' &middot; next title at ' + to : '') + '</p>' +
+      return body('<div class="sll-card"><h4>' + esc(d.title) + '</h4><p>' + (d.rep || 0) + ' reputation' + (to ? T('ui.middot_next_title_at_1', ' &middot; next title at {1}', to) : '') + '</p>' +
         '<div class="sll-meter"><i style="width:' + pct.toFixed(1) + '%"></i></div></div>' +
-        '<div class="sll-card"><div class="sll-kv"><span>Garage</span><b>' + esc(d.garage || '') + '</b></div>' + next +
-        '<div class="sll-kv"><span>Cars</span><b>' + (d.cars || 0) + '</b></div>' +
-        '<div class="sll-kv"><span>Races</span><b>' + (s.races || 0) + ' (' + (s.wins || 0) + ' won)</b></div>' +
-        '<div class="sll-kv"><span>Pink slips</span><b>' + (s.pinksWon || 0) + ' won, ' + (s.pinksLost || 0) + ' lost</b></div>' + acts + '</div>' + ach);
+        ('<div class="sll-card"><div class="sll-kv"><span>' + T('ui.garage', 'Garage') + '</span><b>') + esc(d.garage || '') + '</b></div>' + next +
+        ('<div class="sll-kv"><span>' + T('ui.cars', 'Cars') + '</span><b>') + (d.cars || 0) + '</b></div>' +
+        ('<div class="sll-kv"><span>' + T('ui.races', 'Races') + '</span><b>') + (s.races || 0) + ' (' + (s.wins || 0) + (T('ui.won_2', ' won)') + '</b></div>') +
+        ('<div class="sll-kv"><span>' + T('crews.pink_slips', 'Pink slips') + '</span><b>') + (s.pinksWon || 0) + T('ui.won_3', ' won, ') + (s.pinksLost || 0) + ' lost</b></div>' + acts + '</div>' + ach);
     }
 
-    // the player-facing text: sl/core/strings (sl_phone.requestStrings, event slStrings); the second argument shows until it has arrived
     var WIN_KEYS = { cars: 'laptop.mycars', parts: 'laptop.myparts', bank: 'laptop.bank', cred: 'laptop.cred', dealers: 'laptop.carmarket', partmarket: 'laptop.partmarket', club: 'laptop.club', help: 'laptop.help' };
-    function T(key, fallback) {
-      var text = st.strings && st.strings[key] !== undefined ? st.strings[key] : fallback, a = arguments;
-      return String(text).replace(/\{(\d+)\}/g, function (m, i) { var v = a[Number(i) + 1]; return v === undefined ? '' : v; });
-    }
     function winName(id) { return T(WIN_KEYS[id], WINDOWS[id][1]); }
     function winTitle(w) {
       if (w.id === 'dealers' && st.tab.dealers === 'dealers') {
         if (st.dview === 'offers') return (st.offers && st.offers.name) || winName('dealers');
-        if (st.dview === 'offer') { var c = currentOffer(); return c ? (c.year ? c.year + ' ' : '') + c.name : 'Sold'; }
+        if (st.dview === 'offer') { var c = currentOffer(); return c ? (c.year ? c.year + ' ' : '') + c.name : T('ui.sold', 'Sold'); }
       }
       return winName(w.id);
     }
@@ -446,9 +449,9 @@
         case 'cred': return credBody();
         case 'club': return clubBody();
         case 'help': return helpBody();
-        case 'partmarket': return tabsHtml('partmarket', [['revline', 'Revline'], ['auctions', 'Swap & Bid'], ['paper', 'Classifieds'], ['catalog', 'Catalog']]) + partMarketBody();
+        case 'partmarket': return tabsHtml('partmarket', [['revline', T('ui.revline', 'Revline')], ['auctions', T('ui.swap_bid', 'Swap & Bid')], ['paper', T('ui.classifieds_2', 'Classifieds')], ['catalog', T('ui.catalog', 'Catalog')]]) + partMarketBody();
         default:
-          return tabsHtml('dealers', [['dealers', 'Dealers'], ['ads', 'Private ads']]) +
+          return tabsHtml('dealers', [['dealers', T('ui.dealers', 'Dealers')], ['ads', T('ui.private_ads', 'Private ads')]]) +
             (st.tab.dealers === 'ads' ? carAdsBody() : st.dview === 'offers' ? offersBody() : (st.dview === 'offer' ? offerBody() : dealersBody()));
       }
     }
@@ -480,9 +483,9 @@
       st.car = Math.max(0, Math.min(st.car, fleet.length - 1));
       if (!(st.view && st.view.lists)) return '';
       var c = fleet[st.car];
-      return '<div class="sll-widget"><div class="sll-title">' + icon('vehicleInventory', 16) + '<b>My garage</b><div class="sll-sp"></div></div><div class="sll-wb"><div class="sll-wrow">' +
-        '<div class="sll-btn sll-tonal" data-a="car" data-v="-1">&#9664;</div><div class="sll-car">' + (c ? '<b>' + esc(c.name) + '</b><span>' + esc(c.where) + ' &middot; condition ' + Math.round((c.condition || 0) * 100) + '% &middot; value ' + money(c.value) + '</span>'
-          : '<b>No car yet</b><span>The junkyard and the dealers sell them.</span>') + '</div><div class="sll-btn sll-tonal" data-a="car" data-v="1">&#9654;</div></div></div></div>';
+      return '<div class="sll-widget"><div class="sll-title">' + icon('vehicleInventory', 16) + ('<b>' + T('ui.my_garage', 'My garage') + '</b><div class="sll-sp"></div></div><div class="sll-wb"><div class="sll-wrow">') +
+        '<div class="sll-btn sll-tonal" data-a="car" data-v="-1">&#9664;</div><div class="sll-car">' + (c ? '<b>' + esc(c.name) + '</b><span>' + esc(c.where) + ' &middot; condition ' + Math.round((c.condition || 0) * 100) + T('ui.middot_value', '% &middot; value ') + money(c.value) + '</span>'
+          : ('<b>' + T('ui.no_car_yet', 'No car yet') + '</b><span>' + T('ui.the_junkyard_and_the_dealers', 'The junkyard and the dealers sell them.') + '</span>')) + '</div><div class="sll-btn sll-tonal" data-a="car" data-v="1">&#9654;</div></div></div></div>';
     }
 
     function winHtml(w, i, top) {
@@ -493,7 +496,7 @@
         '<div class="sll-title" data-a="focus" data-v="' + w.id + '">' + icon(WINDOWS[w.id][0], 16) + '<b>' + esc(winTitle(w)) + '</b><div class="sll-sp"></div>' +
         (canGoBack(w) ? '<div class="sll-tb" data-a="back" data-v="' + w.id + '" title="Back">&#9664;</div>' : '') +
         '<div class="sll-tb" data-a="winmin" data-v="' + w.id + '" title="Minimise">&#8212;</div>' +
-        '<div class="sll-tb" data-a="winmax" data-v="' + w.id + '" title="' + (w.max ? 'Restore' : 'Maximise') + '">' + (w.max ? '&#10064;' : '&#9744;') + '</div>' +
+        '<div class="sll-tb" data-a="winmax" data-v="' + w.id + '" title="' + (w.max ? T('ui.restore', 'Restore') : T('ui.maximise', 'Maximise')) + '">' + (w.max ? '&#10064;' : '&#9744;') + '</div>' +
         '<div class="sll-tb sll-xb" data-a="winclose" data-v="' + w.id + '" title="Close">&#10005;</div></div>' +
         winBody(w).replace('<div class="sll-note"></div>', '<div class="sll-note">' + (w === top ? esc(st.note) : '') + '</div>') + '<div class="sll-grip"></div></div>';
     }
@@ -506,20 +509,20 @@
       if (!st.menu) return '';
       var d = st.data;
       var groups = groupsFor(arr(d.fleet)[st.car]);
-      return '<div class="sll-menu"><div class="sll-user">' + (d.active ? esc(d.title || '') + ' &middot; ' + (d.rep || 0) + ' reputation' : 'Street Legal') + '</div><div class="sll-mlist">' + groups.map(function (g) {
+      return '<div class="sll-menu"><div class="sll-user">' + (d.active ? esc(d.title || '') + ' &middot; ' + (d.rep || 0) + ' reputation' : T('options.street_legal', 'Street Legal')) + '</div><div class="sll-mlist">' + groups.map(function (g) {
         return '<div class="sll-band">' + esc(g.title) + '</div>' + g.tiles.map(function (t) {
           return '<div class="sll-mi' + (t.enabled ? '' : ' sll-off') + '" data-a="tile" data-v="' + esc(t.id) + '">' + icon(t.id, 24) + '<span>' + esc(tileLabel(t)) + '</span></div>';
         }).join('');
-      }).join('') + '</div><div class="sll-mfoot"><div class="sll-btn sll-tonal" data-a="close">Shut down</div></div></div>';
+      }).join('') + ('</div><div class="sll-mfoot"><div class="sll-btn sll-tonal" data-a="close">' + T('ui.shut_down', 'Shut down') + '</div></div></div>');
     }
 
     function taskbarHtml() {
       var d = st.data, h = d.hour || 0, m = d.minute || 0, top = topWin();
-      return '<div class="sll-task"><div class="sll-startbtn' + (st.menu ? ' sll-on' : '') + '" data-a="start"><svg viewBox="0 0 18 18"><path fill="#a8c7fa" d="M1 2l7-1v7H1zm8-1.200L17 0v8H9zM1 9h7v7l-7-1zm8 0h8v9l-8-1.200z"/></svg>Start</div>' +
+      return '<div class="sll-task"><div class="sll-startbtn' + (st.menu ? ' sll-on' : '') + ('" data-a="start"><svg viewBox="0 0 18 18"><path fill="#a8c7fa" d="M1 2l7-1v7H1zm8-1.200L17 0v8H9zM1 9h7v7l-7-1zm8 0h8v9l-8-1.200z"/></svg>' + T('ui.start', 'Start') + '</div>') +
         st.wins.map(function (w) {
           return '<div class="sll-taskwin' + (w === top ? ' sll-on' : '') + '" data-a="task" data-v="' + w.id + '">' + icon(WINDOWS[w.id][0], 16) + '<span>' + esc(winTitle(w)) + '</span></div>';
         }).join('') + '<div class="sll-sp"></div>' +
-        (d.active ? '<div class="sll-tray"><span>' + esc(d.title || '') + ' &middot; ' + (d.rep || 0) + ' rep</span><span>' + money(d.money) + '</span><div class="sll-clock">' + two(h) + ':' + two(m) + '<br>Day ' + (d.day || 1) + '</div></div>' : '') + '</div>';
+        (d.active ? '<div class="sll-tray"><span>' + esc(d.title || '') + ' &middot; ' + (d.rep || 0) + ' rep</span><span>' + money(d.money) + '</span><div class="sll-clock">' + two(h) + ':' + two(m) + ('<br>' + T('ui.day_2', 'Day ')) + (d.day || 1) + '</div></div>' : '') + '</div>';
     }
 
     // ---------------------------------------------------------------- drawing and gamepad focus
@@ -608,7 +611,7 @@
       close();
     }
     function close() { lua('@sl_computer.close()'); setOpen(false); }
-    function setOpen(open) { st.open = open; if (!open) { st.wins = []; st.note = ''; st.menu = false; st.sel = null; focusKey = null; } render(); }
+    function setOpen(open) { if (open && !TABLE) lua('@sl_phone.requestStrings()'); st.open = open; if (!open) { st.wins = []; st.note = ''; st.menu = false; st.sel = null; focusKey = null; } render(); }
     function act(a, v) {
       switch (a) {
         case 'start': st.menu = !st.menu; focusKey = null; render(); break;
@@ -617,7 +620,7 @@
           var t = tileById(v);
           if (!t) break;
           st.sel = v;
-          if (!t.enabled) { st.note = t.label + ': ' + (t.reason || 'Not available.'); render(); break; }
+          if (!t.enabled) { st.note = t.label + ': ' + (t.reason || T('ui.not_available', 'Not available.')); render(); break; }
           if (t.page) {
             openWin(t.page);
             if (t.page === 'parts') lua('@sl_computer.parts()');
@@ -660,7 +663,7 @@
         case 'helptopic': st.helpId = String(v); render(); break;
         case 'helpindex': st.helpId = null; render(); break;
         case 'league': lua('@sl_phone.enterLeague(' + JSON.stringify(String(v)) + ')'); break;
-        case 'dealer': st.dview = 'offers'; st.offers = { name: 'Dealer', offers: [], dealer: v }; st.note = ''; focusKey = null; lua('@sl_dealers.offers(' + JSON.stringify(v) + ')'); render(); break;
+        case 'dealer': st.dview = 'offers'; st.offers = { name: T('ui.dealer', 'Dealer'), offers: [], dealer: v }; st.note = ''; focusKey = null; lua('@sl_dealers.offers(' + JSON.stringify(v) + ')'); render(); break;
         case 'report': st.rep[v] = !st.rep[v]; render(); break;
         case 'offer': st.dview = 'offer'; st.offerId = v; st.note = ''; focusKey = null; render(); break;
         case 'buy':
@@ -723,7 +726,7 @@
         case 'slLaptopClose': if (st.open) setOpen(false); break;
         case 'slLaptopParts': st.parts = arr(data.parts); if (st.open) render(); break;
         case 'slHelp': st.help = arr(data && data.pages); if (st.open) render(); break;
-        case 'slStrings': st.strings = obj(data && data.text); if (st.open) render(); break;
+        case 'slStrings': TABLE = (data && data.text) || {}; if (st.open) render(); break;
         case 'slLaptopDealers': st.dealers = data; if (st.open) render(); break;
         case 'slLaptopOffers': st.offers = data; if (st.open) render(); break;
         case 'slPhoneData': st.data = data || { active: false }; if (st.open) render(); break;
