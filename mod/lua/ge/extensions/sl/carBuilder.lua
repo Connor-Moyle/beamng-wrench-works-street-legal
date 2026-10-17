@@ -285,11 +285,15 @@ function M.configOf(id)
   return { model = veh:getJBeamFilename(), partsTree = deepcopy(vd.config.partsTree), vars = deepcopy(vd.config.vars), paints = deepcopy(vd.config.paints) }
 end
 
+-- A4: the player's own car gets its driver as vehicle props, like traffic (drawn by the car, so it moves with it: the full driver was a separate object placed
+-- a frame late: lag, TAA smear, no car in the mirrors). false: the full driver again (spawned without props). Spawn-time only: a car bought at a lot is
+-- spawned for the lot without props and gets them the next time it is spawned from its record.
+M.PLAYER_DRIVER_PROPS = true
 -- one of the player's cars, from its record
 function M.spawnOwned(job, car, pos, rot)
   if type(car.config) ~= 'table' then return nil end
   local cfg = { model = car.config.model or car.model, partsTree = car.config.partsTree, vars = car.config.vars, paints = car.config.paints }
-  local veh = M.spawn(job, car.model, cfg, pos, rot, true)
+  local veh = M.spawn(job, car.model, cfg, pos, rot, not M.PLAYER_DRIVER_PROPS)
   if not veh then return nil end
   job.sleep(0.3)
   M.applyDamage(veh, car.damage)
