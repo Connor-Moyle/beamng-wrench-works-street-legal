@@ -12,6 +12,7 @@ local market = require('sl/core/market')
 local rngLib = require('sl/core/rng')
 local builder = require('sl/carBuilder')
 local hours = require('sl/core/hours')
+local splitphase = require('sl/core/splitphase')
 local stockLib = require('sl/core/stockdealers')
 local lotcam = require('sl/core/lotcam')
 local lotbuild = require('sl/core/lotbuild')
@@ -367,7 +368,7 @@ local function open(place, mode, given)
   local s = career()
   if not s or lot then return end
   local tod = core_environment and core_environment.getTimeOfDay and core_environment.getTimeOfDay()
-  local closed = type(tod) == 'table' and tod.time and hours.closedText(place.kind, tod.time)
+  local closed = splitphase.closedText('places', place.kind, sl_career.phase()) or (type(tod) == 'table' and tod.time and hours.closedText(place.kind, tod.time))
   if closed then
     armedAt[place.id] = false      -- (said once; it prompts again after you have left)
     guihooks.trigger('slPhoneToast', { text = closed })
@@ -566,7 +567,7 @@ function M.onActivityAcceptGatherData(elemData, activityData)
       -- a dealer shows its cars to a driver too: Connor drove to Jefferson Motors and had nothing to press (T33)
       if onFoot or selling or kind == 'dealer' then
         local tod = core_environment and core_environment.getTimeOfDay and core_environment.getTimeOfDay()
-        local closed = type(tod) == 'table' and tod.time and hours.closedText(place.kind, tod.time)      -- 'Closed. Opens at 09:00'
+        local closed = splitphase.closedText('places', place.kind, sl_career.phase()) or (type(tod) == 'table' and tod.time and hours.closedText(place.kind, tod.time))      -- 'Closed. Opens at 09:00'
         table.insert(activityData, {
           icon = 'poi_arrival_round', heading = place.name, preheadings = { HEADINGS[kind] },
           sorting = { type = 'slrrPlace', id = place.id },

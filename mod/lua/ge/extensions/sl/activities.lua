@@ -16,7 +16,7 @@ local function tell(text) guihooks.trigger('slPhoneToast', { text = text }) if u
 
 local function ruleFor(id) return rules.ruleFor(sl_career.LEVEL, id) end
 
-local function night() return progression.isNight(sl_career.hour()) end
+local function night() return sl_career.isNight() end
 
 local paidFee = {}   -- mission id -> true while a paid attempt runs
 

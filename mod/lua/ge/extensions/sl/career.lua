@@ -897,7 +897,7 @@ end
 local function syncChallenge()
   local rm = raceMod()
   if not (rm and (rm.startChallenge or rm.launch)) then return end
-  local night = progression.isNight(hour())
+  local night = M.isNight()
   local pick
   for _, c in ipairs(s.challenges) do
     if not c.nightOnly or night then pick = c end
@@ -989,7 +989,7 @@ function M.onSlrrRaceFinished(r)
   local racer = (challenge and challenge.racer) or (type(r.racerId) == 'string' and stateLib.racer(s, r.racerId) and r.racerId) or nil
   local repBefore = s.rep
   local h = hour()
-  local repDelta = progression.raceResult({ won = r.won, stake = r.stake, bet = r.bet, night = progression.isNight(h),
+  local repDelta = progression.raceResult({ won = r.won, stake = r.stake, bet = r.bet, night = M.isNight(),
     opponentRep = racer and stateLib.racer(s, racer).rep or 300, playerRep = s.rep })
   stateLib.addRep(s, repDelta)
   s.stats.races = s.stats.races + 1
@@ -1112,7 +1112,7 @@ local function checkChallengeArrival()
       if r.id == c.race and (pos - r.start):length() < 8 and v:getVelocity():length() < 1.5 and not c.notified then
         c.notified = true
         local racer = stateLib.racer(s, c.racer)
-        if c.nightOnly and not progression.isNight(hour()) then
+        if c.nightOnly and not M.isNight() then
           tell(roster.displayName(racer) .. ' only races at night. Come back after dark.', 6)
           c.notified = false
         elseif raceMod() and raceMod().launch and r.missionId then
@@ -1283,6 +1283,8 @@ end
 --   sl_career.phase() -> 'day' | 'night' (nil with no career)      the hook onStreetLegalPhase(phase, day) when it is switched
 --   onStreetLegalPhaseEnded(phase) when the clock has run out and stood still
 function M.phase() return s and (s.phase or 'day') or nil end
+-- the night is a phase now, not a clock range (D2): everything that was 'after dark' asks this
+function M.isNight() return M.phase() == 'night' end
 
 -- "Start the night" / "Start the day" (a garage computer, the phone's Wait app): the phase turns over, the clock jumps to its first hour behind a
 -- short fade (the day counter goes up with a new day) and runs on. false and the reason when it cannot be done now.

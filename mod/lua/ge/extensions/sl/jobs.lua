@@ -112,6 +112,7 @@ local STREETS = { 'a side street', 'an apartment block', 'a house on the corner'
 
 -- the kinds of job: { kind, title, unlock = rep, night = true (only after dark), offer = function(ctx, rng) -> job }
 -- a job is { item, legs = { stop, stop... }, pay, seconds, fragile }
+local splitphase = require('sl/core/splitphase')
 local TYPES = {
   { kind = 'part', title = 'Part run', unlock = 0, offer = function(ctx, rng)
       local list = jobsLib.offers(ctx.shops, {}, ctx.garage, rng, 1)
@@ -243,7 +244,8 @@ end
 -- a fresh board each morning and each dusk
 local function refresh(s, force)
   local js = jobsState(s)
-  local night = progression.isNight(sl_career.hour())
+  local phase = sl_career.phase() or 'day'
+  local night = phase == 'night'
   local key = s.day .. (night and 'n' or 'd')
   if js.board == key and not force then return end
   js.board = key
@@ -251,7 +253,7 @@ local function refresh(s, force)
   local rng = rngLib.new(rngLib.hash('jobs:' .. key .. ':' .. tostring(s.seed)))
   local open = {}
   for _, t in ipairs(TYPES) do
-    if (s.rep or 0) >= (t.unlock or 0) and (not t.night or night) then open[#open + 1] = t end
+    if (s.rep or 0) >= (t.unlock or 0) and splitphase.available('jobs', t.kind, phase) then open[#open + 1] = t end
   end
   -- offers that came by text (a favour, moving your cars) stay until taken
   local kept = {}

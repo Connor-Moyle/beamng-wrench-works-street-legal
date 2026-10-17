@@ -54,7 +54,7 @@ local function snapshot()
   return {
     active = true,
     money = s.money, rep = s.rep, title = title, nextRep = nextRep, titleRep = titleRep,
-    day = s.day, hour = math.floor(h), minute = math.floor((h % 1) * 60), night = progression.isNight(h),
+    day = s.day, hour = math.floor(h), minute = math.floor((h % 1) * 60), night = sl_career.isNight(),
     heat = phaseLib.heatLevel(sl_police and sl_police.heat and sl_police.heat() or 0),
     phase = sl_career.phase and sl_career.phase() or nil, phaseSwitch = phaseLib.switchLabel(sl_career.phase and sl_career.phase() or nil),
     garage = (progression.garages[s.garageLevel] or {}).name,
@@ -96,7 +96,7 @@ local function bennyAdvice(s)
   if #s.cars == 0 then return "You still haven't got a car. Get a cab to the junkyard and see what's on the lot. Don't buy the shiniest one, buy one you can fix." end
   local n = progression.nextGarage(s)
   if n and n.canMove then return 'You could move up to ' .. n.garage.name .. ' now. Bigger place, better crowd.' end
-  if not progression.isNight(sl_career.hour()) then return 'Nothing much happens in the daytime. Tune the car, and race when it gets dark.' end
+  if not sl_career.isNight() then return 'Nothing much happens in the daytime. Tune the car, and race when it gets dark.' end
   return 'Call a few of the racers in your phone and set something up. Night races are where the name gets made.'
 end
 
@@ -115,7 +115,7 @@ function M.call(id)
   end
   -- most pick up; the same hour gives the same answer
   local rng = rngLib.new(rngLib.hash(id .. ':' .. s.day .. ':' .. math.floor(sl_career.hour())))
-  local answered = rng:chance(racer.nightOnly and progression.isNight(sl_career.hour()) and 0.95 or 0.8)
+  local answered = rng:chance(racer.nightOnly and sl_career.isNight() and 0.95 or 0.8)
   s.calls[#s.calls + 1] = { racer = id, at = os.time(), outgoing = true, missed = not answered }
   while #s.calls > 30 do table.remove(s.calls, 1) end
   guihooks.trigger('slPhoneCall', {

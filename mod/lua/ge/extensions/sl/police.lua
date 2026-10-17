@@ -19,7 +19,7 @@ local timer, busy = 0, false
 
 local HEAT_COOLING = 0.01   -- per real minute (balance pass, tools/economy_sim.py)
 local function career() return sl_career and sl_career.isActive() and sl_career.getState() or nil end
-local function night() return sl_career and sl_career.hour and require('sl/core/progression').isNight(sl_career.hour()) end
+local function night() return sl_career and sl_career.isNight and sl_career.isNight() end
 
 function M.heat()
   local s = career()

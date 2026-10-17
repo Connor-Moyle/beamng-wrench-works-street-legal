@@ -35,7 +35,7 @@ local busy = false        -- a job is spawning something
 local circuitPath, updateCircuit   -- (further down, with the ROC)
 
 local function career() return sl_career and sl_career.isActive() and sl_career.getState() or nil end
-local function night() return progression.isNight(sl_career.hour()) end
+local function night() return sl_career.isNight() end
 local function playerCar()
   local v = getPlayerVehicle(0)
   if v and v:getJBeamFilename() ~= 'unicycle' then return v end
