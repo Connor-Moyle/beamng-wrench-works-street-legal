@@ -1649,6 +1649,8 @@ do
   check('haze: heavy rain makes the Mie scattering 7 times and the Rayleigh half; none leaves them; light < medium < heavy', math.abs(mie - 9.58e-5 * 7) < 1e-12 and math.abs(ray - 0.00025) < 1e-12
     and select(1, wx.scatter(1, 1, 0)) == 1 and select(2, wx.scatter(1, 1, 0)) == 1 and wx.resolve('rain', 'light').haze < wx.resolve('rain', 'medium').haze and wx.resolve('rain', 'medium').haze < wx.resolve('rain', 'heavy').haze
     and wx.resolve('cloudy').haze > 0 and wx.resolve('clear').haze == nil)
+  local m9, r9 = wx.scatter(1, 1, 9)
+  check('haze never goes past the heaviest rain: no negative Rayleigh, Mie at most 7 times', m9 == 7 and r9 == 0.5)
   check('the forecast names the rain strength', wx.text('day', 'rain', nil, 'heavy'):find('Heavy rain') and wx.text('day', 'rain', nil, 'light'):find('Light rain') and wx.text('day', 'rain'):find('Rain'))
 end
 

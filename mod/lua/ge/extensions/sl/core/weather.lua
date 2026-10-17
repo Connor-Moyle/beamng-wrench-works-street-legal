@@ -125,7 +125,7 @@ end
 -- haze (0..1): the sky's scattering made white and grey: the Mie term (wavelength-independent, a grey haze) up to 7 times, the Rayleigh term (the blue and, at a low sun, the orange)
 -- down to half: the dusk glow of a rainy sky is a grey one
 function M.scatter(mie, rayleigh, haze)
-  haze = math.max(0, math.min(3, haze or 0))      -- (1 is the heaviest rain; a game test may push it further)
+  haze = math.max(0, math.min(1, haze or 0))      -- (more than the heaviest rain's turned the whole scene orange in the game)
   return (mie or 0) * (1 + 6 * haze), (rayleigh or 0) * (1 - 0.5 * haze)
 end
 function M.darker(c, factor) return { c[1] * factor, c[2] * factor, c[3] * factor } end

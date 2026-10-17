@@ -128,8 +128,9 @@ end
 -- and the cloud exposure field are lowered; all from the values the game itself wrote last (orig), so a repeat does not darken twice: if the field still holds what we wrote, it is left alone.
 local TINT_FIELDS = { sun = 'sunScale', fog = 'fogScale', ambient = 'ambientScale', colorize = 'colorize' }      -- (colorize: the sky's own tint, orange at dusk)
 local orig, written = {}, {}
-local skyOrig, exposureOrig, scatterOrig
-M.hazeScale = 1                   -- a game test: sl_weather.hazeScale = 2 doubles the haze (scattering) of the rain sky
+local skyOrig, exposureOrig
+local scat = {}                      -- 'mieScattering' / 'rayleighScattering' -> { orig = number the game wrote, written = text we left }
+M.hazeScale = 1                   -- a game test: sl_weather.hazeScale = 0.5 halves the haze (scattering) of the rain sky; more than 1 is not used (it turned the scene orange)
 M.skyNumbers = {}                  -- what the last tint pass did, for a game test: { part = { from = .., to = .. } }
 local function parseColor(text)
   local r, g, b, a = tostring(text):match('([%-%d%.e]+)%s+([%-%d%.e]+)%s+([%-%d%.e]+)%s*([%-%d%.e]*)')
@@ -162,13 +163,20 @@ local function applyTint(amount, dark, haze)
       M.skyNumbers.skyBrightness = { from = skyOrig, to = tonumber(sky.skyBrightness) }
     end
   end)
-  pcall(function()                                             -- the sky's scattering: more Mie (a grey haze), less Rayleigh (the blue / the orange of a low sun)
-    scatterOrig = scatterOrig or { mie = tonumber(sky.mieScattering), ray = tonumber(sky.rayleighScattering) }
-    if scatterOrig.mie and scatterOrig.ray then
-      local mie, ray = rules.scatter(scatterOrig.mie, scatterOrig.ray, (haze or 0) * (M.hazeScale or 1))
+  pcall(function()                                             -- the sky's scattering: more Mie (a grey haze), less Rayleigh; from what the game last wrote (it follows the time of day), like the colours
+    for _, k in ipairs({ 'mieScattering', 'rayleighScattering' }) do
+      local text = sky:getField(k, 0)
+      local e = scat[k] or {}
+      if text ~= e.written then e.orig = tonumber(text) end
+      scat[k] = e
+    end
+    local m, r = scat.mieScattering, scat.rayleighScattering
+    if m.orig and r.orig then
+      local mie, ray = rules.scatter(m.orig, r.orig, (haze or 0) * math.min(1, M.hazeScale or 1))
       sky:setField('mieScattering', 0, string.format('%.9f', mie))
-      sky:setField('rayleighScattering', 0, string.format('%.9f', ray))
-      M.skyNumbers.scatter = { mie = { from = scatterOrig.mie, to = tonumber(sky.mieScattering) }, rayleigh = { from = scatterOrig.ray, to = tonumber(sky.rayleighScattering) } }
+      sky:setField('rayleighScattering', 0, string.format('%.9f', math.max(0, ray)))
+      m.written, r.written = sky:getField('mieScattering', 0), sky:getField('rayleighScattering', 0)
+      M.skyNumbers.scatter = { mie = { from = m.orig, to = tonumber(m.written) }, rayleigh = { from = r.orig, to = tonumber(r.written) } }
     end
   end)
   pcall(function()                                             -- the clouds' own brightness (exposure) and the fog's colour
@@ -191,12 +199,12 @@ local function restoreTint()
   if sky then
     for _, k in pairs(TINT_FIELDS) do if orig[k] and sky:getField(k, 0) == written[k] then pcall(function() sky:setField(k, 0, orig[k]) end) end end
     if skyOrig then pcall(function() sky:setField('skyBrightness', 0, tostring(skyOrig)) end) end
-    if scatterOrig and scatterOrig.mie then pcall(function() sky:setField('mieScattering', 0, string.format('%.9f', scatterOrig.mie)) sky:setField('rayleighScattering', 0, string.format('%.9f', scatterOrig.ray)) end) end
+    for k, e in pairs(scat) do if e.orig and sky:getField(k, 0) == e.written then pcall(function() sky:setField(k, 0, string.format('%.9f', e.orig)) end) end end
     pcall(function() if sky.postApply then sky:postApply() end end)
   end
   local cloud = first('CloudLayer')
   if cloud and exposureOrig then pcall(function() cloud:setField('exposure', 0, tostring(exposureOrig)) if cloud.postApply then cloud:postApply() end end) end
-  orig, written, skyOrig, exposureOrig, scatterOrig = {}, {}, nil, nil, nil
+  orig, written, skyOrig, exposureOrig, scat = {}, {}, nil, nil, {}
 end
 
 -- the state of this phase of this day; a new one is blended in
