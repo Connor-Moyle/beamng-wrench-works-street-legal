@@ -1,7 +1,7 @@
 -- Street Legal: puddles and what the wheels do in them (extension name: sl_puddlefx; part of the weather, #45).
 -- While the roads are wet (sl_weather's wetness) thin planes of translucent water stand on flat road spots round the player: each plane is a small grid whose
 -- corners are dropped onto the surface (a ray per corner), so it follows the slope, the camber and the dips like a decal. They fade in as the rain lasts and
--- shrink as the road dries; only the ones near the player exist, the rest are deleted behind him. The car's own Lua (vehicle extension slCar) is told which
+-- shrink as the road dries; only the ones near the player exist, the rest are deleted behind him. The car's own Lua (vehicle extension slPuddles, loaded into the player's car whatever car it is) is told which
 -- puddles are near; a wheel inside one gets drag and, fast enough, aquaplanes (sl_puddles has the rules), and asks back for spray (a particle emitter at the
 -- wheel, the game's own water-wheels one), the fine mist of a wet road, and a short-lived darker wet trail. Each part is behind a flag (M.flags / M.flag).
 
@@ -379,7 +379,7 @@ local function feedVehicle(dt, wet)
   else
     sentEmpty = false
   end
-  v:queueLuaCommand(string.format('if slCar and slCar.setPuddles then slCar.setPuddles({%s}, %.2f, {physics=%s,splash=%s,mist=%s}) end',
+  v:queueLuaCommand(string.format('if not slPuddles then extensions.load("slPuddles") end if slPuddles then slPuddles.setPuddles({%s}, %.2f, {physics=%s,splash=%s,mist=%s}) end',
     table.concat(list, ','), wet, tostring(M.flags.physics), tostring(M.flags.splash), tostring(M.flags.mist)))
 end
 
@@ -553,7 +553,7 @@ function M.clear()
   for _, e in ipairs(emitters) do deleteObject(e.obj) end
   emitters = {}
   local pos, v = playerPos()
-  if v and v:getJBeamFilename() ~= 'unicycle' then v:queueLuaCommand('if slCar and slCar.setPuddles then slCar.setPuddles({}, 0, {}) end') end
+  if v and v:getJBeamFilename() ~= 'unicycle' then v:queueLuaCommand('if slPuddles then slPuddles.setPuddles({}, 0, {}) end') end
   sentEmpty = true
   logged = {}
 end

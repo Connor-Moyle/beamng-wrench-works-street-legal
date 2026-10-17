@@ -8,8 +8,6 @@
 local M = {}
 
 local rules = require('sl_carcare')
-local puddleRules = require('sl_puddles')
-local updatePuddles            -- (defined with the grip code below; updateGFX calls it)
 
 local state = { battery = 1, engineKm = 0, oilKm = 0, fuel = 'premium', abuse = { engine = 0, brakes = 0, drive = 0, susp = 0 } }
 local prevSpeed, abuseTimer, lastDamage = 0, 0, nil
@@ -174,7 +172,6 @@ local function drip(kind)
 end
 
 function M.updateGFX(dt)
-  pcall(updatePuddles, dt)
   -- the 12 V system
   local ign = electrics.values.ignitionLevel or 0
   local running = (electrics.values.engineRunning or 0) > 0.5
@@ -231,13 +228,12 @@ function M.updateGFX(dt)
 end
 
 -- the weather's grip (#45): the tyres' friction, scaled on the tread nodes (a wet road). Reapplied after a reset, which restores the jbeam's values.
--- wheelMult: a wheel in a puddle has less grip of its own (aquaplaning), on top of the road's.
+-- a wheel in a puddle has less grip of its own (aquaplaning, vehicle extension slPuddles), on top of the road's.
 local gripFactor = 1
-local wheelMult = {}
 local function applyGrip()
   for wid, wheel in pairs(wheels and wheels.wheels or {}) do
     if wheel.treadNodes and not wheel.isTireDeflated then
-      local f = gripFactor * (wheelMult[wid] or 1)
+      local f = gripFactor * (slPuddles and slPuddles.wheelFactor and slPuddles.wheelFactor(wid) or 1)
       for _, cid in pairs(wheel.treadNodes) do
         local n = v.data.nodes[cid]
         local fc = n and n.frictionCoef
@@ -247,63 +243,7 @@ local function applyGrip()
   end
 end
 
--- puddles (the game side, sl/weather.lua, sends the ones near the car, their size as they are now, how wet the road is and which effects are on):
--- a wheel inside one gets drag, and above about 80 km/h aquaplanes (little grip); the spray and the wet road's mist are asked of the game side as particles
-local puddleList, puddleWet, puddleFlags = {}, 0, {}
-local puddleTimer, fxTimer, fxSentEmpty = 0, 0, true
-local wheelInAt = {}
-local lastDt = 0.016
-
-function M.setPuddles(list, wet, flags)
-  puddleList, puddleWet, puddleFlags = list or {}, tonumber(wet) or 0, flags or {}
-  if not puddleFlags.physics and next(wheelMult) then wheelMult = {} applyGrip() end
-end
-
-updatePuddles = function(dt)
-  lastDt = dt
-  puddleTimer = puddleTimer + dt
-  if puddleTimer < 0.05 then return end                          -- 20 times a second is plenty
-  local step = puddleTimer
-  puddleTimer = 0
-  if #puddleList == 0 and puddleWet < 0.3 and not next(wheelMult) then return end
-  local vel = obj:getVelocity()
-  local speed = vel:length()
-  local dirx, diry = 0, 0
-  if speed > 0.5 then dirx, diry = vel.x / speed, vel.y / speed end
-  local base = obj:getPosition()
-  local changed, fx = false, {}
-  for wid, wheel in pairs(wheels and wheels.wheels or {}) do
-    if wheel.node1 and not wheel.isTireDeflated then
-      local p = base + obj:getNodePosition(wheel.node1)
-      local depth = puddleRules.deepest(puddleList, p.x, p.y)
-      if puddleFlags.physics then
-        local target = puddleRules.wheelGrip(speed * 3.6, depth)
-        if math.abs(target - (wheelMult[wid] or 1)) > 0.03 or (target == 1 and wheelMult[wid]) then
-          wheelMult[wid] = target ~= 1 and target or nil
-          changed = true
-        end
-        local drag = puddleRules.drag(speed, depth)
-        if drag > 0 then pcall(function() obj:applyForceVectorTime(wheel.node1, vec3(-dirx * drag, -diry * drag, 0), step * 1.5) end) end
-      end
-      if depth > 0 and os.clock() - (wheelInAt[wid] or 0) > 2 then
-        wheelInAt[wid] = os.clock()
-        obj:queueGameEngineLua(string.format('if sl_puddlefx and sl_puddlefx.wheelIn then sl_puddlefx.wheelIn(%d, %q, %.2f, %.0f) end', obj:getId(), tostring(wid), depth, speed * 3.6))
-      end
-      local splash = puddleFlags.splash and puddleRules.splash(speed, depth) or 0
-      local mist = puddleFlags.mist and puddleRules.mist(puddleWet, speed) or 0
-      if splash > 0.02 or mist > 0.02 then
-        fx[#fx + 1] = string.format('{%.2f,%.2f,%.2f,%.2f,%.2f}', p.x - dirx * 0.3, p.y - diry * 0.3, p.z - (wheel.radius or 0.3), splash, mist)
-      end
-    end
-  end
-  if changed then applyGrip() end
-  fxTimer = fxTimer + step
-  if fxTimer >= 0.1 and (#fx > 0 or not fxSentEmpty) then
-    fxTimer = 0
-    fxSentEmpty = #fx == 0
-    obj:queueGameEngineLua(string.format('if sl_puddlefx and sl_puddlefx.wheelFx then sl_puddlefx.wheelFx(%d, {%s}, %.2f, %.2f) end', obj:getId(), table.concat(fx, ','), dirx, diry))
-  end
-end
+function M.reapplyGrip() applyGrip() end      -- (slPuddles changed a wheel's factor)
 
 function M.setGrip(f)
   f = math.max(0.3, math.min(1.2, tonumber(f) or 1))
@@ -313,7 +253,6 @@ function M.setGrip(f)
 end
 
 function M.onReset()
-  wheelMult = {}
   if gripFactor ~= 1 then applyGrip() end
   findFluids()
   lastPos = nil
