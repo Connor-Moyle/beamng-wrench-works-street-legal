@@ -800,6 +800,29 @@ assert.ok(calls.includes('setWallpaper("laptop","/settings/street_legal/photos/2
 phone.act('home');
 phone.handle('slPhoneData', Object.assign({}, data, { wall: '/settings/street_legal/photos/20261018_a.png' }));
 assert.ok(/20261018_a\.png/.test(phone.root.querySelector('.slp-wall').getAttribute('style') || ''), 'a photo wallpaper is the home screen');
+// Map: groups with distances, a tap sets the route, the home shortcut, clear route
+phone.act('home');
+if (!phone.state.open) phone.handle('slPhoneToggle');
+calls.length = 0;
+phone.act('open', 'map');
+assert.ok(calls.includes('mapPlaces()'), 'opening the Map asks for the places');
+assert.ok(/no places yet/.test(phone.root.textContent), 'an empty map says so');
+phone.handle('slMap', { groups: [{ kind: 'garage', places: [{ id: 'g1', name: 'Home', dist: 120 }] }, { kind: 'meet', places: [{ id: 'm1', name: 'Pier meet', dist: 2300 }, { id: 'm2', name: 'Far meet' }] }], route: null });
+assert.strictEqual(phone.root.querySelectorAll('[data-a="route"]').length, 3, 'a row for each place');
+assert.ok(/120 m/.test(phone.root.textContent) && /2\.3 km/.test(phone.root.textContent), 'distances in m and km');
+assert.ok(Array.from(phone.root.querySelectorAll('.slp-seth')).map((e) => e.textContent).join() === 'Garages,Car meets', 'grouped by kind');
+assert.ok(!phone.root.querySelector('[data-a="clearroute"]'), 'no Clear route without a route');
+calls.length = 0;
+click('route', 'm1');
+assert.ok(calls.includes('routeTo("m1")'), 'tapping a place sets the route');
+phone.handle('slMap', { groups: [{ kind: 'garage', places: [{ id: 'g1', name: 'Home', dist: 120 }] }], route: { id: 'g1', name: 'Home' } });
+assert.ok(phone.root.querySelector('[data-a="clearroute"]') && /Route: Home/.test(phone.root.textContent), 'the route and Clear route');
+click('clearroute', '1');
+assert.ok(calls.includes('clearRoute()'), 'Clear route');
+phone.act('home');
+calls.length = 0;
+click('routegarage', '1');
+assert.ok(calls.includes('routeGarage()'), 'Route to my garage on the home screen');
 console.log('phone test passed');
 
 // a page to look at: the phone in several states side by side

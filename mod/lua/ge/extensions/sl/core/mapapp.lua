@@ -1,0 +1,44 @@
+-- Street Legal: the phone's Map app, the parts that need no game: the places grouped by kind with their distance from the player, and the arrival test.
+-- Places are { id, name, kind, x, y }; from is { x, y } (nil: no distances).
+
+local M = {}
+
+M.ARRIVED = 15          -- metres from the route's end: it is there
+-- the order of the groups on the screen; a kind that is not listed comes after them
+M.ORDER = { 'garage', 'dealer', 'junkyard', 'scrapyard', 'shop', 'parts', 'carwash', 'meet', 'hospital', 'valet' }
+
+local function rank(kind)
+  for i, k in ipairs(M.ORDER) do if k == kind then return i end end
+  return #M.ORDER + 1
+end
+
+function M.distance(from, p)
+  if not from then return nil end
+  return math.floor(math.sqrt((p.x - from.x) ^ 2 + (p.y - from.y) ^ 2) + 0.5)
+end
+
+-- { { kind, places = { { id, name, dist } nearest first } } } in group order
+function M.groups(places, from)
+  local by, kinds = {}, {}
+  for _, p in ipairs(places) do
+    local g = by[p.kind]
+    if not g then g = { kind = p.kind, places = {} } by[p.kind] = g kinds[#kinds + 1] = g end
+    g.places[#g.places + 1] = { id = p.id, name = p.name, dist = M.distance(from, p) }
+  end
+  for _, g in ipairs(kinds) do
+    table.sort(g.places, function(a, b)
+      if a.dist and b.dist and a.dist ~= b.dist then return a.dist < b.dist end
+      return tostring(a.name) < tostring(b.name)
+    end)
+  end
+  table.sort(kinds, function(a, b)
+    local ra, rb = rank(a.kind), rank(b.kind)
+    if ra ~= rb then return ra < rb end
+    return tostring(a.kind) < tostring(b.kind)
+  end)
+  return kinds
+end
+
+function M.arrived(from, p) return from ~= nil and p ~= nil and M.distance(from, p) <= M.ARRIVED end
+
+return M

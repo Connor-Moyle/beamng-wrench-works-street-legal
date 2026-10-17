@@ -20,7 +20,7 @@ Benny, who runs your first garage, texts you where to begin. Open Messages.
 
 ## The phone
 
-The home screen has the apps: Races, My cars, Bank, Street cred, Jobs, Wait, Settings, Club, Turf, Car market, Part market and Help. Messages, Contacts, Phone and Cab are in the dock.
+The home screen has the apps: Races, My cars, Bank, Street cred, Jobs, Wait, Settings, Club, Turf, Car market, Part market, Map, Camera, Gallery and Help. Messages, Contacts, Phone and Cab are in the dock. The Map lists the places by kind with their distance; tap one and the route shows on the road (it clears when you get there, or with Clear route); Route to my garage on the home screen does the same for your garage. The Camera takes a picture without any screen (also kept in screenshots/street_legal); in the Gallery a photo can be the wallpaper of the phone or the laptop; a new car is photographed at the end of its purchase scene (Settings: Photo of a new car).
 
 Press K to open and close it. B (or Back) goes one step back. On a pad the d-pad moves and A opens.
 
@@ -138,6 +138,8 @@ A crew that loses a district calls you out to win it back. Hold four districts a
 On weekend nights a swap meet fills the biggest car park in town with stalls. Go there and buy parts on the spot. It is on the Part market page of the phone and the laptop, and says where it is.
 
 Swap & Bid is the auction side: put a bid on a lot, and it is yours if nobody outbids you before it ends.
+
+Car auctions (Car market, on the phone and the laptop): six used cars with a grade from A to E and the full car report. The reserve stays secret, the screen only says whether it is met. A bid in the last seconds adds time. Win one and it is delivered to your garage; a car can hide a fault the report does not show, and the mechanic tells you after you have it. Put one of your own cars up with a reserve of your choosing. Every seventh day, 10:00 to 13:00, the junkyard holds a live auction: walk up and press Join the car auction.
 
 ## Graphics: anti-aliasing and sharpening
 

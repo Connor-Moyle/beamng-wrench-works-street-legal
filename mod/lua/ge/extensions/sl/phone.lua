@@ -183,9 +183,6 @@ function M.requestStrings()
   end
   guihooks.trigger('slStrings', { text = out })
 end
-function M.photos() if sl_photos then sl_photos.list() end end
-function M.takePhoto() if sl_photos then answer(sl_photos.take()) end end
-function M.setWallpaper(which, file) if sl_photos then answer(sl_photos.setWallpaper(tostring(which), file ~= '' and tostring(file) or false)) end end
 function M.requestHelp() guihooks.trigger('slHelp', { pages = require('sl/core/help').PAGES }) end
 function M.markRead(thread) if career() then sl_career.markRead(thread) end end
 function M.waypoint(id) if career() then sl_career.waypoint(id) end end
@@ -196,6 +193,65 @@ local function answer(ok, text)
   wantSend = true
 end
 
+----------------------------------------------------------------------------------------------
+-- the Map app: the career's places by kind with their distance, and a route on the road (the game's ground markers) to one of them, cleared on arrival
+local mapLib = require('sl/core/mapapp')
+local route                      -- { id, name, x, y } while a route set here is on
+
+local function playerAt()
+  local v = getPlayerVehicle(0)
+  local p = v and v:getPosition()
+  return p and { x = p.x, y = p.y } or nil
+end
+
+function M.mapPlaces()
+  if not career() then return end
+  local list = {}
+  for id, p in pairs(sl_career.getPlaces() or {}) do
+    if p.pos then list[#list + 1] = { id = id, name = p.name, kind = p.kind, x = p.pos.x, y = p.pos.y } end
+  end
+  guihooks.trigger('slMap', { groups = mapLib.groups(list, playerAt()), route = route and { id = route.id, name = route.name } or nil })
+end
+
+function M.routeTo(id)
+  local s = career()
+  local p = s and core_groundMarkers and sl_career.getPlaces()[tostring(id)]
+  if not p then return end
+  core_groundMarkers.setPath(p.pos)
+  route = { id = tostring(id), name = p.name, x = p.pos.x, y = p.pos.y }
+  answer(true, strings.t('phone.route_set', p.name))
+  M.mapPlaces()
+end
+
+function M.routeGarage()
+  local s = career()
+  if not s then return end
+  local g = progression.garages[s.garageLevel or 1] or progression.garages[1]
+  M.routeTo(g.site)
+end
+
+function M.clearRoute()
+  if route and core_groundMarkers then core_groundMarkers.setPath(nil) end
+  route = nil
+  M.mapPlaces()
+end
+
+local routeTimer = 0
+local function routeStep(dtReal)
+  if not route then return end
+  routeTimer = routeTimer + dtReal
+  if routeTimer < 0.5 then return end
+  routeTimer = 0
+  if mapLib.arrived(playerAt(), route) then
+    local name = route.name
+    M.clearRoute()
+    guihooks.trigger('slPhoneToast', { text = strings.t('phone.you_have_arrived', name) })
+  end
+end
+
+function M.photos() if sl_photos then sl_photos.list() end end
+function M.takePhoto() if sl_photos then answer(sl_photos.take()) end end
+function M.setWallpaper(which, file) if sl_photos then answer(sl_photos.setWallpaper(tostring(which), file ~= '' and tostring(file) or false)) end end
 function M.upgrade(id) if career() and sl_upgrades then answer(sl_upgrades.buy(tostring(id))) end end
 function M.raise(challengeId) if career() then answer(sl_career.raiseStake(challengeId)) end end
 function M.tow(carId) if career() then answer(sl_fleet.tow(tonumber(carId))) end end
@@ -313,6 +369,7 @@ M.onStreetLegalText = function(thread, text)
 end
 
 M.onUpdate = function(dtReal)
+  routeStep(dtReal)
   sendTimer = sendTimer + dtReal
   -- the clock on the screen moves too: a refresh every few seconds, sooner when something changed
   if (wantSend and sendTimer > (anyOpen() and 0.25 or 1)) or (sendTimer > 5 and career()) then

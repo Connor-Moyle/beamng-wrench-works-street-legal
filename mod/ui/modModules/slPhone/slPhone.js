@@ -302,6 +302,7 @@
   // icons (Material-style shapes, drawn here)
   function svg(path, viewBox) { return '<svg viewBox="' + (viewBox || '0 0 24 24') + '"><path d="' + path + '"/></svg>'; }
   var I = {
+    map: svg('M20.500 3l-.2.1L15 5.100 9 3 3.360 4.900a.5.5 0 0 0-.36.480V20.500a.5.5 0 0 0 .5.5l.2-.1L9 18.900l6 2.100 5.640-1.900a.5.5 0 0 0 .36-.480V3.500a.5.5 0 0 0-.5-.5zM15 19l-6-2.110V5l6 2.110z'),
     camera: svg('M9 3 7.2 5H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.200L15 3zm3 14.500a4.500 4.500 0 1 1 0-9 4.500 4.500 0 0 1 0 9zm0-2a2.500 2.500 0 1 0 0-5 2.500 2.500 0 0 0 0 5z'),
     gallery: svg('M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2zM8.500 13.500l2.500 3 3.500-4.500 4.500 6H5z'),
     settings: svg('M19.400 13a7.600 7.600 0 0 0 0-2l2-1.600-2-3.400-2.400 1a7.500 7.500 0 0 0-1.700-1L15 3.400h-4l-.4 2.600a7.500 7.500 0 0 0-1.700 1l-2.400-1-2 3.400 2 1.600a7.600 7.600 0 0 0 0 2l-2 1.600 2 3.400 2.400-1c.5.400 1.100.7 1.700 1l.4 2.600h4l.4-2.600c.6-.3 1.200-.6 1.700-1l2.400 1 2-3.400zM13 15.500a3.500 3.500 0 1 1 0-7 3.500 3.500 0 0 1 0 7z'),
@@ -345,7 +346,7 @@
   var SLRR_ART = '/ui/modModules/slHud/slrr/icons/';
   var SLRR_ICON = { races: 'cup.png', garage: 'garage.png', bank: 'dollar.png', cab: 'city.png', me: 'roc.png' };
   function slrrIcon(name, cls) { return '<img class="slp-slrr ' + (cls || '') + '" src="' + SLRR_ART + name + '" alt="">'; }
-  var APP_COLORS = { camera: '#3b6fa0', gallery: '#a05a8a', carmarket: '#2e7d4f', partmarket: '#a3322c', settings: '#5c6474', wait: '#4a5d7a', market: '#a3322c', paper: '#5b5346', bid: '#b5651d', club: '#6a2e7a', jobs: '#3d7a2e', phone: '#2e7d4f', messages: '#2f5fb3', contacts: '#7b4fb0', races: '#c2541e', bank: '#1f7a70', cab: '#b58a12', me: '#5c6474', garage: '#8a3b8f' };
+  var APP_COLORS = { map: '#3a7d6e', camera: '#3b6fa0', gallery: '#a05a8a', carmarket: '#2e7d4f', partmarket: '#a3322c', settings: '#5c6474', wait: '#4a5d7a', market: '#a3322c', paper: '#5b5346', bid: '#b5651d', club: '#6a2e7a', jobs: '#3d7a2e', phone: '#2e7d4f', messages: '#2f5fb3', contacts: '#7b4fb0', races: '#c2541e', bank: '#1f7a70', cab: '#b58a12', me: '#5c6474', garage: '#8a3b8f' };
   var AV_COLORS = ['#a8c7fa', '#f2b8b5', '#c3e7c6', '#ffd8a8', '#d0bcff', '#9fe0e8', '#ffb4ab', '#e8def8'];
   var CLASS_NAMES = { beater: T('ui.beaters', 'Beaters'), compact: T('ui.compacts', 'Compacts'), muscle: T('ui.muscle', 'Muscle'), tuner: T('ui.tuners', 'Tuners'), sport: T('ui.sports_cars', 'Sports cars'), super: T('ui.supercars', 'Supercars') };
 
@@ -422,7 +423,8 @@
         '<div class="slp-clock">' + two(d.hour || 0) + ':' + two(d.minute || 0) + '</div>' +
         ('<div class="slp-date">' + T('ui.day_2', 'Day ')) + (d.day || 1) + ' &middot; ' + esc(d.mapName || T('progression.valo_city', 'Valo City')) + (d.night ? ' &middot; night' : '') + '</div>' +
         (d.weather ? '<div class="slp-date" style="opacity:.85">' + (d.weather.wet ? '&#127783; ' : '') + esc(d.weather.text) + '</div>' : '') +
-        '<div><span class="slp-chip">' + esc(d.title || '') + ' &middot; ' + (d.rep || 0) + ' rep &middot; ' + money(d.money) + '</span></div>' +
+        '<div><span class="slp-chip">' + esc(d.title || '') + ' &middot; ' + (d.rep || 0) + ' rep &middot; ' + money(d.money) + '</span>' +
+          '<span class="slp-chip" data-a="routegarage" data-v="1" style="cursor:pointer">' + T('ui.route_to_my_garage', 'Route to my garage') + '</span></div>' +
         tut + '<div class="slp-grid">' + appsHtml([
           { id: 'races', title: T('app.races', 'Races'), icon: I.flag, badge: arranged || 0 },
           { id: 'garage', title: T('app.garage', 'My cars'), icon: I.cab },
@@ -431,6 +433,7 @@
           { id: 'jobs', title: T('app.jobs', 'Jobs'), icon: I.jobs, badge: d.jobs && d.jobs.active ? 1 : 0 },
           { id: 'wait', title: T('app.wait', 'Wait'), icon: I.wait },
           { id: 'help', title: T('app.help', 'Help'), icon: I.help },
+          { id: 'map', title: T('app.map', 'Map'), icon: I.map },
           { id: 'camera', title: T('app.camera', 'Camera'), icon: I.camera },
           { id: 'gallery', title: T('app.gallery', 'Gallery'), icon: I.gallery },
           { id: 'settings', title: T('app.settings', 'Settings'), icon: I.settings },
@@ -950,6 +953,22 @@
     }
 
     // the camera, the gallery and a photo with the wallpaper buttons (sl_photos)
+    // the map: the places by kind, nearest first; a tap sets the route on the road
+    var MAP_KINDS = { garage: T('ui.kind_garage', 'Garages'), dealer: T('ui.kind_dealer', 'Dealers'), junkyard: T('ui.kind_junkyard', 'Junkyards'),
+      scrapyard: T('ui.kind_scrapyard', 'Scrapyards and auctions'), shop: T('ui.kind_shop', 'Shops'), parts: T('ui.kind_parts', 'Parts shops'),
+      carwash: T('ui.kind_carwash', 'Car washes'), meet: T('ui.kind_meet', 'Car meets'), hospital: T('ui.kind_hospital', 'Hospital'), valet: T('ui.kind_valet', 'Valet') };
+    function distText(m) { return m == null ? '' : (m < 1000 ? m + ' m' : (m / 1000).toFixed(1) + ' km'); }
+    function mapPage() {
+      var m = obj(st.map), groups = arr(m.groups), r = m.route;
+      var head = '<div class="slp-card"><p>' + esc(T('ui.map_text', 'Tap a place and the route shows on the road. It clears when you get there.')) + '</p>' +
+        (r ? '<h4>' + esc(T('ui.route_to_1', 'Route: {1}', r.name)) + '</h4><div class="slp-acts"><div class="slp-btn slp-tonal" data-a="clearroute" data-v="1">' + T('ui.clear_route', 'Clear route') + '</div></div>' : '') + '</div>';
+      var body = groups.map(function (g) {
+        return '<div class="slp-seth">' + esc(MAP_KINDS[g.kind] || T('ui.kind_other', 'Other places')) + '</div>' + arr(g.places).map(function (p) {
+          return '<div class="slp-row" data-a="route" data-v="' + esc(p.id) + '"><div class="slp-rt"><b>' + esc(p.name) + (r && r.id === p.id ? ' &#10003;' : '') + '</b><span>' + distText(p.dist) + '</span></div><div class="slp-ib">' + I.gps + '</div></div>';
+        }).join('');
+      }).join('');
+      return bar(T('app.map', 'Map')) + '<div class="slp-body">' + head + (body || '<div class="slp-empty">' + T('ui.no_places_yet', 'The map has no places yet.') + '</div>') + '</div>';
+    }
     function cameraPage() {
       return bar(T('app.camera', 'Camera')) + '<div class="slp-body"><div class="slp-card"><p>' + esc(T('ui.camera_text', 'Takes a picture of what you see, without the phone or any other screen. It is kept in the Gallery and in the folder screenshots/street_legal.')) + '</p>' +
         '<div class="slp-acts"><div class="slp-btn" data-a="photo">' + T('ui.take_a_photo', 'Take a photo') + '</div></div></div></div>';
@@ -1389,6 +1408,7 @@
         case 'races': page = racesPage(); break;
         case 'wait': page = waitPage(); break;
         case 'settings': page = settingsPage(); break;
+        case 'map': page = mapPage(); break;
         case 'camera': page = cameraPage(); break;
         case 'gallery': page = galleryPage(); break;
         case 'photo': page = photoPage(); break;
@@ -1536,6 +1556,7 @@
       st.app = app;
       if (app === 'settings') lua('settings()');
       if (app === 'gallery') lua('photos()');
+      if (app === 'map') { st.mapAt = Date.now(); lua('mapPlaces()'); }
       if (app === 'help' && !arr(st.help).length) lua('requestHelp()');
       if (app === 'carmarket') { st.cmView = 'dealers'; lua('@sl_dealers.list()'); }
       if (params) for (var k in params) st[k] = params[k];
@@ -1623,6 +1644,9 @@
             lua('setSetting(' + JSON.stringify(sp[0]) + ',' + Math.round(nv * 10000) / 10000 + ')');
           }
           break;
+        case 'route': lua('routeTo(' + JSON.stringify(String(v)) + ')'); break;
+        case 'routegarage': lua('routeGarage()'); break;
+        case 'clearroute': lua('clearRoute()'); break;
         case 'photo': lua('takePhoto()'); break;
         case 'photoopen': go('photo', { photoFile: v }); break;
         case 'setwall': (function () { var q = String(v).split('|'); lua('setWallpaper(' + JSON.stringify(q[0]) + ',' + JSON.stringify(q[1] || '') + ')'); })(); break;
@@ -1757,6 +1781,7 @@
         case 'slPhoneData':
           st.data = data;
           if (!data.active) { st.open = false; st.call = null; st.hu = null; }
+          if (st.open && st.app === 'map' && Date.now() - (st.mapAt || 0) > 4000) { st.mapAt = Date.now(); lua('mapPlaces()'); }      // (the distances follow the car)
           render();
           break;
         case 'slPhoneToggle': setOpen(!st.open); break;
@@ -1790,6 +1815,7 @@
         case 'slGarage': st.garage = data.open ? data : null; render(); break;
         case 'slSettings': st.settings = data; render(); break;
         case 'slPhotos': st.photos = data; render(); break;
+        case 'slMap': st.map = data; render(); break;
         case 'slHelp': st.help = arr(data && data.pages); render(); break;
         case 'slStrings': TABLE = (data && data.text) || {}; render(); break;
         case 'slLaptopDealers': st.dealers = data; render(); break;
@@ -1826,7 +1852,7 @@
       var probe = new Image();
       probe.onload = function () { phone.handle('slArt'); };
       probe.src = '/ui/modModules/slHud/slrr/icons/cup.png';
-      ['slPhoneData', 'slPhoneToggle', 'slPhoneGo', 'slPhoneCall', 'slPhoneCallReply', 'slPhoneNotify', 'slPhoneToast', 'slFade', 'slLotBars', 'slLotData', 'slMeet', 'slRace', 'slMenu', 'slStation', 'slGarage', 'slSettings', 'slPhotos', 'slLaptopDealers', 'slAuctions', 'slLaptopOffers', 'slHelp', 'slStrings'].forEach(function (name) {
+      ['slPhoneData', 'slPhoneToggle', 'slPhoneGo', 'slPhoneCall', 'slPhoneCallReply', 'slPhoneNotify', 'slPhoneToast', 'slFade', 'slLotBars', 'slLotData', 'slMeet', 'slRace', 'slMenu', 'slStation', 'slGarage', 'slSettings', 'slPhotos', 'slMap', 'slLaptopDealers', 'slAuctions', 'slLaptopOffers', 'slHelp', 'slStrings'].forEach(function (name) {
         $rootScope.$on(name, function (ev, data) { phone.handle(name, data); });
       });
       if (window.bngApi) window.bngApi.engineLua('if sl_phone then sl_phone.request() end if sl_menuTile then sl_menuTile.request() end');
