@@ -613,6 +613,18 @@ local function updateMeet(s, dt)
   if not night() or s.day ~= meet.day and sl_career.hour() > 6 then endMeet() return end
   local car = playerCar()
   local here = car and (car:getPosition() - meet.place.pos):length() < 22 and car:getVelocity():length() < 1
+  -- stopped next to an owner's car: the driver waves out of the window, once in a while (#38)
+  if car and car:getVelocity():length() < 1 and slrrDrivers and slrrDrivers.wave and os.clock() - (meet.wavedAt or -999) > 45 then
+    local cp = car:getPosition()
+    for _, o in pairs(meet.owners or {}) do
+      local oc = o.vid and getObjectByID(o.vid)
+      if oc and (oc:getPosition() - cp):length() < 7 then
+        meet.wavedAt = os.clock()
+        slrrDrivers.wave(car:getID(), 3)
+        break
+      end
+    end
+  end
   if here and not meet.shown then
     meet.shown = true
     sendMeet(true)
