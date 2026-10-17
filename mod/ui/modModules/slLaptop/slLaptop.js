@@ -86,6 +86,7 @@
     '.sll-card{background:#211f26;border-radius:12px;padding:12px 16px;margin:0 0 10px 0}',
     '.sll-card h4{margin:0 0 6px 0;font-size:15px;font-weight:500}',
     '.sll-card p{margin:0;color:#cac4d0;font-size:13px}',
+    '.sll-report{margin:6px 0}.sll-rsec{margin:8px 0;padding:8px 10px;border-radius:10px;background:rgba(0,0,0,.25)}.sll-rsec h5{margin:0 0 4px;font-size:13px;color:#a8c7fa}.sll-rok{color:#7bd88f}.sll-rmid{color:#e6c35c}.sll-rbad{color:#f2b8b5}',
     '.sll-kv{display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.07);font-size:13px}',
     '.sll-kv span{color:#cac4d0}',
     '.sll-acts{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap}',
@@ -148,7 +149,7 @@
     doc.body.appendChild(root);
 
     // wins: the open windows, the last one on top; each { id, min, max }. dview: what the dealers window shows (dealers | offers | offer)
-    var st = { open: false, view: null, data: { active: false }, parts: [], wins: [], menu: false, sel: null, car: 0, note: '', padAt: 0,
+    var st = { rep: {}, open: false, view: null, data: { active: false }, parts: [], wins: [], menu: false, sel: null, car: 0, note: '', padAt: 0,
       dealers: null, offers: null, dview: 'dealers', offerId: null, wallpaper: null, tab: { dealers: 'dealers', partmarket: 'revline' } };
 
     // ---------------------------------------------------------------- what the windows hold
@@ -223,7 +224,7 @@
         row('Condition', Math.round((c.condition || 0) * 100) + '%' + (c.title ? ' (' + esc(c.title) + ')' : '')) + row('Power', sp.power ? Math.round(sp.power) + ' PS' : null) +
         row('Weight', sp.weight ? Math.round(sp.weight).toLocaleString() + ' kg' : null) + row('Transmission', esc(sp.transmission)) + row('Drivetrain', esc(sp.drivetrain)) +
         row('Fuel', esc(sp.fuel)) + row('Body', esc(sp.body)) + row('Top speed', sp.topSpeed ? Math.round(sp.topSpeed * 3.6) + ' km/h' : null) +
-        (faults.length ? row('Needs', esc(faults.join(', '))) : '') + '</div>' +
+        (faults.length ? row('Needs', esc(faults.join(', '))) : '') + reportBlock('offer:' + c.id, c.report) + '</div>' +
         '<div class="sll-card">' + row('Seller', esc(c.seller || o.name)) + row('Distance', dist(c.metres)) + row('Delivery', 'to your garage in about ' + (c.hours || 0) + ' h') +
         '<div class="sll-kv"><span>Price</span><b style="font-size:18px">' + money(c.price) + '</b></div>' +
         '<div class="sll-acts"><div class="sll-btn' + ((o.money || 0) < c.price ? ' sll-off' : '') + '" data-a="buy" data-v="' + esc(o.dealer) + '|' + esc(c.id) + '">Buy &middot; ' + money(c.price) + '</div></div></div></div></div>');
@@ -244,13 +245,32 @@
       return '<div class="sll-acts">' + offers + '<div class="sll-btn" data-a="mkbuy" data-v="' + esc(l.id) + '|pickup">Pick up</div>' +
         (l.delivery != null ? '<div class="sll-btn sll-tonal" data-a="mkbuy" data-v="' + esc(l.id) + '|delivery">Deliver &middot; +' + money(l.delivery) + '</div>' : '') + '</div>';
     }
+    // the full car report (#58): every part by section with its condition, the dents, the faults and a repair estimate per section
+    function reportBlock(key, rp) {
+      if (!rp || !rp.sections) return '';
+      var on = !!st.rep[key];
+      var head = '<div class="sll-btn sll-tonal" data-a="report" data-v="' + esc(key) + '">' + (on ? 'Hide car report' : 'Show full car report') + '</div>';
+      if (!on) return '<div class="sll-acts">' + head + '</div>';
+      var secs = arr(rp.sections).map(function (sc) {
+        var parts = arr(sc.parts).map(function (p) {
+          return '<div class="sll-kv"><span>' + esc(p.name) + (p.fault ? ' <b class="sll-rbad">&#9888; ' + esc(p.fault) + '</b>' : '') + '</span><b class="sll-r' + (p.condition < 30 ? 'bad' : p.condition < 50 ? 'mid' : 'ok') + '">' + p.condition + '% ' + esc(p.label) + '</b></div>';
+        }).join('');
+        return '<div class="sll-rsec"><h5>' + esc(sc.title) + ' &middot; ' + sc.condition + '% ' + esc(sc.label) + '</h5>' + parts +
+          '<div class="sll-kv"><span>Repair estimate</span><b>' + (sc.estimate > 0 ? money(sc.estimate) : 'none') + '</b></div></div>';
+      }).join('');
+      var dm = obj(rp.damage);
+      return '<div class="sll-acts">' + head + '</div><div class="sll-report"><div class="sll-kv"><span>Overall</span><b>' + rp.condition + '% ' + esc(rp.label) + '</b></div>' +
+        '<div class="sll-kv"><span>Mileage</span><b>' + Number(rp.mileage || 0).toLocaleString() + ' km</b></div><div class="sll-kv"><span>Dents and damage</span><b>' + esc(dm.label) + ' (' + (dm.amount || 0) + '%)</b></div>' +
+        '<div class="sll-kv"><span>Known faults</span><b>' + (arr(rp.faults).length ? esc(arr(rp.faults).join(', ')) : 'none') + '</b></div>' + secs +
+        '<div class="sll-kv"><span><b>Repair estimate, to 95 %</b></span><b>' + money(rp.total) + '</b></div></div>';
+    }
     function adCardL(l) {
       var tells = arr(l.tells).length ? '<div class="sll-props" style="color:#f2b8b5">&#9888; ' + arr(l.tells).map(esc).join(' &middot; ') + '</div>' : '';
       if (l.car) {
         return '<div class="sll-card sll-listing">' + pic(l) + '<div class="sll-li"><h4>' + (l.year ? l.year + ' ' : '') + esc(l.name) + '</h4><div class="sll-brand">' + esc(l.brand || '') + '</div>' +
           '<div class="sll-props">' + facts(l) + '</div><div class="sll-props">' + esc(l.seller) + ' ' + '&#9733;'.repeat(l.rating || 0) + (l.metres != null ? ' &middot; ' + dist(l.metres) + ' away' : '') +
           (l.hours ? ' &middot; delivered in about ' + l.hours + ' h' : '') + ' &middot; condition ' + l.condition + '%' + (l.faults ? ' &middot; ' + l.faults + ' fault' + (l.faults > 1 ? 's' : '') : '') + '</div>' + tells +
-          '<div class="sll-props"><b>' + money(l.ask) + '</b>' + (l.agreed ? ' (agreed)' : '') + ' &middot; deposit ' + money(l.deposit) + '</div>' + mkButtons(l) + '</div></div>';
+          '<div class="sll-props"><b>' + money(l.ask) + '</b>' + (l.agreed ? ' (agreed)' : '') + ' &middot; deposit ' + money(l.deposit) + '</div>' + reportBlock('ad:' + l.id, l.report) + mkButtons(l) + '</div></div>';
       }
       return '<div class="sll-card"><h4>' + (l.rare ? '&#9733; ' : '') + esc(l.name) + '</h4><p>For the ' + esc(l.model) + ' &middot; ' + l.condition + '% condition &middot; ' + esc(l.seller) + ' ' + '&#9733;'.repeat(l.rating || 0) +
         ' &middot; ' + Math.max(0, l.hoursLeft | 0) + ' h left</p>' + tells + '<p><b>' + money(l.ask) + '</b>' + (l.agreed ? ' (agreed)' : '') + ' &middot; deposit ' + money(l.deposit) + '</p>' + mkButtons(l) + '</div>';
@@ -583,6 +603,7 @@
         case 'mkwithdraw': lua('@sl_phone.withdrawListing(' + JSON.stringify(String(v)) + ')'); break;
         case 'pcatalog': lua('@sl_phone.catalog()'); break;
         case 'dealer': st.dview = 'offers'; st.offers = { name: 'Dealer', offers: [], dealer: v }; st.note = ''; focusKey = null; lua('@sl_dealers.offers(' + JSON.stringify(v) + ')'); render(); break;
+        case 'report': st.rep[v] = !st.rep[v]; render(); break;
         case 'offer': st.dview = 'offer'; st.offerId = v; st.note = ''; focusKey = null; render(); break;
         case 'buy':
           var pair = String(v).split('|');

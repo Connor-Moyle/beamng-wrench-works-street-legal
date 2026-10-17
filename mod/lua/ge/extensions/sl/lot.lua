@@ -13,6 +13,7 @@ local rngLib = require('sl/core/rng')
 local builder = require('sl/carBuilder')
 local hours = require('sl/core/hours')
 local splitphase = require('sl/core/splitphase')
+local carreport = require('sl/core/carreport')
 local stockLib = require('sl/core/stockdealers')
 local lotcam = require('sl/core/lotcam')
 local lotbuild = require('sl/core/lotbuild')
@@ -90,7 +91,7 @@ end
 local function offerForUi(o)
   if not o then return nil end
   return { name = o.name, brand = o.brand, title = o.title, condition = o.condition, damage = o.damage, mileage = o.mileage,
-    faults = o.faults, mods = o.mods, price = o.price, value = o.value }
+    faults = o.faults, mods = o.mods, price = o.price, value = o.value, report = carreport.build(o) }
 end
 
 local function send()

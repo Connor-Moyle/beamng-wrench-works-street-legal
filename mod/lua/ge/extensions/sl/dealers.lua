@@ -8,6 +8,7 @@ local M = {}
 local rules = require('sl/core/dealers')
 local builder = require('sl/carBuilder')
 local carInfo = require('sl/carInfo')
+local carreport = require('sl/core/carreport')
 
 local function career() return sl_career and sl_career.isActive() and sl_career.getState() or nil end
 local function now(s) return rules.clock(s.day, sl_career.hour()) end
@@ -31,7 +32,7 @@ local function card(o, place, yard)
   local away = metres(place.pos, yard)
   return { id = o.id, name = o.name, brand = info.brand or o.brand, title = o.title, mileage = o.mileage, condition = o.condition, price = o.price,
     faults = o.faults or {}, kind = o.kind, preview = info.preview, year = info.year, specs = info.specs,
-    seller = place.name, metres = math.floor(away), hours = rules.delayHours(away) }
+    seller = place.name, metres = math.floor(away), hours = rules.delayHours(away), report = carreport.build(o) }
 end
 
 -- sent to the laptop: the dealers (name, distance, how many cars today) and what is on the way

@@ -193,7 +193,7 @@ click('dealer', 'jeff');
 assert.ok(calls.includes('@sl_dealers.offers("jeff")'), 'a dealer asks for its cars');
 laptop.handle('slLaptopOffers', { dealer: 'jeff', name: 'Jefferson Motors', money: 9000, offers: [
   { id: 'jeff:dealer-3-1', name: 'Bolide', brand: 'Bruckell', year: 2012, title: 'New', mileage: 20, condition: 1, price: 7000, faults: [], seller: 'Jefferson Motors', metres: 4200, hours: 3,
-    preview: '/vehicles/bolide/sport.png', specs: { power: 310, weight: 1250, transmission: 'Manual', drivetrain: 'RWD', fuel: 'Gasoline', body: 'Coupe', topSpeed: 75 } },
+    preview: '/vehicles/bolide/sport.png', specs: { power: 310, weight: 1250, transmission: 'Manual', drivetrain: 'RWD', fuel: 'Gasoline', body: 'Coupe', topSpeed: 75 }, report: { condition: 45, label: 'Worn', mileage: 180000, damage: { amount: 30, label: 'Moderate' }, faults: ['brakes'], total: 1900, sections: [{ id: 'brakes', title: 'Brakes', condition: 30, label: 'Worn', estimate: 640, faults: ['brakes'], parts: [{ name: 'Pads and discs', condition: 20, label: 'Poor', fault: 'brakes' }, { name: 'Calipers and lines', condition: 40, label: 'Worn' }] }] } },
   { id: 'jeff:dealer-3-2', name: 'Pessima', title: 'Tired', mileage: 150000, condition: 0.4, price: 9900, faults: ['battery'] }] });
 assert.ok(titles()[0] === 'Jefferson Motors' && $('.sll-taskwin').textContent === 'Jefferson Motors', 'the window takes the dealer\'s name');
 assert.ok(text().includes('2012 Bolide') && text().includes('Bruckell') && text().includes('20 km') && text().includes('Manual') && text().includes('RWD') && text().includes('310 PS') && text().includes('1,250 kg'), 'offer cards: year, name, brand, mileage, transmission, drivetrain, power, weight');
@@ -204,6 +204,9 @@ assert.ok(text().includes('Needs: battery') && $$('.sll-btn.sll-off').length ===
 click('offer', 'jeff:dealer-3-1');
 assert.ok(titles()[0] === '2012 Bolide' && $('.sll-detail .sll-pic img'), 'a card opens its detail view in the same window');
 ['Bruckell', '2012', '20 km', '310 PS', '1,250 kg', 'Manual', 'RWD', 'Gasoline', 'Coupe', '270 km/h', 'Jefferson Motors', '4.2 km', 'to your garage in about 3 h', '$7,000'].forEach((x) => assert.ok($('.sll-win').textContent.includes(x), 'detail shows ' + x));
+assert.ok($('.sll-win').textContent.includes('Show full car report'), 'a detail view with a report offers it');
+click('report', 'offer:jeff:dealer-3-1');
+assert.ok($('.sll-win').textContent.includes('Pads and discs') && $('.sll-win').textContent.includes('$640') && $('.sll-win').textContent.includes('Moderate (30%)'), 'the laptop report lists the parts, the damage and the estimate');
 calls.length = 0;
 click('buy', 'jeff|jeff:dealer-3-1');
 assert.ok(calls.includes('@sl_dealers.buy("jeff","jeff:dealer-3-1")'), 'Buy in the detail view asks for that car');

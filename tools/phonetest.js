@@ -287,6 +287,14 @@ click('lot', 'close()');
 assert.ok(calls.some(function (c) { return c.indexOf('close()') >= 0; }), 'the loading screen can be cancelled');
 phone.handle('slLotData', { open: true, mode: 'browse', name: 'Jefferson Motors', kindTitle: 'New cars', kind: 'dealer', index: 1, count: 4, money: 9000, building: false, offer: { name: 'Roamer', price: 5000, faults: [] } });
 assert.ok(!$('.slp-lotload') && $('[data-v="buy()"]') && text().includes('Roamer'), 'built: the loading screen is gone and the card shows');
+// #58: the full car report on the lot's card
+var rep58 = { condition: 45, label: 'Worn', mileage: 180000, damage: { amount: 30, label: 'Moderate' }, faults: ['brakes'], total: 1900, sections: [{ id: 'brakes', title: 'Brakes', condition: 30, label: 'Worn', estimate: 640, faults: ['brakes'], parts: [{ name: 'Pads and discs', condition: 20, label: 'Poor', fault: 'brakes' }, { name: 'Calipers and lines', condition: 40, label: 'Worn' }] }] };
+phone.handle('slLotData', { open: true, mode: 'browse', name: 'Jefferson Motors', kindTitle: 'New cars', kind: 'dealer', index: 1, count: 4, money: 9000, building: false, offer: { name: 'Roamer', price: 5000, faults: ['brakes'], report: rep58 } });
+assert.ok(text().includes('Show full car report') && !text().includes('Repair estimate'), 'the lot card offers the report, closed');
+click('report', 'lot');
+assert.ok(text().includes('Hide car report') && text().includes('Brakes') && text().includes('Pads and discs') && text().includes('20% Poor') && text().includes('Moderate (30%)') && text().includes('$640') && text().includes('$1,900'), 'the report lists the parts by section, the damage and the repair estimates');
+click('report', 'lot');
+assert.ok(!text().includes('Pads and discs'), 'and closes again');
 phone.handle('slLotData', { open: true, mode: 'sell', name: 'Scrap & Salvage', kindTitle: 'Scrap yard', kind: 'scrap', sellCar: { name: 'Covet', price: 410 } });
 assert.ok(text().includes('$410 for the Covet') && text().includes('Scrap it'), 'selling at the scrap yard');
 phone.handle('slLotData', { open: true, mode: 'test', name: 'Valo Junkyard', testLeft: 95 });

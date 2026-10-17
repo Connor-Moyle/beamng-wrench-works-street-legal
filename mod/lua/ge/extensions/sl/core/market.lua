@@ -153,6 +153,7 @@ local function condition(car)
   local c = car.condition or 0.5
   return math.min(math.max(c, 0.95), c + M.REPAIR_CONDITION * (car.repaired or 0) / math.max(1, car.value or 0))
 end
+M.effectiveCondition = condition      -- (the car report shows the same number)
 -- the faults whose slot holds a part in a Wrench Works parts tree (a fault's word in a fitted slot's path)
 function M.faultsFitted(partsTree, faults)
   local paths = {}

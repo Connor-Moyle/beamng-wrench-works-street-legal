@@ -4,6 +4,7 @@
 -- up front) or pay for delivery to your garage shelf. Rules in sl/core/listings; parts reach Wrench Works'
 -- shelf through slrr_garage.addShelfPart, valued at what was paid.
 
+local carreport = require('sl/core/carreport')
 local M = {}
 
 local L = require('sl/core/listings')
@@ -327,6 +328,7 @@ function M.summary()
         local info = carInfo.of({ id = 'revline:' .. l.id, model = l.offer.model, config = l.offer.config })
         card.preview, card.year, card.specs, card.brand = info.preview, info.year, info.specs, info.brand
         card.faultList = l.offer.faults
+        card.report = carreport.build(l.offer)          -- 'Show full car report' (#58)
         local v = getPlayerVehicle(0)
         local yard = sl_fleet and sl_fleet.forecourt(s, 0)
         if v and l.where then

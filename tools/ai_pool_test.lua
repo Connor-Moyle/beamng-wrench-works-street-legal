@@ -190,4 +190,22 @@ return function(check, rngLib)
   check('fit: 1500 m, start bottom-left, finish above the end, inside the picture', f.metres == 1500 and f.start.x >= 12 and f.start.y > f.finish.y and f.finish.x <= 228 and f.finish.y >= 12 and f.start.y <= 128)
   check('fit: nothing to draw with fewer than two points', RP.fit({ { x = 1, y = 1 } }) == nil and RP.fit(nil) == nil)
   check('fit: a straight line (no height) does not divide by zero', RP.fit({ { x = 0, y = 5 }, { x = 100, y = 5 } }) ~= nil)
+
+  -- #58: the full car report
+  local CR = require('sl/core/carreport')
+  local car = { name = 'Test Coupe', value = 12000, condition = 0.45, damage = 0.3, mileage = 180000, faults = { 'brakes', 'exhaust' } }
+  local rp = CR.build(car)
+  local rp2 = CR.build(car)
+  local ids, parts, sumEst = {}, 0, 0
+  for _, sec in ipairs(rp.sections) do ids[#ids + 1] = sec.id parts = parts + #sec.parts sumEst = sumEst + sec.estimate end
+  check('report: seven sections in order, every part listed', table.concat(ids, ',') == 'engine,drivetrain,suspension,brakes,wheels,body,interior' and parts == 5 + 4 + 2 + 2 + 2 + 2 + 2)
+  check('report: the same car gives the same report every time (offer, ad and garage agree)', rp.total == rp2.total and rp.sections[1].parts[1].condition == rp2.sections[1].parts[1].condition)
+  check('report: the faults sit in their parts, capped, and listed per section', rp.sections[4].parts[1].fault == 'brakes' and rp.sections[4].parts[1].condition <= 30 and rp.sections[1].parts[4].fault == 'exhaust'
+    and rp.sections[4].faults[1] == 'brakes' and #rp.faults == 2)
+  check('report: damage shows (30 %, Moderate) and the body is worse than the interior', rp.damage.amount == 30 and rp.damage.label == 'Moderate' and rp.sections[6].condition < rp.sections[7].condition)
+  check('report: the estimate is the sum of the sections and at least the faults ($600 each part of 12000 x 5 %)', rp.total == sumEst and rp.total >= 1200)
+  local fixed = CR.build({ name = 'Test Coupe', value = 12000, condition = 0.45, damage = 0.3, mileage = 180000, faults = { 'brakes', 'exhaust' }, fixed = { brakes = 80, exhaust = 60 }, repaired = 2000 })
+  check('report: a repaired car shows no open faults and costs less to finish', #fixed.faults == 0 and fixed.total < rp.total and fixed.condition > rp.condition)
+  local mint = CR.build({ name = 'Mint', value = 9000, condition = 0.97, damage = 0, mileage = 20, faults = {} })
+  check('report: a mint car has nothing to repair', mint.total == 0 and mint.damage.label == 'None' and mint.label == 'Excellent')
 end
