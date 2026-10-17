@@ -1349,6 +1349,17 @@ do
   end
   check('close shots drop the look-at point more, the default is the orbit one, a transition interpolates', lotcam.frameDrop(nil) == lotcam.DROP and lotcam.frameDrop({ phase = 'shot', kind = 'rear' }) > lotcam.DROP
     and lotcam.frameDrop({ phase = 'shot', kind = 'side' }) == lotcam.DROP and math.abs(lotcam.frameDrop({ phase = 'trans', kind = 'side', nextKind = 'rear', u = 0.5 }) - (lotcam.DROP + lotcam.FRAME_DROP.rear) / 2) < 1e-9)
+  do
+    local fx = require('sl/core/lotfx')
+    check('bars: off at rest, on in a shot and on the way to the next, off in the cabin shots and on the way back to the orbit', not fx.barsOn(nil) and fx.barsOn({ phase = 'shot', kind = 'side' })
+      and fx.barsOn({ phase = 'trans', kind = 'cabin', nextKind = 'side' }) and not fx.barsOn({ phase = 'trans', kind = 'side', nextKind = 'cabin' }) and not fx.barsOn({ phase = 'shot', kind = 'cabin_pass' })
+      and not fx.barsOn({ phase = 'out', kind = 'side' }))
+    check('fov: a shot tightens 0 to 3 degrees, the move to the next brings it back, the cabin keeps the normal view', fx.fovDrift({ phase = 'shot', kind = 'side', t = 0 }) == 0 and math.abs(fx.fovDrift({ phase = 'shot', kind = 'side', t = 5 }) - 3) < 1e-9
+      and math.abs(fx.fovDrift({ phase = 'trans', kind = 'side', nextKind = 'rear', u = 0 }) - 3) < 1e-9 and fx.fovDrift({ phase = 'trans', kind = 'side', nextKind = 'rear', u = 1 }) == 0
+      and fx.fovDrift({ phase = 'shot', kind = 'cabin', t = 4 }) == 0 and fx.fovDrift({ phase = 'trans', kind = 'cabin', nextKind = 'side', u = 0 }) == 0 and fx.fovDrift(nil) == 0)
+    local p = fx.dofParams(8, 4.5, 0.5)
+    check('dof: the car length sets the sharp range, the blur follows the shot weight', p.focalDist == 8 and p.minRange == 9 and p.maxRange == 18 and p.farBlurMax == 0.175 and fx.dofParams(8, 4.5, 0).nearBlurMax == 0)
+  end
   -- the shuffle bag: every kind once per round, never the same kind twice in a row, unusable kinds dropped
   do
     local state, rnd = { bag = {} }, function(n) return math.random(n) end

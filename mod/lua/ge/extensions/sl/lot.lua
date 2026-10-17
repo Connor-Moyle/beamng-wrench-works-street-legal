@@ -19,6 +19,7 @@ local carreport = require('sl/core/carreport')
 local tiers = require('sl/core/tiers')
 local stockLib = require('sl/core/stockdealers')
 local lotcam = require('sl/core/lotcam')
+local lotfx = require('sl/core/lotfx')
 local lotbuild = require('sl/core/lotbuild')
 local lotaudio = require('sl/core/lotaudio')
 
@@ -124,6 +125,55 @@ end
 
 local cam             -- { yaw, pitch, dist, pos, look, previous }
 
+-- The cinematic touches (each behind a flag, all restored by fxStop): letterbox bars (the UI slides them), the game's depth of field focused on
+-- the car, the car's lights on, a slow field-of-view drift. What to show for the camera chain's state is in sl/core/lotfx.
+M.FX = { bars = true, dof = true, lights = true, fov = true }
+local DOF_FIELDS = { 'autoFocusEnabled', 'focalDist', 'minRange', 'maxRange', 'nearBlurMax', 'farBlurMax', 'nearSlope', 'farSlope' }
+local function setBars(on)
+  on = (M.FX.bars and on) or false
+  if cam and cam.bars == on then return end
+  if cam then cam.bars = on end
+  guihooks.trigger('slLotBars', { on = on })
+end
+local function setLit(vid, on)
+  local v = vid and getObjectByID(vid)
+  if v then v:queueLuaCommand('electrics.setLightsState(' .. (on and 1 or 0) .. ')') end
+end
+local function dofRestore()
+  if not (cam and cam.dofSaved) then return end
+  local dof = scenetree and scenetree.findObject('DOFPostEffect')
+  if dof then
+    for _, k in ipairs(DOF_FIELDS) do if cam.dofSaved[k] ~= nil then pcall(function() dof[k] = cam.dofSaved[k] end) end end
+    if not cam.dofSaved.enabled then pcall(function() dof:disable() end) end
+  end
+  cam.dofSaved = nil
+end
+local function dofOn(dist, L, w)
+  local dof = scenetree and scenetree.findObject('DOFPostEffect')
+  if not dof then return end
+  if not cam.dofSaved then
+    local okEn, en = pcall(function() return dof:isEnabled() ~= false end)
+    local saved = { enabled = okEn and en }
+    for _, k in ipairs(DOF_FIELDS) do saved[k] = dof[k] end
+    cam.dofSaved = saved
+    pcall(function() dof.autoFocusEnabled = false if not saved.enabled then dof:enable() end end)
+  end
+  for k, v in pairs(lotfx.dofParams(dist, L, w)) do pcall(function() dof[k] = v end) end
+end
+-- back to the player's own settings: depth of field, field of view, the car's lights, the bars
+local function fxStop()
+  if not cam then return end
+  dofRestore()
+  if cam.baseFov then
+    local sf = core_camera.getGlobalCameras and core_camera.getGlobalCameras().scriptedFree
+    if sf and sf.setFOV then pcall(sf.setFOV, sf, cam.baseFov) end
+    cam.baseFov = nil
+  end
+  if cam.lit then setLit(cam.lit, false) cam.lit = nil end
+  setBars(false)
+  cam.chain = nil
+end
+
 local function cameraOn()
   if cam or M.NO_CAMERA then return end
   cam = { yaw = math.rad(lotcam.YAWS[1]), pitch = lotcam.PITCH, dist = lotcam.DIST, previous = lot and lot.previousCamera }
@@ -134,6 +184,7 @@ end
 
 local function cameraOff()
   if not cam then return end
+  fxStop()
   local previous = cam.previous
   cam = nil
   local active = core_camera.getActiveCamName(0)
@@ -257,7 +308,7 @@ local function updateCamera(dt)
   -- orbit (never a cut); the player's drag, zoom or another car eases it back at once and the shots wait for the next idle time
   local ds = math.min(dt, 0.1)
   cam.idle = (cam.idle or 0) + ds
-  local auto = cam.idle > lotcam.IDLE and not cam.glide and not M.NO_SHOTS
+  local auto = cam.idle > lotcam.IDLE and not cam.glide and not M.NO_SHOTS and not lot.factory
   -- the next shot, in shuffled order, whose whole drift has a clear view of the car (not through or inside a wall or pillar) and which the car
   -- can do (the engine shots need a lid we can open)
   local vid = lot.veh
@@ -285,6 +336,23 @@ local function updateCamera(dt)
   local fl = lotcam.framed(pos, look, lotcam.frameDrop(cam.chain) * e, lotcam.SIDE)       -- (the car stands upper left, clear of the card at the bottom centre)
   look = vec3(fl.x, fl.y, fl.z)
   cam.shown = { pos = pos, look = look }
+  -- the touches for this state of the chain
+  local kind = ch and (ch.phase == 'trans' and ch.nextKind or ch.kind)
+  setBars(lotfx.barsOn(ch))
+  local litWant = M.FX.lights and ch and ch.phase ~= 'out' and vid or nil
+  if cam.lit ~= litWant then
+    if cam.lit then setLit(cam.lit, false) end
+    if litWant then setLit(litWant, true) end
+    cam.lit = litWant
+  end
+  if M.FX.dof and ch and e > 0.01 and not lotfx.isCabin(kind) then dofOn((pos - vec3(t.x, t.y, t.z)):length(), cam.L or 4.5, e) else dofRestore() end
+  local sf0 = core_camera.getGlobalCameras and core_camera.getGlobalCameras().scriptedFree
+  if M.FX.fov and sf0 and sf0.setFOV then
+    cam.baseFov = cam.baseFov or sf0.fov
+    local drift = lotfx.fovDrift(ch, lotcam.SHOT_TIME)
+    if cam.baseFov and (drift ~= 0 or cam.fovDrifted) then pcall(sf0.setFOV, sf0, cam.baseFov - drift) end
+    cam.fovDrifted = drift ~= 0
+  end
   -- the script-driven camera takes yaw and pitch (pitch positive = looking down): given in its own terms
   local sf = core_camera.getGlobalCameras and core_camera.getGlobalCameras().scriptedFree
   if sf and sf.setPose and core_camera.getActiveCamName(0) == 'scriptedFree' then
@@ -611,6 +679,7 @@ local function getInWhereItStands(veh, car, wait)
   veh:queueLuaCommand('controller.setFreeze(0) input.event("parkingbrake", 0, FILTER_DIRECT)')
   reveal = {}
   guihooks.trigger('slLotData', { open = true, mode = 'reveal' })
+  setBars(true)
   core_jobsystem.create(function(j)
     if car then id = withDriverProps(j, veh, car, wait or 0) end
     local v = id and getObjectByID(id)
@@ -644,10 +713,12 @@ local function getInWhereItStands(veh, car, wait)
       for _, kind in ipairs(lotcam.REVEAL_SHOTS) do
         if reveal.skip then break end
         if not lotcam.shotClear(kind, cc, ff, L, W, wallRay, eye) then goto next end      -- (a shot through or inside a pillar is left out)
+        setBars(not lotfx.isCabin(kind))
         run(CUT_TIME, function(t) local p, l = lotcam.shot(kind, cc, ff, L, W, t / CUT_TIME, eye); pos, look = p, l; put(p, l) end)      -- (a cut to each: no move in between)
         ::next::
       end
       reveal.skip = false
+      setBars(true)
       local p1, l1 = lotcam.chase(cc, ff)
       local sp, sl = pos, look
       run(MOVE_TIME, function(t)
@@ -657,6 +728,7 @@ local function getInWhereItStands(veh, car, wait)
       end)
     end
     reveal = nil
+    setBars(false)
     guihooks.trigger('slLotData', { open = false })
     v = id and getObjectByID(id)
     if v then
@@ -683,6 +755,7 @@ function M.buy()
   local veh = getObjectByID(lot.veh)
   if lot.private and sl_classifieds and sl_classifieds.onPrivateSold then sl_classifieds.onPrivateSold(lot.private, car and car.id) end
   lot.soldVeh = lot.veh
+  fxStop()
   shutLids()
   local wait = lidWait(lot.soldVeh)
   dropCars()                                    -- the rest of the row goes away; the camera stays and glides to the car (no cut)

@@ -174,6 +174,11 @@
     '.slp-toast.slp-gone{opacity:0}',
     '.slp-pill{position:absolute;right:3vw;top:1.2vh;padding:6px 14px;border-radius:16px;background:rgba(20,18,24,.72);font-size:13px;display:flex;gap:12px;align-items:center}',
     '.slp-pill b{font-weight:600}',
+    '.slp-bars{position:absolute;left:0;top:0;right:0;bottom:0;pointer-events:none}',
+    '.slp-bar{position:absolute;left:0;right:0;height:9vh;background:#000;transition:transform .6s ease}',
+    '.slp-top{top:0;transform:translateY(-100%)}.slp-bot{bottom:0;transform:translateY(100%)}',
+    '.slp-bars.slp-on .slp-bar{transform:none}',
+    '.slp-barson .slp-lot:not(.slp-shop){bottom:13vh}',
     '.slp-fade{position:absolute;left:0;top:0;right:0;bottom:0;background:#000;opacity:0;transition:opacity .5s}',
     /* the car lots: one car at a time, the SLRR way */
     '.slp-catch{position:absolute;left:0;top:0;right:0;bottom:0;pointer-events:auto;cursor:move;background:rgba(0,0,0,.01)}',
@@ -350,6 +355,10 @@
     root.appendChild(style);
     var layer = doc.createElement('div');
     root.appendChild(layer);
+    var bars = doc.createElement('div');           // the cinematic bars of the lot's camera: a node of their own, so their slide is not undone by a re-render
+    bars.className = 'slp-bars';
+    bars.innerHTML = '<i class="slp-bar slp-top"></i><i class="slp-bar slp-bot"></i>';
+    root.appendChild(bars);
     doc.body.appendChild(root);
 
     var st = {
@@ -1605,6 +1614,7 @@
         case 'slPhoneToast': toast(data.text); break;
         case 'slGameOver': st.gameOver = data && data.day ? data : null; render(); break;
         case 'slFade': st.fade = !!data.on; render(); break;
+        case 'slLotBars': bars.classList.toggle('slp-on', !!data.on); layer.classList.toggle('slp-barson', !!data.on); break;
         case 'slLotData': st.lot = data.open ? data : null; render(); break;
         case 'slMeet': st.meet = data.open ? data : null; render(); break;
         case 'slStation': st.station = data.open ? data : null; render(); break;
@@ -1645,7 +1655,7 @@
       var probe = new Image();
       probe.onload = function () { phone.handle('slArt'); };
       probe.src = '/ui/modModules/slHud/slrr/icons/cup.png';
-      ['slPhoneData', 'slPhoneToggle', 'slPhoneCall', 'slPhoneCallReply', 'slPhoneNotify', 'slPhoneToast', 'slFade', 'slLotData', 'slMeet', 'slRace', 'slMenu', 'slStation', 'slGarage', 'slSettings', 'slLaptopDealers', 'slLaptopOffers', 'slHelp', 'slStrings'].forEach(function (name) {
+      ['slPhoneData', 'slPhoneToggle', 'slPhoneCall', 'slPhoneCallReply', 'slPhoneNotify', 'slPhoneToast', 'slFade', 'slLotBars', 'slLotData', 'slMeet', 'slRace', 'slMenu', 'slStation', 'slGarage', 'slSettings', 'slLaptopDealers', 'slLaptopOffers', 'slHelp', 'slStrings'].forEach(function (name) {
         $rootScope.$on(name, function (ev, data) { phone.handle(name, data); });
       });
       if (window.bngApi) window.bngApi.engineLua('if sl_phone then sl_phone.request() end if sl_menuTile then sl_menuTile.request() end');
