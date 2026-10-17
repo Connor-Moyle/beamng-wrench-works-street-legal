@@ -65,8 +65,18 @@ local function codriverOn(stage)
     local loaded, why = gameplay_rally.loadMission(tostring(sl_career.LEVEL) .. '/rallyStage/sl_' .. stage.id, '/street_legal/rally/stages/' .. stage.id, nil, VOICEPACK, { owner = 'external' })
     if not loaded then error(tostring(why)) end
   end)
-  racelog.add('rally', 'codriver', { stage = stage.id, ok = ok and 'yes' or 'no', why = ok and '' or tostring(err) })
+  racelog.add('rally', 'codriver', { stage = stage.id, ok = ok and 'yes' or 'no', why = ok and '' or tostring(err),
+    audio = settings and settings.getValue and tostring(settings.getValue('rallyAudioPacenotes')) or '?', visual = settings and settings.getValue and tostring(settings.getValue('rallyVisualPacenotes')) or '?' })
   return ok
+end
+-- the clock starts: the manager forgets any note queued while the car stood on the line, so the first call comes from the road ahead
+local function codriverGo()
+  local ok, err = pcall(function()
+    local rm = gameplay_rally.getRallyManager()
+    if rm.resetPacenoteRuntime then rm:resetPacenoteRuntime() end
+    if rm.resetStageRuntime then rm:resetStageRuntime() end
+  end)
+  racelog.add('rally', 'codriver go', { ok = ok and 'yes' or 'no', why = ok and '' or tostring(err), ready = tostring(gameplay_rally and gameplay_rally.isReady and gameplay_rally.isReady()) })
 end
 local function codriverOff()
   pcall(function() if gameplay_rally and gameplay_rally.unloadMission then gameplay_rally.unloadMission({ owner = 'external' }) end end)
@@ -134,6 +144,7 @@ local function running(dt)
     end
     r.state = 'running'
     v:queueLuaCommand('controller.setFreeze(0)')
+    if r.codriver then codriverGo() end
     say('GO!', 2)
     return
   end
