@@ -1746,4 +1746,50 @@ do
   check('ambience: every synthesised kind has stock event candidates to try', all)
 end
 
+-- the hitch recorder's rules
+do
+  local hitch = require('sl/core/hitch')
+  local h = hitch.new()
+  hitch.event(h, 10.0, 'spawn covet', 1180)
+  hitch.event(h, 5.0, 'an old event')
+  hitch.cost(h, 'sl_lot.onUpdate', 3) hitch.cost(h, 'sl_lot.onUpdate', 4) hitch.cost(h, 'sl_streets.onUpdate', 0.2)
+  check('hitch: a normal frame is not recorded', hitch.frame(h, 10.0, 0.016, 5000) == nil and h.count == 0)
+  check('hitch: its costs are cleared each frame', next(h.cost) == nil)
+  hitch.event(h, 10.5, 'lot build')
+  hitch.cost(h, 'sl_lot.onUpdate', 9)
+  local text = hitch.frame(h, 11.0, 0.12, 2000)
+  check('hitch: a slow frame is recorded with its number', text and text:find('frame 120 ms') and h.count == 1)
+  check('hitch: with the events of the 2 s before, not older ones', text:find('spawn covet') and text:find('lot build') and not text:find('old event'))
+  check('hitch: with the part that cost the most', text:find('sl_lot.onUpdate 9.0 ms') and not text:find('sl_streets'))
+  check('hitch: a drop of the heap is named a garbage collection', text:find('garbage collection freed 2.9 MB'))
+  check('hitch: the report lists it', hitch.report(h):find('1 frames over 50 ms'))
+end
+
+-- the hitch recorder, run against mocks: it times the extensions' onUpdate, notes spawns, writes the file, and puts every function back
+do
+  local saved = {}
+  local function setg(name, value) saved[name] = { _G[name] } _G[name] = value end
+  local written, spawns = nil, 0
+  setg('log', function() end)
+  setg('writeFile', function(path, text) written = { path = path, text = text } end)
+  local ext = { onUpdate = function() end }
+  setg('sl_fakeext', ext)
+  local original = ext.onUpdate
+  local cv = { spawnNewVehicle = function(model) spawns = spawns + 1 return 'veh' end }
+  setg('core_vehicles', cv)
+  setg('sl_options', { get = function() return false end })
+  package.loaded['sl/perf'] = nil
+  local P = require('sl/perf')
+  check('hitch recorder: starts', P.record(true) == true)
+  check('hitch recorder: an extension onUpdate is wrapped and still works', ext.onUpdate ~= original and cv.spawnNewVehicle('covet') == 'veh' and spawns == 1)
+  ext.onUpdate()
+  P.onUpdate(0.016)
+  ext.onUpdate()
+  P.onUpdate(0.2)
+  check('hitch recorder: stops and writes the file with the hitch', P.record(false) == false and written and written.path:find('hitches.txt') and written.text:find('frame 200 ms'), written and written.text)
+  check('hitch recorder: everything put back', ext.onUpdate == original and cv.spawnNewVehicle ~= nil)
+  for name, v in pairs(saved) do _G[name] = v[1] end
+  package.loaded['sl/perf'] = nil
+end
+
 print(string.format('lua tests passed: %d checks', passed))

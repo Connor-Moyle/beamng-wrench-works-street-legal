@@ -970,6 +970,8 @@ local delivering, deliverAfter = false, 0
 local function deliverOrders(s)
   if delivering or os.clock() < deliverAfter or not s.factoryOrders or #s.factoryOrders == 0 then return end
   deliverAfter = os.clock() + 5
+  local pv = getPlayerVehicle(0)
+  if pv and pv:getVelocity():length() > 6 then return end         -- (a spawn freezes the game for about a second: not while the player drives fast; tried again in 5 s)
   local o = s.factoryOrders[factoryLib.nextDue(s.factoryOrders, (s.day or 0) * 24 + math.floor(sl_career.hour and sl_career.hour() or 12)) or 0]
   local pos, rot = o and sl_fleet.forecourt(s, 1)
   if not pos then return end
@@ -994,6 +996,7 @@ end
 ----------------------------------------------------------------------------------------------
 -- walking or driving up to a lot
 
+local walkT = 0
 local function update(dt)
   local s = career()
   if not s then
@@ -1016,11 +1019,16 @@ local function update(dt)
   end
   -- the map marks the lots with the game's own markers: then they open from its prompt (below)
   if slrrValoPois then return end
+  walkT = walkT + dt                                -- (a few times a second is enough for a walk-up; every frame built a vector for every lot)
+  if walkT < 0.25 then return end
+  walkT = 0
   local pos = v:getPosition()
+  local px, py, pz = pos.x, pos.y, pos.z
   local onFoot = v:getJBeamFilename() == 'unicycle'
   for id, place in pairs(sl_career.getPlaces() or {}) do
     if KIND[place.kind] then
-      local d = (pos - place.pos):length()
+      local pp = place.pos
+      local d = math.sqrt((px - pp.x) ^ 2 + (py - pp.y) ^ 2 + (pz - pp.z) ^ 2)
       if d > 15 then armedAt[id] = true end
       if armedAt[id] ~= false and d < 5 and v:getVelocity():length() < 1 then
         open(place, lotprompt.driveUp(KIND[place.kind], onFoot, sl_fleet.currentCar() ~= nil))      -- (no markers, so no prompt to choose in: see lotprompt)

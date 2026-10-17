@@ -491,6 +491,7 @@ end
 -- whose name hangs over their car (so you know who you are flashing)
 local labelColor, labelBg = ColorF(1, 0.8, 0.3, 1), ColorI(0, 0, 0, 170)
 local function drawLabels(s)
+  if not next(cruisers) and not meet then return end            -- (the closure below was built every frame for nothing)
   local v = getPlayerVehicle(0)
   if not v then return end
   local function label(racerId, vid, extra)
