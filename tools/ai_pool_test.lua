@@ -136,4 +136,33 @@ return function(check, rngLib)
   local pOver = LCG.glide(A, B, LA, LB, 5, 0.8)
   local pUnder = LCG.glide(A, B, LA, LB, -1, 0.8)
   check('time outside the glide is clamped; the defaults are 0.8 s and 1.2 m', pOver.x == 30 and pUnder.x == 0 and LCG.GLIDE == 0.8 and LCG.GLIDE_LIFT == 1.2)
+
+  -- D2: what belongs to the day and what to the night (sl/core/splitphase)
+  local SP = require('sl/core/splitphase')
+  check('the jobs: the everyday ones by day, hot car / valet / food by night', SP.available('jobs', 'courier', 'day') and not SP.available('jobs', 'courier', 'night')
+    and SP.available('jobs', 'hot', 'night') and not SP.available('jobs', 'hot', 'day') and SP.available('jobs', 'valet', 'night') and SP.available('jobs', 'food', 'night')
+    and SP.available('jobs', 'part', 'day') and SP.available('jobs', 'taxi', 'day') and SP.available('jobs', 'recovery', 'day'))
+  check('shops, dealers and the scrap yard open by day and close at night; the junkyard stays open (the night gate); meets are the night', SP.available('places', 'shop', 'day') and not SP.available('places', 'shop', 'night')
+    and SP.available('places', 'dealer', 'day') and not SP.available('places', 'dealer', 'night') and not SP.available('places', 'scrapyard', 'night')
+    and SP.available('places', 'junkyard', 'day') and SP.available('places', 'junkyard', 'night') and SP.available('places', 'meet', 'night') and not SP.available('places', 'meet', 'day'))
+  check('the garage, the hospital, the laptop and the cab are always there', SP.available('places', 'garage', 'night') and SP.available('places', 'hospital', 'day') and SP.available('places', 'computer', 'night') and SP.available('places', 'cab', 'night'))
+  check('races: street sprints, the ROC and pink slips at night; the stock track events (drag strip, circuits, time trials) by day with prize money', SP.available('races', 'night', 'night') and not SP.available('races', 'night', 'day')
+    and SP.available('races', 'roc', 'night') and SP.available('races', 'pink', 'night') and SP.available('races', 'drag', 'day') and not SP.available('races', 'drag', 'night')
+    and SP.available('races', 'circuit', 'day') and SP.available('races', 'timeTrial', 'day') and not SP.available('races', 'timeTrial', 'night'))
+  check('events: meets, show and shine, crew turf and chases at night; the club day and sponsors by day; the market and the tutorial both', SP.available('events', 'meet', 'night') and not SP.available('events', 'meet', 'day')
+    and SP.available('events', 'showAndShine', 'night') and SP.available('events', 'turf', 'night') and SP.available('events', 'policeChase', 'night') and SP.available('events', 'clubDay', 'day')
+    and not SP.available('events', 'clubDay', 'night') and SP.available('events', 'sponsor', 'day') and SP.available('events', 'classifieds', 'night') and SP.available('events', 'classifieds', 'day') and SP.available('events', 'tutorial', 'day'))
+  check('a kind nobody listed is on in both (new things are never hidden by accident); an unknown table too', SP.available('jobs', 'newjob', 'day') and SP.available('jobs', 'newjob', 'night') and SP.available('nothing', 'x', 'day') and SP.phaseOf('jobs', 'newjob') == 'both')
+  local board = { { kind = 'courier' }, { kind = 'hot' }, { kind = 'valet' }, { kind = 'part' }, { kind = 'food' } }
+  local dayBoard, nightBoard = SP.filter('jobs', board, 'day'), SP.filter('jobs', board, 'night')
+  check('a job board filtered by phase: day = courier and part, night = hot car, valet and food', #dayBoard == 2 and dayBoard[1].kind == 'courier' and dayBoard[2].kind == 'part' and #nightBoard == 3 and nightBoard[1].kind == 'hot')
+  check('filter with another way to read the kind, and no list', #SP.filter('places', { { t = 'shop' }, { t = 'meet' } }, 'night', function(x) return x.t end) == 1 and #SP.filter('jobs', nil, 'day') == 0)
+  check('what a closed thing says: shut for the night / only after dark / nothing when it is on', SP.closedText('places', 'shop', 'night'):find('night') ~= nil and SP.closedText('places', 'meet', 'day'):find('dark') ~= nil and SP.closedText('places', 'shop', 'day') == nil)
+  check('day pays money, night pays rep', SP.pays('day') == 'money' and SP.pays('night') == 'rep')
+  -- every kind the job board has today has an answer here (a new one without is on in both: say so in this table)
+  local known = true
+  for _, kind in ipairs({ 'part', 'courier', 'food', 'taxi', 'crush', 'transport', 'hot', 'testdrive', 'recovery', 'valet', 'move' }) do
+    if SP.JOBS[kind] == nil then known = false end
+  end
+  check('every job kind of the board is in the table', known)
 end
