@@ -505,7 +505,7 @@ end
 M.PRESPAWN = true
 local preCruisers, fadeUntil = 0, 0
 function M.onStreetLegalPhase(phase)
-  if phase == 'night' then meetsTonight, meetTimer = 0, 0 end
+  if phase == 'night' then meetsTonight, meetTimer = 0, spawnplan.MEET_FIRST end      -- (the first meet starts at once: the player has just switched, usually standing)
   if phase == 'night' and M.PRESPAWN and career() then preCruisers, fadeUntil = 2, os.clock() + 4 racelog.add('spawn', 'prespawn armed', { why = 'night phase' }) end
 end
 -- the career start and a fast travel are black fades too (the hook comes after the player has been moved)
@@ -678,20 +678,18 @@ local function meetHidden(pos)
   return spawnplan.hidden({ x = pos.x, y = pos.y }, { x = pp.x, y = pp.y, vx = pv.x, vy = pv.y }, cam)
 end
 
--- a meet's cars are built one by one with a gap, and only while the player is slow or far away (each build is a 1-1.6 s freeze: 6-11 in a row was a stutter train)
-local MEET_GAP, MEET_SLOW, MEET_FAR, MEET_MAX_WAIT = 6, 8, 300, 40
-local function meetCalm(pos)
+-- a meet's cars are built one by one, and a build freezes the whole game wherever the car is (distance hides nothing): so the gap depends on how he drives.
+-- Stopped or slow: 6 s. Moving: 10 s. Fast (15 m/s and up): 20 s, so a meet fills slowly while he cruises and quickly while he waits.
+-- (hitch recordings: 10 owner cars in 65 s while he drove past at 20 m/s was a stutter train)
+local MEET_GAPS = { slow = 6, mid = 10, fast = 20 }
+local MEET_SLOW, MEET_FAST = 8, 15
+local function meetGap()
   local v = getPlayerVehicle(0)
-  return not v or v:getVelocity():length() < MEET_SLOW or (v:getPosition() - pos):length() > MEET_FAR
+  local sp = v and v:getVelocity():length() or 0
+  return sp >= MEET_FAST and MEET_GAPS.fast or sp >= MEET_SLOW and MEET_GAPS.mid or MEET_GAPS.slow
 end
--- false: he kept driving fast near the meet for MEET_MAX_WAIT s: no more cars (a thinner meet, not a stutter; hitch recording: 11 builds in 45 s while he drove past)
-local function meetPace(job, pos)
-  local waited = 0
-  while not meetCalm(pos) do
-    if waited >= MEET_MAX_WAIT then return false end
-    job.sleep(1) waited = waited + 1
-  end
-  job.sleep(MEET_GAP)
+local function meetPace(job)
+  job.sleep(meetGap())
   return true
 end
 
@@ -702,7 +700,6 @@ local function startMeet(s)
   local rng = rngLib.new(rngLib.hash('meet' .. s.day .. math.floor(sl_career.hour())))
   local place = list[rng:int(#list)]
   if not meetHidden(place.pos) then return false end         -- tried again at the next chance
-  if not meetCalm(place.pos) then return false end           -- he is driving fast nearby: not now (the next try is 20 s later)
   local racers = {}
   for _, r in ipairs(s.racers) do
     if math.abs(r.rep - s.rep) < 1500 + s.rep * 0.5 and not cruisers[r.id] then racers[#racers + 1] = r end
@@ -729,9 +726,18 @@ local function startMeet(s)
       if not meetHidden(place.pos) then break end                -- he is coming: no more cars appear in front of him
       local pos, rot = nextSpot()
       if not pos then break end                                  -- no bay left: a small car park holds fewer cars
-      if not meetPace(job, place.pos) or not meetHidden(place.pos) then break end
+      meetPace(job)
+      if not meetHidden(place.pos) then break end
       local r = table.remove(racers, rng:int(#racers))
-      local veh = spawnRacer(job, s, r, pos, rot)
+      local veh = pool[r.id] and getObjectByID(pool[r.id])
+      if veh then          -- the racer's car waits in the pool: put on its bay, not built again
+        pool[r.id] = nil
+        veh:setActive(1)
+        spawn.safeTeleport(veh, pos, rot, true, nil, false, true, true)
+        racelog.add('spawn', 'pooled car reused at the meet', { racer = r.id })
+      else
+        veh = spawnRacer(job, s, r, pos, rot)
+      end
       if veh and meet then
         veh:queueLuaCommand('controller.setFreeze(1) input.event("parkingbrake", 1, FILTER_DIRECT) electrics.set_warn_signal(1)')
         meet.cars[r.id] = veh:getID()
@@ -750,7 +756,8 @@ local function startMeet(s)
       if not meet or not meetHidden(place.pos) then break end
       local pos, rot = nextSpot()
       if not pos then break end
-      if not meetPace(job, place.pos) or not meet or not meetHidden(place.pos) then break end
+      meetPace(job)
+      if not meet or not meetHidden(place.pos) then break end
       local veh = builder.buildCustom(job, c.model, c.config, { stage = rng:int(0, 2), seed = rngLib.hash(place.id .. ':' .. s.day .. ':' .. i) }, pos, rot)
       if veh and meet then
         veh:queueLuaCommand('controller.setFreeze(1) input.event("parkingbrake", 1, FILTER_DIRECT)')
