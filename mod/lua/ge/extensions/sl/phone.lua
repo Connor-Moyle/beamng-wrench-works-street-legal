@@ -204,8 +204,15 @@ local function playerAt()
   return p and { x = p.x, y = p.y } or nil
 end
 
+-- the Map's route, if it is still the one on the road; another path (a job's, a race's) set since drops it quietly and is left alone
+local function liveRoute()
+  if route and not mapLib.stillActive(core_groundMarkers and core_groundMarkers.endWP, route) then route = nil end
+  return route
+end
+
 function M.mapPlaces()
   if not career() then return end
+  liveRoute()
   local list = {}
   for id, p in pairs(sl_career.getPlaces() or {}) do
     if p.pos then list[#list + 1] = { id = id, name = p.name, kind = p.kind, x = p.pos.x, y = p.pos.y } end
@@ -231,7 +238,7 @@ function M.routeGarage()
 end
 
 function M.clearRoute()
-  if route and core_groundMarkers then core_groundMarkers.setPath(nil) end
+  if liveRoute() and core_groundMarkers then core_groundMarkers.setPath(nil) end
   route = nil
   M.mapPlaces()
 end
@@ -242,6 +249,7 @@ local function routeStep(dtReal)
   routeTimer = routeTimer + dtReal
   if routeTimer < 0.5 then return end
   routeTimer = 0
+  if not liveRoute() then return end
   if mapLib.arrived(playerAt(), route) then
     local name = route.name
     M.clearRoute()

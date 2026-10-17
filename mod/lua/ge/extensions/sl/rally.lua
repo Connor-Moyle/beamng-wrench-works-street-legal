@@ -57,6 +57,7 @@ end
 -- with a shared voicepack, from the car's place on the line. Without it (not loaded, a mission owns it) the text calls below stay the only ones.
 local VOICEPACK = { type = 'voicepack', id = 'global:ak_2026-06-15', scope = 'global', dirname = 'ak_2026-06-15' }
 M.CODRIVER = true
+local visualWas            -- the game's 'visual pacenotes' setting before a stage turned it on for the captions
 local function codriverOn(stage)
   if not M.CODRIVER then return false end
   local ok, err = pcall(function()
@@ -84,7 +85,6 @@ local function codriverGo()
   end)
   racelog.add('rally', 'codriver go', { ok = ok and 'yes' or 'no', why = ok and '' or tostring(err), ready = tostring(gameplay_rally and gameplay_rally.isReady and gameplay_rally.isReady()) })
 end
-local visualWas            -- the game's 'visual pacenotes' setting before a stage turned it on for the captions
 local function codriverOff()
   pcall(function() if gameplay_rally and gameplay_rally.unloadMission then gameplay_rally.unloadMission({ owner = 'external' }) end end)
   if visualWas ~= nil and settings and settings.setValue then pcall(settings.setValue, 'rallyVisualPacenotes', visualWas) end

@@ -39,6 +39,13 @@ function M.groups(places, from)
   return kinds
 end
 
+-- the game's ground markers keep the end of the route they show (core_groundMarkers.endWP, a list of positions or nil): the Map's route is still the one
+-- on the road only while that list is one point at the place the Map sent it to. A job (or anything else) that sets its own path replaces it.
+function M.stillActive(endWP, p)
+  if type(endWP) ~= 'table' or #endWP ~= 1 or not endWP[1] or not p then return false end
+  return math.abs(endWP[1].x - p.x) < 1 and math.abs(endWP[1].y - p.y) < 1
+end
+
 function M.arrived(from, p) return from ~= nil and p ~= nil and M.distance(from, p) <= M.ARRIVED end
 
 return M

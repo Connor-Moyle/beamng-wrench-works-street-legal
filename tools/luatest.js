@@ -16,3 +16,8 @@ if (status !== lua.LUA_OK) {
   console.error(to_jsstring(lua.lua_tostring(L, -1)));
   process.exit(1);
 }
+// undefined globals (a local helper used before it is defined, a typo): tools/globalcheck.js, which needs luaparse (npm i luaparse)
+try { require.resolve('luaparse'); } catch (e) { console.log('globalcheck skipped: luaparse is not installed'); process.exit(0); }
+const gc = require('child_process').spawnSync(process.execPath, [path.join(__dirname, 'globalcheck.js')], { encoding: 'utf8' });
+process.stdout.write(gc.stdout || '');
+if (gc.status !== 0) { console.error(gc.stderr || 'globalcheck failed'); process.exit(1); }

@@ -416,6 +416,9 @@ do
   check('map: groups in order, the odd kind last', #g == 4 and g[1].kind == 'garage' and g[2].kind == 'dealer' and g[3].kind == 'meet' and g[4].kind == 'zzz')
   check('map: nearest first, with metres', g[1].places[1].id == 'g1' and g[1].places[1].dist == 100 and g[1].places[2].dist == 500)
   check('map: no player, no distances, still listed', mapapp.groups(places, nil)[1].places[1].dist == nil and #mapapp.groups(places, nil) == 4)
+  check('map: the route is active only while it is the single end point at its place', mapapp.stillActive({ { x = 100, y = 200 } }, { x = 100.4, y = 199.6 })
+    and not mapapp.stillActive({ { x = 500, y = 0 } }, { x = 100, y = 200 }) and not mapapp.stillActive(nil, { x = 1, y = 1 }) and not mapapp.stillActive({}, { x = 1, y = 1 })
+    and not mapapp.stillActive({ { x = 100, y = 200 }, { x = 5, y = 5 } }, { x = 100, y = 200 }))
   check('map: arrival within 15 m', mapapp.arrived({ x = 10, y = 0 }, { x = 20, y = 0 }) and not mapapp.arrived({ x = 0, y = 0 }, { x = 20, y = 0 }) and not mapapp.arrived(nil, { x = 0, y = 0 }))
 end
 
