@@ -43,6 +43,10 @@ end
 -- ("covet_exhaust_sport_2" -> "Exhaust sport 2" with the model "covet")
 function M.displayName(name, partId, model)
   local n = M.text(name) or ''
+  if n:find('^ui%.') then                                  -- a game translation key ("ui.vehicleconfig.generic.wheelName"): translated when the game can, else the id in words
+    if type(translateLanguage) == 'function' then local ok, t = pcall(translateLanguage, n, n, true) if ok and type(t) == 'string' then n = t end end
+    if n:find('^ui%.') then n = '' end
+  end
   local internal = n == '' or n == tostring(partId) or (not n:find('%s') and (n:find('_', 1, true) or n:find('/', 1, true)))
   if not internal then return n end
   local s = M.text(partId) or n
