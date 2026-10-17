@@ -59,12 +59,16 @@ def job_part(d, r):
 JOBS = [
     ('part run', 0, False, lambda r: job_part(r.uniform(600, 2500), r), lambda r, d=None: 2 + r.uniform(600, 2500) / CITY_SPEED / 60, 6),
     ('courier', 0, False, lambda r: (round(max(120, r.uniform(400, 2500) / 1000 * 140 * (1.5 if r.random() < 0.2 else 1)), -1), 0.03), lambda r, d=None: 2 + r.uniform(400, 2500) / CITY_SPEED / 60, 6),
-    ('taxi', 0, False, lambda r: (max(60, round(40 + r.uniform(600, 2500) / 1000 * 90, -1)), 0.02), lambda r, d=None: 2.5 + r.uniform(600, 2500) / CITY_SPEED / 60, 6),
+    ('taxi', 0, False, lambda r: (max(60, round((40 + r.uniform(600, 2500) / 1000 * 90) * 1.25, -1)), 0.02), lambda r, d=None: 2.5 + r.uniform(600, 2500) / CITY_SPEED / 60, 6),
     ('food (night)', 0, True, lambda r: (120 + round(r.uniform(900, 3000) / 1000 * 60, -1), 0.03), lambda r, d=None: 3 + r.uniform(900, 3000) / CITY_SPEED / 60, 6),
     ('crushing run', 0, False, lambda r: (TUNE['crush_pay'], 0.05), lambda r, d=None: 2 + 1300 / 8 / 60, 6),
     ('car transport', 200, False, lambda r: (300 + round(r.uniform(1000, 2000) / 1000 * 120, -1), 0.15), lambda r, d=None: 2 + r.uniform(1000, 2000) / CITY_SPEED / 60, 6),
     ('recovery', 300, False, lambda r: (round(200 + r.uniform(500, 2500) / 1000 * 150, -1), 0.05), lambda r, d=None: 2.5 + r.uniform(500, 2500) / 8 / 60, 6),
     ('test driver', 600, False, lambda r: (round(TUNE['test_top'] - (r.uniform(1.15, 1.35) - 1.15) * TUNE['test_slope'], -2), 0.3), lambda r, d=None: 6.0, 6),
+    # day job variety (sl_jobs scrapparts / tow / dealerdrive; the taxi's pay carries an average comfort tip of a quarter of the fare)
+    ('scrapyard parts', 0, False, lambda r: (lambda d: (round(max(120, d / 1000 * 140 * 1.5), -1), 0.06))(r.uniform(1200, 3000)), lambda r, d=None: 2 + r.uniform(1200, 3000) / CITY_SPEED / 60, 6),
+    ('tow job', 300, False, lambda r: (lambda d: (round(240 + d / 1000 * 180, -1), 0.1))(r.uniform(600, 2500)), lambda r, d=None: 3 + r.uniform(600, 2500) / 6 / 60, 6),
+    ('dealer delivery', 200, False, lambda r: (lambda d: (320 + round(d / 1000 * 120, -1), 0.15))(r.uniform(800, 3000)), lambda r, d=None: 2 + r.uniform(800, 3000) / CITY_SPEED / 60, 6),
     ('hot car (night)', 1000, True, lambda r: (TUNE['hot_base'] + round(r.uniform(1000, 3000) / 1000 * TUNE['hot_per_km'], -2), 0.25), lambda r, d=None: 3 + r.uniform(1000, 3000) / CITY_SPEED / 60, 6),
     # suspected loop (review, B31): a quarter-mile "tune to spec" with the baseline run driven slowly on purpose, then a
     # $20 part and a real run: core/wwjobs pays the tier's purse plus the under-budget bonus for two strip runs

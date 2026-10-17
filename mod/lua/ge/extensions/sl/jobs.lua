@@ -263,7 +263,7 @@ local TYPES = {
       return { item = strings.t('jobs.dead_car'), legs = { { id = 'kerb', name = STREETS[rng:int(#STREETS)], x = k.x, y = k.y, z = k.z, radius = 14 }, stop }, metres = math.floor(metres),
         fragile = false, tow = true, hint = strings.t('jobs.hook_it_up'),
         car = { model = ({ 'pessima', 'legran', 'midsize', 'fullsize', 'van' })[rng:int(5)], wear = 0.5, limp = 0 },
-        seconds = math.max(360, math.floor(metres * 1.4 / 6 * 1.5)), pay = math.floor((260 + metres / 1000 * 200) / 10) * 10 }
+        seconds = math.max(360, math.floor(metres * 1.4 / 6 * 1.5)), pay = math.floor((240 + metres / 1000 * 180) / 10) * 10 }
     end },
   -- a new car from the dealer to the customer's door: any scratch (Car Surface FX) or dent and it pays nothing
   { kind = 'dealerdrive', title = strings.t('jobs.dealer_delivery'), unlock = 200, offer = function(ctx, rng)
@@ -274,7 +274,7 @@ local TYPES = {
       local model = ({ 'vivace', 'sunburst2', 'etk800', 'bastion', 'scintilla' })[rng:int(5)]
       return { item = strings.t('jobs.new_1_for_a_customer', model), legs = { leg(from), { id = 'kerb', name = strings.t('jobs.the_customer_s_door'), x = k.x, y = k.y, z = k.z } },
         metres = math.floor(metres), fragile = true, scratchCheck = true, car = { model = model, wear = 0 },
-        seconds = math.max(180, math.floor(metres * 1.4 / jobsLib.SPEED * 1.4)), pay = 350 + math.floor(metres / 1000 * 130 / 10) * 10 }
+        seconds = math.max(180, math.floor(metres * 1.4 / jobsLib.SPEED * 1.4)), pay = 320 + math.floor(metres / 1000 * 120 / 10) * 10 }
     end },
 }
 M.TYPES = TYPES
