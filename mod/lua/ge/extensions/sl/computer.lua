@@ -95,6 +95,13 @@ function M.open(id)
   local s = sl_career.getState()
   at = { id = id, pos = posOf(f), functions = f.functions }
   local view, byCar = buildViews(s)
+  do      -- (B61: what this computer offers and which tiles came of it, for the log)
+    local fn, tiles = {}, {}
+    for k in pairs(at.functions or {}) do fn[#fn + 1] = k end
+    table.sort(fn)
+    for _, g in ipairs(view.groups or {}) do for _, t in ipairs(g.tiles) do tiles[#tiles + 1] = t.label .. (t.enabled and '' or ' (off: ' .. tostring(t.reason) .. ')') end end
+    if log then log('I', 'sl_computer', 'laptop ' .. tostring(id) .. ' functions [' .. table.concat(fn, ',') .. '] tiles [' .. table.concat(tiles, '; ') .. '] classifieds=' .. tostring(sl_career.has('classifieds'))) end
+  end
   if sl_phone and sl_phone.request then sl_phone.request() end
   guihooks.trigger('slLaptopOpen', { name = name(f), groups = view.groups, byCar = byCar, lists = view.lists, parts = shelf(s), wallpaper = wallpaper() })
 end
