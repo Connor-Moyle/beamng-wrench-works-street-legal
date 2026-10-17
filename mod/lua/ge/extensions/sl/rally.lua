@@ -62,7 +62,7 @@ local function codriverOn(stage)
   local ok, err = pcall(function()
     pcall(extensions.load, 'gameplay_rally')
     if not gameplay_rally then error('gameplay_rally is not loaded') end
-    local loaded, why = gameplay_rally.loadMission('sl_' .. stage.id, '/street_legal/rally/stages/' .. stage.id, nil, VOICEPACK, { owner = 'external' })
+    local loaded, why = gameplay_rally.loadMission(tostring(sl_career.LEVEL) .. '/rallyStage/sl_' .. stage.id, '/street_legal/rally/stages/' .. stage.id, nil, VOICEPACK, { owner = 'external' })
     if not loaded then error(tostring(why)) end
   end)
   racelog.add('rally', 'codriver', { stage = stage.id, ok = ok and 'yes' or 'no', why = ok and '' or tostring(err) })

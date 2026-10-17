@@ -126,7 +126,20 @@ def race(stage, pts, tan):
                                {"group": "start", "name": "SS_stop_control", "oldId": 3, "pos": [round(c, 3) for c in pts[-1]], "rot": quat_for(tan[-1])}]}
 
 
+PAD_NODES = 10        # nodes of straight road added before the start and after the finish (the game wants the driveline to reach beyond both)
+PAD_STEP = 5.0
+
+
+def padded(pts, tan):
+    """The stage's line with a straight lead-in and run-out, so the first note's start and the finish line both lie on the driveline."""
+    t0, t1 = tan[0], tan[-1]
+    before = [[pts[0][j] - t0[j] * PAD_STEP * k for j in range(3)] for k in range(PAD_NODES, 0, -1)]
+    after = [[pts[-1][j] + t1[j] * PAD_STEP * k for j in range(3)] for k in range(1, PAD_NODES + 1)]
+    return before + [list(p) for p in pts] + after, [t0] * PAD_NODES + list(tan) + [t1] * PAD_NODES
+
+
 def spline(stage, pts, tan):
+    pts, tan = padded(pts, tan)
     return {"name": "Rally Driveline", "version": 1, "isLoop": False, "nodes": [[round(c, 3) for c in p] for p in pts],
             "nmls": [[round(c, 5) for c in t] for t in tan],
             "properties": {"liaisonAllocatedTimeMins": 5, "useRaycast": True, "speedLimitKph": 100, "vertRayRaise": 2},
