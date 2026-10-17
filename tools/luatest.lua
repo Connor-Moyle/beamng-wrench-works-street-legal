@@ -1649,4 +1649,58 @@ do -- the car must not become unspawnable: only detachable parts are ever struck
     and tree.children.bumper.chosenPartName == '')
 end
 
+-- the weather extension itself, run against a mocked game (a smoke test: this chain broke once without any offline test noticing): sl_weather.onUpdate must move the rain
+-- box to the camera, hand the wetness and the rain intensity to sl_puddlefx.update every frame, and set the drops, also for a game test with no career (debugForce)
+do
+  local saved = {}
+  local function setg(name, value) saved[name] = { _G[name] } _G[name] = value end
+  local drops, updates, lastUpdate, cleared = {}, 0, nil, 0
+  local rain = { numOfDrops = 0, minSpeed = 0.35, maxSpeed = 0.4, pos = { x = -402, y = 73, z = 272 } }
+  function rain:setPosition(p) self.pos = p end
+  function rain:getPosition() return self.pos end
+  function rain:setField() end
+  function rain:getField() return '' end
+  local active = true
+  setg('vec3', function(a, b, c) return { x = a, y = b, z = c } end)
+  setg('log', function() end)
+  setg('getObjectsByClass', function(class) if class == 'Precipitation' then return { rain } end return {} end)
+  setg('core_camera', { getPosition = function() return { x = -750, y = 396, z = 144 } end })
+  setg('core_environment', { setPrecipitation = function(n) drops[#drops + 1] = n end, setCloudCover = function() end, setCloudCirrusCoverage = function() end,
+    setCloudCirrusDensity = function() end, setFogDensity = function() end, setGroundWind = function() end, getGroundWind = function() return { x = 0, y = 0, z = 0 } end })
+  setg('extensions', { hook = function() end })
+  setg('getPlayerVehicle', function() return nil end)
+  setg('sl_career', { isActive = function() return active end, getState = function() return { seed = 5, day = 2 } end, phase = function() return 'day' end })
+  setg('sl_puddlefx', { update = function(dt, wet, intensity) updates = updates + 1 lastUpdate = { dt = dt, wet = wet, intensity = intensity } end, clear = function() cleared = cleared + 1 end,
+    stats = function() return {}, 0 end })
+  package.loaded['sl/weather'] = nil
+  local W = require('sl/weather')
+  W.debugForce('rain', 'heavy')
+  W.onUpdate(0.1)
+  check('weather smoke: the rain box is moved to the camera', rain.pos.x == -750 and rain.pos.y == 396 and rain.pos.z == 144)
+  check('weather smoke: sl_puddlefx.update is called every frame with the wetness and the rain intensity', updates >= 1 and lastUpdate.wet == 1 and lastUpdate.intensity > 0.9 and lastUpdate.dt == 0.1, updates .. ' ' .. tostring(lastUpdate and lastUpdate.wet) .. ' ' .. tostring(lastUpdate and lastUpdate.intensity))
+  check('weather smoke: the heavy rain sets the drop count through the game call', #drops >= 1 and drops[#drops] > 1500)
+  rain.pos = { x = 1, y = 2, z = 3 }
+  local before = updates
+  W.onUpdate(0.1)
+  check('weather smoke: and keeps following on the next frame', rain.pos.x == -750 and updates == before + 1)
+  -- no career at all (a game test, the career not started): the forced weather still runs
+  active = false
+  rain.pos = { x = 1, y = 2, z = 3 }
+  W.onUpdate(0.1)
+  check('weather smoke: debugForce works without a career too (rain box, puddles)', rain.pos.x == -750 and updates == before + 2)
+  -- and without a camera it falls back to the player's vehicle
+  core_camera.getPosition = function() return nil end
+  getPlayerVehicle = function() return { getPosition = function() return { x = 9, y = 8, z = 7 } end, getJBeamFilename = function() return 'covet' end, queueLuaCommand = function() end } end
+  W.onUpdate(0.1)
+  check('weather smoke: with no camera position the rain follows the player\'s vehicle', rain.pos.x == 9 and rain.pos.y == 8)
+  W.onStreetLegalStopped()
+  check('weather smoke: the career stopping clears the puddles', cleared >= 1)
+  active = false
+  local n = updates
+  W.onUpdate(0.1)
+  check('weather smoke: with no career and nothing forced the weather does nothing', updates == n)
+  for name, v in pairs(saved) do _G[name] = v[1] end
+  package.loaded['sl/weather'] = nil
+end
+
 print(string.format('lua tests passed: %d checks', passed))

@@ -23,6 +23,12 @@ M.flags = { gust = true }      -- the shower swells and ebbs, its wind drifts (s
 local gustSeed = 0
 local windBase                 -- the level's own ground wind, put back when the career stops
 local lastKey
+local ticks, errors = 0, {}   -- onUpdate frames run, and the first error of each part (a failing part must not hide the others, nor stay unseen)
+local function guarded(name, fn, ...)
+  local ok, err = pcall(fn, ...)
+  if not ok and not errors[name] then errors[name] = tostring(err) log('E', 'sl_weather', name .. ' failed: ' .. tostring(err)) end
+end
+local forced = false       -- a game test put the weather in a state (debugForce): the career's own weather does not replace it, and no career is needed for it to run
 
 local wet = 0                    -- how wet the roads are, 0..1
 local lastRain                   -- the rain that wet them (core/weather.resolve), for the grip it leaves
@@ -135,6 +141,7 @@ end
 
 -- the state of this phase of this day; a new one is blended in
 local function sync()
+  if forced then return end
   local s = career()
   if not s then return end
   readBaseline()
@@ -180,17 +187,28 @@ end
 -- the level's rain is a box of drops at a fixed place (WCUSA's WCA_rain sits ~100 m from where you drive): it follows the camera (followCam where the object has it,
 -- and moved to the camera each frame as well)
 local followLogged = false
+local noCamLogged = false
 local function followRain()
   local rain = first('Precipitation')
   if not rain then return end
+  -- where the player looks from: the active camera; failing that the player's own vehicle (the rain box must be over the player, wherever it was left)
   local ok, cam = pcall(function() return core_camera and core_camera.getPosition and core_camera.getPosition() end)
-  if not (ok and cam) then return end
+  local source = 'camera'
+  if not (ok and cam and cam.x) then
+    local v = getPlayerVehicle and getPlayerVehicle(0)
+    ok, cam = pcall(function() return v and v:getPosition() end)
+    source = 'player vehicle'
+  end
+  if not (ok and cam and cam.x) then
+    if not noCamLogged then noCamLogged = true log('W', TAG, 'rain cannot follow the player: no camera position and no player vehicle') end
+    return
+  end
   if not followLogged then
     followLogged = true
     local f, at = nil, nil
     pcall(function() f = rain:getField('followCam', 0) at = rain:getPosition() end)
     pcall(function() rain:setField('followCam', 0, 'true') rain:setField('boxWidth', 0, '70') rain:setField('boxHeight', 0, '70') end)
-    log('I', TAG, string.format('rain follows the camera: followCam was %s, the rain stood at %s, the camera is at %s', tostring(f), tostring(at), tostring(cam)))
+    log('I', TAG, string.format('rain follows the %s: followCam was %s, the rain stood at %s, the %s is at %s', source, tostring(f), tostring(at), source, tostring(cam)))
   end
   pcall(function() rain:setPosition(vec3(cam.x, cam.y, cam.z)) end)
 end
@@ -203,7 +221,7 @@ function M.onStreetLegalPhase() sync() end
 function M.onStreetLegalNewDay() sync() end
 
 function M.onUpdate(dtReal)
-  if not career() then return end
+  if not career() and not forced then return end
   if not baseline or not lastKey then sync() end
   dtReal = dtReal or 0
   if target and blendT < 1 then
@@ -213,7 +231,8 @@ function M.onUpdate(dtReal)
     if applyTimer > 0.2 or blendT >= 1 then applyTimer = 0 applySky(current) end      -- (the objects are applied a few times a second, not every frame)
   end
   wet = rules.wetStep(wet, target and target.wet or 0, dtReal)
-  if current and (current.drops or 0) > 0 then followRain() end
+  ticks = ticks + 1
+  if current and (current.drops or 0) > 0 then guarded('followRain', followRain) end
   -- the shower is not steady: every second the drop count and the wind follow the gust (while the sky is still blending applySky does it)
   gustTimer = gustTimer + dtReal
   if gustTimer > 1 and current and (current.drops or 0) > 0 and blendT >= 1 and M.flags.gust then
@@ -226,7 +245,7 @@ function M.onUpdate(dtReal)
       pcall(env.setGroundWind, math.cos(a) * speed, math.sin(a) * speed, 0)
     end
   end
-  if sl_puddlefx then sl_puddlefx.update(dtReal, wet, current and math.min(1, (current.drops or 0) / 3000) or 0) end      -- (puddles, ripples, wheel spray, wet trails: sl/puddlefx.lua)
+  if sl_puddlefx then guarded('puddlefx.update', sl_puddlefx.update, dtReal, wet, current and math.min(1, (current.drops or 0) / 3000) or 0) else guarded('no puddlefx', function() error('sl_puddlefx is not loaded') end) end      -- (puddles, ripples, wheel spray, wet trails: sl/puddlefx.lua)
   tintTimer = tintTimer + dtReal
   if tintTimer > 0.5 then
     tintTimer = 0
@@ -239,6 +258,7 @@ end
 
 -- for a game test: put the weather in this state at once (no blend), e.g. sl_weather.debugForce('rain', 'heavy')
 function M.debugForce(id, level)
+  forced = true
   readBaseline()
   stateId, levelId = id or 'rain', level or 'medium'
   local st = rules.resolve(stateId, levelId)
@@ -252,10 +272,13 @@ function M.debugForce(id, level)
   return stateId, levelId
 end
 
+-- ends a debugForce: the career's own weather takes over again at once
+function M.debugRelease() forced = false lastKey = nil return 'released' end
+
 -- the numbers a game test looks at: what the objects say now
 function M.diagnose()
   local rain, cloud, info, sky = first('Precipitation'), first('CloudLayer'), first('LevelInfo'), first('ScatterSky')
-  local out = { state = stateId, level = levelId, wet = wet, puddles = sl_puddlefx and select(2, sl_puddlefx.stats()) or 0, stats = sl_puddlefx and (sl_puddlefx.stats()) or nil,
+  local out = { state = stateId, level = levelId, wet = wet, ticks = ticks, errors = errors, forced = forced, blendT = blendT, followLogged = followLogged, puddlefxLoaded = sl_puddlefx ~= nil, puddles = sl_puddlefx and select(2, sl_puddlefx.stats()) or 0, stats = sl_puddlefx and (sl_puddlefx.stats()) or nil,
     rain = rain and { numOfDrops = rain.numOfDrops, numDrops = rain.numDrops, minSpeed = rain.minSpeed, maxSpeed = rain.maxSpeed } or false,
     cloud = cloud and { coverage = cloud.coverage, cirrusCoverage = cloud.cirrusCoverage, cirrusDensity = cloud.cirrusDensity } or false,
     fog = info and info.fogDensity or false, tint = current and current.tint, sunScale = sky and sky:getField('sunScale', 0) or false, fogScale = sky and sky:getField('fogScale', 0) or false }
@@ -264,6 +287,7 @@ function M.diagnose()
 end
 
 local function reset()
+  forced = false
   if sl_puddlefx then sl_puddlefx.clear() end
   baseline, current, target, lastKey, blendFrom = nil, nil, nil, nil, nil
   wet, lastRain, followLogged = 0, nil, false
