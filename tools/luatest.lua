@@ -2006,6 +2006,9 @@ do -- kinds of night race (core/racekinds)
   local c3 = { city = 0, highway = 0, hill = 0, rolling = 0 }
   for _ = 1, 2000 do local id = RK.choose(r2, { rolling = true, have = { highway = false, rolling = false } }) c3[id] = c3[id] + 1 end
   check('racekinds: a kind the map does not have is never chosen', c3.highway == 0 and c3.rolling == 0 and c3.city > 0 and c3.hill > 0)
+  local STR = require('sl/core/strings')
+  local shown = STR.t('streets.kind_bonus', STR.t('streets.kind_highway'), 250)
+  check('racekinds: the bonus text is filled in (' .. shown .. ')', shown == 'Highway run: $250 extra for the win.')
   check('racekinds: bonus: city 0, highway 25 %, rolling 40 %, doubled at heat 5 for the highway, 0 without a bet or a kind',
     RK.bonus('city', 1000, 0) == 0 and RK.bonus('highway', 1000, 0) == 250 and RK.bonus('rolling', 1000, 0) == 400 and RK.bonus('highway', 1000, 5) == 500 and RK.bonus('hill', 0, 3) == 0 and RK.bonus('nope', 500, 1) == 0)
 end
