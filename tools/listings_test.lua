@@ -436,9 +436,9 @@ return function(check, rngLib)
   check('a clear lot: the first rear quarter (145 degrees)', math.abs(yaw0 - math.rad(145)) < 1e-9 and f0 == 1)
   local fdist, fpitch = LC.frame(5.5)
   local eye0 = LC.eyeAt(car, facing, yaw0, fpitch, fdist)
-  check('the eye is behind the car and to its side, 1.5 m above its centre (about 2.3 m above the ground), 6.5 to 10 m out', eye0.y < car.y and math.abs(eye0.x - car.x) > 2.5 and math.abs(eye0.z - car.z - LC.EYE_UP) < 0.01
+  check('the eye is behind the car and to its side, EYE_UP above its centre (a low hero shot), 6.5 to 10 m out', eye0.y < car.y and math.abs(eye0.x - car.x) > 2.5 and math.abs(eye0.z - car.z - LC.EYE_UP) < 0.01
     and fdist >= 6.5 and fdist <= 10 and math.abs(math.sqrt((eye0.x - car.x) ^ 2 + (eye0.y - car.y) ^ 2) - fdist * math.cos(fpitch)) < 1e-6)
-  check('the eye is raised 5 to 20 degrees above the car for an ordinary car', math.deg(fpitch) > 5 and math.deg(fpitch) < 20)
+  check('the eye is raised 2 to 20 degrees above the car for an ordinary car (low hero shot)', math.deg(fpitch) > 2 and math.deg(fpitch) < 20)
   local small, _ = LC.frame(2.5)
   local big, _ = LC.frame(30)
   check('the distance follows the car size: never under 6.5 m, never over 10 m, more for a bigger car', small == 6.5 and big == 10 and LC.frame(8) > LC.frame(5))

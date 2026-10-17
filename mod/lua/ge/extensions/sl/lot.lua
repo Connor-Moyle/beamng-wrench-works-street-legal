@@ -172,7 +172,8 @@ local function updateCamera(dt)
       cam.glide = { t = 0, fp = { x = cam.pos.x, y = cam.pos.y, z = cam.pos.z }, fl = { x = cam.look.x, y = cam.look.y, z = cam.look.z } }
     end
   end
-  local eye = lotcam.pull(t, lotcam.eyeAt(t, dir, cam.yaw, cam.pitch, cam.dist), wallRay)       -- (never inside a building)
+  cam.t = (cam.t or 0) + math.min(dt, 0.1)
+  local eye = lotcam.pull(t, lotcam.eyeAt(t, dir, cam.yaw + lotcam.sway(cam.t), cam.pitch, cam.dist), wallRay)       -- (never inside a building)
   local want = vec3(eye.x, eye.y, eye.z)
   local k = 1 - math.exp(-4 * math.min(dt, 0.1))
   local aim = target - vec3(0, 0, lotcam.DROP * cam.dist)       -- (aimed below the car: it stands in the upper part of the screen, above the info card)
@@ -457,32 +458,55 @@ end
 ----------------------------------------------------------------------------------------------
 -- buying, test driving, selling
 
--- a car just bought: the camera glides from where it is to behind the car (where the game's own chase camera stands), then the player is put in
--- the car WHERE IT STANDS (the row beside it is gone, so it can drive straight out)
-local BUY_GLIDE = 1.3
+-- a car just bought: a short reveal (the camera glides to the car's front quarter, orbits round it pushing in, and ends where the game's chase
+-- camera stands), then the player is put in the car WHERE IT STANDS (the row beside it is gone, so it can drive straight out).
+-- M.skip() (the Skip button, B on the pad) ends the orbit with a quick glide to the same end pose: never a cut.
+local BUY_GLIDE, REVEAL = 1.0, 3.0
+local reveal
+function M.skip() if reveal then reveal.skip = true end end
 local function getInWhereItStands(veh)
   local id = veh:getID()
   veh:queueLuaCommand('controller.setFreeze(0) input.event("parkingbrake", 0, FILTER_DIRECT)')
+  reveal = {}
+  guihooks.trigger('slLotData', { open = true, mode = 'reveal' })
   core_jobsystem.create(function(j)
     local v = getObjectByID(id)
     local from = cam and cam.pos and cam.look and { pos = cam.pos, look = cam.look }
-    if v and from then
-      local c, f = v:getSpawnWorldOOBB():getCenter(), vec3(v:getDirectionVector())
-      f = vec3(f.x, f.y, 0):normalized()
-      local toPos, toLook = c - f * 7.5 + vec3(0, 0, 2.4), c + vec3(0, 0, 0.4)
+    local function put(p, l)
+      local sf = core_camera.getGlobalCameras and core_camera.getGlobalCameras().scriptedFree
+      if sf and sf.setPose and core_camera.getActiveCamName(0) == 'scriptedFree' then
+        local yawDeg, pitchDeg = lotcam.angles(l.x - p.x, l.y - p.y, l.z - p.z)
+        sf:setPose(vec3(p.x, p.y, p.z), yawDeg, pitchDeg, 0)
+      end
+    end
+    -- runs frame(t) for `dur` seconds (the real clock, so a slow frame does not stretch it); stops early when skipped
+    local function run(dur, frame)
       local t, last = 0, os.clock()
       repeat
         j.sleep(0.016)
         local now = os.clock()
         t, last = t + math.min(now - last, 0.1), now
-        local p, l = lotcam.glide({ x = from.pos.x, y = from.pos.y, z = from.pos.z }, toPos, { x = from.look.x, y = from.look.y, z = from.look.z }, toLook, t, BUY_GLIDE, 0)
-        local sf = core_camera.getGlobalCameras and core_camera.getGlobalCameras().scriptedFree
-        if sf and sf.setPose and core_camera.getActiveCamName(0) == 'scriptedFree' then
-          local yawDeg, pitchDeg = lotcam.angles(l.x - p.x, l.y - p.y, l.z - p.z)
-          sf:setPose(vec3(p.x, p.y, p.z), yawDeg, pitchDeg, 0)
-        end
-      until t >= BUY_GLIDE
+        frame(math.min(t, dur))
+      until t >= dur or reveal.skip
     end
+    if v and from then
+      local c, f = v:getSpawnWorldOOBB():getCenter(), vec3(v:getDirectionVector())
+      f = vec3(f.x, f.y, 0):normalized()
+      local cc, ff = { x = c.x, y = c.y, z = c.z }, { x = f.x, y = f.y }
+      local p0, l0 = lotcam.reveal(cc, ff, 0)
+      local fp, fl = { x = from.pos.x, y = from.pos.y, z = from.pos.z }, { x = from.look.x, y = from.look.y, z = from.look.z }
+      local pos, look = fp, fl
+      run(BUY_GLIDE, function(t) local p, l = lotcam.glide(fp, p0, fl, l0, t, BUY_GLIDE, 0); pos, look = p, l; put(p, l) end)
+      if not reveal.skip then run(REVEAL, function(t) local p, l = lotcam.reveal(cc, ff, t / REVEAL); pos, look = p, l; put(p, l) end) end
+      if reveal.skip then
+        local p1, l1 = lotcam.reveal(cc, ff, 1)
+        local sp, sl = pos, look
+        reveal.skip = false
+        run(0.5, function(t) local p, l = lotcam.glide(sp, p1, sl, l1, t, 0.5, 0); put(p, l) end)
+      end
+    end
+    reveal = nil
+    guihooks.trigger('slLotData', { open = false })
     v = getObjectByID(id)
     if v then
       if gameplay_walk and gameplay_walk.getInVehicle then gameplay_walk.getInVehicle(v) else be:enterVehicle(0, v) end

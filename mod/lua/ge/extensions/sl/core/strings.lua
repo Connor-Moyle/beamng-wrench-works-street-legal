@@ -386,6 +386,7 @@ M.TEXT = {
   ["ui.show_the_way"] = "Show the way",
   ["ui.show_the_way_to"] = "Show the way to ",
   ["ui.shut_down"] = "Shut down",
+  ["ui.skip"] = "Skip",
   ["ui.skip_any_event_it_only"] = " skip any event, it only costs its points",
   ["ui.skip_the_tutorial"] = "Skip the tutorial",
   ["ui.small_ads_go_fast"] = ". Small ads go fast.",

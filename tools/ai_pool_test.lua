@@ -135,7 +135,7 @@ return function(check, rngLib)
   check('slow at both ends (smoothstep: no jerk), the middle fastest', pa.x < 0.1 and pb.x > 29.9)
   local pOver = LCG.glide(A, B, LA, LB, 5, 0.8)
   local pUnder = LCG.glide(A, B, LA, LB, -1, 0.8)
-  check('time outside the glide is clamped; the defaults are 0.8 s and 1.2 m', pOver.x == 30 and pUnder.x == 0 and LCG.GLIDE == 0.8 and LCG.GLIDE_LIFT == 1.2)
+  check('time outside the glide is clamped; the defaults are 1.6 s and 0.9 m', pOver.x == 30 and pUnder.x == 0 and LCG.GLIDE == 1.6 and LCG.GLIDE_LIFT == 0.9)
 
   -- D2: what belongs to the day and what to the night (sl/core/splitphase)
   local SP = require('sl/core/splitphase')

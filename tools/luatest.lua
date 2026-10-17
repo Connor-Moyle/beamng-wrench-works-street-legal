@@ -1284,4 +1284,17 @@ do -- A2: a lot shows cars of its own tier
   check('a used lot is priced at about half the value', minmax(tiers.within(cars, 'mid', 'used', 3)) >= 12000 * 0.6 / 0.55 - 1)
 end
 
+-- lot camera (C2): the purchase reveal ends exactly on the chase pose, pushes in at the middle, and the sway stays bounded
+do
+  local lotcam = require('sl/core/lotcam')
+  local c, f = { x = 10, y = 20, z = 1 }, { x = 0, y = 1 }
+  local p1 = lotcam.reveal(c, f, 1)
+  check('reveal ends 7.5 m behind and 2.4 m up', math.abs(p1.x - 10) < 1e-6 and math.abs(p1.y - 12.5) < 1e-6 and math.abs(p1.z - 3.4) < 1e-6)
+  local function dist(p) return math.sqrt((p.x - c.x) ^ 2 + (p.y - c.y) ^ 2) end
+  check('reveal starts at 7.5 m and pushes in to 5.2 m', math.abs(dist(lotcam.reveal(c, f, 0)) - 7.5) < 1e-6 and math.abs(dist(lotcam.reveal(c, f, 0.5)) - 5.2) < 1e-6)
+  local worst = 0
+  for i = 0, 400 do worst = math.max(worst, math.abs(lotcam.sway(i * 0.25))) end
+  check('sway is bounded', worst <= lotcam.SWAY + 1e-9 and worst > lotcam.SWAY * 0.9)
+end
+
 print(string.format('lua tests passed: %d checks', passed))

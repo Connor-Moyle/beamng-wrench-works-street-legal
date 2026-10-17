@@ -1004,6 +1004,7 @@
     function lotView() {
       var l = st.lot;
       if (!l || !l.open) return '';
+      if (l.mode === 'reveal') return '<div class="slp-lot"><div class="slp-lotleave"><div class="slp-btn slp-text" data-a="lot" data-v="skip()">' + T('ui.skip', 'Skip') + '</div></div></div>';
       if (l.mode === 'test') {
         return ('<div class="slp-hudtest">' + T('ui.test_drive', 'Test drive ') + '&middot;' + ' ') + mmss(l.testLeft) + T('ui.left_middot_bring_it_back', ' left &middot; bring it back to ') + esc(l.name) +
           ('<div class="slp-btn slp-tonal" data-a="lot" data-v="endTest()">' + T('ui.done', 'Done') + '</div></div>');
