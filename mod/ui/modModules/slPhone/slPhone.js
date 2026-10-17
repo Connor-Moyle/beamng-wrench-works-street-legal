@@ -1053,6 +1053,9 @@
     // ---------------------------------------------------------------- the lots, a meet, a race
     function mmss(sec) { sec = Math.max(0, Math.round(sec || 0)); return Math.floor(sec / 60) + ':' + two(sec % 60); }
 
+    // a lot with its menu on screen (not the test drive: then you are driving) takes the pill and the heads-up out of the way
+    function lotHides() { return !!(st.lot && st.lot.open && st.lot.mode !== 'test'); }
+
     function lotView() {
       var l = st.lot;
       if (!l || !l.open) return '';
@@ -1332,10 +1335,10 @@
         (st.call ? callPage() : '') +
         '<div class="slp-nav"><div data-a="back">' + NAV.back + '</div><div data-a="home">' + NAV.home + '</div><div data-a="away">' + NAV.recent + '</div></div></div>';
       var hu = st.hu;
-      var huHtml = '<div class="slp-hu' + (hu && !st.open && !(st.lot && st.lot.open) ? '' : ' slp-gone') + '" data-a="openthread" data-v="' + esc(hu ? hu.thread : '') + '">' +
+      var huHtml = '<div class="slp-hu' + (hu && !st.open && !lotHides() ? '' : ' slp-gone') + '" data-a="openthread" data-v="' + esc(hu ? hu.thread : '') + '">' +
         (hu ? avatar({ id: hu.thread, name: hu.name }) + ('<div><small>' + T('ui.messages', 'Messages ') + '&middot;' + ' now' + '</small><b>') + esc(hu.name) + '</b><span>' + esc(hu.text) + '</span></div>' : '') + '</div>';
       var html =
-        '<div class="slp-pill"' + (st.open || (st.lot && st.lot.open) ? ' style="display:none"' : '') + '><b>' + money(d.money) + '</b><span>' + esc(d.title) + '</span>' +
+        '<div class="slp-pill"' + (st.open || lotHides() ? ' style="display:none"' : '') + '><b>' + money(d.money) + '</b><span>' + esc(d.title) + '</span>' +
           (d.phase ? '<span>' + (d.phase === 'night' ? '&#9790;' : '&#9728;') + '</span>' : '') + (d.heat > 0 ? '<span style="color:#ff6a4a">' + '&#9650;'.repeat(d.heat) + '</span>' : '') + (d.phase === 'night' && d.atRisk > 0 ? '<span style="color:#ffb74a">+' + d.atRisk + (T('ui.at_risk', ' at risk') + '</span>') : '') + '<span>' + two(d.hour || 0) + ':' + two(d.minute || 0) + '</span></div>' +
         '<div class="slp-device' + (st.open ? '' : ' slp-away') + '" style="transform:' + (st.open ? '' : 'translateY(70%) ') + 'scale(' + scale() + ')">' + screen + '</div>' +
         lotView() + garageView() + stationView() + meetView() + raceView() +
@@ -1671,7 +1674,11 @@
         case 'slGameOver': st.gameOver = data && data.day ? data : null; render(); break;
         case 'slFade': st.fade = !!data.on; render(); break;
         case 'slLotBars': bars.classList.toggle('slp-on', !!data.on); layer.classList.toggle('slp-barson', !!data.on); break;
-        case 'slLotData': st.lot = data.open ? data : null; render(); break;
+        case 'slLotData':
+          st.lot = data.open ? data : null;
+          if (!data.open) { bars.classList.remove('slp-on'); layer.classList.remove('slp-barson'); }      // (no lot: no bars, whatever the Lua side last said)
+          render();
+          break;
         case 'slMeet': st.meet = data.open ? data : null; render(); break;
         case 'slStation': st.station = data.open ? data : null; render(); break;
         case 'slGarage': st.garage = data.open ? data : null; render(); break;

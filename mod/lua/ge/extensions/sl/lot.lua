@@ -692,7 +692,7 @@ local function getInWhereItStands(veh, car, wait)
   reveal = {}
   guihooks.trigger('slLotData', { open = true, mode = 'reveal' })
   setBars(true)
-  core_jobsystem.create(function(j)
+  local function revealJob(j)
     if car then id = withDriverProps(j, veh, car, wait or 0) end
     local v = id and getObjectByID(id)
     local from = cam and cam.shown or (cam and cam.pos and cam.look and { pos = cam.pos, look = cam.look })
@@ -739,12 +739,17 @@ local function getInWhereItStands(veh, car, wait)
         put(lotcam.arc(cc, sp, p1, u * u * (3 - 2 * u)), l)       -- (round the car to the chase pose, not through it)
       end)
     end
+  end
+  -- whatever happens in the reveal (an error included), the screen, the camera and the game's UI come back
+  core_jobsystem.create(function(j)
+    local ok, err = pcall(revealJob, j)
+    if not ok then log('E', 'street_legal', 'the purchase reveal failed: ' .. tostring(err)) end
     reveal = nil
     setBars(false)
     guihooks.trigger('slLotData', { open = false })
-    v = id and getObjectByID(id)
+    local v = id and getObjectByID(id)
     if v then
-      if gameplay_walk and gameplay_walk.getInVehicle then gameplay_walk.getInVehicle(v) else be:enterVehicle(0, v) end
+      pcall(function() if gameplay_walk and gameplay_walk.getInVehicle then gameplay_walk.getInVehicle(v) else be:enterVehicle(0, v) end end)
     end
     j.sleep(0.2)
     cameraOff()                                  -- (a no-op once the game has put its own camera on the car)
@@ -1079,7 +1084,7 @@ function M.onUpdate(dtReal)
 end
 
 function M.request() send() end
-function M.onStreetLegalStopped() gameUi(true) if lot then dropCars() lightsOff() cameraOff() end lot, test = nil, nil unmuteCars() send() end
-function M.onClientEndMission() gameUi(true) lot, test, lights, cam = nil, nil, {}, nil unmuteCars() end
+function M.onStreetLegalStopped() reveal = nil gameUi(true) fxStop() setBars(false) if lot then dropCars() lightsOff() cameraOff() end lot, test = nil, nil unmuteCars() send() end
+function M.onClientEndMission() reveal = nil gameUi(true) fxStop() setBars(false) guihooks.trigger('slLotData', { open = false }) lot, test, lights, cam = nil, nil, {}, nil unmuteCars() end
 
 return M
