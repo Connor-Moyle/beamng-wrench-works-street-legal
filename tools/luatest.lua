@@ -1580,6 +1580,28 @@ do
   local g = wx.greyer({ 1, 0.5, 0.2 }, 1)
   check('a colour pulled all the way to grey keeps its brightness; none leaves it alone', math.abs(g[1] - g[2]) < 1e-9 and math.abs(g[2] - g[3]) < 1e-9 and math.abs(g[1] - (0.3 + 0.295 + 0.022)) < 1e-9
     and wx.greyer({ 1, 0.5, 0.2 }, 0)[2] == 0.5)
+  -- puddles (shared rules of the game side and the car): the depth, the wheel's grip and drag, the spray and the mist
+  local pr = require('sl_puddles')
+  local pud = { x = 10, y = 20, sx = 4, sy = 2, dx = 1, dy = 0, k = 1 }       -- direction (1, 0): along it (x) is sy = 2 m across, across it (y) is sx = 4 m
+  check('depth: nothing outside, deepest in the middle, shallow at the rim, follows the size factor', pr.depth(pud, 30, 20) == 0 and pr.depth(pud, 10, 20) == 1 and pr.depth(pud, 10, 21.5) > 0 and pr.depth(pud, 10, 21.5) < 1
+    and pr.depth({ x = 10, y = 20, sx = 4, sy = 2, dx = 1, dy = 0, k = 0.5 }, 10, 21.5) == 0)
+  check('depth uses the right axes: along the direction is sy, across it sx', pr.depth(pud, 11.5, 20) == 0 and pr.depth(pud, 10, 21.5) > 0
+    and pr.depth({ x = 0, y = 0, sx = 4, sy = 2, dx = 0, dy = 1, k = 1 }, 1.5, 0) > 0 and pr.depth({ x = 0, y = 0, sx = 4, sy = 2, dx = 0, dy = 1, k = 1 }, 0, 1.5) == 0)
+  check('deepest of several', pr.deepest({ pud, { x = 0, y = 0, sx = 2, sy = 2, dx = 1, dy = 0, k = 1 } }, 0, 0) == 1 and pr.deepest({}, 0, 0) == 0 and pr.deepest(nil, 0, 0) == 0)
+  check('grip: none lost outside water, a little at walking speed, nearly all above 120 km/h in deep water, never below the floor',
+    pr.wheelGrip(100, 0) == 1 and pr.wheelGrip(30, 1) > 0.8 and pr.wheelGrip(30, 1) < 1 and pr.wheelGrip(80, 1) > pr.wheelGrip(100, 1) and pr.wheelGrip(120, 1) <= 0.16 and math.abs(pr.wheelGrip(300, 1) - pr.MIN_WHEEL_GRIP) < 1e-9
+    and pr.wheelGrip(120, 0.3) > pr.wheelGrip(120, 1))
+  check('drag: none dry or when standing, grows with speed and depth, capped', pr.drag(20, 0) == 0 and pr.drag(0.5, 1) == 0 and pr.drag(20, 1) > pr.drag(10, 1) and pr.drag(20, 1) > pr.drag(20, 0.5) and pr.drag(200, 1) == 500)
+  check('spray and mist: spray only in water and with speed; mist only on a wet road (> 0.3) and with speed', pr.splash(20, 0) == 0 and pr.splash(20, 1) == 1 and pr.splash(5, 1) < pr.splash(15, 1)
+    and pr.mist(0.3, 20) == 0 and pr.mist(1, 3) == 0 and pr.mist(1, 26) == 1 and pr.mist(0.65, 26) > 0 and pr.mist(0.65, 26) < 1)
+  local fx = require('sl/puddlefx')
+  local dae = fx.gridDae({ 0, 0.01, 0, 0, 0, 0, 0, 0.02, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.05 })
+  check('the puddle grid: 5 x 5 corners on two skins, 64 triangles, uv for each corner, ground heights in', dae:find('count="150"', 1, true) and dae:find('count="50"', 1, true) and dae:find('<triangles material="sl_puddle" count="64"', 1, true)
+    and dae:find('0.500 0.500 0.060', 1, true) and select(2, dae:gsub('<p>', '')) == 1)
+  local plist = dae:match('<p>([^<]*)</p>')
+  local nums = 0
+  for _ in plist:gmatch('%d+') do nums = nums + 1 end
+  check('and its triangle list has three corners of three numbers each', nums == 64 * 9)
   check('the forecast names the rain strength', wx.text('day', 'rain', nil, 'heavy'):find('Heavy rain') and wx.text('day', 'rain', nil, 'light'):find('Light rain') and wx.text('day', 'rain'):find('Rain'))
 end
 
