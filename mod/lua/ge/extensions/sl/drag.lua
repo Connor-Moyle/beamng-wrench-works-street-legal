@@ -13,6 +13,8 @@ local patch = require('sl/core/patch')
 local rules = require('sl/core/drag')
 local stateLib = require('sl/core/state')
 local rngLib = require('sl/core/rng')
+local cancel = require('sl/core/racecancel')
+local racelog = require('sl/racelog')
 
 local savedCore, savedPoi = {}, {}
 local run                      -- { practice, racerName, aiVid, lane, fee }
@@ -63,8 +65,30 @@ end
 
 -- the game's drag modules may load after the career starts: looked for every few seconds until the patch is in
 local installTimer = 0
+local removeOpponent, laneSpawn      -- (defined with the opponent, further down)
+local RUN_LIMIT = 300             -- seconds a run may last before it is called off
+local function cancelRun(why)
+  local r = run
+  if not r or r.cancelled then return end
+  r.cancelled = true
+  racelog.add('drag', 'cancelled', { why = why, t = os.clock() - (r.t0 or os.clock()), opponent = racelog.car(r.aiVid and getObjectByID(r.aiVid)) })
+  toast(why)
+  if core() and core().clear then pcall(core().clear, { hooks = true }) end
+  removeOpponent()
+end
+
 function M.onUpdate(dtReal)
   if not careerOn() then return end
+  -- the game's drag bridge updates every frame and asks gameplay_drag_core, which is not always loaded with it (A8: an error a frame, the opponent never left)
+  if gameplay_drag_dragBridge and not core() and extensions and extensions.load then pcall(extensions.load, 'gameplay_drag_core') end
+  if run and run.t0 and not run.cancelled then
+    local data = core() and core().getData and core().getData()
+    local at = data and laneSpawn(data, 1)
+    local pv = getPlayerVehicle(0)
+    local off = at and pv and cancel.distToRoute({ x = pv:getPosition().x, y = pv:getPosition().y }, { { x = at.x, y = at.y } }) or nil
+    local why = cancel.reason(os.clock() - run.t0, RUN_LIMIT, off)
+    if why then cancelRun(why) end
+  end
   installTimer = installTimer + (dtReal or 0)
   if installTimer > 3 then
     installTimer = 0
@@ -82,7 +106,7 @@ M.onExtensionUnloaded = restore
 ----------------------------------------------------------------------------------------------
 -- the opponent: a career racer's car in the other lane, the game's drag AI does the rest
 
-local function removeOpponent()
+function removeOpponent()
   local r = run
   run = nil
   if r and r.aiVid then
@@ -91,7 +115,7 @@ local function removeOpponent()
   end
 end
 
-local function laneSpawn(data, laneIndex)
+function laneSpawn(data, laneIndex)
   local lane = data.strip and data.strip.lanes and data.strip.lanes[laneIndex]
   local t = lane and lane.waypoints and lane.waypoints.spawn and lane.waypoints.spawn.transform
   if not (t and t.position and t.rot) then return nil end
@@ -129,6 +153,7 @@ local function addOpponent(data, myLane, racer)
     local et = rules.etEstimate(cfg and cfg.Power, cfg and cfg.Weight)
     local dial = rules.aiDial(et, racer.skill, rngLib.new(vid):range(-1, 1))
     c.setRacerDial(vid, dial)
+    racelog.add('drag', 'opponent', { name = racer.name, model = veh:getJBeamFilename(), place = racelog.car(veh), dial = dial })
     log('I', 'sl_drag', string.format('opponent %s: %s, dial %.2f (estimate %s)', racer.name, tostring(details and details.configs and details.configs.Name), dial, et and string.format('%.2f', et) or 'none'))
   end)
   if not started then run.practice = true end
@@ -141,7 +166,8 @@ function M.onDragRacersSetup(data)
   local myLane
   for _, r in pairs(data.racers or {}) do if r.isPlayable then myLane = r.lane end end
   if not myLane then return end
-  run = { fee = rules.ENTRY_FEE, lane = myLane }
+  run = { fee = rules.ENTRY_FEE, lane = myLane, t0 = os.clock() }
+  racelog.add('drag', 'setup', { lane = myLane, player = racelog.car(getPlayerVehicle(0)), fee = rules.ENTRY_FEE })
   if not sl_career.addMoney(-run.fee, strings.t('drag.drag_strip_entry')) then
     run.practice = true
     toast(string.format(strings.t('drag.drag_strip_d_to_line'), rules.ENTRY_FEE))
@@ -150,6 +176,7 @@ function M.onDragRacersSetup(data)
   local racer = (sl_career.racersForRace('drag', 1) or {})[1]
   if not racer then run.practice = true return end
   run.racerName = racer.name
+  racelog.add('drag', 'racer', { name = racer.name, racerId = racer.racerId or racer.id })
   toast(string.format(strings.t('drag.drag_strip_s_lines_up'), racer.name))
   addOpponent(data, myLane, racer)
 end
@@ -176,6 +203,7 @@ function M.onWinnerLightOn(lane)
     reaction = gameplay_drag_times and gameplay_drag_times.getReactionTimerValue and gameplay_drag_times.getReactionTimerValue(me) or nil,
     dial = timers.dial and timers.dial.value, dq = me.isDisqualified and tostring(me.disqualifiedReason or 'disqualified') or nil })
   local won = me.lane == lane and not me.isDisqualified
+  racelog.add('drag', 'result', { won = won and 'yes' or 'no', lane = lane })
   local text = rules.slipText(slip)
   if r.practice then
     toast(strings.t('drag.practice_run_1', (text)))

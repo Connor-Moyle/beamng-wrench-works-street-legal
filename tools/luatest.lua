@@ -1336,4 +1336,17 @@ do -- special-order models: on no lot, ad, racer pool or cruiser; only in the fa
   check('the dealer catalogue lists its own model first, then the special-order group with the Wydra', both[1].model == 'covet' and not both[1].special and wydra and wydra.special == true)
 end
 
+do -- A8: events are called off when too long or too far from the route
+  local rc = require('sl/core/racecancel')
+  local route = { { x = 0, y = 0 }, { x = 1000, y = 0 }, { x = 1000, y = 1000 } }
+  check('on the route: 0 m', rc.distToRoute({ x = 500, y = 0 }, route) == 0)
+  check('beside the route: 40 m', math.abs(rc.distToRoute({ x = 500, y = 40 }, route) - 40) < 1e-6)
+  check('past the second leg', math.abs(rc.distToRoute({ x = 1100, y = 500 }, route) - 100) < 1e-6)
+  check('a single point is a distance', math.abs(rc.distToRoute({ x = 3, y = 4 }, { { x = 0, y = 0 } }) - 5) < 1e-6)
+  check('time limit grows with the route', rc.timeLimit(3000) > rc.timeLimit(1000) and rc.timeLimit(0) == rc.GRACE)
+  check('fine inside the limits', rc.reason(60, 400, 20) == nil and rc.reason(5, nil, nil) == nil)
+  check('too long is off', rc.reason(500, 400, 0) ~= nil)
+  check('too far is off', rc.reason(10, 400, 900) ~= nil and rc.reason(10, 400, 300) == nil)
+end
+
 print(string.format('lua tests passed: %d checks', passed))

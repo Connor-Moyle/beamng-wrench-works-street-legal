@@ -12,6 +12,8 @@ local strings = require('sl/core/strings')
 
 local races = require('sl/core/races')
 local preview = require('sl/core/routepreview')
+local cancel = require('sl/core/racecancel')
+local racelog = require('sl/racelog')
 local rngLib = require('sl/core/rng')
 
 local ROAD_STARTS, MIN_APART = 7, 400         -- start lines on the roads, and the least distance between any two
@@ -113,9 +115,11 @@ local function changeMoney(amount, label)
   if ok and type(parts) == 'table' and parts.changeMoney then parts.changeMoney(amount, label) end
 end
 
-local function finish(won, abandoned)
+local function finish(won, abandoned, why)
   local c = cur
   cur, state = nil, 'idle'
+  racelog.add('sprint', abandoned and 'cancelled' or 'finish', { race = c.race.id, won = won and 'yes' or 'no', t = c.t, why = why or '', player = racelog.car(getObjectByID(c.playerVid)), opponent = racelog.car(c.oppVid and getObjectByID(c.oppVid)) })
+  if why then tell(why, 6) end
   local o = c.offer
   local opp = c.oppVid and getObjectByID(c.oppVid)
   local pv = getObjectByID(c.playerVid)
@@ -177,6 +181,13 @@ function M.launch(missionId, offer)
   veh:queueLuaCommand('controller.setFreeze(1)')
   cur = { race = race, offer = offer, playerVid = veh:getID(), t = 0, done = {} }
   state = 'countdown'
+  do
+    local nodes, route = graph(), {}
+    for _, name in ipairs(race.path or {}) do if nodes[name] then route[#route + 1] = { x = nodes[name].pos.x, y = nodes[name].pos.y } end end
+    cur.route, cur.limit = route, cancel.timeLimit(race.metres)
+  end
+  racelog.add('sprint', 'setup', { race = race.id, name = race.name, start = race.start, finish = race.finish, dir = string.format('(%.2f,%.2f)', race.dir.x, race.dir.y), metres = race.metres,
+    opponent = offer.name, racerId = offer.racerId, car = offer.car, stake = offer.stake, bet = offer.bet or 0, player = racelog.car(veh), lineP = v3(line.player.pos), lineO = v3(line.opponent.pos) })
   if core_groundMarkers then core_groundMarkers.setPath(race.wps) end           -- the race's own route, not the planner's choice from here
   local function withOpponent(opp)
     if not cur or cur.race ~= race then if opp then opp:delete() end return end
@@ -189,6 +200,7 @@ function M.launch(missionId, offer)
       return
     end
     cur.oppVid = opp:getID()
+    racelog.add('sprint', 'opponent', { race = race.id, model = opp:getJBeamFilename(), vid = cur.oppVid })
     spawn.safeTeleport(opp, v3(line.opponent.pos) + vec3(0, 0, 0.3), rot, true, nil, false, true, false)
     opp:queueLuaCommand('controller.setFreeze(1) input.event("parkingbrake", 1, FILTER_DIRECT)')
     cur.t, cur.ready = 0, true
@@ -215,6 +227,7 @@ local function go()
     opp:queueLuaCommand(string.format("controller.setFreeze(0) input.event('parkingbrake', 0, FILTER_DIRECT) ai.setSpeedMode('off') ai.setRecoverOnCrash(true) ai.setAvoidCars('on') ai.driveInLane('off') ai.setAggression(%f) ai.driveUsingPath({wpTargetList = %s, aggression = %f})", a, serialize(c.race.wps), a))
   end
   local function fwd(v) local f = v and v:getDirectionVector() return f and string.format('(%.2f, %.2f)', f.x, f.y) or 'none' end
+  racelog.add('sprint', 'go', { race = c.race.id, player = racelog.car(pv), opponent = racelog.car(opp) })
   log('I', 'sl_races', string.format('GO %s: player faces %s, opponent faces %s, route %s', c.race.id, fwd(pv), fwd(opp), string.format('(%.2f, %.2f)', c.race.dir.x, c.race.dir.y)))
   extensions.hook('onSlrrRaceStarted', c.race.missionId, c.race.id)
   tell('GO!', 2)
@@ -254,6 +267,7 @@ function M.onUpdate(dtReal)
           local f = v:getDirectionVector()
           if not races.facingOk({ x = f.x, y = f.y }, race.dir) then
             log('W', 'sl_races', 'a car faced away from the route: turned')
+            racelog.add('sprint', 'turned', { race = race.id, car = racelog.car(v) })
             spawn.safeTeleport(v, v3(side[2].pos) + vec3(0, 0, 0.3), rot, true, nil, false, true, false)
           end
         end
@@ -265,6 +279,8 @@ function M.onUpdate(dtReal)
     return
   end
   local opp = cur.oppVid and getObjectByID(cur.oppVid)
+  local why = cancel.reason(cur.t, cur.limit, cur.route and #cur.route > 0 and cancel.distToRoute(p3(pv:getPosition()), cur.route) or nil)
+  if why then return finish(false, true, why) end
   local result = races.step(cur.race.finish, p3(pv:getPosition()), opp and p3(opp:getPosition()) or nil, cur.t, cur.done)
   local ms = (os.clock() - t0) * 1000
   prof.frames, prof.ms, prof.max = prof.frames + 1, prof.ms + ms, math.max(prof.max, ms)

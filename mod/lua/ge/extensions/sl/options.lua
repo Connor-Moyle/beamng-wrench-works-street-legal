@@ -150,6 +150,7 @@ end
 M.onStreetLegalRaceStarted = thinTraffic
 M.onSlrrRaceStarted = function() if career() then thinTraffic() end end
 M.onStreetLegalRaceResult = restoreTraffic
+M.onStreetLegalRaceCancelled = restoreTraffic
 M.onSlrrRaceFinished = restoreTraffic
 M.onStreetLegalStopped = restoreTraffic
 function M.onUpdate() if savedAt and os.clock() - savedAt > 900 then restoreTraffic() end end

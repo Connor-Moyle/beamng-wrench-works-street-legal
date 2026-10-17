@@ -19,6 +19,9 @@ local spawnplan = require('sl/core/spawnplan')
 local stateLib = require('sl/core/state')
 local showshine = require('sl/core/showshine')
 local builder = require('sl/carBuilder')
+local racesLib = require('sl/core/races')
+local cancel = require('sl/core/racecancel')
+local racelog = require('sl/racelog')
 local builds = require('sl/core/builds')
 local nightlife = require('sl/core/nightlife')
 
@@ -190,6 +193,46 @@ local function aiGo(vid, destNode, skill)
     aggression, destNode, aggression))
 end
 
+-- Both cars on the route's first edge facing along it (A7: in play neither faced the way of the route). The route is the navgraph's from where the
+-- player stands to dest; a car that does not face it within 60 degrees is turned where it stands, and for a standing start the opponent is put
+-- beside the player. Returns the route's points { { x, y } } and its first direction, or nil without a route.
+local function lineUp(v, opp, dest, standing)
+  local nodes = map.getMap().nodes
+  local path = map.getPointToPointPath and map.getPointToPointPath(v:getPosition(), dest) or {}
+  local dir = racesLib.routeDir(nodes, path, 25)
+  local route = {}
+  for _, name in ipairs(path) do if nodes[name] then route[#route + 1] = { x = nodes[name].pos.x, y = nodes[name].pos.y } end end
+  if not dir then racelog.add('race', 'no route', { player = racelog.car(v), dest = dest }) return nil end
+  local rot = quatFromDir(vec3(dir.x, dir.y, 0), vec3(0, 0, 1))
+  local function turn(car, at)
+    spawn.safeTeleport(car, at + vec3(0, 0, 0.3), rot, true, nil, false, true, false)
+  end
+  local f = v:getDirectionVector()
+  if not racesLib.facingOk({ x = f.x, y = f.y }, dir) then turn(v, v:getPosition()) end
+  if opp then
+    local right = vec3(dir.y, -dir.x, 0)
+    local g = opp:getDirectionVector()
+    if standing then turn(opp, v:getPosition() + right * 3.6)
+    elseif not racesLib.facingOk({ x = g.x, y = g.y }, dir) then turn(opp, opp:getPosition()) end
+  end
+  return route, dir
+end
+
+-- an event called off: nothing won or lost, the other car goes, the markers go
+local function cancelRace(why)
+  local r = race
+  race = nil
+  if core_groundMarkers then core_groundMarkers.setPath(nil) end
+  if sl_markers then sl_markers.clearSoon(8) end
+  sendRace()
+  if not r then return end
+  racelog.add('race', 'cancelled', { racer = r.racer, why = why, t = r.t or 0, player = racelog.car(playerCar()), opponent = racelog.car(getObjectByID(r.vid)) })
+  if ui_message then ui_message(why, 7, 'streetLegal') end
+  extensions.hook('onStreetLegalRaceCancelled')
+  local vid = r.vid
+  core_jobsystem.create(function(job) job.sleep(8) despawn(vid) end)
+end
+
 -- start a race against a racer whose car is out in the world (rolling: no countdown; standing: 3, 2, 1)
 local function startRace(racer, vid, stake, bet, standing, maxD)
   local v = playerCar()
@@ -198,6 +241,11 @@ local function startRace(racer, vid, stake, bet, standing, maxD)
   if not dest then return false end
   race = { racer = racer.id, name = roster.displayName(racer), vid = vid, stake = stake, bet = bet, dest = dest, destNode = destNode,
     destName = placeNear(dest), distance = distance, t = 0, countdown = standing and 3.5 or nil, skill = racer.skill }
+  race.route, race.dir = lineUp(v, getObjectByID(vid), dest, standing)
+  race.limit = cancel.timeLimit(distance)
+  racelog.add('race', 'setup', { racer = racer.id, name = race.name, stake = stake, bet = bet, standing = standing and 'yes' or 'no', dest = dest, destName = race.destName,
+    metres = distance, dir = race.dir and string.format('(%.2f,%.2f)', race.dir.x, race.dir.y) or 'none', player = racelog.car(v), opponent = racelog.car(getObjectByID(vid)),
+    model = (getObjectByID(vid) or v):getJBeamFilename() })
   if core_groundMarkers then core_groundMarkers.setPath(dest) end
   if sl_markers then sl_markers.flareRoute(v:getPosition(), dest) end        -- the way lit by flares, start to finish
   extensions.hook('onStreetLegalRaceStarted')
@@ -304,11 +352,16 @@ local function updateRace(dt)
       else
         aiGo(race.vid, race.destNode, race.skill)
       end
+      racelog.add('race', 'go', { racer = race.racer, player = racelog.car(v), opponent = racelog.car(opp) })
       if ui_message then ui_message('GO!', 2, 'streetLegal') end
     end
     return
   end
   race.t = race.t + dt
+  if not race.circuit then
+    local why = cancel.reason(race.t, race.limit, race.route and #race.route > 0 and cancel.distToRoute({ x = v:getPosition().x, y = v:getPosition().y }, race.route) or nil)
+    if why then cancelRace(why) return end
+  end
   if race.circuit then
     if not updateCircuit(v, opp) and race.t > RACE_TIMEOUT then finish(false) end
     return
