@@ -738,6 +738,13 @@ function M.start(fresh, n, level)
     if not freeroam_freeroam then extensions.load('freeroam_freeroam') end
   end
   if pending == 'start' and not (getCurrentLevelIdentifier and getCurrentLevelIdentifier() == M.LEVEL) and freeroam_freeroam and freeroam_freeroam.startFreeroamByName then
+    -- the game starts a freeroam level with no traffic unless told (its default trafficMode "fromSetting" loads none): A3, the city was empty
+    local sh = freeroam_freeroam.spawningOptionsHelper
+    if sh then
+      local set = function(k) return settings and settings.getValue and tonumber(settings.getValue(k)) or 0 end
+      sh.trafficMode, sh.trafficParked = 'enabled', 'enabled'
+      sh.trafficAmount, sh.trafficParkedAmount = math.max(set('trafficAmount'), M.CITY_TRAFFIC), math.max(set('trafficParkedAmount'), M.CITY_PARKED)
+    end
     if not freeroam_freeroam.startFreeroamByName(M.LEVEL, nil, false, false) then
       pending = nil
       tell(string.format(strings.t('career.s_s_is_not_installed'), mapOf(M.LEVEL).name, M.LEVEL), 8)
@@ -746,6 +753,7 @@ function M.start(fresh, n, level)
 end
 
 -- the career is over (Hardcore: the driver died): saved as ended, and stopped
+M.CITY_TRAFFIC, M.CITY_PARKED = 14, 18        -- cars driving and parked in the city, at least (the player's own settings may ask for more)
 function M.endCareer() if active then stop() end end
 
 stop = function()
