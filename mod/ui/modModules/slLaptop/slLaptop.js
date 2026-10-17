@@ -175,7 +175,7 @@
 
     // wins: the open windows, the last one on top; each { id, min, max }. dview: what the dealers window shows (dealers | offers | offer)
     var st = { repOpen: null, repSec: {}, open: false, view: null, data: { active: false }, parts: [], wins: [], menu: false, sel: null, car: 0, note: '', padAt: 0,
-      dealers: null, offers: null, dview: 'dealers', offerId: null, wallpaper: null, tab: { dealers: 'dealers', partmarket: 'revline' } };
+      dealers: null, auction: null, offers: null, dview: 'dealers', offerId: null, wallpaper: null, tab: { dealers: 'dealers', partmarket: 'revline' } };
 
     // ---------------------------------------------------------------- what the windows hold
     function dist(m) { m = Number(m) || 0; return m >= 1000 ? (m / 1000).toFixed(1) + ' km' : Math.round(m) + ' m'; }
@@ -345,6 +345,37 @@
       }).join('');
       return (mine ? ('<div class="sll-band" style="margin:8px 0">' + T('ui.your_listings', 'Your listings') + '</div>') + mine : '') + (lists ? '<div class="sll-band" style="margin:8px 0">' + (kind === 'cars' ? T('ui.sell_a_car', 'Sell a car') : T('ui.sell_from_your_shelf', 'Sell from your shelf')) + '</div>' + lists : '');
     }
+    // the car auctions (sl_carauctions): lots with a grade, the car report, the bid and the time left; your own cars to put up
+    function leftText(min) {
+      min = Math.max(0, Math.round(min || 0));
+      return min >= 1440 ? Math.floor(min / 1440) + ' d ' + Math.floor(min % 1440 / 60) + ' h' : min >= 60 ? Math.floor(min / 60) + ' h ' + (min % 60) + ' min' : min + ' min';
+    }
+    function auctionCard(l) {
+      var mine = l.high === 'you', faults = arr(l.faults);
+      var state = l.mine ? T('ui.auction_your_reserve', 'Your reserve {1}', money(l.reserve)) : (l.bid > 0 ? (mine ? T('ui.auction_high_you', 'You are the highest bidder') : T('ui.auction_outbid', 'Outbid')) : T('ui.auction_no_bids', 'No bids yet'));
+      var plus = Math.round((l.bid || l.next) * 1.1 / 10) * 10;
+      var acts = l.mine ? '' : '<div class="sll-acts">' + (mine ? '' : '<div class="sll-btn' + ((st.auction && st.auction.money != null && st.auction.money < l.next) ? ' sll-off' : '') + '" data-a="abid" data-v="' + esc(l.id) + '|' + l.next + '">' + T('ui.auction_bid_next', 'Bid {1}', money(l.next)) + '</div>' +
+        '<div class="sll-btn sll-tonal" data-a="abid" data-v="' + esc(l.id) + '|' + plus + '">' + T('ui.auction_bid_plus', 'Bid +10% ({1})', money(plus)) + '</div>') +
+        '<div class="sll-btn sll-text" data-a="awatch" data-v="' + esc(l.id) + '|' + (l.watched ? 0 : 1) + '">' + (l.watched ? T('ui.auction_watching', 'Watching (tap to stop)') : T('ui.auction_watch', 'Watch')) + '</div></div>';
+      return '<div class="sll-card sll-listing">' + pic(l) + '<div class="sll-li"><h4>' + (l.year ? l.year + ' ' : '') + esc(l.name) + ' <b class="sll-grade">' + T('ui.auction_grade', 'Grade {1}', esc(l.grade)) + '</b></h4>' +
+        '<div class="sll-props">' + facts(l) + '</div><div class="sll-props">' + T('ui.auction_condition', 'Condition {1}%', l.condition) + (faults.length ? ' &middot; ' + T('ui.needs_2', 'Needs: ') + esc(faults.join(', ')) : '') + '</div>' +
+        '<p><b>' + money(l.bid) + '</b> &middot; ' + state + ' &middot; ' + (l.reserveMet ? T('ui.auction_reserve_met', 'Reserve met') : T('ui.auction_reserve_not_met', 'Reserve not met')) +
+        ' &middot; ' + T('ui.auction_closes_in', 'Closes in {1}', leftText(l.minutesLeft)) + (l.mine ? '' : ' &middot; ' + T('ui.auction_delivery', 'Delivery {1}', money(l.delivery))) + '</p>' +
+        reportBlock('auction:' + l.id, l.report) + acts + '</div></div>';
+    }
+    function auctionBody() {
+      var a = obj(st.auction), cars = arr(a.sellable);
+      var lots = arr(a.lots).map(auctionCard).join('');
+      var mine = arr(a.mine).map(auctionCard).join('');
+      var sell = cars.map(function (c) {
+        return '<div class="sll-card"><h4>' + esc(c.name) + ' <b class="sll-grade">' + T('ui.auction_grade', 'Grade {1}', esc(c.grade)) + '</b></h4><p>' + T('ui.auction_fair', 'Worth about {1}', money(c.fair)) + '</p><div class="sll-acts">' +
+          [70, 80, 90].map(function (pc) { return '<div class="sll-btn sll-tonal" data-a="asell" data-v="' + esc(c.id) + '|' + Math.round(c.fair * pc / 100 / 10) * 10 + '">' + T('ui.auction_reserve_pct', 'Reserve {1}%', pc) + '</div>'; }).join('') + '</div></div>';
+      }).join('');
+      return body((lots || ('<div class="sll-empty">' + T('ui.auction_none', 'No lots right now.') + '</div>')) +
+        '<div class="sll-empty">' + T('ui.auction_hint', 'A car can hide a fault the report does not show. The reserve stays secret until it is met.') + '</div>' +
+        (mine ? '<h4>' + T('ui.auction_your_lots', 'Your cars at auction') + '</h4>' + mine : '') +
+        '<h4>' + T('ui.auction_sell_title', 'Sell one of your cars at auction') + '</h4>' + (sell || ('<div class="sll-empty">' + T('ui.auction_no_cars', 'No other car to put up.') + '</div>')));
+    }
     function carAdsBody() {
       var m = obj(st.data.market);
       var cards = arr(m.listings).filter(function (l) { return l.car; }).map(adCardL).join('');
@@ -495,8 +526,8 @@
         case 'help': return helpBody();
         case 'partmarket': return tabsHtml('partmarket', [['revline', T('ui.revline', 'Revline')], ['auctions', T('ui.swap_bid', 'Swap & Bid')], ['paper', T('ui.classifieds_2', 'Classifieds')], ['catalog', T('ui.catalog', 'Catalog')]]) + partMarketBody();
         default:
-          return tabsHtml('dealers', [['dealers', T('ui.dealers', 'Dealers')], ['ads', T('ui.private_ads', 'Private ads')]]) +
-            (st.tab.dealers === 'ads' ? carAdsBody() : st.dview === 'offers' ? offersBody() : (st.dview === 'offer' ? offerBody() : dealersBody()));
+          return tabsHtml('dealers', [['dealers', T('ui.dealers', 'Dealers')], ['ads', T('ui.private_ads', 'Private ads')], ['auction', T('ui.car_auctions', 'Car auctions')]]) +
+            (st.tab.dealers === 'auction' ? auctionBody() : st.tab.dealers === 'ads' ? carAdsBody() : st.dview === 'offers' ? offersBody() : (st.dview === 'offer' ? offerBody() : dealersBody()));
       }
     }
     // the dealers window goes back from a car to the list, from the list to the dealers
@@ -673,7 +704,7 @@
       close();
     }
     function close() { lua('@sl_computer.close()'); setOpen(false); }
-    function setOpen(open) { if (open && !TABLE) lua('@sl_phone.requestStrings()'); lua('@sl_phone.uiOpen("laptop", ' + (open ? 'true' : 'false') + ')'); st.open = open; if (!open) { st.wins = []; st.note = ''; st.menu = false; st.sel = null; focusKey = null; } render(); }
+    function setOpen(open) { if (open && !TABLE) lua('@sl_phone.requestStrings()'); lua('@sl_phone.uiOpen("laptop", ' + (open ? 'true' : 'false') + ')'); st.open = open; if (!open) { lua('@sl_carauctions.view(false)'); st.wins = []; st.note = ''; st.menu = false; st.sel = null; focusKey = null; } render(); }
     function act(a, v) {
       switch (a) {
         case 'start': st.menu = !st.menu; focusKey = null; render(); break;
@@ -711,7 +742,12 @@
         case 'winmin': var mw = winById(v); if (mw) { mw.min = true; focusKey = null; render(); } break;
         case 'winmax': var xw = winById(v); if (xw) { xw.max = !xw.max; focusWin(xw); render(); } break;
         case 'winclose': var cw = winById(v); if (cw) { closeWin(cw); render(); } break;
-        case 'mtab': var tp = String(v).split('|'); st.tab[tp[0]] = tp[1]; st.note = ''; focusKey = null; if (tp[0] === 'dealers' && tp[1] === 'dealers') { st.dview = 'dealers'; lua('@sl_dealers.list()'); } render(); break;
+        case 'mtab': var tp = String(v).split('|'); st.tab[tp[0]] = tp[1]; st.note = ''; focusKey = null; if (tp[0] === 'dealers' && tp[1] === 'dealers') { st.dview = 'dealers'; lua('@sl_dealers.list()'); }
+          if (tp[0] === 'dealers') lua('@sl_carauctions.view(' + (tp[1] === 'auction' ? 'true' : 'false') + ')');
+          render(); break;
+        case 'abid': var ab = String(v).split('|'); lua('@sl_carauctions.bid(' + JSON.stringify(ab[0]) + ',' + Number(ab[1]) + ')'); break;
+        case 'awatch': var aw = String(v).split('|'); lua('@sl_carauctions.watch(' + JSON.stringify(aw[0]) + ',' + (aw[1] === '1' ? 'true' : 'false') + ')'); break;
+        case 'asell': var as = String(v).split('|'); lua('@sl_carauctions.sell(' + Number(as[0]) + ',' + Number(as[1]) + ')'); break;
         case 'mkoffer': var op = String(v).split('|'); lua('@sl_phone.marketOffer(' + JSON.stringify(op[0]) + ',' + Number(op[1]) + ')'); break;
         case 'mkbuy': var bp = String(v).split('|'); lua('@sl_phone.marketBuy(' + JSON.stringify(bp[0]) + ',' + JSON.stringify(bp[1]) + ')'); break;
         case 'mkbid': lua('@sl_phone.marketBid(' + JSON.stringify(String(v)) + ')'); break;
@@ -797,6 +833,7 @@
         case 'slHelp': st.help = arr(data && data.pages); if (st.open) render(); break;
         case 'slStrings': TABLE = (data && data.text) || {}; if (st.open) render(); break;
         case 'slLaptopDealers': st.dealers = data; if (st.open) render(); break;
+        case 'slAuctions': st.auction = data; if (st.open) render(); break;
         case 'slLaptopOffers': st.offers = data; if (st.open) render(); break;
         case 'slPhoneData': st.data = data || { active: false }; if (st.open) render(); break;
         case 'slPhoneToast': if (st.open && data && data.text) { st.note = data.text; render(); } break;
@@ -819,7 +856,7 @@
         window.bngApi.engineLua('if ' + ext + ' then ' + call.slice(1) + ' end');
       });
       window.__slLaptop = laptop;
-      ['slLaptopOpen', 'slLaptopClose', 'slLaptopParts', 'slLaptopDealers', 'slLaptopOffers', 'slPhoneData', 'slPhoneToast', 'slHelp', 'slStrings'].forEach(function (name) {
+      ['slLaptopOpen', 'slLaptopClose', 'slLaptopParts', 'slLaptopDealers', 'slAuctions', 'slLaptopOffers', 'slPhoneData', 'slPhoneToast', 'slHelp', 'slStrings'].forEach(function (name) {
         $rootScope.$on(name, function (ev, data) { laptop.handle(name, data); });
       });
     }]);

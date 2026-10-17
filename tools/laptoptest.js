@@ -251,6 +251,34 @@ laptop.handle('slPhoneData', Object.assign({}, laptop.state.data || {}, { market
 click('tile', 'vehicleShop');
 click('mtab', 'dealers|ads');
 assert.ok(text().includes('Covet 1.5') && !text().includes('Sport exhaust'), 'Car market, Private ads: the car ads only');
+// the car auctions tab: lots with grade and reserve state, the bid buttons ask the game, the watch list, selling a car, and the live view is told when the tab opens and shuts
+calls.length = 0;
+click('mtab', 'dealers|auction');
+assert.ok(calls.includes('@sl_carauctions.view(true)'), 'the auction tab tells the game a screen is watching the lots');
+laptop.handle('slAuctions', { money: 5000, lots: [
+  { id: 'a1', name: 'Covet 1.5', grade: 'C', condition: 55, faults: ['brakes'], mileage: 120000, year: 2009, bid: 900, next: 950, high: 'ai', reserveMet: false, minutesLeft: 1500, delivery: 120, watched: false, preview: '/p.png',
+    report: { condition: 55, label: 'Worn', mileage: 120000, damage: { amount: 10, label: 'Light' }, faults: ['brakes'], total: 600, sections: [{ id: 'brakes', title: 'Brakes', condition: 30, label: 'Worn', estimate: 300, faults: ['brakes'], parts: [] }] } },
+  { id: 'a2', name: 'Pickup', grade: 'A', condition: 90, faults: [], bid: 4000, next: 4200, high: 'you', reserveMet: true, minutesLeft: 45, delivery: 300, watched: true } ],
+  mine: [{ id: 'm1', name: 'My Hopper', grade: 'B', condition: 75, faults: [], bid: 0, next: 300, reserve: 3500, reserveMet: false, minutesLeft: 600, mine: true }],
+  sellable: [{ id: 7, name: 'Bluebuck', grade: 'D', fair: 2000 }] });
+assert.ok(text().includes('Covet 1.5') && text().includes('Grade C') && text().includes('Reserve not met') && text().includes('Outbid') && text().includes('1 d 1 h'), 'an auction lot shows the grade, the reserve state, who leads and the time left');
+assert.ok(text().includes('Reserve met') && text().includes('You are the highest bidder') && text().includes('45 min') && text().includes('Watching (tap to stop)'), 'a lot you lead shows it, the minutes left and the watch');
+assert.ok(text().includes('Your reserve $3,500') && text().includes('Your cars at auction') && text().includes('Bluebuck') && text().includes('Reserve 80%'), 'your own lots and the cars you can put up');
+assert.ok(!$(sel('abid', 'a2|4200')), 'no bid button on a lot you already lead');
+click('abid', 'a1|950');
+assert.ok(calls.includes('@sl_carauctions.bid("a1",950)'), 'Bid asks the game with the next minimum');
+click('abid', 'a1|990');
+assert.ok(calls.includes('@sl_carauctions.bid("a1",990)'), 'Bid +10% asks with the raised amount');
+click('awatch', 'a1|1');
+assert.ok(calls.includes('@sl_carauctions.watch("a1",true)'), 'Watch asks the game');
+click('asell', '7|1600');
+assert.ok(calls.includes('@sl_carauctions.sell(7,1600)'), 'Sell at auction sends the car and the reserve');
+click('report', 'auction:a1');
+assert.ok($('.sll-repmodal') && $('.sll-repmodal').textContent.includes('Brakes'), 'a lot opens the same full car report');
+click('reportclose');
+click('mtab', 'dealers|dealers');
+assert.ok(calls.includes('@sl_carauctions.view(false)'), 'leaving the tab stops the live view');
+click('mtab', 'dealers|ads');
 click('winclose', 'dealers');
 click('tile', 'partsMarket');
 assert.ok(titles()[0] === 'Part market' && text().includes('Sport exhaust') && !text().includes('Covet 1.5') && text().includes('Swap & Bid'), 'Part market: Revline parts, no car ads');

@@ -664,6 +664,26 @@ win.document.dispatchEvent(new win.CustomEvent('ui_nav', { detail: { name: 'back
 assert.ok(text().includes('Jefferson Motors') && text().includes('cars today'), 'and to the dealers');
 click('mtab', 'cars|ads');
 assert.ok(text().includes('Covet 1.5') && !text().includes('Sport exhaust') && text().includes('My Sunburst') && text().includes('List car') && !text().includes('Stock radiator'), 'Private ads: the car ads and your cars to sell, no parts');
+// the car auctions tab: the lots, the bid / watch / sell buttons ask the game, the live view is switched on and off
+calls.length = 0;
+click('mtab', 'cars|auction');
+assert.ok(calls.includes('@sl_carauctions.view(true)'), 'the auction tab tells the game a screen is watching the lots');
+phone.handle('slAuctions', { money: 5000, lots: [
+  { id: 'a1', name: 'Covet 1.5', grade: 'C', condition: 55, faults: ['brakes'], mileage: 120000, bid: 900, next: 950, high: 'ai', reserveMet: false, minutesLeft: 1500, delivery: 120, watched: false },
+  { id: 'a2', name: 'Pickup', grade: 'A', condition: 90, faults: [], bid: 4000, next: 4200, high: 'you', reserveMet: true, minutesLeft: 45, delivery: 300, watched: true } ],
+  mine: [{ id: 'm1', name: 'My Hopper', grade: 'B', condition: 75, faults: [], bid: 0, next: 300, reserve: 3500, reserveMet: false, minutesLeft: 600, mine: true }],
+  sellable: [{ id: 7, name: 'Bluebuck', grade: 'D', fair: 2000 }] });
+assert.ok(text().includes('Grade C') && text().includes('Reserve not met') && text().includes('Outbid') && text().includes('1 d 1 h') && text().includes('You are the highest bidder') && text().includes('Reserve met') && text().includes('45 min'), 'the phone shows grade, reserve state, leader and time left');
+assert.ok(text().includes('Your reserve $3,500') && text().includes('Bluebuck') && text().includes('Reserve 80%'), 'your own lot and the cars you can put up');
+click('abid', 'a1|950');
+assert.ok(calls.includes('@sl_carauctions.bid("a1",950)'), 'Bid asks the game');
+click('awatch', 'a1|1');
+assert.ok(calls.includes('@sl_carauctions.watch("a1",true)'), 'Watch asks the game');
+click('asell', '7|1600');
+assert.ok(calls.includes('@sl_carauctions.sell(7,1600)'), 'Sell at auction sends the car and the reserve');
+phone.act('home');
+assert.ok(calls.includes('@sl_carauctions.view(false)'), 'home stops the live view');
+phone.act('open', 'carmarket');
 phone.act('home');
 phone.act('open', 'partmarket');
 assert.ok(text().includes('Revline') && text().includes('Swap & Bid') && text().includes('Classifieds') && text().includes('Catalog') && text().includes('Sport exhaust') && !text().includes('Covet 1.5'), 'the Part market: Revline parts, no car ads');

@@ -107,6 +107,7 @@ local function deliver(s, order)
     veh:queueLuaCommand('input.event("parkingbrake", 0, FILTER_DIRECT)')
     rules.remove(s, order)
     sl_career.sendText('benny', string.format(strings.t('dealers.your_s_has_been_delivered'), o.name), 2)
+    extensions.hook('onStreetLegalCarDelivered', o)
     extensions.hook('onStreetLegalChanged')
     building = false
   end)

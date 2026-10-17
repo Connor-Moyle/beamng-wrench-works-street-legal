@@ -1982,6 +1982,61 @@ do -- car auctions (sl/core/carauction)
   local ow = CA.watchDue({ { watched = true, closes = 100.1 }, { watched = true, closes = 105 }, { closes = 100.1 }, { watched = true, told = true, closes = 100.1 } }, 100)
   check('the watch list warns 10 game minutes before a watched lot closes, once', #ow == 1 and ow[1].closes == 100.1)
 end
+do -- the car auction extension (sl_carauctions) against a mocked game: six lots, a bid that wins, the order and the hidden fault, selling one of your cars
+  local saved, savedLoaded = {}, {}
+  local function setg(name, value) saved[name] = { _G[name] } _G[name] = value end
+  local function setp(name, value) savedLoaded[name] = { package.loaded[name] } package.loaded[name] = value end
+  local s = { day = 3, seed = 7, money = 20000, cars = { { id = 1, name = 'Covet', model = 'covet', value = 9000, condition = 0.7 }, { id = 2, name = 'Hopper', model = 'hopper', value = 12000, condition = 0.5 } }, orders = {} }
+  local hour, toasts, texts, hooks = 12, {}, {}, {}
+  local pool = {}
+  for i = 1, 14 do pool[i] = { model = 'm' .. i, config = 'c' .. i, name = 'Car ' .. i, brand = 'B', value = 8000 + i * 900 } end
+  setp('sl/carInfo', { of = function() return {} end })
+  setg('log', function() end)
+  setg('sl_career', { isActive = function() return true end, getState = function() return s end, hour = function() return hour end, getPlaces = function() return { j = { kind = 'junkyard' } } end,
+    addMoney = function(n) if s.money + n < 0 then return false end s.money = s.money + n return true end, sendText = function(_, text) texts[#texts + 1] = text end })
+  setg('sl_lot', { poolOf = function() return pool end })
+  setg('sl_fleet', { lose = function(id) for i, c in ipairs(s.cars) do if c.id == id then table.remove(s.cars, i) return c, nil end end end })
+  setg('guihooks', { trigger = function(name, data) if name == 'slPhoneToast' then toasts[#toasts + 1] = data.text end end })
+  setg('extensions', { hook = function(name) hooks[#hooks + 1] = name end })
+  package.loaded['sl/carauctions'] = nil
+  local CAE = require('sl/carauctions')
+  local out = CAE.list()
+  check('the auction opens with six lots, each with a grade, a next bid and a car report slot', out and #out.lots == 6 and out.lots[1].grade and out.lots[1].next > 0 and out.lots[1].reserveMet == false)
+  check('your cars that can be put up are listed with a grade and a fair worth', #out.sellable == 2 and out.sellable[1].fair > 0)
+  local lot = s.auction.lots[1]
+  lot.bidders, lot.reserve, lot.hidden = {}, 0, { fault = 'engine', key = 'weeping_head_gasket', cost = 900 }      -- nobody else bids; a hidden fault
+  local id = lot.id
+  check('a bid under the minimum is refused, a good one makes you the leader', CAE.bid(id, 1) == false and CAE.bid(id, lot.opening) == true and lot.high == 'you')
+  local before = s.money
+  s.day = s.day + 4      -- every lot has closed
+  CAE.onUpdate(6)
+  check('the hammer: the money is taken and the car is ordered with the hidden fault added', s.money < before and #s.orders == 1 and s.orders[1].offer.faults[#s.orders[1].offer.faults] == 'engine' and s.orders[1].offer.foundFault.cost == 900)
+  CAE.onStreetLegalCarDelivered(s.orders[1].offer)
+  check('the mechanic tells you what he found after the delivery', texts[#texts] and texts[#texts]:find('head gasket', 1, true) ~= nil)
+  check('closed lots are replaced by new ones', #s.auction.lots == 6 and s.auction.lots[1].id ~= id)
+  check('a watched lot warns once ten game minutes before it closes', (function()
+    local l = s.auction.lots[2]
+    CAE.watch(l.id, true)
+    local t = s.day * 24 + (hour - 6) % 24
+    l.closes = t + 0.1      -- 6 game minutes to go
+    texts[#texts + 1] = '|'
+    CAE.onUpdate(6)
+    CAE.onUpdate(6)
+    local n = 0
+    for i = #texts, 1, -1 do if texts[i] == '|' then break end n = n + 1 end
+    return n == 1
+  end)())
+  check('you cannot put up a car you have not got, and not your last car', CAE.sell(99, 100) == false)
+  check('a car goes up with your reserve and is marked', CAE.sell(1, 100) == true and s.cars[1].atAuction == true and #s.auction.mine == 1 and s.auction.mine[1].reserve == 100)
+  s.day = s.day + 4
+  CAE.onUpdate(6)
+  local gone = true
+  for _, c in ipairs(s.cars) do if c.id == 1 then gone = false end end
+  check('the sale ends: sold (the car gone, money in) or back with a toast, never both', (gone and #s.auction.mine == 0 and s.money > before - 10 ^ 6) or (not gone and s.cars[1].atAuction == nil and #s.auction.mine == 0))
+  for name, v in pairs(saved) do _G[name] = v[1] end
+  for name, v in pairs(savedLoaded) do package.loaded[name] = v[1] end
+  package.loaded['sl/carauctions'] = nil
+end
 do -- ambient police patrols share the racers' build rule; a chase's patrol is never held back
   local SPP = require('sl/core/spawnplan')
   check('an ambient patrol waits for the gap, the speed rule and any other build', not SPP.patrolOk(5, 3, false, false) and not SPP.patrolOk(30, 30, false, false) and not SPP.patrolOk(5, 99, true, false) and SPP.patrolOk(5, 99, false, false))
