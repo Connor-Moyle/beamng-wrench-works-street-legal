@@ -13,6 +13,7 @@ local M = {}
 local strings = require('sl/core/strings')
 
 local heatLib = require('sl/core/heat')
+local spawnplan = require('sl/core/spawnplan')
 
 local PATROLS = 2
 local CONFIGS = {
@@ -23,6 +24,7 @@ local CONFIGS = {
 
 local units = {}          -- vehicle ids of our patrol cars
 local timer, busy = 0, false
+local lastBuild = -1e9    -- os.clock() of our last patrol build (the racers' builds in sl_streets have their own; sl_streets.buildGate() joins them)
 local nearTimer = 0
 
 local function career() return sl_career and sl_career.isActive() and sl_career.getState() or nil end
@@ -108,8 +110,15 @@ local function updatePatrols()
   if not night() or busy or #units >= target or not gameplay_traffic then return end
   local node = nodeAround(v:getPosition(), 400, 800)
   if not node then return end
+  local sBusy, sSince = false, 1e9
+  if sl_streets and sl_streets.buildGate then sBusy, sSince = sl_streets.buildGate() end
+  local since = math.min(sSince or 1e9, os.clock() - lastBuild)
+  local speed = v:getVelocity():length()
+  if not spawnplan.patrolOk(speed, since, busy or sBusy, M.inPursuit() or M.level() >= 4) then return end      -- (not lost: the next tick looks again)
   local cfg = CONFIGS[math.random(#CONFIGS)]
   busy = true
+  lastBuild = os.clock()
+  if sl_streets and sl_streets.noteBuild then sl_streets.noteBuild() end
   core_jobsystem.create(function(job)
     local ok, veh = pcall(core_vehicles.spawnNewVehicle, cfg[1], { config = cfg[2], pos = node.pos + vec3(0, 0, 0.5), autoEnterVehicle = false, canSpawnAnotherVehicleCheck = false })
     if ok and veh then

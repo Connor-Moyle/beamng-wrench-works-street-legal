@@ -1909,6 +1909,12 @@ do
   package.loaded['sl/surfacefx'] = nil
 end
 
+do -- ambient police patrols share the racers' build rule; a chase's patrol is never held back
+  local SPP = require('sl/core/spawnplan')
+  check('an ambient patrol waits for the gap, the speed rule and any other build', not SPP.patrolOk(5, 3, false, false) and not SPP.patrolOk(30, 30, false, false) and not SPP.patrolOk(5, 99, true, false) and SPP.patrolOk(5, 99, false, false))
+  check('an ambient patrol may be built after the patience at speed', SPP.patrolOk(30, SPP.PATIENCE + 1, false, false))
+  check('a chase or heat 4-5 patrol builds at once (not while another build runs)', SPP.patrolOk(40, 0, false, true) and not SPP.patrolOk(40, 0, true, true))
+end
 do -- the night cruisers built behind the fade (spawnplan.preStep)
   local SPN = require('sl/core/spawnplan')
   check('prespawn: nothing wanted -> none', SPN.preStep(0, true, false, false, 0, 4) == 'none' and SPN.preStep(nil, true, false, false, 0, 4) == 'none')

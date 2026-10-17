@@ -42,6 +42,14 @@ function M.canBuild(speed, since, busy, pooled)
   return true
 end
 
+-- may an ambient police patrol be built now: the same rule as a racer's car (one build at a time anywhere, a gap since the last build by anyone,
+-- not while the player drives fast), except that a patrol that belongs to a chase or to heat 4-5 (urgent) is never held back
+function M.patrolOk(speed, since, busy, urgent)
+  if busy then return false end
+  if urgent then return true end
+  return M.canBuild(speed, since, false, false)
+end
+
 -- the racers (of `list`) whose car waits in the pool and still exists (alive(vehicleId) -> bool); a stale id counts for nothing
 function M.reusable(list, pool, alive)
   local out = {}

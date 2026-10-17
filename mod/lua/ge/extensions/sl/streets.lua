@@ -968,6 +968,9 @@ function M.debugStartMeet() local s = career() if s and night() and not meet and
 -- for the game tester: raid the meet now
 function M.debugRaid() local s = career() if s and meet then raidMeet(s, true) end end
 
+-- the career's one build clock (sl_police asks before it builds an ambient patrol, and tells us when it starts one)
+function M.buildGate() return busy, spawnTimer end
+function M.noteBuild() spawnTimer = 0 end
 function M.meetPos() return meet and meet.place and meet.place.pos or nil end
 -- the car that plays the music (#43): the position of its owner's car, or the meet's middle
 function M.meetSpeakerPos()
