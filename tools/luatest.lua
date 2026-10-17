@@ -407,6 +407,16 @@ do
     and flares.lockStep(true, false) == 'unlock' and flares.lockStep(false, false) == nil and flares.lockStep(false, nil) == nil)
 end
 
+-- the garage forecourt: the first spot with nothing within 4 m
+do
+  local fc = require('sl/core/forecourt')
+  local spots = { { x = 0, y = 0 }, { x = 3, y = 0 }, { x = 6, y = 0 }, { x = 0, y = 6 } }
+  check('forecourt: empty, the first spot', fc.pick(spots, {}) == 1)
+  check('forecourt: a car on the first spot (or 3.9 m from it) takes it', fc.pick(spots, { { x = 1, y = 0 } }) == 3 and fc.pick(spots, { { x = 0, y = 3.9 } }) == 2)
+  check('forecourt: 4 m away is clear', fc.pick({ { x = 0, y = 0 } }, { { x = 4, y = 0 } }) == 1)
+  check('forecourt: every spot taken: nil, any vehicle counts', fc.pick(spots, { { x = 1, y = 1 }, { x = 5, y = 3 }, { x = 1, y = 5 } }) == nil and fc.SPOTS == 12)
+end
+
 -- the phone's Map app: groups, distances, arrival
 do
   local mapapp = require('sl/core/mapapp')
@@ -1231,7 +1241,7 @@ do
     { id = 'd1:dealer-3-2', name = 'Bolide', price = 7000, mileage = 20, condition = 1, faults = {}, kind = 'dealer', value = 8000 } } end
   sl_lot = { offersFor = function(place, s)      -- (the lot's own rule: what is bought is not offered)
     local out = {} for _, o in ipairs(lotOffers()) do if not (s.bought or {})[o.id] then out[#out + 1] = o end end return out end }
-  sl_fleet = { forecourt = function() return P(0), 'rot' end,
+  sl_fleet = { forecourt = function() return P(0), 'rot' end, freeForecourt = function() return P(0), 'rot' end,
     registerVehicle = function(vid, info) local car = { id = #state.cars + 1, name = info.name } state.cars[#state.cars + 1] = car state.activeCar = car.id return car end }
   core_jobsystem = { create = function(f) f({ sleep = function() end }) end }
   getPlayerVehicle = function() return { getPosition = function() return P(0) end } end
@@ -1258,6 +1268,21 @@ do
   check('and the list shows the order on its way', #last('slLaptopDealers').coming == 1 and last('slLaptopDealers').coming[1].hours >= 1)
   dealers.onUpdate(5)
   check('nothing is built before the delay', #built == 0 and #state.cars == 0)
+  -- the forecourt is full (a vehicle within 4 m of every spot): the car is not built on top of one; the player is told once; later, with room, it comes
+  do
+    local freeNow = sl_fleet.freeForecourt
+    sl_fleet.freeForecourt = function() return nil end
+    local texts0, clock0 = #texts, os.clock
+    hourNow = 14
+    dealers.onUpdate(5)
+    local told = #texts - texts0
+    os.clock = function() return clock0() + 1000 end
+    dealers.onUpdate(5)
+    check('a full forecourt: nothing is built, the player is told once', #built == 0 and told == 1 and #texts - texts0 == 1 and #state.orders == 1)
+    sl_fleet.freeForecourt = freeNow
+    hourNow = 12.5
+    os.clock = function() return clock0() + 5000 end      -- (the 30 s wait of the full forecourt is over for the rest of the test)
+  end
   local saved = deepcopy(state)                   -- a save and a load before the car arrives
   state = saved
   hourNow = 14                                    -- the dealer is 5 km away: 3 hours; it is now 4 hours later
@@ -1273,6 +1298,7 @@ do
   sl_career.mapText = function(t) return t end
   local yard0 = setmetatable({ x = 0, y = 0, z = 0 }, getmetatable(P(0)))
   sl_fleet.forecourt = function() return yard0, 'rot' end
+  sl_fleet.freeForecourt = function() return yard0, 'rot' end
   state.money, state.day, state.market = 9000, 3, { listings = {}, nextId = 1, refreshed = 0, deliveries = {}, rounds = {}, mine = {} }
   state.market.listings[1] = { id = 'm1', kind = 'car', channel = 'app', ask = 900, condition = 0.8, seller = 'Dave', where = { x = 3000, y = 0, z = 0 },
     item = { name = 'Pessima', model = 'pessima' }, offer = { id = 'used-0-1', name = 'Pessima', brand = 'Ibishu', model = 'pessima', config = 'vehicles/pessima/x.pc', price = 900,

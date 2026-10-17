@@ -1173,6 +1173,7 @@ M.TEXT = {
   ["photos.taking"] = "Say cheese.",
   ["photos.new_car_photo"] = "A photo of your new car is in the Gallery.",
   ["phone.route_set"] = "Route set to {1}.",
+  ["dealers.your_car_is_here_but"] = "Your car has arrived, but there is no room on the forecourt. Move one of yours and it will be put there.",
   ["phone.leader_of_1"] = "Leader of {1}",
   ["phone.dealer_1"] = "Dealer - {1}",
   ["phone.dealer"] = "Dealer",

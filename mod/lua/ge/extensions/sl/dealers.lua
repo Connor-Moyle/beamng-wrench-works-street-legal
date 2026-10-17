@@ -88,11 +88,21 @@ end
 -- the car is built at the garage forecourt and becomes one of yours (the car you drive stays the one you drive)
 local building = false
 local retryAt = 0
+local told = {}                 -- order -> true once the player was told that the forecourt is full
 local function deliver(s, order)
   building = true
   core_jobsystem.create(function(job)
-    local slot = #s.cars % 6
-    local pos, rot = sl_fleet.forecourt(s, slot)
+    -- the first spot of the forecourt with no vehicle within 4 m (the player's car included); every spot taken: wait, and say so once
+    local pos, rot = sl_fleet.freeForecourt(s, #s.cars % 6)
+    if not pos and sl_fleet.forecourt(s, 0) then
+      if not told[order] then
+        told[order] = true
+        sl_career.sendText('benny', strings.t('dealers.your_car_is_here_but'), 2)
+      end
+      retryAt = os.clock() + 30
+      building = false
+      return
+    end
     local veh = pos and builder.buildOffer(job, order.offer, pos, rot)
     if not veh then
       retryAt = os.clock() + 30               -- (the order stays; try again)

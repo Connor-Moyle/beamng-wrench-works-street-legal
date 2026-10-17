@@ -62,6 +62,26 @@ function M.forecourt(s, slot)
   return sites.point(site, site.doorDist - 4 - math.floor((slot or 0) / 3) * 6, side, 0.6), quatFromDir(site.dir, vec3(0, 0, 1))
 end
 
+-- the first forecourt spot (starting at slot `first`, then the others in order) with no vehicle within 4 m; `except` is a vehicle id that does not count (the car being moved).
+-- pos, rot, slot; nil when every spot is taken
+function M.freeForecourt(s, first, except)
+  local forecourt = require('sl/core/forecourt')
+  local spots, others = {}, {}
+  for i = 0, forecourt.SPOTS - 1 do
+    local slot = ((first or 0) + i) % forecourt.SPOTS
+    local pos = M.forecourt(s, slot)
+    if not pos then return nil end
+    spots[#spots + 1] = { x = pos.x, y = pos.y, slot = slot }
+  end
+  for _, v in ipairs(getAllVehicles()) do
+    if v:getID() ~= except then local p = v:getPosition() others[#others + 1] = { x = p.x, y = p.y } end
+  end
+  local i = forecourt.pick(spots, others)
+  if not i then return nil end
+  local pos, rot = M.forecourt(s, spots[i].slot)
+  return pos, rot, spots[i].slot
+end
+
 function M.atGarage(pos, s)
   local site = garageSite(s)
   return site and (pos - site.spot):length() < math.max(30, -site.doorDist + 20)
@@ -240,9 +260,10 @@ end
 function M.deliver(carId)
   local s = career()
   local car = s and carById(s, carId)
-  local pos, rot = M.forecourt(s, 0)
-  if not car or not pos then return end
   local veh = M.vehicleOf(carId)
+  local pos, rot = M.freeForecourt(s, 0, veh and veh:getID())      -- (not on top of another car; a full forecourt takes the first spot as it did)
+  if not pos then pos, rot = M.forecourt(s, 0) end
+  if not car or not pos then return end
   core_jobsystem.create(function(job)
     local player = getPlayerVehicle(0)
     if veh and player and player:getID() == veh:getID() and gameplay_walk then

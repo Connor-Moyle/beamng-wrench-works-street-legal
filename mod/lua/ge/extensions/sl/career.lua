@@ -1052,7 +1052,8 @@ function M.onSlrrPinkCarDelivered(vid)
   M._pinkWon = nil
   if slrrDrivers and slrrDrivers.setDriver then slrrDrivers.setDriver(vid, nil) end
   veh:queueLuaCommand('ai.setMode("disabled")')
-  local pos, rot = sl_fleet.forecourt(s, #s.cars % 6)
+  local pos, rot = sl_fleet.freeForecourt(s, #s.cars % 6, vid)
+  if not pos then pos, rot = sl_fleet.forecourt(s, #s.cars % 6) end
   if pos then spawn.safeTeleport(veh, pos, rot, true, nil, nil, nil, false) end     -- (8th: resetVehicle would repair it)
   sl_fleet.registerVehicle(vid, { name = won.name or veh:getJBeamFilename(), condition = 0.85, value = won.value })   -- (B32: a value, so resale and scrap price it)
   M.sendText('benny', string.format(strings.t('career.your_new_s_is_outside'), won.name or 'car'), 2)
