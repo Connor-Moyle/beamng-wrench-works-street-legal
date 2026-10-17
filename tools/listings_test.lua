@@ -395,4 +395,45 @@ return function(check, rngLib)
     and PI.describe({ slotId = 'zzz' }, nil).category == 'part' and PI.describe({ slotId = 'zzz' }, nil).categoryTitle == 'Part')
   check('a catalog that errors or has no section still gives a category from the slot', PI.describe({ slotId = 'exhaust_x' }, { classify = function() error('x') end }).category == 'engine'
     and PI.describe({ slotId = 'exhaust_x' }, { classify = function() return 'nonsense', 'x' end }).category == 'engine')
+
+  -- T37b: the bays source loads late (nil, then there): the places are built again and the lot gets its bays
+  local late, calls2 = false, 0
+  local lateApi = {
+    list = function(kind) return kind == 'dealership' and { { id = 'jeffersonmotors', filter = newF } } or {} end,
+    spots = function() return { { x = 0, y = 0, z = 5, dx = 0, dy = 1 } } end,
+    door = function() return nil end,
+    bays = function() calls2 = calls2 + 1 if not late then return nil, nil end return { bay(4, 0), bay(8, 0), bay(12, 0) }, {} end,
+  }
+  local lst, lstate = nil, {}
+  lst = D.load(lstate, 'west_coast_usa', function() return lateApi, tr end)
+  check('the bay source not there yet: the dealer keeps its own spot and the places are asked for again', #lst == 1 and #lst[1].displays == 1 and lstate.retry == true)
+  late = true
+  lst = D.load(lstate, 'west_coast_usa', function() return lateApi, tr end)
+  check('...it is there the second time: the lot has its bays and the asking stops', #lst[1].displays == 4 and lstate.retry == false and calls2 == 2)
+  local fresh = {}
+  for _ = 1, D.MAX_TRIES do late = false D.load(fresh, 'west_coast_usa', function() return lateApi, tr end) end
+  check('a source that never comes is asked for MAX_TRIES times, then left', fresh.retry == false and fresh.tries == D.MAX_TRIES)
+
+  -- T37b: the lot camera stands on the side with room and never inside a wall (sl/core/lotcam)
+  local LC = require('sl/core/lotcam')
+  local car, facing = { x = 100, y = 100, z = 10 }, { x = 0, y = 1 }
+  local clear = function() return nil end
+  local yaw0, f0 = LC.choose(car, facing, LC.PITCH, LC.DIST, clear)
+  check('a clear lot: the first rear quarter (145 degrees)', math.abs(yaw0 - math.rad(145)) < 1e-9 and f0 == 1)
+  local eye0 = LC.eyeAt(car, facing, yaw0, LC.PITCH, LC.DIST)
+  check('the eye is behind the car and to its side, 6.5 m out, about 1.7 m above its centre', eye0.y < car.y and math.abs(eye0.x - car.x) > 2.5 and math.abs(eye0.z - car.z - 1.75) < 0.1
+    and math.abs(math.sqrt((eye0.x - car.x) ^ 2 + (eye0.y - car.y) ^ 2) - LC.DIST * math.cos(LC.PITCH)) < 1e-6)
+  -- a building along the car's back (y < 97): everything behind is blocked at the wall; the sides are clear
+  local wallBehind = function(a, b) if b.y < 97 then return math.abs((97 - a.y) / (b.y - a.y)) * math.sqrt((b.x - a.x) ^ 2 + (b.y - a.y) ^ 2 + (b.z - a.z) ^ 2) end end
+  local yaw1, f1 = LC.choose(car, facing, LC.PITCH, LC.DIST, wallBehind)
+  local eye1 = LC.eyeAt(car, facing, yaw1, LC.PITCH, LC.DIST)
+  check('a wall behind the car: the camera takes the first yaw whose eye is not behind the wall (the sides)', f1 == 1 and eye1.y >= 97 and math.abs(math.deg(yaw1)) <= 90)
+  local pulled, frac = LC.pull(car, { x = 100, y = 90, z = 11.75 }, wallBehind)
+  check('an eye behind a wall is pulled in front of it, with room kept', frac < 1 and pulled.y > 97 and pulled.y < car.y)
+  local boxed = function(a, b) return 3 end                    -- everything 3 m away is a wall
+  local yaw2, f2 = LC.choose(car, facing, LC.PITCH, LC.DIST, boxed)
+  check('boxed in on every side: the clearest (all equal: the first), at least 1.5 m out', f2 < 1 and math.abs(yaw2 - math.rad(145)) < 1e-9)
+  local pulledBox = LC.pull(car, LC.eyeAt(car, facing, yaw2, LC.PITCH, LC.DIST), boxed)
+  check('...and the eye stays at least 1.5 m from the car', math.sqrt((pulledBox.x - car.x) ^ 2 + (pulledBox.y - car.y) ^ 2 + (pulledBox.z - car.z - 0.8) ^ 2) >= 1.5 - 1e-9)
+  check('a car facing another way gets the quarter relative to it', math.abs(LC.eyeAt(car, { x = 1, y = 0 }, math.rad(145), LC.PITCH, LC.DIST).x - car.x) > 4)
 end

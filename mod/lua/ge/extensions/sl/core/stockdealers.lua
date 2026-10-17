@@ -81,14 +81,17 @@ end
 -- without a spot has no lot to put cars on, so no place.
 function M.dealer(fac, spots, tr, bays)
   if not (spots and spots[1]) then return nil end
+  local pending = false
   if bays and not spots[1].synthetic then
     local candidates, roads = bays(spots[1])
+    pending = candidates == nil          -- (the parking sites or the navgraph are not loaded yet: the places are built again later)
     spots = M.withBays(spots, candidates, roads)
   end
   local a = spots[1]
   local p = { id = 'stock_' .. tostring(fac.id):lower(), stockId = fac.id, kind = 'dealer', name = M.nameOf(fac, tr), pos = arr3(a), display = arr3(a),
     displayDir = { a.dx, a.dy }, displays = {}, stock = { kind = M.offerKind(fac.filter), filter = fac.filter } }
   for _, s in ipairs(spots) do p.displays[#p.displays + 1] = { pos = arr3(s), dir = { s.dx, s.dy } } end
+  p.baysPending = pending            -- (the place is built again later, when the bay source is there)
   return p
 end
 
@@ -194,9 +197,10 @@ function M.fromFacilities(api, level, tr)
     local d = api.door(f)
     return d and { { x = d.x, y = d.y, z = d.z, dx = d.dx or 0, dy = d.dy or 1, synthetic = true } } or {}
   end
+  local pending = false
   for _, f in ipairs(api.list('dealership', level) or {}) do
     local p = not f.remotePurchaseOnly and M.dealer(f, spotsOrDoor(f), tr, api.bays)
-    if p then out[#out + 1] = p end
+    if p then out[#out + 1] = p pending = pending or p.baysPending == true end
   end
   -- Wrench Works' garages have their own ids on the stock facilities' (the same building): a stock garage next to
   -- one of its sites is that garage
@@ -208,7 +212,7 @@ function M.fromFacilities(api, level, tr)
     end
     if p then out[#out + 1] = p end
   end
-  return out
+  return out, pending
 end
 
 -- The places, and whether to ask again: a career can start before the level has loaded its facilities, and a map with
@@ -217,9 +221,9 @@ end
 M.MAX_TRIES = 20
 function M.load(state, level, makeApi)
   local api, tr = makeApi()
-  local list = M.fromFacilities(api, level, tr)
+  local list, pending = M.fromFacilities(api, level, tr)
   state.tries = (state.tries or 0) + 1
-  state.retry = progression.has(level, 'stockFacilities') and #list == 0 and state.tries < M.MAX_TRIES
+  state.retry = progression.has(level, 'stockFacilities') and (#list == 0 or pending == true) and state.tries < M.MAX_TRIES
   return list
 end
 

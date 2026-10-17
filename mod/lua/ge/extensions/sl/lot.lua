@@ -13,6 +13,7 @@ local rngLib = require('sl/core/rng')
 local builder = require('sl/carBuilder')
 local hours = require('sl/core/hours')
 local stockLib = require('sl/core/stockdealers')
+local lotcam = require('sl/core/lotcam')
 
 local KIND = { junkyard = 'used', dealer = 'dealer', scrapyard = 'scrap' }
 local TITLES = { used = 'Used cars', dealer = 'New cars', scrap = 'Scrap yard' }
@@ -115,7 +116,7 @@ local cam             -- { yaw, pitch, dist, pos, look, previous }
 
 local function cameraOn()
   if cam then return end
-  cam = { yaw = math.rad(35), pitch = math.rad(12), dist = 7.5, previous = lot and lot.previousCamera }
+  cam = { yaw = math.rad(lotcam.YAWS[1]), pitch = lotcam.PITCH, dist = lotcam.DIST, previous = lot and lot.previousCamera }
   -- the script-driven camera (it takes its pose from us every frame and shows no free-camera help); the free camera as a fallback
   local ok = core_camera and core_camera.setByName and pcall(core_camera.setByName, 0, 'scriptedFree', false, { locked = true })
   if not ok and commands and commands.setFreeCamera then commands.setFreeCamera() end
@@ -132,15 +133,30 @@ local function cameraOff()
   end
 end
 
+-- the game's walls for the camera: the distance from a to the first static thing on the way to b, or nil
+local function wallRay(a, b)
+  local d = math.sqrt((b.x - a.x) ^ 2 + (b.y - a.y) ^ 2 + (b.z - a.z) ^ 2)
+  if d <= 0 then return nil end
+  local ok, h = pcall(castRayStatic, vec3(a.x, a.y, a.z), vec3((b.x - a.x) / d, (b.y - a.y) / d, (b.z - a.z) / d), d)
+  return ok and h and h < d - 0.01 and h or nil
+end
+
 local function updateCamera(dt)
   if not cam or not lot or lot.mode ~= 'browse' then return end
   local sp = lot.spots and lot.spots[lot.index or 1]
   if not sp then return end
   local veh = lot.veh and getObjectByID(lot.veh)
   local target = veh and veh:getSpawnWorldOOBB():getCenter() or (sp.pos + vec3(0, 0, 0.7))
-  local side = vec3(sp.dir.y, -sp.dir.x, 0)
-  local flat = sp.dir * math.cos(cam.yaw) + side * math.sin(cam.yaw)
-  local want = target + flat * (cam.dist * math.cos(cam.pitch)) + vec3(0, 0, cam.dist * math.sin(cam.pitch) + 0.4)
+  local t = { x = target.x, y = target.y, z = target.z }
+  local dir = { x = sp.dir.x, y = sp.dir.y }
+  -- the car in front of the camera changed: stand on the side with room (a rear quarter, away from the wall)
+  local key = tostring(lot.index) .. ':' .. tostring(lot.veh)
+  if cam.chosenFor ~= key then
+    cam.chosenFor = key
+    cam.yaw = lotcam.choose(t, dir, cam.pitch, cam.dist, wallRay)
+  end
+  local eye = lotcam.pull(t, lotcam.eyeAt(t, dir, cam.yaw, cam.pitch, cam.dist), wallRay)       -- (never inside a building)
+  local want = vec3(eye.x, eye.y, eye.z)
   local k = 1 - math.exp(-4 * math.min(dt, 0.1))
   cam.pos = cam.pos and (cam.pos + (want - cam.pos) * k) or want
   cam.look = cam.look and (cam.look + (target - cam.look) * k) or target

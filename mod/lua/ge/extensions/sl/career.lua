@@ -312,8 +312,26 @@ end
 -- The level's painted parking bays (the city parking sites parked traffic uses) around a point, and the public roads there
 -- (T37). nil, nil while the sites or the navgraph are not loaded yet (baysMissing then asks getPlaces to build the places again).
 local baysMissing = false
+-- the city parking sites: loaded here if nothing has (the game loads them with a mission, which a freeroam start may not have done),
+-- from gameplay_city or, failing that, the level's own city.sites.json through the sites manager
+local function citySites()
+  pcall(extensions.load, 'gameplay_city')
+  if gameplay_city and gameplay_city.getSites then
+    if not gameplay_city.getSites() and gameplay_city.loadSites then pcall(gameplay_city.loadSites) end
+    local s = gameplay_city.getSites()
+    if s then return s end
+  end
+  pcall(extensions.load, 'gameplay_sites_sitesManager')
+  local level = getCurrentLevelIdentifier and getCurrentLevelIdentifier()
+  local file = level and ('/levels/' .. level .. '/city.sites.json')
+  if file and gameplay_sites_sitesManager and FS:fileExists(file) then
+    local ok, s = pcall(gameplay_sites_sitesManager.loadSites, file)
+    if ok and s then return s end
+  end
+end
+
 function M.paintedBays(o)
-  local sites = gameplay_city and gameplay_city.getSites and gameplay_city.getSites()
+  local sites = citySites()
   local okm, nodes = pcall(function() return map.getMap().nodes end)
   if not sites or not okm or type(nodes) ~= 'table' or next(nodes) == nil then
     baysMissing = true
