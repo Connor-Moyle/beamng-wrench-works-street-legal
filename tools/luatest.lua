@@ -1926,6 +1926,11 @@ do -- the night cruisers built behind the fade (spawnplan.preStep)
   check('prespawn: two are built, then it stops', pre == 0 and built == 2 and SPN.preStep(pre, true, false, false, built, 4) == 'none')
 end
 
+do -- builds wait for the frames to recover
+  local SPN = require('sl/core/spawnplan')
+  check('frames: a build waits 2 s after the last slow frame, but not for ever on a slow machine', not SPN.framesRecovered(0.5, 10) and SPN.framesRecovered(2, 10) and SPN.framesRecovered(0.1, 60) and SPN.framesRecovered(nil, nil))
+end
+
 do -- the night is never empty: the first meet 30 s in, retried 20 s after a miss, then every 90 s at 35 %
   local SPN = require('sl/core/spawnplan')
   check('meets: the first of a night is due at 30 s, not before', SPN.meetDue(29, 0, 0.99) == nil and SPN.meetDue(30, 0, 0.99) == 'try')

@@ -44,6 +44,7 @@ local meet                -- { place, cars = { racer id -> vehicle id }, until (
 local race                -- the race running: { racer, vid, stake, bet, dest = vec3, destName, t, countdown, started }
 local beam = { on = false, onAt = 0 }
 local pollTimer, spawnTimer, meetTimer = 0, 0, 0
+local lastSlowFrame = -1e9      -- os.clock() of the last frame over spawnplan.SLOW_FRAME s (builds wait for the frames to recover)
 local meetEmptied = false   -- the meet that started built no car: it does not count for the night
 local meetsTonight = 0   -- meets started since dusk (the first of a night is tried after 30 s, spawnplan.meetDue)
 local tryTimer = 0
@@ -536,7 +537,7 @@ local function updateCruisers(s, dt)
   -- one build at a time, a gap between, and not while he races along (spawnplan.canBuild); the timer restarts only when a car is really begun
   local speed = v and v:getVelocity():length() or 0
   tryTimer = tryTimer + dt
-  if tryTimer >= 1 and night() and count < MAX_CRUISERS and not race and spawnplan.canBuild(speed, spawnTimer, busy, next(pool) ~= nil) then
+  if tryTimer >= 1 and night() and count < MAX_CRUISERS and not race and spawnplan.canBuild(speed, spawnTimer, busy, next(pool) ~= nil) and spawnplan.framesRecovered(os.clock() - lastSlowFrame, spawnTimer) then
     tryTimer = 0                                 -- (looking for a hidden road costs a pass over the graph: once a second at most)
     if spawnCruiser(s, spawnTimer < spawnplan.MIN_GAP) then spawnTimer = 0 end
   end
@@ -690,6 +691,8 @@ local function meetGap()
 end
 local function meetPace(job)
   job.sleep(meetGap())
+  local waited = 0
+  while waited < 10 and not spawnplan.framesRecovered(os.clock() - lastSlowFrame) do job.sleep(0.5) waited = waited + 0.5 end      -- (the last build's slow frames)
   return true
 end
 
@@ -1279,6 +1282,7 @@ end
 -- hooks
 
 function M.onUpdate(dtReal)
+  if dtReal > spawnplan.SLOW_FRAME then lastSlowFrame = os.clock() end
   local s = career()
   if not s then
     if race or meet or next(cruisers) then

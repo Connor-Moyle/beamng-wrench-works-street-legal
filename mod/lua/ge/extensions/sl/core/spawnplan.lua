@@ -57,6 +57,13 @@ function M.reusable(list, pool, alive)
   return out
 end
 
+-- a build leaves ~1 s of slow frames after its 1.2-1.4 s call (hitch recordings): the next one waits until frames have been normal for RECOVER s;
+-- on a machine that is slow all the time that would be never, so after PATIENCE_FRAMES s since the last build it is ignored
+M.SLOW_FRAME, M.RECOVER, M.PATIENCE_FRAMES = 0.06, 2.0, 60
+function M.framesRecovered(sinceSlowFrame, sinceBuild)
+  return (sinceSlowFrame or 1e9) >= M.RECOVER or (sinceBuild or 0) >= M.PATIENCE_FRAMES
+end
+
 -- the cruisers built behind the fade of the switch to night: what to do this frame with `pre` still wanted
 -- -> 'reset' (the fade is over or a race began: forget the rest), 'build', or 'wait' (one at a time, none while too many are out)
 function M.preStep(pre, inFade, race, busy, count, max)
