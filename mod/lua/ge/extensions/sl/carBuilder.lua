@@ -234,7 +234,7 @@ end
 M.NO_TWEAK_MODELS = {}
 M.REFUSE_DENTS = {}             -- see carsLib.REFUSE_DENTS: panels a car is never dented on
 M.NO_REBUILD = false           -- true: a lot car is spawned stock and never rebuilt (no part removed or swapped): bisecting the 0x140386 crash
-M.NO_DENTS = true               -- dents off until slrrGarageVeh dents are made safe (see lot.lua NO_DENTS)
+M.NO_DENTS = false              -- true: a car for sale is not dented (bisect switch)
 M.REFUSE = { 'sparewheel', 'spare_wheel', 'spare' }       -- (pieces of a slot path, slot id or part name that are never taken off or swapped)
 
 -- Dents on one car, and a wait for the car itself to say they are on (a callback from its own Lua, slrrGarageVeh's options.done), then a
