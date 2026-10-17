@@ -1,0 +1,180 @@
+-- Street Legal: the drag strip in the career (extension name: sl_drag; #23)
+-- The strip at Alder (West Coast USA) is the game's own freeroam drag: stage and pre-stage lights, the Christmas tree, reaction time, ET and trap
+-- speed, the timeslip, a bracket race with a dial-in and its handicap start (gameplay_drag_*). The game offers it in freeroam only when its
+-- "enableDragRaceInFreeroam" setting is on, and a stock career would be needed otherwise. Here, while this career runs, it is on BY DAY (a
+-- day event, D2) and off at night, bracket racing is the type of every strip, and the other lane is a career racer's car, dialled by its estimated
+-- ET, driven by the game's own drag AI. A run costs the entry fee and a win pays (rules: sl/core/drag).
+
+local M = {}
+
+local patch = require('sl/core/patch')
+local rules = require('sl/core/drag')
+local stateLib = require('sl/core/state')
+local rngLib = require('sl/core/rng')
+
+local savedCore, savedPoi = {}, {}
+local run                      -- { practice, racerName, aiVid, lane, fee }
+
+local function careerOn() return sl_career ~= nil and sl_career.isActive() == true and not (career_career and career_career.isActive and career_career.isActive() == true) end
+local function dayOn() return careerOn() and sl_career.phase() == 'day' end
+local function toast(text) guihooks.trigger('slPhoneToast', { text = text }) if ui_message then ui_message(text, 7, 'streetLegal') end end
+local function core() return gameplay_drag_core end
+
+----------------------------------------------------------------------------------------------
+-- the game's drag, switched on for the career's days
+
+local function isDragEnabled()
+  if careerOn() then return dayOn() end
+  local orig = savedCore.isDragEnabled and savedCore.isDragEnabled.original
+  return orig and orig() or false
+end
+
+-- every strip is a bracket race while the career runs (the dial-in and the handicap start)
+local function applyUserRulesToData(data, stripId, levelId)
+  local orig = savedPoi.applyUserRulesToData and savedPoi.applyUserRulesToData.original
+  if orig then orig(data, stripId, levelId) end
+  if careerOn() and type(data) == 'table' then data.dragType = 'bracketRace' end
+end
+
+local function install()
+  if not careerOn() then return end
+  local changed = false
+  if core() then changed = patch.install(core(), 'isDragEnabled', isDragEnabled, savedCore) or changed end
+  if gameplay_drag_poi then changed = patch.install(gameplay_drag_poi, 'applyUserRulesToData', applyUserRulesToData, savedPoi) or changed end
+  if changed and gameplay_rawPois and gameplay_rawPois.clear then gameplay_rawPois.clear() end        -- (the strip's stage markers are listed now)
+end
+
+local function restore()
+  if core() then patch.restore(core(), 'isDragEnabled', savedCore) end
+  if gameplay_drag_poi then patch.restore(gameplay_drag_poi, 'applyUserRulesToData', savedPoi) end
+  if gameplay_rawPois and gameplay_rawPois.clear then gameplay_rawPois.clear() end
+end
+
+M.onStreetLegalStarted = install
+M.onStreetLegalPhase = install              -- (pois.lua clears the marker list on the phase: the strip comes and goes with it)
+M.onStreetLegalPlacesChanged = install
+M.onClientPostStartMission = install
+M.onStreetLegalStopped = restore
+M.onExtensionUnloaded = restore
+
+----------------------------------------------------------------------------------------------
+-- the opponent: a career racer's car in the other lane, the game's drag AI does the rest
+
+local function removeOpponent()
+  local r = run
+  run = nil
+  if r and r.aiVid then
+    local vid = r.aiVid
+    core_jobsystem.create(function(job) job.sleep(15) local v = getObjectByID(vid) if v then v:delete() end end)
+  end
+end
+
+local function laneSpawn(data, laneIndex)
+  local lane = data.strip and data.strip.lanes and data.strip.lanes[laneIndex]
+  local t = lane and lane.waypoints and lane.waypoints.spawn and lane.waypoints.spawn.transform
+  if not (t and t.position and t.rot) then return nil end
+  return vec3(t.position), t.rot
+end
+
+local function addOpponent(data, myLane, racer)
+  local other = myLane == 1 and 2 or 1
+  local pos, rot = laneSpawn(data, other)
+  if not pos then
+    run.practice = true
+    toast('Drag strip: the other lane has no spawn, a practice run.')
+    return
+  end
+  if not (sl_streets and sl_streets.buildRacerCar) then run.practice = true return end
+  local started = sl_streets.buildRacerCar(racer.racerId, pos + vec3(0, 0, 0.4), rot, function(veh)
+    if not run or not veh then
+      if veh then veh:delete() end
+      if run then run.practice = true toast('Nobody showed up at the strip.') end
+      return
+    end
+    local vid = veh:getID()
+    run.aiVid = vid
+    veh:queueLuaCommand('input.event("parkingbrake", 0, FILTER_DIRECT) controller.setFreeze(0)')
+    local c = core()
+    local d = c and c.getData()
+    if not (d and d.racers) then return end
+    c.setupRacer(vid, other)
+    local r = d.racers[vid]
+    if not r then run.practice = true return end
+    r.isPlayable = false                    -- the game's drag AI stages, launches and stops it
+    r.canBeReseted = false
+    local details = core_vehicles and core_vehicles.getVehicleDetails and core_vehicles.getVehicleDetails(vid)
+    local cfg = details and details.configs
+    local et = rules.etEstimate(cfg and cfg.Power, cfg and cfg.Weight)
+    local dial = rules.aiDial(et, racer.skill, rngLib.new(vid):range(-1, 1))
+    c.setRacerDial(vid, dial)
+    log('I', 'sl_drag', string.format('opponent %s: %s, dial %.2f (estimate %s)', racer.name, tostring(details and details.configs and details.configs.Name), dial, et and string.format('%.2f', et) or 'none'))
+  end)
+  if not started then run.practice = true end
+end
+
+-- the player has lined up: the entry fee, and the other lane
+function M.onDragRacersSetup(data)
+  if not dayOn() or type(data) ~= 'table' then return end
+  removeOpponent()
+  local myLane
+  for _, r in pairs(data.racers or {}) do if r.isPlayable then myLane = r.lane end end
+  if not myLane then return end
+  run = { fee = rules.ENTRY_FEE, lane = myLane }
+  if not sl_career.addMoney(-run.fee, 'Drag strip entry') then
+    run.practice = true
+    toast(string.format('Drag strip: $%d to line up. A practice run, nothing on it.', rules.ENTRY_FEE))
+    return
+  end
+  local racer = (sl_career.racersForRace('drag', 1) or {})[1]
+  if not racer then run.practice = true return end
+  run.racerName = racer.name
+  toast(string.format('Drag strip: %s lines up in the other lane. Dial in, then stage.', racer.name))
+  addOpponent(data, myLane, racer)
+end
+
+----------------------------------------------------------------------------------------------
+-- the result: the game lights the winner's lane when every car has run
+
+local function playerRacer(data)
+  for _, r in pairs(data and data.racers or {}) do if r.isPlayable then return r end end
+end
+
+function M.onWinnerLightOn(lane)
+  local r = run
+  if not r then return end
+  local data = core().getData()
+  local me = playerRacer(data)
+  if not me then removeOpponent() return end
+  local important = data.importantTimerId or 'time_1_4'
+  local timers = me.timers or {}
+  local speedId = (important:gsub('^time_', 'velAt_'))
+  local slip = rules.slip({
+    et = timers[important] and timers[important].isSet and timers[important].value or nil,
+    speed = timers[speedId] and timers[speedId].isSet and timers[speedId].value or nil,
+    reaction = gameplay_drag_times and gameplay_drag_times.getReactionTimerValue and gameplay_drag_times.getReactionTimerValue(me) or nil,
+    dial = timers.dial and timers.dial.value, dq = me.isDisqualified and tostring(me.disqualifiedReason or 'disqualified') or nil })
+  local won = me.lane == lane and not me.isDisqualified
+  local text = rules.slipText(slip)
+  if r.practice then
+    toast('Practice run: ' .. text)
+  else
+    local pay = rules.purse(won, r.fee)
+    local s = sl_career.getState()
+    if pay.money > 0 then sl_career.payOut(pay.money, 'Drag strip win') end
+    if pay.rep ~= 0 and s then stateLib.addRep(s, pay.rep) end
+    s = s or {}
+    s.dragRuns = (s.dragRuns or 0) + 1
+    if won then s.dragWins = (s.dragWins or 0) + 1 end
+    toast(string.format('%s: %s. %s', won and 'You won' or ('You lost to ' .. tostring(r.racerName or 'the other lane')), text,
+      pay.money > 0 and string.format('$%d and %+d reputation.', pay.money, pay.rep) or 'Nothing paid.'))
+    extensions.hook('onStreetLegalChanged')
+  end
+  removeOpponent()
+end
+
+-- the run is called off (the strip was cleared, the career stopped): the other car goes
+M.onDragClear = function() removeOpponent() end
+local restoreAll = restore
+M.onStreetLegalStopped = function() removeOpponent() restoreAll() end
+
+return M

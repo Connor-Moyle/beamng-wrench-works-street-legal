@@ -232,4 +232,15 @@ return function(check, rngLib)
   check('travel: your garage is open, the next one locked with the reputation it needs; a shop is never locked', not ex[1].locked and ex[2].locked and ex[2].why:find('1500') ~= nil and ex[2].what:find('1500') ~= nil and not ex[3].locked)
   local up = FT.extras(places, {}, { rep = 2000, garageLevel = 2 })
   check('travel: after moving up, the garage opens', not up[2].locked)
+
+  -- #23: the drag strip
+  local DR = require('sl/core/drag')
+  local et = DR.etEstimate(300, 1300)
+  check('drag: a 300 PS 1300 kg car is a 12-13 s car doing ~110 mph, a slow one is slower, nonsense gives nil', et > 12 and et < 13 and DR.etEstimate(100, 1300) > et and DR.etEstimate(0, 1300) == nil and DR.etEstimate('x', 1) == nil
+    and DR.trapSpeed(300, 1300) > 42 and DR.trapSpeed(300, 1300) < 52)
+  check('drag: the opponent dials within 6 percent, a better driver closer, never under 6 s', math.abs(DR.aiDial(14, 0, 1) - 14.84) < 0.01 and DR.aiDial(14, 1, 1) == 14 and DR.aiDial(14, 0.5, -1) == 13.58 and DR.aiDial(1, 0, 0) == 6 and DR.aiDial(nil, nil, nil) == 14.5)
+  check('drag: a win pays 1.9 times the fee and rep, a loss nothing', DR.purse(true, 50).money == 100 and DR.purse(true, 50).rep == 12 and DR.purse(false, 50).money == 0 and DR.purse(true).money == 100)
+  local sl = DR.slip({ et = 12.9, reaction = 0.043, speed = 50, dial = 13.2 })
+  check('drag: the slip has mph, the diff against the dial and a break-out when under it', math.abs(sl.mph - 111.8) < 0.1 and math.abs(sl.diff + 0.3) < 1e-9 and sl.breakout and not DR.slip({ et = 13.5, dial = 13.2 }).breakout)
+  check('drag: the slip text', DR.slipText(sl):find('ET 12.900 s') ~= nil and DR.slipText(sl):find('break%-out') ~= nil and DR.slipText({ dq = 'red light' }):find('red light') ~= nil and DR.slipText({}) == 'No time.')
 end
