@@ -53,9 +53,11 @@ end
 -- when a car meet is tried (#17: a night is never empty): the first one of a night 30 s in, later ones every 90 s with a 35 % chance;
 -- a try that found no place or no hidden spot is repeated 20 s later, not a whole interval later
 M.MEET_FIRST, M.MEET_EVERY, M.MEET_CHANCE, M.MEET_RETRY = 30, 90, 0.35, 20
+-- -> nil (not yet), 'try' (go and start one), 'skip' (due, but the chance said no: the caller restarts the timer)
 function M.meetDue(timer, meetsTonight, roll)
-  if (meetsTonight or 0) == 0 then return timer >= M.MEET_FIRST end
-  return timer >= M.MEET_EVERY and roll < M.MEET_CHANCE
+  if (meetsTonight or 0) == 0 then return timer >= M.MEET_FIRST and 'try' or nil end
+  if timer < M.MEET_EVERY then return nil end
+  return roll < M.MEET_CHANCE and 'try' or 'skip'
 end
 -- the timer after a try: 0 once a meet started (or a later try missed its chance), a short retry when the very try failed
 function M.meetTimerAfter(started, meetsTonight)

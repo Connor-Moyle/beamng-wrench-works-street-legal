@@ -1903,8 +1903,8 @@ end
 
 do -- the night is never empty: the first meet 30 s in, retried 20 s after a miss, then every 90 s at 35 %
   local SPN = require('sl/core/spawnplan')
-  check('meets: the first of a night is due at 30 s, not before', not SPN.meetDue(29, 0, 0.99) and SPN.meetDue(30, 0, 0.99))
-  check('meets: later ones need 90 s and the chance', not SPN.meetDue(89, 1, 0.0) and not SPN.meetDue(90, 1, 0.5) and SPN.meetDue(90, 1, 0.2))
+  check('meets: the first of a night is due at 30 s, not before', SPN.meetDue(29, 0, 0.99) == nil and SPN.meetDue(30, 0, 0.99) == 'try')
+  check('meets: later ones need 90 s and the chance; a lost roll is a skip', SPN.meetDue(89, 1, 0.0) == nil and SPN.meetDue(90, 1, 0.5) == 'skip' and SPN.meetDue(90, 1, 0.2) == 'try')
   check('meets: a missed first try is repeated 20 s later, a missed later one too', SPN.meetTimerAfter(false, 0) == 10 and SPN.meetTimerAfter(false, 2) == 70 and SPN.meetTimerAfter(true, 0) == 0)
   -- a night of 30 minutes at one check a second, with a try that fails half the time: the first meet starts within 5 minutes in every seed
   local worst = 0
@@ -1913,7 +1913,9 @@ do -- the night is never empty: the first meet 30 s in, retried 20 s after a mis
     local timer, tonight, t = 0, 0, 0
     while t < 1800 and tonight == 0 do
       t, timer = t + 1, timer + 1
-      if SPN.meetDue(timer, tonight, math.random()) then
+      local due = SPN.meetDue(timer, tonight, math.random())
+      if due == 'skip' then timer = 0
+      elseif due == 'try' then
         local ok = math.random() < 0.5
         timer = SPN.meetTimerAfter(ok, tonight)
         if ok then tonight = tonight + 1 end
@@ -1924,6 +1926,23 @@ do -- the night is never empty: the first meet 30 s in, retried 20 s after a mis
   local SPC = require('sl/core/spawnplan')
   local firstCar = function(speed) for t = 0, 600 do if SPC.canBuild(speed, t, false) then return t end end end
   check('cruisers: at night the first car may be built after 8 s standing or cruising, after 45 s at full speed (both inside 2 minutes)', firstCar(0) == 8 and firstCar(10) == 8 and firstCar(30) == 45)
+  -- frame by frame (60 fps, a meet that always starts and lasts 60 s): a later meet comes about every 90 / 0.35 s, not every 90 s
+  do
+    math.randomseed(7)
+    local timer, gaps, n, sum = 0, 0, 0, 0
+    for _ = 1, 200 do
+      local waited, due = 0, nil
+      timer = 0
+      repeat
+        timer, waited = timer + 1 / 60, waited + 1 / 60
+        due = SPN.meetDue(timer, 1, math.random())
+        if due == 'skip' then timer = 0 end
+      until due == 'try'
+      n, sum = n + 1, sum + waited
+    end
+    local mean = sum / n
+    check('meets: later ones come about every 4 minutes on average (mean ' .. math.floor(mean) .. ' s)', mean > 200 and mean < 330)
+  end
   check('meets: with half the tries failing, the first meet starts within 5 minutes (worst of 300 nights ' .. worst .. ' s)', worst <= 300)
 end
 

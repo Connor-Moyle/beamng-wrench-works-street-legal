@@ -790,7 +790,9 @@ local function updateMeet(s, dt)
   local v = getPlayerVehicle(0)
   if not meet then
     meetTimer = meetTimer + dt
-    if night() and not race and not busy and spawnplan.meetDue(meetTimer, meetsTonight, math.random()) then
+    local due = night() and not race and not busy and spawnplan.meetDue(meetTimer, meetsTonight, math.random())
+    if due == 'skip' then meetTimer = 0
+    elseif due == 'try' then
       local started = startMeet(s) and true or false
       meetTimer = spawnplan.meetTimerAfter(started, meetsTonight)
       if started then meetsTonight = meetsTonight + 1 end
