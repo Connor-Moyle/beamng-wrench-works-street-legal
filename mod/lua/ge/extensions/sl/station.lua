@@ -123,6 +123,8 @@ function M.washedToday(carId) local s = career() return s ~= nil and carId ~= ni
 local function washCar(carId, s)
   if not sl_career.addMoney(-M.WASH_PRICE, strings.t('station.car_wash')) then toast(strings.t('station.a_wash_is_1', (M.WASH_PRICE))) return false end
   if surfaceFXBody and surfaceFXBody.wash then surfaceFXBody.wash() end
+  local washed = sl_fleet and sl_fleet.vehicleOf(carId)
+  if washed and sl_surfacefx then sl_surfacefx.wash(washed:getID()) end      -- (Car Surface FX: the dirt splats and the dirt on the paint come off, the car you rolled in)
   washedOn[carId] = s.day
   toast(string.format(strings.t('station.washed_and_dried_d_it'), M.WASH_PRICE))
   return true

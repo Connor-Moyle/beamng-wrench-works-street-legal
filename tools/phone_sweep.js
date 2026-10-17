@@ -31,7 +31,7 @@ const full = Object.assign({}, data, {
   bank: { limit: 6000, rate: 0.03, premium: 80, premiumWhy: 'No claims in the last 28 days: the base premium.', deductible: 200 },
   weather: { state: 'rain', level: 'heavy', name: 'Rain', wet: true, text: 'Heavy rain today. Wet roads.' },
   market: { deliveries: 0, listings: [], auctions: [], mine: [], shelf: [], cars: [], paper: { edition: 1, listings: [], price: 2 }, meet: {} },
-  fleet: [], textScale: 1,
+  fleet: [{ id: 1, name: 'Covet', where: 'In the garage', condition: 0.8, faults: [], look: 'Dusty, no scratches', out: false }], textScale: 1,
 });
 phone.handle('slPhoneData', full);
 phone.handle('slPhoneToggle');
@@ -42,6 +42,7 @@ for (const app of [...new Set(apps)]) {
   phone.act('home');
   phone.act('open', app);
   check('app ' + app);
+  if (app === 'garage') assert.ok(phone.root.textContent.includes('Dusty, no scratches'), 'the My cars card shows how dirty and scratched the car is (Car Surface FX)');
   // and every tab / sub button of the app that only changes the page (not asks the game for anything)
   const tabs = [...phone.root.querySelectorAll('[data-a="mtab"],[data-a="cmtab"],[data-a="tab"]')];
   for (const t of tabs) {

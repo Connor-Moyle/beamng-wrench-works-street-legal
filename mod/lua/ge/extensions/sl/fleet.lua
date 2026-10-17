@@ -75,6 +75,8 @@ local function placeOf(veh)
   return { pos = { p.x, p.y, p.z + 0.3 }, rot = { r.x, r.y, r.z, r.w } }
 end
 
+local fxApplied = {}           -- vehicle id -> true once the car's kept dirt and scratches were put back on it
+
 -- note where every car out in the world is and how it is built (the dents follow, a moment later)
 function M.snapshot(withDamage)
   local s = career()
@@ -84,6 +86,7 @@ function M.snapshot(withDamage)
     if car and veh then
       car.config = builder.configOf(vid) or car.config
       car.where = placeOf(veh)
+      if sl_surfacefx and fxApplied[vid] then local fx = sl_surfacefx.save(vid) if fx ~= nil then car.fx = fx or nil end end      -- (Car Surface FX: its dirt and scratches stay with the car when it is put away or the game is saved)
       if withDamage then veh:queueLuaCommand('extensions.load("slrrGarageVeh") if slrrGarageVeh then slrrGarageVeh.capture() end') end
     elseif not veh then
       spawned[carId] = nil
@@ -115,6 +118,14 @@ function M.onWrenchWorksRepaired(vid, cost)
   local s = career()
   local car = s and carById(s, M.carOfVehicle(vid))
   if car and tonumber(cost) then car.repaired = (car.repaired or 0) + tonumber(cost) end
+  if car and sl_surfacefx then sl_surfacefx.repair(vid) local fx = sl_surfacefx.save(vid) if fx ~= nil then car.fx = fx or nil end end      -- (the scratches are buffed out with the dents)
+end
+
+-- a paint job in the garage: the car is cleaned and unscratched under the new paint
+function M.onWrenchWorksPainted(vid)
+  local s = career()
+  local car = s and carById(s, M.carOfVehicle(vid))
+  if car and sl_surfacefx then sl_surfacefx.wash(vid) sl_surfacefx.repair(vid) local fx = sl_surfacefx.save(vid) if fx ~= nil then car.fx = fx or nil end end
 end
 
 -- a new part bought for a fault's slot: remembered by price; the fault is put right only once the car drives out
@@ -391,6 +402,7 @@ function M.list()
       scrap = market.scrapValue(c), resale = market.resaleValue(c), towFee = veh and progression.towFee((veh:getPosition() - (M.forecourt(s, 0) or veh:getPosition())):length()) or nil,
       care = sl_carcare and sl_carcare.summary and sl_carcare.summary(c) or nil,
       impounded = c.impounded,
+      look = veh and sl_surfacefx and sl_surfacefx.lookText(veh:getID()) or nil,      -- ('Clean, no scratches': Car Surface FX, when it is there)
       report = (function() local ok, r = pcall(sl_carcare.reportOf, c) return ok and r or nil end)(),       -- (#30: with the wear since you bought it)
     }
   end
@@ -426,8 +438,22 @@ function M.onVehicleDestroyed(vid)
   end
 end
 
+local fxTimer = 0
 function M.onUpdate(dtReal)
   if not career() then return end
+  -- a car that came out (spawned from the save, delivered, brought out of the garage) gets the dirt and scratches it had when it was put away
+  fxTimer = fxTimer + dtReal
+  if fxTimer > 2 and sl_surfacefx then
+    fxTimer = 0
+    local s = career()
+    for carId, vid in pairs(spawned) do
+      if not fxApplied[vid] and getObjectByID(vid) then
+        fxApplied[vid] = true
+        local car = carById(s, carId)
+        if car and car.fx then sl_surfacefx.restore(vid, car.fx) end
+      end
+    end
+  end
   -- every minute the dents of the cars out in the world are read again (for the save)
   snapshotTimer = snapshotTimer + dtReal
   if snapshotTimer > 60 then

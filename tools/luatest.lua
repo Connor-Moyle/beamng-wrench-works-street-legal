@@ -1857,4 +1857,37 @@ do
   package.loaded['sl/uipush'] = nil
 end
 
+-- sl_surfacefx: guarded calls into Car Surface FX (absent, version 1, version 2)
+do
+  local saved = { carSurfaceFx = rawget(_G, 'carSurfaceFx'), getPlayerVehicle = getPlayerVehicle }
+  getPlayerVehicle = function() return { getID = function() return 7 end } end
+  package.loaded['sl/surfacefx'] = nil
+  local fx = require('sl/surfacefx')
+  carSurfaceFx = nil
+  carSurfaceFx = nil
+  check('surfacefx: without the mod every call does nothing', fx.wash(7) == nil and fx.repair(7) == nil and fx.save(7) == nil and fx.restore(7, {}) == nil and fx.level(7) == nil and fx.lookText(7) == nil)
+  local calls = {}
+  carSurfaceFx = { wash = function(id) calls[#calls + 1] = 'wash' .. id end, repair = function(id) calls[#calls + 1] = 'repair' .. tostring(id) end }
+  fx.wash(7); fx.repair(7); fx.repair(9)
+  check('surfacefx: version 1 washes any car and repairs only the player car (its repair() cleans every car)', calls[1] == 'wash7' and calls[2] == 'repairnil' and #calls == 2 and fx.save(7) == nil and fx.level(7) == nil)
+  calls = {}
+  local kept
+  carSurfaceFx = { apiVersion = 2, wash = function(id) calls[#calls + 1] = 'wash' .. id end, repair = function(id) calls[#calls + 1] = 'repair' .. id end,
+    getState = function(id) return { dirt = { mud = 0.4 }, scratches = 3 } end, setState = function(id, t) kept = { id, t } end,
+    level = function(id) return { dirtName = 'muddy', scratchName = 'light', dirt = 0.7, scratches = 0.2 } end }
+  fx.wash(7); fx.repair(9)
+  check('surfacefx: version 2 repairs the car it is asked about', calls[1] == 'wash7' and calls[2] == 'repair9')
+  local st = fx.save(7)
+  fx.restore(8, st)
+  check('surfacefx: a car state is kept as a plain table and put back on another vehicle id', st.dirt.mud == 0.4 and kept[1] == 8 and kept[2].scratches == 3)
+  check('surfacefx: the words for the phone and the garage', fx.lookText(7) == 'Muddy, light scratches' and fx.words({ dirtName = 'clean', scratchName = 'none' }) == 'Clean, no scratches' and fx.words({ dirtName = 'x' }) == nil and fx.words(nil) == nil)
+  carSurfaceFx = { apiVersion = 2, getState = function() return nil end }
+  check('surfacefx: a clean car gives false (keep nothing), not nil (no mod)', fx.save(7) == false)
+  carSurfaceFx = { apiVersion = 2, wash = function() error('boom') end, getState = function() error('boom') end }
+  check('surfacefx: an error inside the mod never reaches the career', fx.wash(7) == false and fx.save(7) == nil)
+  carSurfaceFx = saved.carSurfaceFx
+  getPlayerVehicle = saved.getPlayerVehicle
+  package.loaded['sl/surfacefx'] = nil
+end
+
 print(string.format('lua tests passed: %d checks', passed))
