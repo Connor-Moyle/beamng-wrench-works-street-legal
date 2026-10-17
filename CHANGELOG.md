@@ -19,7 +19,7 @@ The career now runs on **West Coast USA**, BeamNG's own map, with a day and a ni
 ### Day and night, heat
 - Every day has a **day** (07:00-19:00, the legal half: jobs, shops, dealers, track events with prize money) and a **night** (21:00-04:00, the street half: street races, car meets, pink slips, the swap meet). The clock runs slowly inside each half and stops at its end; **Start the night / Start the day** (Wait app or a garage computer) moves on. The sky follows (dark from 20:00).
 - **Heat** (1-5) exists only at night: street races, near misses and chases raise it; patrols get stricter, roadblocks come at 4. Reputation earned at night is at risk until you bank it at a garage; getting busted costs a fine and the unbanked reputation, and at heat 4-5 the car is impounded.
-- A Day/Night badge with heat flames on the driving HUD and in the phone's corner; the clock speed is a setting. BeamNG's own HUD is the default; the SLRR dashboard is optional.
+- A Day/Night badge with heat flames on the driving HUD and in the phone's corner; the clock speed is a setting. BeamNG's own HUD is the default; the Street Legal dashboard is optional.
 
 ### Dealers and buying
 - **Lots** show four to six cars of the dealer's own price tier, standing in the map's painted parking bays, with a card each: test drive, buy, **show full car report** (every part by section with condition, dents, faults and a repair estimate). A lot shows a loading screen while the cars come out.
@@ -63,4 +63,4 @@ The career now runs on **West Coast USA**, BeamNG's own map, with a day and a ni
 - The career does not start in a multiplayer session and stops cleanly if you join a server.
 
 ### Not in this release
-The Valo City map and its venues are on hold; the original SLRR cars and traffic are not part of this release.
+The Valo City map and its venues are on hold; the original cars and traffic of Street Legal Racing Redline are not part of this release.

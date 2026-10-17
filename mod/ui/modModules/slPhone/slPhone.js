@@ -1027,7 +1027,7 @@
       var row = function (key, label, on, text) {
         return '<div class="slp-kv slp-hudrow" data-a="hud" data-v="' + key + '"><span>' + label + '</span><b class="' + (on ? 'slp-on' : 'slp-offtxt') + '">' + (text || (on ? 'On' : T('ui.off', 'Off'))) + '</b></div>';
       };
-      return ('<div class="slp-card"><h4>' + T('ui.dashboard', 'Dashboard') + '</h4><p>' + T('ui.the_slrr_gauges_map_and', 'The SLRR gauges, map and damage diagram while you drive.') + '</p>') +
+      return ('<div class="slp-card"><h4>' + T('ui.dashboard', 'Dashboard') + '</h4><p>' + T('ui.the_slrr_gauges_map_and', 'The Street Legal gauges, map and damage diagram while you drive.') + '</p>') +
         row('enabled', T('ui.dashboard', 'Dashboard'), h.enabled) +
         (h.enabled ? row('tacho', T('ui.rev_counter', 'Rev counter'), h.tacho) + row('speedo', T('ui.speedometer', 'Speedometer'), h.speedo) + row('map', T('ui.map', 'Map'), h.map) + row('damage', T('ui.damage', 'Damage'), h.damage) +
           row('units', T('ui.units', 'Units'), true, h.units === 'mph' ? 'mph' : 'km/h') + row('freeroam', T('ui.also_outside_the_career', 'Also outside the career'), h.freeroam) : '') + '</div>';

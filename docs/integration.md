@@ -7,7 +7,7 @@ The BeamNG Wrench Works family, one game:
 | Wrench Works: Valo City (`slrr_valo_city`) | the map, its garages' positions, traffic, the races (`slrrValoRaces`), the race venues, racing lines, the navigator map |
 | BeamNG Wrench Works (`slrr_garage`) | the garage: working on the car, parts, catalog, shops, the Services drawer |
 | Wrench Works: Street Legal (`sl_*`) | the career: money, reputation, the climb through the garages, the phone, the racers, the car lots |
-| Wrench Works: Drivers & Pedestrians (`slrrDrivers`, `slrrPedestrians`) | SLRR's drivers in the cars, pedestrians on the sidewalks (optional) |
+| Wrench Works: Drivers & Pedestrians (`slrrDrivers`, `slrrPedestrians`) | the drivers of Street Legal Racing Redline in the cars, pedestrians on the sidewalks (optional) |
 
 ## One wallet
 

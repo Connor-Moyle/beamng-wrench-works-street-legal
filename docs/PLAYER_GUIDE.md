@@ -104,7 +104,7 @@ Swap & Bid is the auction side: put a bid on a lot, and it is yours if nobody ou
 
 The Settings app has the options of the career: police and their aggression, pay, hardcore mode (no pull-outs, no insurance, no free cab), clock speed, race traffic, and more.
 
-- SLRR dashboard: the game's own HUD is used by default; switch this on for the SLRR gauges and map.
+- Street Legal dashboard: the game's own HUD is used by default; switch this on for the Street Legal gauges and map.
 - Performance overlay: frame time and counts, for reporting stutters.
 - Record street races: a race can be watched again (Races app, Last race) and saved as a clip.
 Developer: a button that gives you all the money, for testing.
