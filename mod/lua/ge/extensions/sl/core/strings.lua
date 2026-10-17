@@ -122,6 +122,7 @@ M.TEXT = {
   ["station.drive_your_car_up_to"] = "Drive your car up to wash it.",
   ["station.fill_what_drive_one_of"] = "Fill what? Drive one of your cars up to the pump.",
   ["station.that_will_not_buy_any"] = "That will not buy any fuel.",
+  ["station.the_tank_is_full"] = "The tank is full.",
   ["station.you_need_a_car_to"] = "You need a car to put it in.",
   ["streets.bring_your_own_car"] = "Bring your own car.",
   ["streets.bring_your_own_car_to"] = "Bring your own car to the ROC.",

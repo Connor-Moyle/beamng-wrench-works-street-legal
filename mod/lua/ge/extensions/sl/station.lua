@@ -65,6 +65,7 @@ function M.fill(fuelId)
   local player = getPlayerVehicle(0)
   if not veh or not player or veh:getID() ~= player:getID() then toast(strings.t('station.drive_your_car_up_to')) return end
   local litres = c.litresToFull or (c.fuelCapacity and c.fuelLitres and c.fuelCapacity - c.fuelLitres) or 40
+  if litres < 1 then toast(strings.t('station.the_tank_is_full')) return end      -- (nothing to fill: the money is not the reason)
   local price = rules.fuel(fuelId).pricePerLitre
   price = price * (open and open.scale or 1)
   litres = math.min(litres, math.floor(s.money / price))
