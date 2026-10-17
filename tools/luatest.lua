@@ -1639,6 +1639,12 @@ do
   check('a colour made darker keeps its hue', dc[1] == 0.5 and dc[2] == 0.4 and dc[3] == 0.3)
   local gd = wx.darker(wx.greyer({ 0.996, 0.839, 0.745 }, 0.95), wx.keep('sun', dh))
   check('the orange dawn sun, greyed and darkened for heavy rain: nearly equal r g b and well under the original brightness', math.abs(gd[1] - gd[3]) < 0.05 and gd[2] < 0.55 and gd[1] < 0.6)
+  local d1, g1 = wx.skyFactors(45, 0.85, 0.9)
+  local d2, g2 = wx.skyFactors(5, 0.85, 0.9)
+  local d3, g3 = wx.skyFactors(nil, 0.85, 0.9)
+  check('low sun: the darkening is cut to a quarter and the colours greyed all the way; full day: as asked', d1 == 0.85 and g1 == 0.9 and math.abs(d2 - 0.85 * 0.25) < 1e-9 and g2 >= 0.98 and d3 == 0.85 and g3 == 0.9
+    and select(1, wx.skyFactors(20, 0.8, 0.5)) > select(1, wx.skyFactors(10, 0.8, 0.5)) and wx.skyFactors(0, 0, 0) == 0)
+  check('the sky colorize tint is darkened too', wx.keep('colorize', 1) == 0.5)
   check('the forecast names the rain strength', wx.text('day', 'rain', nil, 'heavy'):find('Heavy rain') and wx.text('day', 'rain', nil, 'light'):find('Light rain') and wx.text('day', 'rain'):find('Rain'))
 end
 

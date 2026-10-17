@@ -111,8 +111,17 @@ end
 
 -- how much of its brightness each part of the sky keeps at darkness 0..1: the light of the sun most, the ambient least (it must still read as day), the fog and the cloud
 -- exposure in between, the sky brightness (the ScatterSky field) the least
-M.DARK_KEEP = { sun = 0.55, ambient = 0.35, fog = 0.5, cloud = 0.45, sky = 0.5 }
+M.DARK_KEEP = { sun = 0.55, ambient = 0.35, fog = 0.5, cloud = 0.45, sky = 0.5, colorize = 0.5 }
 function M.keep(part, dark) return 1 - (M.DARK_KEEP[part] or 0.4) * math.max(0, math.min(1, dark or 0)) end
+-- low sun (dawn, dusk): the sky is dark and orange by itself, so the darkening is cut to a quarter at the horizon and the colours are greyed all the way (no orange
+-- band); in full daylight (sun 35 degrees and up) both are as the state asks. elevation in degrees.
+function M.skyFactors(elevation, dark, amount)
+  local e = elevation or 45
+  local dayK = math.max(0.25, math.min(1, e / 35))
+  local grey = amount or 0
+  if e < 25 then grey = math.max(grey, 0.98) end
+  return (dark or 0) * dayK, grey
+end
 function M.darker(c, factor) return { c[1] * factor, c[2] * factor, c[3] * factor } end
 
 -- the tyres' grip follows how wet the road is, not the state: it falls as the road soaks and comes back as it dries. rain is the state table of the rain that

@@ -126,7 +126,7 @@ end
 -- In rain they are pulled towards grey of the same brightness; the game rewrites them with the time of day, so this is repeated twice a second while it is on.
 -- Darker too (the rain sky must be moody, not just grey): the colours are scaled down by 'dark' (rules.keep: the sun's light, the ambient, the fog colour), the ScatterSky skyBrightness field
 -- and the cloud exposure field are lowered; all from the values the game itself wrote last (orig), so a repeat does not darken twice: if the field still holds what we wrote, it is left alone.
-local TINT_FIELDS = { sun = 'sunScale', fog = 'fogScale', ambient = 'ambientScale' }
+local TINT_FIELDS = { sun = 'sunScale', fog = 'fogScale', ambient = 'ambientScale', colorize = 'colorize' }      -- (colorize: the sky's own tint, orange at dusk)
 local orig, written = {}, {}
 local skyOrig, exposureOrig
 M.skyNumbers = {}                  -- what the last tint pass did, for a game test: { part = { from = .., to = .. } }
@@ -138,7 +138,9 @@ end
 local function applyTint(amount, dark)
   local sky = first('ScatterSky')
   if not sky then return end
-  dark = dark or 0
+  local elevation = tonumber(sky.elevation)
+  dark, amount = rules.skyFactors(elevation, dark, amount)
+  M.skyNumbers.sun = { elevation = elevation, dark = dark, grey = amount }
   for part, k in pairs(TINT_FIELDS) do
     pcall(function()
       local text = sky:getField(k, 0)
@@ -261,6 +263,7 @@ local function followRain()
 end
 
 -- (the debug helpers moved with the puddles: sl_puddlefx.puddleNear(), .flag(name, on), .stats())
+function M.ringTest(on) return sl_puddlefx and sl_puddlefx.ringTest(on) or 'sl_puddlefx is not loaded' end
 function M.puddleNear() return sl_puddlefx and sl_puddlefx.puddleNear() or 'sl_puddlefx is not loaded' end
 
 function M.onStreetLegalStarted() lastKey = nil sync() end
