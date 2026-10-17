@@ -28,13 +28,22 @@ local function guessSection(slotId)
   end
 end
 
+-- A jbeam name field is usually a string but some are tables (a translation { txt = '...' }, a list): always reduce one to a string,
+-- or nil when there is no text in it (never "table: 0x...").
+function M.text(v)
+  if type(v) == 'string' then return v ~= '' and v or nil end
+  if type(v) == 'table' then
+    return M.text(v.txt) or M.text(v.val) or M.text(v.en) or M.text(v[1])
+  end
+end
+
 -- a part's name as a person says it: the jbeam name when it is one, else the internal id turned into words
 -- ("covet_exhaust_sport_2" -> "Exhaust sport 2" with the model "covet")
 function M.displayName(name, partId, model)
-  local n = tostring(name or '')
+  local n = M.text(name) or ''
   local internal = n == '' or n == tostring(partId) or (not n:find('%s') and (n:find('_', 1, true) or n:find('/', 1, true)))
   if not internal then return n end
-  local s = tostring(partId or n)
+  local s = M.text(partId) or n
   local prefix = tostring(model or ''):gsub('%p', '%%%0') .. '_'
   s = s:gsub('^' .. prefix, '', 1):gsub('[_/]+', ' '):gsub('^%s+', ''):gsub('%s+$', '')
   if s == '' then s = 'Part' end

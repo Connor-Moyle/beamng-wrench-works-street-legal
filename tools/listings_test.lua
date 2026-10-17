@@ -380,6 +380,8 @@ return function(check, rngLib)
   -- T39: how a part ad reads (sl/core/partinfo)
   local PI = require('sl/core/partinfo')
   check('a jbeam display name is kept as it is', PI.displayName('Sport exhaust', 'covet_exhaust_sport', 'covet') == 'Sport exhaust')
+  check('a name that is a table never shows as one: its text, else the id in words', PI.displayName({ txt = 'Sport exhaust' }, 'covet_exhaust_sport', 'covet') == 'Sport exhaust'
+    and PI.displayName({}, 'covet_exhaust_sport', 'covet') == 'Exhaust sport' and PI.displayName({ { } }, { }, 'covet') == 'Part' and PI.text({ 'a' }) == 'a' and PI.text({}) == nil)
   check('an internal id as the name becomes words (the model prefix dropped)', PI.displayName('covet_exhaust_sport_2', 'covet_exhaust_sport_2', 'covet') == 'Exhaust sport 2'
     and PI.displayName(nil, 'etk800_body/fender_L', 'etk800') == 'Body fender l' and PI.displayName('', 'x', 'y') == 'X' and PI.displayName(nil, nil, nil) == 'Part')
   check('a part picture is used only when the manifest lists it, under its safe file name', PI.picture('covet_exhaust_sport', { covet_exhaust_sport = true }) == '/art/street_legal/parts/covet_exhaust_sport.png'

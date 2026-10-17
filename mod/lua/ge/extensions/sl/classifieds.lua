@@ -105,7 +105,7 @@ local function partsOf(model)
         local value = tonumber(info.value) or 0
         local slot = part and (type(part.slotType) == 'table' and part.slotType[1] or part.slotType)
         if value >= 20 and type(slot) == 'string' and slot ~= 'main' then
-          list[#list + 1] = { kind = 'part', part = name, name = info.name or desc.description or name, value = value, slotId = slot, model = model }
+          list[#list + 1] = { kind = 'part', part = name, name = partinfo.text(info.name) or partinfo.text(desc.description) or name, value = value, slotId = slot, model = model }
         end
       end
     end
