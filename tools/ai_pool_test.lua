@@ -165,4 +165,18 @@ return function(check, rngLib)
     if SP.JOBS[kind] == nil then known = false end
   end
   check('every job kind of the board is in the table', known)
+
+  -- #19: a racer's car is built out of the player's sight and off his way, one at a time, not while he races along
+  local SPN = require('sl/core/spawnplan')
+  local me = { x = 0, y = 0, vx = 0, vy = 20 }                  -- driving north at 20 m/s
+  local cam = { x = 0, y = 0, fx = 0, fy = 1 }                  -- looking north
+  check('a road ahead of him, in view, is no place to build a car', not SPN.hidden({ x = 0, y = 300 }, me, cam) and not SPN.hidden({ x = 40, y = 250 }, me, cam))
+  check('behind him, or at the side, it is fine', SPN.hidden({ x = 0, y = -300 }, me, cam) and SPN.hidden({ x = 300, y = 0 }, me, cam) and SPN.hidden({ x = -250, y = -50 }, me, cam))
+  check('beside his way but out of the camera view: on his way (60 degrees of his direction) is out; 70 degrees off is fine', not SPN.hidden({ x = 200, y = 150 }, me, { x = 0, y = 0, fx = 0, fy = -1 })
+    and SPN.hidden({ x = 300, y = 80 }, me, { x = 0, y = 0, fx = 0, fy = -1 }))
+  check('standing still: only the camera counts (his way is nowhere yet)', SPN.hidden({ x = 0, y = -200 }, { x = 0, y = 0, vx = 0, vy = 0 }, cam) and SPN.hidden({ x = 0, y = 200 }, { x = 0, y = 0, vx = 0, vy = 0 }, { x = 0, y = 0, fx = 0, fy = -1 })
+    and not SPN.hidden({ x = 0, y = 200 }, { x = 0, y = 0, vx = 0, vy = 0 }, cam))
+  check('far beyond sight range a spot in the camera direction is fine; unknown camera or player: allowed', SPN.hidden({ x = 0, y = 800 }, { x = 0, y = 0, vx = 0, vy = 0 }, cam) and SPN.hidden({ x = 5, y = 5 }, nil, nil))
+  check('one build at a time, with a gap, and not while he races along (until it has been long)', not SPN.canBuild(5, 100, true) and not SPN.canBuild(5, 3, false) and SPN.canBuild(5, 10, false)
+    and not SPN.canBuild(25, 20, false) and SPN.canBuild(25, 50, false) and SPN.canBuild(14, 9, false) and SPN.canBuild(0, nil, false))
 end

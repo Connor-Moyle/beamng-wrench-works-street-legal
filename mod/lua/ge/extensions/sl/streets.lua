@@ -13,6 +13,7 @@ local roster = require('sl/core/roster')
 local rngLib = require('sl/core/rng')
 local progression = require('sl/core/progression')
 local carsLib = require('sl/core/cars')
+local spawnplan = require('sl/core/spawnplan')
 local stateLib = require('sl/core/state')
 local showshine = require('sl/core/showshine')
 local builder = require('sl/carBuilder')
@@ -29,6 +30,7 @@ local meet                -- { place, cars = { racer id -> vehicle id }, until (
 local race                -- the race running: { racer, vid, stake, bet, dest = vec3, destName, t, countdown, started }
 local beam = { on = false, onAt = 0 }
 local pollTimer, spawnTimer, meetTimer = 0, 0, 0
+local tryTimer = 0
 local busy = false        -- a job is spawning something
 local circuitPath, updateCircuit   -- (further down, with the ROC)
 
@@ -48,13 +50,13 @@ local function roadNodes()
 end
 
 -- a node at a distance from a point, wide enough to be a real road
-local function nodeAround(from, minD, maxD, rng)
+local function nodeAround(from, minD, maxD, rng, accept)
   local best, bestName
   local tries = 0
   for name, n in pairs(roadNodes()) do
     tries = tries + 1
     local d = (n.pos - from):length()
-    if d > minD and d < maxD and (n.radius or 0) >= MIN_ROAD and rng:chance(0.08) then
+    if d > minD and d < maxD and (n.radius or 0) >= MIN_ROAD and (not accept or accept(n)) and rng:chance(0.08) then
       best, bestName = n, name
       break
     end
@@ -353,8 +355,15 @@ local function spawnCruiser(s)
   for _, r in ipairs(list) do if math.abs(r.tier - mine) <= 1 then near[#near + 1] = r end end
   if #near > 0 and rng:chance(0.8) then list = near end
   local racer = list[rng:int(#list)]
-  local node = nodeAround(v:getPosition(), 180, 450, rng)
-  if not node then return end
+  -- out of his sight and off his way (#19): not in the camera's view, not ahead of where he is going
+  local pp, pv = v:getPosition(), v:getVelocity()
+  local player = { x = pp.x, y = pp.y, vx = pv.x, vy = pv.y }
+  local cam
+  local okc, cp = pcall(core_camera.getPosition)
+  local okf, cf = pcall(core_camera.getForward)
+  if okc and cp and okf and cf then cam = { x = cp.x, y = cp.y, fx = cf.x, fy = cf.y } end
+  local node = nodeAround(pp, 180, 450, rng, function(n) return spawnplan.hidden({ x = n.pos.x, y = n.pos.y }, player, cam) end)
+  if not node then return false end
   busy = true
   core_jobsystem.create(function(job)
     local veh = spawnRacer(job, s, racer, node.pos + vec3(0, 0, 0.5), nil)
@@ -363,6 +372,7 @@ local function spawnCruiser(s)
     veh:queueLuaCommand('ai.setMode("traffic") ai.setAggression(0.5)')
     cruisers[racer.id] = veh:getID()
   end)
+  return true
 end
 
 local function updateCruisers(s, dt)
@@ -378,9 +388,12 @@ local function updateCruisers(s, dt)
     end
   end
   spawnTimer = spawnTimer + dt
-  if night() and count < MAX_CRUISERS and spawnTimer > 8 and not race then
-    spawnTimer = 0
-    spawnCruiser(s)
+  -- one build at a time, a gap between, and not while he races along (spawnplan.canBuild); the timer restarts only when a car is really begun
+  local speed = v and v:getVelocity():length() or 0
+  tryTimer = tryTimer + dt
+  if tryTimer >= 1 and night() and count < MAX_CRUISERS and not race and spawnplan.canBuild(speed, spawnTimer, busy) then
+    tryTimer = 0                                 -- (looking for a hidden road costs a pass over the graph: once a second at most)
+    if spawnCruiser(s) then spawnTimer = 0 end
   end
 end
 
