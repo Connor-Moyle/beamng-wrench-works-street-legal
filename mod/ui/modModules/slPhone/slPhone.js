@@ -198,6 +198,17 @@
     '.slp-lotfaults{margin-top:10px;font-size:13px;color:#f2b8b5}',
     '.slp-lotfaults.slp-ok{color:#6dd58c}',
     '.slp-lotprice{margin-top:10px;font-size:34px;font-weight:300}',
+    '.slp-shop{width:min(1100px,94vw);top:4vh;bottom:4vh;transform:translateX(-50%);overflow:auto}',
+    '.slp-shopgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;margin-top:12px}',
+    '.slp-shopcard{cursor:pointer;display:flex;flex-direction:column;gap:3px;padding:8px;border-radius:14px;background:rgba(255,255,255,.07)}',
+    '.slp-shopcard:hover,.slp-shopcard:focus{background:rgba(255,255,255,.16)}',
+    '.slp-shopimg{width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:10px;background:rgba(255,255,255,.08)}',
+    '.slp-shopcfg{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:16px;margin-top:12px}',
+    '.slp-swatches{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0}',
+    '.slp-swatch{width:34px;height:34px;border-radius:50%;border:2px solid rgba(255,255,255,.35);cursor:pointer}',
+    '.slp-swatch.slp-on,.slp-opt.slp-on{outline:3px solid #fff}',
+    '.slp-optrow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:4px 0}',
+    '.slp-opt{cursor:pointer;padding:5px 10px;border-radius:10px;background:rgba(255,255,255,.1)}',
     '.slp-lotbtns{display:flex;align-items:center;gap:10px;margin-top:12px}',
     '.slp-lotbtns .slp-btn{flex:1}',
     '.slp-arrow{width:48px;height:48px;border-radius:50%;background:#2b2930;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:18px;flex:none}',
@@ -1028,22 +1039,30 @@
           ('<div class="slp-btn slp-text" data-a="lot" data-v="close()" style="margin-top:10px">' + T('ui.cancel', 'Cancel') + '</div></div></div>');
       }
       if (l.factory) {
-        var f = l.factory, rows = '', back = '<div class="slp-lotleave"><div class="slp-btn slp-text" data-a="lot" data-v="factoryBack()">' + T('ui.factory_back', 'Back') + '</div></div>';
-        if (f.step === 'models') arr(f.models).forEach(function (m) {
-          rows += '<div class="slp-btn slp-tonal" data-a="lot" data-v="factoryModel(' + m.i + ')">' + esc(m.name) + (m.special ? ' &middot; ' + T('ui.special_order', 'Special order') : '') + ' &middot; ' + T('ui.factory_from', 'from') + ' ' + money(m.from) + ' &middot; ' + T('ui.factory_trims_n', '{1} trims', m.trims) + '</div>';
-        });
-        else if (f.step === 'trims') arr(f.trims).forEach(function (t) {
-          rows += '<div class="slp-btn slp-tonal" data-a="lot" data-v="factoryTrim(' + t.i + ')">' + esc(t.name) + ' &middot; ' + money(t.price) + '</div>';
-        });
+        var f = l.factory, rows = '';
+        function pic(u) { return u ? '<img class="slp-shopimg" src="' + esc(u) + '">' : '<div class="slp-shopimg"></div>'; }
+        if (f.step === 'models') rows = '<div class="slp-shopgrid">' + arr(f.models).map(function (m) {
+          return '<div class="slp-shopcard" data-a="lot" data-v="factoryModel(' + m.i + ')">' + pic(m.picture) + '<b>' + esc(m.name) + '</b><span>' + esc(m.body) +
+            (m.special ? ' &middot; ' + T('ui.special_order', 'Special order') : '') + '</span><span>' + T('ui.factory_from', 'from') + ' ' + money(m.from) + ' &middot; ' + T('ui.factory_trims_n', '{1} trims', m.trims) + '</span></div>';
+        }).join('') + '</div>';
+        else if (f.step === 'trims') rows = '<div class="slp-shopgrid">' + arr(f.trims).map(function (t) {
+          return '<div class="slp-shopcard" data-a="lot" data-v="factoryTrim(' + t.i + ')">' + pic(t.picture) + '<b>' + esc(t.name) + '</b><span>' + money(t.price) + '</span><span>' +
+            [t.power ? Math.round(t.power) + ' hp' : '', t.weight ? Math.round(t.weight) + ' kg' : '', t.drive || '', t.transmission || ''].filter(Boolean).map(esc).join(' &middot; ') + '</span></div>';
+        }).join('') + '</div>';
         else {
-          rows = '<div class="slp-lottitle">' + T('ui.factory_spec', 'Factory options only') + '</div><div class="slp-lotfaults slp-ok">' + esc(arr(f.parts).join(', ')) + '</div>' +
-            '<div class="slp-lottitle">' + T('ui.factory_colour', 'Colour') + '</div><div class="slp-lotbtns">' +
-            arr(f.colours).map(function (c, i) { return '<div class="slp-btn ' + (c === f.paint ? '' : 'slp-tonal') + '" data-a="lot" data-v="factoryPaint(' + (i + 1) + ')">' + esc(c) + '</div>'; }).join('') + '</div>' +
-            '<div class="slp-lottitle">' + T('ui.factory_delivery_in', 'Delivered to your garage in about {1} hours', f.hours) + '</div>' +
-            '<div class="slp-lotbtns"><div class="slp-btn' + (f.price > l.money ? ' slp-off' : '') + '" data-a="lot" data-v="factoryBuy()">' + T('ui.factory_order_it', 'Order') + ' &middot; ' + money(f.price) + '</div></div>';
+          rows = '<div class="slp-shopcfg">' + pic(f.picture) + '<div><div class="slp-lottitle">' + T('ui.factory_colour', 'Colour') + ': ' + esc(f.paint || '') + '</div><div class="slp-swatches">' +
+            arr(f.swatches).map(function (c, i) { return '<div class="slp-swatch' + (c.on ? ' slp-on' : '') + '" title="' + esc(c.name) + '" style="background:' + esc(c.css) + '" data-a="lot" data-v="factoryPaint(' + (i + 1) + ')"></div>'; }).join('') + '</div>' +
+            arr(f.groups).map(function (g) {
+              return '<div class="slp-lottitle">' + T('ui.factory_group_' + g.id, g.id) + '</div>' + arr(g.slots).map(function (sl) {
+                return '<div class="slp-optrow"><small>' + esc(sl.label) + '</small>' + arr(sl.options).map(function (op) {
+                  return '<div class="slp-opt' + (op.on ? ' slp-on' : '') + '" data-a="lot" data-v="factoryPick(' + (sl.n * 1000 + op.j) + ')">' + esc(op.name) + (op.delta ? ' ' + (op.delta > 0 ? '+' : '-') + money(Math.abs(op.delta)) : '') + '</div>';
+                }).join('') + '</div>';
+              }).join('');
+            }).join('') + '<div class="slp-lottitle">' + T('ui.factory_delivery_in', 'Delivered to your garage in about {1} hours', f.hours) + '</div>' +
+            '<div class="slp-lotbtns"><div class="slp-btn' + (f.total > l.money ? ' slp-off' : '') + '" data-a="lot" data-v="factoryBuy()">' + T('ui.factory_order_it', 'Order') + ' &middot; ' + money(f.total) + '</div></div></div></div>';
         }
-        return '<div class="slp-catch" data-catch="lot"></div><div class="slp-lot"><div class="slp-lothead"><span>' + esc(l.kindTitle) + ' &middot; ' + esc(l.name) + '</span></div>' +
-          '<div class="slp-lotname"><b>' + esc(f.model || T('ui.factory_models', 'Factory models')) + (f.trim ? ' &middot; ' + esc(f.trim) : '') + '</b></div>' + rows + back + '</div>';
+        return '<div class="slp-lot slp-shop"><div class="slp-lothead"><span>' + esc(l.kindTitle) + ' &middot; ' + esc(l.name) + '</span><b>' + esc(f.model || T('ui.factory_models', 'Factory models')) + (f.trim ? ' &middot; ' + esc(f.trim) : '') + '</b></div>' + rows +
+          '<div class="slp-lotleave"><div class="slp-btn slp-text" data-a="lot" data-v="factoryBack()">' + T('ui.factory_back', 'Back') + '</div></div></div>';
       }
       var o = l.offer || {};
       var faults = arr(o.faults);

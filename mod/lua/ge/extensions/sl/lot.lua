@@ -24,7 +24,6 @@ local lotaudio = require('sl/core/lotaudio')
 
 local lotprompt = require('sl/core/lotprompt')
 local factoryLib = require('sl/core/factory')
-local partinfo = require('sl/core/partinfo')
 local KIND = { junkyard = 'used', dealer = 'dealer', scrapyard = 'scrap' }
 local TITLES = { used = strings.t('pois.used_cars'), dealer = strings.t('pois.new_cars'), scrap = strings.t('pois.scrap_yard') }
 local TEST_SECONDS = 150
@@ -603,50 +602,46 @@ end
 ----------------------------------------------------------------------------------------------
 -- factory orders (docs/FACTORY_ORDER.md): a high-end dealer's catalogue of models and trims, the factory's own options only
 
-local function modelInfo(key)
-  local ok, m = pcall(core_vehicles.getModel, key)
-  return ok and m and m.model or {}
-end
+local cfgLib = require('sl/factorycfg')
+local modelInfo = function(key) return (cfgLib.modelInfo(key)) end
 
 local function catalogue()
   lot.catalogue = lot.catalogue or factoryLib.withSpecial(M.poolOf(lot.place), builder.specialOrder())
   return lot.catalogue
 end
 
--- the factory's parts for a trim (its .pc) by name, and the model's own colours
-local function specOf(model, trim)
-  local pc = jsonReadFile and jsonReadFile(trim.config) or nil
-  local names = {}
-  for slot, part in pairs(type(pc) == 'table' and pc.parts or {}) do
-    if type(part) == 'string' and part ~= '' then names[#names + 1] = partinfo.displayName(nil, part, model.model) end
-  end
-  table.sort(names)
-  local colours = {}
-  for name in pairs(modelInfo(model.model).paints or {}) do colours[#colours + 1] = name end
-  table.sort(colours)
-  return names, colours
+-- a model's factory configurator data, read once per lot visit
+local function configurator(mi)
+  lot.cfgs = lot.cfgs or {}
+  lot.cfgs[mi] = lot.cfgs[mi] or cfgLib.configurator(catalogue()[mi])
+  return lot.cfgs[mi]
 end
 
--- what the card shows for the step the player is on
+-- what the screen shows for the step the player is on: the catalogue (model cards), a model's trims, the configurator
 function M.factoryView()
   local f, cat = lot and lot.factory, lot and catalogue()
   if not f then return nil end
   local out = { step = f.step, money = career() and career().money }
   if f.step == 'models' then
     out.models = {}
-    for i, m in ipairs(cat) do out.models[i] = { i = i, name = (m.brand ~= '' and (m.brand .. ' ') or '') .. tostring(modelInfo(m.model).Name or m.model), from = m.trims[1].value, trims = #m.trims, special = m.special } end
+    for i, m in ipairs(cat) do out.models[i] = cfgLib.modelCard(m, i) end
     return out
   end
   local m = cat[f.mi]
   if not m then return out end
-  out.model = (m.brand ~= '' and (m.brand .. ' ') or '') .. tostring(modelInfo(m.model).Name or m.model)
+  local card = cfgLib.modelCard(m, f.mi)
+  out.model = card.name
   if f.step == 'trims' then
     out.trims = {}
-    for i, t in ipairs(m.trims) do out.trims[i] = { i = i, name = t.name, price = t.value } end
+    for i, t in ipairs(m.trims) do out.trims[i] = cfgLib.trimCard(m, t, i) end
   else
     local t = m.trims[f.ti]
-    local parts, colours = specOf(m, t)
-    out.trim, out.price, out.parts, out.colours, out.paint = t.name, t.value, parts, colours, f.paint
+    local groups, deltas = cfgLib.groups(configurator(f.mi), f.ti, f.picks)
+    out.trim, out.base, out.groups, out.paint = t.name, t.value, groups, f.paint
+    out.picture = cfgLib.picture(m.model, t.config)
+    out.total = factoryLib.total(t.value, deltas)
+    out.swatches = {}
+    for _, name in ipairs(f.paints) do out.swatches[#out.swatches + 1] = { name = name, css = factoryLib.css(((modelInfo(m.model).paints or {})[name] or {}).baseColor), on = name == f.paint } end
     out.hours = factoryLib.DELIVERY_HOURS
   end
   return out
@@ -657,7 +652,7 @@ function M.factoryOpen() if factoryOk() then lot.factory = { step = 'models' } s
 function M.factoryBack()
   local f = lot and lot.factory
   if not f then return end
-  lot.factory = ({ spec = { step = 'trims', mi = f.mi }, trims = { step = 'models' } })[f.step]
+  lot.factory = ({ config = { step = 'trims', mi = f.mi }, trims = { step = 'models' } })[f.step]
   send()
 end
 function M.factoryModel(i) local f = lot and lot.factory if f and f.step == 'models' and catalogue()[i] then lot.factory = { step = 'trims', mi = i } send() end end
@@ -665,29 +660,45 @@ function M.factoryTrim(i)
   local f = lot and lot.factory
   local m = f and f.step == 'trims' and catalogue()[f.mi]
   if m and m.trims[i] then
-    local _, colours = specOf(m, m.trims[i])
-    lot.factory = { step = 'spec', mi = f.mi, ti = i, paint = colours[1] }
+    local names = {}
+    for name in pairs(modelInfo(m.model).paints or {}) do names[#names + 1] = name end
+    table.sort(names)
+    lot.factory = { step = 'config', mi = f.mi, ti = i, picks = {}, paints = names, paint = names[1] }
     send()
   end
 end
 function M.factoryPaint(i)
   local f = lot and lot.factory
-  local m = f and f.step == 'spec' and catalogue()[f.mi]
-  if m then local _, colours = specOf(m, m.trims[f.ti]) f.paint = colours[i] or f.paint send() end
+  if f and f.step == 'config' then f.paint = f.paints[i] or f.paint send() end
+end
+-- n * 1000 + j: option j of slot number n on the screen
+function M.factoryPick(code)
+  local f = lot and lot.factory
+  if not (f and f.step == 'config') then return end
+  local n, j = math.floor(code / 1000), code % 1000
+  local groups = cfgLib.groups(configurator(f.mi), f.ti, f.picks)
+  for _, g in ipairs(groups) do
+    for _, sl in ipairs(g.slots) do
+      if sl.n == n and sl.options[j] then f.picks[sl.slot] = sl.options[j].part send() return end
+    end
+  end
 end
 
 function M.factoryBuy()
   local s, f = career(), lot and lot.factory
-  local m = f and f.step == 'spec' and catalogue()[f.mi]
+  local m = f and f.step == 'config' and catalogue()[f.mi]
   if not s or not m then return end
   local trim = m.trims[f.ti]
-  if s.money < trim.value then
-    guihooks.trigger('slPhoneToast', { text = string.format(strings.t('carcare.it_is_d_you_have'), trim.value, s.money) })
+  local _, deltas = cfgLib.groups(configurator(f.mi), f.ti, f.picks)
+  local price = factoryLib.total(trim.value, deltas)
+  if s.money < price then
+    guihooks.trigger('slPhoneToast', { text = string.format(strings.t('carcare.it_is_d_you_have'), price, s.money) })
     return
   end
   local hour = (s.day or 0) * 24 + math.floor(sl_career.hour and sl_career.hour() or 12)
-  if not sl_career.addMoney(-trim.value, strings.t('carcare.bought_1', trim.name)) then return end
+  if not sl_career.addMoney(-price, strings.t('carcare.bought_1', trim.name)) then return end
   local o = factoryLib.order(m.model, trim, f.paint, hour)
+  o.price, o.picks = price, f.picks
   o.brand, o.dealer = m.brand, lot.place.name
   s.factoryOrders = s.factoryOrders or {}
   s.factoryOrders[#s.factoryOrders + 1] = o
@@ -716,7 +727,7 @@ local function deliverOrders(s)
   if not pos then return end
   delivering = true
   core_jobsystem.create(function(j)
-    local veh = builder.spawn(j, o.model, o.config, pos, rot, true)
+    local veh = builder.spawn(j, o.model, cfgLib.pcFor(o.config, o.picks, o.paint and modelInfo(o.model).paints and modelInfo(o.model).paints[o.paint]), pos, rot, true)
     if veh then
       local paint = o.paint and modelInfo(o.model).paints and modelInfo(o.model).paints[o.paint]
       if paint and core_vehicle_colors and core_vehicle_colors.setVehiclePaint then pcall(core_vehicle_colors.setVehiclePaint, 1, paint, veh:getID()) end

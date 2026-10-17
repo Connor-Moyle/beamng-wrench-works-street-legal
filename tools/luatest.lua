@@ -1312,6 +1312,18 @@ do
   check('the chosen paint is the saved record first paint, the other paints stay, the config itself is not changed', rec.config.paints[1] == red and rec.config.paints[2] == own[2] and own[1].baseColor[3] == 1 and #F.withPaint(nil, red) == 1 and #F.withPaint(own, nil) == 2)
   local day, hr = F.arrives({ due = 24 * 5 + 7 })
   check('an order says the day and hour it arrives', day == 5 and hr == 7)
+  check('slots go to the screen group by name', F.groupOf('covet_mudflap_F') == 'mudflaps' and F.groupOf('steering_wheel') == 'steering' and F.groupOf('wheel_F_5') == 'wheels' and F.groupOf('interior_color') == 'interior' and F.groupOf('exhaust') == 'other')
+  local opts = F.optionsOf({ { seat = 'seat_a', wheel = 'w1', roof = '' }, { seat = 'seat_b', wheel = 'w1', roof = 'roof_x' }, { seat = 'seat_a', wheel = 'w1' } })
+  check('options are the parts used across configs; a slot with one part everywhere is no option; fitted in some only is', #opts.seat == 2 and opts.wheel == nil and #opts.roof == 1)
+  check('paint to CSS from 0..1 and 0..255, alpha ignored', F.css({ 1, 0, 0.5, 1.2 }) == 'rgb(255,0,128)' and F.css({ 200, 10, 0, 255 }) == 'rgb(200,10,0)' and F.css(nil) == 'rgb(128,128,128)')
+  check('the total adds the deltas', F.total(1000, { a = 50, b = -20 }) == 1030)
+  local cfgLib = require('sl/factorycfg')
+  local worth = { w_a = 100, w_b = 350, s_a = 0, s_b = 0 }
+  local fake = { pcs = { { parts = { wheel_F = 'w_a', seat = 's_a' } } }, options = { wheel_F = { 'w_a', 'w_b' }, seat = { 's_a', 's_b' } },
+    value = function(p) return worth[p] or 0 end, name = function(p) return p end }
+  local groups, deltas = cfgLib.groups(fake, 1, { wheel_F = 'w_b' })
+  check('the configurator groups wheels and interior, marks the pick, prices it over the trim part', #groups == 2 and groups[1].id == 'interior' and groups[2].id == 'wheels' and groups[2].slots[1].options[2].on
+    and groups[2].slots[1].options[2].delta == 250 and groups[1].slots[1].options[1].on and F.total(30000, deltas) == 30250)
 end
 
 do -- special-order models: on no lot, ad, racer pool or cruiser; only in the factory's special-order list

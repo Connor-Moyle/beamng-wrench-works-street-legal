@@ -15,7 +15,7 @@ function M.catalogue(pool)
         m = { model = c.model, brand = c.brand or '', trims = {} }
         byModel[c.model], list[#list + 1] = m, m
       end
-      m.trims[#m.trims + 1] = { config = c.config, name = c.name, value = c.value }
+      m.trims[#m.trims + 1] = { config = c.config, name = c.name, value = c.value, raw = c.raw }
     end
   end
   for _, m in ipairs(list) do
@@ -54,5 +54,55 @@ end
 
 -- when an order arrives: game day and hour
 function M.arrives(o) return math.floor(o.due / 24), o.due % 24 end
+
+-- C4 configurator: which group of the screen a slot belongs to (by its name), and the factory options of a slot.
+M.GROUPS = { 'interior', 'wheels', 'steering', 'mudflaps', 'other' }
+local WORDS = { { 'mudflap', 'mudflaps' }, { 'steering', 'steering' }, { 'wheel', 'wheels' }, { 'tire', 'wheels' }, { 'rim', 'wheels' }, { 'hubcap', 'wheels' },
+  { 'interior', 'interior' }, { 'seat', 'interior' }, { 'upholst', 'interior' }, { 'dash', 'interior' }, { 'trim', 'interior' } }
+function M.groupOf(slot)
+  local name = tostring(slot):lower()
+  for _, w in ipairs(WORDS) do if name:find(w[1], 1, true) then return w[2] end end
+  return 'other'
+end
+
+-- the factory options of the slots: configs = the parts maps (slot -> part) of the model's factory configs; a slot is an option when the
+-- configs use more than one part in it (or the part is missing in some and present in others). Returns { slot -> sorted list of parts }
+-- ('' = none fitted, left out of the list: only fitted parts are options).
+function M.optionsOf(configs)
+  local seen, out = {}, {}
+  for _, parts in ipairs(configs or {}) do
+    for slot, part in pairs(parts) do
+      if type(part) == 'string' and part ~= '' then
+        seen[slot] = seen[slot] or {}
+        seen[slot][part] = true
+      end
+    end
+  end
+  for slot, set in pairs(seen) do
+    local list = {}
+    for part in pairs(set) do list[#list + 1] = part end
+    table.sort(list)
+    local missing = false
+    for _, parts in ipairs(configs) do if (parts[slot] or '') == '' then missing = true end end
+    if #list > 1 or (missing and #list == 1) then out[slot] = list end
+  end
+  return out
+end
+
+-- a game paint colour { r, g, b, a } (0..1 or 0..255; the alpha of a paint is its shine, not see-through) as a CSS colour
+function M.css(c)
+  if type(c) ~= 'table' then return 'rgb(128,128,128)' end
+  local r, g, b = tonumber(c[1]) or 0, tonumber(c[2]) or 0, tonumber(c[3]) or 0
+  local k = (r > 1.5 or g > 1.5 or b > 1.5) and 1 or 255
+  local function f(x) return math.max(0, math.min(255, math.floor(x * k + 0.5))) end
+  return string.format('rgb(%d,%d,%d)', f(r), f(g), f(b))
+end
+
+-- the total: the trim's price plus the price of each pick over the part it replaces
+function M.total(trimValue, deltas)
+  local sum = trimValue
+  for _, d in pairs(deltas or {}) do sum = sum + (tonumber(d) or 0) end
+  return sum
+end
 
 return M
