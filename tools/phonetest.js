@@ -348,8 +348,6 @@ click('meet', 'r05|pink');
 assert.ok(calls.includes('@sl_streets.meetChallenge("r05","pink")'), 'pink slips at the meet');
 phone.handle('slMeet', { open: true, name: 'Harbour car park', theme: 'JDM night', racers: [], owners: [{ id: 'o1', name: 'Jin Tanaka', car: 'Covet', kind: 'tip' }, { id: 'o2', name: 'Bree Quinn', car: 'Pessima', kind: 'sale', talked: true }] });
 assert.ok(text().includes('JDM night') && text().includes('Jin Tanaka') && text().includes('Covet') && text().includes('spoken to'), 'a themed meet lists the owners by their cars');
-phone.handle('slMeet', { open: true, name: 'Harbour car park', theme: 'JDM night', racers: [], owners: [{ id: 'o1', name: 'Jin Tanaka', car: 'Covet', near: true, story: 'It is tuned.' }, { id: 'o2', name: 'Bree Quinn', car: 'Pessima' }] });
-assert.ok($('.slp-near') && text().includes('It is tuned.') && $('.slp-near').textContent.includes('Jin Tanaka'), 'the owner you stand beside comes first, with their story');
 calls.length = 0;
 click('meettalk', 'o1');
 assert.ok(calls.includes('@sl_streets.meetTalk("o1")'), 'talk to an owner');

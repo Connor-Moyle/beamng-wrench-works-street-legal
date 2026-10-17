@@ -47,6 +47,14 @@ end
 
 function M.onGetRawPoiListForLevel(level, elements)
   if not careerOn() or stockCareerOn() then return end
+  -- the owners of a car meet: a walk-up marker beside each parked car, its prompt is sl_streets' (Talk to <name>)
+  for _, o in ipairs(sl_streets and sl_streets.meetOwnerPois and sl_streets.meetOwnerPois() or {}) do
+    elements[#elements + 1] = {
+      id = 'slOwner:' .. o.key, data = { type = 'other', id = 'slOwner:' .. o.key, ownerKey = o.key, name = o.name }, clusterType = 'missionMarker', clusterInBigMap = false,
+      clusterInPlayMode = false, interactableInPlayMode = true, quickTravelAvailable = false,
+      markerInfo = { missionMarker = { pos = o.pos, rot = quat(0, 0, 0, 1), icon = ICON } },
+    }
+  end
   for _, r in ipairs(pois.records(sl_career.getPlaces())) do
     local data = { type = r.type, id = r.poiId, placeId = r.placeId, name = r.name }
     local fac = stockFacility(r.stockId, level)
@@ -174,6 +182,7 @@ local function removeTeleport()
 end
 
 -- the game builds this list once per level: again when a career starts or stops and when the places change
+function M.refresh() if gameplay_rawPois and gameplay_rawPois.clear then gameplay_rawPois.clear() end end
 local function refresh() if gameplay_rawPois and gameplay_rawPois.clear then gameplay_rawPois.clear() end end
 M.onStreetLegalStarted = function() refresh() installTeleport() end
 M.onStreetLegalStopped = function() refresh() removeTeleport() end

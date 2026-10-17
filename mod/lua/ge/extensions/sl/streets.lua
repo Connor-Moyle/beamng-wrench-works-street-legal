@@ -698,6 +698,7 @@ local function startMeet(s)
       end
     end
     busy = false
+    pcall(function() sl_pois.refresh() end)          -- (the owners' walk-up prompts)
   end)
   local who = racers[1] or s.racers[1]
   sl_career.sendText(s.known[who.id] and who.id or 'benny', strings.t('streets.1_at_2_3_bring', (theme.name), (place.name), (theme.blurb)), 2)
@@ -716,6 +717,7 @@ local function endMeet()
   end
   meet = nil
   guihooks.trigger('slMeet', { open = false })
+  pcall(function() sl_pois.refresh() end)
 end
 
 local function sendMeet(open)
@@ -731,12 +733,20 @@ local function sendMeet(open)
   end
   table.sort(list, function(a, b) return a.tier < b.tier end)
   local owners = {}
-  for key, o in pairs(meet.owners or {}) do
-    owners[#owners + 1] = { id = key, name = o.name, car = o.car, kind = o.offer and o.offer.kind, talked = o.talked, near = key == meet.near or nil,
-      story = key == meet.near and social.story(meet.theme and meet.theme.id, o) or nil }
-  end
+  for key, o in pairs(meet.owners or {}) do owners[#owners + 1] = { id = key, name = o.name, car = o.car, kind = o.offer and o.offer.kind, talked = o.talked } end
   table.sort(owners, function(a, b) return a.id < b.id end)
   guihooks.trigger('slMeet', { open = true, name = meet.place.name, theme = meet.theme and meet.theme.name, owners = owners, racers = list, money = s.money, canShow = not meet.judged and sl_fleet.currentCar() ~= nil, showFee = showshine.FEE })
+end
+
+-- the police raid the meet (#43): a text, a little heat, the meet scatters, a patrol after you if the game has one near and you are there
+local function raidMeet(s, here)
+  s.heat = heatLib.raised(s.heat, heatLib.NEAR_MISS)
+  guihooks.trigger('slPhoneToast', { text = strings.t('meetsocial.raid') })
+  if ui_message then ui_message(strings.t('meetsocial.raid'), 6, 'streetLegal') end
+  local pv = playerCar()
+  local copId = pv and gameplay_police and gameplay_police.getNearestPoliceVehicle and gameplay_police.getNearestPoliceVehicle(pv:getID(), false, true)
+  if copId and here then gameplay_police.setPursuitMode(1, pv:getID(), { copId }) end
+  endMeet()
 end
 
 local function updateMeet(s, dt)
@@ -752,27 +762,12 @@ local function updateMeet(s, dt)
   if not night() or s.day ~= meet.day and sl_career.hour() > 6 then endMeet() return end
   local car = playerCar()
   local here = car and (car:getPosition() - meet.place.pos):length() < 22 and car:getVelocity():length() < 1
-  -- on foot (#43): walk up to an owner's car and the menu opens on that owner; walk away and it closes
-  local foot = v and not car and v:getPosition()
-  if foot then
-    local near = social.focus(meet.owners, foot, meet.near)
-    if near ~= meet.near then meet.near = near; if meet.shown then sendMeet(true) end end
-    here = near ~= nil
-  elseif meet.near then
-    meet.near = nil
-  end
   -- the police raid a meet at high heat (a text, the meet scatters, a patrol after you if the game has one near)
   meet.raidT = (meet.raidT or 0) + dt
   if meet.raidT > social.RAID_EVERY then
     meet.raidT = 0
     if sl_police and sl_police.level and social.raided(sl_police.level(), math.random()) then
-      s.heat = heatLib.raised(s.heat, heatLib.NEAR_MISS)
-      guihooks.trigger('slPhoneToast', { text = strings.t('meetsocial.raid') })
-      if ui_message then ui_message(strings.t('meetsocial.raid'), 6, 'streetLegal') end
-      local pv = playerCar()
-      local copId = pv and gameplay_police and gameplay_police.getNearestPoliceVehicle and gameplay_police.getNearestPoliceVehicle(pv:getID(), false, true)
-      if copId and here then gameplay_police.setPursuitMode(1, pv:getID(), { copId }) end
-      endMeet()
+      raidMeet(s, here)
       return
     end
   end
@@ -854,6 +849,40 @@ function M.meetTalk(key)
 end
 
 -- where the meet is, while one is on (the ambience puts its music there)
+-- the owners as walk-up points for the game's prompt (sl_pois lists them while a meet is on)
+function M.meetOwnerPois()
+  local out = {}
+  for key, o in pairs(meet and meet.owners or {}) do
+    local veh = o.vid and getObjectByID(o.vid)
+    if veh then out[#out + 1] = { key = key, name = o.name, car = o.car, pos = veh:getPosition() } end
+  end
+  return out
+end
+
+-- standing at an owner's car: the game's own prompt (Talk to <name>) comes from here
+function M.onActivityAcceptGatherData(elemData, activityData)
+  if not meet then return end
+  for _, elem in ipairs(elemData or {}) do
+    local o = type(elem.ownerKey) == 'string' and meet.owners and meet.owners[elem.ownerKey]
+    if o then
+      local key = elem.ownerKey
+      table.insert(activityData, {
+        icon = 'poi_arrival_round', heading = o.name, preheadings = { meet.theme and meet.theme.name or strings.t('streets.car_meet') },
+        sorting = { type = 'slrrOwner', id = key },
+        buttonLabel = string.format(strings.t('meetsocial.talk_to'), o.name, o.car),
+        buttonFun = function()
+          guihooks.trigger('slPhoneToast', { text = o.name .. ': "' .. social.story(meet.theme and meet.theme.id, o) .. '"' })
+          M.meetTalk(key)
+        end,
+        buttonSoundClass = 'bng_hover_generic',
+      })
+    end
+  end
+end
+
+-- for the game tester: raid the meet now
+function M.debugRaid() local s = career() if s and meet then raidMeet(s, true) end end
+
 function M.meetPos() return meet and meet.place and meet.place.pos or nil end
 -- the car that plays the music (#43): the position of its owner's car, or the meet's middle
 function M.meetSpeakerPos()

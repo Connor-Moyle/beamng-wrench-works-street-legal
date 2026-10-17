@@ -1722,9 +1722,6 @@ end
 do
   local soc = require('sl/core/meetsocial')
   local owners = { o1 = { pos = { x = 0, y = 0 } }, o2 = { pos = { x = 10, y = 0 } } }
-  check('meetsocial: nobody within reach, nobody offered', soc.nearest(owners, { x = 50, y = 50 }) == nil)
-  check('meetsocial: the nearest owner within reach is offered', soc.nearest(owners, { x = 9, y = 1 }) == 'o2' and soc.nearest(owners, { x = 2, y = 0 }) == 'o1')
-  check('meetsocial: the owner stays offered up to the leave distance, then not', soc.focus(owners, { x = 7, y = 0 }, 'o1') == 'o1' and soc.focus(owners, { x = 12, y = 0 }, 'o1') ~= 'o1')
   check('meetsocial: the speaker car is the same one every time', soc.speaker(owners) == 'o1' and soc.speaker({}) == nil)
   local n1 = soc.group(1)
   local n2, offs = soc.group(2)
