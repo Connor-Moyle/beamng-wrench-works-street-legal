@@ -1270,4 +1270,18 @@ do
     and lp.driveUp('used', false, true) == 'sell' and lp.driveUp('scrap', false, true) == 'sell' and lp.driveUp('dealer', false, true) == 'browse' and lp.driveUp('used', true, true) == 'browse')
 end
 
+do -- A2: a lot shows cars of its own tier
+  local tiers = require('sl/core/tiers')
+  local cars = {}
+  for _, v in ipairs({ 800, 2500, 6000, 9000, 14000, 18000, 24000, 31000, 40000, 55000, 80000, 120000 }) do cars[#cars + 1] = { value = v } end
+  local function minmax(list) local lo, hi = math.huge, 0 for _, c in ipairs(list) do lo, hi = math.min(lo, c.value), math.max(hi, c.value) end return lo, hi end
+  local hi = tiers.within(cars, 'high', 'dealer', 4)
+  check('a high-end dealer has no cheap cars', #hi == 7 and minmax(hi) >= 18000, #hi)
+  local lo = tiers.within(cars, 'low', 'dealer', 4)
+  local _, top = minmax(lo)
+  check('a low-end dealer has no premium cars', #lo >= 4 and top <= 48000, #lo)
+  check('too few cars of the tier: the pool as it is', #tiers.within(cars, 'high', 'dealer', 9) == #cars)
+  check('a used lot is priced at about half the value', minmax(tiers.within(cars, 'mid', 'used', 3)) >= 12000 * 0.6 / 0.55 - 1)
+end
+
 print(string.format('lua tests passed: %d checks', passed))

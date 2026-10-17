@@ -36,4 +36,23 @@ function M.forPool(values, kind)
   return id, label, price
 end
 
+-- The cars a lot of this tier may show (A2: a high-end dealer showed many cheap cars, drawn from its whole pool): those whose price lies from
+-- 0.6 x the tier's floor up to 1.6 x the floor of the tier above (a junkyard has no premium cars, a high-end dealer no cheap ones). With fewer
+-- than `need` cars left the pool is kept as it is: a lot is never empty because of its tier.
+M.NEED = 6
+function M.within(cars, tierId, kind, need)
+  local at
+  for i, t in ipairs(M.TIERS) do if t.id == tierId then at = i end end
+  if not at then return cars end
+  local f = M.FACTOR[kind] or 1
+  local lo = M.TIERS[at].min * 0.6
+  local hi = at > 1 and M.TIERS[at - 1].min * 1.6 or math.huge
+  local out = {}
+  for _, c in ipairs(cars or {}) do
+    local price = (tonumber(c.value) or 0) * f
+    if price >= lo and price <= hi then out[#out + 1] = c end
+  end
+  return #out >= (need or M.NEED) and out or cars
+end
+
 return M

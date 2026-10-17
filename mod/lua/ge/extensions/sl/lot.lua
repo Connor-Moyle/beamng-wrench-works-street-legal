@@ -382,6 +382,7 @@ function M.offersFor(place, s, given)
   if stock and place.displays then count = math.min(math.max(count, 4), #place.displays) end      -- (a stock dealer's cars stand on its parking spots and the slots beside them (sl/core/stockdealers): 4 to 6 where there is room)
   local offers = given or {}
   local pool = M.poolOf(place, given)
+  if not given then pool = tiers.within(pool, M.tier(place), kind) end       -- (A2: a lot shows cars of its own tier)
   for _, o in ipairs(given and {} or market.offers(pool, kind, stock and (s.seed .. ':' .. place.id) or s.seed, s.day, count + 4)) do
     if stock then o.id = place.id .. ':' .. o.id end      -- (an offer is bought once: a stock dealer's ids are its own)
     if not (s.bought or {})[o.id] and #offers < count then offers[#offers + 1] = o end
@@ -456,6 +457,41 @@ end
 ----------------------------------------------------------------------------------------------
 -- buying, test driving, selling
 
+-- a car just bought: the camera glides from where it is to behind the car (where the game's own chase camera stands), then the player is put in
+-- the car WHERE IT STANDS (the row beside it is gone, so it can drive straight out)
+local BUY_GLIDE = 1.3
+local function getInWhereItStands(veh)
+  local id = veh:getID()
+  veh:queueLuaCommand('controller.setFreeze(0) input.event("parkingbrake", 0, FILTER_DIRECT)')
+  core_jobsystem.create(function(j)
+    local v = getObjectByID(id)
+    local from = cam and cam.pos and cam.look and { pos = cam.pos, look = cam.look }
+    if v and from then
+      local c, f = v:getSpawnWorldOOBB():getCenter(), vec3(v:getDirectionVector())
+      f = vec3(f.x, f.y, 0):normalized()
+      local toPos, toLook = c - f * 7.5 + vec3(0, 0, 2.4), c + vec3(0, 0, 0.4)
+      local t, last = 0, os.clock()
+      repeat
+        j.sleep(0.016)
+        local now = os.clock()
+        t, last = t + math.min(now - last, 0.1), now
+        local p, l = lotcam.glide({ x = from.pos.x, y = from.pos.y, z = from.pos.z }, toPos, { x = from.look.x, y = from.look.y, z = from.look.z }, toLook, t, BUY_GLIDE, 0)
+        local sf = core_camera.getGlobalCameras and core_camera.getGlobalCameras().scriptedFree
+        if sf and sf.setPose and core_camera.getActiveCamName(0) == 'scriptedFree' then
+          local yawDeg, pitchDeg = lotcam.angles(l.x - p.x, l.y - p.y, l.z - p.z)
+          sf:setPose(vec3(p.x, p.y, p.z), yawDeg, pitchDeg, 0)
+        end
+      until t >= BUY_GLIDE
+    end
+    v = getObjectByID(id)
+    if v then
+      if gameplay_walk and gameplay_walk.getInVehicle then gameplay_walk.getInVehicle(v) else be:enterVehicle(0, v) end
+    end
+    j.sleep(0.2)
+    cameraOff()                                  -- (a no-op once the game has put its own camera on the car)
+  end)
+end
+
 function M.buy()
   local s = career()
   if not s or not lot or lot.mode ~= 'browse' or not lot.veh then return end
@@ -470,15 +506,13 @@ function M.buy()
   local car = sl_fleet.registerVehicle(lot.veh, { name = offer.name, brand = offer.brand, value = offer.value, condition = offer.condition,
     faults = offer.faults, mileage = offer.mileage, price = offer.price })
   local veh = getObjectByID(lot.veh)
-  local from = leaveFrom(lot.place)
   if lot.private and sl_classifieds and sl_classifieds.onPrivateSold then sl_classifieds.onPrivateSold(lot.private, car and car.id) end
   lot.soldVeh = lot.veh
-  cameraOff()
-  dropCars()                                    -- the rest of the row goes back inside
+  dropCars()                                    -- the rest of the row goes away; the camera stays and glides to the car (no cut)
   lightsOff()
   lot = nil
   send()
-  if veh then driveAwayFromRoad(veh, from) end
+  if veh then getInWhereItStands(veh) else cameraOff() end
   local broken = #(offer.faults or {}) > 0
   sl_career.sendText('benny', broken and string.format(strings.t('lot.you_bought_the_s_it'), offer.name, table.concat(offer.faults, ', '))
     or string.format(strings.t('lot.nice_the_s_bring_it'), offer.name), 4)
