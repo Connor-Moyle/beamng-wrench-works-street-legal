@@ -93,6 +93,8 @@ The Jobs app lists what is on offer now. Taking one gives you a destination or a
 
 Some jobs need a car you own, some a certain reputation. Finish the job you are on before you take another.
 
+Taxi fares: a walker waits at the kerb. Drive smoothly; hard braking and hard cornering cost the tip (up to half the fare). Tow jobs: a dead car waits at the kerb; hook it to your car with the tow coupler of the game and tow it to the garage; the clock and the damage are the towed car itself. Parts runs from the scrapyard carry fragile parts. Dealer deliveries take a new car to the customer; with Car Surface FX a single new scratch means no pay.
+
 ## Day and night
 
 The career has two halves. Day (07:00 to 19:00) is the legal half: jobs, shops and dealers, the track events with prize money. Night (21:00 to 04:00) is the street half: street races, meets, pink slips. Shops and dealers close at night and open again in the day.
