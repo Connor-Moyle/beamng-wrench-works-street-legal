@@ -178,7 +178,7 @@ end
 
 -- what a part is worth, from its jbeam
 local function valueOf(id)
-  local vd = vehData(id)
+  local vd = type(id) == 'table' and id or vehData(id)       -- (a table: { ioCtx, config } read without a car, offlineData)
   local ok, jbeamIO = pcall(require, 'jbeam/io')
   return function(name)
     if not vd or not ok then return 0 end
@@ -204,7 +204,7 @@ end
 
 -- what a part is called, from its jbeam
 local function nameOf(id)
-  local vd = vehData(id)
+  local vd = type(id) == 'table' and id or vehData(id)
   local ok, jbeamIO = pcall(require, 'jbeam/io')
   return function(name)
     if not vd or not ok then return name end
@@ -219,12 +219,59 @@ end
 -- The finished setup is remembered per car recipe, so the next time the same car is built (a racer back from the pool, the same meet) it is one spawn.
 M.CACHE_MAX = 24
 local customCache, customOrder = {}, {}
+M.OFFLINE_TREE = true      -- false: a first build is stock car + rebuild, as before
+
+-- a model's parts tree for a config (a .pc path or a table), read from the jbeam files with NO car spawned (the game's loadJbeamOnlyConfig, as its tech API
+-- uses it). -> { ioCtx, config } or nil (then the long way); call finishOffline(jbeamIO) when done
+local function offlineData(model, config)
+  local okIo, jbeamIO = pcall(require, 'jbeam/io')
+  local okLd, loader = pcall(require, 'jbeam/loader')
+  if not (okIo and okLd and loader.loadJbeamOnlyConfig and core_vehicle_partmgmt and core_vehicle_partmgmt.buildConfigFromString) then return nil end
+  local ok, vd = pcall(function()
+    local dir = '/vehicles/' .. model .. '/'
+    local dirs = { dir, '/vehicles/common/' }
+    local input, isConfig = config, true
+    if type(config) == 'string' then input, isConfig = core_vehicle_partmgmt.buildConfigFromString(dir, config) end
+    if not (isConfig and type(input) == 'table') then return nil end
+    local cfg = loader.loadJbeamOnlyConfig(dirs, deepcopy(input))
+    if not (cfg and type(cfg.partsTree) == 'table') then return nil end
+    return { ioCtx = jbeamIO.startLoading(dirs), config = cfg }
+  end)
+  if ok and vd then return vd, jbeamIO end
+  return nil
+end
+
 function M.buildCustom(job, model, config, recipe, pos, rot, nobodyDrives)
   local key = table.concat({ tostring(model), type(config) == 'table' and 'table' or tostring(config), tostring(recipe.stage), tostring(recipe.seed) }, '|')
   if customCache[key] then
     local v = M.spawn(job, model, deepcopy(customCache[key]), pos, rot, nobodyDrives)
     if v then return v end
     customCache[key] = nil                                      -- (it did not take: built the long way below)
+  end
+  -- the parts tree without a spawn: one spawn for a custom car, the first time too
+  if M.OFFLINE_TREE then
+    local od, jbeamIO = offlineData(model, config)
+    if od then
+      local cfg = deepcopy(od.config)
+      local okApply, result = pcall(buildsLib.apply, cfg.partsTree, { stage = recipe.stage, rng = rngLib.new(recipe.seed or 1), classify = classify(),
+        valueOf = valueOf(od), nameOf = nameOf(od) })
+      if jbeamIO and jbeamIO.finishLoading then pcall(jbeamIO.finishLoading) end
+      if okApply and result and #result.upgraded + #result.stripped > 0 then
+        cfg.paints = buildsLib.paints(recipe.seed or 1, recipe.stage == 'race')
+        local keep = deepcopy(cfg)
+        local v = M.spawn(job, model, cfg, pos, rot, nobodyDrives)
+        if v then
+          if type(config) ~= 'table' and not customCache[key] then
+            customCache[key] = keep
+            customOrder[#customOrder + 1] = key
+            if #customOrder > M.CACHE_MAX then customCache[table.remove(customOrder, 1)] = nil end
+          end
+          return v
+        end
+      end
+    else
+      log('W', 'street_legal', 'buildCustom ' .. tostring(model) .. ': the parts tree could not be read without a car; built the long way')
+    end
   end
   local veh = M.spawn(job, model, config, pos, rot, nobodyDrives)
   if not veh then return nil end
