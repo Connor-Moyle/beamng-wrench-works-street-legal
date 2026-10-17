@@ -1931,6 +1931,10 @@ do -- the night is never empty: the first meet 30 s in, retried 20 s after a mis
     worst = math.max(worst, t)
   end
   local SPC = require('sl/core/spawnplan')
+  local alive = { [11] = true }
+  local pl = { a = 11, b = 12 }                                    -- b's car is gone (stale id), c has none
+  local got = SPC.reusable({ { id = 'a' }, { id = 'b' }, { id = 'c' } }, pl, function(v) return alive[v] == true end)
+  check('cruisers: only racers with a live pooled car are reusable (a stale pool id is not)', #got == 1 and got[1].id == 'a' and #SPC.reusable({ { id = 'b' } }, pl, function(v) return alive[v] == true end) == 0 and #SPC.reusable({ { id = 'a' } }, nil, function() return true end) == 0)
   local firstCar = function(speed) for t = 0, 600 do if SPC.canBuild(speed, t, false) then return t end end end
   check('cruisers: at night the first car may be built after 20 s standing or cruising, after 45 s at full speed (both inside 2 minutes); a pooled one after 4 s', firstCar(0) == 20 and firstCar(10) == 20 and firstCar(30) == 45 and SPC.canBuild(0, 4, false, true) and not SPC.canBuild(0, 3, false, true))
   -- frame by frame (60 fps, a meet that always starts and lasts 60 s): a later meet comes about every 90 / 0.35 s, not every 90 s

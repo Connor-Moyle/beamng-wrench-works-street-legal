@@ -42,6 +42,13 @@ function M.canBuild(speed, since, busy, pooled)
   return true
 end
 
+-- the racers (of `list`) whose car waits in the pool and still exists (alive(vehicleId) -> bool); a stale id counts for nothing
+function M.reusable(list, pool, alive)
+  local out = {}
+  for _, r in ipairs(list or {}) do if pool and pool[r.id] and alive(pool[r.id]) then out[#out + 1] = r end end
+  return out
+end
+
 -- the cruisers built behind the fade of the switch to night: what to do this frame with `pre` still wanted
 -- -> 'reset' (the fade is over or a race began: forget the rest), 'build', or 'wait' (one at a time, none while too many are out)
 function M.preStep(pre, inFade, race, busy, count, max)

@@ -422,7 +422,8 @@ local function cruiserCandidates(s)
   return list
 end
 
-local function spawnCruiser(s)
+-- reuseOnly: only the short pool gap has passed, so a car may be put back from the pool but none may be built
+local function spawnCruiser(s, reuseOnly)
   local v = getPlayerVehicle(0)
   if not v or busy then return end
   local list = cruiserCandidates(s)
@@ -434,9 +435,8 @@ local function spawnCruiser(s)
   for _, r in ipairs(list) do if math.abs(r.tier - mine) <= 1 then near[#near + 1] = r end end
   if #near > 0 and rng:chance(0.8) then list = near end
   -- a racer whose car waits in the pool comes back first: putting it on a road costs a teleport, a build costs a freeze
-  local back = {}
-  for _, r in ipairs(list) do if pool[r.id] and getObjectByID(pool[r.id]) then back[#back + 1] = r end end
-  if #back > 0 then list = back end
+  local back = spawnplan.reusable(list, pool, getObjectByID)
+  if #back > 0 then list = back elseif reuseOnly then return false end
   local racer = list[rng:int(#list)]
   -- out of his sight and off his way (#19): not in the camera's view, not ahead of where he is going
   local pp, pv = v:getPosition(), v:getVelocity()
@@ -508,7 +508,7 @@ local function updateCruisers(s, dt)
   tryTimer = tryTimer + dt
   if tryTimer >= 1 and night() and count < MAX_CRUISERS and not race and spawnplan.canBuild(speed, spawnTimer, busy, next(pool) ~= nil) then
     tryTimer = 0                                 -- (looking for a hidden road costs a pass over the graph: once a second at most)
-    if spawnCruiser(s) then spawnTimer = 0 end
+    if spawnCruiser(s, spawnTimer < spawnplan.MIN_GAP) then spawnTimer = 0 end
   end
 end
 
