@@ -54,6 +54,8 @@ end
 -- freeroam_bigMapMode.teleportToPoi is ours: the same steps, with no reset. The game's own is put back when the career stops.
 local patch = require('sl/core/patch')
 local saved = {}
+local savedRaw = {}
+local rules = require('sl/core/activityrules')
 
 local function teleportToPoi(poiId)
   local bm = freeroam_bigMapMode
@@ -81,11 +83,36 @@ local function teleportToPoi(poiId)
   end
 end
 
+-- At night the stock track events (time trials, drag strips, circuits) have no marker and no prompt (D2): the list the game builds once
+-- stays whole, what the markers and the big map get is a copy without them (the same copy while the list and the phase are the same).
+local filtered = {}
+local function dayEventsHidden(levelId, list, gen)
+  local phase = sl_career.phase()
+  if phase ~= 'night' then return list, gen end
+  if filtered.src ~= list or filtered.phase ~= phase then
+    local out = {}
+    for _, e in ipairs(list) do
+      if not (e.data and e.data.type == 'mission' and rules.closed(levelId, e.data.missionId, phase)) then out[#out + 1] = e end
+    end
+    filtered = { src = list, phase = phase, out = out }
+  end
+  return filtered.out, gen
+end
+local function rawList(levelId)
+  local orig = savedRaw.getRawPoiListByLevel and savedRaw.getRawPoiListByLevel.original
+  if not orig then return {} end
+  local list, gen = orig(levelId)
+  if not (careerOn() and type(list) == 'table') then return list, gen end
+  return dayEventsHidden(levelId, list, gen)
+end
+
 local function installTeleport()
   if freeroam_bigMapMode and careerOn() and not stockCareerOn() then patch.install(freeroam_bigMapMode, 'teleportToPoi', teleportToPoi, saved) end
+  if gameplay_rawPois and careerOn() and not stockCareerOn() then patch.install(gameplay_rawPois, 'getRawPoiListByLevel', rawList, savedRaw) end
 end
 local function removeTeleport()
   if freeroam_bigMapMode then patch.restore(freeroam_bigMapMode, 'teleportToPoi', saved) end
+  if gameplay_rawPois then patch.restore(gameplay_rawPois, 'getRawPoiListByLevel', savedRaw) end
 end
 
 -- the game builds this list once per level: again when a career starts or stops and when the places change
@@ -95,5 +122,6 @@ M.onStreetLegalStopped = function() refresh() removeTeleport() end
 M.onBigMapActivated = installTeleport            -- (the big map is opening: ours is in place, also after the game reloaded its module)
 M.onExtensionUnloaded = removeTeleport
 M.onStreetLegalPlacesChanged = refresh
+M.onStreetLegalPhase = refresh            -- (the day events come back in the morning, go at night)
 
 return M

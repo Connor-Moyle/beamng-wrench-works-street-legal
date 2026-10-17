@@ -223,6 +223,8 @@ return function(check, rngLib)
   check('a stock time trial pays its prize and rep once, not again and again (no money loop)', tt.prizeOnce and tt.firstOnly and tt.fee == 100 and tt.kind == 'timeTrial' and not tt.nightOnly)
   check('the drag strips and circuits of a stock map are day events with prize money', AR.ruleFor(W, W .. '/dragStripRace/a').kind == 'drag' and AR.ruleFor(W, W .. '/dragStripAPM/a').prize > 0
     and AR.ruleFor(W, W .. '/aiRace/a').kind == 'circuit' and AR.ruleFor(V, V .. '/aiRace/a') == nil)
+  check('at night the day events are closed (no marker), by day and the street things not', AR.closed(W, W .. '/timeTrial/t1', 'night') and AR.closed(W, W .. '/dragStripRace/a', 'night')
+    and not AR.closed(W, W .. '/timeTrial/t1', 'day') and not AR.closed(W, W .. '/evade/e', 'night') and not AR.closed(W, W .. '/drift/d', 'night') and not AR.closed(W, 'x/timeTrial/t1', 'night'))
   check('Valo City is unchanged: its sprints and evades by their slrr_ names only', AR.ruleFor(V, V .. '/timeTrial/slrr_sprint_x').prizeOnce == nil
     and AR.ruleFor(V, V .. '/evade/slrr_evade_x').heat == -0.3 and AR.ruleFor(V, V .. '/timeTrial/other') == nil and AR.ruleFor(V, V .. '/evade/other') == nil
     and AR.ruleFor(V, V .. '/timeTrial/slrr_rally_x').firstOnly)

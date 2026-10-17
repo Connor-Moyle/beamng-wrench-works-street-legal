@@ -39,4 +39,10 @@ function M.ruleFor(level, id)
   end
 end
 
+-- is this mission one of the day-only track events and the phase is not day (its marker and prompt are left out then)
+function M.closed(level, id, phase)
+  local r = M.ruleFor(level, id)
+  return r ~= nil and r.kind ~= nil and not require('sl/core/splitphase').available('races', r.kind, phase)
+end
+
 return M
