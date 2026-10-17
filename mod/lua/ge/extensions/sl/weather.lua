@@ -30,7 +30,7 @@ local PUDDLE_TEX = 'art/street_legal/decals/puddle.png'
 local puddleMode = 'mesh'        -- 'mesh' (a thin textured plane per puddle, a stock-style translucent decal material: the dynamic decal manager drew nothing), 'decal' (the
                                  -- dynamic decal manager) or 'prism' (flat dark shapes with the debug drawer). sl_weather.puddleMode('prism') forces one for a test.
 local MATERIALS = '/art/street_legal/main.materials.json'
-local MATERIAL_NAMES = { map = 'sl_puddle', alpha = 'sl_puddle_a', opaque = 'sl_puddle_opaque' }      -- map: alpha from its own opacity map; alpha: from the colour map's alpha; opaque: dark grey, no maps
+local MATERIAL_NAMES = { map = 'sl_puddle' }      -- a translucent material whose alpha is its opacity map (the soft oval; the variants tried in game drew hard-edged or slab-like)
 local puddleMaterial = 'map'
 local function shapePath(kind) return '/temp/street_legal/shapes/puddle_' .. MATERIAL_NAMES[kind or puddleMaterial] .. '_v2.dae' end
 local meshes = {}                -- the plane objects, reused: { obj, shown }
@@ -380,16 +380,6 @@ local function checkTexture()
   end
   if textureChecked ~= 'found' then puddleMode = 'prism' end
   log(textureChecked == 'found' and 'I' or 'W', TAG, 'puddle texture: ' .. table.concat(found, ', ') .. (textureChecked == 'found' and '' or ': not found, drawing flat shapes instead'))
-end
-
--- which material the real puddles use ('map', 'alpha' or 'opaque'), for a game test; the planes are made again
-function M.puddleMaterial(kind)
-  if MATERIAL_NAMES[kind] then
-    puddleMaterial = kind
-    for _, m in ipairs(meshes) do pcall(function() m.obj:delete() end) end
-    meshes = {}
-  end
-  return puddleMaterial
 end
 
 function M.puddleMode(m) if m == 'prism' or m == 'decal' or m == 'mesh' then puddleMode = m textureChecked = true end return puddleMode end
