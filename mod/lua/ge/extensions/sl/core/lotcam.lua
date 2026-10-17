@@ -7,8 +7,6 @@ local M = {}
 
 M.DIST = 7.5                          -- m from the car's centre (before the car's own size sets it: frame)
 M.PITCH = math.rad(14)                -- (likewise)
-M.DROP = 0.20                         -- the look-at point is this much of the distance below the car's centre: the car sits in the upper
-                                      -- part of the screen, clear of the lot's info card over the bottom 40 %
 M.EYE_UP = 0.8                        -- m the eye stands above the car's centre (about 1.5 m above the ground): a low hero shot
 M.YAWS = { 145, -145, 120, -120, 90, -90, 35, -35, 180 }       -- degrees from the way the car faces: rear quarters first
 M.KEEP = 0.6                          -- m kept between the eye and a wall
@@ -93,12 +91,20 @@ function M.sway(t) return M.SWAY * math.sin((tonumber(t) or 0) * 0.35) end
 M.REVEAL_SHOTS = { 'front', 'wheel', 'cabin', 'rear' }
 M.BROWSE_SHOTS = { 'front', 'front_sweep', 'side', 'wheel', 'wheel_rear', 'badge', 'taillight', 'rear', 'rear_rise', 'top', 'exhaust', 'orbit',
   'engine', 'engine_rear', 'cabin', 'cabin_pass' }
+-- the camera's view, for the shots that fill a share of the frame: the horizontal half-angle's tangent = tan(fov / 2) * aspect (the game's
+-- field of view taken as the vertical one) -- set from the real field of view by the lot
+M.viewTan = math.tan(math.rad(65) / 2) * 16 / 9
+function M.setView(fovDeg, aspect) M.viewTan = math.tan(math.rad(tonumber(fovDeg) or 65) / 2) * (aspect or 16 / 9) end
+M.SIDE_FILL = 0.6                     -- the side shot: the car fills this share of the frame's width
+
 function M.shot(kind, c, f, L, W, s, eye)
   s = math.max(0, math.min(1, s or 0))
   local r = { x = f.y, y = -f.x }
   local function at(af, ar, z) return { x = c.x + f.x * af + r.x * ar, y = c.y + f.y * af + r.y * ar, z = c.z + z } end
   local H = L * 0.3                                    -- (a car's height, roughly: enough to place the high shots)
-  if kind == 'side' then return at(L * 0.7 - L * 1.4 * s, W / 2 + 3.2, -0.15), at(L * 0.45 - L * 0.9 * s, 0, 0.05)
+  if kind == 'side' then
+    local D = math.max(W / 2 + 1.2, L / (2 * M.SIDE_FILL * M.viewTan))      -- (the car's length is SIDE_FILL of the width seen at that distance)
+    return at(L * 0.3 - L * 0.6 * s, D, -0.15), at(L * 0.18 - L * 0.36 * s, 0, 0.05)
   elseif kind == 'wheel' then return at(L * 0.36, W / 2 + 1.5 - 0.3 * s, -0.3), at(L * 0.34, W / 2, -0.3)
   elseif kind == 'wheel_rear' then return at(-L * 0.36, W / 2 + 1.5 - 0.3 * s, -0.3), at(-L * 0.34, W / 2, -0.3)
   elseif kind == 'cabin' or kind == 'cabin_pass' then
@@ -117,8 +123,8 @@ function M.shot(kind, c, f, L, W, s, eye)
     return at(-0.05 * L, side * W, 0.3), at(6, (pass and 2 or -2) + (pass and -4 or 4) * s, 0.2)
   elseif kind == 'badge' then return at(L / 2 + 1.2 - 0.2 * s, 0.4, -0.05), at(L / 2, 0, 0)
   elseif kind == 'taillight' then return at(-(L / 2 + 1.3 - 0.2 * s), W * 0.55, 0.1), at(-L / 2, W * 0.35, 0.15)
-  elseif kind == 'rear' then return at(-(L / 2 + 2.4 - 0.6 * s), 1.2 - 0.8 * s, 0), at(-L / 2, 0, 0.1)
-  elseif kind == 'rear_rise' then return at(-(L / 2 + 3 - 0.5 * s), W / 2 + 2, -0.1 + 1.5 * s), at(-L * 0.1, 0, 0.1)
+  elseif kind == 'rear' then return at(-(L / 2 + 2.4 - 0.6 * s), 1.2 - 0.8 * s, 0), at(-L * 0.2, 0, 0.1)
+  elseif kind == 'rear_rise' then return at(-(L / 2 + 3 - 0.5 * s), W / 2 + 2, -0.1 + 1.5 * s), at(-L * 0.05, 0, 0.1)
   elseif kind == 'front_sweep' then return at(L / 2 + 2.2, W * 1.2 * (-1 + 2 * s), -0.2), at(L / 2 - 0.5, 0, 0)
   elseif kind == 'top' then return at(L * 0.6 - L * 1.2 * s, W / 2 + 1.8, H / 2 + 3.2), at(0, 0, 0)
   elseif kind == 'exhaust' then return at(-(L / 2 + 1.2 - 0.2 * s), -W * 0.25, -0.45), at(-L / 2, -W * 0.25, -0.4)
@@ -162,16 +168,6 @@ function M.shotClear(kind, c, f, L, W, ray, eye)
     if hit and hit < total - 0.3 then return false end
   end
   return true
-end
-
--- The look-at point moved on the screen (C6): `drop` of the distance lower (the car rises) and `side` of it to the camera's right (the car
--- moves left), so the car sits in the upper left, clear of the lot's card at the bottom centre. Returns the new look-at point.
-function M.framed(pos, look, drop, side)
-  local dx, dy, dz = look.x - pos.x, look.y - pos.y, look.z - pos.z
-  local flat = math.sqrt(dx * dx + dy * dy)
-  local d = math.sqrt(flat * flat + dz * dz)
-  if flat < 1e-6 then return look end
-  return { x = look.x + (dy / flat) * side * d, y = look.y - (dx / flat) * side * d, z = look.z - drop * d }
 end
 
 -- The eye kept outside the car's box (C6): the car's length, width and height (H) plus a margin m on every side. A point inside is pushed
@@ -282,22 +278,7 @@ function M.chain(st, dt, auto, orbit, ctx, pick)
   return st, pos, look, w
 end
 
--- How far the look-at point is dropped (of the distance) in a shot so the car clears the lot's card at the bottom centre: the close shots show
--- the car bigger and need more. Interpolated along a transition; `w` (the shot weight) scales it back to nothing on the orbit.
-M.FRAME_DROP = { rear = 0.34, rear_rise = 0.3, taillight = 0.3, exhaust = 0.3, badge = 0.3, front_sweep = 0.3, engine = 0.3, engine_rear = 0.3, wheel = 0.26, wheel_rear = 0.26 }
-function M.frameDrop(st)
-  if not st then return M.DROP end
-  local function of(kind) return M.FRAME_DROP[kind] or M.DROP end
-  if st.phase == 'trans' then
-    local u = math.max(0, math.min(1, st.u or 0))
-    local e = u * u * (3 - 2 * u)
-    return of(st.kind) + (of(st.nextKind) - of(st.kind)) * e
-  end
-  return of(st.kind)
-end
-
 M.SHOT_TRANS = 1.4                    -- s a move from the end of one shot to the start of the next takes
-M.SIDE = 0.16                         -- of the distance the look-at point is moved right: the car stands left of the middle
 M.SHOT_TIME = 5                       -- s a browsing shot lasts
 M.SHOT_EASE = 1.0                     -- s it takes to ease in from, and out to, the normal orbit
 M.IDLE = 6                            -- s without input before the browsing shots start

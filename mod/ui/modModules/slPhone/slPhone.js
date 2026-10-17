@@ -178,7 +178,11 @@
     '.slp-bar{position:absolute;left:0;right:0;height:9vh;background:#000;transition:transform .6s ease}',
     '.slp-top{top:0;transform:translateY(-100%)}.slp-bot{bottom:0;transform:translateY(100%)}',
     '.slp-bars.slp-on .slp-bar{transform:none}',
-    '.slp-barson .slp-lot:not(.slp-shop){bottom:13vh}',
+    /* while the camera plays its shots the car card shrinks to a bar at the bottom (the car stays centred and in view); the full card returns with the camera input */
+    '.slp-barson .slp-lot:not(.slp-shop){width:min(980px,94vw);bottom:1.4vh;padding:6px 18px;border-radius:16px;display:flex;align-items:center;gap:16px}',
+    '.slp-barson .slp-lot:not(.slp-shop)>.slp-lothead,.slp-barson .slp-lot:not(.slp-shop)>.slp-lottitle,.slp-barson .slp-lot:not(.slp-shop)>.slp-lotstats,.slp-barson .slp-lot:not(.slp-shop)>.slp-lotfaults,',
+    '.slp-barson .slp-lot:not(.slp-shop)>.slp-report,.slp-barson .slp-lot:not(.slp-shop)>.slp-acts,.slp-barson .slp-lot:not(.slp-shop)>.slp-lotleave,.slp-barson .slp-lot:not(.slp-shop)>.slp-lotfactory{display:none}',
+    '.slp-barson .slp-lot:not(.slp-shop)>.slp-lotname{margin:0;flex:1}.slp-barson .slp-lot:not(.slp-shop)>.slp-lotprice{margin:0;font-size:22px}.slp-barson .slp-lot:not(.slp-shop)>.slp-lotbtns{margin:0;flex:2}',
     '.slp-fade{position:absolute;left:0;top:0;right:0;bottom:0;background:#000;opacity:0;transition:opacity .5s}',
     /* the car lots: one car at a time, the SLRR way */
     '.slp-catch{position:absolute;left:0;top:0;right:0;bottom:0;pointer-events:auto;cursor:move;background:rgba(0,0,0,.01)}',

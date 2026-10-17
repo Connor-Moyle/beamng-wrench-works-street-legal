@@ -297,7 +297,7 @@ local function updateCamera(dt)
   local eye = lotcam.pull(t, lotcam.eyeAt(t, dir, cam.yaw + lotcam.sway(cam.t), cam.pitch, cam.dist), wallRay)       -- (never inside a building)
   local want = vec3(eye.x, eye.y, eye.z)
   local k = 1 - math.exp(-4 * math.min(dt, 0.1))
-  local aim = target - vec3(0, 0, lotcam.DROP * cam.dist)       -- (aimed below the car: it stands in the upper part of the screen, above the info card)
+  local aim = target                  -- (the car is centred; the card shrinks to a bar while the shots play)
   if cam.glide then
     cam.glide.t = cam.glide.t + math.min(dt, 0.1)
     local p, l, done = lotcam.glide(cam.glide.fp, { x = want.x, y = want.y, z = want.z }, cam.glide.fl, { x = aim.x, y = aim.y, z = aim.z }, cam.glide.t)
@@ -336,8 +336,6 @@ local function updateCamera(dt)
   local pos, look = cam.pos, cam.look
   if sp2 then pos, look = vec3(sp2.x, sp2.y, sp2.z), vec3(sl2.x, sl2.y, sl2.z) end
   e = e or 0
-  local fl = lotcam.framed(pos, look, lotcam.frameDrop(cam.chain) * e, lotcam.SIDE)       -- (the car stands upper left, clear of the card at the bottom centre)
-  look = vec3(fl.x, fl.y, fl.z)
   cam.shown = { pos = pos, look = look }
   -- the touches for this state of the chain
   local kind = ch and (ch.phase == 'trans' and ch.nextKind or ch.kind)
@@ -351,7 +349,7 @@ local function updateCamera(dt)
   if M.FX.dof and ch and e > 0.01 and not lotfx.isCabin(kind) then dofOn(pos, look, t, e) else dofRestore() end
   local sf0 = core_camera.getGlobalCameras and core_camera.getGlobalCameras().scriptedFree
   if M.FX.fov and sf0 and sf0.setFOV then
-    cam.baseFov = cam.baseFov or sf0.fov
+    if not cam.baseFov and sf0.fov then cam.baseFov = sf0.fov lotcam.setView(sf0.fov) end
     local drift = lotfx.fovDrift(ch, lotcam.SHOT_TIME)
     if cam.baseFov and (drift ~= 0 or cam.fovDrifted) then pcall(sf0.setFOV, sf0, cam.baseFov - drift) end
     cam.fovDrifted = drift ~= 0

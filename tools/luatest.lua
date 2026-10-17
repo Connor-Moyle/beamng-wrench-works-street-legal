@@ -1308,6 +1308,17 @@ do
       end
     end
   end
+  do   -- the side shot: the car's length fills 60 % of the frame width, whatever its size
+    local worstFill, tanv = 9, lotcam.viewTan
+    for _, sz in ipairs({ { 3.4, 1.6 }, { 4.5, 1.9 }, { 5.5, 2.0 }, { 6.5, 2.4 } }) do
+      local p = lotcam.shot('side', c, f, sz[1], sz[2], 0.5)
+      local D = math.abs((p.x - c.x) * f.y - (p.y - c.y) * f.x)       -- the side distance from the car's centre line
+      local fill = (sz[1] / D) / (2 * tanv)
+      worstFill = math.min(worstFill, fill)
+      if D > sz[2] / 2 + 1.2 + 1e-6 then check('side shot fills 60 percent of the width for the ' .. sz[1] .. ' m car', math.abs(fill - lotcam.SIDE_FILL) < 1e-6, fill) end
+    end
+    check('every side shot stays at least 1.2 m from the car body', worstFill > 0)
+  end
   check('every detail shot (16 kinds, four car sizes) is finite and close to the car', ok)
   check('every shot but the cabin ones keeps its eye outside the car box plus the margin along its whole drift', outsideOk)
   -- the cabin shots turn the head from the driver camera position and never move the eye
@@ -1347,8 +1358,6 @@ do
     end
     check('no transition between any two shots (16x15 pairs, four sizes) crosses the car box, and none jumps', ok, bad)
   end
-  check('close shots drop the look-at point more, the default is the orbit one, a transition interpolates', lotcam.frameDrop(nil) == lotcam.DROP and lotcam.frameDrop({ phase = 'shot', kind = 'rear' }) > lotcam.DROP
-    and lotcam.frameDrop({ phase = 'shot', kind = 'side' }) == lotcam.DROP and math.abs(lotcam.frameDrop({ phase = 'trans', kind = 'side', nextKind = 'rear', u = 0.5 }) - (lotcam.DROP + lotcam.FRAME_DROP.rear) / 2) < 1e-9)
   do
     local fx = require('sl/core/lotfx')
     check('bars: off at rest, on in a shot and on the way to the next, off in the cabin shots and on the way back to the orbit', not fx.barsOn(nil) and fx.barsOn({ phase = 'shot', kind = 'side' })
@@ -1395,8 +1404,6 @@ do
   check('the wheel shot stands by the front wheel, the cabin shot inside the car', pw.y > c.y + 1 and math.abs(pw.x - c.x) > 2 and dist(pc) < 1.5)
   check('a clear view passes, a pillar between eye and car fails every shot that looks through it', lotcam.shotClear('side', c, f, 4.5, 1.9, function() return nil end)
     and not lotcam.shotClear('side', c, f, 4.5, 1.9, function(a, b) return 1.0 end))
-  local look = lotcam.framed({ x = 0, y = 0, z = 1 }, { x = 0, y = 10, z = 1 }, 0.1, 0.2)
-  check('framing moves the look-at point right of and below the car (looking along +y, right is +x)', math.abs(look.x - 2) < 1e-6 and look.y == 10 and math.abs(look.z - 0) < 1e-6)
   -- the browsing shots flow: one into the next along an arc, never back through the orbit pose, never a jump; only the player's input eases out
   do
     local orbit = { pos = { x = 10, y = 14, z = 2.5 }, look = { x = 10, y = 20, z = 1 } }

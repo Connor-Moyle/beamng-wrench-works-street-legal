@@ -442,13 +442,6 @@ return function(check, rngLib)
   local small, _ = LC.frame(2.5)
   local big, _ = LC.frame(30)
   check('the distance follows the car size: never under 6.5 m, never over 10 m, more for a bigger car', small == 6.5 and big == 10 and LC.frame(8) > LC.frame(5))
-  -- the screen: the camera looks at a point DROP * dist below the car centre, so the car stands above the middle of the screen
-  local atan = math.atan2 or math.atan
-  local dropM = LC.DROP * fdist
-  local lookAngle = atan(eye0.z - (car.z - dropM), math.sqrt((eye0.x - car.x) ^ 2 + (eye0.y - car.y) ^ 2))
-  local carAngle = atan(eye0.z - car.z, math.sqrt((eye0.x - car.x) ^ 2 + (eye0.y - car.y) ^ 2))
-  local above = math.deg(lookAngle - carAngle)
-  check('the car centre is 8 to 18 degrees above the middle of the picture (clear of the info card over the bottom 40 percent)', above > 8 and above < 18)
   -- a building along the car's back (y < 97): everything behind is blocked at the wall; the sides are clear
   local wallBehind = function(a, b) if b.y < 97 then return math.abs((97 - a.y) / (b.y - a.y)) * math.sqrt((b.x - a.x) ^ 2 + (b.y - a.y) ^ 2 + (b.z - a.z) ^ 2) end end
   local yaw1, f1 = LC.choose(car, facing, LC.PITCH, LC.DIST, wallBehind)
@@ -497,11 +490,11 @@ return function(check, rngLib)
   check('the default list names the spare wheel in its spellings', table.concat(C.REFUSE, ' '):find('sparewheel', 1, true) ~= nil and table.concat(C.REFUSE, ' '):find('spare_wheel', 1, true) ~= nil)
 
   -- T37c: the camera looks DOWN at the car, not up into the sky
-  local aim = { x = car.x, y = car.y, z = car.z - LC.DROP * fdist }
+  local aim = { x = car.x, y = car.y, z = car.z }
   local lookDz = aim.z - eye0.z
-  check('the eye is above the car and the point it looks at is below the eye: the look direction points down', eye0.z > car.z and aim.z < car.z and lookDz < 0)
+  check('the eye is above the car and the car (the point it looks at) is below the eye: the look direction points down', eye0.z > car.z and lookDz < 0)
   local yawD, pitchD = LC.angles(aim.x - eye0.x, aim.y - eye0.y, lookDz)
-  check('...so the camera pitch is positive (scriptedFree: positive = down), 15 to 25 degrees for the standard framing', pitchD > 15 and pitchD < 25)
+  check('...so the camera pitch is positive (scriptedFree: positive = down), 2 to 25 degrees for the standard (low, centred) framing', pitchD > 2 and pitchD < 25)
   local fx, fy, fz = math.sin(math.rad(yawD)) * math.cos(math.rad(pitchD)), math.cos(math.rad(yawD)) * math.cos(math.rad(pitchD)), -math.sin(math.rad(pitchD))
   local dl = math.sqrt((aim.x - eye0.x) ^ 2 + (aim.y - eye0.y) ^ 2 + lookDz ^ 2)
   check('the camera forward from those angles (scriptedFree own formula) is the direction to the aim point, z negative', math.abs(fx - (aim.x - eye0.x) / dl) < 1e-9 and math.abs(fy - (aim.y - eye0.y) / dl) < 1e-9 and math.abs(fz - lookDz / dl) < 1e-9 and fz < 0)
