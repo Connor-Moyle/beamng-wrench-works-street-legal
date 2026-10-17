@@ -41,6 +41,18 @@ High-end dealers also take **factory orders**: pick a model, a trim, a colour an
 - **Night** (21:00-04:00): the street half. Street races, car meets, pink slips, the swap meet. Reputation, worth more with **heat**. Shops and dealers are closed.
 - The clock runs slowly inside each half and stops at its end; **Start the night** / **Start the day** (the Wait app or a garage computer) moves on. A new day starts when you start the day.
 
+## Weather and puddles
+
+Each phase of a day has its own weather (clear, cloudy, three strengths of rain, fog at night; the phone's Wait app shows the forecast). In the rain the sky goes grey and dark, the road gets wet and puddles form, with ripples, wheel spray and a mist behind the car; at speed a puddle drags and can aquaplane the car. The roads dry out afterwards. Everything works in any car you drive.
+
+## Car Surface FX (optional)
+
+With the **Car Surface FX** mod installed, dirt and scratches stay with your cars: the fuel station's car wash (roll slowly through a wash bay or choose Wash at a pump) cleans the dirt, Wrench Works repairs buff scratches out, a paint job leaves the car clean, and a stored car keeps its state in the save. **My cars** shows how dirty or scratched each car is. Without the mod nothing changes.
+
+## Car meets
+
+At night, walk up to the owner of a parked car at a meet and press **Talk to <name>**: their story, then a tip, a race word or the car for sale. The owners stand in pairs and trios, the music plays from one car and the crowd murmurs at the middle. The meet fills without freezes because cars are built one at a time while you are slow or far away.
+
 ## Racing, heat and the police
 
 - Races are at night, against racers from your phone: for money, high stakes or **pink slips** (win and their car is yours, lose and you walk home).
