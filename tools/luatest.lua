@@ -1957,6 +1957,15 @@ do -- the night is never empty: the first meet 30 s in, retried 20 s after a mis
   check('meets: with half the tries failing, the first meet starts within 5 minutes (worst of 300 nights ' .. worst .. ' s)', worst <= 300)
 end
 
+do -- the off-route distance is looked up 4 times a second, not every frame
+  local C = require('sl/core/racecancel')
+  local ev, route = {}, { { x = 0, y = 0 }, { x = 100, y = 0 } }
+  local d0 = C.distCached(ev, 0, { x = 50, y = 10 }, route)
+  local d1 = C.distCached(ev, 0.1, { x = 50, y = 90 }, route)
+  local d2 = C.distCached(ev, 0.3, { x = 50, y = 90 }, route)
+  check('racecancel: distCached reuses the value inside 0.25 s and looks again after it', d0 == 10 and d1 == 10 and d2 == 90 and C.distCached(ev, 0, { x = 50, y = 30 }, route) == 30)
+end
+
 do -- kinds of night race (core/racekinds)
   local RK = require('sl/core/racekinds')
   local RNG = require('sl/core/rng')

@@ -412,7 +412,7 @@ local function updateRace(dt)
   end
   race.t = race.t + dt
   if not race.circuit then
-    local why = cancel.reason(race.t, race.limit, race.route and #race.route > 0 and cancel.distToRoute({ x = v:getPosition().x, y = v:getPosition().y }, race.route) or nil)
+    local why = cancel.reason(race.t, race.limit, race.route and #race.route > 0 and cancel.distCached(race, race.t, { x = v:getPosition().x, y = v:getPosition().y }, race.route) or nil)
     if why then cancelRace(why) return end
   end
   if race.circuit then

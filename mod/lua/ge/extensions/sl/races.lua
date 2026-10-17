@@ -279,7 +279,7 @@ function M.onUpdate(dtReal)
     return
   end
   local opp = cur.oppVid and getObjectByID(cur.oppVid)
-  local why = cancel.reason(cur.t, cur.limit, cur.route and #cur.route > 0 and cancel.distToRoute(p3(pv:getPosition()), cur.route) or nil)
+  local why = cancel.reason(cur.t, cur.limit, cur.route and #cur.route > 0 and cancel.distCached(cur, cur.t, p3(pv:getPosition()), cur.route) or nil)
   if why then return finish(false, true, why) end
   local result = races.step(cur.race.finish, p3(pv:getPosition()), opp and p3(opp:getPosition()) or nil, cur.t, cur.done)
   local ms = (os.clock() - t0) * 1000
