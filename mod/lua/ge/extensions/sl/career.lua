@@ -1286,9 +1286,12 @@ function M.onPursuitAction(id, action, pursuit)
     end
     changed()
   elseif action == 'evade' then
-    stateLib.addRep(s, progression.EVADE_REP)
+    -- the escape pays by heat, and for each roadblock passed and strip survived (core/chase)
+    local rep = require('sl/core/chase').escapeRep(progression.EVADE_REP, M.phase(), sl_police and sl_police.level and sl_police.level() or 0,
+      type(pursuit) == 'table' and pursuit.roadblocks or 0, sl_police and sl_police.stripsSurvived and sl_police.stripsSurvived() or 0)
+    stateLib.addRep(s, rep)
     if M.phase() == 'night' then s.heat = heatLib.raised(s.heat, heatLib.ESCAPE) end        -- (D3) a chase is heat, even one you got out of
-    tell(string.format(strings.t('career.you_lost_them_d_reputation'), progression.EVADE_REP), 5)
+    tell(string.format(strings.t('career.you_lost_them_d_reputation'), rep), 5)
     changed()
   end
 end

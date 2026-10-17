@@ -2054,4 +2054,30 @@ do -- kinds of night race (core/racekinds)
     RK.bonus('city', 1000, 0) == 0 and RK.bonus('highway', 1000, 0) == 250 and RK.bonus('rolling', 1000, 0) == 400 and RK.bonus('highway', 1000, 5) == 500 and RK.bonus('hill', 0, 3) == 0 and RK.bonus('nope', 500, 1) == 0)
 end
 
+do -- the depth of a night chase (core/chase)
+  local CH = require('sl/core/chase')
+  check('chase: roadblocks from heat 2 at night (0 / 0.25 / 0.5 / 0.75 / 1), none by day, the arrest quicker and wider as it heats',
+    CH.vars('night', 1).roadblockFrequency == 0 and CH.vars('night', 2).roadblockFrequency == 0.25 and CH.vars('night', 5).roadblockFrequency == 1
+    and CH.vars('day', 5).roadblockFrequency == 0 and CH.vars('night', 5).arrestTime == 3 and CH.vars('night', 0).arrestTime == 5 and CH.vars('night', 5).arrestRadius == 30
+    and CH.vars('night', 3).strictness == 0.75)
+  check('chase: covered means a roof inside 12 m; the evade timer runs x2 hidden and covered, x1.5 covered, x1.25 hidden, x1 in sight',
+    CH.covered(8) and not CH.covered(12) and not CH.covered(nil) and CH.evadeRate(true, true) == 2 and CH.evadeRate(false, true) == 1.5 and CH.evadeRate(true, false) == 1.25 and CH.evadeRate(false, false) == 1)
+  check('chase: the escape pays rep x the night boost plus 5 a roadblock and a strip',
+    CH.escapeRep(15, 'night', 0, 0, 0) == 15 and CH.escapeRep(15, 'night', 4, 0, 0) == 24 and CH.escapeRep(15, 'night', 4, 2, 1) == 39 and CH.escapeRep(15, 'day', 5, 0, 0) == 15)
+  check('chase: strips from heat 3 in a chase only, every 40 s (25 s at heat 5)',
+    not CH.stripDue('night', 2, true, 999) and not CH.stripDue('night', 3, false, 999) and not CH.stripDue('day', 5, true, 999)
+    and CH.stripDue('night', 3, true, 40) and not CH.stripDue('night', 3, true, 39) and CH.stripDue('night', 5, true, 25) and not CH.stripDue('night', 5, true, 24))
+  local line = {} for i = 0, 40 do line[#line + 1] = { x = i * 10, y = 0, z = 0 } end        -- 400 m straight
+  local p1, d1 = CH.stripSpot(line)
+  check('chase: the strip goes 150 m down a straight road, heading along it', p1 and p1.x == 150 and d1.x > 0 and d1.y == 0)
+  local p2 = CH.stripSpot(line, function(pt) return pt.x >= 200 end)
+  check('chase: a refused spot (a bridge) moves it on down the road', p2 and p2.x == 200)
+  check('chase: no spot when every candidate is refused or the route is short', CH.stripSpot(line, function() return false end) == nil and CH.stripSpot({ { x = 0, y = 0 }, { x = 100, y = 0 } }) == nil)
+  local bend = {} for i = 0, 30 do bend[#bend + 1] = { x = i * 10, y = 0, z = 0 } end        -- straight 300 m ...
+  for i = 1, 30 do bend[#bend + 1] = { x = 300, y = i * 10, z = 0 } end                         -- ... then a right-angle corner at 300 m
+  local p3 = CH.stripSpot(bend)
+  check('chase: never on a corner (the spot keeps 30 m of straight either side)', p3 and p3.x == 150 and CH.stripSpot(bend, function(pt) return pt.x > 260 end) == nil)
+  check('chase: a breaker is hit within 6 m at speed with a patrol inside 40 m', CH.breakerHit(4, 20, 30) and not CH.breakerHit(8, 20, 30) and not CH.breakerHit(4, 5, 30) and not CH.breakerHit(4, 20, 60))
+end
+
 print(string.format('lua tests passed: %d checks', passed))

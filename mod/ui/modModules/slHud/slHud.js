@@ -20,6 +20,7 @@
     '.slh-status,.slh-perf{zoom:var(--sl-zoom,1)}',
     '.slh-perf{position:fixed;left:8px;top:8px;z-index:60;padding:6px 10px;border-radius:6px;background:rgba(0,0,0,.6);color:#e8e8e8;font:12px/1.35 Consolas,monospace;pointer-events:none;white-space:pre}',
     '.slh-heat{color:#ff4a2a;letter-spacing:2px}.slh-heat i{font-style:normal;color:#55505a}',
+    '.slh-chase{display:flex;gap:6px;align-items:center}.slh-bar{display:inline-block;width:90px;height:8px;border-radius:4px;background:#3a3640;overflow:hidden}.slh-bar b{display:block;height:100%;background:#4ad2ff}.slh-bar.slh-bust b{background:#ff4a2a}.slh-strip{color:#ffd23a;font-weight:bold}',
   ].join('\n');
 
   var ZONES = ['FL', 'FR', 'ML', 'MR', 'RL', 'RR'];
@@ -62,7 +63,7 @@
     root.appendChild(left); root.appendChild(dials); root.appendChild(status);
     doc.body.appendChild(root);
 
-    var labels = {};          // the Lua side's words (sl/core/strings): { day, night, engine, atRisk, heat, rpm, mph, kmh, atRiskTip }
+    var labels = {};          // the Lua side's words (sl/core/strings): { day, night, engine, atRisk, heat, rpm, mph, kmh, atRiskTip, cooldown, hidden, busting, stripAhead }
     var settings = { enabled: true, speedo: true, tacho: true, map: true, damage: true, units: 'kmh' };
     function warnC() { return settings.colorBlind ? '#ffb454' : '#ff2a1a'; }      // #51: orange instead of red for the needle, the redline and the neutral mark with colour-blind colours
     var roads = null;         // { segs: [x1,y1,x2,y2,...], grid: { 'cx|cy': [index...] }, places }
@@ -410,6 +411,17 @@
       report();
     }
 
+    // a chase: the cool-down meter (fills while they lose you; out of sight or under a roof it fills faster), the boxed-in meter when a patrol closes on you, a spike strip warning
+    function chaseHtml(c) {
+      if (!c) return '';
+      var step = function (x) { return Math.round(Math.max(0, Math.min(1, +x || 0)) * 10) * 10; };       // 10 % steps: the bar is rebuilt rarely
+      var html = '<span class="slh-chase">' + (labels.cooldown || 'Losing them') + ' <span class="slh-bar"><b style="width:' + step(c.evade) + '%"></b></span>' +
+        (c.hidden || c.covered ? ' ' + (labels.hidden || 'Out of sight') : '') + '</span>';
+      if (c.arrest > 0) html += '<span class="slh-chase">' + (labels.busting || 'Boxed in') + ' <span class="slh-bar slh-bust"><b style="width:' + step(c.arrest) + '%"></b></span></span>';
+      if (c.strip) html += '<span class="slh-strip">&#9888; ' + (labels.stripAhead || 'SPIKE STRIP AHEAD') + '</span>';
+      return html;
+    }
+
     // the phase (a sun or a moon) and the heat as five flames, lit as many as the heat level; nothing without a career
     function drawStatus(d) {
       if (!d.phase) { status.classList.add('slh-gone'); return; }
@@ -417,6 +429,7 @@
       for (var i = 1; i <= 5; i++) flames += i <= heat ? '&#9650;' : '<i>&#9650;</i>';
       var html = '<span>' + (night ? '&#9790; ' + (labels.night || 'Night') : '&#9728; ' + (labels.day || 'Day')) + '</span>' +
         (heat > 0 || night ? '<span class="slh-heat" title="' + (labels.heat || 'Heat {1}').replace('{1}', heat) + '">' + flames + ' ' + heat + '</span>' : '') +
+        chaseHtml(d.chase) +
         (night && d.atRisk > 0 ? '<span title="' + (labels.atRiskTip || 'Reputation you lose if you are busted; a garage banks it') + '">' + (labels.atRisk || '+{1} rep at risk').replace('{1}', d.atRisk) + '</span>' : '');
       if (html !== last.status) { last.status = html; status.innerHTML = html; draws++; } else skips++;
       status.classList.remove('slh-gone');

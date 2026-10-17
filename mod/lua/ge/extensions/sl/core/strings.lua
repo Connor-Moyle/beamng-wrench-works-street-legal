@@ -26,6 +26,7 @@ M.TEXT = {
   ['status.yours'] = 'Yours', ['status.start'] = 'start', ['status.finish'] = 'finish', ['status.ahead'] = 'ahead', ['status.behind'] = 'behind',
   ['hud.atRisk'] = '+{1} rep at risk', ['hud.heat'] = 'Heat {1}', ['hud.rpm'] = 'RPM x1000', ['hud.mph'] = 'MPH', ['hud.kmh'] = 'KM/H',
   ['hud.atRiskTip'] = 'Reputation you lose if you are busted; a garage banks it',
+  ['hud.cooldown'] = 'Losing them', ['hud.hidden'] = 'Out of sight', ['hud.busting'] = 'Boxed in', ['hud.stripAhead'] = 'SPIKE STRIP AHEAD',
   -- laptop
   ['laptop.mycars'] = 'My cars', ['laptop.myparts'] = 'My parts', ['laptop.carmarket'] = 'Car market', ['laptop.partmarket'] = 'Part market',
   ['laptop.club'] = 'Club', ['laptop.help'] = 'Help', ['laptop.bank'] = 'Bank / insurance', ['laptop.cred'] = 'Street cred',

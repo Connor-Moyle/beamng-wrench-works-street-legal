@@ -30,6 +30,11 @@ assert.ok(!gone('.slh-status') && hud.root.querySelector('.slh-status').textCont
 hud.handle('slHud', Object.assign({}, frame, { phase: 'day', heat: 0 }));
 assert.ok(hud.root.querySelector('.slh-status').textContent.includes('Day') && !hud.root.querySelector('.slh-heat'), 'day without heat: no heat meter');
 { const node = hud.root.querySelector('.slh-status span'); hud.handle('slHud', Object.assign({}, frame, { phase: 'day', heat: 0 })); assert.ok(hud.root.querySelector('.slh-status span') === node, 'the same status again does not rebuild it (UI smoothness)'); hud.handle('slHud', Object.assign({}, frame, { phase: 'night', heat: 1 })); assert.ok(hud.root.querySelector('.slh-status span') !== node, 'a changed status is rebuilt'); hud.handle('slHud', Object.assign({}, frame, { phase: 'day', heat: 0 })); }
+// a chase: the cool-down meter, the boxed-in meter, the strip warning; nothing outside a chase
+hud.handle('slHud', Object.assign({}, frame, { phase: 'night', heat: 3, chase: { evade: 0.5, arrest: 0.3, hidden: true, covered: false, strip: true } }));
+{ const t = hud.root.querySelector('.slh-status').textContent; assert.ok(t.includes('Losing them') && t.includes('Out of sight') && t.includes('Boxed in') && t.includes('SPIKE STRIP AHEAD') && hud.root.querySelectorAll('.slh-bar b')[0].style.width === '50%', 'chase: meters and strip warning'); }
+hud.handle('slHud', Object.assign({}, frame, { phase: 'night', heat: 3 }));
+assert.ok(!hud.root.querySelector('.slh-chase') && !hud.root.querySelector('.slh-strip'), 'no chase: no meters');
 // #51 the words come from Lua (labels), the heat is a number as well as flames, the text size scales the HUD's text
 hud.handle('slHud', Object.assign({}, frame, { phase: 'night', heat: 2, atRisk: 80, labels: { day: 'Tag', night: 'Nacht', heat: 'Hitze {1}', atRisk: '+{1} Ruf' }, settings: Object.assign({}, frame.settings, { textScale: 1.5 }) }));
 const stText = hud.root.querySelector('.slh-status').textContent;
