@@ -31,4 +31,10 @@ function M.reason(t, limit, off, maxOff)
   return nil
 end
 
+-- distToRoute at most every `every` seconds of the event's own clock t (the whole polyline is walked each time); c is the event's cache table
+function M.distCached(c, t, p, points, every)
+  if c.at == nil or t - c.at >= (every or 0.25) or t < c.at then c.at, c.d = t, M.distToRoute(p, points) end
+  return c.d
+end
+
 return M
