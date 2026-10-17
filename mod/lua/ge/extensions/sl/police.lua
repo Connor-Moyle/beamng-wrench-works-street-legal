@@ -197,14 +197,26 @@ function M.stripReset() parkStrip() if M.breakerReset then M.breakerReset() end 
 function M.stripTick(v)       -- (from the chase tick)
   if M.STRIP and not stripPos and stripVeh() and chaseLib.stripDue(sl_career.phase(), M.level(), true, os.clock() - lastStrip) then placeStrip(v) end
 end
+-- a build gate for the chase props (the strip, the wall): the patrol rule, but heat 4-5 is urgent (as for the patrols: at 15 m/s with cruisers
+-- being built the rule held the strip back for minutes). The reason it said no is logged, at most once in 30 s.
+local heldAt = -1e9
+local function propGate(what, v)
+  local sBusy, sSince = false, 1e9
+  if sl_streets and sl_streets.buildGate then sBusy, sSince = sl_streets.buildGate() end
+  local speed, since = v:getVelocity():length(), math.min(sSince or 1e9, os.clock() - lastBuild)
+  if spawnplan.patrolOk(speed, since, sBusy, M.level() >= 4) then return true end
+  if os.clock() - heldAt > 30 then
+    heldAt = os.clock()
+    log('I', 'street_legal', string.format('chase: %s build held (speed %.0f m/s, %.0f s since the last build, busy=%s)', what, speed, since, tostring(sBusy)))
+  end
+  return false
+end
 -- the strip itself, built once at night from heat 3 while nobody is after you (a spawn is a hitch)
 local function updateStrip(v)
   if not M.STRIP or stripId or stripBusy or not night() or M.level() < 3 or M.inPursuit() or not gameplay_traffic then return end
   local node = nodeAround(v:getPosition(), 500, 900)
   if not node then return end
-  local sBusy, sSince = false, 1e9
-  if sl_streets and sl_streets.buildGate then sBusy, sSince = sl_streets.buildGate() end
-  if not spawnplan.patrolOk(v:getVelocity():length(), math.min(sSince or 1e9, os.clock() - lastBuild), sBusy, false) then return end
+  if not propGate('strip', v) then return end
   stripBusy, lastBuild = true, os.clock()
   if sl_streets and sl_streets.noteBuild then sl_streets.noteBuild() end
   core_jobsystem.create(function(job)
@@ -299,9 +311,7 @@ local function updateBreakers(v)
   if wallId or wallBusy or #(spots or {}) == 0 or M.inPursuit() then return end
   local node = nodeAround(p, 500, 900)
   if not node then return end
-  local sBusy, sSince = false, 1e9
-  if sl_streets and sl_streets.buildGate then sBusy, sSince = sl_streets.buildGate() end
-  if not spawnplan.patrolOk(v:getVelocity():length(), math.min(sSince or 1e9, os.clock() - lastBuild), sBusy, false) then return end
+  if not propGate('breaker wall', v) then return end
   wallBusy, lastBuild = true, os.clock()
   if sl_streets and sl_streets.noteBuild then sl_streets.noteBuild() end
   core_jobsystem.create(function(job)
