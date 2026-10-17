@@ -96,6 +96,11 @@ local function partFields(card, item)
   return card
 end
 
+-- a part's shop card fields (name, category, chapter, the car it fits, pictures): the same for the phone's ads, the laptop's market and its shelf
+function M.partCard(item, model)
+  return partFields({ model = model }, { part = item.part, name = item.name, slotId = item.slotId, model = model })
+end
+
 -- parts of a model with their values (BeamNG's jbeam), cached per model
 local partsCache = {}
 local function partsOf(model)

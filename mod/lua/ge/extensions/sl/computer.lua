@@ -45,7 +45,9 @@ local function shelf(s)
     if car.model and not seen[car.model] then
       seen[car.model] = true
       for _, it in ipairs(slrr_garage and slrr_garage.shelfItems and slrr_garage.shelfItems(car.model) or {}) do
-        out[#out + 1] = { model = car.model, car = car.name, name = it.name, slot = it.slotId, count = it.count, value = it.value, wear = it.wear }
+        local card = sl_classifieds and sl_classifieds.partCard and sl_classifieds.partCard(it, car.model) or {}      -- (the phone's names and pictures: never a raw table)
+        out[#out + 1] = { model = car.model, car = car.name, name = card.name or it.name, slot = it.slotId, count = it.count, value = it.value, wear = it.wear,
+          categoryTitle = card.categoryTitle, chapter = card.chapter, fits = card.fits, preview = card.preview, partPic = card.partPic }
       end
     end
   end

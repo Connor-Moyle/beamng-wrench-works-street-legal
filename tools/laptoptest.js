@@ -228,7 +228,7 @@ assert.ok(!wins().length, 'and then closes the window');
 
 // ---- the two marketplaces share the phone's data
 laptop.handle('slPhoneData', Object.assign({}, laptop.state.data || {}, { market: { deliveries: 1, auctions: [{ id: 'a1', name: 'Coilovers', model: 'covet', bid: 100, next: 110, condition: 80, hoursLeft: 5, high: 'ai', delivery: 30 }], paper: { listings: [], edition: 2, price: 2 }, mine: [], shelf: [], cars: [],
-  listings: [{ id: 'p1', name: 'Sport exhaust', model: 'covet', ask: 300, condition: 70, seller: 'Gabor', rating: 3, tells: [], deposit: 30, hoursLeft: 12, delivery: 20 },
+  listings: [{ id: 'p1', name: 'Sport exhaust', model: 'covet', chapter: 'Exhaust systems', fits: 'Covet', categoryTitle: 'Engine', partPic: '/pics/exh.png', ask: 300, condition: 70, seller: 'Gabor', rating: 3, tells: [], deposit: 30, hoursLeft: 12, delivery: 20 },
     { id: 'c1', name: 'Covet 1.5', model: 'covet', car: true, faults: 0, ask: 2400, condition: 55, seller: 'Big Tony', rating: 4, tells: [], deposit: 240, hoursLeft: 30, delivery: 180, year: 2009, specs: {} }] } }));
 click('tile', 'vehicleShop');
 click('mtab', 'dealers|ads');
@@ -236,6 +236,7 @@ assert.ok(text().includes('Covet 1.5') && !text().includes('Sport exhaust'), 'Ca
 click('winclose', 'dealers');
 click('tile', 'partsMarket');
 assert.ok(titles()[0] === 'Part market' && text().includes('Sport exhaust') && !text().includes('Covet 1.5') && text().includes('Swap & Bid'), 'Part market: Revline parts, no car ads');
+assert.ok(text().includes('Exhaust systems') && text().includes('fits the Covet') && !text().includes('for the covet') && $('.sll-win img.sll-partpic') && $('.sll-win .sll-pbadge'), 'a part card shows the chapter, the car it fits, the part picture and its category');
 click('mtab', 'partmarket|auctions');
 assert.ok(text().includes('Coilovers') && text().includes('Bid $110'), 'Swap & Bid lots');
 calls.length = 0;

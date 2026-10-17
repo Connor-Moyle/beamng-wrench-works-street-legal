@@ -106,6 +106,9 @@
     '.sll-listing{display:flex;gap:14px;align-items:stretch;cursor:pointer;border:2px solid transparent}',
     '.sll-pic{flex:none;width:200px;aspect-ratio:16/9;border-radius:8px;overflow:hidden;background:#0d0b12;display:flex;align-items:center;justify-content:center;color:#6f6a78;font-size:12px}',
     '.sll-pic img{width:100%;height:100%;object-fit:cover}',
+    '.sll-pic{position:relative}.sll-pic img.sll-partpic{object-fit:contain;padding:8px}',
+    '.sll-pbadge{position:absolute;left:6px;bottom:6px;padding:2px 8px;border-radius:10px;background:rgba(0,0,0,.65);color:#e6e1e5;font-size:11px}',
+    '.sll-thumb{width:44px;height:28px;object-fit:contain;margin-right:8px;vertical-align:middle;background:#0d0b12;border-radius:4px}',
     '.sll-li{flex:1;min-width:0}',
     '.sll-brand{color:#cac4d0;font-size:12px;margin-bottom:4px}',
     '.sll-props{color:#cac4d0;font-size:12px;margin-top:3px}',
@@ -168,6 +171,13 @@
     function pic(c) {
       return '<div class="sll-pic">' + (c.preview ? '<img src="' + esc(c.preview) + '" alt="" onerror="this.style.display=\'none\'">' : T('ui.no_picture', 'no picture')) + '</div>';
     }
+    // a part's picture (its own where the mod ships one, else the car's) and its second line, as the phone shows them
+    function partPicL(l) {
+      var src = l.partPic || l.preview;
+      return '<div class="sll-pic">' + (src ? '<img' + (l.partPic ? ' class="sll-partpic"' : '') + ' src="' + esc(src) + '" alt="" onerror="this.style.display=\'none\'">' : T('ui.no_picture', 'no picture')) +
+        (l.categoryTitle ? '<div class="sll-pbadge">' + esc(l.categoryTitle) + '</div>' : '') + '</div>';
+    }
+    function partMetaL(l) { return (l.chapter ? esc(l.chapter) + ' &middot; ' : '') + (l.fits ? T('ui.fits_the_1', 'fits the {1}', esc(l.fits)) : T('ui.for_the_1', 'for the {1}', esc(l.model))); }
     // the stock card's one-line facts: mileage, transmission, drivetrain, power, weight
     function facts(c) {
       var sp = obj(c.specs), out = [];
@@ -283,8 +293,8 @@
           (l.hours ? T('ui.middot_delivered_in_about_1', ' &middot; delivered in about {1} h', l.hours) : '') + ' &middot; condition ' + l.condition + '%' + (l.faults ? T('ui.middot_1_fault_2', ' &middot; {1} fault{2}', l.faults, (l.faults > 1 ? 's' : '')) : '') + '</div>' + tells +
           '<div class="sll-props"><b>' + money(l.ask) + '</b>' + (l.agreed ? T('ui.agreed', ' (agreed)') : '') + ' &middot; deposit ' + money(l.deposit) + '</div>' + reportBlock('ad:' + l.id, l.report) + mkButtons(l) + '</div></div>';
       }
-      return '<div class="sll-card"><h4>' + (l.rare ? '&#9733; ' : '') + esc(l.name) + ('</h4><p>' + T('ui.for_the_2', 'For the ')) + esc(l.model) + ' &middot; ' + l.condition + T('ui.condition_middot', '% condition &middot; ') + esc(l.seller) + ' ' + '&#9733;'.repeat(l.rating || 0) +
-        ' &middot; ' + Math.max(0, l.hoursLeft | 0) + (T('ui.h_left', ' h left') + '</p>') + tells + '<p><b>' + money(l.ask) + '</b>' + (l.agreed ? T('ui.agreed', ' (agreed)') : '') + ' &middot; deposit ' + money(l.deposit) + '</p>' + mkButtons(l) + '</div>';
+      return '<div class="sll-card sll-listing">' + partPicL(l) + '<div class="sll-li"><h4>' + (l.rare ? '&#9733; ' : '') + esc(l.name) + '</h4><p>' + partMetaL(l) + ' &middot; ' + l.condition + T('ui.condition_middot', '% condition &middot; ') + esc(l.seller) + ' ' + '&#9733;'.repeat(l.rating || 0) +
+        ' &middot; ' + Math.max(0, l.hoursLeft | 0) + (T('ui.h_left', ' h left') + '</p>') + tells + '<p><b>' + money(l.ask) + '</b>' + (l.agreed ? T('ui.agreed', ' (agreed)') : '') + ' &middot; deposit ' + money(l.deposit) + '</p>' + mkButtons(l) + '</div></div>';
     }
     function sellL(m, kind) {
       var mine = arr(m.mine).filter(function (y) { return (kind === 'cars') === (y.carId != null); }).map(function (y) {
@@ -312,9 +322,9 @@
       if (tab === 'auctions') {
         var lots = arr(m.auctions).map(function (l) {
           var mine = l.high === 'you';
-          return '<div class="sll-card"><h4>' + (l.rare ? '&#9733; ' : '') + esc(l.name) + ('</h4><p>' + T('ui.for_the_2', 'For the ')) + esc(l.model) + ' &middot; ' + l.condition + T('ui.condition_middot', '% condition &middot; ') + Math.max(0, l.hoursLeft | 0) + (T('ui.h_left', ' h left') + '</p>') +
+          return '<div class="sll-card sll-listing">' + partPicL(l) + '<div class="sll-li"><h4>' + (l.rare ? '&#9733; ' : '') + esc(l.name) + '</h4><p>' + partMetaL(l) + ' &middot; ' + l.condition + T('ui.condition_middot', '% condition &middot; ') + Math.max(0, l.hoursLeft | 0) + (T('ui.h_left', ' h left') + '</p>') +
             '<p><b>' + money(l.bid) + '</b> ' + (mine ? T('ui.your_bid', '(your bid)') : (l.high === 'ai' ? T('ui.outbid', '(outbid)') : T('ui.opening_bid', '(opening bid)'))) + T('ui.middot_delivery', ' &middot; delivery +') + money(l.delivery || 0) + '</p>' +
-            (mine ? '' : '<div class="sll-acts"><div class="sll-btn" data-a="mkbid" data-v="' + esc(l.id) + ('">' + T('ui.bid', 'Bid ')) + money(l.next) + '</div></div>') + '</div>';
+            (mine ? '' : '<div class="sll-acts"><div class="sll-btn" data-a="mkbid" data-v="' + esc(l.id) + ('">' + T('ui.bid', 'Bid ')) + money(l.next) + '</div></div>') + '</div></div>';
         }).join('');
         var meet = obj(m.meet), stalls = '';
         if (meet.open) {
@@ -345,7 +355,8 @@
       st.parts.forEach(function (p) { if (!by[p.car]) { by[p.car] = []; order.push(p.car); } by[p.car].push(p); });
       var cards = order.map(function (car) {
         return '<div class="sll-card"><h4>' + esc(car) + '</h4>' + by[car].map(function (p) {
-          return '<div class="sll-kv"><span>' + esc(p.name) + (p.count > 1 ? ' &times;' + p.count : '') + '</span><b>' + money(p.value) + '</b></div>';
+          var src = p.partPic || p.preview;
+          return '<div class="sll-kv"><span>' + (src ? '<img class="sll-thumb" src="' + esc(src) + '" alt="" onerror="this.style.display=\'none\'">' : '') + esc(p.name) + (p.count > 1 ? ' &times;' + p.count : '') + '</span><b>' + money(p.value) + '</b></div>';
         }).join('') + '</div>';
       });
       return body(cards.join('') || ('<div class="sll-empty">' + T('ui.the_shelf_in_your_garage', 'The shelf in your garage is empty. Parts you take off a car, and parts delivered to you, wait there.') + '</div>'));
