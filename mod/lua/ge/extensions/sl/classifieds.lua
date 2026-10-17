@@ -48,7 +48,7 @@ end
 -- price setting can make parts cheap; then buying new to sell here must not pay)
 local function worth(it) return math.min(it.value or 0, it.price or it.value or 0) end
 
-local NAMES = { 'Dave', 'Kenny', 'Mirela', 'Gabor', 'Big Tony', 'Sanja', 'Rudi', 'Lex', 'Old Man Fekete', 'Zsofi', 'Marco', 'Petra' }
+local NAMES = { 'Dave', 'Kenny', 'Mirela', 'Gabor', strings.t('classifieds.big_tony'), 'Sanja', 'Rudi', 'Lex', strings.t('classifieds.old_man_fekete'), 'Zsofi', 'Marco', 'Petra' }
 
 -- The picture and the words of a part ad (T39; sl/core/partinfo): BeamNG has no picture file for a part, so the ad shows the car it
 -- fits (its own preview) with the part's category icon, and the part's real display name and catalog chapter.
@@ -148,7 +148,7 @@ local function refresh(s, force)
       table.remove(m.deliveries, i)
       if slrr_garage and slrr_garage.addShelfPart then
         slrr_garage.addShelfPart(d.model, d.part)
-        toast(string.format('Delivered to your garage: %s (for the %s).', d.part.name, d.model))
+        toast(string.format(strings.t('classifieds.delivered_to_your_garage_s'), d.part.name, d.model))
       end
     end
   end
@@ -189,7 +189,7 @@ local function refresh(s, force)
         local amount = y.kind == 'car' and L.offerUpTo(rng, carCap(s, y.carId) or 0) or L.buyerOffer(rng, y.value, y.condition)
         local o = { amount = amount, hour = t, buyer = NAMES[rng:int(#NAMES)] }
         y.offers[#y.offers + 1] = o
-        toast(string.format('Revline: %s offers $%d for your %s.', o.buyer, o.amount, y.name))
+        toast(string.format(strings.t('classifieds.revline_s_offers_d_for'), o.buyer, o.amount, y.name))
       end
     end
   end
@@ -265,11 +265,11 @@ local function auctions(s)
         table.remove(m.mine, i)
         if (y.bid or 0) > 0 then
           local got = L.proceeds(y.bid)
-          sl_career.addMoney(got, 'Swap & Bid sale: ' .. y.name)
-          toast(string.format('Your %s sold for $%d ($%d after the fee).', y.name, y.bid, got))
+          sl_career.addMoney(got, strings.t('classifieds.swap_bid_sale_1', (y.name)))
+          toast(string.format(strings.t('classifieds.your_s_sold_for_d'), y.name, y.bid, got))
         else
           if slrr_garage and slrr_garage.putShelfItem then slrr_garage.putShelfItem(y.model, y.item) end
-          toast(string.format('No bids on your %s: it is back on your shelf.', y.name))
+          toast(string.format(strings.t('classifieds.no_bids_on_your_s'), y.name))
         end
       end
     end
@@ -282,19 +282,19 @@ local function auctions(s)
           local b = L.nextBid(rng, l.bid, l.aiMax)
           if b then
             l.bid, l.high = b, 'ai'
-            if l.watched then toast(string.format('Outbid on the %s: now $%d.', l.item.name, b)) end
+            if l.watched then toast(string.format(strings.t('classifieds.outbid_on_the_s_now'), l.item.name, b)) end
           end
         end
       else
         table.remove(m.listings, i)
         if l.high == 'you' then
-          if sl_career.addMoney(-(l.bid + L.delivery(l.bid)), 'Swap & Bid: ' .. l.item.name) then
+          if sl_career.addMoney(-(l.bid + L.delivery(l.bid)), strings.t('classifieds.swap_bid_1', (l.item.name))) then
             m.deliveries[#m.deliveries + 1] = { due = t + DELIVERY_HOURS, model = l.item.model,
               part = { part = l.item.part, name = l.item.name, slotId = l.item.slotId, value = l.bid, wear = l.wear } }
-            toast(string.format('You won the %s for $%d. It is on its way to your garage.', l.item.name, l.bid))
+            toast(string.format(strings.t('classifieds.you_won_the_s_for'), l.item.name, l.bid))
           else
             stateLib.addRep(s, -5)        -- (a bid you couldn't pay: the auction house remembers)
-            toast(string.format('You won the %s but could not pay: it goes to the next bidder, and your name is mud there (-5 rep).', l.item.name))
+            toast(string.format(strings.t('classifieds.you_won_the_s_but'), l.item.name))
           end
         end
       end
@@ -329,7 +329,7 @@ function M.summary()
   refresh(s)
   local m = state(s)
   local edition = m.edition or 0
-  local out = { listings = {}, auctions = {}, deliveries = #m.deliveries, meet = { listings = {}, place = (meetPlace() or {}).name or 'Tuning shop lot', night = sl_career.has('nightMeet') or nil },
+  local out = { listings = {}, auctions = {}, deliveries = #m.deliveries, meet = { listings = {}, place = (meetPlace() or {}).name or strings.t('classifieds.tuning_shop_lot'), night = sl_career.has('nightMeet') or nil },
     paper = { bought = m.paperRead == edition, edition = edition + 1, listings = {}, hidden = 0, price = L.PAPER_PRICE } }
   for _, l in ipairs(m.listings) do
     if not l.taken then
@@ -415,10 +415,10 @@ function M.offer(id, amount)
   if not l or l.taken or l.channel == 'auction' or l.channel == 'meet' then return false, strings.t('classifieds.that_listing_is_gone') end   -- (a lot is only bid on; a stall is bought there)
   local r, price = L.haggle(l, amount, m.rounds[id] or 0)
   m.rounds[id] = (m.rounds[id] or 0) + 1
-  if r == 'accept' then l.agreed = price return true, string.format('%s: "Deal, $%d."', l.seller, price) end
-  if r == 'counter' then l.ask = price return true, string.format('%s: "Can do $%d, no lower."', l.seller, price) end
-  if r == 'walk' then l.expires = now(s) return false, l.seller .. ' stopped answering.' end
-  return false, string.format('%s: "No chance."', l.seller)
+  if r == 'accept' then l.agreed = price return true, string.format(strings.t('classifieds.s_deal_d'), l.seller, price) end
+  if r == 'counter' then l.ask = price return true, string.format(strings.t('classifieds.s_can_do_d_no'), l.seller, price) end
+  if r == 'walk' then l.expires = now(s) return false, strings.t('classifieds.1_stopped_answering', (l.seller)) end
+  return false, string.format(strings.t('classifieds.s_no_chance'), l.seller)
 end
 
 -- buy: 'delivery' (pay it all now plus delivery; on the shelf in a few hours) or 'pickup' (a deposit now,
@@ -433,30 +433,30 @@ function M.buy(id, how)
   local part = { part = l.item.part, name = l.item.name, slotId = l.item.slotId, value = price, wear = l.wear }
   if how == 'delivery' and l.kind == 'car' then
     -- a car comes the way a dealer's does (sl_dealers): paid now with the delivery fee, built at your garage a few hours later
-    if l.scam then return false, l.seller .. ': "No delivery. Deposit by transfer, then you collect."' end
+    if l.scam then return false, strings.t('classifieds.1_no_delivery_deposit_by', (l.seller)) end
     local yard = sl_fleet and sl_fleet.forecourt(s, 0)
-    if not (yard and l.offer and l.where) then return false, l.seller .. ': "Come and see it. Cash on the day."' end
-    if not sl_career.addMoney(-(price + L.delivery(price)), 'Revline: ' .. l.offer.name) then return false, strings.t('career.not_enough_money') end
+    if not (yard and l.offer and l.where) then return false, strings.t('classifieds.1_come_and_see_it', (l.seller)) end
+    if not sl_career.addMoney(-(price + L.delivery(price)), strings.t('classifieds.revline_1', (l.offer.name))) then return false, strings.t('career.not_enough_money') end
     l.taken = true
     local order = dealersLib.orderPrivate(s, l, price, yard, dealersLib.clock(s.day, sl_career.hour()))
-    return true, string.format('Paid. The %s comes to your garage in about %d hours.', l.offer.name, order.hours)
+    return true, string.format(strings.t('classifieds.paid_the_s_comes_to'), l.offer.name, order.hours)
   end
   if how == 'delivery' then
-    if l.scam then return false, l.seller .. ': "No delivery. Deposit by transfer, then you collect."' end
-    if not sl_career.addMoney(-(price + L.delivery(price)), 'Revline: ' .. l.item.name) then return false, strings.t('career.not_enough_money') end
+    if l.scam then return false, strings.t('classifieds.1_no_delivery_deposit_by', (l.seller)) end
+    if not sl_career.addMoney(-(price + L.delivery(price)), strings.t('classifieds.revline_1', (l.item.name))) then return false, strings.t('career.not_enough_money') end
     l.taken = true
     m.deliveries[#m.deliveries + 1] = { due = now(s) + DELIVERY_HOURS, model = l.item.model, part = part }
-    return true, string.format('Paid. The %s comes to your garage in about %d hours.', l.item.name, DELIVERY_HOURS)
+    return true, string.format(strings.t('classifieds.paid_the_s_comes_to'), l.item.name, DELIVERY_HOURS)
   end
   local js = s.jobs
   if js and js.active then return false, strings.t('classifieds.finish_the_job_you_are') end
   if not (sl_fleet and sl_fleet.currentCar()) then return false, strings.t('classifieds.you_need_to_be_in') end   -- (sl_jobs.take refuses after the deposit otherwise)
   local deposit = L.deposit(price)
-  if not sl_career.addMoney(-deposit, 'Revline deposit: ' .. l.item.name) then return false, strings.t('classifieds.not_enough_for_the_deposit') end
+  if not sl_career.addMoney(-deposit, strings.t('classifieds.revline_deposit_1', (l.item.name))) then return false, strings.t('classifieds.not_enough_for_the_deposit') end
   l.taken = true
   local w = l.where
-  local job = { id = 'market:' .. l.id, kind = 'market', title = 'Pick up', item = l.item.name, settle = 'market', seconds = 0, pay = 0,
-    legs = { { id = 'seller', name = l.seller .. "'s place", x = w.x, y = w.y, z = w.z }, { id = 'seller', name = l.seller .. "'s place", x = w.x, y = w.y, z = w.z } },
+  local job = { id = 'market:' .. l.id, kind = 'market', title = strings.t('classifieds.pick_up'), item = l.item.name, settle = 'market', seconds = 0, pay = 0,
+    legs = { { id = 'seller', name = l.seller .. strings.t('classifieds.s_place'), x = w.x, y = w.y, z = w.z }, { id = 'seller', name = l.seller .. strings.t('classifieds.s_place'), x = w.x, y = w.y, z = w.z } },
     listing = l.id, price = price, deposit = deposit, model = l.item.model, part = part, scam = l.scam, noShow = l.noShow,
     privateCar = l.kind == 'car' and l.offer or nil, seller = l.seller }
   js = js or { offers = {}, done = 0, earned = 0 }
@@ -464,7 +464,7 @@ function M.buy(id, how)
   js.offers = js.offers or {}
   js.offers[#js.offers + 1] = job
   local ok, text = sl_jobs.take(job.id)
-  return ok, ok and string.format('Deposit $%d paid. %s is expecting you.', deposit, l.seller) or text
+  return ok, ok and string.format(strings.t('classifieds.deposit_d_paid_s_is'), deposit, l.seller) or text
 end
 
 -- sell one of your shelf parts: on Revline (buyers make offers) or at auction (sold at the last bid, or back to the
@@ -473,12 +473,12 @@ function M.listPart(model, itemId, channel)
   local s = career()
   if not s then return false, strings.t('bank.no_career_running') end
   local m = state(s)
-  if #m.mine >= MINE_MAX then return false, 'You have ' .. MINE_MAX .. ' things listed already.' end
+  if #m.mine >= MINE_MAX then return false, strings.t('classifieds.you_have_1_things_listed', (MINE_MAX)) end
   if not (slrr_garage and slrr_garage.shelfItems) then return false, strings.t('classifieds.wrench_works_is_not_running') end
   local copy
   for _, it in ipairs(slrr_garage.shelfItems(model) or {}) do if it.id == tonumber(itemId) then copy = it end end
   if not copy then return false, strings.t('classifieds.that_part_is_not_on') end
-  if not L.canList(copy) then return false, "That part belongs to a customer's car." end
+  if not L.canList(copy) then return false, strings.t('classifieds.that_part_belongs_to_a') end
   local item = slrr_garage.takeShelfItem(model, copy.id)
   if not item then return false, strings.t('classifieds.not_while_you_are_in') end
   local t = now(s)
@@ -488,8 +488,8 @@ function M.listPart(model, itemId, channel)
   if y.channel == 'auction' then y.bid, y.expires = 0, t + L.CHANNELS.auction.life end
   m.mine[#m.mine + 1] = y
   extensions.hook('onStreetLegalChanged')
-  if y.channel == 'auction' then return true, string.format('Your %s is up for auction for %d hours.', y.name, L.CHANNELS.auction.life) end
-  return true, string.format('Your %s is on Revline. Offers come in over the day.', y.name)
+  if y.channel == 'auction' then return true, string.format(strings.t('classifieds.your_s_is_up_for'), y.name, L.CHANNELS.auction.life) end
+  return true, string.format(strings.t('classifieds.your_s_is_on_revline_2'), y.name)
 end
 
 local function findMine(m, id) for i, y in ipairs(m.mine) do if y.id == id then return y, i end end end
@@ -499,7 +499,7 @@ function M.listCar(carId)
   local s = career()
   if not s then return false, strings.t('bank.no_career_running') end
   local m = state(s)
-  if #m.mine >= MINE_MAX then return false, 'You have ' .. MINE_MAX .. ' things listed already.' end
+  if #m.mine >= MINE_MAX then return false, strings.t('classifieds.you_have_1_things_listed', (MINE_MAX)) end
   local car = carById(s, tonumber(carId) or carId)
   if not car then return false, strings.t('classifieds.that_car_is_not_yours') end
   for _, y in ipairs(m.mine) do if y.carId == car.id then return false, strings.t('classifieds.it_is_listed_already') end end
@@ -508,7 +508,7 @@ function M.listCar(carId)
   m.nextId = m.nextId + 1
   m.mine[#m.mine + 1] = y
   extensions.hook('onStreetLegalChanged')
-  return true, string.format('Your %s is on Revline. Buyers will make offers; it is yours until you accept one.', y.name)
+  return true, string.format(strings.t('classifieds.your_s_is_on_revline'), y.name)
 end
 
 -- onPrivateSold: sl_lot sold you a Revline car (the listing went when the seller showed it)
@@ -529,7 +529,7 @@ function M.acceptOffer(id, index)
     if not cap then table.remove(m.mine, i) return false, strings.t('classifieds.that_car_is_not_yours') end
     if amount > cap then               -- (the buyer sees the car as it is now: stripped or bent since, it is worth less)
       o.amount = cap
-      return false, string.format('%s had a look at it and knocked the offer down to $%d.', o.buyer or 'The buyer', cap)
+      return false, string.format(strings.t('classifieds.s_had_a_look_at'), o.buyer or strings.t('classifieds.the_buyer'), cap)
     end
     sold = carById(s, y.carId)
     local _, veh = sl_fleet.lose(y.carId)
@@ -537,10 +537,10 @@ function M.acceptOffer(id, index)
   end
   table.remove(m.mine, i)
   local got = L.proceeds(amount)
-  sl_career.addMoney(got, 'Revline sale: ' .. y.name)
+  sl_career.addMoney(got, strings.t('classifieds.revline_sale_1', (y.name)))
   if sold then extensions.hook('onStreetLegalCarSold', sold, got, 'revline') end     -- (the flip challenge counts it)
   extensions.hook('onStreetLegalChanged')
-  return true, string.format('Sold the %s to %s: $%d after the fee.', y.name, o.buyer or 'a buyer', got)
+  return true, string.format(strings.t('classifieds.sold_the_s_to_s'), y.name, o.buyer or 'a buyer', got)
 end
 
 -- a career slot about to be deleted (sl_career): its listed parts go back on the Wrench Works shelf, which every
@@ -564,10 +564,10 @@ function M.withdraw(id)
   if not y then return false, strings.t('classifieds.that_listing_is_gone') end
   if y.channel == 'auction' and (y.bid or 0) > 0 then return false, strings.t('classifieds.there_are_bids_on_it') end
   table.remove(m.mine, i)
-  if y.kind == 'car' then extensions.hook('onStreetLegalChanged') return true, string.format('Your %s is off Revline.', y.name) end
+  if y.kind == 'car' then extensions.hook('onStreetLegalChanged') return true, string.format(strings.t('classifieds.your_s_is_off_revline'), y.name) end
   if slrr_garage and slrr_garage.putShelfItem then slrr_garage.putShelfItem(y.model, y.item) end
   extensions.hook('onStreetLegalChanged')
-  return true, string.format('Your %s is back on your shelf.', y.name)
+  return true, string.format(strings.t('classifieds.your_s_is_back_on'), y.name)
 end
 
 -- buy at a swap meet stall: there and then, at the asking price, straight onto your shelf
@@ -577,16 +577,16 @@ function M.buyAtMeet(id)
   local m = state(s)
   local l, i = find(m, id)
   if not l or l.channel ~= 'meet' then return false, strings.t('classifieds.that_stall_has_sold_it') end
-  if not meetOpen(s) then return false, 'The swap meet runs on the weekend' .. (sl_career.has('nightMeet') and ' nights' or '') .. '.' end
-  if not atMeet() then return false, string.format('The swap meet is at the %s. Come and look.', (meetPlace() or {}).name or 'Tuning shop lot') end
+  if not meetOpen(s) then return false, strings.t('classifieds.the_swap_meet_runs_on', (sl_career.has('nightMeet') and ' nights' or '')) end
+  if not atMeet() then return false, string.format(strings.t('classifieds.the_swap_meet_is_at'), (meetPlace() or {}).name or strings.t('classifieds.tuning_shop_lot')) end
   if not (slrr_garage and slrr_garage.addShelfPart) then return false, strings.t('classifieds.you_need_wrench_works_running') end
-  if not sl_career.addMoney(-l.ask, 'Swap meet: ' .. l.item.name) then return false, strings.t('career.not_enough_money') end
+  if not sl_career.addMoney(-l.ask, strings.t('classifieds.swap_meet_1', (l.item.name))) then return false, strings.t('career.not_enough_money') end
   table.remove(m.listings, i)
   if slrr_garage and slrr_garage.addShelfPart then
     slrr_garage.addShelfPart(l.item.model, { part = l.item.part, name = l.item.name, slotId = l.item.slotId, value = l.ask, wear = l.wear })
   end
   extensions.hook('onStreetLegalChanged')
-  return true, string.format('Bought the %s from %s. It is on your shelf for the %s.', l.item.name, l.seller, l.item.model)
+  return true, string.format(strings.t('classifieds.bought_the_s_from_s'), l.item.name, l.seller, l.item.model)
 end
 
 -- Swap & Bid: bid the next step on a lot (paid when it ends, if you are still the highest bidder)
@@ -600,7 +600,7 @@ function M.bid(id)
   if (s.money or 0) < nb + L.delivery(nb) then return false, strings.t('classifieds.you_could_not_pay_that') end
   l.bid, l.high, l.watched = nb, 'you', true
   extensions.hook('onStreetLegalChanged')
-  return true, string.format('Your bid: $%d on the %s.', nb, l.item.name)
+  return true, string.format(strings.t('classifieds.your_bid_d_on_the'), nb, l.item.name)
 end
 
 -- the printed paper: $2 at a gas station; this week's print-only ads show on the phone after that
@@ -608,7 +608,7 @@ function M.buyPaper()
   local s = career()
   if not s then return false, strings.t('bank.no_career_running') end
   local m = state(s)
-  if m.paperRead == m.edition then return false, "You have this week's paper already." end
+  if m.paperRead == m.edition then return false, strings.t('classifieds.you_have_this_week_s') end
   local v = getPlayerVehicle(0)
   local here = v and v:getPosition()
   local near = false
@@ -618,10 +618,10 @@ function M.buyPaper()
     if c and here and (here - vec3(c.x, c.y, c.z)):length() < PAPER_REACH then near = true end
   end
   if not near then return false, strings.t('classifieds.pick_up_a_copy_at') end
-  if not sl_career.addMoney(-L.PAPER_PRICE, sl_career.mapText('Valo Classifieds')) then return false, strings.t('classifieds.not_even_2') end
+  if not sl_career.addMoney(-L.PAPER_PRICE, sl_career.mapText(strings.t('classifieds.valo_classifieds'))) then return false, strings.t('classifieds.not_even_2') end
   m.paperRead = m.edition
   extensions.hook('onStreetLegalChanged')
-  return true, sl_career.mapText("This week's Valo Classifieds. A few ads in here you won't find on the phone.")
+  return true, sl_career.mapText(strings.t('classifieds.this_week_s_valo_classifieds'))
 end
 
 -- the pickup: at the seller's kerb, slow - pay the rest and the part goes on the shelf (or not, if it was a scam
@@ -651,25 +651,25 @@ function M.onUpdate(dtReal)
       if not j.waitTold then toast(strings.t('classifieds.close_the_lot_screen_you')) j.waitTold = true end
       return
     end
-    sl_career.addMoney(j.deposit, 'Revline deposit back')
+    sl_career.addMoney(j.deposit, strings.t('classifieds.revline_deposit_back'))
     local _, i = find(m, j.listing)
     if i then table.remove(m.listings, i) end
-    sl_jobs.cancel(s, js, j, string.format('%s shows you the %s. Your deposit is back; pay on the spot if you want it.', j.seller or 'The seller', j.item))
+    sl_jobs.cancel(s, js, j, string.format(strings.t('classifieds.s_shows_you_the_s'), j.seller or strings.t('classifieds.the_seller'), j.item))
     return
   end
   local _, i = find(m, j.listing)
   if i then table.remove(m.listings, i) end
   if j.scam then
-    sl_jobs.cancel(s, js, j, string.format('Nobody here has heard of "%s". The deposit ($%d) is gone.', (stop.name:gsub("'s place", '')), j.deposit))
+    sl_jobs.cancel(s, js, j, string.format(strings.t('classifieds.nobody_here_has_heard_of'), (stop.name:gsub("'s place", '')), j.deposit))
   elseif j.noShow then
-    sl_career.addMoney(j.deposit, 'Revline deposit back')
-    sl_jobs.cancel(s, js, j, 'Nobody came out. The deposit came back, at least.')
-  elseif not sl_career.addMoney(-(j.price - j.deposit), 'Revline: ' .. j.item) then
-    toast(string.format('The seller wants $%d more, and you have not got it.', j.price - j.deposit))
+    sl_career.addMoney(j.deposit, strings.t('classifieds.revline_deposit_back'))
+    sl_jobs.cancel(s, js, j, strings.t('classifieds.nobody_came_out_the_deposit'))
+  elseif not sl_career.addMoney(-(j.price - j.deposit), strings.t('classifieds.revline_1', (j.item))) then
+    toast(string.format(strings.t('classifieds.the_seller_wants_d_more'), j.price - j.deposit))
     return
   else
     if slrr_garage and slrr_garage.addShelfPart then slrr_garage.addShelfPart(j.model, j.part) end
-    sl_jobs.cancel(s, js, j, string.format('Got the %s. It is on your shelf for the %s.', j.item, j.model))
+    sl_jobs.cancel(s, js, j, string.format(strings.t('classifieds.got_the_s_it_is'), j.item, j.model))
   end
 end
 

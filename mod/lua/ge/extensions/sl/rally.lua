@@ -6,6 +6,8 @@
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 local rules = require('sl/core/rally')
 local splitphase = require('sl/core/splitphase')
 local stateLib = require('sl/core/state')
@@ -59,7 +61,7 @@ local function finish(ok, why)
   if v then v:queueLuaCommand('controller.setFreeze(0)') end
   local s = career()
   if not s then return end
-  if not ok then say(why or 'Stage abandoned.', 5) return end
+  if not ok then say(why or strings.t('rally.stage_abandoned'), 5) return end
   local t = r.t
   local best = bests(s)
   local newBest = not best[r.stage.id] or t < best[r.stage.id]
@@ -68,12 +70,12 @@ local function finish(ok, why)
   local paidToday = s.rallyPaid[r.stage.id] == s.day
   local prize = paidToday and 0 or rules.prize(r.stage.par, t)
   if prize > 0 then
-    sl_career.payOut(prize, 'Rally: ' .. r.stage.name)
+    sl_career.payOut(prize, strings.t('rally.rally_1', (r.stage.name)))
     s.rallyPaid[r.stage.id] = s.day
     stateLib.addRep(s, 8)
   end
-  say(string.format('%s: %d:%04.1f (par %d:%04.1f)%s. %s', r.stage.name, math.floor(t / 60), t % 60, math.floor(r.stage.par / 60), r.stage.par % 60,
-    newBest and ', your best' or '', prize > 0 and string.format('$%d and +8 reputation.', prize) or 'A practice run: it pays once a stage a day.'), 8)
+  say(string.format(strings.t('rally.s_d_04_1f_par'), r.stage.name, math.floor(t / 60), t % 60, math.floor(r.stage.par / 60), r.stage.par % 60,
+    newBest and strings.t('rally.your_best') or '', prize > 0 and string.format(strings.t('rally.d_and_8_reputation'), prize) or strings.t('rally.a_practice_run_it_pays')), 8)
   if slrrPedestrians and slrrPedestrians.cheer then slrrPedestrians.cheer(4) end
   extensions.hook('onStreetLegalChanged')
 end
@@ -81,10 +83,10 @@ end
 local function begin(stage, v)
   local ok, why = rules.classOk(carNumbers(v))
   if not ok then say(why, 6) return end
-  if not sl_career.addMoney(-rules.ENTRY_FEE, 'Rally entry: ' .. stage.name) then say(string.format('The entry is $%d.', rules.ENTRY_FEE), 5) return end
+  if not sl_career.addMoney(-rules.ENTRY_FEE, strings.t('rally.rally_entry_1', (stage.name))) then say(string.format(strings.t('rally.the_entry_is_d'), rules.ENTRY_FEE), 5) return end
   run = { stage = stage, i = 1, t = 0, state = 'countdown', vid = v:getID(), calledAt = 0, off = 0, count = COUNTDOWN }
   v:queueLuaCommand('controller.setFreeze(1)')
-  say(string.format('%s: %d m, %d calls. Rally class, $%d paid.', stage.name, stage.length or 0, #stage.notes, rules.ENTRY_FEE), 5)
+  say(string.format(strings.t('rally.s_d_m_d_calls'), stage.name, stage.length or 0, #stage.notes, rules.ENTRY_FEE), 5)
 end
 
 local marker, markerBg = ColorF(1, 0.55, 0.1, 0.6), ColorI(40, 20, 0, 190)
@@ -93,14 +95,14 @@ local function drawStart(stage, v)
   local pos = vec3(p[1], p[2], p[3])
   if (pos - v:getPosition()):length() > 500 then return end
   debugDrawer:drawCylinder(pos, pos + vec3(0, 0, 6), 0.3, marker)
-  debugDrawer:drawTextAdvanced(pos + vec3(0, 0, 7), String(string.format('Rally: %s  %d m  $%d to enter', stage.name, stage.length or 0, rules.ENTRY_FEE)), marker, true, false, markerBg)
+  debugDrawer:drawTextAdvanced(pos + vec3(0, 0, 7), String(string.format(strings.t('rally.rally_s_d_m_d'), stage.name, stage.length or 0, rules.ENTRY_FEE)), marker, true, false, markerBg)
 end
 
 local function running(dt)
   local r = run
   local v = getObjectByID(r.vid)
   local me = getPlayerVehicle(0)
-  if not v or not me or me:getID() ~= r.vid then return finish(false, 'Stage abandoned: out of the car.') end
+  if not v or not me or me:getID() ~= r.vid then return finish(false, strings.t('rally.stage_abandoned_out_of_the')) end
   if r.state == 'countdown' then
     r.count = r.count - dt
     local shown = math.ceil(r.count)
@@ -120,8 +122,8 @@ local function running(dt)
   if i > r.i then r.i = i end
   if d > OFF_ROAD then
     r.off = r.off + dt
-    if math.floor(r.off) ~= r.offShown then r.offShown = math.floor(r.off) say(string.format('Off the stage! Back on the road: %d s', math.max(0, OFF_LIMIT - math.floor(r.off))), 1.5) end
-    if r.off >= OFF_LIMIT then return finish(false, 'Out of the stage.') end
+    if math.floor(r.off) ~= r.offShown then r.offShown = math.floor(r.off) say(string.format(strings.t('rally.off_the_stage_back_on'), math.max(0, OFF_LIMIT - math.floor(r.off))), 1.5) end
+    if r.off >= OFF_LIMIT then return finish(false, strings.t('rally.out_of_the_stage')) end
   else
     r.off, r.offShown = 0, nil
   end

@@ -5,12 +5,14 @@
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 local progression = require('sl/core/progression')
 local phaseLib = require('sl/core/phase')
 local roster = require('sl/core/roster')
 local rngLib = require('sl/core/rng')
 
-local BENNY = { id = 'benny', name = 'Benny (garage)', phone = '555-0100', system = true }
+local BENNY = { id = 'benny', name = strings.t('phone.benny_garage'), phone = '555-0100', system = true }
 
 local sendTimer, wantSend = 0, true
 
@@ -94,31 +96,31 @@ local function send() guihooks.trigger('slPhoneData', snapshot()) end
 
 -- the first thing they say when they pick up
 local GREETINGS = {
-  easy = 'Yeah? Who is this?',
-  trash = "Make it quick, I've got better things to do.",
-  roller = 'Talk. Time is money.',
+  easy = strings.t('phone.yeah_who_is_this'),
+  trash = strings.t('phone.make_it_quick_i_ve'),
+  roller = strings.t('phone.talk_time_is_money'),
   careful = 'Hello?',
 }
 
 local function bennyAdvice(s)
-  if #s.cars == 0 then return "You still haven't got a car. Get a cab to the junkyard and see what's on the lot. Don't buy the shiniest one, buy one you can fix." end
+  if #s.cars == 0 then return strings.t('phone.you_still_haven_t_got') end
   local n = progression.nextGarage(s)
-  if n and n.canMove then return 'You could move up to ' .. n.garage.name .. ' now. Bigger place, better crowd.' end
-  if not sl_career.isNight() then return 'Nothing much happens in the daytime. Tune the car, and race when it gets dark.' end
-  return 'Call a few of the racers in your phone and set something up. Night races are where the name gets made.'
+  if n and n.canMove then return strings.t('phone.you_could_move_up_to', (n.garage.name)) end
+  if not sl_career.isNight() then return strings.t('phone.nothing_much_happens_in_the') end
+  return strings.t('phone.call_a_few_of_the')
 end
 
 function M.call(id)
   local s = career()
   if not s then return end
   if id == BENNY.id then
-    guihooks.trigger('slPhoneCall', { id = id, answered = true, greeting = 'Benny here.', text = bennyAdvice(s), options = {} })
+    guihooks.trigger('slPhoneCall', { id = id, answered = true, greeting = strings.t('phone.benny_here'), text = bennyAdvice(s), options = {} })
     return
   end
   local racer
   for _, r in ipairs(s.racers) do if r.id == id and s.known[id] then racer = r end end
   if not racer then
-    guihooks.trigger('slPhoneCall', { id = id, answered = false, text = 'The number you have dialled is not available.' })
+    guihooks.trigger('slPhoneCall', { id = id, answered = false, text = strings.t('phone.the_number_you_have_dialled') })
     return
   end
   -- most pick up; the same hour gives the same answer
@@ -129,7 +131,7 @@ function M.call(id)
   guihooks.trigger('slPhoneCall', {
     id = id, answered = answered,
     greeting = answered and (GREETINGS[racer.style] or GREETINGS.easy) or nil,
-    text = not answered and 'No answer.' or nil,
+    text = not answered and strings.t('phone.no_answer') or nil,
     options = answered and (roster.pinkTonight(racer, s.day, s.seed) and { 'race', 'high', 'drag', 'pink' } or { 'race', 'high', 'drag' }) or {},
   })
 end
@@ -144,10 +146,10 @@ end
 
 -- the same by text message: they write back after a moment
 local ASK = {
-  race = 'Up for a race?',
-  high = 'Race me. High stakes.',
-  pink = 'Pink slips. You and me.',
-  drag = 'Drag race at the test track?',
+  race = strings.t('phone.up_for_a_race'),
+  high = strings.t('phone.race_me_high_stakes'),
+  pink = strings.t('phone.pink_slips_you_and_me'),
+  drag = strings.t('phone.drag_race_at_the_test'),
 }
 
 function M.text(id, kind)
@@ -206,9 +208,9 @@ function M.catalog()
   if not s then return end
   local car = sl_fleet.currentCar() or (s.activeCar and (function() for _, c in ipairs(s.cars) do if c.id == s.activeCar then return c end end end)())
   local veh = car and sl_fleet.vehicleOf(car.id)
-  if not veh then return answer(false, 'Bring a car of yours to a garage first.') end
+  if not veh then return answer(false, strings.t('phone.bring_a_car_of_yours')) end
   local ok, why = slrr_garage.enterWith(veh:getID(), 'catalog')
-  if not ok then answer(false, why or 'Not now.') end
+  if not ok then answer(false, why or strings.t('career.not_now')) end
 end
 function M.despawn(carId) if career() then answer(sl_fleet.despawn(tonumber(carId))) end end
 function M.workOn(carId) if career() then answer(sl_fleet.workOn(tonumber(carId))) end end
@@ -247,7 +249,7 @@ function M.jobWay() if career() and sl_jobs then sl_jobs.showWay() end end
 function M.taxi(placeId)
   if not career() then return end
   local ok, why = sl_career.taxi(placeId)
-  guihooks.trigger('slPhoneToast', { text = ok and 'Your cab is on its way.' or why })
+  guihooks.trigger('slPhoneToast', { text = ok and strings.t('phone.your_cab_is_on_its') or why })
 end
 
 -- the K key (rebindable in Options > Controls)

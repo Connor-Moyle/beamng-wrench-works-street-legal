@@ -113,16 +113,16 @@ function M.onStreetLegalRaceResult(won, opponent, racerId, stake)
   local crew = crews.crew(crewId)
   if not entry or not dist or not crew then return end
   if event == 'taken' then
-    sl_career.sendText('benny', string.format('Word is %s is yours now. %s won\'t take that lying down.', dist.name, crew.name:gsub('^%l', string.upper)), 3)
+    sl_career.sendText('benny', string.format(strings.t('crews.word_is_s_is_yours'), dist.name, crew.name:gsub('^%l', string.upper)), 3)
     c.callouts = c.callouts or {}
     c.callouts[#c.callouts + 1] = { crew = crewId, district = dist.id, day = s.day }
     c.angry = c.angry or {}
     c.angry[crewId] = s.day
     extensions.hook('onStreetLegalDistrictTaken', dist.id, crewId)
   elseif event == 'lost' then
-    sl_career.sendText('benny', string.format('%s took %s back off you.', crew.name:gsub('^%l', string.upper), dist.name), 3)
+    sl_career.sendText('benny', string.format(strings.t('crews.s_took_s_back_off'), crew.name:gsub('^%l', string.upper), dist.name), 3)
   elseif entry.owner == crewId then
-    toast(string.format('%s: %s hold it, %d%% control.', dist.name, crew.name, entry.control))
+    toast(string.format(strings.t('crews.s_s_hold_it_d'), dist.name, crew.name, entry.control))
   end
   extensions.hook('onStreetLegalChanged')
 end
@@ -164,8 +164,8 @@ local function sendCallouts(s, c)
           race = race.id, raceName = race.name, missionId = race.missionId, nightOnly = true, at = os.time(), callout = co.district }
         local dname = co.district
         for _, d in ipairs(c.districts or {}) do if d.id == co.district then dname = d.name end end
-        sl_career.sendText(racer.id, string.format('You think %s is yours? Tonight, %s. %s. Don\'t make us come looking.', dname, race.name,
-          pink and 'Pink slips' or ('$' .. bet)), 4)
+        sl_career.sendText(racer.id, string.format(strings.t('crews.you_think_s_is_yours'), dname, race.name,
+          pink and strings.t('crews.pink_slips') or ('$' .. bet)), 4)
         extensions.hook('onStreetLegalChanged')
       end
     end
@@ -194,7 +194,7 @@ local function turfWarNext(s, c)
   local bet = math.floor((leader.betMax or 1000) * 2 / 50) * 50
   s.challenges[#s.challenges + 1] = { id = leader.id .. ':turfwar:' .. s.day, racer = leader.id, stake = 'money', bet = bet, race = race.id,
     raceName = race.name, missionId = race.missionId, nightOnly = true, at = os.time(), turfWar = crewId }
-  sl_career.sendText(leader.id, string.format('So you want the whole city. Tonight, %s, $%d. You and me. (%d of %d)', race.name, bet, w.stage, #w.order), 4)
+  sl_career.sendText(leader.id, string.format(strings.t('crews.so_you_want_the_whole'), race.name, bet, w.stage, #w.order), 4)
   extensions.hook('onStreetLegalChanged')
 end
 
@@ -212,10 +212,10 @@ turfWarResult = function(s, c, racerId, won)
     c.king, c.turfWar = s.day, nil
     stateLib.addRep(s, 1000)
     for _, t in pairs(c.territory) do t.owner, t.control = 'player', 100 end
-    sl_career.sendText('benny', sl_career.mapText('You did it. Every crew in Valo answers to you now. King of Valo!'), 3)
+    sl_career.sendText('benny', sl_career.mapText(strings.t('crews.you_did_it_every_crew')), 3)
     extensions.hook('onStreetLegalKingOfValo')
   else
-    sl_career.sendText('benny', string.format('That is %d down. %s is next, tomorrow night.', w.stage - 1, crews.crew(w.order[w.stage]).name), 3)
+    sl_career.sendText('benny', string.format(strings.t('crews.that_is_d_down_s'), w.stage - 1, crews.crew(w.order[w.stage]).name), 3)
   end
 end
 
@@ -262,7 +262,7 @@ local function planRaid(s, c, day)
   for crewId, since in pairs(c.angry or {}) do
     if day - since <= 7 and (c.raided[crewId] or -99) + 7 <= day then
       c.raid = { crew = crewId, day = day + 1 }
-      sl_career.sendText('benny', string.format('Heads up: word is %s are going after one of your cars tomorrow night. Keep them in the garage.', crews.crew(crewId).name), 3)
+      sl_career.sendText('benny', string.format(strings.t('crews.heads_up_word_is_s'), crews.crew(crewId).name), 3)
       return
     end
   end
@@ -281,11 +281,11 @@ local function doRaid(s, c)
     local away = v and me and (v:getPosition() - me:getPosition()):length() > 150
     if v and v:getID() ~= (me and me:getID()) and away and not sl_fleet.atGarage(v:getPosition(), s) then
       v:queueLuaCommand(SMASH)
-      sl_career.sendText('benny', string.format('%s got to your %s: the lights are smashed. Should have kept it in the garage.', crews.crew(r.crew).name:gsub('^%l', string.upper), car.name), 3)
+      sl_career.sendText('benny', string.format(strings.t('crews.s_got_to_your_s'), crews.crew(r.crew).name:gsub('^%l', string.upper), car.name), 3)
       return
     end
   end
-  sl_career.sendText('benny', string.format('%s came looking for your cars last night and found nothing. Good call.', crews.crew(r.crew).name:gsub('^%l', string.upper)), 3)
+  sl_career.sendText('benny', string.format(strings.t('crews.s_came_looking_for_your'), crews.crew(r.crew).name:gsub('^%l', string.upper)), 3)
 end
 
 local timer = 0
@@ -319,7 +319,7 @@ function M.onStreetLegalNewDay(day)
   local id, who = crews.nightly(c.territory, rngLib.new(rngLib.hash('crewnight:' .. tostring(day) .. ':' .. tostring(s.seed))))
   if id then
     for _, d in ipairs(c.districts or {}) do
-      if d.id == id then sl_career.sendText('benny', string.format('%s pushed into %s last night.', crews.crew(who).name:gsub('^%l', string.upper), d.name), 2) end
+      if d.id == id then sl_career.sendText('benny', string.format(strings.t('crews.s_pushed_into_s_last'), crews.crew(who).name:gsub('^%l', string.upper), d.name), 2) end
     end
   end
 end

@@ -6,6 +6,8 @@
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 local computer = require('sl/core/computer')
 local laptop = require('sl/core/laptop')
 
@@ -100,7 +102,7 @@ function M.open(id)
     local fn, tiles = {}, {}
     for k in pairs(at.functions or {}) do fn[#fn + 1] = k end
     table.sort(fn)
-    for _, g in ipairs(view.groups or {}) do for _, t in ipairs(g.tiles) do tiles[#tiles + 1] = t.label .. (t.enabled and '' or ' (off: ' .. tostring(t.reason) .. ')') end end
+    for _, g in ipairs(view.groups or {}) do for _, t in ipairs(g.tiles) do tiles[#tiles + 1] = t.label .. (t.enabled and '' or strings.t('computer.off_1', (tostring(t.reason)))) end end
     if log then log('I', 'sl_computer', 'laptop ' .. tostring(id) .. ' functions [' .. table.concat(fn, ',') .. '] tiles [' .. table.concat(tiles, '; ') .. '] classifieds=' .. tostring(sl_career.has('classifieds'))) end
   end
   if sl_phone and sl_phone.request then sl_phone.request() end
@@ -113,9 +115,9 @@ function M.enterGarage(mode, carId)
   if not s then return end
   local veh = sl_fleet.vehicleOf(tonumber(carId))
   local here = veh ~= nil and laptop.carHere(garageOf(at.pos), garageOf(veh:getPosition()))
-  if not here then return guihooks.trigger('slPhoneToast', { text = 'Bring the car into the garage first.' }) end
+  if not here then return guihooks.trigger('slPhoneToast', { text = strings.t('laptop.bring_the_car_into_the') }) end
   local ok, why = slrr_garage.enterWith(veh:getID(), tostring(mode))
-  if ok then M.close() else guihooks.trigger('slPhoneToast', { text = why or 'Not now.' }) end
+  if ok then M.close() else guihooks.trigger('slPhoneToast', { text = why or strings.t('career.not_now') }) end
 end
 
 -- walked or driven away from the computer: it closes
@@ -138,7 +140,7 @@ function M.onActivityAcceptGatherData(elemData, activityData)
         icon = 'poi_arrival_round', heading = translateLanguage and translateLanguage(elem.name, 'Computer', true) or 'Computer',   -- (the facility's name is a translation key)
         preheadings = { 'Laptop' },
         sorting = { type = 'slrrComputer', id = elem.id },
-        buttonLabel = 'Use the laptop', buttonFun = function() M.open(elem.id) end,
+        buttonLabel = strings.t('computer.use_the_laptop'), buttonFun = function() M.open(elem.id) end,
         buttonSoundClass = 'bng_hover_generic',
       })
     end

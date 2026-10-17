@@ -67,11 +67,11 @@ function M.call(destination, fee)
     -- drives up by itself and stops at the road node nearest to you
     veh:queueLuaCommand('input.event("parkingbrake", 0, FILTER_DIRECT) ai.setState({mode = "manual"}) ai.setTarget("' .. n1 .. '")')
     ride.target = node.pos
-    toast(string.format('Your cab is on its way, about %d m of road. It will stop near you.', math.floor(c.dist + 0.5)))
+    toast(string.format(strings.t('cab.your_cab_is_on_its'), math.floor(c.dist + 0.5)))
   else
     veh:queueLuaCommand('electrics.set_warn_signal(1) input.event("parkingbrake", 1, FILTER_DIRECT)')
     if core_groundMarkers then core_groundMarkers.setPath(vec3(c.x, c.y, c.z)) end
-    toast(string.format('Your cab is waiting %d m away, hazards on. Walk up to it.', math.floor(c.dist + 0.5)))
+    toast(string.format(strings.t('cab.your_cab_is_waiting_d'), math.floor(c.dist + 0.5)))
   end
   return true
 end
@@ -100,7 +100,7 @@ local function board()
     end
     job.sleep(0.6)
     guihooks.trigger('slFade', { on = false })
-    toast(string.format('%s. That was $%d.', r.place.name, r.fee))
+    toast(string.format(strings.t('cab.s_that_was_d'), r.place.name, r.fee))
     if cab and c then
       job.sleep(1.5)
       cab:queueLuaCommand('electrics.set_warn_signal(0) input.event("parkingbrake", 0, FILTER_DIRECT) ai.setMode("traffic")')
@@ -120,7 +120,7 @@ function M.onUpdate(dtReal)
   local cab = getObjectByID(ride.vid)
   ride.waited = ride.waited + dtReal
   if not cab or ride.waited > WAIT_SECONDS then
-    if sl_career and ride.fee > 0 then sl_career.addMoney(ride.fee, 'Cab fare back') end
+    if sl_career and ride.fee > 0 then sl_career.addMoney(ride.fee, strings.t('cab.cab_fare_back')) end
     toast(strings.t('cab.the_cab_got_tired_of'))
     if core_groundMarkers then core_groundMarkers.setPath(nil) end
     if cab then drop(ride.vid) end

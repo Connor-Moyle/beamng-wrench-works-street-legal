@@ -114,7 +114,7 @@ local function skyReport(tag)
   local cel = core_celestial and core_celestial.getState and core_celestial.getState() or {}
   local paused = false
   pcall(function() paused = bullettime and bullettime.getPause and bullettime.getPause() or false end)
-  log('I', 'sl_career', string.format('sky %s: tod.time %s play %s, celestial %s (sees time %s, %s-%s-%s), sun elevation %s azimuth %s, %d frames drawn since the last report, paused %s',
+  log('I', 'sl_career', string.format(strings.t('career.sky_s_tod_time_s'),
     tag, tostring(tod.time), tostring(tod.play), core_celestial and tostring(cel.enabled) or 'not loaded', tostring(cel.time), tostring(cel.year), tostring(cel.month), tostring(cel.day),
     sky and tostring(sky.elevation) or 'no sky', sky and tostring(sky.azimuth) or '-', framesDrawn - lastFrames, tostring(paused)))
   lastFrames = framesDrawn
@@ -197,7 +197,7 @@ function M.mapName() return mapOf(M.LEVEL).name end
 function M.mapText(text) return progression.mapText(text, M.LEVEL) end
 
 local function summaryOf(data)
-  return data and string.format('Day %d, $%d, %s, %s%s', data.day or 1, data.money or 0, (progression.titleFor(data.rep or 0, data.level)),
+  return data and string.format(strings.t('career.day_d_d_s_s'), data.day or 1, data.money or 0, (progression.titleFor(data.rep or 0, data.level)),
     mapOf(data.level).name, data.ended and ' (ended)' or '') or nil
 end
 
@@ -234,7 +234,7 @@ function M.listSlots()
   for n = 1, M.SLOTS do
     if slotUsed(n) then
       local data = readSave(slotFile(n))
-      out[#out + 1] = { slot = n, name = m.names[tostring(n)] or ('Career ' .. n), summary = summaryOf(data), last = m.last == n, ended = data and data.ended ~= nil }
+      out[#out + 1] = { slot = n, name = m.names[tostring(n)] or (strings.t('career.career_1', (n))), summary = summaryOf(data), last = m.last == n, ended = data and data.ended ~= nil }
     end
   end
   return out
@@ -368,7 +368,7 @@ local function addPlace(p, file)
     place.at = place.pos          -- (where the place is: its markers stand here, whatever the lane nudge does to .pos)
     places[p.id] = place
   else
-    log('W', logTag, file .. ': a place without "id" or "pos" was left out')
+    log('W', logTag, file .. strings.t('career.a_place_without_id_or'))
   end
 end
 
@@ -438,7 +438,7 @@ local function stockApi(level)
     spots = function(f)
       local out = {}
       local ok, list = pcall(fac.getParkingSpotsForFacility, f)
-      if not ok then tell1(f, 'parking spots failed: ' .. tostring(list)) end
+      if not ok then tell1(f, strings.t('career.parking_spots_failed_1', (tostring(list)))) end
       for _, sp in ipairs(ok and type(list) == 'table' and list or {}) do
         if sp.pos and sp.rot then
           -- a spot with something above its ground (a kerb) is not a place to stand a car: the ray from 1.5 m up
@@ -448,7 +448,7 @@ local function stockApi(level)
             local d = sp.rot * vec3(0, 1, 0)
             out[#out + 1] = { x = sp.pos.x, y = sp.pos.y, z = sp.pos.z, dx = d.x, dy = d.y }
           else
-            tell1(f, string.format('a parking spot at %.0f, %.0f is %.2f m above its ground: left out', sp.pos.x, sp.pos.y, hit - sp.pos.z))
+            tell1(f, string.format(strings.t('career.a_parking_spot_at_0f'), sp.pos.x, sp.pos.y, hit - sp.pos.z))
           end
         end
       end
@@ -560,7 +560,7 @@ end
 function M.addPlaceHere(kind, name)
   local v = getPlayerVehicle(0)
   local level = getCurrentLevelIdentifier and getCurrentLevelIdentifier()
-  if not v or not level or type(kind) ~= 'string' then return 'Stand where the place should be, with a level loaded: sl_career.addPlaceHere("junkyard", "Name")' end
+  if not v or not level or type(kind) ~= 'string' then return strings.t('career.stand_where_the_place_should') end
   local pos, dir = v:getPosition(), vec3(v:getDirectionVector())
   local data = FS:fileExists(USER_PLACES) and jsonReadFile(USER_PLACES) or {}
   if type(data) ~= 'table' then data = {} end
@@ -576,7 +576,7 @@ function M.addPlaceHere(kind, name)
   if not FS:directoryExists(SAVE_DIR) then FS:directoryCreate(SAVE_DIR, true) end
   jsonWriteFile(USER_PLACES, data, true)
   places = nil
-  local text = string.format('Place "%s" saved in %s', id, USER_PLACES)
+  local text = string.format(strings.t('career.place_s_saved_in_s'), id, USER_PLACES)
   tell(text, 8)
   return text
 end
@@ -612,7 +612,7 @@ local function refreshContacts(quiet)
   if #added > 0 then
     changed()
     if not quiet then
-      M.sendText('benny', string.format('People are talking about you. %d more racers will pick up when you call now: they are in your contacts.', #added), 2)
+      M.sendText('benny', string.format(strings.t('career.people_are_talking_about_you'), #added), 2)
     end
   end
 end
@@ -621,9 +621,9 @@ end
 -- starting and continuing
 
 local function welcome()
-  M.sendText('benny', "Welcome to " .. mapOf(M.LEVEL).name .. ", kid. This is Benny - I keep the garage. You've got a bit of money and no car, so first stop is the junkyard. Call a cab from your phone.", 3)
-  M.sendText('benny', 'Street racers are in your contacts. Most of them will laugh at you until you have a car and a name. Races are at night, and night races are what people remember.', 12)
-  M.sendText('benny', 'Press K for the phone. Bills, messages, calls, a cab: all in there.', 20)
+  M.sendText('benny', strings.t('career.welcome_to_1_kid_this', (mapOf(M.LEVEL).name)), 3)
+  M.sendText('benny', strings.t('career.street_racers_are_in_your'), 12)
+  M.sendText('benny', strings.t('career.press_k_for_the_phone'), 20)
 end
 
 -- put the player on foot inside their garage, looking at the door
@@ -681,7 +681,7 @@ local function begin()
     job.sleep(0.5)
     setHour(wanted)
     job.sleep(0.3)
-    skyReport(string.format('career start (clock %.2f)', wanted))
+    skyReport(string.format(strings.t('career.career_start_clock_2f'), wanted))
     lastHour = hour()
     if guihooks then guihooks.trigger('slFade', { on = false }) end
     -- the level loaded with nobody in it, so the game left its free camera on: follow the player
@@ -713,14 +713,14 @@ function M.start(fresh, n, level)
   if fresh then
     n = nil
     for i = 1, M.SLOTS do if not n and not slotUsed(i) then n = i end end
-    if not n then tell(string.format('All %d career slots are taken: delete one first.', M.SLOTS), 6) return false end
+    if not n then tell(string.format(strings.t('career.all_d_career_slots_are'), M.SLOTS), 6) return false end
   else
     n = n or (slotUsed(m.last) and m.last) or 1
   end
   -- a career that ended (Hardcore: the driver died) can be looked at, not played on
   if not fresh then
     local data = readSave(slotFile(n))
-    if data and data.ended then tell('That career is over: it ended on day ' .. tostring(data.ended.day) .. '. Start a new one.', 6) return false end
+    if data and data.ended then tell(strings.t('career.that_career_is_over_it', (tostring(data.ended.day))), 6) return false end
   end
   slot, SAVE_FILE = n, slotFile(n)
   m.last = n
@@ -740,7 +740,7 @@ function M.start(fresh, n, level)
   if pending == 'start' and not (getCurrentLevelIdentifier and getCurrentLevelIdentifier() == M.LEVEL) and freeroam_freeroam and freeroam_freeroam.startFreeroamByName then
     if not freeroam_freeroam.startFreeroamByName(M.LEVEL, nil, false, false) then
       pending = nil
-      tell(string.format('%s (%s) is not installed: this career is played on that map.', mapOf(M.LEVEL).name, M.LEVEL), 8)
+      tell(string.format(strings.t('career.s_s_is_not_installed'), mapOf(M.LEVEL).name, M.LEVEL), 8)
     end
   end
 end
@@ -773,10 +773,10 @@ function M.taxi(placeId)
   if s.money < fee and #s.cars == 0 and s.freeRideDay ~= s.day and not (sl_options and sl_options.get('slHardcore')) then
     s.freeRideDay = s.day
     fee = 0
-    M.sendText('benny', "My cousin will run you over there. Don't make a habit of it. The junkyard always has a wreck that needs driving to the crusher.", 1)
+    M.sendText('benny', strings.t('career.my_cousin_will_run_you'), 1)
   end
   if sl_cab and sl_cab.busy() then return false, strings.t('career.a_cab_is_already_waiting') end
-  if fee > 0 and not wallet.add(-fee, 'Cab to ' .. place.name) then return false, string.format('The ride is $%d. You have $%d.', fee, s.money) end
+  if fee > 0 and not wallet.add(-fee, strings.t('career.cab_to_1', (place.name))) then return false, string.format(strings.t('career.the_ride_is_d_you'), fee, s.money) end
   if sl_cab and sl_cab.call(place, fee) then return true end
   -- no lane for a cab to pull up on here: the old way, straight there
   core_jobsystem.create(function(job)
@@ -785,7 +785,7 @@ function M.taxi(placeId)
     spawn.safeTeleport(getPlayerVehicle(0), place.pos + vec3(0, 0, 0.3), quatFromDir(place.dir, vec3(0, 0, 1)), true)
     job.sleep(0.6)
     if guihooks then guihooks.trigger('slFade', { on = false }) end
-    tell(string.format('%s. That was $%d.', place.name, fee), 4)
+    tell(string.format(strings.t('cab.s_that_was_d'), place.name, fee), 4)
   end)
   return true
 end
@@ -825,11 +825,11 @@ local function races()
   raceList = {}
   local data = jsonReadFile('/levels/' .. M.LEVEL .. '/races.json')
   for _, r in ipairs(type(data) == 'table' and data.nightRaces or {}) do
-    if v3(r.start) then raceList[#raceList + 1] = { id = r.id, name = r.name or ('Race ' .. tostring(r.id)), start = v3(r.start), finish = v3(r.finish) } end
+    if v3(r.start) then raceList[#raceList + 1] = { id = r.id, name = r.name or (strings.t('career.race_1', (tostring(r.id)))), start = v3(r.start), finish = v3(r.finish) } end
   end
   -- the drag strip at the test track: the same race menu runs them (races.json "dragRaces")
   for _, r in ipairs(type(data) == 'table' and data.dragRaces or {}) do
-    if v3(r.start) then raceList[#raceList + 1] = { id = r.id, name = r.name or ('Drag ' .. tostring(r.id)), start = v3(r.start), finish = v3(r.finish), drag = true } end
+    if v3(r.start) then raceList[#raceList + 1] = { id = r.id, name = r.name or (strings.t('career.drag_1', (tostring(r.id)))), start = v3(r.start), finish = v3(r.finish), drag = true } end
   end
   return raceList
 end
@@ -864,19 +864,19 @@ end
 -- the racer's answer to a challenge; arranges the race when they say yes
 -- kind: 'race' | 'high' | 'pink' | 'drag' (their usual stake, down the test track's strip)
 function M.challenge(racerId, kind)
-  if not active then return { accept = false, text = 'No career running.' } end
+  if not active then return { accept = false, text = strings.t('bank.no_career_running') } end
   local racer = stateLib.racer(s, racerId)
-  if not racer or not s.known[racerId] then return { accept = false, text = 'Number not recognised.' } end
-  if sl_hospital and not sl_hospital.canDrive() then return { accept = false, text = 'You can barely walk, mate. Call me when you are healed.' } end
+  if not racer or not s.known[racerId] then return { accept = false, text = strings.t('career.number_not_recognised') } end
+  if sl_hospital and not sl_hospital.canDrive() then return { accept = false, text = strings.t('career.you_can_barely_walk_mate') } end
   local rng = rngLib.new(rngLib.hash(racerId .. kind .. tostring(now())))
   local drag = kind == 'drag'
   local answer = roster.respond(racer, drag and 'race' or kind, { rep = s.rep, money = s.money, hasCar = #s.cars > 0, pinkTonight = roster.pinkTonight(racer, s.day, s.seed) }, rng)
   if answer.accept and kind == 'pink' and not s.activeCar then
-    answer = { accept = false, text = 'Pink slips for which car? Get one out of the garage first.' }
+    answer = { accept = false, text = strings.t('career.pink_slips_for_which_car') }
   end
   if answer.accept then
     local race = pickRace(rng, drag)
-    if not race then return { accept = false, text = drag and "There's no drag strip on this map." or "There's nowhere to race on this map yet. Call me when there is." } end
+    if not race then return { accept = false, text = drag and strings.t('career.there_s_no_drag_strip') or strings.t('career.there_s_nowhere_to_race') } end
     for i = #s.challenges, 1, -1 do
       if s.challenges[i].racer == racerId then table.remove(s.challenges, i) end      -- one date per racer
     end
@@ -884,7 +884,7 @@ function M.challenge(racerId, kind)
       missionId = race.missionId, nightOnly = racer.nightOnly, at = now() }
     s.challenges[#s.challenges + 1] = c
     answer.challenge = c
-    answer.text = answer.text .. ' Meet at ' .. race.name .. '.'
+    answer.text = strings.t('career.1_meet_at_2', (answer.text), (race.name))
     changed()
   end
   return answer
@@ -899,8 +899,8 @@ function M.raiseStake(id)
       if c.stake ~= 'money' or not racer then return false, strings.t('career.nothing_to_raise') end
       c.baseBet = c.baseBet or c.bet
       local cap, bet = roster.maxStake(racer, c.baseBet), c.bet + roster.stakeStep(c.baseBet)
-      if bet > cap then return false, string.format('%s will not go past $%d.', roster.displayName(racer), cap) end
-      if bet > s.money then return false, string.format('$%d? You have $%d.', bet, s.money) end
+      if bet > cap then return false, string.format(strings.t('career.s_will_not_go_past'), roster.displayName(racer), cap) end
+      if bet > s.money then return false, string.format(strings.t('career.d_you_have_d'), bet, s.money) end
       c.bet = bet
       changed()
       return true, string.format('%s: "$%d it is."', roster.displayName(racer), bet)
@@ -1041,7 +1041,7 @@ function M.onSlrrPinkCarDelivered(vid)
   local pos, rot = sl_fleet.forecourt(s, #s.cars % 6)
   if pos then spawn.safeTeleport(veh, pos, rot, true, nil, nil, nil, false) end     -- (8th: resetVehicle would repair it)
   sl_fleet.registerVehicle(vid, { name = won.name or veh:getJBeamFilename(), condition = 0.85, value = won.value })   -- (B32: a value, so resale and scrap price it)
-  M.sendText('benny', string.format('Your new %s is outside the garage. Won fair and square.', won.name or 'car'), 2)
+  M.sendText('benny', string.format(strings.t('career.your_new_s_is_outside'), won.name or 'car'), 2)
 end
 
 -- the map's race code tells us how a race went (see docs/integration.md):
@@ -1076,7 +1076,7 @@ function M.onSlrrRaceFinished(r)
   if r.stake == 'pink' and sl_fleet and not r.abandoned then
     if r.won then
       -- their car is yours: the map stops it and, once out of sight, hands it over (onSlrrPinkCarDelivered)
-      M._pinkWon = { name = r.opponent and (r.opponent .. "'s car") or nil, vid = r.opponentVid, value = tonumber(r.value) }
+      M._pinkWon = { name = r.opponent and (r.opponent .. strings.t('career.s_car')) or nil, vid = r.opponentVid, value = tonumber(r.value) }
       s.stats.pinksWon = s.stats.pinksWon + 1
     elseif not r.won then
       local gone = sl_fleet.lastGone
@@ -1099,9 +1099,9 @@ function M.onSlrrRaceFinished(r)
     end
   end
   registered = nil
-  tell(string.format('%s %d reputation (%s)', repDelta >= 0 and '+' or '', repDelta, (progression.titleFor(s.rep, M.LEVEL))), 5)
+  tell(string.format(strings.t('career.s_d_reputation_s'), repDelta >= 0 and '+' or '', repDelta, (progression.titleFor(s.rep, M.LEVEL))), 5)
   if (progression.titleFor(s.rep)) ~= (progression.titleFor(repBefore)) then
-    M.sendText('benny', 'They call you "' .. (progression.titleFor(s.rep, M.LEVEL)) .. '" on the street now. Not bad.', 3)
+    M.sendText('benny', strings.t('career.they_call_you_1_on', (progression.titleFor(s.rep, M.LEVEL))), 3)
   end
   refreshContacts(false)
   changed()
@@ -1144,7 +1144,7 @@ function M.launchTrack(racerId, missionId)
   sl_streets.buildRacerCar(racerId, track.start + vec3(0, 0, 0.5), nil, function(veh)
     raceMod().launch(missionId, offerFor(c, veh and veh:getID() or nil))
   end)
-  return true, string.format('%s, against %s for $%d.', track.name, roster.displayName(racer), bet)
+  return true, string.format(strings.t('career.s_against_s_for_d'), track.name, roster.displayName(racer), bet)
 end
 
 -- after a race against a contact (the map's races, sl_races and sl_streets all end up here): now and then a text
@@ -1185,7 +1185,7 @@ local function checkChallengeArrival()
         c.notified = true
         local racer = stateLib.racer(s, c.racer)
         if c.nightOnly and not M.isNight() then
-          tell(roster.displayName(racer) .. ' only races at night. Come back after dark.', 6)
+          tell(strings.t('career.1_only_races_at_night', (roster.displayName(racer))), 6)
           c.notified = false
         elseif raceMod() and raceMod().launch and r.missionId then
           -- the race is a BeamNG mission now: start it with them in it
@@ -1193,7 +1193,7 @@ local function checkChallengeArrival()
         elseif raceMod() and raceMod().startChallenge then
           -- handed over already (syncChallenge): the start marker brings them
         else
-          tell(roster.displayName(racer) .. ' is here. Pick them from the race menu.', 6)
+          tell(strings.t('career.1_is_here_pick_them', (roster.displayName(racer))), 6)
         end
       end
     end
@@ -1208,11 +1208,11 @@ function M.releaseCar(carId)
   if not active then return false, strings.t('bank.no_career_running') end
   for _, car in ipairs(s.cars) do
     if car.id == carId and car.impounded then
-      if not M.addMoney(-car.impounded, 'Impound: ' .. car.name) then return false, string.format('It is $%d. You have $%d.', car.impounded, s.money) end
+      if not M.addMoney(-car.impounded, strings.t('career.impound_1', (car.name))) then return false, string.format(strings.t('dealers.it_is_d_you_have'), car.impounded, s.money) end
       car.impounded = nil
       car.out, car.where = false, nil
       changed()
-      return true, 'The ' .. car.name .. ' is back in your garage.'
+      return true, strings.t('career.the_1_is_back_in', (car.name))
     end
   end
   return false, strings.t('career.nothing_of_yours_is_impounded')
@@ -1223,14 +1223,14 @@ function M.moveGarage()
   local n = progression.nextGarage(s)
   if not n then return false, strings.t('career.this_is_the_best_garage') end
   if not n.canMove then return false, n.garage.name .. ' ' .. n.why .. '.' end
-  if not M.addMoney(-n.garage.cost, 'Moved to ' .. n.garage.name) then return false, strings.t('career.not_enough_money') end
+  if not M.addMoney(-n.garage.cost, strings.t('career.moved_to_1', (n.garage.name))) then return false, strings.t('career.not_enough_money') end
   local fromLevel = s.garageLevel
   s.garageLevel = n.garage.level
   places = nil
   extensions.hook('onStreetLegalGarageMoved', fromLevel, s.garageLevel, n.garage.cost)
   changed()
-  M.sendText('benny', 'Welcome to ' .. n.garage.name .. '. Your cars are where you left them; drive them over or have them towed.', 2)
-  return true, 'You now work out of ' .. n.garage.name .. '.'
+  M.sendText('benny', strings.t('career.welcome_to_1_your_cars', (n.garage.name)), 2)
+  return true, strings.t('career.you_now_work_out_of', (n.garage.name))
 end
 
 ----------------------------------------------------------------------------------------------
@@ -1248,7 +1248,7 @@ function M.onPursuitAction(id, action, pursuit)
     local level = sl_police and sl_police.level and sl_police.level() or 0
     local owed = heatLib.fine(progression.policeFine(offences, racing), ph, level)
     local fine = math.min(s.money, owed)
-    if fine > 0 then M.addMoney(-fine, 'Police fine') end
+    if fine > 0 then M.addMoney(-fine, strings.t('career.police_fine')) end
     local lost = 0
     M.atRisk()                            -- (settles bankedRep first)
     if ph == 'night' then                 -- (D3) a bust at night: the unbanked reputation goes, and the heat goes up
@@ -1266,15 +1266,15 @@ function M.onPursuitAction(id, action, pursuit)
       local veh = sl_fleet.vehicleOf(car.id)
       if gameplay_walk then gameplay_walk.setWalkingMode(true, nil, nil, true) end
       if veh then core_jobsystem.create(function(job) job.sleep(1) if veh then veh:delete() end end) end
-      tell(string.format('Busted, and you cannot pay. The %s is impounded: $%d to get it back (phone, My cars).', car.name, car.impounded), 9)
+      tell(string.format(strings.t('career.busted_and_you_cannot_pay'), car.name, car.impounded), 9)
     else
-      tell(string.format('Busted. $%d in fines%s%s.', fine, racing and ', and the race is lost' or '', lost > 0 and string.format(', and the %d reputation you had not banked', lost) or ''), 7)
+      tell(string.format(strings.t('career.busted_d_in_fines_s'), fine, racing and strings.t('career.and_the_race_is_lost') or '', lost > 0 and string.format(strings.t('career.and_the_d_reputation_you'), lost) or ''), 7)
     end
     changed()
   elseif action == 'evade' then
     stateLib.addRep(s, progression.EVADE_REP)
     if M.phase() == 'night' then s.heat = heatLib.raised(s.heat, heatLib.ESCAPE) end        -- (D3) a chase is heat, even one you got out of
-    tell(string.format('You lost them. +%d reputation.', progression.EVADE_REP), 5)
+    tell(string.format(strings.t('career.you_lost_them_d_reputation'), progression.EVADE_REP), 5)
     changed()
   end
 end
@@ -1291,8 +1291,7 @@ local function pinkTipOff()
     end
   end
   if #names > 0 then
-    M.sendText('benny', 'Word is ' .. table.concat(names, ' and ') .. (#names == 1 and ' is' or ' are') ..
-      ' putting their car up for pink slips tonight. Call them if you fancy it - and if you can afford to lose yours.', 1)
+    M.sendText('benny', strings.t('career.word_is_1_2_putting', (table.concat(names, ' and ')), (#names == 1 and ' is' or ' are')), 1)
   end
 end
 
@@ -1366,8 +1365,8 @@ M.hour = hour
 function M.devMoney()
   if not s then return false, strings.t('bank.no_career_running') end
   local add = 99999999 - s.money
-  if add > 0 then stateLib.addMoney(s, add, 'Developer: all the money', now()) changed() end
-  return true, 'Money: $99,999,999.'
+  if add > 0 then stateLib.addMoney(s, add, strings.t('career.developer_all_the_money'), now()) changed() end
+  return true, strings.t('career.money_99_999_999')
 end
 
 local function busyState()
@@ -1409,14 +1408,14 @@ local function moveClock(h, job)
   job.sleep(0.35)
   skyReport('on the hour')
   local el = sunElevation()
-  log('I', 'sl_career', string.format('clock set to %.2f: sun elevation %s', h, el and string.format('%.1f deg', el) or 'unknown'))
+  log('I', 'sl_career', string.format(strings.t('career.clock_set_to_2f_sun'), h, el and string.format(strings.t('career.1f_deg'), el) or 'unknown'))
   if el and phaseLib.isDarkHour(h) and el > 0 then
     setHour((h + 6) % 24)
     job.sleep(0.5)
     setHour(h)
     job.sleep(0.5)
     el = sunElevation()
-    log('W', 'sl_career', string.format('the sun was up at night hour %.2f; after a wider detour: %s', h, el and string.format('%.1f deg', el) or 'unknown'))
+    log('W', 'sl_career', string.format(strings.t('career.the_sun_was_up_at'), h, el and string.format(strings.t('career.1f_deg'), el) or 'unknown'))
   end
 end
 

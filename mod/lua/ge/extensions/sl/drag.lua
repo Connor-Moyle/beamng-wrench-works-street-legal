@@ -129,7 +129,7 @@ local function addOpponent(data, myLane, racer)
     local et = rules.etEstimate(cfg and cfg.Power, cfg and cfg.Weight)
     local dial = rules.aiDial(et, racer.skill, rngLib.new(vid):range(-1, 1))
     c.setRacerDial(vid, dial)
-    log('I', 'sl_drag', string.format('opponent %s: %s, dial %.2f (estimate %s)', racer.name, tostring(details and details.configs and details.configs.Name), dial, et and string.format('%.2f', et) or 'none'))
+    log('I', 'sl_drag', string.format(strings.t('drag.opponent_s_s_dial_2f'), racer.name, tostring(details and details.configs and details.configs.Name), dial, et and string.format('%.2f', et) or 'none'))
   end)
   if not started then run.practice = true end
 end
@@ -142,15 +142,15 @@ function M.onDragRacersSetup(data)
   for _, r in pairs(data.racers or {}) do if r.isPlayable then myLane = r.lane end end
   if not myLane then return end
   run = { fee = rules.ENTRY_FEE, lane = myLane }
-  if not sl_career.addMoney(-run.fee, 'Drag strip entry') then
+  if not sl_career.addMoney(-run.fee, strings.t('drag.drag_strip_entry')) then
     run.practice = true
-    toast(string.format('Drag strip: $%d to line up. A practice run, nothing on it.', rules.ENTRY_FEE))
+    toast(string.format(strings.t('drag.drag_strip_d_to_line'), rules.ENTRY_FEE))
     return
   end
   local racer = (sl_career.racersForRace('drag', 1) or {})[1]
   if not racer then run.practice = true return end
   run.racerName = racer.name
-  toast(string.format('Drag strip: %s lines up in the other lane. Dial in, then stage.', racer.name))
+  toast(string.format(strings.t('drag.drag_strip_s_lines_up'), racer.name))
   addOpponent(data, myLane, racer)
 end
 
@@ -178,17 +178,17 @@ function M.onWinnerLightOn(lane)
   local won = me.lane == lane and not me.isDisqualified
   local text = rules.slipText(slip)
   if r.practice then
-    toast('Practice run: ' .. text)
+    toast(strings.t('drag.practice_run_1', (text)))
   else
     local pay = rules.purse(won, r.fee)
     local s = sl_career.getState()
-    if pay.money > 0 then sl_career.payOut(pay.money, 'Drag strip win') end
+    if pay.money > 0 then sl_career.payOut(pay.money, strings.t('drag.drag_strip_win')) end
     if pay.rep ~= 0 and s then stateLib.addRep(s, pay.rep) end
     s = s or {}
     s.dragRuns = (s.dragRuns or 0) + 1
     if won then s.dragWins = (s.dragWins or 0) + 1 end
-    toast(string.format('%s: %s. %s', won and 'You won' or ('You lost to ' .. tostring(r.racerName or 'the other lane')), text,
-      pay.money > 0 and string.format('$%d and %+d reputation.', pay.money, pay.rep) or 'Nothing paid.'))
+    toast(string.format('%s: %s. %s', won and strings.t('drag.you_won') or (strings.t('drag.you_lost_to_1', (tostring(r.racerName or 'the other lane')))), text,
+      pay.money > 0 and string.format(strings.t('drag.d_and_d_reputation'), pay.money, pay.rep) or strings.t('drag.nothing_paid')))
     extensions.hook('onStreetLegalChanged')
   end
   if won and slrrPedestrians and slrrPedestrians.cheer then slrrPedestrians.cheer(6) end          -- the crowd at the strip (#40)

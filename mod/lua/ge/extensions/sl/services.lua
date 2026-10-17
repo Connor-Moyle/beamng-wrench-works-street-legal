@@ -30,32 +30,32 @@ function M.onWrenchWorksServices(list, vid)
   local car = sl_fleet.currentCar()
   if car then
     local c = sl_carcare.careOf(car)
-    local add = function(t) t.group = 'Your ' .. (car.name or 'car') list[#list + 1] = t end
-    add({ id = 'oil', label = 'Oil change', price = rules.oilChangeCost(4), desc = string.format('fresh oil: it is %s km old, %d%% full', tostring(math.floor(c.oilKm or 0)), math.floor((c.oilLevel or 1) * 100)) })
-    add({ id = 'coolant', label = 'Top up the coolant', price = PRICES.coolant, desc = string.format('%d%% full', math.floor((c.coolantLevel or 1) * 100)) })
-    add({ id = 'battery', label = 'New battery', price = PRICES.battery, desc = string.format('this one is at %d%%', math.floor((c.battery or 1) * 100)) })
-    if c.n2o then add({ id = 'n2o', label = 'Refill the nitrous', price = PRICES.n2o, desc = string.format('the bottle is at %d%%', math.floor(c.n2o * 100)) }) end
-    add({ id = 'engine', label = 'Rebuild the engine', price = engineRebuildCost(car), desc = string.format('only the engine, like new: %s km of wear and any internal damage gone', tostring(math.floor(c.engineKm or 0))) })
+    local add = function(t) t.group = strings.t('services.your_1', (car.name or 'car')) list[#list + 1] = t end
+    add({ id = 'oil', label = strings.t('services.oil_change'), price = rules.oilChangeCost(4), desc = string.format(strings.t('services.fresh_oil_it_is_s'), tostring(math.floor(c.oilKm or 0)), math.floor((c.oilLevel or 1) * 100)) })
+    add({ id = 'coolant', label = strings.t('services.top_up_the_coolant'), price = PRICES.coolant, desc = string.format(strings.t('services.d_full'), math.floor((c.coolantLevel or 1) * 100)) })
+    add({ id = 'battery', label = strings.t('services.new_battery'), price = PRICES.battery, desc = string.format(strings.t('services.this_one_is_at_d'), math.floor((c.battery or 1) * 100)) })
+    if c.n2o then add({ id = 'n2o', label = strings.t('services.refill_the_nitrous'), price = PRICES.n2o, desc = string.format(strings.t('services.the_bottle_is_at_d'), math.floor(c.n2o * 100)) }) end
+    add({ id = 'engine', label = strings.t('services.rebuild_the_engine'), price = engineRebuildCost(car), desc = string.format(strings.t('services.only_the_engine_like_new'), tostring(math.floor(c.engineKm or 0))) })
   end
   for _, other in ipairs(s.cars) do
     if not car or other.id ~= car.id then
-      list[#list + 1] = { id = 'swap:' .. other.id, group = 'Your other cars', label = other.name,
+      list[#list + 1] = { id = 'swap:' .. other.id, group = strings.t('services.your_other_cars'), label = other.name,
         desc = other.impounded and 'in the police impound' or 'put this one away and bring that one in', disabled = other.impounded ~= nil }
     end
   end
   if car then
     for _, r in ipairs(sl_career.racesList() or {}) do
-      list[#list + 1] = { id = 'race:' .. r.id, tab = 'races', group = 'Races', label = r.name, desc = r.drag and 'drag strip, test track: a racer of your level waits' or 'a racer of your level waits at the start' }
+      list[#list + 1] = { id = 'race:' .. r.id, tab = 'races', group = 'Races', label = r.name, desc = r.drag and strings.t('services.drag_strip_test_track_a') or 'a racer of your level waits at the start' }
     end
     -- the race tracks: the map's own missions when it lists them, else its venue file
     local missionTracks = sl_career.tracksList and sl_career.tracksList()
     for _, t in ipairs(missionTracks or {}) do
       list[#list + 1] = { id = 'mtrack:' .. t.missionId, tab = 'races', group = 'Tracks', label = t.name,
-        desc = (t.laps and t.laps > 1 and t.laps .. ' laps' or 'start to finish') .. ': a racer of your level on the grid with you' }
+        desc = strings.t('services.1_a_racer_of_your', (t.laps and t.laps > 1 and t.laps .. ' laps' or 'start to finish')) }
     end
     for _, t in ipairs(not missionTracks and sl_streets and sl_streets.tracks and sl_streets.tracks() or {}) do
       list[#list + 1] = { id = 'track:' .. t.id, tab = 'races', group = 'Tracks', label = t.name,
-        desc = (t.sprint and 'a stage, start to finish' or t.laps .. ' laps') .. (t.kind == 'offroad' and ', off road' or '') .. ': a racer of your level on the grid with you' }
+        desc = strings.t('services.1_2_a_racer_of', (t.sprint and strings.t('services.a_stage_start_to_finish') or t.laps .. ' laps'), (t.kind == 'offroad' and strings.t('services.off_road') or '')) }
     end
   end
 end
@@ -94,7 +94,7 @@ local function doRace(s, raceId)
     spawn.safeTeleport(v, race.start - dir * 25 + vec3(0, 0, 0.4), quatFromDir(dir, vec3(0, 0, 1)), true, nil, nil, nil, false)   -- just short of the line (not repaired)
     job.sleep(1)
     guihooks.trigger('slFade', { on = false })
-    toast(string.format('%s is waiting at %s. $%d. Roll up to the line.', roster.displayName(racer), race.name, bet))
+    toast(string.format(strings.t('services.s_is_waiting_at_s'), roster.displayName(racer), race.name, bet))
   end)
 end
 
@@ -152,21 +152,21 @@ function M.onWrenchWorksService(id, vid)
   if not car then return end
   local c = sl_carcare.careOf(car)
   if id == 'oil' then
-    if not sl_career.addMoney(-rules.oilChangeCost(4), 'Oil change: ' .. car.name) then return toast(strings.t('career.not_enough_money')) end
+    if not sl_career.addMoney(-rules.oilChangeCost(4), strings.t('services.oil_change_1', (car.name))) then return toast(strings.t('career.not_enough_money')) end
     c.oilKm, c.oilLevel = 0, 1
     local veh = sl_fleet.vehicleOf(car.id)
     if veh then veh:queueLuaCommand('if slCar then slCar.setState({ oilKm = 0, oilLevel = 1 }) end') end
     toast(strings.t('services.fresh_oil_in'))
   elseif PRICES[id] then
     if id == 'n2o' and not c.n2o then return end
-    if not sl_career.addMoney(-PRICES[id], ({ coolant = 'Coolant', battery = 'Battery', n2o = 'Nitrous refill' })[id] .. ': ' .. car.name) then return toast(strings.t('career.not_enough_money')) end
+    if not sl_career.addMoney(-PRICES[id], ({ coolant = 'Coolant', battery = 'Battery', n2o = strings.t('services.nitrous_refill') })[id] .. ': ' .. car.name) then return toast(strings.t('career.not_enough_money')) end
     sl_carcare.refill(car.id, id, id == 'coolant' and 10 or 0)
-    toast(({ coolant = 'Coolant topped up.', battery = 'New battery in.', n2o = 'Nitrous bottle full.' })[id])
+    toast(({ coolant = strings.t('carcare.coolant_topped_up'), battery = strings.t('carcare.new_battery_in'), n2o = strings.t('services.nitrous_bottle_full') })[id])
   elseif id == 'engine' then
     local cost = engineRebuildCost(car)
-    if not sl_career.addMoney(-cost, 'Engine rebuild: ' .. car.name) then return toast(string.format('The rebuild is $%d.', cost)) end
+    if not sl_career.addMoney(-cost, strings.t('services.engine_rebuild_1', (car.name))) then return toast(string.format(strings.t('services.the_rebuild_is_d'), cost)) end
     c.engineKm, c.oilKm, c.oilLevel, c.coolantLevel = 0, 0, 1, 1
-    sl_carcare.note(car, 'Engine rebuilt')
+    sl_carcare.note(car, strings.t('services.engine_rebuilt'))
     local veh = sl_fleet.vehicleOf(car.id)
     if veh then veh:queueLuaCommand('if slCar then slCar.rebuildEngine() end') end
     toast(strings.t('services.the_engine_is_rebuilt_like'))

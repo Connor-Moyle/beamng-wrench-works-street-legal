@@ -35,7 +35,7 @@ local function stop(r)
   local ok, res = pcall(core_replay.stopRecording)
   if ok and type(res) == 'table' and res.success then
     last = { name = lib.raceName(r), file = res.filename or file, saved = false }
-    guihooks.trigger('slPhoneToast', { text = 'Race recorded: Watch replay or Save clip in the Races app.' })
+    guihooks.trigger('slPhoneToast', { text = strings.t('replay.race_recorded_watch_replay_or') })
     extensions.hook('onStreetLegalChanged')
   end
 end
@@ -55,19 +55,19 @@ function M.watch()
   if not FS:fileExists(last.file) then return false, strings.t('replay.that_replay_is_gone') end
   local ok, res = pcall(core_replay.loadFile, last.file, true)
   if not ok or (type(res) == 'table' and res.success == false) then return false, strings.t('replay.the_replay_would_not_open') end
-  return true, 'Replay: ' .. last.name .. '.'
+  return true, strings.t('replay.replay_1', (last.name))
 end
 
 -- keep it: named after the race
 function M.save()
-  if not last or not last.file or last.saved then return false, last and 'Already saved.' or 'No race recorded.' end
+  if not last or not last.file or last.saved then return false, last and strings.t('replay.already_saved') or strings.t('replay.no_race_recorded') end
   local name = lib.clipName(last.name, os.date('%Y-%m-%d %H-%M'))
   local ok, res = pcall(core_replay.acceptRename, last.file, name)
   if not ok or type(res) ~= 'table' or res.success ~= true then return false, strings.t('replay.could_not_save_the_clip') end
   last.file = type(res.newFilename) == 'string' and res.newFilename or ((last.file:match('^(.*/)') or 'replays/') .. name .. '.rpl')
   last.saved = true
   extensions.hook('onStreetLegalChanged')
-  return true, 'Saved as "' .. name .. '" in the game\'s replays.'
+  return true, strings.t('replay.saved_as_1_in_the', (name))
 end
 
 return M

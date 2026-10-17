@@ -91,7 +91,7 @@ local function diners()
     local c, r = nil, 0
     if freeroam_gasStations and freeroam_gasStations.gasStationCenterRadius then c, r = freeroam_gasStations.gasStationCenterRadius(g) end
     -- the stop is the middle of the pumps; a car at the far pump is as far as the pumps spread, and a car's length more
-    if c then out[#out + 1] = { id = 'diner:' .. tostring(g.id or g.name), name = (g.name or 'Gas station') .. ' diner', x = c.x, y = c.y, z = c.z,
+    if c then out[#out + 1] = { id = 'diner:' .. tostring(g.id or g.name), name = (g.name or strings.t('jobs.gas_station')) .. ' diner', x = c.x, y = c.y, z = c.z,
       radius = math.min(30, math.max(STOP_RADIUS, (tonumber(r) or 0) + 6)) } end
   end
   return out
@@ -116,7 +116,7 @@ local STREETS = { 'a side street', 'an apartment block', 'a house on the corner'
 -- a job is { item, legs = { stop, stop... }, pay, seconds, fragile }
 local splitphase = require('sl/core/splitphase')
 local TYPES = {
-  { kind = 'part', title = 'Part run', unlock = 0, offer = function(ctx, rng)
+  { kind = 'part', title = strings.t('jobs.part_run'), unlock = 0, offer = function(ctx, rng)
       local list = jobsLib.offers(ctx.shops, {}, ctx.garage, rng, 1)
       local j = list[1]
       if not j then return nil end
@@ -131,7 +131,7 @@ local TYPES = {
       return j
     end },
   -- night food delivery: three drops from a diner, the food going cold
-  { kind = 'food', title = 'Food delivery', unlock = 0, night = true, offer = function(ctx, rng)
+  { kind = 'food', title = strings.t('jobs.food_delivery'), unlock = 0, night = true, offer = function(ctx, rng)
       local list = diners()
       if #list == 0 then return nil end
       local d = list[rng:int(#list)]
@@ -147,7 +147,7 @@ local TYPES = {
         seconds = math.max(180, math.floor(metres * 1.4 / jobsLib.SPEED * 1.2)), pay = 120 + math.floor(metres / 1000 * 60 / 10) * 10 }
     end },
   -- taxi fares: a fare at the kerb, to one of the city's places
-  { kind = 'taxi', title = 'Taxi fare', unlock = 0, offer = function(ctx, rng)
+  { kind = 'taxi', title = strings.t('jobs.taxi_fare'), unlock = 0, offer = function(ctx, rng)
       local k = kerbNear(ctx, rng, nil, 0, 0)
       if not k or #ctx.places == 0 then return nil end
       local to = ctx.places[rng:int(#ctx.places)]
@@ -157,7 +157,7 @@ local TYPES = {
         fragile = false, seconds = math.max(120, math.floor(metres * 1.4 / jobsLib.SPEED * 1.3)), pay = math.max(60, math.floor((40 + metres / 1000 * 90) / 10) * 10) }
     end },
   -- the junkyard's crushing run: a wreck that barely goes, to the crusher at the scrapyard
-  { kind = 'crush', title = 'Crushing run', unlock = 0, offer = function(ctx, rng)
+  { kind = 'crush', title = strings.t('jobs.crushing_run'), unlock = 0, offer = function(ctx, rng)
       local from, to = ctx.byId.junkyard, ctx.byId.scrapyard
       if not from or not to then return nil end
       local metres = jobsLib.distance(from, to)
@@ -166,7 +166,7 @@ local TYPES = {
         seconds = math.max(240, math.floor(metres * 1.4 / 9 * 1.5)), pay = 250 }
     end },
   -- car transport: a car between the dealer and the lots, without a scratch (fragile: over 5 % damage pays nothing)
-  { kind = 'transport', title = 'Car transport', unlock = 200, offer = function(ctx, rng)
+  { kind = 'transport', title = strings.t('jobs.car_transport'), unlock = 200, offer = function(ctx, rng)
       local ends = { ctx.byId.dealer, ctx.byId.junkyard, ctx.byId.scrapyard }
       local a, b = ends[rng:int(3)], ends[rng:int(3)]
       if not a or not b or a.id == b.id then return nil end
@@ -177,7 +177,7 @@ local TYPES = {
         seconds = math.max(180, math.floor(metres * 1.4 / jobsLib.SPEED * 1.4)), pay = 300 + math.floor(metres / 1000 * 120 / 10) * 10 }
     end },
   -- the hot car: from a back street to a lock-up, and the police hear more of it every minute (heat)
-  { kind = 'hot', title = 'Hot car', unlock = 1000, night = true, offer = function(ctx, rng)
+  { kind = 'hot', title = strings.t('jobs.hot_car'), unlock = 1000, night = true, offer = function(ctx, rng)
       local k = kerbNear(ctx, rng, nil, 0, 0)
       local to = ctx.byId.meet_tuning or ctx.byId.scrapyard
       if not k or not to then return nil end
@@ -188,7 +188,7 @@ local TYPES = {
         seconds = math.max(240, math.floor(metres * 1.4 / jobsLib.SPEED * 1.3)), pay = 400 + math.floor(metres / 1000 * 220 / 100) * 100 }   -- keep in step with economy_sim's hot_base/hot_per_km (H5: ≤ 2x median $/min)
     end },
   -- test driver: a prototype round the test track's oval against the clock, without a scratch
-  { kind = 'testdrive', title = 'Test driver', unlock = 600, offer = function(ctx, rng)
+  { kind = 'testdrive', title = strings.t('jobs.test_driver'), unlock = 600, offer = function(ctx, rng)
       if not sl_career.has('testdrive') then return nil end
       local rl = jsonReadFile('/levels/' .. sl_career.LEVEL .. '/racelines/tt_oval.json')
       local pts = type(rl) == 'table' and rl.points or {}
@@ -302,14 +302,14 @@ local function spawnJobCar(j, stop)
     autoEnterVehicle = false, canSpawnAnotherVehicleCheck = false })
   if not ok or not veh then
     j.spawnError = tostring(ok and 'no vehicle' or veh)                 -- (kept on the job: the smoke test reports it; B34)
-    log('W', 'sl_jobs', 'the job car (' .. tostring(j.car.model) .. ') did not spawn: ' .. j.spawnError)
+    log('W', 'sl_jobs', 'the job car (' .. tostring(j.car.model) .. strings.t('jobs.did_not_spawn') .. j.spawnError)
     return nil
   end
-  if j.car.wear then veh:queueLuaCommand(string.format('partCondition.initConditions(nil, %d, %f, %f)', math.floor(j.car.wear * 300000000), 1 - j.car.wear * 0.5, 1 - j.car.wear)) end
+  if j.car.wear then veh:queueLuaCommand(string.format(strings.t('jobs.partcondition_initconditions_nil_d_f'), math.floor(j.car.wear * 300000000), 1 - j.car.wear * 0.5, 1 - j.car.wear)) end
   if slrrDrivers and slrrDrivers.setDriver then slrrDrivers.setDriver(veh:getID(), nil) end
   -- a breakdown: the engine down to limp power, a tyre going down
   if j.car.limp then
-    veh:queueLuaCommand(string.format('local e = powertrain.getDevice("mainEngine") if e then e.outputTorqueState = %f end ' ..
+    veh:queueLuaCommand(string.format(strings.t('jobs.local_e_powertrain_getdevice_mainengine') ..
       'for id, w in pairs(v.data.wheels or {}) do if w.name == "FR" and beamstate.deflateTire then beamstate.deflateTire(id) end end', j.car.limp))
   end
   return veh
@@ -329,7 +329,7 @@ function M.take(jobId)
   for i, j in ipairs(js.offers) do
     if j.id == jobId then
       if not j.car and not playerCarId() then return false, strings.t('jobs.you_need_to_be_in') end
-      if j.needCar and sl_fleet.carOfVehicle(playerCarId():getID()) ~= j.needCar then return false, 'That job is for your ' .. (j.item or 'other car') .. '.' end
+      if j.needCar and sl_fleet.carOfVehicle(playerCarId():getID()) ~= j.needCar then return false, strings.t('jobs.that_job_is_for_your', (j.item or 'other car')) end
       table.remove(js.offers, i)
       j.leg = 1
       js.active = j
@@ -424,8 +424,8 @@ local function finish(s, js, j, v)
   end
   if j.heat then s.heat = math.max(0, (s.heat or 0) - j.heat) end
   M.finishWith(s, js, j, pay, verdict == 'broken' and -5 or (verdict == 'late' and 4 or (j.kind == 'errand' and 15 or 10)),
-    verdict == 'broken' and string.format('The %s is broken. No pay.', j.item or 'load')
-    or string.format('%s delivered%s. $%d.', j.item or 'Delivery', verdict == 'late' and ', late' or '', pay))
+    verdict == 'broken' and string.format(strings.t('jobs.the_s_is_broken_no'), j.item or 'load')
+    or string.format(strings.t('jobs.s_delivered_s_d'), j.item or 'Delivery', verdict == 'late' and strings.t('jobs.late') or '', pay))
 end
 
 local timer = 0
@@ -460,7 +460,7 @@ function M.onUpdate(dtReal)
       end
       j.startedAt = os.clock()
       j.damage0 = damageOf(v:getID())
-      toast(string.format('Picked up the %s%s. %d:%02d to %s.', j.item or 'load', j.fragile and ' (fragile)' or '', math.floor(j.seconds / 60), j.seconds % 60, j.legs[2].name))
+      toast(string.format(strings.t('jobs.picked_up_the_s_s'), j.item or 'load', j.fragile and ' (fragile)' or '', math.floor(j.seconds / 60), j.seconds % 60, j.legs[2].name))
     end
     if j.leg >= #j.legs then if not j.settle then finish(s, js, j, v) end return end
     j.leg = j.leg + 1
@@ -486,9 +486,9 @@ function M.onStreetLegalCarSold(car, price, to)
   js.flip.best = math.max(js.flip.best, profit)
   if profit >= js.flip.target then
     local bonus = math.floor(js.flip.target * 0.5 / 10) * 10
-    sl_career.payOut(bonus, 'Flip bonus: ' .. (car.name or 'car'))
+    sl_career.payOut(bonus, strings.t('jobs.flip_bonus_1', (car.name or 'car')))
     stateLib.addRep(s, 25)
-    sl_career.sendText('benny', string.format('The junkyard owner says you made $%d on that %s. He paid you a $%d bonus, and says next time, $%d.',
+    sl_career.sendText('benny', string.format(strings.t('jobs.the_junkyard_owner_says_you'),
       profit, car.name or 'car', bonus, math.floor(js.flip.target * FLIP_GROWTH / 100) * 100), 3)
     js.flip.target = math.floor(js.flip.target * FLIP_GROWTH / 100) * 100
   end
@@ -510,7 +510,7 @@ local function challenge(s, key, list, value, better, unit, what)
     paid = paid + t[2]
     js[key] = js[key] + 1
   end
-  if paid > 0 then toast(string.format('%s: %s%s beats the target. $%d.', what, tostring(value), unit, paid)) end
+  if paid > 0 then toast(string.format(strings.t('jobs.s_s_s_beats_the'), what, tostring(value), unit, paid)) end
 end
 
 -- the quarter mile: a drag race's time down the test track's 1/4 mile
@@ -521,7 +521,7 @@ function M.onSlrrRaceFinished(r)
   for _, x in ipairs(sl_career.racesList() or {}) do
     if x.drag and (x.id == r.raceId or (r.missionId and x.missionId == r.missionId)) and tostring(x.name):find('1/4', 1, true) then quarter = true end
   end
-  if quarter then challenge(s, 'quarter', QUARTER, math.floor(r.time * 100) / 100, function(v, t) return v <= t end, ' s', 'Quarter mile') end
+  if quarter then challenge(s, 'quarter', QUARTER, math.floor(r.time * 100) / 100, function(v, t) return v <= t end, ' s', strings.t('jobs.quarter_mile')) end
 end
 
 -- the dyno: Wrench Works' car info sheet, for one of your cars
@@ -535,9 +535,9 @@ end
 ----------------------------------------------------------------------------------------------
 -- contracts on race results (Design 3 #14, #15): a street crew's contract and sponsor deals
 
-local SPONSORS = { { rep = 1500, name = 'Valo Tyre & Wheel', weekly = 500 }, { rep = 3000, name = 'Redline Speed Shop', weekly = 1500 },
-  { rep = 6000, name = 'Nightrun Energy', weekly = 5000 } }
-local CREW = { 'the Southside Kings', 'Riverbed Runners', 'the North End crew', 'Ring Road Ghosts' }
+local SPONSORS = { { rep = 1500, name = strings.t('jobs.valo_tyre_wheel'), weekly = 500 }, { rep = 3000, name = strings.t('jobs.redline_speed_shop'), weekly = 1500 },
+  { rep = 6000, name = strings.t('jobs.nightrun_energy'), weekly = 5000 } }
+local CREW = { 'the Southside Kings', strings.t('crews.riverbed_runners'), 'the North End crew', strings.t('crews.ring_road_ghosts') }
 
 local function newContract(s, js)
   local rng = rngLib.new(rngLib.hash('crew:' .. s.day .. ':' .. tostring(s.seed)))
@@ -556,9 +556,9 @@ local function countWin(s, racerId)
     c.won = c.won + 1
     if c.won >= c.need then
       c.done = true
-      sl_career.payOut(c.pay, 'Crew contract: ' .. c.boss)
+      sl_career.payOut(c.pay, strings.t('jobs.crew_contract_1', (c.boss)))
       stateLib.addRep(s, 30)
-      sl_career.sendText('benny', string.format('Word from %s: contract done. $%d is in your account.', c.boss, c.pay), 3)
+      sl_career.sendText('benny', string.format(strings.t('jobs.word_from_s_contract_done'), c.boss, c.pay), 3)
     end
   end
 end
@@ -578,11 +578,11 @@ function M.onStreetLegalRaceResult(won, opponent, racerId)
   if #ctx.shops == 0 or #meets == 0 then return end
   local shop, meet = ctx.shops[rng:int(#ctx.shops)], meets[rng:int(#meets)]
   local j = jobsLib.make('part', shop, meet, rng)
-  j.legs, j.title, j.kind, j.id = { leg(shop), leg(meet) }, 'Favour for ' .. (r.name or 'a racer'), 'errand', 'errand:' .. racerId .. ':' .. s.day
+  j.legs, j.title, j.kind, j.id = { leg(shop), leg(meet) }, strings.t('jobs.favour_for_1', (r.name or 'a racer')), 'errand', 'errand:' .. racerId .. ':' .. s.day
   j.pay = math.floor(j.pay * 0.5 / 10) * 10
   local js = jobsState(s)
   js.offers[#js.offers + 1] = j
-  sl_career.sendText(racerId, string.format('Fair race. Do me a favour? I need a %s from %s, brought to %s. I will make it worth your while. It is on your Jobs app.',
+  sl_career.sendText(racerId, string.format(strings.t('jobs.fair_race_do_me_a'),
     j.item, shop.name, meet.name), 60)
 end
 
@@ -593,7 +593,7 @@ function M.onStreetLegalNewDay(day)
   -- the crew contract: a new one when the last is done or has run out (from 300 rep)
   if (s.rep or 0) >= 300 and (not js.crew or js.crew.done or day > js.crew.untilDay) then
     newContract(s, js)
-    sl_career.sendText('benny', string.format('%s want somebody to beat %d racers of tier %d or better this week. $%d. It is on your Jobs app.',
+    sl_career.sendText('benny', string.format(strings.t('jobs.s_want_somebody_to_beat'),
       js.crew.boss, js.crew.need, js.crew.tier, js.crew.pay), 5)
   end
   -- sponsors: the best one your name gets you; paid weekly, as long as you win two races a week
@@ -602,12 +602,12 @@ function M.onStreetLegalNewDay(day)
   if best and (not js.sponsor or js.sponsor.name ~= best.name) then
     js.sponsor = { name = best.name, weekly = best.weekly, since = day }
     js.weekWins = 0
-    sl_career.sendText('benny', string.format('%s want their name on your car: $%d a week, as long as you win two races a week.', best.name, best.weekly), 4)
+    sl_career.sendText('benny', string.format(strings.t('jobs.s_want_their_name_on'), best.name, best.weekly), 4)
   elseif js.sponsor and (day - js.sponsor.since) % 7 == 0 and day ~= js.sponsor.since then
     if (js.weekWins or 0) >= 2 then
-      sl_career.payOut(js.sponsor.weekly, 'Sponsor: ' .. js.sponsor.name)
+      sl_career.payOut(js.sponsor.weekly, strings.t('jobs.sponsor_1', (js.sponsor.name)))
     else
-      sl_career.sendText('benny', js.sponsor.name .. ' saw you did not win two races this week. No cheque. Win some.', 3)
+      sl_career.sendText('benny', strings.t('jobs.1_saw_you_did_not', (js.sponsor.name)), 3)
     end
     js.weekWins = 0
   end

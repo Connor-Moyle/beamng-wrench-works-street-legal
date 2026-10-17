@@ -10,6 +10,8 @@
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 local heatLib = require('sl/core/heat')
 
 local PATROLS = 2
@@ -134,7 +136,7 @@ function M.onRaceStart()
   local copId = gameplay_police.getNearestPoliceVehicle and gameplay_police.getNearestPoliceVehicle(v:getID(), false, true)
   if copId then
     gameplay_police.setPursuitMode(1, v:getID(), { copId })
-    if ui_message then ui_message('Police! Lose them, or lose the race and pay.', 4, 'streetLegal') end
+    if ui_message then ui_message(strings.t('police.police_lose_them_or_lose'), 4, 'streetLegal') end
   end
 end
 
@@ -175,7 +177,7 @@ local function bankAtGarage()
   for _, place in pairs(sl_career.getPlaces() or {}) do
     if place.kind == 'garage' and place.pos and (place.pos - p):length() < 35 then
       local n = sl_career.bankRep()
-      if n > 0 and ui_message then ui_message(string.format('Back at the garage: %d reputation banked.', n), 5, 'streetLegal') end
+      if n > 0 and ui_message then ui_message(string.format(strings.t('police.back_at_the_garage_d'), n), 5, 'streetLegal') end
       return
     end
   end

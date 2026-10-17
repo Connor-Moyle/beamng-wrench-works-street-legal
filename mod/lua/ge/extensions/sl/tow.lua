@@ -6,6 +6,8 @@
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 local roadspot = require('sl/core/roadspot')
 
 local MODEL, CONFIG = 'pickup', 'vehicles/pickup/d45_diesel_rollback_M.pc'
@@ -76,7 +78,7 @@ local function load()
     end
     job.sleep(0.6)
     guihooks.trigger('slFade', { on = false })
-    toast(ride and 'The truck dropped you and the car at your garage.' or 'The truck has your car. It will be on your garage forecourt.')
+    toast(ride and strings.t('tow.the_truck_dropped_you_and') or strings.t('tow.the_truck_has_your_car'))
     if truck then
       truck:queueLuaCommand('electrics.set_warn_signal(0) ai.setMode("traffic")')
       leaving[t.truck] = DRIVE_OFF_SECONDS

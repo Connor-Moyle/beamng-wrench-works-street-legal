@@ -45,14 +45,14 @@ local function reset(playerID)
   if offer and now < offer.untilT then
     local fee = offer.fee
     offer = nil
-    if not sl_career.addMoney(-fee, 'Pulled back to the road') then toast(string.format('That is $%d. You do not have it.', fee)) return end
+    if not sl_career.addMoney(-fee, strings.t('lockdown.pulled_back_to_the_road')) then toast(string.format(strings.t('lockdown.that_is_d_you_do'), fee)) return end
     spawn.teleportToLastRoad(veh, { resetVehicle = false })
-    toast(string.format('Pulled back onto the road for $%d. The damage is still there.', fee))
+    toast(string.format(strings.t('lockdown.pulled_back_onto_the_road'), fee))
     return
   end
   local _, _, dist = map.findClosestRoad(veh:getPosition())
   offer = { fee = progression.roadFee(dist or 0), untilT = now + CONFIRM_SECONDS }
-  toast(string.format('A pull back to the nearest road, as the car is (no repairs): $%d. Press reset again to pay. Will it not drive? Phone > My cars > Tow it home.', offer.fee))
+  toast(string.format(strings.t('lockdown.a_pull_back_to_the'), offer.fee))
 end
 
 -- nothing runs per frame here: the input filters, the reset key and the pause menu's mode are set once on a

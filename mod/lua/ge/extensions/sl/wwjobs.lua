@@ -5,6 +5,8 @@
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 local ww = require('sl/core/wwjobs')
 
 local function career() return sl_career and sl_career.isActive() and sl_career.getState() or nil end
@@ -19,7 +21,7 @@ local function stop(p, name) return p and { id = p.id, name = name or p.name, x 
 local function fleetCar(vid) return sl_fleet and sl_fleet.carOfVehicle and sl_fleet.carOfVehicle(vid) end
 
 -- #8 tune to spec: build it in your garage, prove it on the dyno (power) or the test track's quarter mile
-local TUNE = { kind = 'tune', title = 'Tune to spec', unlock = ww.TIER_REP[1], settle = 'ww', offer = function(ctx, rng)
+local TUNE = { kind = 'tune', title = strings.t('wwjobs.tune_to_spec'), unlock = ww.TIER_REP[1], settle = 'ww', offer = function(ctx, rng)
     local s = career()
     local spec = s and ctx.garage and ww.tuneSpec(rng, s.rep)
     if not spec then return nil end
@@ -30,7 +32,7 @@ local TUNE = { kind = 'tune', title = 'Tune to spec', unlock = ww.TIER_REP[1], s
 
 -- #7 repair tickets: the customer's car is waiting outside your garage with parts missing; drive it in, fit
 -- them, drive it out
-local REPAIR = { kind = 'repair', title = 'Repair ticket', unlock = 150, settle = 'ww', offer = function(ctx, rng)
+local REPAIR = { kind = 'repair', title = strings.t('wwjobs.repair_ticket'), unlock = 150, settle = 'ww', offer = function(ctx, rng)
     if not ctx.garage then return nil end
     local t = ww.repairTicket(rng)
     t.settle, t.spent, t.seconds, t.fragile = 'ww', 0, 1800, false
@@ -75,15 +77,15 @@ local function measured(value, carKey)
   if not j or j.kind ~= 'tune' then return end
   local r = ww.tuneMeasure(j, value, carKey)
   if r == 'already' then
-    local text = 'That car already beats the spec. The customer wanted it built, not bought: job off.'
+    local text = strings.t('wwjobs.that_car_already_beats_the')
     if sl_jobs.cancel then sl_jobs.cancel(s, js, j, text) else sl_jobs.finishWith(s, js, j, 0, 0, text) end
   elseif r == 'baseline' then
-    toast(string.format('Baseline noted. Now build it to %s.', j.item))
+    toast(string.format(strings.t('wwjobs.baseline_noted_now_build_it'), j.item))
   elseif r == 'no parts' then
-    toast(string.format('It makes the spec, but the customer is paying for a build: at least $%d of parts must go into it (you have put in $%d).', math.floor(ww.MIN_SPEND * j.budget), j.spent or 0))
+    toast(string.format(strings.t('wwjobs.it_makes_the_spec_but'), math.floor(ww.MIN_SPEND * j.budget), j.spent or 0))
   elseif r == 'met' then
     local amount, verdict = ww.tuneSettle(j, j.spent)
-    pay(s, js, j, amount, verdict == 'over budget' and 5 or 20, 'Spec met (' .. j.item .. '), ' .. verdict .. ': $%d. The customer is happy.')
+    pay(s, js, j, amount, verdict == 'over budget' and 5 or 20, strings.t('wwjobs.spec_met_1_2_d', (j.item), (verdict)))
   end
 end
 
@@ -128,7 +130,7 @@ local function emptyTicketSlots(j)
   local config = deepcopy(vd.config)
   j.removed = ww.emptySlots(config.partsTree, j.faults)
   veh:respawn(serialize(config))
-  toast('The ticket: ' .. j.item .. '. Drive it into your garage.')
+  toast(strings.t('wwjobs.the_ticket_1_drive_it', (j.item)))
 end
 
 function M.onWrenchWorksDriveOut(vid, info)
@@ -137,14 +139,14 @@ function M.onWrenchWorksDriveOut(vid, info)
   local fixed = ww.fixedCount(info.partsTree, j.faults, j.removed)
   local amount, verdict = ww.repairSettle(j, fixed, j.spent)
   if verdict == 'unfinished' then
-    toast(string.format('The ticket is not done yet: %d of %d. Bring it back in.', fixed, #j.faults))
+    toast(string.format(strings.t('wwjobs.the_ticket_is_not_done'), fixed, #j.faults))
     return
   end
   local late = j.startedAt and os.clock() - j.startedAt > j.seconds
   if late then amount = math.floor(amount / 20) * 10 end
   leaving = vid
   pay(s, js, j, amount, late and 4 or (verdict == 'over budget' and 6 or 15),
-    'Ticket done' .. (late and ', late' or '') .. (verdict == 'over budget' and ', over budget' or '') .. ': $%d. The customer drives off.')
+    strings.t('wwjobs.ticket_done_1_2_d', (late and strings.t('jobs.late') or ''), (verdict == 'over budget' and strings.t('wwjobs.over_budget') or '')))
 end
 
 ----------------------------------------------------------------------------------------------
@@ -160,11 +162,11 @@ local function checkWreck(j)
   if left == 0 then          -- (a wreck with nothing on the list: the yard calls it off, no harm done)
     local s, js = active()
     leaving = j.carVid
-    local text = 'That wreck has nothing the yard wants after all. Job off.'
+    local text = strings.t('wwjobs.that_wreck_has_nothing_the')
     if sl_jobs.cancel then sl_jobs.cancel(s, js, j, text) else sl_jobs.finishWith(s, js, j, 0, 0, text) end
     return
   end
-  toast('The yard wants: ' .. j.item .. '. Strip them in your garage and sell them over the counter.')
+  toast(strings.t('wwjobs.the_yard_wants_1_strip', (j.item)))
 end
 
 function M.onWrenchWorksPartSold(vid, slotPath, part, price)
@@ -172,7 +174,7 @@ function M.onWrenchWorksPartSold(vid, slotPath, part, price)
   if not j or j.kind ~= 'scavenge' or vid ~= j.carVid then return end
   if ww.scavengeSold(j, slotPath) then
     leaving = vid
-    pay(s, js, j, j.pay, 10, "The yard has all it wanted. Finder's fee: $%d. They will collect the shell.")
+    pay(s, js, j, j.pay, 10, strings.t('wwjobs.the_yard_has_all_it'))
   end
 end
 

@@ -11,14 +11,14 @@ local stateLib = require('sl/core/state')
 local roster = require('sl/core/roster')
 
 local STEPS = {
-  { id = 'car', title = 'Get a car', text = 'Take a cab (phone, Cab) to the junkyard and buy something that runs. Cheap is fine.',
+  { id = 'car', title = strings.t('tutorial.get_a_car'), text = strings.t('tutorial.take_a_cab_phone_cab'),
     done = function(s) return #s.cars > 0 end },
-  { id = 'job', title = 'Earn your first money', text = 'Open the Jobs app and take the first run on the board (a part run or a courier run): get it there in time, without wrecking the car.',
+  { id = 'job', title = strings.t('tutorial.earn_your_first_money'), text = strings.t('tutorial.open_the_jobs_app_and'),
     start = function(s) M.ensureFirstJob(s) end,
     done = function(s) return (s.jobs and s.jobs.done or 0) > 0 end },
-  { id = 'part', title = 'Fit a first part', text = 'Drive into your garage. In the catalog, "Under $1,500" shows what you can afford: buy one and fit it.',
+  { id = 'part', title = strings.t('tutorial.fit_a_first_part'), text = strings.t('tutorial.drive_into_your_garage_in'),
     done = function(s) return s.jobs and s.jobs.upgraded end },
-  { id = 'race', title = 'Your first race', text = 'I have set you up a race against somebody easy, $100. It is in the Races app: drive to the start and go.',
+  { id = 'race', title = strings.t('tutorial.your_first_race'), text = strings.t('tutorial.i_have_set_you_up'),
     start = function(s) M.arrangeFirstRace(s) end,
     done = function(s) return (s.stats and s.stats.races or 0) > 0 end },
 }
@@ -35,7 +35,7 @@ local function announce(s)
   local step = STEPS[s.tutorial.step]
   if not step then return end
   if step.start then pcall(step.start, s) end
-  sl_career.sendText('benny', string.format('Step %d of %d: %s. %s', s.tutorial.step, #STEPS, step.title, step.text), 2)
+  sl_career.sendText('benny', string.format(strings.t('tutorial.step_d_of_d_s'), s.tutorial.step, #STEPS, step.title, step.text), 2)
   extensions.hook('onStreetLegalChanged')
 end
 
@@ -104,7 +104,7 @@ function M.arrangeFirstRace(s)
   for i = #s.challenges, 1, -1 do if s.challenges[i].racer == easiest.id then table.remove(s.challenges, i) end end
   s.challenges[#s.challenges + 1] = { id = easiest.id .. ':tutorial', racer = easiest.id, stake = 'money', bet = 100, race = race.id,
     raceName = race.name, missionId = race.missionId, at = os.time() }
-  sl_career.sendText(easiest.id, 'Benny says you are new. $100, ' .. race.name .. '. Nothing fancy.', 20)
+  sl_career.sendText(easiest.id, strings.t('tutorial.benny_says_you_are_new', (race.name)), 20)
 end
 
 -- on to the next step while the current one is met: one step a call (a career that already has jobs done, a part fitted
@@ -118,8 +118,8 @@ function M.advance(s)
   t.step = t.step + 1
   if t.step > #STEPS then
     t.step, t.done = nil, true
-    sl_career.addMoney(BONUS, sl_career.mapText('Welcome to Valo City'))
-    sl_career.sendText('benny', string.format('That is the lot: a car, a job, a part, a race. $%d from me to get you going. Now go and make a name.', BONUS), 2)
+    sl_career.addMoney(BONUS, sl_career.mapText(strings.t('tutorial.welcome_to_valo_city')))
+    sl_career.sendText('benny', string.format(strings.t('tutorial.that_is_the_lot_a'), BONUS), 2)
     extensions.hook('onStreetLegalChanged')
   else
     announce(s)

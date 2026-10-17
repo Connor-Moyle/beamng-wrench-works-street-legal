@@ -8,6 +8,8 @@
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 local market = require('sl/core/market')
 local rngLib = require('sl/core/rng')
 local builder = require('sl/carBuilder')
@@ -21,7 +23,7 @@ local lotbuild = require('sl/core/lotbuild')
 local lotaudio = require('sl/core/lotaudio')
 
 local KIND = { junkyard = 'used', dealer = 'dealer', scrapyard = 'scrap' }
-local TITLES = { used = 'Used cars', dealer = 'New cars', scrap = 'Scrap yard' }
+local TITLES = { used = strings.t('pois.used_cars'), dealer = strings.t('pois.new_cars'), scrap = strings.t('pois.scrap_yard') }
 local TEST_SECONDS = 150
 
 -- the open lot: { place, kind, offers, spots, cars (index -> vehicle id), index, veh (the one looked at),
@@ -105,7 +107,7 @@ local function send()
   local mineVeh = mine and sl_fleet.vehicleOf(mine.id)
   local parts = mineVeh and builder.partsValue(mineVeh:getID())       -- (what was fitted since counts, as at the sale)
   guihooks.trigger('slLotData', {
-    open = true, mode = lot.mode, name = lot.place.name, kindTitle = lot.private and 'Private sale' or TITLES[lot.kind], kind = lot.kind,
+    open = true, mode = lot.mode, name = lot.place.name, kindTitle = lot.private and strings.t('lot.private_sale') or TITLES[lot.kind], kind = lot.kind,
     index = lot.index, count = #lot.offers, offer = offerForUi(lot.offers[lot.index]), building = lot.mode == 'browse' and lot.building == true, progress = lot.progress,
     money = s.money, testLeft = test and math.ceil(test.timeLeft) or nil,
     sellCar = mine and { name = mine.name, price = lot.kind == 'scrap' and market.scrapValue(mine, parts) or market.resaleValue(mine, parts) } or nil,
@@ -276,7 +278,7 @@ local function buildRow()
         mine.cars[i] = veh:getID()
         if dents and #dents > 0 then pending[i] = dents end
       else
-        log('W', 'street_legal', 'lot car ' .. tostring(offer.id) .. ' could not be built: left out of the row')
+        log('W', 'street_legal', 'lot car ' .. tostring(offer.id) .. strings.t('lot.could_not_be_built_left'))
       end
       mine.progress.done = i
       send()
@@ -297,7 +299,7 @@ local function buildRow()
     if not mine.index then
       mine.building = false
       unmuteCars()
-      guihooks.trigger('slPhoneToast', { text = 'Nothing to see here today. Come back tomorrow.' })
+      guihooks.trigger('slPhoneToast', { text = strings.t('lot.nothing_to_see_here_today') })
       M.close()
       return
     end
@@ -404,7 +406,7 @@ local function open(place, mode, given)
   armedAt[place.id] = false
   if lot.mode == 'browse' then
     if #offers == 0 then
-      guihooks.trigger('slPhoneToast', { text = 'Nothing for sale here today. Come back tomorrow.' })
+      guihooks.trigger('slPhoneToast', { text = strings.t('lot.nothing_for_sale_here_today') })
       lot = nil
       return
     end
@@ -427,7 +429,7 @@ function M.openPrivate(offer, pos, sellerName)
   for _, v in ipairs(getAllVehicles()) do others[#others + 1] = v:getPosition() end
   local c = roadspot.pick(roadspot.candidates(map.getMap().nodes, pos, not map.getRoadRules().rightHandDrive, 120), others)
   local at, dir = c and vec3(c.x, c.y, c.z) or pos, c and vec3(c.dx, c.dy, 0) or vec3(0, 1, 0)
-  open({ id = 'private:' .. tostring(offer.listingId), kind = 'private', name = (sellerName or 'A private seller') .. "'s car",
+  open({ id = 'private:' .. tostring(offer.listingId), kind = 'private', name = (sellerName or strings.t('lot.a_private_seller')) .. strings.t('career.s_car'),
     pos = pos, dir = dir, displays = { { pos = at, dir = dir } }, private = offer.listingId or true }, 'browse', { offer })
   return lot ~= nil
 end
@@ -458,10 +460,10 @@ function M.buy()
   if not s or not lot or lot.mode ~= 'browse' or not lot.veh then return end
   local offer = lot.offers[lot.index]
   if s.money < offer.price then
-    guihooks.trigger('slPhoneToast', { text = string.format('It is $%d. You have $%d.', offer.price, s.money) })
+    guihooks.trigger('slPhoneToast', { text = string.format(strings.t('dealers.it_is_d_you_have'), offer.price, s.money) })
     return
   end
-  sl_career.addMoney(-offer.price, 'Bought: ' .. offer.name)
+  sl_career.addMoney(-offer.price, strings.t('carcare.bought_1', (offer.name)))
   s.bought = s.bought or {}
   s.bought[offer.id] = true
   local car = sl_fleet.registerVehicle(lot.veh, { name = offer.name, brand = offer.brand, value = offer.value, condition = offer.condition,
@@ -477,8 +479,8 @@ function M.buy()
   send()
   if veh then driveAwayFromRoad(veh, from) end
   local broken = #(offer.faults or {}) > 0
-  sl_career.sendText('benny', broken and string.format('You bought the %s? It has problems: %s. Drive it home if it goes, or call a tow, and we will sort it in the garage.', offer.name, table.concat(offer.faults, ', '))
-    or string.format('Nice, the %s. Bring it to the garage and let us have a look at it.', offer.name), 4)
+  sl_career.sendText('benny', broken and string.format(strings.t('lot.you_bought_the_s_it'), offer.name, table.concat(offer.faults, ', '))
+    or string.format(strings.t('lot.nice_the_s_bring_it'), offer.name), 4)
   return car
 end
 
@@ -578,7 +580,7 @@ local function update(dt)
 end
 
 -- standing in a lot's marker: the game's prompt gets our button (as its gas stations do)
-local HEADINGS = { used = 'Used cars', dealer = 'New cars', scrap = 'Scrap yard' }
+local HEADINGS = { used = strings.t('pois.used_cars'), dealer = strings.t('pois.new_cars'), scrap = strings.t('pois.scrap_yard') }
 function M.onActivityAcceptGatherData(elemData, activityData)
   if not career() or lot then return end
   for _, elem in ipairs(elemData or {}) do
@@ -595,7 +597,7 @@ function M.onActivityAcceptGatherData(elemData, activityData)
         table.insert(activityData, {
           icon = 'poi_arrival_round', heading = place.name, preheadings = { HEADINGS[kind] },
           sorting = { type = 'slrrPlace', id = place.id },
-          buttonLabel = closed or (selling and (kind == 'scrap' and 'Scrap your car' or 'Sell your car') or 'Look at the cars'),
+          buttonLabel = closed or (selling and (kind == 'scrap' and strings.t('lot.scrap_your_car') or strings.t('lot.sell_your_car')) or strings.t('lot.look_at_the_cars')),
           buttonFun = function() open(place, selling and 'sell' or 'browse') end,      -- (shut: open() says so and closes the prompt)
           buttonSoundClass = 'bng_hover_generic',
         })
@@ -608,7 +610,7 @@ local sendTimer = 0
 function M.onUpdate(dtReal)
   update(dtReal)
   if lot and lot.building and lot.buildAlive and os.clock() - lot.buildAlive > BUILD_STUCK then
-    log('W', 'street_legal', 'the lot build made no progress for ' .. BUILD_STUCK .. ' s: the row stays as it is')
+    log('W', 'street_legal', 'the lot build made no progress for ' .. BUILD_STUCK .. strings.t('lot.s_the_row_stays_as'))
     lot.building, lot.abandoned = false, true
     buildingNow = nil
     unmuteCars()

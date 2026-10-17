@@ -8,6 +8,8 @@
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 local showroom = require('sl/core/showroom')
 local builder = require('sl/carBuilder')
 
@@ -37,7 +39,7 @@ end
 
 function M.spawn(which)
   local entry = find(which)
-  if not entry then return 'No such car: sl_debugCars.list() shows them.' end
+  if not entry then return strings.t('debugCars.no_such_car_sl_debugcars') end
   local player = getPlayerVehicle(0)
   local pos, rot
   if player then
@@ -52,13 +54,13 @@ function M.spawn(which)
   core_jobsystem.create(function(job)
     local veh = builder.buildCustom(job, entry.model, entry.config, { stage = entry.stage, seed = entry.seed }, pos, rot)
     if not veh then
-      log('W', 'street_legal', 'debug car could not be built: ' .. entry.label)
+      log('W', 'street_legal', strings.t('debugCars.debug_car_could_not_be') .. entry.label)
       return
     end
     if gameplay_walk and gameplay_walk.getInVehicle then gameplay_walk.getInVehicle(veh) else be:enterVehicle(0, veh) end
-    log('I', 'street_legal', 'debug car: ' .. entry.label)
+    log('I', 'street_legal', strings.t('debugCars.debug_car') .. entry.label)
   end)
-  return 'Building ' .. entry.label
+  return strings.t('debugCars.building_1', (entry.label))
 end
 
 return M

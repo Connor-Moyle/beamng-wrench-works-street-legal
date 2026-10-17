@@ -48,7 +48,7 @@ end
 
 function M.open(name, stationId)
   if not career() then return end
-  open = { name = name or 'Gas station', scale = pumpScale(stationId) }
+  open = { name = name or strings.t('jobs.gas_station'), scale = pumpScale(stationId) }
   send()
 end
 
@@ -120,10 +120,10 @@ function M.washedToday(carId) local s = career() return s ~= nil and carId ~= ni
 
 -- wash the car you are in: the fee, the dirt off (Surface FX), fresh for the day's show and shine. Both day and night.
 local function washCar(carId, s)
-  if not sl_career.addMoney(-M.WASH_PRICE, 'Car wash') then toast('A wash is $' .. M.WASH_PRICE .. '.') return false end
+  if not sl_career.addMoney(-M.WASH_PRICE, strings.t('station.car_wash')) then toast(strings.t('station.a_wash_is_1', (M.WASH_PRICE))) return false end
   if surfaceFXBody and surfaceFXBody.wash then surfaceFXBody.wash() end
   washedOn[carId] = s.day
-  toast(string.format("Washed and dried. $%d. It looks the part for tonight's meet.", M.WASH_PRICE))
+  toast(string.format(strings.t('station.washed_and_dried_d_it'), M.WASH_PRICE))
   return true
 end
 

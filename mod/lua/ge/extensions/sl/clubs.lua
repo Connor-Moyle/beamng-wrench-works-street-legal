@@ -107,8 +107,8 @@ function M.morningText(s)
   local parts = {}
   if ev.night then parts[#parts + 1] = 'tonight ' .. ev.night.name end
   if ev.day then parts[#parts + 1] = 'today ' .. ev.day.name end
-  sl_career.sendText('benny', string.format('%s, season %d, day %d%s: %s. Class %s. It is on the Club app; skip it if you are busy.',
-    clubs.CLUBS[s.club.club].name, s.club.season, n, ev.finale and ' (the finale, double points)' or '', table.concat(parts, ', '), s.club.class or '?'), 2)
+  sl_career.sendText('benny', string.format(strings.t('clubs.s_season_d_day_d'),
+    clubs.CLUBS[s.club.club].name, s.club.season, n, ev.finale and strings.t('clubs.the_finale_double_points') or '', table.concat(parts, ', '), s.club.class or '?'), 2)
 end
 
 -- a day gone: the events the player did not race are raced without them
@@ -135,8 +135,8 @@ function M.endSeason(s)
   local money, rep, invited = clubs.seasonReward(c.club, place)
   if money > 0 then sl_career.payOut(money, clubs.CLUBS[c.club].name .. ' season ' .. c.season) end
   if rep > 0 then stateLib.addRep(s, rep) end
-  local text = string.format('%s season %d is over: you finished %s.', clubs.CLUBS[c.club].name, c.season, place and ('#' .. place) or 'unplaced')
-  if invited and clubs.CLUBS[c.club + 1] then text = text .. ' ' .. clubs.CLUBS[c.club + 1].name .. ' has sent you an invitation: move up when you can (phone, Street cred).' end
+  local text = string.format(strings.t('clubs.s_season_d_is_over'), clubs.CLUBS[c.club].name, c.season, place and ('#' .. place) or 'unplaced')
+  if invited and clubs.CLUBS[c.club + 1] then text = strings.t('clubs.1_2_has_sent_you', (text), (clubs.CLUBS[c.club + 1].name)) end
   sl_career.sendText('benny', text, 1)
 end
 
@@ -161,15 +161,15 @@ function M.enter(kind)
   if c.raced[d .. kind] then return false, strings.t('clubs.you_have_done_that_one') end
   if kind == 'night' and sl_career.isNight and not sl_career.isNight() then return false, strings.t('clubs.the_night_league_races_after') end
   if kind == 'day' and not dayOpen(race) then
-    return false, race.stock and 'The day league runs by day.' or 'The track events open soon. The drags run today.'
+    return false, race.stock and strings.t('clubs.the_day_league_runs_by') or strings.t('clubs.the_track_events_open_soon')
   end
   if race.stock then            -- (#41) a stock track event: nothing to arrange, the player runs it from its marker and the game's stars score it
-    return true, string.format('Day league: %s today. Run it from its marker on the map; the stars you earn score your points.', race.name)
+    return true, string.format(strings.t('clubs.day_league_s_today_run'), race.name)
   end
   local car = sl_fleet and sl_fleet.currentCar()
   if not car then return false, strings.t('clubs.bring_one_of_your_cars') end
   if c.class and car.class and clubs.classIndex(car.class) > clubs.classIndex(c.class) then
-    return false, string.format('This season you are class %s; the %s is class %s.', c.class, car.name, car.class)
+    return false, string.format(strings.t('clubs.this_season_you_are_class'), c.class, car.name, car.class)
   end
   local rival = M.rival(s)
   if not rival then return false, strings.t('clubs.nobody_to_race') end
@@ -179,7 +179,7 @@ function M.enter(kind)
   s.challenges[#s.challenges + 1] = { id = rival.id .. ':league:' .. d .. kind, racer = rival.id, stake = 'money', bet = bet, race = race.id,
     raceName = race.name, missionId = race.missionId, at = os.time(), league = { day = d, kind = kind } }
   extensions.hook('onStreetLegalChanged')
-  return true, string.format('%s: %s against %s for $%d. It is in your Races app.', kind == 'night' and 'Night league' or 'Day league', race.name, roster.displayName(rival), bet)
+  return true, string.format(strings.t('clubs.s_s_against_s_for'), kind == 'night' and strings.t('clubs.night_league') or strings.t('clubs.day_league'), race.name, roster.displayName(rival), bet)
 end
 
 -- the result: the head-to-head places you first or second against your rival; the rest of the club in simulation
@@ -205,8 +205,8 @@ function M.onSlrrRaceFinished(r)
   table.insert(order, at, pair[2]) table.insert(order, at, pair[1])
   clubs.score(c.standings, order, ev.finale)
   local purse = ch.league.kind == 'day' and clubs.purse(c.club, r.won and 1 or 2) or 0
-  if purse > 0 then sl_career.payOut(purse, 'Day league purse') end
-  toast(string.format('League: %s. You are #%d in the %s standings.', r.won and 'won' or 'lost', clubs.placeOf(c.standings, 'player') or 0, clubs.CLUBS[c.club].name))
+  if purse > 0 then sl_career.payOut(purse, strings.t('clubs.day_league_purse')) end
+  toast(string.format(strings.t('clubs.league_s_you_are_d'), r.won and 'won' or 'lost', clubs.placeOf(c.standings, 'player') or 0, clubs.CLUBS[c.club].name))
   extensions.hook('onStreetLegalChanged')
 end
 -- (#41) a stock day event run from its marker: the game's stars decide the place, the rest of the club in simulation
@@ -225,8 +225,8 @@ function M.onMissionAttemptAggregated(attempt, mission)
   c.raced[d .. 'day'] = 'raced'
   clubs.score(c.standings, clubs.simulate(members(s), rngLib.new(rngLib.hash('stock' .. d .. ':' .. c.start .. tostring(s.seed))), place), ev.finale)
   local purse = clubs.purse(c.club, place)
-  if purse > 0 then sl_career.payOut(purse, 'Day league purse') end
-  toast(string.format('League: %s (%d star%s). You are #%d in the %s standings.', race.name, stars, stars == 1 and '' or 's', clubs.placeOf(c.standings, 'player') or 0, clubs.CLUBS[c.club].name))
+  if purse > 0 then sl_career.payOut(purse, strings.t('clubs.day_league_purse')) end
+  toast(string.format(strings.t('clubs.league_s_d_star_s'), race.name, stars, stars == 1 and '' or 's', clubs.placeOf(c.standings, 'player') or 0, clubs.CLUBS[c.club].name))
   extensions.hook('onStreetLegalChanged')
 end
 

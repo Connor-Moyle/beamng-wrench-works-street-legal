@@ -42,11 +42,11 @@ function M.buy(id)
   if not u then return false, strings.t('upgrades.no_such_thing') end
   local f = M.features(s)
   if (id == 'shelves' and f.shelfSize > progression.SHELF.base) or (id ~= 'shelves' and f[id]) then return false, strings.t('upgrades.the_garage_has_one_already') end
-  if not sl_career.addMoney(-u.price, 'Garage: ' .. u.name) then return false, string.format('%s: $%d. You have $%d.', u.name, u.price, s.money) end
+  if not sl_career.addMoney(-u.price, strings.t('upgrades.garage_1', (u.name))) then return false, string.format(strings.t('upgrades.s_d_you_have_d'), u.name, u.price, s.money) end
   bought(s)[id] = true
   push()
   extensions.hook('onStreetLegalChanged')
-  return true, string.format('%s fitted in the garage. $%d.', u.name, u.price)
+  return true, string.format(strings.t('upgrades.s_fitted_in_the_garage'), u.name, u.price)
 end
 
 -- for the phone's Garage app

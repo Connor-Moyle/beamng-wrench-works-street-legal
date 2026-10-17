@@ -103,13 +103,13 @@ function M.onAnyMissionChanged(change, mission)
     local why = rules.rocGate(s)
     if why then refuse = mission tell(why) return end
     if (s.roc or {}).champion then return end
-    if not sl_career.addMoney(-r.fee, 'ROC entry') then
+    if not sl_career.addMoney(-r.fee, strings.t('activities.roc_entry')) then
       refuse = mission
-      tell(string.format('Entry to the Race of Champions is $%d.', r.fee))
+      tell(string.format(strings.t('activities.entry_to_the_race_of'), r.fee))
       return
     end
     paidFee[mission.id] = true
-    tell(string.format('Race of Champions: $%d paid. Win it for the title.', r.fee))
+    tell(string.format(strings.t('activities.race_of_champions_d_paid'), r.fee))
     return
   end
   if r.kind and not splitphase.available('races', r.kind, sl_career.phase()) then
@@ -136,10 +136,10 @@ function M.onMissionAttemptAggregated(attempt, mission)
     s.roc = s.roc or { round = 0 }
     if passed and rules.rocWon(attempt.unlockedStars) then
       s.roc.champion = true
-      sl_career.payOut(r.prize, 'Race of Champions')
+      sl_career.payOut(r.prize, strings.t('activityrules.race_of_champions'))
       stateLib.addRep(s, r.rep)
-      tell(string.format('Champion! The Race of Champions is yours: $%d and %+d reputation.', r.prize, r.rep))
-      sl_career.sendText('benny', sl_career.mapText('You won the Race of Champions. I always said you had it in you. (I did not.)'), 3)
+      tell(string.format(strings.t('activities.champion_the_race_of_champions'), r.prize, r.rep))
+      sl_career.sendText('benny', sl_career.mapText(strings.t('activities.you_won_the_race_of')), 3)
     else
       tell(strings.t('activities.out_of_the_race_of'))
     end
@@ -162,7 +162,7 @@ function M.onMissionAttemptAggregated(attempt, mission)
   if rep ~= 0 then stateLib.addRep(s, rep) end
   if r.heat then s.heat = math.max(0, math.min(1, (s.heat or 0) + r.heat)) end
   if money > 0 or rep ~= 0 then
-    tell(string.format('%s: %s%s', r.title, money > 0 and ('$' .. money .. ', ') or '', rep ~= 0 and string.format('%+d reputation', rep) or 'done'))
+    tell(string.format('%s: %s%s', r.title, money > 0 and ('$' .. money .. ', ') or '', rep ~= 0 and string.format(strings.t('activities.d_reputation'), rep) or 'done'))
   end
   extensions.hook('onStreetLegalChanged')
 end

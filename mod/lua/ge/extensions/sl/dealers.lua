@@ -5,6 +5,8 @@
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 local rules = require('sl/core/dealers')
 local builder = require('sl/carBuilder')
 local carInfo = require('sl/carInfo')
@@ -74,10 +76,10 @@ function M.buy(placeId, offerId)
   for _, o in ipairs(sl_lot.offersFor(place, s)) do if o.id == offerId then offer = o end end
   local ok, why = rules.canBuy(s, offer)
   if not ok then toast(why) M.offers(placeId) return end
-  if not sl_career.addMoney(-offer.price, 'Bought: ' .. offer.name) then toast(string.format('It is $%d.', offer.price)) return end
+  if not sl_career.addMoney(-offer.price, strings.t('carcare.bought_1', (offer.name))) then toast(string.format('It is $%d.', offer.price)) return end
   local yard = sl_fleet.forecourt(s, 0)
   local order = rules.place(s, offer, placeId, metres(place.pos, yard), now(s))
-  toast(string.format('The %s will be at your garage in about %d hours.', offer.name, order.hours))
+  toast(string.format(strings.t('dealers.the_s_will_be_at'), offer.name, order.hours))
   extensions.hook('onStreetLegalChanged')
   M.offers(placeId)
   M.list()
@@ -104,7 +106,7 @@ local function deliver(s, order)
     s.activeCar = active
     veh:queueLuaCommand('input.event("parkingbrake", 0, FILTER_DIRECT)')
     rules.remove(s, order)
-    sl_career.sendText('benny', string.format('Your %s has been delivered to the garage forecourt.', o.name), 2)
+    sl_career.sendText('benny', string.format(strings.t('dealers.your_s_has_been_delivered'), o.name), 2)
     extensions.hook('onStreetLegalChanged')
     building = false
   end)

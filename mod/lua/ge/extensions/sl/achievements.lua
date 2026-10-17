@@ -4,6 +4,8 @@
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 local ach = require('sl/core/achievements')
 
 local function career() return sl_career and sl_career.isActive() and sl_career.getState() or nil end
@@ -16,7 +18,7 @@ function M.onUpdate(dt)
   timer = 0
   local s = career()
   if not s then return end
-  for _, a in ipairs(ach.update(s)) do toast('Achievement: ' .. sl_career.mapText(a.title) .. ' - ' .. sl_career.mapText(a.desc)) end
+  for _, a in ipairs(ach.update(s)) do toast(strings.t('achievements.achievement_1_2', (sl_career.mapText(a.title)), (sl_career.mapText(a.desc)))) end
 end
 
 local function raceName(r)
@@ -30,12 +32,12 @@ function M.onSlrrRaceFinished(r)
   local s = career()
   if not s or type(r) ~= 'table' or r.abandoned or not r.won then return end
   local key = r.missionId or r.raceId
-  if ach.best(s, key, r.time, raceName(r)) then toast(string.format('Personal best: %s, %.2f s.', raceName(r), r.time)) end
+  if ach.best(s, key, r.time, raceName(r)) then toast(string.format(strings.t('achievements.personal_best_s_2f_s'), raceName(r), r.time)) end
 end
 
 function M.onStreetLegalRaceTimed(key, name, time)
   local s = career()
-  if s and ach.best(s, key, time, name) then toast(string.format('Personal best: %s, %.2f s.', name, time)) end
+  if s and ach.best(s, key, time, name) then toast(string.format(strings.t('achievements.personal_best_s_2f_s'), name, time)) end
 end
 
 -- for the phone's Street cred page

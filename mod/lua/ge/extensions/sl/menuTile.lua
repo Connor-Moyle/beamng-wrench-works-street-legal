@@ -5,6 +5,8 @@
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 local KEY = 'streetLegalRacing'
 local PREVIEW = '/levels/slrr_valo_city/slrr_valo_city_preview.jpg'
 
@@ -18,11 +20,11 @@ end
 function M.onGameplaySelectorGetTiles(items, backend)
   if backend.backendName ~= 'gameplaySelector' then return end
   items[#items + 1] = {
-    key = KEY, name = 'Wrench Works: Street Legal',
+    key = KEY, name = strings.t('menuTile.wrench_works_street_legal'),
     preview = FS:fileExists(PREVIEW) and PREVIEW or nil,
     favouriteIdx = 0, showFavouriteIconPercent = 0,
     showDetails = { key = KEY, streetLegal = true },
-    system = 'Wrench Works: Street Legal', type = 'career', level = 'Valo City or West Coast USA',
+    system = strings.t('menuTile.wrench_works_street_legal'), type = 'career', level = strings.t('menuTile.valo_city_or_west_coast'),
     sourceIcons = {}, order = -1e12,
     validBackends = { gameplaySelector = true },
   }
@@ -36,10 +38,10 @@ function M.onGameplaySelectorGetDetails(itemDetails, details, buttonInstance, ba
   for _, m in ipairs(maps()) do names[#names + 1] = m.name .. (m.installed and '' or ' (not installed)') end
   local specs = {
     { icon = 'flag', label = 'Maps', value = table.concat(names, ', ') },
-    { icon = 'personSolid', label = 'Career', value = summary or 'No career yet' },
+    { icon = 'personSolid', label = 'Career', value = summary or strings.t('menuTile.no_career_yet') },
   }
   if sl_career and sl_career.inMultiplayer and sl_career.inMultiplayer() then
-    specs[#specs + 1] = { icon = 'info', label = 'Multiplayer', value = 'The career is single-player: leave the BeamMP server to play it' }
+    specs[#specs + 1] = { icon = 'info', label = 'Multiplayer', value = strings.t('menuTile.the_career_is_single_player') }
   end
   local buttons = {}
   local function start(fresh, n, level)
@@ -56,7 +58,7 @@ function M.onGameplaySelectorGetDetails(itemDetails, details, buttonInstance, ba
     -- the other careers (save slots); renaming and deleting are on the main menu's career chooser
     for _, c in ipairs(sl_career.listSlots and sl_career.listSlots() or {}) do
       if not c.last then
-        buttons[#buttons + 1] = buttonInstance.addButton(start(false, c.slot), { label = 'Load ' .. c.name .. (c.summary and (' (' .. c.summary .. ')') or ''), icon = 'clapperboard', waitForLoadingScreen = true })
+        buttons[#buttons + 1] = buttonInstance.addButton(start(false, c.slot), { label = strings.t('menuTile.load_1_2', (c.name), (c.summary and (' (' .. c.summary .. ')') or '')), icon = 'clapperboard', waitForLoadingScreen = true })
       end
     end
     local firstMap = true
@@ -64,17 +66,14 @@ function M.onGameplaySelectorGetDetails(itemDetails, details, buttonInstance, ba
       if m.installed then
         local main = firstMap and not summary          -- (one primary button: the first map's)
         firstMap = false
-        buttons[#buttons + 1] = buttonInstance.addButton(start(true, nil, m.id), { label = 'New career: ' .. m.name, icon = 'flag',
+        buttons[#buttons + 1] = buttonInstance.addButton(start(true, nil, m.id), { label = strings.t('menuTile.new_career_1', (m.name)), icon = 'flag',
           primary = main, isDoubleClickAction = main, waitForLoadingScreen = true })
       end
     end
   end
   details[#details + 1] = {
-    headerTitle = 'Wrench Works: Street Legal',
-    description = 'No car, a few thousand in your pocket and a name nobody knows. Buy a wreck at the junkyard, '
-      .. 'build it up in your garage, race the city\'s street racers for money and pink slips, and climb from the first garage to the top. '
-      .. 'Played on Valo City or West Coast USA.'
-      .. (installed and '' or '\n\nThis needs the Valo City map mod (level slrr_valo_city) or West Coast USA.'),
+    headerTitle = strings.t('menuTile.wrench_works_street_legal'),
+    description = strings.t('menuTile.no_car_a_few_thousand', (installed and '' or strings.t('menuTile.this_needs_the_valo_city'))),
     preview = FS:fileExists(PREVIEW) and PREVIEW or nil,
     isFavourite = backend.isFavourite(itemDetails.key),
     specifications = { specs },

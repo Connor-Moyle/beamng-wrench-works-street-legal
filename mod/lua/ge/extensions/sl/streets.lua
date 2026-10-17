@@ -235,7 +235,7 @@ local function finish(playerWon)
       end
       opp:delete()
       racer.car = nil                                           -- they will turn up in something else
-      if ui_message then ui_message(string.format('You won the %s off %s. It is waiting at your garage.', car and car.name or 'car', r.name), 8, 'streetLegal') end
+      if ui_message then ui_message(string.format(strings.t('streets.you_won_the_s_off'), car and car.name or 'car', r.name), 8, 'streetLegal') end
     elseif not playerWon then
       local mine = sl_fleet.currentCar()
       if mine then
@@ -246,14 +246,14 @@ local function finish(playerWon)
           job.sleep(1.5)
           despawn(lostId)                                       -- driven off into the night
         end)
-        if ui_message then ui_message(r.name .. ' takes your car. You are walking home.', 8, 'streetLegal') end
+        if ui_message then ui_message(strings.t('streets.1_takes_your_car_you', (r.name)), 8, 'streetLegal') end
       end
       if opp then opp:delete() end
     end
   else
     if ui_message then
-      ui_message(playerWon and string.format('You beat %s: +$%d, %+d reputation.', r.name, r.bet, repDelta)
-        or string.format('%s won. -$%d, %+d reputation.', r.name, r.bet, repDelta), 7, 'streetLegal')
+      ui_message(playerWon and string.format(strings.t('streets.you_beat_s_d_d'), r.name, r.bet, repDelta)
+        or string.format(strings.t('streets.s_won_d_d_reputation'), r.name, r.bet, repDelta), 7, 'streetLegal')
     end
     core_jobsystem.create(function(job) job.sleep(12) despawn(r.vid) end)
   end
@@ -292,14 +292,14 @@ local function updateRace(dt)
               last = q
             end
           end
-          opp:queueLuaCommand('controller.setFreeze(0) input.event("parkingbrake", 0, FILTER_DIRECT) ai.startFollowing(' ..
-            serialize({ path = path }) .. ', 0, 1, "neverReset")')
+          opp:queueLuaCommand(strings.t('streets.controller_setfreeze_0_input_event') ..
+            serialize({ path = path }) .. strings.t('streets.0_1_neverreset'))
         elseif #wps >= #race.circuit.cps * 0.8 and not race.circuit.sprint then
-          opp:queueLuaCommand(string.format("controller.setFreeze(0) input.event('parkingbrake', 0, FILTER_DIRECT) ai.setSpeedMode('off') ai.setRecoverOnCrash(true) ai.setAvoidCars('on') ai.driveInLane('off') ai.setAggression(%f) ai.driveUsingPath(%s)",
+          opp:queueLuaCommand(string.format(strings.t('streets.controller_setfreeze_0_input_event_2'),
             aggression, serialize({ wpTargetList = wps, noOfLaps = race.circuit.laps, aggression = aggression })))
         else
-          opp:queueLuaCommand('controller.setFreeze(0) input.event("parkingbrake", 0, FILTER_DIRECT) ai.startFollowing(' ..
-            serialize({ path = circuitPath(race.circuit.route or race.circuit.cps, race.circuit.sprint and 1 or race.circuit.laps, race.skill or 0.5, race.circuit.sprint) }) .. ', 0, 1, "neverReset")')
+          opp:queueLuaCommand(strings.t('streets.controller_setfreeze_0_input_event') ..
+            serialize({ path = circuitPath(race.circuit.route or race.circuit.cps, race.circuit.sprint and 1 or race.circuit.laps, race.skill or 0.5, race.circuit.sprint) }) .. strings.t('streets.0_1_neverreset'))
         end
       else
         aiGo(race.vid, race.destNode, race.skill)
@@ -445,7 +445,7 @@ local function challenge(id, vid)
   end
   s.known[id] = true                            -- after a race you have their number
   if startRace(racer, vid, 'money', answer.bet, false) and ui_message then
-    ui_message(string.format('%s takes you on: $%d, to %s. Go!', roster.displayName(racer), answer.bet, race.destName), 6, 'streetLegal')
+    ui_message(string.format(strings.t('streets.s_takes_you_on_d'), roster.displayName(racer), answer.bet, race.destName), 6, 'streetLegal')
   end
 end
 
@@ -569,7 +569,7 @@ local function startMeet(s)
     busy = false
   end)
   local who = racers[1] or s.racers[1]
-  sl_career.sendText(s.known[who.id] and who.id or 'benny', theme.name .. ' at ' .. place.name .. ': ' .. theme.blurb .. ' Bring something fast.', 2)
+  sl_career.sendText(s.known[who.id] and who.id or 'benny', strings.t('streets.1_at_2_3_bring', (theme.name), (place.name), (theme.blurb)), 2)
   return true
 end
 
@@ -637,7 +637,7 @@ local function updateMeet(s, dt)
   -- a marker over the meet so it can be found (the map's own markers do it where they are)
   if not slrrValoPois and v and (v:getPosition() - meet.place.pos):length() < 400 then
     debugDrawer:drawCylinder(meet.place.pos, meet.place.pos + vec3(0, 0, 4), 0.25, ColorF(0.7, 0.2, 1, 0.5))
-    debugDrawer:drawTextAdvanced(meet.place.pos + vec3(0, 0, 4.5), String('Car meet'), ColorF(1, 1, 1, 1), true, false, ColorI(60, 0, 90, 200))
+    debugDrawer:drawTextAdvanced(meet.place.pos + vec3(0, 0, 4.5), String(strings.t('streets.car_meet')), ColorF(1, 1, 1, 1), true, false, ColorI(60, 0, 90, 200))
   end
 end
 
@@ -684,7 +684,7 @@ function M.meetTalk(key)
       sendMeet(false)
       if sl_lot and sl_lot.openPrivate then sl_lot.openPrivate(made, o.pos, o.name) end
     else
-      guihooks.trigger('slPhoneToast', { text = o.name .. ': "Not today after all."' })
+      guihooks.trigger('slPhoneToast', { text = strings.t('streets.1_not_today_after_all', (o.name)) })
     end
   else
     guihooks.trigger('slPhoneToast', { text = o.name .. ': "' .. offer.text .. '"' })
@@ -702,8 +702,8 @@ function M.showAndShine()
   local s = career()
   if not s or not meet or meet.judged or race then return end
   local car = sl_fleet.currentCar()
-  if not car then return guihooks.trigger('slPhoneToast', { text = 'Bring one of your cars.' }) end
-  if not sl_career.addMoney(-showshine.FEE, 'Show and shine entry') then return guihooks.trigger('slPhoneToast', { text = 'Not enough for the entry.' }) end
+  if not car then return guihooks.trigger('slPhoneToast', { text = strings.t('clubs.bring_one_of_your_cars') }) end
+  if not sl_career.addMoney(-showshine.FEE, strings.t('streets.show_and_shine_entry')) then return guihooks.trigger('slPhoneToast', { text = strings.t('streets.not_enough_for_the_entry') }) end
   meet.judged = true
   local rng = rngLib.new(rngLib.hash('shine:' .. s.day .. ':' .. meet.place.id))
   local rivals = {}
@@ -714,11 +714,11 @@ function M.showAndShine()
   local mine = showshine.score({ value = car.value, condition = car.condition, dents = car.damage and car.damage.beams and #car.damage.beams or 0,
     washed = sl_station and sl_station.washedToday and sl_station.washedToday(car.id) })
   local place, prize, rep = showshine.result(mine, rivals)
-  if prize > 0 then sl_career.payOut(prize, 'Show and shine: ' .. place .. (place == 1 and 'st' or place == 2 and 'nd' or 'rd')) end
+  if prize > 0 then sl_career.payOut(prize, strings.t('streets.show_and_shine_1_2', (place), (place == 1 and 'st' or place == 2 and 'nd' or 'rd'))) end
   if rep > 0 then stateLib.addRep(s, rep) end
   local ord = ({ 'first', 'second', 'third' })[place] or (place .. 'th')
-  guihooks.trigger('slPhoneToast', { text = string.format('Show and shine: the %s comes %s of %d.%s', car.name, ord, #rivals + 1,
-    prize > 0 and string.format(' $%d, +%d reputation.', prize, rep) or ' Clean it up and try again.') })
+  guihooks.trigger('slPhoneToast', { text = string.format(strings.t('streets.show_and_shine_the_s'), car.name, ord, #rivals + 1,
+    prize > 0 and string.format(strings.t('streets.d_d_reputation'), prize, rep) or strings.t('streets.clean_it_up_and_try')) })
   sendMeet(true)
   extensions.hook('onStreetLegalChanged')
 end
@@ -794,7 +794,7 @@ local function startCircuit(racer, vid, stake, bet, track)
   if not v or race then return false end
   local laps = track.laps or ROC_LAPS
   race = { racer = racer.id, name = roster.displayName(racer), vid = vid, stake = stake, bet = bet,
-    destName = track.name .. (track.sprint and ', to the finish' or ', ' .. laps .. ' laps'),
+    destName = track.name .. (track.sprint and strings.t('streets.to_the_finish') or strings.t('streets.1_laps', (laps))),
     t = 0, countdown = 3.5, skill = racer.skill,
     circuit = { cps = track.cps, laps = laps, sprint = track.sprint, route = track.route, line = track.line, lapEndsAtLast = track.lapEndsAtLast, me = { k = 0 }, them = { k = 0 } } }
   if core_groundMarkers then core_groundMarkers.setPath(nil) end
@@ -861,7 +861,7 @@ function M.trackRace(racerId, trackId)
   local v = playerCar()
   if not v or not sl_fleet.currentCar() then return false, strings.t('streets.bring_your_own_car') end
   local bet = math.floor(((racer.betMin or 100) + (racer.betMax or 300)) / 2 / 50) * 50
-  if bet > s.money then return false, string.format('$%d on it, and you have $%d.', bet, s.money) end   -- (recordRace only takes what you have: a free roll otherwise)
+  if bet > s.money then return false, string.format(strings.t('streets.d_on_it_and_you'), bet, s.money) end   -- (recordRace only takes what you have: a free roll otherwise)
   busy = true
   core_jobsystem.create(function(job)
     guihooks.trigger('slFade', { on = true })
@@ -915,7 +915,7 @@ function M.enterRoc()
   if roc.champion then return false, strings.t('streets.you_are_the_champion_nobody') end
   local v = playerCar()
   if not v or not sl_fleet.currentCar() then return false, strings.t('streets.bring_your_own_car_to') end
-  if roc.round == 0 and not sl_career.addMoney(-progression.ROC.entry, 'ROC entry') then return false, string.format('Entry is $%d.', progression.ROC.entry) end
+  if roc.round == 0 and not sl_career.addMoney(-progression.ROC.entry, strings.t('activities.roc_entry')) then return false, string.format(strings.t('streets.entry_is_d'), progression.ROC.entry) end
   local rival = champions(s)[3 - roc.round] or champions(s)[1]
   if not rival then return false, strings.t('clubs.nobody_to_race') end
   local spot = scenetree.findObject('spawn_roc')
@@ -954,7 +954,7 @@ function M.enterRoc()
     else started = startRace(rival, veh:getID(), 'money', bet, true, 1500) end
     if started then
       race.roc = true
-      if ui_message then ui_message(string.format('ROC round %d of 3: %s. $%d.', roc.round + 1, roster.displayName(rival), bet), 6, 'streetLegal') end
+      if ui_message then ui_message(string.format(strings.t('streets.roc_round_d_of_3'), roc.round + 1, roster.displayName(rival), bet), 6, 'streetLegal') end
     end
   end)
   return true, strings.t('streets.to_the_roc')
@@ -970,11 +970,11 @@ finish = function(playerWon)
     roc.round = roc.round + 1
     if roc.round >= 3 then
       roc.champion = true
-      sl_career.payOut(250000, 'ROC champion')
+      sl_career.payOut(250000, strings.t('streets.roc_champion'))
       stateLib.addRep(s, 2000)
-      sl_career.sendText('benny', sl_career.mapText('You won the ROC. Champion of Valo City. I always said you had it in you. (I did not.)'), 3)
+      sl_career.sendText('benny', sl_career.mapText(strings.t('streets.you_won_the_roc_champion')), 3)
     else
-      sl_career.sendText('benny', string.format('Round %d of the ROC done. Two more, then one. Call it in from the phone when you are ready.', roc.round), 3)
+      sl_career.sendText('benny', string.format(strings.t('streets.round_d_of_the_roc'), roc.round), 3)
     end
   else
     roc.round = 0

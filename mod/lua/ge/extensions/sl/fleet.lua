@@ -200,11 +200,11 @@ function M.tow(carId)
   local from = veh and veh:getPosition() or pos
   if veh and (from - pos):length() < 25 then return false, strings.t('fleet.it_is_at_the_garage') end
   local fee = progression.towFee((from - pos):length())
-  if not sl_career.addMoney(-fee, 'Tow: ' .. car.name) then return false, string.format('The tow is $%d. You have $%d.', fee, s.money) end
+  if not sl_career.addMoney(-fee, strings.t('fleet.tow_1', (car.name))) then return false, string.format(strings.t('fleet.the_tow_is_d_you'), fee, s.money) end
   -- a real truck comes for a car out on the street (sl_tow); one not spawned is simply brought round
-  if veh and sl_tow and sl_tow.send(carId, veh, fee) then return true, string.format('A tow truck is on its way to the %s. $%d to your garage.', car.name, fee) end
+  if veh and sl_tow and sl_tow.send(carId, veh, fee) then return true, string.format(strings.t('fleet.a_tow_truck_is_on'), car.name, fee) end
   M.deliver(carId)
-  return true, string.format('The truck has it. $%d, delivered to your garage.', fee)
+  return true, string.format(strings.t('fleet.the_truck_has_it_d'), fee)
 end
 
 -- the car is put on the garage forecourt as it is (the tow's end)
@@ -239,7 +239,7 @@ function M.despawn(carId)
   local car = s and carById(s, carId)
   if not car then return false, strings.t('carcare.no_such_car') end
   local veh = M.vehicleOf(carId)
-  if not veh then return false, 'The ' .. car.name .. ' is in the garage already.' end
+  if not veh then return false, strings.t('fleet.the_1_is_in_the', (car.name)) end
   core_jobsystem.create(function(job)
     local player = getPlayerVehicle(0)
     if player and player:getID() == veh:getID() and gameplay_walk then gameplay_walk.setWalkingMode(true, nil, nil, true) job.sleep(0.6) end
@@ -251,7 +251,7 @@ function M.despawn(carId)
     spawned[carId] = nil
     extensions.hook('onStreetLegalChanged')
   end)
-  return true, 'The ' .. car.name .. ' is put away in your garage.'
+  return true, strings.t('fleet.the_1_is_put_away', (car.name))
 end
 
 -- go into the garage with a car of yours (bringing it out front first when it is stored): the Wrench Works garage opens on it
@@ -273,10 +273,10 @@ function M.workOn(carId)
     if veh then
       s.activeCar = carId
       local ok, why = slrr_garage.enterWith(veh:getID(), 'work')
-      if not ok then guihooks.trigger('slPhoneToast', { text = why or 'Not now.' }) end
+      if not ok then guihooks.trigger('slPhoneToast', { text = why or strings.t('career.not_now') }) end
     end
   end)
-  return true, 'The ' .. car.name .. ' goes in.'
+  return true, strings.t('fleet.the_1_goes_in', (car.name))
 end
 
 -- drive another of your cars: it comes out of the garage, the one you had goes in
@@ -284,13 +284,13 @@ function M.setActive(carId)
   local s = career()
   local car = s and carById(s, carId)
   if not car then return false, strings.t('carcare.no_such_car') end
-  if car.impounded then return false, string.format('It is in the police impound: $%d to get it back.', car.impounded) end
+  if car.impounded then return false, string.format(strings.t('fleet.it_is_in_the_police_2'), car.impounded) end
   if s.activeCar == carId and M.vehicleOf(carId) then return false, strings.t('fleet.you_have_that_one_out') end
   local player = getPlayerVehicle(0)
   if not player or not M.atGarage(player:getPosition(), s) then return false, strings.t('fleet.swap_cars_at_your_garage') end
   local old = s.activeCar and carById(s, s.activeCar)
   local oldVeh = old and M.vehicleOf(old.id)
-  if oldVeh and not M.atGarage(oldVeh:getPosition(), s) then return false, 'Bring the ' .. old.name .. ' back to the garage first (or have it towed).' end
+  if oldVeh and not M.atGarage(oldVeh:getPosition(), s) then return false, strings.t('fleet.bring_the_1_back_to', (old.name)) end
   core_jobsystem.create(function(job)
     if oldVeh then
       M.snapshot(true)                                              -- its dents too: the car is about to go
@@ -311,7 +311,7 @@ function M.setActive(carId)
     s.activeCar = carId
     extensions.hook('onStreetLegalChanged')
   end)
-  return true, 'The ' .. car.name .. ' is out front.'
+  return true, strings.t('fleet.the_1_is_out_front', (car.name))
 end
 
 -- sold to a lot or scrapped: where the player stands decides who buys it and for how much
@@ -327,10 +327,10 @@ function M.sell(carId, to)
   if veh then veh:delete() end
   spawned[carId] = nil
   stateLib.removeCar(s, carId)
-  sl_career.addMoney(price, (to == 'scrap' and 'Scrapped: ' or 'Sold: ') .. car.name)
+  sl_career.addMoney(price, (to == 'scrap' and strings.t('fleet.scrapped') or strings.t('fleet.sold')) .. car.name)
   extensions.hook('onStreetLegalCarSold', car, price, to)       -- (the job board counts the profit)
   extensions.hook('onStreetLegalChanged')
-  return true, string.format('%s the %s for $%d.', to == 'scrap' and 'Scrapped' or 'Sold', car.name, price), price
+  return true, string.format(strings.t('fleet.s_the_s_for_d'), to == 'scrap' and 'Scrapped' or 'Sold', car.name, price), price
 end
 
 -- lost (a pink slip): the car is gone, with the player out of it
@@ -355,10 +355,10 @@ function M.list()
   local player = getPlayerVehicle(0)
   for _, c in ipairs(s.cars) do
     local veh = M.vehicleOf(c.id)
-    local where = 'In the garage'
+    local where = strings.t('fleet.in_the_garage')
     if veh then
-      where = M.atGarage(veh:getPosition(), s) and 'At the garage' or 'Out on the street'
-      if player and player:getID() == veh:getID() then where = 'You are driving it' end
+      where = M.atGarage(veh:getPosition(), s) and strings.t('fleet.at_the_garage') or strings.t('fleet.out_on_the_street')
+      if player and player:getID() == veh:getID() then where = strings.t('fleet.you_are_driving_it') end
     end
     out[#out + 1] = {
       id = c.id, name = c.name, brand = c.brand, active = s.activeCar == c.id, where = where, out = veh ~= nil,

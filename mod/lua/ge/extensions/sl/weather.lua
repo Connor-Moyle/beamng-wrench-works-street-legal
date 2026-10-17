@@ -6,6 +6,8 @@
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 local rules = require('sl/core/weather')
 
 local current, target            -- the sky now and where it is going: { drops, cloud, fog, grip }
@@ -73,7 +75,7 @@ end
 local function pushGrip(force)
   local v = getPlayerVehicle(0)
   if not v or v:getJBeamFilename() == 'unicycle' then return end
-  v:queueLuaCommand(string.format('if slCar and slCar.setGrip then slCar.setGrip(%f) end', current and current.grip or 1))
+  v:queueLuaCommand(string.format(strings.t('weather.if_slcar_and_slcar_setgrip'), current and current.grip or 1))
 end
 
 function M.onStreetLegalStarted() lastKey = nil sync() end

@@ -7,6 +7,8 @@
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 local flaresLib = require('sl/core/flares')
 
 local SHAPE_DIR = '/temp/street_legal/shapes/'
@@ -47,21 +49,21 @@ local function boxesToDae(boxes)
     end
   end
   local out = {
-    '<?xml version="1.0" encoding="utf-8"?>',
-    '<COLLADA xmlns="http://www.collada.org/2005/11/COLLADASchema" version="1.4.1">',
+    strings.t('markers.xml_version_1_0_encoding'),
+    strings.t('markers.collada_xmlns_http_www_collada'),
     '<asset><unit name="meter" meter="1"/><up_axis>Z_UP</up_axis></asset>',
     '<library_effects><effect id="fx"><profile_COMMON><technique sid="common"><phong><diffuse><color>1 1 1 1</color></diffuse></phong></technique></profile_COMMON></effect></library_effects>',
     '<library_materials>',
   }
-  for _, name in ipairs(order) do out[#out + 1] = string.format('<material id="%s-material" name="%s"><instance_effect url="#fx"/></material>', name, name) end
+  for _, name in ipairs(order) do out[#out + 1] = string.format(strings.t('markers.material_id_s_material_name'), name, name) end
   out[#out + 1] = '</library_materials><library_geometries><geometry id="mesh" name="mesh"><mesh>'
-  out[#out + 1] = string.format('<source id="pos"><float_array id="pos-array" count="%d">%s</float_array><technique_common><accessor source="#pos-array" count="%d" stride="3"><param name="X" type="float"/><param name="Y" type="float"/><param name="Z" type="float"/></accessor></technique_common></source>', count * 3, table.concat(positions, ' '), count)
+  out[#out + 1] = string.format(strings.t('markers.source_id_pos_float_array'), count * 3, table.concat(positions, ' '), count)
   out[#out + 1] = '<source id="nrm"><float_array id="nrm-array" count="18">1 0 0 -1 0 0 0 1 0 0 -1 0 0 0 1 0 0 -1</float_array><technique_common><accessor source="#nrm-array" count="6" stride="3"><param name="X" type="float"/><param name="Y" type="float"/><param name="Z" type="float"/></accessor></technique_common></source>'
   out[#out + 1] = '<vertices id="vtx"><input semantic="POSITION" source="#pos"/></vertices>'
   local binds = {}
   for _, name in ipairs(order) do
-    out[#out + 1] = string.format('<triangles material="%s-material" count="%d"><input semantic="VERTEX" source="#vtx" offset="0"/><input semantic="NORMAL" source="#nrm" offset="1"/><p>%s</p></triangles>', name, #groups[name] * 2, table.concat(groups[name], ' '))
-    binds[#binds + 1] = string.format('<instance_material symbol="%s-material" target="#%s-material"/>', name, name)
+    out[#out + 1] = string.format(strings.t('markers.triangles_material_s_material_count'), name, #groups[name] * 2, table.concat(groups[name], ' '))
+    binds[#binds + 1] = string.format(strings.t('markers.instance_material_symbol_s_material'), name, name)
   end
   out[#out + 1] = '</mesh></geometry></library_geometries>'
   out[#out + 1] = '<library_visual_scenes><visual_scene id="Scene" name="Scene"><node id="slflare" name="slflare" type="NODE"><instance_geometry url="#mesh" name="slflare"><bind_material><technique_common>' .. table.concat(binds) .. '</technique_common></bind_material></instance_geometry></node></visual_scene></library_visual_scenes>'

@@ -18,7 +18,7 @@ local CRASH_DAMAGE = 2000     -- this much more since the last report (2 s) is a
 local settleUntil = {}        -- vehicle id -> clock: its saved dents are still going back on until then
 local lookAgain = {}          -- vehicle id -> clock: a crash was caught mid-way; look again once it has settled
 
-local ASK_CONDITIONS = [[obj:queueGameEngineLua(string.format('if sl_carcare then sl_carcare.onConditions(%d,%s) end', obj:getId(), serialize(partCondition.getConditions())))]]
+local ASK_CONDITIONS = strings.t('carcare.obj_queuegameenginelua_string_format_if')
 
 local function career() return sl_career and sl_career.isActive() and sl_career.getState() or nil end
 
@@ -77,9 +77,9 @@ local function attach(vid, car)
   if car.conditions then
     veh:queueLuaCommand('partCondition.initConditions(' .. serialize(car.conditions) .. ')')
   else
-    veh:queueLuaCommand(string.format('partCondition.initConditions(nil, %d, 1, 1)', math.floor((c.engineKm or 0) * 1000)))
+    veh:queueLuaCommand(string.format(strings.t('carcare.partcondition_initconditions_nil_d_1'), math.floor((c.engineKm or 0) * 1000)))
   end
-  veh:queueLuaCommand('if slCar then slCar.setState(' .. serialize({ battery = c.battery, engineKm = c.engineKm, oilKm = c.oilKm, fuel = c.fuel,
+  veh:queueLuaCommand(strings.t('carcare.if_slcar_then_slcar_setstate') .. serialize({ battery = c.battery, engineKm = c.engineKm, oilKm = c.oilKm, fuel = c.fuel,
     oilLevel = c.oilLevel, coolantLevel = c.coolantLevel, fuelLevel = c.fuelLevel, n2o = c.n2o, abuse = c.abuse }) .. ') end')
   -- the driver chosen for this car in the garage (SLRR Drivers mod), back in the seat
   -- (none chosen yet: the mod's default, also for a car bought straight off a lot, where the seats are empty)
@@ -183,7 +183,7 @@ function M.refill(carId, kind, amount, fuelId)
   local c = M.careOf(car)
   if kind == 'battery' then c.battery = 1 end
   if kind == 'fuel' and fuelId then c.fuel = fuelId end
-  veh:queueLuaCommand(string.format('if slCar then slCar.refill(%q, %s, %s) end', kind, tostring(amount or 0), fuelId and string.format('%q', fuelId) or 'nil'))
+  veh:queueLuaCommand(string.format(strings.t('carcare.if_slcar_then_slcar_refill'), kind, tostring(amount or 0), fuelId and string.format('%q', fuelId) or 'nil'))
   return true
 end
 
@@ -202,7 +202,7 @@ function M.useItem(carId, itemId)
   local use = USE[itemId]
   M.refill(carId, use[1], use[2], itemId == 'fuelCan' and (c.canFuel or c.fuel) or nil)
   extensions.hook('onStreetLegalChanged')
-  return true, ({ oil = 'Oil topped up.', coolant = 'Coolant topped up.', battery = 'New battery in.', fuelCan = 'The can went in the tank.' })[itemId]
+  return true, ({ oil = strings.t('carcare.oil_topped_up'), coolant = strings.t('carcare.coolant_topped_up'), battery = strings.t('carcare.new_battery_in'), fuelCan = strings.t('carcare.the_can_went_in_the') })[itemId]
 end
 
 -- buy something into a car's trunk (at a gas station or the garage)
@@ -213,10 +213,10 @@ function M.buyItem(carId, itemId)
   if not car or not item then return false, strings.t('carcare.nothing_to_buy') end
   local c = M.careOf(car)
   if #c.trunk >= rules.TRUNK_SLOTS then return false, strings.t('carcare.the_trunk_is_full') end
-  if not sl_career.addMoney(-item.price, 'Bought: ' .. item.name) then return false, string.format('It is $%d. You have $%d.', item.price, s.money) end
+  if not sl_career.addMoney(-item.price, strings.t('carcare.bought_1', (item.name))) then return false, string.format(strings.t('dealers.it_is_d_you_have'), item.price, s.money) end
   rules.trunkAdd(c.trunk, itemId)
   extensions.hook('onStreetLegalChanged')
-  return true, item.name .. ' in the trunk.'
+  return true, strings.t('carcare.1_in_the_trunk', (item.name))
 end
 
 -- what the phone shows of a car
@@ -237,7 +237,7 @@ function M.onStreetLegalRaceResult(won, opponent)
   local h = M.historyOf(car)
   h.races = (h.races or 0) + 1
   if won then h.wins = (h.wins or 0) + 1 end
-  M.note(car, (won and 'Beat ' or 'Lost to ') .. tostring(opponent or 'a racer'))
+  M.note(car, (won and 'Beat ' or strings.t('carcare.lost_to')) .. tostring(opponent or 'a racer'))
 end
 
 -- a big hit (the garage's damage report says how bad the body is): a wreck in its history

@@ -7,6 +7,8 @@
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 local progression = require('sl/core/progression')
 
 local function career() return sl_career and sl_career.isActive() and sl_career.getState() or nil end
@@ -34,8 +36,8 @@ function M.onSlrrDriverInjured(vehId, injuries)
   if not career() or type(injuries) ~= 'table' or not injuries.player then return end
   if injuries.level == 'unconscious' then return M.toHospital(vehId, injuries.severity, false) end
   if injuries.level == 'broken' then
-    local paid = bill(M.doctorBill(injuries), "Doctor's bill")
-    sl_career.sendText('benny', string.format("You went to the doctor? That's $%d. Rest up: no racing until it heals.", paid), 4)
+    local paid = bill(M.doctorBill(injuries), strings.t('hospital.doctor_s_bill'))
+    sl_career.sendText('benny', string.format(strings.t('hospital.you_went_to_the_doctor'), paid), 4)
   end
 end
 
@@ -60,7 +62,7 @@ function M.toHospital(vehId, severity, died)
     local paid = bill(M.hospitalBill(severity, died), 'Hospital')
     job.sleep(1.0)
     guihooks.trigger('slFade', { on = false })
-    sl_career.sendText('benny', string.format('You gave us a scare. The hospital took $%d%s, and your car is outside the garage, the state it was in.',
+    sl_career.sendText('benny', string.format(strings.t('hospital.you_gave_us_a_scare'),
       paid, died and ' (they say you were gone for a minute there)' or ''), 3)
     extensions.hook('onStreetLegalChanged')
   end)
