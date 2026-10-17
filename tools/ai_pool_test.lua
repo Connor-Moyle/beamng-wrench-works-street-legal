@@ -78,4 +78,25 @@ return function(check, rngLib)
   check('a ride to a dealer ends at its arrival spot in the car park (not the lane-nudged position), facing the cars', drop and drop.x == 10 and drop.y == 20 and drop.z == 5 and drop.dy == -1)
   check('the used lot and the scrap yard too; a garage, a meet or nothing: no drop spot (the lane, as before)', CP.dropAt({ kind = 'junkyard', pos = { x = 1, y = 2, z = 3 } }).x == 1 and CP.dropAt({ kind = 'scrapyard', at = { x = 4, y = 5, z = 6 } }).z == 6
     and CP.dropAt({ kind = 'garage', pos = { x = 1, y = 2, z = 3 } }) == nil and CP.dropAt({ kind = 'meet', pos = { x = 1, y = 2, z = 3 } }) == nil and CP.dropAt(nil) == nil)
+
+  -- B66: a street racer is a road car (no limousine, bus, van, truck, ambulance or police car), and the race leaves the way the cars face
+  local function cfg(name, body, ctype, aggBody) return { name = name, model = 'm', config = name, raw = { ['Body Style'] = body, ['Config Type'] = ctype, aggregates = aggBody and { ['Body Style'] = { [aggBody] = true } } or nil } } end
+  check('a sedan, a coupe, a wagon, an SUV, a pickup race', C.racerOk(cfg('Sunburst', 'Sedan', 'Factory')) and C.racerOk(cfg('Covet', 'Hatchback', 'Factory')) and C.racerOk(cfg('Barstow', 'Coupe', 'Factory'))
+    and C.racerOk(cfg('Roamer', 'SUV', 'Factory')) and C.racerOk(cfg('D-Series', 'Pickup', 'Factory')) and C.racerOk(cfg('Wagon', 'Wagon', 'Custom')))
+  check('a limousine, a bus, a van, a truck, an ambulance do not (body style, any case or spaces, or the aggregate)', not C.racerOk(cfg('Grand Marshal Limo', 'Limousine', 'Factory')) and not C.racerOk(cfg('City', 'Bus', 'Factory'))
+    and not C.racerOk(cfg('H', 'Van', 'Factory')) and not C.racerOk(cfg('T', 'Fifth Wheel Truck ', 'Factory')) and not C.racerOk(cfg('A', 'Ambulance', 'Service'))
+    and not C.racerOk(cfg('X', ' limousine ', 'Factory')) and not C.racerOk({ name = 'Y', raw = { aggregates = { ['Body Style'] = { Limousine = true } } } }))
+  check('a police or service config does not; a name with the word limo or bus does; Bluebuck and Sunburst do not trip it', not C.racerOk(cfg('Cop', 'Sedan', 'Police')) and not C.racerOk(cfg('Fire', 'Sedan', 'Service'))
+    and not C.racerOk({ name = 'Fullsize Limo Luxe' }) and not C.racerOk({ name = 'Citybus' .. ' bus city' }) and C.racerOk({ name = 'Bluebuck' }) and C.racerOk({ name = 'Sunburst 2.0' }))
+  check('no raw entry: allowed; nothing at all: not', C.racerOk({ name = 'Covet' }) and not C.racerOk(nil))
+  local RA = require('sl/core/races')
+  local nodes = { a = { pos = { x = 0, y = 0, z = 0 }, links = {} }, b = { pos = { x = 3, y = 0, z = 0 }, links = {} }, c = { pos = { x = 3, y = 40, z = 0 }, links = {} }, d = { pos = { x = 3, y = 90, z = 0 }, links = {} } }
+  local path = { 'a', 'b', 'c', 'd' }
+  local first, ahead = RA.routeDir(nodes, path), RA.routeDir(nodes, path, 25)
+  check('the route leaves along the first edge, or (25 m ahead) by where it really goes: a 3 m first edge east then north', first.x == 1 and first.y == 0 and ahead.y > 0.99 * math.sqrt(1 - ahead.x ^ 2) and ahead.y > 0.9)
+  check('a route shorter than the lookahead uses the first edge', RA.routeDir(nodes, { 'a', 'b' }, 25).x == 1 and RA.routeDir(nodes, { 'a' }, 25) == nil)
+  local wps = RA.waypoints({ 'n1', 'n2', 'n3', 'n4', 'n5', 'n6', 'n7', 'n8', 'n9', 'n10', 'n11', 'n12', 'n13', 'n14', 'n15', 'n16', 'n17', 'n18', 'n19', 'n20' }, 4)
+  check('the markers follow the race route: a few waypoints along it, the goal last', #wps <= 5 and wps[#wps] == 'n20' and wps[1] ~= 'n1' and #wps >= 3 and #RA.waypoints({}, 4) == 0 and RA.waypoints({ 'x', 'y' }, 4)[1] == 'y')
+  check('facing: a car along the route is fine, across is not, backwards is not, no direction is not', RA.facingOk({ x = 0, y = 1 }, { x = 0, y = 1 }) and RA.facingOk({ x = 0.2, y = 1 }, { x = 0, y = 1 })
+    and not RA.facingOk({ x = 1, y = 0 }, { x = 0, y = 1 }) and not RA.facingOk({ x = 0, y = -1 }, { x = 0, y = 1 }) and not RA.facingOk({ x = 0, y = 0 }, { x = 0, y = 1 }))
 end

@@ -120,9 +120,40 @@ function M.lineUp(startPos, dir, gap)
            opponent = { pos = { x = startPos.x - rx * h, y = startPos.y - ry * h, z = startPos.z }, dir = dir } }
 end
 
-function M.routeDir(nodes, path)
+-- the way the route leaves the start: the first edge, or (ahead, metres) the direction to the point that far along the route, so a tiny first
+-- edge at a junction does not decide it
+function M.routeDir(nodes, path, ahead)
   if #path < 2 or not (nodes[path[1]] and nodes[path[2]]) then return nil end
+  if ahead then
+    local walked, prev = 0, nodes[path[1]].pos
+    for i = 2, #path do
+      local n = nodes[path[i]]
+      if not n then break end
+      walked = walked + M.dist2d(prev, n.pos)
+      if walked >= ahead then return unitDir(nodes[path[1]].pos, n.pos) or unitDir(nodes[path[1]].pos, nodes[path[2]].pos) end
+      prev = n.pos
+    end
+  end
   return unitDir(nodes[path[1]].pos, nodes[path[2]].pos)
+end
+
+-- node names along the race's real route, at most `count` of them evenly spaced, ending with the goal: the markers and the opponent's AI
+-- follow these (a single destination lets the game's planner pick any way, even one that leaves the other way)
+function M.waypoints(path, count)
+  count = math.max(2, count or 12)
+  local out = {}
+  if #path == 0 then return out end
+  local step = math.max(1, math.floor(#path / count))
+  for i = step + 1, #path - 1, step do out[#out + 1] = path[i] end
+  out[#out + 1] = path[#path]
+  return out
+end
+
+-- are two cars facing the way of the route: a forward { x, y } against dir
+function M.facingOk(fwd, dir, minDot)
+  local l = math.sqrt(fwd.x * fwd.x + fwd.y * fwd.y)
+  if l < 1e-6 then return false end
+  return (fwd.x * dir.x + fwd.y * dir.y) / l >= (minDot or 0.5)
 end
 
 function M.nearGoal(pos, goalPos, radius)

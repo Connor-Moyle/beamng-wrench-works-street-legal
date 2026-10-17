@@ -107,6 +107,36 @@ function M.partFits(slotType, slot)
   return true
 end
 
+-- A car a street racer may be given (B66: a limousine turned up as an opponent): a road car, not a limousine, bus, van, truck, ambulance or
+-- the like (the game's "Body Style"), not a police or service car (its "Config Type"). c.raw is the game's own config entry; a name with
+-- "limo" or "bus" in it is out too. Without raw: allowed.
+M.RACER_BODY_NOT = { ['limousine'] = true, ['bus'] = true, ['van'] = true, ['minivan'] = true, ['fifth wheel truck'] = true, ['flatbed'] = true,
+  ['box truck'] = true, ['ambulance'] = true, ['tanker truck'] = true, ['dump truck'] = true, ['armored'] = true, ['chassis cab'] = true,
+  ['logging truck'] = true, ['mixer truck'] = true, ['haul truck'] = true, ['jato truck'] = true, ['wheel loader'] = true, ['atv'] = true }
+M.RACER_CONFIG_NOT = { ['police'] = true, ['service'] = true }
+local function trimmed(w) return (w:lower():gsub('^%s+', ''):gsub('%s+$', '')) end
+local function wordsOf(v)
+  local out = {}
+  if type(v) == 'string' then out[1] = trimmed(v)
+  elseif type(v) == 'table' then
+    for k in pairs(v) do if type(k) == 'string' then out[#out + 1] = trimmed(k) end end
+  end
+  return out
+end
+function M.racerOk(c)
+  if type(c) ~= 'table' then return false end
+  local name = tostring(c.name or ''):lower()
+  if name:find('%f[%a]limo') or name:find('%f[%a]bus%f[%A]') then return false end          -- (words: not Bluebuck, Sunburst)
+  local r = c.raw
+  if type(r) ~= 'table' then return true end
+  local ag = type(r.aggregates) == 'table' and r.aggregates or {}
+  for _, w in ipairs(wordsOf(r['Body Style'])) do if M.RACER_BODY_NOT[w] then return false end end
+  for _, w in ipairs(wordsOf(ag['Body Style'])) do if M.RACER_BODY_NOT[w] then return false end end
+  for _, w in ipairs(wordsOf(r['Config Type'])) do if M.RACER_CONFIG_NOT[w] then return false end end
+  for _, w in ipairs(wordsOf(ag['Config Type'])) do if M.RACER_CONFIG_NOT[w] then return false end end
+  return true
+end
+
 -- The configs without the excluded models ({ model = true }): ONE rule for every pool the career builds cars from (lots, dealers,
 -- private ads, street racers and their opponents), so a model the game cannot build safely never appears (T29: the midtruck).
 function M.withoutModels(configs, excluded)

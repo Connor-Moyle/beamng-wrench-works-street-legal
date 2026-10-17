@@ -98,6 +98,12 @@ end
 -- their tier, with a nickname and a paint job - the same car every night (it is rebuilt from the
 -- same recipe, so nothing big goes in the save).
 local function racerCar(s, racer)
+  if racer.car and racer.car.model and not racer.car.setup and racer.car.config then
+    -- a car picked before the pool was clean (a limousine as an opponent, B66): picked again
+    for _, c in ipairs(builder.configs()) do
+      if c.config == racer.car.config and not carsLib.racerOk(c) then racer.car = nil end
+    end
+  end
   if racer.car and racer.car.model then
     if not racer.car.seed and not racer.car.setup then
       racer.car.seed = rngLib.hash(racer.id .. ':' .. s.seed)

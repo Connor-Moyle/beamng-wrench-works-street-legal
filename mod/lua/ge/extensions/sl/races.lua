@@ -57,11 +57,11 @@ local function build()
   for _, s in ipairs(races.pickStarts(nodes, rng, ROAD_STARTS, MIN_APART)) do starts[#starts + 1] = s end
   for i, s in ipairs(starts) do
     local goal, path, len = races.pickGoal(nodes, s.node, pathFn, rng)
-    local dir = goal and races.routeDir(nodes, path)
+    local dir = goal and races.routeDir(nodes, path, 25)
     if dir then
       list[#list + 1] = { id = 'sr' .. i, missionId = lvl .. '/slRace/sr' .. i, kind = 'night',
         name = s.name and (s.name .. ' sprint') or string.format('Sprint %d (%.1f km)', #list + 1, len / 1000),
-        start = s.pos, finish = nodes[goal].pos, path = path, dir = dir, metres = math.floor(len) }
+        start = s.pos, finish = nodes[goal].pos, path = path, dir = dir, metres = math.floor(len), wps = races.waypoints(path, 12) }
     end
   end
   log('I', 'sl_races', string.format('%s: %d sprints from %d start lines', lvl, #list, #starts))
@@ -155,7 +155,7 @@ function M.launch(missionId, offer)
   veh:queueLuaCommand('controller.setFreeze(1)')
   cur = { race = race, offer = offer, playerVid = veh:getID(), t = 0, done = {} }
   state = 'countdown'
-  if core_groundMarkers then core_groundMarkers.setPath(v3(race.finish)) end
+  if core_groundMarkers then core_groundMarkers.setPath(race.wps) end           -- the race's own route, not the planner's choice from here
   local function withOpponent(opp)
     if not cur or cur.race ~= race then if opp then opp:delete() end return end
     if not opp then
@@ -190,7 +190,7 @@ local function go()
     -- one target, the goal node: the car's own AI plans the route (as sl_streets' races do). A full node list as
     -- `path` had the vehicle AI replanning hundreds of names each frame, and the whole game waits for vehicle Lua
     local a = tonumber(c.offer.aggression) or 0.6
-    opp:queueLuaCommand(string.format("controller.setFreeze(0) input.event('parkingbrake', 0, FILTER_DIRECT) ai.setSpeedMode('off') ai.setRecoverOnCrash(true) ai.setAvoidCars('on') ai.driveInLane('off') ai.setAggression(%f) ai.driveUsingPath({wpTargetList = {%q}, aggression = %f})", a, c.race.path[#c.race.path], a))
+    opp:queueLuaCommand(string.format("controller.setFreeze(0) input.event('parkingbrake', 0, FILTER_DIRECT) ai.setSpeedMode('off') ai.setRecoverOnCrash(true) ai.setAvoidCars('on') ai.driveInLane('off') ai.setAggression(%f) ai.driveUsingPath({wpTargetList = %s, aggression = %f})", a, serialize(c.race.wps), a))
   end
   extensions.hook('onSlrrRaceStarted', c.race.missionId, c.race.id)
   tell('GO!', 2)
@@ -204,6 +204,24 @@ function M.onUpdate(dtReal)
   local pv = getObjectByID(cur.playerVid)
   if not pv or pv:getJBeamFilename() == 'unicycle' then return finish(false, true) end     -- out of the car: called off
   if state == 'countdown' then
+    -- both cars face the route (B66: they sat facing the wrong way): checked once the teleport has settled, turned if not
+    if not cur.faced and cur.t > 0.6 then
+      cur.faced = true
+      local race = cur.race
+      local opp0 = cur.oppVid and getObjectByID(cur.oppVid)
+      local line = races.lineUp(race.start, race.dir)
+      local rot = quatFromDir(vec3(race.dir.x, race.dir.y, 0), vec3(0, 0, 1))
+      for _, side in ipairs({ { pv, line.player }, { opp0, line.opponent } }) do
+        local v = side[1]
+        if v then
+          local f = v:getDirectionVector()
+          if not races.facingOk({ x = f.x, y = f.y }, race.dir) then
+            log('W', 'sl_races', 'a car faced away from the route: turned')
+            spawn.safeTeleport(v, v3(side[2].pos) + vec3(0, 0, 0.3), rot, true, nil, false, true, false)
+          end
+        end
+      end
+    end
     local left = COUNTDOWN - cur.t
     if left <= 0 then go()
     elseif math.ceil(left) ~= cur.shown then cur.shown = math.ceil(left) tell(tostring(cur.shown), 1) end
