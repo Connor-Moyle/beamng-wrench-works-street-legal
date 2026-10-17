@@ -506,11 +506,11 @@ M.PRESPAWN = true
 local preCruisers, fadeUntil = 0, 0
 function M.onStreetLegalPhase(phase)
   if phase == 'night' then meetsTonight, meetTimer = 0, 0 end
-  if phase == 'night' and M.PRESPAWN and career() then preCruisers, fadeUntil = 2, os.clock() + 4 end
+  if phase == 'night' and M.PRESPAWN and career() then preCruisers, fadeUntil = 2, os.clock() + 4 racelog.add('spawn', 'prespawn armed', { why = 'night phase' }) end
 end
 -- the career start and a fast travel are black fades too (the hook comes after the player has been moved)
 function M.onStreetLegalFade()
-  if M.PRESPAWN and career() and night() and not race and next(cruisers) == nil then preCruisers, fadeUntil = 2, os.clock() + 3 end
+  if M.PRESPAWN and career() and night() and not race and next(cruisers) == nil then preCruisers, fadeUntil = 2, os.clock() + 3 racelog.add('spawn', 'prespawn armed', { why = 'fade' }) end
 end
 
 local function updateCruisers(s, dt)
