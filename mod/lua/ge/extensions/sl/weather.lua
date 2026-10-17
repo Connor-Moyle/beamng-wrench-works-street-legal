@@ -130,6 +130,7 @@ local TINT_FIELDS = { sun = 'sunScale', fog = 'fogScale', ambient = 'ambientScal
 local orig, written = {}, {}
 local skyOrig, exposureOrig
 local scat = {}                      -- 'mieScattering' / 'rayleighScattering' -> { orig = number the game wrote, written = text we left }
+M.hazeForce = nil                -- a game test: sl_weather.hazeForce = 1 applies the haze (Mie up, Rayleigh down) whatever the state; off by default: in the game the Mie field is ignored and halving Rayleigh made dusk MORE orange
 M.hazeScale = 1                   -- a game test: sl_weather.hazeScale = 0.5 halves the haze (scattering) of the rain sky; more than 1 is not used (it turned the scene orange)
 M.skyNumbers = {}                  -- what the last tint pass did, for a game test: { part = { from = .., to = .. } }
 local function parseColor(text)
@@ -172,7 +173,7 @@ local function applyTint(amount, dark, haze)
     end
     local m, r = scat.mieScattering, scat.rayleighScattering
     if m.orig and r.orig then
-      local mie, ray = rules.scatter(m.orig, r.orig, (haze or 0) * math.min(1, M.hazeScale or 1))
+      local mie, ray = rules.scatter(m.orig, r.orig, M.hazeForce or ((haze or 0) * math.min(1, M.hazeScale or 1)))
       sky:setField('mieScattering', 0, string.format('%.9f', mie))
       sky:setField('rayleighScattering', 0, string.format('%.9f', math.max(0, ray)))
       m.written, r.written = sky:getField('mieScattering', 0), sky:getField('rayleighScattering', 0)
@@ -282,6 +283,18 @@ local function followRain()
 end
 
 -- (the debug helpers moved with the puddles: sl_puddlefx.puddleNear(), .flag(name, on), .stats())
+-- a game test: set any ScatterSky field and apply it, e.g. sl_weather.skyTry('rayleighScattering', 0.0015); the log says what the field reads back (does the engine keep it?)
+function M.skyTry(field, value)
+  local sky = first('ScatterSky')
+  if not sky then return 'no ScatterSky' end
+  local before = sky:getField(field, 0)
+  sky:setField(field, 0, tostring(value))
+  pcall(function() if sky.postApply then sky:postApply() end end)
+  local after = sky:getField(field, 0)
+  log('I', 'sl_weather', string.format('skyTry %s: %s -> set %s -> reads %s', field, tostring(before), tostring(value), tostring(after)))
+  return before, after
+end
+
 function M.ringTest(on) return sl_puddlefx and sl_puddlefx.ringTest(on) or 'sl_puddlefx is not loaded' end
 function M.puddleNear() return sl_puddlefx and sl_puddlefx.puddleNear() or 'sl_puddlefx is not loaded' end
 
