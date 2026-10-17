@@ -3,14 +3,73 @@
     "name": "sl_flare_body",
     "mapTo": "sl_flare_body",
     "class": "Material",
-    "Stages": [ { "baseColorFactor": [0.55, 0.04, 0.03, 1], "metallicFactor": 0, "roughnessFactor": 0.7 }, {}, {}, {} ],
+    "Stages": [
+      {
+        "baseColorFactor": [
+          0.55,
+          0.04,
+          0.03,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 0.7
+      },
+      {},
+      {},
+      {}
+    ],
     "version": 1.5
   },
   "sl_flare_tip": {
     "name": "sl_flare_tip",
     "mapTo": "sl_flare_tip",
     "class": "Material",
-    "Stages": [ { "baseColorFactor": [1, 0.55, 0.12, 1], "emissiveFactor": [1, 0.42, 0.06], "glow": true, "metallicFactor": 0, "roughnessFactor": 0.9 }, {}, {}, {} ],
+    "Stages": [
+      {
+        "baseColorFactor": [
+          1,
+          0.55,
+          0.12,
+          1
+        ],
+        "emissiveFactor": [
+          1,
+          0.42,
+          0.06
+        ],
+        "glow": true,
+        "metallicFactor": 0,
+        "roughnessFactor": 0.9
+      },
+      {},
+      {},
+      {}
+    ],
+    "version": 1.5
+  },
+  "sl_puddle": {
+    "name": "sl_puddle",
+    "mapTo": "sl_puddle",
+    "class": "Material",
+    "Stages": [
+      {
+        "baseColorMap": "/art/street_legal/decals/puddle.color.png",
+        "opacityMap": "/art/street_legal/decals/puddle_o.data.png",
+        "metallicFactor": 0.7,
+        "roughnessFactor": 0.04
+      },
+      {},
+      {},
+      {}
+    ],
+    "annotation": "ASPHALT",
+    "castShadows": false,
+    "materialTag0": "decal",
+    "materialTag1": "road",
+    "materialTag2": "beamng",
+    "translucent": true,
+    "translucentZWrite": true,
+    "doubleSided": true,
     "version": 1.5
   }
 }

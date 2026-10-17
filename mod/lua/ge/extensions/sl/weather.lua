@@ -27,8 +27,11 @@ local puddles = {}               -- { x, y, z, sx, sy, dx, dy, born }
 local puddleTimer = 0
 local pool, poolSize, colors = {}, 0, {}
 local PUDDLE_TEX = 'art/street_legal/decals/puddle.png'
-local puddleMode = 'decal'       -- 'decal' (DynamicDecalMgr + the texture) or 'prism' (flat dark shapes drawn with the debug drawer: always visible, plainer);
-                                 -- the texture is looked for once and 'prism' is used when it is not there. sl_weather.puddleMode('prism') forces it for a test.
+local puddleMode = 'mesh'        -- 'mesh' (a thin textured plane per puddle, a stock-style translucent decal material: the dynamic decal manager drew nothing), 'decal' (the
+                                 -- dynamic decal manager) or 'prism' (flat dark shapes with the debug drawer). sl_weather.puddleMode('prism') forces one for a test.
+local MATERIALS = '/art/street_legal/main.materials.json'
+local SHAPE_PATH = '/temp/street_legal/shapes/puddle_v1.dae'
+local meshes = {}                -- the plane objects, reused: { obj, shown }
 local PUDDLE_RADIUS = { 8, 70 }  -- puddles stand between these distances from the player; further than FORGET_AT they are dropped
 local FORGET_AT = 95
 local DEPTH = 1.5
@@ -108,6 +111,8 @@ local function applySky(v)
   if rain and baseline and baseline.minSpeed and v.speed then
     pcall(function() rain.minSpeed, rain.maxSpeed = baseline.minSpeed * v.speed, baseline.maxSpeed * v.speed end)
   end
+  -- fatter drops in heavier rain (they are thin streaks at the level's own 0.2)
+  if rain then pcall(function() rain:setField('dropSize', 0, tostring(0.2 + math.min(1, v.drops / 3000) * 0.25)) end) end
   -- every drop count change is logged once (what the object says before and after): the rain that is not seen is found here
   local want = math.floor(v.drops + 0.5)
   if rain and want ~= M.lastLoggedDrops then
@@ -240,7 +245,80 @@ local function updatePuddles(dtReal)
   end
 end
 
+-- the plane's model: one unit square on the ground with its texture coordinates, written once
+local function planeDae()
+  return table.concat({
+    '<?xml version="1.0" encoding="utf-8"?>',
+    '<COLLADA xmlns="http://www.collada.org/2005/11/COLLADASchema" version="1.4.1">',
+    '<asset><unit name="meter" meter="1"/><up_axis>Z_UP</up_axis></asset>',
+    '<library_effects><effect id="fx"><profile_COMMON><technique sid="common"><phong><diffuse><color>1 1 1 1</color></diffuse></phong></technique></profile_COMMON></effect></library_effects>',
+    '<library_materials><material id="sl_puddle" name="sl_puddle"><instance_effect url="#fx"/></material></library_materials>',
+    '<library_geometries><geometry id="mesh" name="mesh"><mesh>',
+    '<source id="pos"><float_array id="pos-array" count="12">-0.5 -0.5 0 0.5 -0.5 0 0.5 0.5 0 -0.5 0.5 0</float_array><technique_common><accessor source="#pos-array" count="4" stride="3"><param name="X" type="float"/><param name="Y" type="float"/><param name="Z" type="float"/></accessor></technique_common></source>',
+    '<source id="nrm"><float_array id="nrm-array" count="3">0 0 1</float_array><technique_common><accessor source="#nrm-array" count="1" stride="3"><param name="X" type="float"/><param name="Y" type="float"/><param name="Z" type="float"/></accessor></technique_common></source>',
+    '<source id="uv"><float_array id="uv-array" count="8">0 0 1 0 1 1 0 1</float_array><technique_common><accessor source="#uv-array" count="4" stride="2"><param name="S" type="float"/><param name="T" type="float"/></accessor></technique_common></source>',
+    '<vertices id="vtx"><input semantic="POSITION" source="#pos"/></vertices>',
+    '<triangles material="sl_puddle" count="2"><input semantic="VERTEX" source="#vtx" offset="0"/><input semantic="NORMAL" source="#nrm" offset="1"/><input semantic="TEXCOORD" source="#uv" offset="2" set="0"/>',
+    '<p>0 0 0 1 0 1 2 0 2 0 0 0 2 0 2 3 0 3</p></triangles>',
+    '</mesh></geometry></library_geometries>',
+    '<library_visual_scenes><visual_scene id="Scene" name="Scene"><node id="slpuddle" name="slpuddle" type="NODE"><instance_geometry url="#mesh" name="slpuddle"><bind_material><technique_common><instance_material symbol="sl_puddle" target="#sl_puddle"/></technique_common></bind_material></instance_geometry></node></visual_scene></library_visual_scenes>',
+    '<scene><instance_visual_scene url="#Scene"/></scene></COLLADA>',
+  }, '\n')
+end
+
+local function meshObject(i)
+  local m = meshes[i]
+  if m then return m end
+  if FS:fileExists(MATERIALS) and not scenetree.findObject('sl_puddle') then loadJsonMaterialsFile(MATERIALS) end
+  if not FS:fileExists(SHAPE_PATH) then writeFile(SHAPE_PATH, planeDae()) end
+  local o = createObject('TSStatic')
+  o:setField('shapeName', 0, SHAPE_PATH)
+  o:setField('collisionType', 0, 'None')
+  o:setField('decalType', 0, 'None')
+  o.canSave = false
+  o:registerObject('sl_puddle_' .. i)
+  m = { obj = o, shown = false }
+  meshes[i] = m
+  return m
+end
+
+local function hideMesh(m)
+  if m and m.shown then
+    local mx = MatrixF(true)
+    mx:setPosition(vec3(0, 0, -500))
+    m.obj:setTransform(mx)
+    m.shown = false
+  end
+end
+
+-- one plane per puddle: put on the road when drawn first, grown while it is new, shrunk as the road dries (the scale is the only thing that changes after that)
+local function updateMeshes()
+  for i = 1, math.max(#puddles, #meshes) do
+    local p, m = puddles[i], meshes[i]
+    if not p then hideMesh(m)
+    else
+      local f = rules.puddleAlpha(wet, os.clock() - p.born) / 0.8           -- 0..1 (fade in over 6 s, follows the wetness)
+      if f < 0.03 then hideMesh(m)
+      else
+        m = meshObject(i)
+        local k = (p.damp and 0.9 or 1) * (0.35 + 0.65 * f)
+        if not m.shown or math.abs((m.lastK or 0) - k) > 0.02 or m.owner ~= p then
+          local mx = MatrixF(true)
+          mx:createOrientFromDirUp(vec3(p.dx, p.dy, 0), vec3(0, 0, 1))
+          mx:setPosition(vec3(p.x, p.y, p.z + 0.03 + (p.damp and 0 or 0.01)))
+          m.obj:setTransform(mx)
+          m.obj:setScale(vec3(p.sx * k, p.sy * k, 1))
+          m.shown, m.lastK, m.owner = true, k, p
+          if stats.drawn == 0 then log('I', TAG, string.format('puddle planes: first one put at %.0f, %.0f (scale %.1f x %.1f, material sl_puddle %s)', p.x, p.y, p.sx * k, p.sy * k, tostring(scenetree.findObject('sl_puddle') ~= nil))) end
+          stats.drawn = stats.drawn + 1
+        end
+      end
+    end
+  end
+end
+
 local textureChecked = false
+local meshTimer, meshErrLogged
 local function checkTexture()
   textureChecked = true
   local found = {}
@@ -253,11 +331,21 @@ local function checkTexture()
   log(textureChecked == 'found' and 'I' or 'W', TAG, 'puddle texture: ' .. table.concat(found, ', ') .. (textureChecked == 'found' and '' or ': not found, drawing flat shapes instead'))
 end
 
-function M.puddleMode(m) if m == 'prism' or m == 'decal' then puddleMode = m textureChecked = true end return puddleMode end
+function M.puddleMode(m) if m == 'prism' or m == 'decal' or m == 'mesh' then puddleMode = m textureChecked = true end return puddleMode end
+
+-- for a game test: another rain datablock on the level's rain object (e.g. 'rain_medium'), if it exists
+function M.rainBlock(name)
+  local rain = first('Precipitation')
+  if not rain then return 'no Precipitation' end
+  local there = scenetree.findObject(name) ~= nil
+  if there then rain:setField('dataBlock', 0, name) end
+  log('I', TAG, string.format('rain datablock %s: exists %s; the rain now uses %s', tostring(name), tostring(there), tostring(rain:getField('dataBlock', 0))))
+  return there
+end
 
 -- a puddle as three flat bars turned 60 degrees apart (a rough hexagon), drawn with the debug drawer
 local function drawPrisms(p, alpha)
-  local c = ColorF(0.10, 0.14, 0.20, math.min(0.75, alpha))
+  local c = ColorF(0.13, 0.14, 0.16, math.min(0.75, alpha))
   local half = p.sx * 0.5
   for k = 0, 2 do
     local a = math.atan2(p.dy, p.dx) + k * math.pi / 3
@@ -270,6 +358,7 @@ end
 
 function M.onPreRender()
   if #puddles == 0 or wet < 0.15 then return end
+  if puddleMode == 'mesh' then return end      -- (the planes are moved from onUpdate, nothing to draw here)
   if not textureChecked then checkTexture() end
   if puddleMode == 'prism' then
     local now = os.clock()
@@ -343,6 +432,12 @@ function M.onUpdate(dtReal)
   wet = rules.wetStep(wet, target and target.wet or 0, dtReal)
   if current and (current.drops or 0) > 0 then followRain() end
   updatePuddles(dtReal)
+  if puddleMode == 'mesh' then
+    meshTimer = (meshTimer or 0) + dtReal
+    if meshTimer > 0.25 then meshTimer = 0 local ok, err = pcall(updateMeshes) if not ok and not meshErrLogged then meshErrLogged = true log('E', TAG, 'puddle planes: ' .. tostring(err)) end end
+  else
+    for _, m in ipairs(meshes) do hideMesh(m) end
+  end
   tintTimer = tintTimer + dtReal
   if tintTimer > 0.5 then
     tintTimer = 0
@@ -383,7 +478,13 @@ function M.diagnose()
   return out
 end
 
+local function clearMeshes()
+  for _, m in ipairs(meshes) do pcall(function() m.obj:delete() end) end
+  meshes = {}
+end
+
 local function reset()
+  clearMeshes()
   baseline, current, target, lastKey, blendFrom = nil, nil, nil, nil, nil
   wet, puddles, lastRain, followLogged = 0, {}, nil, false
 end
