@@ -565,6 +565,15 @@ win.Date.now = realNow;
 win.document.dispatchEvent(new win.CustomEvent('ui_nav', { detail: { name: 'tab_r', value: 1 } }));
 phone.handle('slPhoneData', Object.assign({}, data, { textScale: 1 }));
 assert.strictEqual(zoomOf(), 1.25, 'a pad in use: at least Large');
+// #51 colour-blind friendly colours: the setting puts a class on the phone's layer (the CSS does the blue/orange palette and the tick, cross and arrow marks); the pad focus ring is in the CSS
+const cbLayer = () => win.document.querySelector('[data-zoom]');
+phone.handle('slPhoneData', Object.assign({}, data, { colorBlind: true }));
+assert.ok(cbLayer().classList.contains('slp-cb'), 'colour-blind setting on: the phone layer has slp-cb');
+phone.handle('slPhoneData', Object.assign({}, data, { colorBlind: false }));
+assert.ok(!cbLayer().classList.contains('slp-cb'), 'and off again');
+{ const css = [...win.document.querySelectorAll('style')].map((e) => e.textContent).join(' ');
+  assert.ok(css.includes('.slp-cb .slp-plus:before') && css.includes('.slp-cb .slp-minus:before') && css.includes('#56b4e9') && css.includes('#ffb454'), 'colour-blind CSS: marks beside good and bad figures, blue and orange');
+  assert.ok(css.includes('[bng-nav-item]:focus') && css.includes('outline:3px solid #ffd54f'), 'the pad focus ring is always visible'); }
 phone.handle('slPhoneData', data);
 phone.act('home');
 phone.act('open', 'turf');

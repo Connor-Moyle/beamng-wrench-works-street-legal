@@ -319,4 +319,13 @@ assert.ok(text().includes('No car yet'), 'no car: the widget says so');
 click('tile', 'tuning');
 assert.ok(text().includes('Tuning: You have no car yet.'), 'and the icon says why');
 
+// #51 colour-blind friendly colours and the pad focus ring
+{ const layer = () => win.document.querySelector('[data-zoom]');
+  laptop.handle('slPhoneData', Object.assign({}, laptop.state.data, { colorBlind: true }));
+  assert.ok(layer().classList.contains('sll-cb'), 'colour-blind setting on: the laptop layer has sll-cb');
+  laptop.handle('slPhoneData', Object.assign({}, laptop.state.data, { colorBlind: false }));
+  assert.ok(!layer().classList.contains('sll-cb'), 'and off again');
+  const css = [...win.document.querySelectorAll('style')].map((e) => e.textContent).join(' ');
+  assert.ok(css.includes('.sll-cb .sll-plus:before') && css.includes('#56b4e9') && css.includes('#ffb454'), 'colour-blind CSS: marks and blue/orange');
+  assert.ok(css.includes('[bng-nav-item]:focus') && css.includes('outline:3px solid #ffd54f'), 'the pad focus ring is always visible'); }
 console.log('laptop test passed');

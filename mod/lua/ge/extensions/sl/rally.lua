@@ -65,6 +65,12 @@ local function codriverOn(stage)
     local loaded, why = gameplay_rally.loadMission(tostring(sl_career.LEVEL) .. '/rallyStage/sl_' .. stage.id, '/street_legal/rally/stages/' .. stage.id, nil, VOICEPACK, { owner = 'external' })
     if not loaded then error(tostring(why)) end
   end)
+  -- captions (#51): what the co-driver says is also on screen
+  if ok and sl_options and sl_options.get and sl_options.get('slCaptions') ~= false and settings and settings.getValue and settings.setValue then
+    pcall(function()
+      if settings.getValue('rallyVisualPacenotes') ~= true then visualWas = settings.getValue('rallyVisualPacenotes') == true settings.setValue('rallyVisualPacenotes', true) end
+    end)
+  end
   racelog.add('rally', 'codriver', { stage = stage.id, ok = ok and 'yes' or 'no', why = ok and '' or tostring(err),
     audio = settings and settings.getValue and tostring(settings.getValue('rallyAudioPacenotes')) or '?', visual = settings and settings.getValue and tostring(settings.getValue('rallyVisualPacenotes')) or '?' })
   return ok
@@ -78,8 +84,11 @@ local function codriverGo()
   end)
   racelog.add('rally', 'codriver go', { ok = ok and 'yes' or 'no', why = ok and '' or tostring(err), ready = tostring(gameplay_rally and gameplay_rally.isReady and gameplay_rally.isReady()) })
 end
+local visualWas            -- the game's 'visual pacenotes' setting before a stage turned it on for the captions
 local function codriverOff()
   pcall(function() if gameplay_rally and gameplay_rally.unloadMission then gameplay_rally.unloadMission({ owner = 'external' }) end end)
+  if visualWas ~= nil and settings and settings.setValue then pcall(settings.setValue, 'rallyVisualPacenotes', visualWas) end
+  visualWas = nil
 end
 
 local function finish(ok, why)
