@@ -18,6 +18,7 @@ local stateLib = require('sl/core/state')
 local showshine = require('sl/core/showshine')
 local builder = require('sl/carBuilder')
 local builds = require('sl/core/builds')
+local nightlife = require('sl/core/nightlife')
 
 local MAX_CRUISERS = 3
 local FINISH_RADIUS = 22
@@ -362,7 +363,9 @@ local function spawnCruiser(s)
   local okc, cp = pcall(core_camera.getPosition)
   local okf, cf = pcall(core_camera.getForward)
   if okc and cp and okf and cf then cam = { x = cp.x, y = cp.y, fx = cf.x, fy = cf.y } end
-  local node = nodeAround(pp, 180, 450, rng, function(n) return spawnplan.hidden({ x = n.pos.x, y = n.pos.y }, player, cam) end)
+  local function hidden(n) return spawnplan.hidden({ x = n.pos.x, y = n.pos.y }, player, cam) end
+  -- the main strips first (the wider roads), any road if none is in reach
+  local node = nodeAround(pp, 180, 450, rng, function(n) return nightlife.mainStrip(n.radius) and hidden(n) end) or nodeAround(pp, 180, 450, rng, hidden)
   if not node then return false end
   busy = true
   core_jobsystem.create(function(job)
@@ -428,11 +431,9 @@ local function racerAhead()
   end
 end
 
-local function onFlash()
+local function challenge(id, vid)
   local s = career()
-  if not s or race then return end
-  local id, vid = racerAhead()
-  if not id then return end
+  if not s or race or not id then return end
   local racer = stateLib.racer(s, id)
   if not night() then return end
   local answer = roster.respond(racer, 'race', { rep = s.rep, money = s.money, hasCar = sl_fleet.currentCar() ~= nil }, rngLib.new(rngLib.hash(id .. s.day)))
@@ -443,6 +444,33 @@ local function onFlash()
   s.known[id] = true                            -- after a race you have their number
   if startRace(racer, vid, 'money', answer.bet, false) and ui_message then
     ui_message(string.format('%s takes you on: $%d, to %s. Go!', roster.displayName(racer), answer.bet, race.destName), 6, 'streetLegal')
+  end
+end
+
+local function onFlash()
+  local id, vid = racerAhead()
+  if id then challenge(id, vid) end
+end
+
+-- stopped alongside a racer for a moment: the same challenge (#17); a racer who said no is not asked again for a minute
+local stoppedFor, askedAt = 0, {}
+local function checkBeside(dt)
+  local v = playerCar()
+  if not v or race then stoppedFor = 0 return end
+  local speed = v:getVelocity():length()
+  stoppedFor = speed <= nightlife.BESIDE_SPEED and stoppedFor + dt or 0
+  if stoppedFor < nightlife.BESIDE_TIME then return end
+  local pos, dir = v:getPosition(), v:getDirectionVector()
+  for id, vid in pairs(cruisers) do
+    local c = getObjectByID(vid)
+    if c and os.clock() - (askedAt[id] or -999) > 60 then
+      local rel = c:getPosition() - pos
+      if nightlife.besideStopped({ x = rel.x, y = rel.y }, { x = dir.x, y = dir.y }, speed, stoppedFor) then
+        askedAt[id] = os.clock()
+        challenge(id, vid)
+        return
+      end
+    end
   end
 end
 
@@ -477,7 +505,8 @@ local function startMeet(s)
     if math.abs(r.rep - s.rep) < 1500 + s.rep * 0.5 and not cruisers[r.id] then racers[#racers + 1] = r end
   end
   if #racers == 0 then return end
-  meet = { place = place, cars = {}, day = s.day }
+  local theme = nightlife.theme(place.id, s.day)
+  meet = { place = place, cars = {}, day = s.day, theme = theme, owners = {} }
   busy = true
   local count = math.min(#racers, rng:int(3, 6))
   core_jobsystem.create(function(job)
@@ -492,15 +521,46 @@ local function startMeet(s)
         meet.cars[r.id] = veh:getID()
       end
     end
+    -- tonight's theme: parked cars of it, each with its owner standing by (#43)
+    local walkers = {}
+    if slrrDrivers and slrrDrivers.getDrivers then
+      for _, d in ipairs(slrrDrivers.getDrivers() or {}) do
+        local did = type(d) == 'table' and d.id or d
+        if type(did) == 'string' and FS:directoryExists('/art/slrr_drivers/' .. did .. '/walker/') then walkers[#walkers + 1] = did end
+      end
+    end
+    local cars = nightlife.pickCars(theme.id, builder.aiPool(), rng:int(3, 5), rng)
+    for i, c in ipairs(cars) do
+      if not meet then break end
+      local a = ((i - 0.5) / #cars) * math.pi * 2 + math.pi / #cars
+      local pos = place.pos + vec3(math.cos(a) * 14, math.sin(a) * 14, 0.5)
+      local rot = quatFromDir((place.pos - pos):normalized(), vec3(0, 0, 1))
+      local veh = builder.buildCustom(job, c.model, c.config, { stage = rng:int(0, 2), seed = rngLib.hash(place.id .. ':' .. s.day .. ':' .. i) }, pos, rot)
+      if veh and meet then
+        veh:queueLuaCommand('controller.setFreeze(1) input.event("parkingbrake", 1, FILTER_DIRECT)')
+        local owner = { name = nightlife.ownerName(rng), vid = veh:getID(), car = c.name or c.model, value = c.value or 0, pos = pos }
+        owner.offer = nightlife.offer(theme, rng, { rep = s.rep, value = c.value })
+        if #walkers > 0 and slrrPedestrians and slrrPedestrians.playActor then
+          local toSpot = (place.pos - pos):normalized()
+          local beside = pos + toSpot:cross(vec3(0, 0, 1)):normalized() * 2.2
+          owner.actor = slrrPedestrians.playActor('/art/slrr_drivers/' .. walkers[rng:int(#walkers)] .. '/walker/', { vec3(beside.x, beside.y, place.pos.z) })
+        end
+        meet.owners['o' .. i] = owner
+      end
+    end
     busy = false
   end)
   local who = racers[1] or s.racers[1]
-  sl_career.sendText(s.known[who.id] and who.id or 'benny', 'Meet tonight at ' .. place.name .. '. Bring something fast.', 2)
+  sl_career.sendText(s.known[who.id] and who.id or 'benny', theme.name .. ' at ' .. place.name .. ': ' .. theme.blurb .. ' Bring something fast.', 2)
 end
 
 local function endMeet()
   if not meet then return end
   for _, vid in pairs(meet.cars) do despawn(vid) end
+  for _, o in pairs(meet.owners or {}) do
+    despawn(o.vid)
+    if o.actor and slrrPedestrians and slrrPedestrians.stopActor then slrrPedestrians.stopActor(o.actor) end
+  end
   meet = nil
   guihooks.trigger('slMeet', { open = false })
 end
@@ -517,7 +577,10 @@ local function sendMeet(open)
     end
   end
   table.sort(list, function(a, b) return a.tier < b.tier end)
-  guihooks.trigger('slMeet', { open = true, name = meet.place.name, racers = list, money = s.money, canShow = not meet.judged and sl_fleet.currentCar() ~= nil, showFee = showshine.FEE })
+  local owners = {}
+  for key, o in pairs(meet.owners or {}) do owners[#owners + 1] = { id = key, name = o.name, car = o.car, kind = o.offer and o.offer.kind, talked = o.talked } end
+  table.sort(owners, function(a, b) return a.id < b.id end)
+  guihooks.trigger('slMeet', { open = true, name = meet.place.name, theme = meet.theme and meet.theme.name, owners = owners, racers = list, money = s.money, canShow = not meet.judged and sl_fleet.currentCar() ~= nil, showFee = showshine.FEE })
 end
 
 local function updateMeet(s, dt)
@@ -568,6 +631,34 @@ function M.meetChallenge(racerId, kind)
     spawn.safeTeleport(opp, v:getPosition() + right * 3.6 + vec3(0, 0, 0.3), quatFromDir(v:getDirectionVector(), vec3(0, 0, 1)), true)
   end
   startRace(racer, vid, answer.stake, answer.bet or 0, true)
+end
+
+-- talk to the owner of a parked car (#43): a tip, a car for sale, or word of a race
+function M.meetTalk(key)
+  local s = career()
+  local o = s and meet and meet.owners and meet.owners[key]
+  if not o or not o.offer then return end
+  local offer = o.offer
+  o.talked = true
+  if offer.kind == 'tip' then
+    guihooks.trigger('slPhoneToast', { text = o.name .. ': "' .. offer.text .. '"' })
+    if not o.tipped then o.tipped = true stateLib.addRep(s, 2) end
+  elseif offer.kind == 'sale' then
+    local entry
+    for _, c in ipairs(builder.aiPool()) do if c.name == o.car or c.model == o.car then entry = c break end end
+    local made = entry and require('sl/core/market').offers({ entry }, 'used', rngLib.hash(key .. s.day .. s.seed), s.day, 1, true)[1]
+    if made then
+      made.price = offer.price
+      guihooks.trigger('slPhoneToast', { text = o.name .. ': "' .. offer.text .. '"' })
+      sendMeet(false)
+      if sl_lot and sl_lot.openPrivate then sl_lot.openPrivate(made, o.pos, o.name) end
+    else
+      guihooks.trigger('slPhoneToast', { text = o.name .. ': "Not today after all."' })
+    end
+  else
+    guihooks.trigger('slPhoneToast', { text = o.name .. ': "' .. offer.text .. '"' })
+  end
+  extensions.hook('onStreetLegalChanged')
 end
 
 function M.closeMeet() sendMeet(false) end
@@ -880,6 +971,7 @@ function M.onUpdate(dtReal)
     end
   end
   pollBeams(dtReal)
+  checkBeside(dtReal)
   updateCruisers(s, dtReal)
   updateMeet(s, dtReal)
   drawLabels(s)

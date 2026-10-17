@@ -1033,8 +1033,13 @@
           '<div class="slp-btn slp-tonal" data-a="meet" data-v="' + esc(r.id) + '|high">High</div>' +
           (r.pinkTonight ? '<div class="slp-btn slp-pinkbtn" data-a="meet" data-v="' + esc(r.id) + '|pink">Pinks</div>' : '') + '</div></div>';
       });
-      return '<div class="slp-meet"><h3>Car meet &middot; ' + esc(m.name) + '</h3><div class="slp-card" style="margin:6px 0 4px 0"><p>Pick somebody. The race is to the other side of town; first one there wins.</p></div>' +
+      var owners = arr(m.owners).map(function (o) {
+        return '<div class="slp-row"><div class="slp-rt"><b>' + esc(o.name) + '</b><span>' + esc(o.car) + (o.talked ? ' &middot; spoken to' : '') + '</span></div><div class="slp-acts">' +
+          '<div class="slp-btn slp-tonal" data-a="meettalk" data-v="' + esc(o.id) + '">Talk</div></div></div>';
+      }).join('');
+      return '<div class="slp-meet"><h3>' + (m.theme ? esc(m.theme) + ' &middot; ' : 'Car meet &middot; ') + esc(m.name) + '</h3><div class="slp-card" style="margin:6px 0 4px 0"><p>Pick somebody. The race is to the other side of town; first one there wins.</p></div>' +
         (rows.join('') || '<div class="slp-empty">Everybody has gone home.</div>') +
+        (owners ? '<div class="slp-trunk">Owners by their cars</div>' + owners : '') +
         (m.canShow ? '<div class="slp-lotbtns"><div class="slp-btn slp-tonal" data-a="meetshow" data-v="1">Show and shine (' + money(m.showFee || 50) + ')</div></div>' : '') +
         '<div class="slp-lotleave"><div class="slp-btn slp-text" data-a="meetclose">Just looking</div></div></div>';
     }
@@ -1415,6 +1420,7 @@
         case 'useitem': var ui = String(v).split('|'); lua('useItem(' + Number(ui[0]) + ',' + JSON.stringify(ui[1]) + ')'); break;
         case 'meetclose': lua('@sl_streets.closeMeet()'); st.meet = null; render(); break;
         case 'meetshow': lua('@sl_streets.showAndShine()'); break;
+        case 'meettalk': lua('@sl_streets.meetTalk(' + JSON.stringify(String(v)) + ')'); break;
         case 'key': if (st.dial.length < 12) st.dial += v; render(); break;
         case 'del': st.dial = st.dial.slice(0, -1); render(); break;
         case 'dial': var who = dialMatch(); if (who) startCall(who.id); else if (st.dial) toast('The number you have dialled is not available.'); break;

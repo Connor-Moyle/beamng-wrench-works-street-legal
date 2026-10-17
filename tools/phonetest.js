@@ -324,6 +324,11 @@ assert.ok(!$('[data-v="r05|pink"]'), 'no pink slips with somebody who is not up 
 phone.handle('slMeet', { open: true, name: 'Harbour car park', racers: [{ id: 'r05', name: 'Kat "Ghost" Holm', car: 'Sunburst', tier: 2, betMin: 300, betMax: 900, pinkTonight: true }] });
 click('meet', 'r05|pink');
 assert.ok(calls.includes('@sl_streets.meetChallenge("r05","pink")'), 'pink slips at the meet');
+phone.handle('slMeet', { open: true, name: 'Harbour car park', theme: 'JDM night', racers: [], owners: [{ id: 'o1', name: 'Jin Tanaka', car: 'Covet', kind: 'tip' }, { id: 'o2', name: 'Bree Quinn', car: 'Pessima', kind: 'sale', talked: true }] });
+assert.ok(text().includes('JDM night') && text().includes('Jin Tanaka') && text().includes('Covet') && text().includes('spoken to'), 'a themed meet lists the owners by their cars');
+calls.length = 0;
+click('meettalk', 'o1');
+assert.ok(calls.includes('@sl_streets.meetTalk("o1")'), 'talk to an owner');
 click('meetclose');
 assert.ok(!$('.slp-meet'), 'meet menu closed');
 phone.handle('slRace', { on: true, name: 'Kat "Ghost" Holm', stake: 'pink', bet: 0, destName: 'near Valo Junkyard', countdown: 3, mine: 1800, theirs: 1750, ahead: false });

@@ -272,4 +272,34 @@ return function(check, rngLib)
   local q = ES.quote({ name = 'V8', value = 10000, oldName = 'Inline-4', needs = { 'transmission', 'ecu' } })
   check('swap: the quote says labour, the old engine on the shelf and what it needs (sorted)', q.labour == 540 and q.needs[1] == 'ecu' and q.text:find('$540') ~= nil and q.text:find('Inline%-4 goes on the shelf') ~= nil and q.text:find('ecu, transmission') ~= nil
     and ES.NO_CROSS_MODEL:find('own engines') ~= nil)
+
+  -- #17/#43: the night city and the themed meets
+  local NL = require('sl/core/nightlife')
+  local RNG = require('sl/core/rng')
+  local seen = {}
+  for d = 1, 8 do local t = NL.theme('meetA', d).id seen[t] = (seen[t] or 0) + 1 end
+  local differs = false
+  for d = 1, 8 do if NL.theme('meetB', d).id ~= NL.theme('meetA', d).id then differs = true end end
+  check('themes: a spot cycles through all four themes over four nights, the same each time asked; another spot is out of step', seen.jdm == 2 and seen.muscle == 2 and seen.drift == 2 and seen.euro == 2
+    and NL.theme('meetA', 3).id == NL.theme('meetA', 3).id and differs)
+  check('theme cars: Japanese, American, European models; drift by build', NL.fits('jdm', { model = 'covet' }) and not NL.fits('jdm', { model = 'barstow' }) and NL.fits('muscle', { model = 'barstow' }) and NL.fits('euro', { model = 'vivace' })
+    and NL.fits('drift', { model = 'x', power = 220, weight = 1300, raw = { Drivetrain = 'RWD' } }) and not NL.fits('drift', { model = 'x', power = 220, weight = 1300, raw = { Drivetrain = 'FWD' } })
+    and not NL.fits('drift', { model = 'x', power = 100, weight = 1300, raw = { Drivetrain = 'RWD' } }) and not NL.fits('nothing', { model = 'covet' }) and not NL.fits('jdm', nil))
+  local pool = { { model = 'covet' }, { model = 'pessima' }, { model = 'barstow' }, { model = 'bx' } }
+  local pick = NL.pickCars('jdm', pool, 5, RNG.new(4))
+  check('theme pick: only the theme, no repeats, fewer than asked when the pool is short', #pick == 3 and pick[1] ~= pick[2] and pick[2] ~= pick[3] and #NL.pickCars('euro', pool, 2, RNG.new(4)) == 0)
+  local kinds = { race = 0, sale = 0, tip = 0 }
+  local R = RNG.new(11)
+  local priceOk = true
+  for _ = 1, 300 do
+    local o = NL.offer(NL.THEMES[1], R, { rep = 800, value = 12000 })
+    kinds[o.kind] = kinds[o.kind] + 1
+    if o.kind == 'sale' and (o.price < 6000 or o.price > 10250) then priceOk = false end
+  end
+  local noCar = true
+  for _ = 1, 100 do if NL.offer(nil, R, { value = 0 }).kind == 'sale' then noCar = false end end
+  check('owner offers: all three kinds come up, a sale is half to 85 percent of the car, no car to sell: no sale', kinds.race > 30 and kinds.sale > 30 and kinds.tip > 30 and priceOk and noCar)
+  check('main strips: half-width 3 m or more', NL.mainStrip(3) and NL.mainStrip(4.5) and not NL.mainStrip(2) and not NL.mainStrip(nil))
+  check('beside: nearly stopped for a moment, the racer alongside at 2-8 m; not ahead, not too far, not moving, not just stopped', NL.besideStopped({ x = 4, y = 0 }, { x = 0, y = 1 }, 0.5, 2) and NL.besideStopped({ x = -3, y = 2 }, { x = 0, y = 1 }, 1, 1.5)
+    and not NL.besideStopped({ x = 0, y = 12 }, { x = 0, y = 1 }, 0, 3) and not NL.besideStopped({ x = 12, y = 0 }, { x = 0, y = 1 }, 0, 3) and not NL.besideStopped({ x = 4, y = 0 }, { x = 0, y = 1 }, 6, 3) and not NL.besideStopped({ x = 4, y = 0 }, { x = 0, y = 1 }, 0, 0.3))
 end
