@@ -678,6 +678,9 @@ function M.meetTalk(key)
   extensions.hook('onStreetLegalChanged')
 end
 
+-- where the meet is, while one is on (the ambience puts its music there)
+function M.meetPos() return meet and meet.place and meet.place.pos or nil end
+
 function M.closeMeet() sendMeet(false) end
 
 -- show and shine: the judges walk round your car and the racers' cars here tonight (once a meet)

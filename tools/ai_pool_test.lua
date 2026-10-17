@@ -355,4 +355,30 @@ return function(check, rngLib)
   for i = 1, 12 do nodes[i] = { pos = { math.cos(i / 12 * 6.283) * 300, math.sin(i / 12 * 6.283) * 300, 20 }, radius = 8 } end
   local stands = SPC.circuitStands(nodes)
   check('spectators: a circuit gets four stands, none with fewer than 4 nodes', #stands == 4 and #stands[1] > 10 and #SPC.circuitStands({ nodes[1], nodes[2], nodes[3] }) == 0)
+
+  -- #46: the ambient sound zones
+  local AM = require('sl/core/ambience')
+  check('ambience volume: loudest close in, falling to nothing at the range, quieter than the base beyond a bit; unknown kinds are silent', AM.volume('harbour', 0) == AM.BASE.harbour and AM.volume('harbour', 160) == 0
+    and AM.volume('harbour', 80) < AM.volume('harbour', 40) and AM.volume('harbour', 80) > 0 and AM.volume('harbour', 500) == 0 and AM.volume('nothing', 1) == 0)
+  local function slope(x, y) return x > 100 and -5 or 20 end                    -- water to the east of x = 100
+  local edge = AM.waterEdge(slope, 0, { x = 70, y = 0 }, 160)
+  check('water edge: the first ring that has water; none on dry land; no sampler or no water level: none', edge and edge.x > 100 and edge.z == 0 and AM.waterEdge(slope, 0, { x = -500, y = 0 }, 160) == nil and AM.waterEdge(nil, 0, { x = 0, y = 0 }) == nil and AM.waterEdge(slope, nil, { x = 0, y = 0 }) == nil)
+  local nodes = { a = { pos = { x = 50, y = 0, z = 1 }, radius = 3 }, b = { pos = { x = 90, y = 0, z = 1 }, radius = 6 }, c = { pos = { x = 400, y = 0, z = 1 }, radius = 8 } }
+  local fw, fd = AM.freewayNode(nodes, { x = 0, y = 0 }, 130)
+  check('freeway: the nearest wide road node within range (a narrow road is no freeway)', fw and fw.x == 90 and fd == 90 and AM.freewayNode({ a = nodes.a }, { x = 0, y = 0 }, 130) == nil and AM.freewayNode(nodes, { x = 0, y = 0 }, 50) == nil)
+  local places = { s1 = { kind = 'shop', pos = { x = 100, y = 0, z = 0 } }, s2 = { kind = 'dealer', pos = { x = 120, y = 0, z = 0 } }, far = { kind = 'shop', pos = { x = 900, y = 900, z = 0 } }, meet = { kind = 'meet', pos = { x = 105, y = 5, z = 0 } } }
+  local cc, cn = AM.crowd(places, { x = 80, y = 0 }, 90)
+  check('crowd: two city places close together make one, its middle between them; a lone place or a meet spot does not', cc and cn == 2 and math.abs(cc.x - 110) < 1e-6 and AM.crowd({ s = places.s1 }, { x = 80, y = 0 }, 90) == nil and AM.crowd({ a = places.meet, b = places.meet }, { x = 80, y = 0 }, 90) == nil)
+  local plan = AM.plan({ player = { x = 80, y = 0, z = 0 }, height = slope, waterZ = 0, nodes = nodes, places = places, phase = 'day' })
+  local kinds = {}
+  for _, em in ipairs(plan) do kinds[em.kind] = em end
+  check('plan by day: the harbour, the freeway and the town crowd, loudest first, each with its file', kinds.harbour and kinds.freeway and kinds.crowd and kinds.harbour.file == 'harbour.wav' and plan[1].volume >= plan[#plan].volume and kinds.music == nil)
+  local night = AM.plan({ player = { x = 80, y = 0, z = 0 }, height = slope, waterZ = 0, nodes = nodes, places = places, phase = 'night', meet = { pos = { x = 100, y = 20, z = 0 } } })
+  local nk = {}
+  for _, em in ipairs(night) do nk[em.id] = em end
+  check('plan at night: no town crowd, but the meet has its crowd and its music (no file: the radio)', nk.crowd == nil and nk.crowd_meet and nk.music and nk.music.file == nil)
+  local rain = AM.plan({ player = { x = 80, y = 0, z = 0 }, height = slope, waterZ = 0, nodes = nodes, places = places, phase = 'day', raining = true })
+  local rk = {}
+  for _, em in ipairs(rain) do rk[em.id] = true end
+  check('plan in the rain: the crowd stays indoors; nothing at all far from everything', not rk.crowd and #AM.plan({ player = { x = -5000, y = 5000, z = 0 }, height = slope, waterZ = 0, nodes = nodes, places = places, phase = 'day' }) == 0 and #AM.plan({}) == 0)
 end
