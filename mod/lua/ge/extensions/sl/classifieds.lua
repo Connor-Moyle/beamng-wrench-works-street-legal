@@ -23,7 +23,8 @@ local CAR_ADS = 3                           -- of Revline's ads, private cars (s
 local PAPER_LISTINGS, PRINT_ONLY = 3, 0.4    -- Valo Classifieds: ads up at a time (each lasts a day); some only in print
 local AUCTIONS = 6                          -- Swap & Bid lots open at a time
 local PAPER_REACH = 30                      -- metres from a gas station to buy a copy
-local MEET_STALLS, MEET_PLACE, MEET_REACH = 6, 'meet_tuning', 40   -- the weekend swap meet at the Tuning shop lot
+local swapmeet = require('sl/core/swapmeet')
+local MEET_STALLS, MEET_REACH = 6, 40   -- the weekend swap meet: at the Tuning shop lot on Valo City, the lot with most room on a map without one (#44)
 local MINE_MAX = 6                          -- your own listings at a time
 local OFFER_HOURS = 24                      -- how long a buyer's offer stands
 local DELIVERY_HOURS = 6
@@ -301,10 +302,21 @@ end
 
 local function find(m, id) for i, l in ipairs(m.listings) do if l.id == id then return l, i end end end
 
+-- the meet's place (a table) and name; nil when the map has none
+local meetCache
+local function meetPlace()
+  local places = sl_career.getPlaces() or {}
+  if meetCache and places[meetCache] then return places[meetCache], meetCache end
+  meetCache = swapmeet.pickPlace(places, swapmeet.FIXED)
+  return meetCache and places[meetCache] or nil, meetCache
+end
+-- open now? (the weekend; a night meet only after the phase turned to night)
+local function meetOpen(s) return sl_career.has('swapMeet') and swapmeet.isOpen(s.day, sl_career.isNight and sl_career.isNight(), sl_career.has('nightMeet')) end
+
 -- are you at the swap meet (within MEET_REACH of its place)?
 atMeet = function()
   local v = getPlayerVehicle(0)
-  local p = (sl_career.getPlaces() or {})[MEET_PLACE]
+  local p = meetPlace()
   return v and p and p.pos and (v:getPosition() - vec3(p.pos.x, p.pos.y, p.pos.z)):length() < MEET_REACH or false
 end
 
@@ -315,7 +327,7 @@ function M.summary()
   refresh(s)
   local m = state(s)
   local edition = m.edition or 0
-  local out = { listings = {}, auctions = {}, deliveries = #m.deliveries, meet = { listings = {}, place = 'Tuning shop lot' },
+  local out = { listings = {}, auctions = {}, deliveries = #m.deliveries, meet = { listings = {}, place = (meetPlace() or {}).name or 'Tuning shop lot', night = sl_career.has('nightMeet') or nil },
     paper = { bought = m.paperRead == edition, edition = edition + 1, listings = {}, hidden = 0, price = L.PAPER_PRICE } }
   for _, l in ipairs(m.listings) do
     if not l.taken then
@@ -355,7 +367,7 @@ function M.summary()
       end
     end
   end
-  out.meet.open = sl_career.has('swapMeet') and (s.day or 0) % 7 >= 5
+  out.meet.open = meetOpen(s)
   out.meet.here = out.meet.open and atMeet() or false
   out.mine, out.shelf = {}, {}
   for _, y in ipairs(m.mine) do
@@ -563,7 +575,8 @@ function M.buyAtMeet(id)
   local m = state(s)
   local l, i = find(m, id)
   if not l or l.channel ~= 'meet' then return false, 'That stall has sold it.' end
-  if not atMeet() then return false, 'The swap meet is at the Tuning shop lot. Come and look.' end
+  if not meetOpen(s) then return false, 'The swap meet runs on the weekend' .. (sl_career.has('nightMeet') and ' nights' or '') .. '.' end
+  if not atMeet() then return false, string.format('The swap meet is at the %s. Come and look.', (meetPlace() or {}).name or 'Tuning shop lot') end
   if not (slrr_garage and slrr_garage.addShelfPart) then return false, 'You need Wrench Works running to take it home.' end
   if not sl_career.addMoney(-l.ask, 'Swap meet: ' .. l.item.name) then return false, 'Not enough money.' end
   table.remove(m.listings, i)

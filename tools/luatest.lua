@@ -884,7 +884,7 @@ do
   local valo, wc = true, true
   for _, f in ipairs(feats) do
     valo = valo and progression.has('slrr_valo_city', f)
-    wc = wc and (f == 'clubs' or not progression.has('west_coast_usa', f))      -- (clubs: #41 hosts them there, with the stock track events)
+    wc = wc and (f == 'clubs' or f == 'swapMeet' or not progression.has('west_coast_usa', f))      -- (clubs: #41 hosts them there, with the stock track events)
   end
   valo = valo and progression.has('slrr_valo_city', 'classifieds')
   check('Valo City offers every feature', valo)
@@ -1069,6 +1069,14 @@ do
   check('and they make a day calendar: every day has a stock day event, and a night one from the sprints', (function() local cal = clubsCore.calendar({ { id = 'sr1', missionId = 'x/sr1', name = 'Sprint', kind = 'night' }, evs[1], evs[2], evs[3] }, require('sl/core/rng').new(5)) for d = 1, clubsCore.SEASON_DAYS do if not (cal[d].day and cal[d].day.stock and cal[d].night) then return false end end return true end)())
   check('stars give the place: three first, two second, one third, none not scored', clubsCore.placeFromStars(3) == 1 and clubsCore.placeFromStars(2) == 2 and clubsCore.placeFromStars(1) == 3 and clubsCore.placeFromStars(0) == nil and clubsCore.placeFromStars(nil) == nil)
   check('West Coast USA hosts clubs and stock events; Valo keeps its own', progression.has('west_coast_usa', 'clubs') and progression.has('west_coast_usa', 'stockEvents') and not progression.has('slrr_valo_city', 'stockEvents') and progression.has('slrr_valo_city', 'clubs'))
+
+  -- #44 the swap meet on West Coast USA
+  local sm = require('sl/core/swapmeet')
+  local places = { garage1 = { kind = 'garage', pos = {} }, small = { kind = 'dealer', pos = {}, displays = { 1, 2 } }, big = { kind = 'dealer', pos = {}, displays = { 1, 2, 3, 4, 5 } },
+    big2 = { kind = 'dealer', pos = {}, displays = { 1, 2, 3, 4, 5 } }, nopos = { kind = 'dealer', displays = { 1, 2, 3, 4, 5, 6, 7 } } }
+  check('the meet place: the fixed one when the map has it, else the lot with most spots (the lowest id on a tie; no garages, no place without a position)', sm.pickPlace(places) == 'big' and sm.pickPlace(places, 'small') == 'small' and sm.pickPlace(places, 'meet_tuning') == 'big' and sm.pickPlace({ meet_tuning = { kind = 'meet', pos = {} }, big = places.big }, 'meet_tuning') == 'meet_tuning' and sm.pickPlace({}) == nil)
+  check('the meet is on the weekend (day % 7 is 5 or 6, as before); a night meet only at night', sm.isOpen(5, false, false) and sm.isOpen(6, false, false) and not sm.isOpen(7, false, false) and not sm.isOpen(8, false, false) and sm.isOpen(13, true, true) and not sm.isOpen(13, false, true) and not sm.isOpen(10, true, true))
+  check('West Coast USA hosts the swap meet, as a night meet; Valo does not have the night meet', progression.has('west_coast_usa', 'swapMeet') and progression.has('west_coast_usa', 'nightMeet') and not progression.has('slrr_valo_city', 'nightMeet'))
 
   -- the sun, for a sky without core_celestial
   local sun = require('sl/core/sun')

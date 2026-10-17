@@ -21,7 +21,7 @@ M.MAPS = {
   slrr_valo_city = { name = 'Valo City', races = 'slrrValoRaces', has = ALL },
   -- stockFacilities: the map's own dealerships and garages (game data) become places; Valo City has its own
   -- clubs (#41): the night league races the map's sprints; the day league is the stock track events (stockEvents, scored by the game's stars)
-  west_coast_usa = { name = 'West Coast USA', races = 'sl_races', has = { stockFacilities = true, classifieds = true, clubs = true, stockEvents = true }, garages = {
+  west_coast_usa = { name = 'West Coast USA', races = 'sl_races', has = { stockFacilities = true, classifieds = true, clubs = true, stockEvents = true, swapMeet = true, nightMeet = true }, garages = {
     { id = 'alderDragwayGarage', name = 'Alder Dragway Garage' }, { id = 'commercialGarage', name = 'Industrial Garage' },
     { id = 'belascoCityGarage', name = 'Belasco City Garage' } } },
 }

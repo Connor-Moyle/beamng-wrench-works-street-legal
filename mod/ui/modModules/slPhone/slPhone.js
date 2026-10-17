@@ -613,7 +613,7 @@
       }).join('');
       var meet = obj(m.meet), stalls = '';
       if (meet.open) {
-        stalls = '<div class="slp-empty">Swap meet today at the ' + esc(meet.place || 'Tuning shop lot') + (meet.here ? '. You are here.' : ': go and buy in person.') + '</div>' +
+        stalls = '<div class="slp-empty">Swap meet ' + (meet.night ? 'tonight' : 'today') + ' at the ' + esc(meet.place || 'Tuning shop lot') + (meet.here ? '. You are here.' : ': go and buy in person.') + '</div>' +
           arr(meet.listings).map(function (l) {
             return '<div class="slp-card">' + adPic(l) + '<h4>' + (l.rare ? '&#9733; ' : '') + esc(l.name) + '</h4><p>' + partMeta(l) + ' &middot; ' + l.condition + '% condition &middot; ' + esc(l.seller) + '\'s stall</p>' +
               '<p><b>' + money(l.ask) + '</b></p>' + (meet.here ? '<div class="slp-acts"><div class="slp-btn" data-a="mkmeet" data-v="' + esc(l.id) + '">Buy it</div></div>' : '') + '</div>';
