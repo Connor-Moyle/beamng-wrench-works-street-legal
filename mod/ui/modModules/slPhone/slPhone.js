@@ -152,6 +152,14 @@
     '.slp-plus{color:#6dd58c}.slp-minus{color:#f2b8b5}',
     '.slp-meter{height:8px;border-radius:4px;background:#2b2930;overflow:hidden;margin-top:10px}',
     '.slp-meter i{display:block;height:100%;background:#a8c7fa;border-radius:4px}',
+    /* #51 colour-blind friendly colours (Settings > Colour-blind friendly colours): blue and orange (Okabe-Ito) instead of green and red, a mark beside every good or bad figure */
+    '.slp-cb .slp-plus,.slp-cb .slp-rok,.slp-cb .slp-rs,.slp-cb b.slp-on,.slp-cb .slp-lotfaults.slp-ok{color:#56b4e9}',
+    '.slp-cb .slp-minus,.slp-cb .slp-rbad,.slp-cb .slp-rf,.slp-cb .slp-lotfaults,.slp-cb .slp-warn{color:#ffb454}.slp-cb .slp-lotfaults.slp-ok{color:#56b4e9}',
+    '.slp-cb i.slp-ahead{background:#56b4e9;color:#062e4a}.slp-cb i.slp-behind{background:#ffb454;color:#3b2600}',
+    '.slp-cb .slp-plus:before{content:"\\25B2 "}.slp-cb .slp-minus:before{content:"\\25BC "}.slp-cb .slp-rok:before,.slp-cb .slp-lotfaults.slp-ok:before{content:"\\2714 "}',
+    '.slp-cb i.slp-ahead:before{content:"\\25B2 "}.slp-cb i.slp-behind:before{content:"\\25BC "}',
+    /* #51 the pad's focus is always visible: a thick yellow ring on whatever is focused */
+    '[bng-nav-item]:focus,[data-a]:focus,[tabindex]:focus{outline:3px solid #ffd54f!important;outline-offset:2px}',
     '.slp-report{margin:6px 0}.slp-rsec{margin:8px 0;padding:8px 10px;border-radius:12px;background:#0d0b12}.slp-rsec h5{margin:0 0 4px;font-size:13px;color:#a8c7fa}.slp-rok{color:#7bd88f}.slp-rmid{color:#e6c35c}.slp-rbad{color:#f2b8b5}',
     '.slp-kv{display:flex;justify-content:space-between;padding:7px 0;font-size:14px;border-bottom:1px solid #2b2930}',
     '.slp-kv span{color:#cac4d0}',
@@ -1328,6 +1336,7 @@
       // #51 text size: the Text size setting, and at least Large while a pad is in use (read from a distance)
       var zoom = Math.max(Number(d.textScale) || 1, Date.now() - padAt < 60000 ? 1.25 : 1);
       layer.style.setProperty('--sl-zoom', zoom); layer.setAttribute('data-zoom', zoom);
+      layer.classList.toggle('slp-cb', !!d.colorBlind);      // #51 colour-blind friendly colours
       var isHome = st.app === 'home';
       var screen = '<div class="slp-screen' + (isHome ? ' slp-home-on' : '') + '"><div class="slp-cam"></div>' +
         '<div class="slp-status">' + two(d.hour || 0) + ':' + two(d.minute || 0) + '<div class="slp-sr">' + I.signal + I.wifi + I.battery + '</div></div>' +

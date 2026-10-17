@@ -64,6 +64,7 @@
 
     var labels = {};          // the Lua side's words (sl/core/strings): { day, night, engine, atRisk, heat, rpm, mph, kmh, atRiskTip }
     var settings = { enabled: true, speedo: true, tacho: true, map: true, damage: true, units: 'kmh' };
+    function warnC() { return settings.colorBlind ? '#ffb454' : '#ff2a1a'; }      // #51: orange instead of red for the needle, the redline and the neutral mark with colour-blind colours
     var roads = null;         // { segs: [x1,y1,x2,y2,...], grid: { 'cx|cy': [index...] }, places }
     var CELL = 150;
 
@@ -179,7 +180,7 @@
       var na = ang(value);
       g.rotate(na);
       g.beginPath(); g.moveTo(-r * 0.14, -r * 0.035); g.lineTo(r * 0.8, -r * 0.012); g.lineTo(r * 0.8, r * 0.012); g.lineTo(-r * 0.14, r * 0.035); g.closePath();
-      g.fillStyle = '#ff2a1a'; g.fill();
+      g.fillStyle = warnC(); g.fill();
       g.rotate(-na);
       g.beginPath(); g.arc(0, 0, r * 0.08, 0, Math.PI * 2); g.fillStyle = '#1a1a1c'; g.fill();
       g.lineWidth = 3; g.strokeStyle = '#555'; g.stroke();
@@ -251,7 +252,7 @@
         var tx = sx(d.target.x, d.target.y), ty = sy(d.target.x, d.target.y);
         var td = Math.sqrt((tx - r) * (tx - r) + (ty - r) * (ty - r));
         if (td > r - 12) { tx = r + (tx - r) * (r - 12) / td; ty = r + (ty - r) * (r - 12) / td; }
-        g.beginPath(); g.arc(tx, ty, 11, 0, Math.PI * 2); g.fillStyle = '#ff2a1a'; g.fill();
+        g.beginPath(); g.arc(tx, ty, 11, 0, Math.PI * 2); g.fillStyle = warnC(); g.fill();
       }
       // you: an arrow pointing up
       g.beginPath(); g.moveTo(r, r - 16); g.lineTo(r + 11, r + 12); g.lineTo(r, r + 6); g.lineTo(r - 11, r + 12); g.closePath();
@@ -261,7 +262,7 @@
       // north
       var nx = r + (0 * rx + 1 * ry) * (r - 16), ny = r - (0 * fx + 1 * fy) * (r - 16);
       g.font = 'bold 22px Overpass, Roboto, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-      g.fillStyle = '#ff2a1a'; g.fillText('N', nx, ny);
+      g.fillStyle = warnC(); g.fillText('N', nx, ny);
     }
 
     // ---------------------------------------------------------------- damage: the car from above
@@ -351,7 +352,7 @@
       } else if (c.tacho) {
         var max = Math.max(6000, Math.ceil((c.redline + 500) / 1000) * 1000);
         dial(tachoC, rpm, max, { step: 1000, minor: 4, labelDiv: 1000, red: c.redline, caption: labels.rpm || 'RPM x1000',
-          digits: c.gear, digitsColour: rpm > c.redline * 0.97 ? '#ff2a1a' : '#ffd400' });
+          digits: c.gear, digitsColour: rpm > c.redline * 0.97 ? warnC() : '#ffd400' });
       }
     }
     function tick(ts) {

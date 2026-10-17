@@ -156,6 +156,9 @@ The Settings app has the options of the career: police and their aggression, pay
 
 - Street Legal dashboard: the game's own HUD is used by default; switch this on for the Street Legal gauges and map.
 - Performance overlay: frame time and counts, for reporting stutters.
+- Text size (Normal, Large, Huge): applies to the phone, the laptop and the HUD; on a pad the phone is never smaller than Large.
+- Colour-blind friendly colours: blue and orange instead of green and red on the phone, the laptop and the HUD, with a tick, a cross or an arrow beside every good or bad figure.
+- Show co-driver notes on screen: on rally stages what the co-driver calls is also written on screen.
 - Record street races: a race can be watched again (Races app, Last race) and saved as a clip.
 Developer: a button that gives you all the money, for testing.
 

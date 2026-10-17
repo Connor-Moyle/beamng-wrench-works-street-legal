@@ -29,6 +29,10 @@
     '.sll-rephead{display:flex;align-items:center;gap:14px;padding:14px 18px;border-bottom:1px solid rgba(255,255,255,.12)}.sll-rephead b{flex:1;font-size:19px;font-weight:500}',
     '.sll-repbody{flex:1 1 auto;min-height:0;overflow-y:auto;padding:10px 18px 18px;font-size:15px;line-height:1.5}',
     '.sll-repsum{display:grid;grid-template-columns:1.3fr 1fr 1.4fr auto;gap:12px;align-items:center;margin-top:8px;padding:10px 12px;border-radius:10px;background:rgba(0,0,0,.3);cursor:pointer}',
+    /* #51 colour-blind friendly colours: blue and orange, with a mark beside every good or bad figure; and the pad's focus always visible */
+    '.sll-cb .sll-plus,.sll-cb .sll-rok{color:#56b4e9}.sll-cb .sll-minus,.sll-cb .sll-rbad,.sll-cb .sll-note,.sll-cb .sll-balloon{color:#ffb454}',
+    '.sll-cb .sll-plus:before{content:"\\25B2 "}.sll-cb .sll-minus:before{content:"\\25BC "}.sll-cb .sll-rok:before{content:"\\2714 "}',
+    '.sll-screen [bng-nav-item]:focus,.sll-screen [data-a]:focus,.sll-screen [tabindex]:focus{outline:3px solid #ffd54f!important;outline-offset:2px}',
     '.sll-repsum:focus,.sll-repsum:hover{outline:2px solid #a8c7fa}.sll-repparts{margin:2px 0 6px 14px}',
     '.sll-screen{position:absolute;left:0;top:0;right:0;bottom:0;overflow:hidden;pointer-events:auto;transition:opacity .2s;',
     '  background-color:#0d0b12;background-size:cover;background-position:center}',
@@ -586,6 +590,7 @@
       }
       var zoom = Math.max(Number(st.data.textScale) || 1, Date.now() - st.padAt < 60000 ? 1.25 : 1);
       layer.style.setProperty('--sl-zoom', zoom); layer.setAttribute('data-zoom', zoom);      // (#51 text size; at least Large on a pad)
+      layer.classList.toggle('sll-cb', !!st.data.colorBlind);      // (#51 colour-blind friendly colours)
       var html = '<div class="sll-screen' + (st.open ? '' : ' sll-gone') + '">' + inner + '</div>';
       if (html === lastHtml && layer.firstChild) { renderSkips++; reportRenders(); return; }
       lastHtml = html; renders++; reportRenders();

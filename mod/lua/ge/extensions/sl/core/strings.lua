@@ -32,6 +32,10 @@ M.TEXT = {
   ['laptop.partshop'] = 'Part customization', ['laptop.tuning'] = 'Tuning', ['laptop.painting'] = 'Painting', ['laptop.repair'] = 'Repair',
   -- settings
   ['settings.textSize'] = 'Text size',
+  ['settings.colorBlind'] = 'Colour-blind friendly colours',
+  ['settings.colorBlindDesc'] = 'Blue and orange instead of green and red on the phone, the laptop and the HUD, with a mark (a tick, a cross, an arrow) beside every good or bad figure.',
+  ['settings.captions'] = 'Show co-driver notes on screen',
+  ['settings.captionsDesc'] = 'Rally stages: what the co-driver calls is also written on screen, even if the visual pacenotes of the game are off.',
   ['settings.textSizeDesc'] = 'How big the text is on the phone, the laptop and the HUD. On a pad the phone is never smaller than Large.',
   ['settings.textNormal'] = 'Normal', ['settings.textLarge'] = 'Large', ['settings.textHuge'] = 'Huge',
   -- BEGIN extracted (tools/strings_extract.py)

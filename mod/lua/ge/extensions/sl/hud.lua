@@ -27,6 +27,7 @@ function M.getSettings()
   if not settings then load() end
   settings.enabled = dashboardOn()          -- (the option decides: an old hud.json 'enabled' no longer does)
   settings.textScale = require('sl/core/strings').textScale(sl_options and sl_options.get and sl_options.get('slTextScale'))      -- (#51)
+  settings.colorBlind = sl_options ~= nil and sl_options.get ~= nil and sl_options.get('slColorBlind') == true
   return settings
 end
 
