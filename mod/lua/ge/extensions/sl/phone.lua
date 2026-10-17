@@ -166,6 +166,24 @@ function M.release(carId) if career() then answer(sl_career.releaseCar(tonumber(
 function M.useItem(carId, itemId) if career() and sl_carcare then answer(sl_carcare.useItem(tonumber(carId), tostring(itemId))) end end
 function M.useCar(carId) if career() then answer(sl_fleet.setActive(tonumber(carId))) end end
 function M.moveGarage() if career() then answer(sl_career.moveGarage()) end end
+-- the Settings app: every Wrench Works setting and the career's own, as Wrench Works lists them (its own screen shows the same list)
+local function settingsList()
+  if slrr_garage and slrr_garage.settingsDefs then return slrr_garage.settingsDefs() end
+  local defs = {}
+  if sl_options and sl_options.onWrenchWorksSettingsDefs then sl_options.onWrenchWorksSettingsDefs(defs) end
+  return defs
+end
+function M.settings() if career() then guihooks.trigger('slSettings', { defs = settingsList() }) end end
+function M.setSetting(key, value)
+  if not career() then return end
+  key = tostring(key)
+  if slrr_garage and slrr_garage.setSetting then slrr_garage.setSetting(key, value)
+  elseif sl_options and sl_options.onWrenchWorksSetting then sl_options.onWrenchWorksSetting(key, value) end
+  M.settings()
+  wantSend = true
+end
+-- for testing: all the money there can be (a ledger entry says so)
+function M.devMoney() if career() then answer(sl_career.devMoney()) end end
 function M.despawn(carId) if career() then answer(sl_fleet.despawn(tonumber(carId))) end end
 function M.workOn(carId) if career() then answer(sl_fleet.workOn(tonumber(carId))) end end
 -- on foot in a garage's doorway: the cars panel (take out, work on, put away); true when it opened. The cars come in the phone's own data.

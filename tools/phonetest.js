@@ -524,6 +524,46 @@ phone.handle('slPhoneToggle');
 phone.act('open', 'garage');
 assert.ok(phone.root.querySelector('[data-a="despawn"][data-v="1"]') && !phone.root.querySelector('[data-a="despawn"][data-v="2"]'), 'My cars: Put it away for a car that is out only');
 phone.act('home');
+// Settings, Android style: every setting in its group, a switch / stepper + slider / list each, a developer button at the bottom
+phone.act('home');
+if (!phone.state.open) phone.handle('slPhoneToggle');
+calls.length = 0;
+phone.act('open', 'settings');
+assert.ok(calls.includes('settings()'), 'opening Settings asks for the list');
+phone.handle('slSettings', { defs: [
+  { key: 'unlimitedMoney', group: 'Money', title: 'Unlimited money', type: 'bool', value: false, desc: 'Outside career mode.' },
+  { key: 'priceMultiplier', group: 'Money', title: 'Part prices', type: 'range', min: 0, max: 3, step: 0.05, value: 1, unit: 'x' },
+  { key: 'paintPrice', group: 'Money', title: 'Respray price', type: 'number', min: 0, max: 100000, step: 50, value: 300 },
+  { key: 'slNotify', group: 'Street Legal', title: 'Text pop-ups', type: 'choice', value: 'all', options: [{ id: 'all', label: 'Every text' }, { id: 'important', label: 'Racers only' }, { id: 'off', label: 'None' }] },
+  { key: 'slPolice', group: 'Street Legal', title: 'Police', type: 'bool', value: true }] });
+const heads = Array.from(phone.root.querySelectorAll('.slp-seth')).map((h) => h.textContent);
+assert.deepStrictEqual(heads, ['Money', 'Street Legal', 'Settings', 'Developer'], 'settings are grouped, with the reset and the developer section last');
+assert.ok(phone.root.querySelectorAll('.slp-sw').length === 2 && phone.root.querySelector('.slp-sw.slp-swon') && text().includes('Unlimited money') && text().includes('Outside career mode.'), 'a bool is a switch (on shows lit)');
+assert.ok(phone.root.querySelector('input.slp-range[data-key="priceMultiplier"]') && text().includes('1 x') && text().includes('Racers only') === false && text().includes('Every text'), 'a range has a slider and its value, a list its current choice');
+calls.length = 0;
+click('settoggle', 'unlimitedMoney');
+click('settoggle', 'slPolice');
+assert.ok(calls.includes('setSetting("unlimitedMoney",true)') && calls.includes('setSetting("slPolice",false)'), 'a switch flips the setting');
+click('setstep', 'priceMultiplier|1');
+click('setstep', 'paintPrice|-1');
+assert.ok(calls.includes('setSetting("priceMultiplier",1.05)') && calls.includes('setSetting("paintPrice",250)'), '+ and - step a number by its step');
+click('setstep', 'priceMultiplier|-1');
+click('setchoice', 'slNotify|1');
+click('setchoice', 'slNotify|-1');
+assert.ok(calls.includes('setSetting("slNotify","important")') && calls.includes('setSetting("slNotify","off")'), 'a list steps to the next / previous choice (wrapping)');
+const slider = phone.root.querySelector('input.slp-range');
+slider.value = '2.5';
+slider.dispatchEvent(new win.Event('change', { bubbles: true }));
+assert.ok(calls.includes('setSetting("priceMultiplier",2.5)'), 'a slider let go sets the setting');
+assert.ok(phone.root.querySelector('.slp-settings-all') === null && Array.from(phone.root.querySelectorAll('.slp-set')).every((e) => true), 'the rows exist');
+assert.ok(phone.root.querySelector('[data-a="setstep"]').hasAttribute('bng-nav-item') && phone.root.querySelector('[data-a="settoggle"]').hasAttribute('bng-nav-item'), 'the controls are gamepad nav items');
+calls.length = 0;
+click('setreset');
+click('devmoney');
+assert.ok(calls.includes('setSetting("__reset",true)') && calls.includes('devMoney()'), 'reset, and the developer button gives all the money');
+const dev = phone.root.querySelector('[data-a="devmoney"]');
+assert.ok(dev && text().lastIndexOf('Developer') > text().lastIndexOf('Street Legal') && text().indexOf('Give all the money') > text().lastIndexOf('Respray price'), 'the developer section is at the very bottom');
+phone.act('home');
 // a fade is plain black: no SLRR loading picture, whatever the game sends
 phone.handle('slFade', { on: true, pic: 'loading_city.png' });
 assert.ok(phone.root.querySelector('.slp-fade.slp-in') && !(phone.root.querySelector('.slp-fade').getAttribute('style') || '').includes('url('), 'a fade has no picture');

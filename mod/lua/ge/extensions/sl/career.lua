@@ -1250,6 +1250,14 @@ M.hour = hour
 
 -- wait: to the next morning or a few hours on (progression.skipPlan); the clock, the day counter and everything that follows
 -- the clock (shop hours, deliveries, listings) move together. false and the reason when it cannot be done now.
+-- a developer button on the phone's Settings: the money jumps to 99,999,999 (Connor's request, for testing)
+function M.devMoney()
+  if not s then return false, 'No career running.' end
+  local add = 99999999 - s.money
+  if add > 0 then stateLib.addMoney(s, add, 'Developer: all the money', now()) changed() end
+  return true, 'Money: $99,999,999.'
+end
+
 function M.skipTime(what)
   if not s then return false, 'No career running.' end
   local why = progression.skipRefusal({ racing = sl_streets and sl_streets.isRacing and sl_streets.isRacing(), job = s.jobs and s.jobs.active ~= nil,

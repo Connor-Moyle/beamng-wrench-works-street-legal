@@ -65,6 +65,20 @@
     '.slp-btn.slp-red{background:#f2b8b5;color:#601410}',
     '.slp-btn.slp-off{opacity:.38;pointer-events:none}',
     '.slp-card{margin:8px 16px;padding:14px 16px;border-radius:18px;background:#211f26}',
+    /* the Settings app, Android style: sections, rows with a switch, a slider or a list, a developer section at the bottom */
+    '.slp-seth{margin:18px 20px 4px 20px;font-size:12px;font-weight:500;letter-spacing:.06em;color:#a8c7fa;text-transform:uppercase}',
+    '.slp-set{display:flex;align-items:center;gap:12px;margin:0 8px;padding:12px 12px;border-radius:14px;border:2px solid transparent}',
+    '.slp-set:focus{outline:none;border-color:#a8c7fa}',
+    '.slp-set .slp-st{flex:1;min-width:0}',
+    '.slp-set .slp-st b{display:block;font-size:14px;font-weight:400}',
+    '.slp-set .slp-st small{display:block;color:#938f99;font-size:11px;margin-top:2px}',
+    '.slp-sw{flex:none;width:44px;height:24px;border-radius:12px;background:#49454f;position:relative}',
+    '.slp-sw i{position:absolute;left:3px;top:3px;width:18px;height:18px;border-radius:50%;background:#938f99;transition:left .15s}',
+    '.slp-sw.slp-swon{background:#a8c7fa}.slp-sw.slp-swon i{left:23px;background:#062e6f}',
+    '.slp-val{flex:none;display:flex;align-items:center;gap:6px;font-size:13px;color:#e6e1e5}',
+    '.slp-val .slp-mini{width:28px;height:28px;border-radius:50%;background:#2b3a52;color:#d3e3fd;display:flex;align-items:center;justify-content:center;cursor:pointer;border:2px solid transparent}',
+    '.slp-val .slp-mini:focus{outline:none;border-color:#a8c7fa}',
+    '.slp-range{width:100%;margin-top:6px}',
     /* a car ad as the stock shop lists a car: the config's picture first */
     '.slp-pic{margin:-14px -16px 10px -16px;aspect-ratio:16/9;border-radius:18px 18px 0 0;overflow:hidden;background:#0d0b12;display:flex;align-items:center;justify-content:center;color:#6f6a78;font-size:12px}',
     '.slp-pic{position:relative}',
@@ -234,6 +248,7 @@
   // icons (Material-style shapes, drawn here)
   function svg(path, viewBox) { return '<svg viewBox="' + (viewBox || '0 0 24 24') + '"><path d="' + path + '"/></svg>'; }
   var I = {
+    settings: svg('M19.400 13a7.600 7.600 0 0 0 0-2l2-1.600-2-3.400-2.400 1a7.500 7.500 0 0 0-1.700-1L15 3.400h-4l-.4 2.600a7.500 7.500 0 0 0-1.700 1l-2.400-1-2 3.400 2 1.600a7.600 7.600 0 0 0 0 2l-2 1.600 2 3.400 2.400-1c.5.400 1.100.7 1.700 1l.4 2.600h4l.4-2.600c.6-.3 1.200-.6 1.700-1l2.400 1 2-3.400zM13 15.500a3.500 3.500 0 1 1 0-7 3.500 3.500 0 0 1 0 7z'),
     wait: svg('M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 5v5.4l4 2.3-.8 1.3L11 13V7z'),
     market: svg('M3 4h18l-2 6H5zm2 8h14v8H5zm4 2v4h6v-4z'),
     // what a part ad shows when there is no picture (and beside the picture): its category
@@ -273,7 +288,7 @@
   var SLRR_ART = '/ui/modModules/slHud/slrr/icons/';
   var SLRR_ICON = { races: 'cup.png', garage: 'garage.png', bank: 'dollar.png', cab: 'city.png', me: 'roc.png' };
   function slrrIcon(name, cls) { return '<img class="slp-slrr ' + (cls || '') + '" src="' + SLRR_ART + name + '" alt="">'; }
-  var APP_COLORS = { wait: '#4a5d7a', market: '#a3322c', paper: '#5b5346', bid: '#b5651d', club: '#6a2e7a', jobs: '#3d7a2e', phone: '#2e7d4f', messages: '#2f5fb3', contacts: '#7b4fb0', races: '#c2541e', bank: '#1f7a70', cab: '#b58a12', me: '#5c6474', garage: '#8a3b8f' };
+  var APP_COLORS = { settings: '#5c6474', wait: '#4a5d7a', market: '#a3322c', paper: '#5b5346', bid: '#b5651d', club: '#6a2e7a', jobs: '#3d7a2e', phone: '#2e7d4f', messages: '#2f5fb3', contacts: '#7b4fb0', races: '#c2541e', bank: '#1f7a70', cab: '#b58a12', me: '#5c6474', garage: '#8a3b8f' };
   var AV_COLORS = ['#a8c7fa', '#f2b8b5', '#c3e7c6', '#ffd8a8', '#d0bcff', '#9fe0e8', '#ffb4ab', '#e8def8'];
   var CLASS_NAMES = { beater: 'Beaters', compact: 'Compacts', muscle: 'Muscle', tuner: 'Tuners', sport: 'Sports cars', super: 'Supercars' };
 
@@ -352,6 +367,7 @@
           { id: 'me', title: 'Street cred', icon: I.me },
           { id: 'jobs', title: 'Jobs', icon: I.jobs, badge: d.jobs && d.jobs.active ? 1 : 0 },
           { id: 'wait', title: 'Wait', icon: I.wait },
+          { id: 'settings', title: 'Settings', icon: I.settings },
           { id: 'club', title: 'Club', icon: I.club, hide: has.clubs === false },
           { id: 'turf', title: 'Turf', icon: I.turf, hide: has.crews === false },
           { id: 'market', title: 'Revline', icon: I.market, badge: d.market && d.market.deliveries || 0, hide: has.classifieds === false },
@@ -650,6 +666,41 @@
       }
       return bar('Bank') + '<div class="slp-body"><div class="slp-bal"><small>Balance</small><div>' + money(st.data.money) + '</div></div>' + cards +
         (rows.join('') || '<div class="slp-empty">No transactions yet.</div>') + '</div>';
+    }
+
+    // Settings: Wrench Works' settings and the career's, as Android lists them
+    function findSetting(key) {
+      var defs = arr(obj(st.settings).defs);
+      for (var i = 0; i < defs.length; i++) if (defs[i].key === key) return defs[i];
+      return null;
+    }
+    function settingValue(d) {
+      if (d.type === 'bool') return d.value ? 'On' : 'Off';
+      if (d.type === 'choice') { var o = arr(d.options).filter(function (x) { return x.id === d.value; })[0]; return o ? o.label : String(d.value); }
+      return (typeof d.value === 'number' ? Math.round(d.value * 1000) / 1000 : d.value) + (d.unit ? ' ' + d.unit : '');
+    }
+    function settingRow(d) {
+      var title = '<div class="slp-st"><b>' + esc(d.title) + '</b>' + (d.desc ? '<small>' + esc(d.desc) + '</small>' : '');
+      if (d.type === 'bool') {
+        return '<div class="slp-set" data-a="settoggle" data-v="' + esc(d.key) + '">' + title + '</div><div class="slp-sw' + (d.value ? ' slp-swon' : '') + '"><i></i></div></div>';
+      }
+      if (d.type === 'choice') {
+        return '<div class="slp-set">' + title + '</div><div class="slp-val"><div class="slp-mini" data-a="setchoice" data-v="' + esc(d.key) + '|-1">&#9664;</div>' + esc(settingValue(d)) +
+          '<div class="slp-mini" data-a="setchoice" data-v="' + esc(d.key) + '|1">&#9654;</div></div></div>';
+      }
+      // a number or a range: a slider (the mouse) and - / + (the pad)
+      var slider = d.type === 'range' ? '<input class="slp-range" type="range" data-key="' + esc(d.key) + '" min="' + d.min + '" max="' + d.max + '" step="' + d.step + '" value="' + d.value + '">' : '';
+      return '<div class="slp-set">' + title + slider + '</div><div class="slp-val"><div class="slp-mini" data-a="setstep" data-v="' + esc(d.key) + '|-1">&minus;</div>' + esc(settingValue(d)) +
+        '<div class="slp-mini" data-a="setstep" data-v="' + esc(d.key) + '|1">+</div></div></div>';
+    }
+    function settingsPage() {
+      var defs = arr(obj(st.settings).defs), groups = [], by = {};
+      defs.forEach(function (d) { var g = d.group || 'Other'; if (!by[g]) { by[g] = []; groups.push(g); } by[g].push(d); });
+      var out = groups.map(function (g) { return '<div class="slp-seth">' + esc(g) + '</div>' + by[g].map(settingRow).join(''); }).join('');
+      return bar('Settings') + '<div class="slp-body">' + (out || '<div class="slp-empty">No settings yet.</div>') +
+        '<div class="slp-seth">Settings</div><div class="slp-acts"><div class="slp-btn slp-tonal" data-a="setreset">Reset to defaults</div></div>' +
+        '<div class="slp-seth">Developer</div><div class="slp-set"><div class="slp-st"><b>All the money</b><small>For testing: the money goes to $99,999,999.</small></div></div>' +
+        '<div class="slp-acts"><div class="slp-btn slp-pinkbtn" data-a="devmoney">Give all the money</div></div></div>';
     }
 
     // waiting: to the next morning or a few hours on (the clock, deliveries and shop hours follow); refused in a race, on a job or with the police after you
@@ -994,6 +1045,7 @@
         case 'phone': page = phonePage(); break;
         case 'races': page = racesPage(); break;
         case 'wait': page = waitPage(); break;
+        case 'settings': page = settingsPage(); break;
         case 'jobs': page = jobsPage(); break;
         case 'club': page = clubPage(); break;
         case 'turf': page = turfPage(); break;
@@ -1097,6 +1149,7 @@
     function go(app, params) {
       st.stack.push({ app: st.app, contact: st.contact, thread: st.thread });
       st.app = app;
+      if (app === 'settings') lua('settings()');
       if (params) for (var k in params) st[k] = params[k];
       if (app === 'thread' && st.thread) { lua('markRead(' + JSON.stringify(st.thread) + ')'); var u = obj(st.data.unread); delete u[st.thread]; }
       render();
@@ -1151,6 +1204,25 @@
         case 'workon': lua('workOn(' + Number(v) + ')'); st.garage = null; break;
         case 'despawn': lua('despawn(' + Number(v) + ')'); break;
         case 'garageclose': lua('closeGarage()'); st.garage = null; render(); break;
+        case 'settoggle': var tg = findSetting(v); if (tg) lua('setSetting(' + JSON.stringify(v) + ',' + (tg.value ? 'false' : 'true') + ')'); break;
+        case 'setchoice':
+          var cp = String(v).split('|'), cd = findSetting(cp[0]);
+          if (cd && arr(cd.options).length) {
+            var opts = arr(cd.options), at = 0;
+            opts.forEach(function (o, i) { if (o.id === cd.value) at = i; });
+            lua('setSetting(' + JSON.stringify(cp[0]) + ',' + JSON.stringify(opts[(at + Number(cp[1]) + opts.length) % opts.length].id) + ')');
+          }
+          break;
+        case 'setstep':
+          var sp = String(v).split('|'), sd = findSetting(sp[0]);
+          if (sd) {
+            var step = Number(sd.step) || 1, nv = Number(sd.value) + Number(sp[1]) * step;
+            nv = Math.round(Math.min(Number(sd.max), Math.max(Number(sd.min), nv)) / step * 1000) / 1000 * step;
+            lua('setSetting(' + JSON.stringify(sp[0]) + ',' + Math.round(nv * 10000) / 10000 + ')');
+          }
+          break;
+        case 'setreset': lua('setSetting("__reset",true)'); break;
+        case 'devmoney': lua('devMoney()'); break;
         case 'wait': lua('wait(' + JSON.stringify(String(v)) + ')'); break;
         case 'borrow': lua('borrow(' + Number(v) + ')'); break;
         case 'repay': lua('repay(' + Number(v) + ')'); break;
@@ -1247,6 +1319,11 @@
       if (ev.target && ev.target.getAttribute && ev.target.getAttribute('data-catch') === 'lot') lua('@sl_lot.cameraZoom(' + (ev.deltaY < 0 ? 1 : -1) + ')');
     });
     root.addEventListener('contextmenu', function (ev) { if (st.lot && st.lot.open) ev.preventDefault(); });
+    // a settings slider let go: the new value
+    root.addEventListener('change', function (ev) {
+      var t = ev.target;
+      if (t && t.classList && t.classList.contains('slp-range')) lua('setSetting(' + JSON.stringify(t.getAttribute('data-key')) + ',' + Number(t.value) + ')');
+    });
 
     root.addEventListener('click', function (ev) {
       var el = ev.target;
@@ -1286,6 +1363,7 @@
         case 'slMeet': st.meet = data.open ? data : null; render(); break;
         case 'slStation': st.station = data.open ? data : null; render(); break;
         case 'slGarage': st.garage = data.open ? data : null; render(); break;
+        case 'slSettings': st.settings = data; render(); break;
         case 'slRace': st.race = data.on ? data : null; render(); break;
         case 'slMenu': st.menu = data.show ? data : null; render(); break;
         case 'slArt': st.slrrArt = true; render(); break;
@@ -1317,7 +1395,7 @@
       var probe = new Image();
       probe.onload = function () { phone.handle('slArt'); };
       probe.src = '/ui/modModules/slHud/slrr/icons/cup.png';
-      ['slPhoneData', 'slPhoneToggle', 'slPhoneCall', 'slPhoneCallReply', 'slPhoneNotify', 'slPhoneToast', 'slFade', 'slLotData', 'slMeet', 'slRace', 'slMenu', 'slStation', 'slGarage'].forEach(function (name) {
+      ['slPhoneData', 'slPhoneToggle', 'slPhoneCall', 'slPhoneCallReply', 'slPhoneNotify', 'slPhoneToast', 'slFade', 'slLotData', 'slMeet', 'slRace', 'slMenu', 'slStation', 'slGarage', 'slSettings'].forEach(function (name) {
         $rootScope.$on(name, function (ev, data) { phone.handle(name, data); });
       });
       if (window.bngApi) window.bngApi.engineLua('if sl_phone then sl_phone.request() end if sl_menuTile then sl_menuTile.request() end');
