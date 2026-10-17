@@ -32,10 +32,60 @@ end
 
 function M.onMissionAbandoned() refuse = nil end
 
+-- the Race of Champions mission (#25) is not in the freeroam list (the game shows its circuits to a stock career only): it is made visible and
+-- startable for as long as the career is in its day and the player may enter, and put back after
+local function rocMissions()
+  local out = {}
+  local all = gameplay_missions_missions and gameplay_missions_missions.getAllMissions and gameplay_missions_missions.getAllMissions() or {}
+  for _, m in ipairs(all) do
+    local r = type(m) == 'table' and m.id and ruleFor(m.id)
+    if r and r.roc then out[#out + 1] = m end
+  end
+  return out
+end
+
+local function syncRoc()
+  local u = gameplay_missions_unlocks
+  if not (u and u.overrideVisible and u.overrideStartable) then return end
+  local s = career()
+  local open = s ~= nil and sl_career.phase() == 'day' and rules.rocGate(s) == nil
+  local changed = false
+  for _, m in ipairs(rocMissions()) do
+    local want = open or nil
+    if u.isMissionVisible(m) ~= (open or false) then changed = true end
+    u.overrideVisible(m.id, want)
+    u.overrideStartable(m.id, want)
+  end
+  if changed and gameplay_rawPois and gameplay_rawPois.clear then gameplay_rawPois.clear() end
+end
+M.onStreetLegalStarted = syncRoc
+M.onStreetLegalPhase = syncRoc
+M.onStreetLegalGarageMoved = syncRoc
+M.onStreetLegalChanged = syncRoc
+M.onStreetLegalStopped = function()
+  local u = gameplay_missions_unlocks
+  if not (u and u.overrideVisible) then return end
+  for _, m in ipairs(rocMissions()) do u.overrideVisible(m.id, nil) u.overrideStartable(m.id, nil) end
+end
+
 function M.onAnyMissionChanged(change, mission)
   local s = career()
   local r = s and change == 'started' and mission and ruleFor(mission.id)
   if not r then return end
+  if r.roc then
+    -- entry rules: the top garage and the top names, the entry fee paid up front; the champion races it for nothing
+    local why = rules.rocGate(s)
+    if why then refuse = mission tell(why) return end
+    if (s.roc or {}).champion then return end
+    if not sl_career.addMoney(-r.fee, 'ROC entry') then
+      refuse = mission
+      tell(string.format('Entry to the Race of Champions is $%d.', r.fee))
+      return
+    end
+    paidFee[mission.id] = true
+    tell(string.format('Race of Champions: $%d paid. Win it for the title.', r.fee))
+    return
+  end
   if r.kind and not splitphase.available('races', r.kind, sl_career.phase()) then
     refuse = mission                                   -- (a track event at night: stopped as soon as the game has finished starting it)
     tell('Track events run in the day.')
@@ -54,6 +104,21 @@ function M.onMissionAttemptAggregated(attempt, mission)
   local paid = paidFee[mission.id]
   paidFee[mission.id] = nil
   local passed = attempt.type == 'passed' or attempt.type == 'completed'
+  if r.roc then
+    if not paid then return end                      -- (the champion's lap for fun, or no entry)
+    s.roc = s.roc or { round = 0 }
+    if passed and rules.rocWon(attempt.unlockedStars) then
+      s.roc.champion = true
+      sl_career.payOut(r.prize, 'Race of Champions')
+      stateLib.addRep(s, r.rep)
+      tell(string.format('Champion! The Race of Champions is yours: $%d and %+d reputation.', r.prize, r.rep))
+      sl_career.sendText('benny', sl_career.mapText('You won the Race of Champions. I always said you had it in you. (I did not.)'), 3)
+    else
+      tell('Out of the Race of Champions. The entry fee is gone; enter again when you are ready.')
+    end
+    extensions.hook('onStreetLegalChanged')
+    return
+  end
   if not passed then return end
   s.activitiesDone = s.activitiesDone or {}
   local first = not s.activitiesDone[mission.id]

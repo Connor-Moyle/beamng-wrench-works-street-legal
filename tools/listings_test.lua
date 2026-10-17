@@ -223,6 +223,11 @@ return function(check, rngLib)
   check('a stock time trial pays its prize and rep once, not again and again (no money loop)', tt.prizeOnce and tt.firstOnly and tt.fee == 100 and tt.kind == 'timeTrial' and not tt.nightOnly)
   check('the drag strips and circuits of a stock map are day events with prize money', AR.ruleFor(W, W .. '/dragStripRace/a').kind == 'drag' and AR.ruleFor(W, W .. '/dragStripAPM/a').prize > 0
     and AR.ruleFor(W, W .. '/aiRace/a').kind == 'circuit' and AR.ruleFor(V, V .. '/aiRace/a') == nil)
+  local roc = AR.ruleFor(W, W .. '/aiRace/001-circuit')
+  check('the Race of Champions is the first circuit of the race track: a day event with the entry fee and the big prize, other circuits are plain', roc.roc and roc.kind == 'circuit' and roc.fee == 50000 and roc.prize == 250000
+    and AR.ruleFor(W, W .. '/aiRace/002-highway').roc == nil and AR.ruleFor(V, V .. '/aiRace/001-circuit') == nil)
+  check('ROC entry: closed below garage 3 or 6000 reputation, open with both; only the gold star wins it', AR.rocGate({ garageLevel = 2, rep = 9000 }) ~= nil and AR.rocGate({ garageLevel = 3, rep = 5000 }) ~= nil
+    and AR.rocGate({ garageLevel = 3, rep = 6000 }) == nil and AR.rocGate({}) ~= nil and AR.rocWon({ finishGold = true, finishSilver = true }) and not AR.rocWon({ finishSilver = true }) and not AR.rocWon(nil))
   check('at night the day events are closed (no marker), by day and the street things not', AR.closed(W, W .. '/timeTrial/t1', 'night') and AR.closed(W, W .. '/dragStripRace/a', 'night')
     and not AR.closed(W, W .. '/timeTrial/t1', 'day') and not AR.closed(W, W .. '/evade/e', 'night') and not AR.closed(W, W .. '/drift/d', 'night') and not AR.closed(W, 'x/timeTrial/t1', 'night'))
   check('Valo City is unchanged: its sprints and evades by their slrr_ names only', AR.ruleFor(V, V .. '/timeTrial/slrr_sprint_x').prizeOnce == nil

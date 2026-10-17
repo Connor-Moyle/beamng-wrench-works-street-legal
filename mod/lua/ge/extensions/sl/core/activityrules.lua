@@ -18,6 +18,8 @@ M.RULES = {
   { match = '/timeTrial/', generic = true, kind = 'timeTrial', title = 'Time trial', fee = 100, prize = 400, perStar = 0.25, rep = 15, firstOnly = true, prizeOnce = true },
   { match = '/dragStripRace/', generic = true, kind = 'drag', title = 'Drag strip', fee = 50, prize = 300, perStar = 0.25, rep = 10, firstOnly = true, prizeOnce = true },
   { match = '/dragStripAPM/', generic = true, kind = 'drag', title = 'Drag strip', fee = 50, prize = 200, perStar = 0.25, rep = 10, firstOnly = true, prizeOnce = true },
+  -- the season finale (#25): the Race of Champions on the race track's first circuit, behind the top garage and the top names (progression.ROC)
+  { match = '/aiRace/001-circuit', generic = true, kind = 'circuit', roc = true, title = 'Race of Champions', fee = 50000, prize = 250000, rep = 2000 },
   { match = '/aiRace/', generic = true, kind = 'circuit', title = 'Circuit race', fee = 100, prize = 500, perStar = 0.25, rep = 15, firstOnly = true, prizeOnce = true },
   { match = '/evade/', generic = true, title = 'Evade', rep = 20, heatRep = 60, heat = -0.3 },
   { match = '/drift/', title = 'Drift contest', fee = 50, prize = 300, perStar = 0.3, rep = 12 },
@@ -30,6 +32,18 @@ M.RULES = {
   { match = '/hypermiling/', title = 'Hypermiling', rep = 10, firstOnly = true },
   { match = '/garageToGarage/', title = 'Garage to garage', rep = 10, firstOnly = true },
 }
+
+-- the Race of Champions: who may enter (nil: open), what to tell the rest. state: the career save
+function M.rocGate(state)
+  local progression = require('sl/core/progression')
+  if progression.rocOpen(state or {}) then return nil end
+  return string.format('The Race of Champions is for garage %d and %d reputation.', progression.ROC.garageLevel, progression.ROC.rep)
+end
+
+-- did the attempt win it (the first place is the gold star)
+function M.rocWon(unlockedStars)
+  return type(unlockedStars) == 'table' and unlockedStars.finishGold == true
+end
 
 -- the rule for a mission of this level, or nil (another level's missions never pay)
 function M.ruleFor(level, id)
