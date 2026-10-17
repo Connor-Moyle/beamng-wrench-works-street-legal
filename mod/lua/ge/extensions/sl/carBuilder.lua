@@ -80,20 +80,34 @@ function M.spawn(job, model, config, pos, rot, nobodyDrives)
   return getObjectByID(id)
 end
 
--- rebuild a spawned car with another setup; waits until the game has done it
+-- Rebuild a spawned car with another setup; waits until the game has done it. Strictly one rebuild at a time (the lot builds its cars
+-- one after another, but a second lot, a race or a street racer could start one while another still runs: T29), and every wait
+-- has an end (real time): returns true when the car was rebuilt, false when the game did not report it within RESPAWN_WAIT
+-- seconds (logged), so the caller can drop the car and go on.
+M.RESPAWN_WAIT = 8
+local respawnBusy                  -- os.clock() when the running rebuild began (a rebuild that died is forgotten after BUSY_FORGET s)
+local BUSY_FORGET = 12
 local function respawn(job, veh, config)
   local id = veh:getID()
+  local gate = os.clock()
+  while respawnBusy and os.clock() - respawnBusy < BUSY_FORGET and os.clock() - gate < 20 do job.sleep(0.1) end
+  veh = getObjectByID(id)
+  if not veh then return false end
+  respawnBusy = os.clock()
   local before = vehData(id)
   -- a respawned car takes the player unless told not to (seen in game: every racer built for a
   -- meet or the streets became the player's car); the game's own replaceVehicle does the same
   veh:setDynDataFieldbyName('autoEnterVehicle', 0, 'false')
   veh:respawn(serialize(config))
-  local t = 0
+  local started, ok = os.clock(), false
   repeat
     job.sleep(0.1)
-    t = t + 0.1
-  until (vehData(id) and vehData(id) ~= before) or t > 8
+    ok = vehData(id) ~= nil and vehData(id) ~= before
+  until ok or os.clock() - started > M.RESPAWN_WAIT
+  if not ok then log('W', 'street_legal', 'TIMEOUT: vehicle ' .. tostring(id) .. ' did not report its rebuild in ' .. M.RESPAWN_WAIT .. ' s: dropped') end
   job.sleep(0.4)
+  respawnBusy = nil
+  return ok
 end
 
 -- bend panels in the shape Wrench Works' vehicle extension knows (it keeps them through rebuilds)
@@ -161,7 +175,7 @@ function M.buildCustom(job, model, config, recipe, pos, rot, nobodyDrives)
   local paints = buildsLib.paints(recipe.seed or 1, recipe.stage == 'race')
   if #result.upgraded + #result.stripped > 0 then
     cfg.paints = paints
-    respawn(job, veh, cfg)
+    if not respawn(job, veh, cfg) then local v = getObjectByID(id) if v then v:delete() end return nil end
     veh = getObjectByID(id)
   else
     -- nothing to change underneath: just the paint, without a rebuild
@@ -227,7 +241,7 @@ function M.buildOffer(job, offer, pos, rot)
       paths(tweak.refused, function(x) return tostring(x.path) .. ':' .. tostring(x.why) end)))
   end
   if #tweak.removed + #tweak.swapped > 0 then
-    respawn(job, veh, cfg)
+    if not respawn(job, veh, cfg) then local v = getObjectByID(id) if v then v:delete() end return nil end
     veh = getObjectByID(id)
     if not veh then return nil end
   end

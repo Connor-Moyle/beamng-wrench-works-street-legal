@@ -38,15 +38,19 @@ local FAULTS = { 'engine', 'gearbox', 'radiator', 'battery', 'tyres', 'brakes', 
 
 local function vehData(id) return id and core_vehicle_manager.getVehicleData(id) or nil end
 
--- (carBuilder's own rebuild in place)
+-- (carBuilder's own rebuild in place, with its real-time end: false when the game did not report it within 8 s)
 local function respawn(job, veh, cfg)
   local id = veh:getID()
   local before = vehData(id)
   veh:setDynDataFieldbyName('autoEnterVehicle', 0, 'false')
   veh:respawn(serialize(cfg))
-  local t = 0
-  repeat job.sleep(0.1) t = t + 0.1 until (vehData(id) and vehData(id) ~= before) or t > 8
+  local started, ok = os.clock(), false
+  repeat
+    job.sleep(0.1)
+    ok = vehData(id) ~= nil and vehData(id) ~= before
+  until ok or os.clock() - started > 8
   job.sleep(0.4)
+  return ok
 end
 
 local function lookups(id)
@@ -83,6 +87,8 @@ end
 rawset(_G, 'PROBE_STATUS', 'running')
 
 local function body(job)
+  local okp, paused = pcall(function() return simTimeAuthority and simTimeAuthority.getPause and simTimeAuthority.getPause() end)
+  note('game paused: ' .. tostring(okp and paused) .. ' (job.sleep runs on game time: a paused or unfocused game makes the probe look stuck)')
   local pv = getPlayerVehicle(0)
   note('player vehicle: ' .. tostring(pv and pv:getJBeamFilename()))
   local pos = (pv and (pv:getPosition() + vec3(pv:getDirectionVector()) * 20) or vec3(0, 0, 0)) + vec3(0, 0, 0.5)
@@ -108,13 +114,15 @@ local function body(job)
             for _, p in ipairs(tw.removed) do what[#what + 1] = '-' .. p end
             for _, x in ipairs(tw.swapped) do what[#what + 1] = tostring(x.path) .. ' ' .. tostring(x.from) .. '>' .. tostring(x.to) end
             note('BEFORE ' .. ch.label .. ': ' .. table.concat(what, ' | '))
-            respawn(job, veh, cfg)
+            local done = respawn(job, veh, cfg)
+            if not done then note('TIMEOUT ' .. ch.label .. ': the game did not report the rebuild in 8 s; this car is dropped') break end
             job.sleep(3)
             veh = getObjectByID(id)
             note('OK ' .. ch.label .. (veh and '' or ' (vehicle gone)'))
             if not veh then break end
             note('BEFORE back to stock')
-            respawn(job, veh, deepcopy(base))
+            done = respawn(job, veh, deepcopy(base))
+            if not done then note('TIMEOUT back to stock: this car is dropped') break end
             job.sleep(1)
             veh = getObjectByID(id)
             note('OK back to stock')

@@ -185,22 +185,35 @@ function M.next() if lot and lot.mode == 'browse' then show(lot.index + 1) end e
 function M.prev() if lot and lot.mode == 'browse' then show(lot.index - 1) end end
 
 -- the whole row is brought out, one car after another (the first one as soon as it is there)
+-- One lot builds its row at a time: the next lot's build waits for the one still running (or 30 s of its silence), so two lots never
+-- spawn and rebuild cars side by side (T29). A build that makes no progress for BUILD_STUCK seconds is given up by onUpdate.
+local buildingNow                  -- os.clock() of the last sign of life of the running build
+local BUILD_STUCK = 60
 local function buildRow()
   local mine = lot
   lot.building = true
+  mine.buildAlive = os.clock()
   send()
   job = core_jobsystem.create(function(j)
+    local gate = os.clock()
+    while buildingNow and os.clock() - buildingNow < 30 and os.clock() - gate < 45 and lot == mine do j.sleep(0.2) end
+    if lot ~= mine or mine.abandoned then return end
+    buildingNow = os.clock()
     for i, offer in ipairs(mine.offers) do
       local spot = mine.spots[i]
       local veh = builder.buildOffer(j, offer, spot.pos + vec3(0, 0, 0.4), quatFromDir(spot.dir, vec3(0, 0, 1)))
-      if lot ~= mine then if veh then veh:delete() end return end
+      mine.buildAlive, buildingNow = os.clock(), os.clock()
+      if lot ~= mine or mine.abandoned then if veh then veh:delete() end buildingNow = nil return end
       if veh then
         if slrrDrivers and slrrDrivers.setDriver then slrrDrivers.setDriver(veh:getID(), nil) end   -- a car for sale: nobody in it
         mine.cars[i] = veh:getID()
         if i == mine.index then mine.veh = mine.cars[i] end
+      else
+        log('W', 'street_legal', 'lot car ' .. tostring(offer.id) .. ' could not be built: left out of the row')
       end
       send()
     end
+    buildingNow = nil
     mine.building = false
     send()
   end)
@@ -477,6 +490,12 @@ end
 local sendTimer = 0
 function M.onUpdate(dtReal)
   update(dtReal)
+  if lot and lot.building and lot.buildAlive and os.clock() - lot.buildAlive > BUILD_STUCK then
+    log('W', 'street_legal', 'the lot build made no progress for ' .. BUILD_STUCK .. ' s: the row stays as it is')
+    lot.building, lot.abandoned = false, true
+    buildingNow = nil
+    send()
+  end
   updateCamera(dtReal)
   if test then
     sendTimer = sendTimer + dtReal
