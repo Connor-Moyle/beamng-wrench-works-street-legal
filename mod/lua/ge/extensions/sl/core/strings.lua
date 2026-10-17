@@ -1138,6 +1138,7 @@ M.TEXT = {
   ["services.your_other_cars"] = "Your other cars",
   ["showroom.stage_1"] = "Stage {1}",
   ["splitphase.closed_for_the_night_open"] = "Closed for the night. Open by day.",
+  ["splitphase.closed_for_the_night_opens_02d_00"] = "Closed for the night. Opens in the day (%02d:00).",
   ["splitphase.only_after_dark"] = "Only after dark.",
   ["station.a_wash_is_1"] = "A wash is ${1}.",
   ["station.car_wash"] = "Car wash",

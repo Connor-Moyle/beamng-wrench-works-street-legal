@@ -60,9 +60,12 @@ function M.filter(table_, list, phase, kindOf)
 end
 
 -- what a closed place or an unavailable thing says
-function M.closedText(table_, kind, phase)
+function M.closedText(table_, kind, phase, opensAt)      -- opensAt: the kind's opening hour when known (sl/core/hours)
   if M.available(table_, kind, phase) then return nil end
-  if M.phaseOf(table_, kind) == 'day' then return strings.t('splitphase.closed_for_the_night_open') end
+  if M.phaseOf(table_, kind) == 'day' then
+    if opensAt then return string.format(strings.t('splitphase.closed_for_the_night_opens_02d_00'), opensAt) end
+    return strings.t('splitphase.closed_for_the_night_open')
+  end
   return strings.t('splitphase.only_after_dark')
 end
 
