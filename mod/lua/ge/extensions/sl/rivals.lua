@@ -244,6 +244,19 @@ function M.met()
   return out
 end
 
+-- for sl_streets' cruiser pick: now and then the nemesis cruises the night (their own car, recognisable: the roster's racer.car with its paint and stage), once they have written to you
+function M.nemesisToCruise(list, rng)
+  local s = career()
+  if not s or not rng then return nil end
+  for _, rival in ipairs(state(s).list) do
+    if rival.nemesis and s.known[rival.id] and rules.allowed(state(s).list, rival.tier) then
+      for _, r in ipairs(list or {}) do
+        if r.id == rival.id and rng:chance(0.25) then return r end
+      end
+    end
+  end
+end
+
 function M.rank() local s = career() return s and rules.rank(state(s).list) or 1 end
 
 function M.onStreetLegalStarted()
