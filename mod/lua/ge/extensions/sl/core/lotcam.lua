@@ -91,10 +91,10 @@ function M.sway(t) return M.SWAY * math.sin((tonumber(t) or 0) * 0.35) end
 M.REVEAL_SHOTS = { 'front', 'wheel', 'cabin', 'rear' }
 M.BROWSE_SHOTS = { 'front', 'front_sweep', 'side', 'wheel', 'wheel_rear', 'badge', 'taillight', 'rear', 'rear_rise', 'top', 'exhaust', 'orbit',
   'engine', 'engine_rear', 'cabin', 'cabin_pass' }
--- the camera's view, for the shots that fill a share of the frame: the horizontal half-angle's tangent = tan(fov / 2) * aspect (the game's
--- field of view taken as the vertical one) -- set from the real field of view by the lot
-M.viewTan = math.tan(math.rad(65) / 2) * 16 / 9
-function M.setView(fovDeg, aspect) M.viewTan = math.tan(math.rad(tonumber(fovDeg) or 65) / 2) * (aspect or 16 / 9) end
+-- the camera's view, for the shots that fill a share of the frame: the horizontal half-angle's tangent = tan(fov / 2) (the game's field of view
+-- is the horizontal one: checked in game, the 60 % side shot filled more than the frame when it was taken as the vertical) -- set by the lot
+M.viewTan = math.tan(math.rad(65) / 2)
+function M.setView(fovDeg) M.viewTan = math.tan(math.rad(tonumber(fovDeg) or 65) / 2) end
 M.SIDE_FILL = 0.6                     -- the side shot: the car fills this share of the frame's width
 
 function M.shot(kind, c, f, L, W, s, eye)

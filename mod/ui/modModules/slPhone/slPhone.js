@@ -358,11 +358,11 @@
     style.textContent = CSS;
     root.appendChild(style);
     var layer = doc.createElement('div');
-    root.appendChild(layer);
     var bars = doc.createElement('div');           // the cinematic bars of the lot's camera: a node of their own, so their slide is not undone by a re-render
     bars.className = 'slp-bars';
     bars.innerHTML = '<i class="slp-bar slp-top"></i><i class="slp-bar slp-bot"></i>';
     root.appendChild(bars);
+    root.appendChild(layer);                       // (after the bars: the compact lot card stands on the bottom bar, not under it)
     doc.body.appendChild(root);
 
     var st = {
