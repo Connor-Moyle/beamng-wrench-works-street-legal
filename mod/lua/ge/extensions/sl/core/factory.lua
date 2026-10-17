@@ -37,4 +37,15 @@ function M.nextDue(orders, now)
   end
 end
 
+-- the saved paints list of a car with the chosen paint as its first (body) paint; the others are the config's own
+function M.withPaint(paints, paint)
+  local out = {}
+  for i, p in ipairs(paints or {}) do out[i] = p end
+  if paint then out[1] = paint end
+  return out
+end
+
+-- when an order arrives: game day and hour
+function M.arrives(o) return math.floor(o.due / 24), o.due % 24 end
+
 return M

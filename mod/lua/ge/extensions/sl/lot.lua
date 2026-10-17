@@ -686,12 +686,22 @@ function M.factoryBuy()
   local hour = (s.day or 0) * 24 + math.floor(sl_career.hour and sl_career.hour() or 12)
   if not sl_career.addMoney(-trim.value, strings.t('carcare.bought_1', trim.name)) then return end
   local o = factoryLib.order(m.model, trim, f.paint, hour)
-  o.brand = m.brand
+  o.brand, o.dealer = m.brand, lot.place.name
   s.factoryOrders = s.factoryOrders or {}
   s.factoryOrders[#s.factoryOrders + 1] = o
   lot.factory = nil
   send()
   sl_career.sendText('benny', string.format(strings.t('lot.factory_ordered'), trim.name, factoryLib.DELIVERY_HOURS), 4)
+end
+
+-- the orders still to arrive, for the phone's and the laptop's My cars: { name, dealer, day, hour }
+function M.ordersList()
+  local s, out = career(), {}
+  for _, o in ipairs(s and s.factoryOrders or {}) do
+    local day, hour = factoryLib.arrives(o)
+    out[#out + 1] = { name = o.name, dealer = o.dealer, day = day, hour = hour }
+  end
+  return out
 end
 
 -- an order that is due is built at the garage forecourt (beside the first place) and becomes one of the player's cars
@@ -710,9 +720,11 @@ local function deliverOrders(s)
       if paint and core_vehicle_colors and core_vehicle_colors.setVehiclePaint then pcall(core_vehicle_colors.setVehiclePaint, 1, paint, veh:getID()) end
       for i, x in ipairs(s.factoryOrders) do if x == o then table.remove(s.factoryOrders, i) break end end
       local active = s.activeCar
-      sl_fleet.registerVehicle(veh:getID(), { name = o.name, brand = o.brand, value = o.price, condition = 1, faults = {}, mileage = 0, price = o.price })
+      local car = sl_fleet.registerVehicle(veh:getID(), { name = o.name, brand = o.brand, value = o.price, condition = 1, faults = {}, mileage = 0, price = o.price })
       s.activeCar = active            -- (the player keeps the car they are in)
+      if car and paint then car.config = car.config or {} car.config.paints = factoryLib.withPaint(car.config.paints, paint) end      -- (saved with the car: it survives a reload and a respawn)
       guihooks.trigger('slPhoneToast', { text = string.format(strings.t('lot.factory_delivered'), o.name) })
+      sl_career.sendText('benny', string.format(strings.t('lot.factory_delivered_text'), o.name, o.dealer or ''), 1)
     end
     delivering = false
   end)

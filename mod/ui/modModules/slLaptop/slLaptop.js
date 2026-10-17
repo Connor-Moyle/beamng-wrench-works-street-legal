@@ -191,6 +191,9 @@
     function body(inner) { return '<div class="sll-body">' + inner + '</div><div class="sll-note"></div>'; }
 
     function carsBody() {
+      var ordered = arr(st.data.onOrder).map(function (o) {
+        return '<div class="sll-card"><h4>' + T('ui.on_order_1_arrives_day', 'On order: {1}, {2} &middot; arrives day {3} {4}:00', esc(o.name), esc(o.dealer || ''), o.day, two(o.hour)) + '</h4></div>';
+      });
       var cards = arr(st.data.fleet).map(function (c) {
         var acts = [];
         if (c.impounded) acts.push('<div class="sll-btn" data-a="release" data-v="' + c.id + ('">' + T('ui.get_it_out_of_the', 'Get it out of the impound ') + '&middot;' + ' ') + money(c.impounded) + '</div>');
@@ -201,7 +204,7 @@
         return '<div class="sll-card"><h4>' + esc(c.name) + (c.active ? ' &#9733;' : '') + '</h4><p>' + esc(c.where) + ' &middot; condition ' + Math.round((c.condition || 0) * 100) + T('ui.middot_value', '% &middot; value ') + money(c.value) +
           (faults.length ? ('<br>' + T('ui.needs_2', 'Needs: ')) + esc(faults.join(', ')) : '') + '</p>' + reportBlock('car:' + c.id, c.report) + (acts.length ? '<div class="sll-acts">' + acts.join('') + '</div>' : '') + '</div>';
       });
-      return body(cards.join('') || ('<div class="sll-empty">' + T('ui.you_have_no_car', 'You have no car.') + '</div>'));
+      return body(cards.join('') + ordered.join('') || ('<div class="sll-empty">' + T('ui.you_have_no_car', 'You have no car.') + '</div>'));
     }
 
     function dealersBody() {

@@ -74,6 +74,7 @@ local function snapshot()
     challenges = challenges, ledger = ledger, places = placesOut,
     cars = #s.cars, stats = s.stats,
     fleet = sl_fleet and sl_fleet.list() or {},
+    onOrder = sl_lot and sl_lot.ordersList and sl_lot.ordersList() or {},
     hud = sl_hud and sl_hud.getSettings and sl_hud.getSettings() or nil,
     rocRound = (s.roc or {}).round or 0, rocChampion = (s.roc or {}).champion == true,
     rocEntry = progression.ROC.entry,

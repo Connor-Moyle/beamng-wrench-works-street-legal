@@ -918,6 +918,9 @@
     }
 
     function garagePage() {
+      var ordered = arr(st.data.onOrder).map(function (o) {
+        return '<div class="slp-card"><h4>' + T('ui.on_order_1_arrives_day', 'On order: {1}, {2} &middot; arrives day {3} {4}:00', esc(o.name), esc(o.dealer || ''), o.day, two(o.hour)) + '</h4></div>';
+      });
       var cars = arr(st.data.fleet);
       var cards = cars.map(function (c) {
         var faults = arr(c.faults);
@@ -934,7 +937,7 @@
         return '<div class="slp-kv"><span>' + esc(u.name) + '<br><small>' + esc(u.desc) + '</small></span><b>' +
           (u.has ? T('fleet.in_the_garage', 'In the garage') : '<div class="slp-btn slp-tonal" data-a="upgrade" data-v="' + esc(u.id) + '">' + money(u.price) + '</div>') + '</b></div>';
       }).join('');
-      return bar(T('app.garage', 'My cars')) + '<div class="slp-body">' + (cards.join('') ||
+      return bar(T('app.garage', 'My cars')) + '<div class="slp-body">' + (cards.join('') + ordered.join('') ||
         ('<div class="slp-empty">' + T('ui.you_have_no_car_the', 'You have no car. The junkyard sells cheap ones that need work, the dealership new ones. The Cab app gets you there.') + '</div>')) +
         (ups ? ('<div class="slp-card"><h4>' + T('ui.the_garage', 'The garage') + '</h4>') + ups + '</div>' : '') + '</div>';
     }

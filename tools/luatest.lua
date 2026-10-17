@@ -1307,6 +1307,11 @@ do
   local o = F.order('a', cat[2].trims[3], 'Red', 100)
   check('an order costs the config value and is due in DELIVERY_HOURS', o.price == 40000 and o.due == 100 + F.DELIVERY_HOURS and o.config == 'a/s.pc')
   check('nothing is due early, the first arrived order is found', F.nextDue({ o }, 105) == nil and F.nextDue({ { due = 200 }, o }, 106) == 2 and F.nextDue(nil, 1) == nil)
+  local red, own = { baseColor = { 1, 0, 0, 1 } }, { { baseColor = { 0, 0, 1, 1 } }, { baseColor = { 0, 1, 0, 1 } } }
+  local rec = { config = { paints = F.withPaint(own, red) } }
+  check('the chosen paint is the saved record first paint, the other paints stay, the config itself is not changed', rec.config.paints[1] == red and rec.config.paints[2] == own[2] and own[1].baseColor[3] == 1 and #F.withPaint(nil, red) == 1 and #F.withPaint(own, nil) == 2)
+  local day, hr = F.arrives({ due = 24 * 5 + 7 })
+  check('an order says the day and hour it arrives', day == 5 and hr == 7)
 end
 
 print(string.format('lua tests passed: %d checks', passed))
