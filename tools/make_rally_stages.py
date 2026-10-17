@@ -93,7 +93,13 @@ def wp(name, wtype, pos, t, oid):
 
 def notebook(stage, pts, tan):
     notes, oid = [], 2
-    for n, (a, b, _) in enumerate(corners(pts), 1):
+    # the game cuts the route at the start position and at the stop zone and drops a waypoint that falls before one or on top of another racing point:
+    # no note may start within KEEP_CLEAR nodes of the start or end within that of the finish
+    n = 0
+    for a, b, _ in corners(pts):
+        if a - 1 < KEEP_CLEAR or b > len(pts) - 1 - KEEP_CLEAR:
+            continue
+        n += 1
         a = max(0, a - 1)
         notes.append({
             "audioMode": 1, "distanceBeforeModifier": True, "ignoreDistanceCalls": False, "includeLinkWord": True, "isolate": False, "metadata": {},
@@ -115,6 +121,7 @@ def pathnode(name, oid, pos, t):
 
 
 def race(stage, pts, tan):
+    stop = [pts[-1][j] + tan[-1][j] * STOP_BEYOND for j in range(3)]
     return {"authors": "Street Legal", "classification": {"allowRollingStart": False, "branching": False, "closed": False, "reversible": False},
             "date": 1784000000, "defaultLaps": 1, "defaultStartPosition": 2, "description": stage["name"], "difficulty": 20, "endNode": -1,
             "forwardPrefabs": {}, "hideMission": False, "name": stage["name"], "pacenotes": {},
@@ -123,9 +130,11 @@ def race(stage, pts, tan):
             "segments": [{"capsules": {}, "from": 4, "mode": "waypoint", "name": "Segment 1->2", "oldId": 6, "to": 5}],
             "simplifyAiPath": False, "startNode": 4,
             "startPositions": [{"group": "start", "name": "SS_start_line", "oldId": 2, "pos": [round(c, 3) for c in pts[0]], "rot": quat_for(tan[0])},
-                               {"group": "start", "name": "SS_stop_control", "oldId": 3, "pos": [round(c, 3) for c in pts[-1]], "rot": quat_for(tan[-1])}]}
+                               {"group": "start", "name": "SS_stop_control", "oldId": 3, "pos": [round(c, 3) for c in stop], "rot": quat_for(tan[-1])}]}
 
 
+KEEP_CLEAR = 5        # nodes (25 m) a pacenote keeps from the start and the finish
+STOP_BEYOND = 30.0    # metres past the finish line where the stop control stands (the game keeps the route only up to it, and the finish must come before)
 PAD_NODES = 10        # nodes of straight road added before the start and after the finish (the game wants the driveline to reach beyond both)
 PAD_STEP = 5.0
 
@@ -153,10 +162,25 @@ def put(path, data):
         json.dump(data, f, indent=1)
 
 
+APART = 90.0          # metres the stop control and the finish keep from the start: the game places a point on the closest piece of the line, so a loop that ends
+                      # beside its start would put the finish and the stop zone on the first metres
+
+
+def trimmed(pts):
+    """A line that comes back to its start is cut short so that its end, with the 30 m to the stop control, is APART from the start."""
+    pts = [list(p) for p in pts]
+    while len(pts) > 20 and (math.dist(pts[-1][:2], pts[0][:2]) < APART + STOP_BEYOND
+                             or min(math.dist(pts[-1][:2], p[:2]) for p in pts[:12]) < APART):
+        pts.pop()
+    return pts
+
+
 def main():
     stages = json.load(open(SRC, encoding="utf-8"))["stages"]
     for st in stages:
-        pts, tan = st["points"], tangents(st["points"])
+        pts = trimmed(st["points"])
+        st = dict(st, points=pts, length=sum(math.dist(pts[i][:2], pts[i + 1][:2]) for i in range(len(pts) - 1)))
+        tan = tangents(pts)
         base = os.path.join(OUT, st["id"])
         put(os.path.join(base, "race.race.json"), race(st, pts, tan))
         put(os.path.join(base, "rally", "drivelineSpline.json"), spline(st, pts, tan))

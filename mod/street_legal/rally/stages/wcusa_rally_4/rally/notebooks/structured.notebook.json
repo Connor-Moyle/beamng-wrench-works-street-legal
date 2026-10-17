@@ -19,15 +19,15 @@
     {
      "name": "corner start",
      "normal": [
-      0.276286,
-      0.958874,
-      -0.065008
+      -0.199668,
+      0.972297,
+      -0.121537
      ],
      "oldId": 3,
      "pos": [
-      -91.2,
-      -637.2,
-      139.7
+      -84.8,
+      -592.8,
+      136.1
      ],
      "radius": 8,
      "waypointType": "cornerStart"
@@ -35,15 +35,15 @@
     {
      "name": "corner end",
      "normal": [
-      -0.199668,
-      0.972297,
-      -0.121537
+      -0.693618,
+      0.715755,
+      -0.081168
      ],
      "oldId": 4,
      "pos": [
-      -84.8,
-      -592.8,
-      136.1
+      -107.6,
+      -557.9,
+      132.0
      ],
      "radius": 8,
      "waypointType": "cornerEnd"
@@ -81,73 +81,11 @@
     {
      "name": "corner start",
      "normal": [
-      -0.199668,
-      0.972297,
-      -0.121537
-     ],
-     "oldId": 6,
-     "pos": [
-      -84.8,
-      -592.8,
-      136.1
-     ],
-     "radius": 8,
-     "waypointType": "cornerStart"
-    },
-    {
-     "name": "corner end",
-     "normal": [
-      -0.693618,
-      0.715755,
-      -0.081168
-     ],
-     "oldId": 7,
-     "pos": [
-      -107.6,
-      -557.9,
-      132.0
-     ],
-     "radius": 8,
-     "waypointType": "cornerEnd"
-    }
-   ],
-   "pk": "95e95a9f",
-   "slowCorner": false,
-   "slowCornerReleaseType": 30,
-   "structured": {
-    "items": {
-     "1": {},
-     "2": {},
-     "3": {},
-     "4": {
-      "type": "corner"
-     },
-     "5": {},
-     "6": {}
-    },
-    "schemaVersion": 3
-   },
-   "todo": false,
-   "triggerType": 15
-  },
-  {
-   "audioMode": 1,
-   "distanceBeforeModifier": true,
-   "ignoreDistanceCalls": false,
-   "includeLinkWord": true,
-   "isolate": false,
-   "metadata": {},
-   "name": "Pacenote 3",
-   "oldId": 8,
-   "pacenoteWaypoints": [
-    {
-     "name": "corner start",
-     "normal": [
       -0.836555,
       0.547833,
       0.007403
      ],
-     "oldId": 9,
+     "oldId": 6,
      "pos": [
       -232.4,
       -443.3,
@@ -163,7 +101,7 @@
       0.926423,
       -0.00965
      ],
-     "oldId": 10,
+     "oldId": 7,
      "pos": [
       -273.9,
       -388.1,
@@ -173,7 +111,7 @@
      "waypointType": "cornerEnd"
     }
    ],
-   "pk": "f9c63d15",
+   "pk": "95e95a9f",
    "slowCorner": false,
    "slowCornerReleaseType": 30,
    "structured": {

@@ -102,10 +102,18 @@ function M.onUpdate(dtReal)
     if not savedCore.isDragEnabled then install() end
   end
 end
+-- The stock HUD (the tree-lights app) and the drag panels call gameplay_drag_dragBridge by name from the first frame of a level, with or without a career:
+-- a FATAL LUA ERROR at 53 s, before any career. So the game's drag core (which loads the bridge) is loaded whenever a level starts.
+local function loadDragModules()
+  if extensions and extensions.load and not gameplay_drag_dragBridge then pcall(extensions.load, 'gameplay_drag_core') end
+end
+M.onClientStartMission = loadDragModules
+M.onWorldReadyState = loadDragModules
+M.onExtensionLoaded = loadDragModules
 M.onStreetLegalStarted = install
 M.onStreetLegalPhase = install              -- (pois.lua clears the marker list on the phase: the strip comes and goes with it)
 M.onStreetLegalPlacesChanged = install
-M.onClientPostStartMission = install
+M.onClientPostStartMission = function() loadDragModules() install() end
 M.onStreetLegalStopped = restore
 M.onExtensionUnloaded = restore
 
