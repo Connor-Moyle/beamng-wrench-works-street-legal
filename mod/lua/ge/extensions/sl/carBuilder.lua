@@ -345,6 +345,7 @@ end
 -- a frame late: lag, TAA smear, no car in the mirrors). false: the full driver again (spawned without props). Spawn-time only: a car bought at a lot is
 -- spawned for the lot without props and gets them the next time it is spawned from its record.
 M.PLAYER_DRIVER_PROPS = true
+M.APPLY_DAMAGE_ON_SPAWN = true
 -- one of the player's cars, from its record
 function M.spawnOwned(job, car, pos, rot)
   if type(car.config) ~= 'table' then return nil end
@@ -352,7 +353,9 @@ function M.spawnOwned(job, car, pos, rot)
   local veh = M.spawn(job, car.model, cfg, pos, rot, not M.PLAYER_DRIVER_PROPS)
   if not veh then return nil end
   job.sleep(0.3)
-  M.applyDamage(veh, car.damage)
+  -- the car's recorded damage goes on only when its own Lua says it has settled (slrrGarageVeh.apply waits for 30 frames and a second; a crash 0.3 s after a
+  -- build, in the physics thread, 0x140386, came from putting it on at a fixed time). M.APPLY_DAMAGE_ON_SPAWN = false: the car comes out undamaged.
+  if M.APPLY_DAMAGE_ON_SPAWN then M.applyDamage(veh, car.damage) end
   return veh
 end
 
