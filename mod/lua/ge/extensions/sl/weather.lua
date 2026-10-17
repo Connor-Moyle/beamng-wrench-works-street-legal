@@ -145,7 +145,7 @@ local function applyTint(amount, dark, haze)
   local elevation = tonumber(sky.elevation)
   dark, amount = rules.skyFactors(elevation, dark, amount)
   -- the same inputs and nothing rewritten by the game since: nothing to do (the setField/postApply pass rebuilds the sky: ms per call, twice a second, all night; hitch run 2026-10-18)
-  local sig = string.format('%.3f|%.3f|%.3f|%.1f', amount, dark, haze or 0, elevation or 0)
+  local sig = string.format('%.2f|%.2f|%.2f', amount, dark, haze or 0)      -- (the elevation is in amount and dark already; as its own part it rebuilt the sky every few seconds all night: spikes of 40 ms)
   local same = sig == tintSig
   if same then for _, k in pairs(TINT_FIELDS) do if sky:getField(k, 0) ~= written[k] then same = false break end end end
   if same then return end
@@ -265,9 +265,13 @@ end
 -- and moved to the camera each frame as well)
 local followLogged = false
 local noCamLogged = false
+local rainObj, rainAt, rainMovedAt, rainSet = nil, -99, -99, nil      -- the rain object is looked up every 5 s, not every frame; it is moved when the camera is 4 m away from where it was put (profile: 8 ms a frame in heavy rain)
 local function followRain()
-  local rain = first('Precipitation')
+  local now = os.clock()
+  if not rainObj or now - rainAt > 5 then rainObj, rainAt = first('Precipitation'), now end
+  local rain = rainObj
   if not rain then return end
+  if now - rainMovedAt < 0.25 then return end
   -- where the player looks from: the active camera; failing that the player's own vehicle (the rain box must be over the player, wherever it was left)
   local ok, cam = pcall(function() return core_camera and core_camera.getPosition and core_camera.getPosition() end)
   local source = 'camera'
@@ -287,6 +291,8 @@ local function followRain()
     pcall(function() rain:setField('followCam', 0, 'true') rain:setField('boxWidth', 0, '70') rain:setField('boxHeight', 0, '70') end)
     log('I', TAG, string.format('rain follows the %s: followCam was %s, the rain stood at %s, the %s is at %s', source, tostring(f), tostring(at), source, tostring(cam)))
   end
+  if rainSet and (cam.x - rainSet.x) ^ 2 + (cam.y - rainSet.y) ^ 2 + (cam.z - rainSet.z) ^ 2 < 16 then return end
+  rainMovedAt, rainSet = now, { x = cam.x, y = cam.y, z = cam.z }
   pcall(function() rain:setPosition(vec3(cam.x, cam.y, cam.z)) end)
 end
 
@@ -411,6 +417,7 @@ local function reset()
   if sl_puddlefx then sl_puddlefx.clear() end
   baseline, current, target, lastKey, blendFrom = nil, nil, nil, nil, nil
   wet, lastRain, followLogged = 0, nil, false
+  rainObj, rainSet = nil, nil
 end
 
 -- before and after: what the sky objects say now and what the tint pass last did (a game test prints it)
