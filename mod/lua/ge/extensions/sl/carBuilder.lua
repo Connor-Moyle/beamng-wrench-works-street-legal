@@ -40,14 +40,14 @@ function M.configs()
   return configCache
 end
 
--- the cars a lot or a private seller may offer: not the police, service or race cars (sl/core/stockdealers.forSale)
-local forSaleCache
+-- Models no lot, dealer or private seller lists (the manager's decision for release 1): the midtruck crashed the game natively and
+-- intermittently, at the same place, on its first spawn too, whatever was done to it (T29). Add a model here from the console if
+-- another does the same: require('sl/carBuilder').LOT_EXCLUDE_MODELS.somecar = true.
+M.LOT_EXCLUDE_MODELS = { midtruck = true }
+
+-- the cars a lot or a private seller may offer: not the police, service or race cars, not an excluded model (sl/core/stockdealers.lotPool)
 function M.forSale()
-  if forSaleCache then return forSaleCache end
-  local D = require('sl/core/stockdealers')
-  forSaleCache = {}
-  for _, c in ipairs(M.configs()) do if D.forSale(c) then forSaleCache[#forSaleCache + 1] = c end end
-  return forSaleCache
+  return require('sl/core/stockdealers').lotPool(M.configs(), M.LOT_EXCLUDE_MODELS)
 end
 
 local function vehData(id) return id and core_vehicle_manager.getVehicleData(id) or nil end

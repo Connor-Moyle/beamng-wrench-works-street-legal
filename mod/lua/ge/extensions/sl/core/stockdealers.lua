@@ -142,6 +142,16 @@ function M.forSale(c)
   return not (pop and pop <= 1)
 end
 
+-- The cars any lot, dealer, laptop dealer or private seller may offer: those for sale (forSale) that are not of an excluded model
+-- (excluded: { model = true }). One rule for every pool, so no lot lists a model the game cannot build safely (T29: the midtruck).
+function M.lotPool(configs, excluded)
+  local out = {}
+  for _, c in ipairs(configs or {}) do
+    if M.forSale(c) and not (excluded and excluded[c.model]) then out[#out + 1] = c end
+  end
+  return out
+end
+
 -- configs: the cars the game has ({ model, config, raw, ... }); passes(config, filter) -> bool is the game's own filter
 -- test. The dealer's cars are the ones for sale that pass its filter. Too few (under MIN_POOL): the filter is widened a
 -- key at a time, the narrowest key (the one that lets the fewest cars through alone) dropped first, until there are

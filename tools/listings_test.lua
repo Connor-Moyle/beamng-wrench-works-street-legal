@@ -523,4 +523,24 @@ return function(check, rngLib)
   check('...the parent of a refused part too (the box the tailgate hangs on)', not byChild['/cargo/midtruck_cargobox'] and not byChild['/cargo/tailgate/midtruck_tailgate'] and byChild['/hood/midtruck_hood'])
   local lcase = dentedPaths({ 'hood' })
   check('matching is on the slot path, id and part name, lower case', not lcase['/hood/midtruck_hood'] and lcase['/roof/midtruck_roof'])
+
+  -- T29: no lot lists an excluded model (the midtruck): one pool rule for the lots, the stock dealers, the laptop dealers and the private ads
+  local pool0 = {}
+  for i = 1, 8 do pool0[#pool0 + 1] = { model = 'covet', config = 'covet' .. i, value = 1000 * i, raw = { ['Config Type'] = 'Factory', Population = 5000, Value = 1000 * i } } end
+  for i = 1, 6 do pool0[#pool0 + 1] = { model = 'midtruck', config = 'midtruck' .. i, value = 9000 + i, raw = { ['Config Type'] = 'Factory', Population = 5000, Value = 9000 + i } } end
+  pool0[#pool0 + 1] = { model = 'sunburst2', config = 'cop', value = 7000, raw = { ['Config Type'] = 'Police', Population = 5000 } }
+  local lotPool = D.lotPool(pool0, { midtruck = true })
+  local midtrucks, cops = 0, 0
+  for _, c in ipairs(lotPool) do if c.model == 'midtruck' then midtrucks = midtrucks + 1 end if c.config == 'cop' then cops = cops + 1 end end
+  check('the lot pool has the covets only: no midtruck, no police car', #lotPool == 8 and midtrucks == 0 and cops == 0)
+  check('without an exclusion list only the for-sale rule applies', #D.lotPool(pool0, nil) == 14 and #D.lotPool(pool0, {}) == 14 and #D.lotPool(nil, { midtruck = true }) == 0)
+  local viaDealer = D.pool(lotPool, { whiteList = { Value = { min = 1 } } }, function(c, f) return c.raw.Value >= f.whiteList.Value.min end)
+  local viaDealerTrucks = 0
+  for _, c in ipairs(viaDealer) do if c.model == 'midtruck' then viaDealerTrucks = viaDealerTrucks + 1 end end
+  check('a stock dealer filter on that pool, however wide it is widened, has no midtruck', viaDealerTrucks == 0 and #viaDealer == 8
+    and #D.pool(lotPool, { whiteList = { Value = { min = 99999 } } }, function(c, f) return c.raw.Value >= f.whiteList.Value.min end) == 8)
+  local offers = require('sl/core/market').offers(lotPool, 'used', 'seed', 4, 20)
+  local offerTrucks = 0
+  for _, o in ipairs(offers) do if o.model == 'midtruck' then offerTrucks = offerTrucks + 1 end end
+  check('the offers made from the pool (used, private ad, laptop dealer: all through the same pool) have no midtruck', #offers > 0 and offerTrucks == 0)
 end
