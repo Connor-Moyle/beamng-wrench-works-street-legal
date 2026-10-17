@@ -95,7 +95,7 @@ Some jobs need a car you own, some a certain reputation. Finish the job you are 
 
 ## Day and night
 
-The career has two halves. Day (07:00 to 19:00) is the legal half: jobs, shops and dealers, the track events with prize money. Night (21:00 to 04:00) is the street half: street races, meets, pink slips. Shops and dealers close at night.
+The career has two halves. Day (07:00 to 19:00) is the legal half: jobs, shops and dealers, the track events with prize money. Night (21:00 to 04:00) is the street half: street races, meets, pink slips. Shops and dealers close at night and open again in the day.
 
 The clock runs slowly inside each half and stops at its end. Start the night or Start the day from the Wait app or a garage computer when you are ready. You cannot switch in a race, on a job or with the police on you. A new day starts when you start the day.
 
