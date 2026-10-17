@@ -10,6 +10,7 @@ local clubs = require('sl/core/clubs')
 local rngLib = require('sl/core/rng')
 local roster = require('sl/core/roster')
 local stateLib = require('sl/core/state')
+local activityRules = require('sl/core/activityrules')
 
 -- nothing runs, is sent or is shown on a map that cannot host it (progression.MAPS has); the code and the save stay
 local function career() return sl_career and sl_career.isActive() and sl_career.has('clubs') and sl_career.getState() or nil end
@@ -79,7 +80,21 @@ function M.listed()
   local out = {}
   for _, r in ipairs(sl_career.racesList() or {}) do out[#out + 1] = { id = r.id, missionId = r.missionId, name = r.name, kind = r.drag and 'drag' or (r.kind or 'night') } end
   for _, t in ipairs(sl_career.has('clubDays') and sl_career.tracksList and sl_career.tracksList() or {}) do out[#out + 1] = { id = t.id, missionId = t.missionId, name = t.name, kind = t.kind } end
+  if sl_career.has('stockEvents') then            -- (#41) West Coast USA: the day league is the map's stock track events
+    local all = gameplay_missions_missions and gameplay_missions_missions.getAllMissions and gameplay_missions_missions.getAllMissions() or {}
+    local nameOf = function(m)
+      local ok, text = pcall(function() return translateLanguage and translateLanguage(m.name, tostring(m.name or m.id), true) end)
+      return ok and type(text) == 'string' and text or tostring(m.name or m.id)
+    end
+    for _, e in ipairs(clubs.stockEvents(all, function(id) return activityRules.ruleFor(sl_career.LEVEL, id) end, nameOf)) do out[#out + 1] = e end
+  end
   return out
+end
+
+-- a stock day event is open by day only (the career's phase; D2)
+local function dayOpen(e)
+  if e.stock then return not (sl_career.isNight and sl_career.isNight()) end
+  return e.kind == 'drag' or (sl_career.has('clubDays') and slrrValoRaces and slrrValoRaces.circuitOpponents) == true
 end
 
 local function today(s) local c = s.club return c and c.calendar[s.day - c.start + 1], s.day - c.start + 1 end
@@ -142,8 +157,12 @@ function M.enter(kind)
   local race = ev and ev[kind]
   if not race then return false, 'Nothing on in that league today.' end
   if c.raced[d .. kind] then return false, 'You have done that one today.' end
-  if kind == 'day' and race.kind ~= 'drag' and not (sl_career.has('clubDays') and slrrValoRaces and slrrValoRaces.circuitOpponents) then
-    return false, 'The track events open soon. The drags run today.'
+  if kind == 'night' and sl_career.isNight and not sl_career.isNight() then return false, 'The night league races after dark.' end
+  if kind == 'day' and not dayOpen(race) then
+    return false, race.stock and 'The day league runs by day.' or 'The track events open soon. The drags run today.'
+  end
+  if race.stock then            -- (#41) a stock track event: nothing to arrange, the player runs it from its marker and the game's stars score it
+    return true, string.format('Day league: %s today. Run it from its marker on the map; the stars you earn score your points.', race.name)
   end
   local car = sl_fleet and sl_fleet.currentCar()
   if not car then return false, 'Bring one of your cars.' end
@@ -188,6 +207,27 @@ function M.onSlrrRaceFinished(r)
   toast(string.format('League: %s. You are #%d in the %s standings.', r.won and 'won' or 'lost', clubs.placeOf(c.standings, 'player') or 0, clubs.CLUBS[c.club].name))
   extensions.hook('onStreetLegalChanged')
 end
+-- (#41) a stock day event run from its marker: the game's stars decide the place, the rest of the club in simulation
+function M.onMissionAttemptAggregated(attempt, mission)
+  local s = career()
+  local c = s and s.club
+  if not c or not mission or type(attempt) ~= 'table' then return end
+  if attempt.type ~= 'passed' and attempt.type ~= 'completed' then return end
+  local ev, d = today(s)
+  local race = ev and ev.day
+  if not (race and race.stock and race.missionId == mission.id) or c.raced[d .. 'day'] then return end
+  local stars = 0
+  for _, on in pairs(type(attempt.unlockedStars) == 'table' and attempt.unlockedStars or {}) do if on then stars = stars + 1 end end
+  local place = clubs.placeFromStars(stars)
+  if not place then return end
+  c.raced[d .. 'day'] = 'raced'
+  clubs.score(c.standings, clubs.simulate(members(s), rngLib.new(rngLib.hash('stock' .. d .. ':' .. c.start .. tostring(s.seed))), place), ev.finale)
+  local purse = clubs.purse(c.club, place)
+  if purse > 0 then sl_career.payOut(purse, 'Day league purse') end
+  toast(string.format('League: %s (%d star%s). You are #%d in the %s standings.', race.name, stars, stars == 1 and '' or 's', clubs.placeOf(c.standings, 'player') or 0, clubs.CLUBS[c.club].name))
+  extensions.hook('onStreetLegalChanged')
+end
+
 -- (the career removes the challenge when it settles the race; keep it for us if it goes first)
 local function rememberLeague() local s = career() for _, x in ipairs(s and s.challenges or {}) do if x.league then M._lastLeague = x end end end
 M.onStreetLegalRaceStarted = rememberLeague
@@ -211,7 +251,7 @@ function M.summary()
     club = clubs.CLUBS[c.club].name, season = c.season, day = d, days = clubs.SEASON_DAYS, class = c.class, carClass = car and car.class,
     today = ev and {
       night = ev.night and { name = ev.night.name, done = c.raced[d .. 'night'] ~= nil } or nil,
-      day = ev.day and { name = ev.day.name, done = c.raced[d .. 'day'] ~= nil, open = ev.day.kind == 'drag' or (sl_career.has('clubDays') and slrrValoRaces and slrrValoRaces.circuitOpponents) == true } or nil,
+      day = ev.day and { name = ev.day.name, done = c.raced[d .. 'day'] ~= nil, open = dayOpen(ev.day) } or nil,
       finale = ev.finale,
     } or nil,
     standings = tbl,

@@ -57,11 +57,33 @@ function M.calendar(races, rng)
     local n, dd = pick(night, usedN), pick(day, usedD)
     cal[d] = {
       night = n and { id = n.id, missionId = n.missionId, name = n.name, kind = n.kind } or nil,
-      day = dd and { id = dd.id, missionId = dd.missionId, name = dd.name, kind = dd.kind } or nil,
+      day = dd and { id = dd.id, missionId = dd.missionId, name = dd.name, kind = dd.kind, stock = dd.stock } or nil,
       finale = d == M.SEASON_DAYS,
     }
   end
   return cal
+end
+
+-- (#41) on a map without the club's own races, the day league's events are the map's stock track events (time trials, drag strips, circuits).
+-- missions: the game's missions { id, name }; ruleFor(id) -> the activity rule { kind, roc } or nil; nameOf(m) -> text. Returns the events a
+-- calendar can use: { id, missionId, name, kind = 'venue' | 'drag' | 'circuit', stock = true }
+local STOCK_KIND = { timeTrial = 'venue', drag = 'drag', circuit = 'circuit' }
+function M.stockEvents(missions, ruleFor, nameOf)
+  local out = {}
+  for _, m in ipairs(missions or {}) do
+    local r = type(m) == 'table' and m.id and ruleFor(m.id)
+    local kind = r and not r.roc and STOCK_KIND[r.kind]
+    if kind then out[#out + 1] = { id = m.id, missionId = m.id, name = nameOf and nameOf(m) or m.id, kind = kind, stock = true } end
+  end
+  table.sort(out, function(a, b) return a.id < b.id end)
+  return out
+end
+
+-- the place a stock event earns by its stars (the game's own result): all three is first, two second, one third; none: not scored
+function M.placeFromStars(stars)
+  stars = tonumber(stars) or 0
+  if stars >= 3 then return 1 elseif stars == 2 then return 2 elseif stars == 1 then return 3 end
+  return nil
 end
 
 function M.points(place, finale)

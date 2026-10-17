@@ -12,6 +12,7 @@ M.TILES = {
   { id = 'partInventory', label = 'My parts', group = 'general', page = 'parts' },
   { id = 'vehicleShop', label = 'Car market', group = 'general', page = 'dealers', shop = true },
   { id = 'partsMarket', ids = { 'partShop', 'vehicleShop' }, label = 'Part market', group = 'general', page = 'partmarket', shop = true, needs = 'classifieds' },
+  { id = 'clubs', ids = { 'vehicleInventory', 'vehicleShop', 'partShop' }, label = 'Club', group = 'general', page = 'club', needs = 'clubs' },
   { id = 'insurances', label = 'Bank / insurance', group = 'general', page = 'bank' },
   { id = 'playerAbstract', label = 'Street cred', group = 'general', page = 'cred' },
   { id = 'partShop', label = 'Part customization', group = 'car', mode = 'catalog' },

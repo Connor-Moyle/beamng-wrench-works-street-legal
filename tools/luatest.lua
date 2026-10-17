@@ -884,7 +884,7 @@ do
   local valo, wc = true, true
   for _, f in ipairs(feats) do
     valo = valo and progression.has('slrr_valo_city', f)
-    wc = wc and not progression.has('west_coast_usa', f)
+    wc = wc and (f == 'clubs' or not progression.has('west_coast_usa', f))      -- (clubs: #41 hosts them there, with the stock track events)
   end
   valo = valo and progression.has('slrr_valo_city', 'classifieds')
   check('Valo City offers every feature', valo)
@@ -930,6 +930,9 @@ do
   local voff = view('servicestationOfficeComputer', { hasCar = false, phase = 'day' })
   local function phaseTile(v) for _, g in ipairs(v.groups) do for _, t in ipairs(g.tiles) do if t.id == 'phaseSwitch' then return t end end end end
   check('D1: a garage computer has Start the night / Start the day (off during a race or a job); an office one does not', phaseTile(vp).label == 'Start the night' and phaseTile(vp).enabled and phaseTile(vn).label == 'Start the day' and not phaseTile(vn).enabled and phaseTile(voff) == nil)
+  local vcl = view('alderDragwayGarageComputer', { hasCar = true, has = { clubs = true } })
+  local function hasTile(v, id) for _, g in ipairs(v.groups) do for _, t in ipairs(g.tiles) do if t.id == id then return true end end end return false end
+  check('#41: a Club tile on a map that hosts clubs, none where it does not', hasTile(vcl, 'clubs') and not hasTile(view('alderDragwayGarageComputer', { hasCar = true }), 'clubs'))
   local _, car, general = view('alderDragwayGarageComputer', ok)
   check('the drag strip garage: cars, parts, the part market, customization and tuning only', labels(car) == 'Part customization,Tuning' and labels(general) == 'My cars,My parts,Part market')
   local v, car2, general2 = view('servicestationOfficeComputer', ok)
@@ -1055,6 +1058,17 @@ do
   check('a bust at night loses the unbanked reputation, by day nothing', rep2 == 380 and lost2 == 120 and rep3 == 500 and lost3 == 0)
   check('heat is raised up to 1 and cools while nobody is after you, down to 0', heat.raised(0.95, 0.12) == 1 and math.abs(heat.raised(0.2, heat.NEAR_MISS) - 0.24) < 1e-9 and math.abs(heat.cooled(0.5, 10) - 0.4) < 1e-9 and heat.cooled(0.05, 100) == 0)
   check('a save without banked reputation has none at risk; a new career starts at 0', state.migrate({ seed = 3, rep = 700, hour = 11 }).bankedRep == 700 and state.new(5, 0).bankedRep == 0)
+
+  -- #41 clubs on West Coast USA: the day league is the map's stock track events
+  local clubsCore = require('sl/core/clubs')
+  local rulesCore = require('sl/core/activityrules')
+  local missions = { { id = 'west_coast_usa/timeTrial/b', name = 'B' }, { id = 'west_coast_usa/dragStripRace/a', name = 'A' }, { id = 'west_coast_usa/aiRace/001-circuit', name = 'ROC' },
+    { id = 'west_coast_usa/aiRace/002-ring', name = 'Ring' }, { id = 'west_coast_usa/evade/e', name = 'E' }, { id = 'west_coast_usa/crawl/c', name = 'C' } }
+  local evs = clubsCore.stockEvents(missions, function(id) return rulesCore.ruleFor('west_coast_usa', id) end, function(m) return 'Event ' .. m.name end)
+  check('stock events: time trials, drags and circuits (not the Race of Champions, evades or crawls), by id, with a name and a league kind', #evs == 3 and evs[1].id == 'west_coast_usa/aiRace/002-ring' and evs[1].kind == 'circuit' and evs[2].kind == 'drag' and evs[3].kind == 'venue' and evs[2].name == 'Event A' and evs[1].stock and evs[1].missionId == evs[1].id)
+  check('and they make a day calendar: every day has a stock day event, and a night one from the sprints', (function() local cal = clubsCore.calendar({ { id = 'sr1', missionId = 'x/sr1', name = 'Sprint', kind = 'night' }, evs[1], evs[2], evs[3] }, require('sl/core/rng').new(5)) for d = 1, clubsCore.SEASON_DAYS do if not (cal[d].day and cal[d].day.stock and cal[d].night) then return false end end return true end)())
+  check('stars give the place: three first, two second, one third, none not scored', clubsCore.placeFromStars(3) == 1 and clubsCore.placeFromStars(2) == 2 and clubsCore.placeFromStars(1) == 3 and clubsCore.placeFromStars(0) == nil and clubsCore.placeFromStars(nil) == nil)
+  check('West Coast USA hosts clubs and stock events; Valo keeps its own', progression.has('west_coast_usa', 'clubs') and progression.has('west_coast_usa', 'stockEvents') and not progression.has('slrr_valo_city', 'stockEvents') and progression.has('slrr_valo_city', 'clubs'))
 
   -- the sun, for a sky without core_celestial
   local sun = require('sl/core/sun')

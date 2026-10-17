@@ -252,6 +252,17 @@ assert.ok(($('.sll-wall').getAttribute('style') || '').indexOf('/settings/street
 open();
 assert.ok(!/url\(/.test($('.sll-wall').getAttribute('style') || ''), 'without one, the built-in wallpaper');
 
+// ---- the Club window (#41): the same data as the phone's Club app
+laptop.handle('slLaptopOpen', { name: 'Garage', lists: true, groups: [{ id: 'general', title: 'General', tiles: [tile('clubs', 'Club', true, null, 'club')] }], byCar: {}, parts: [] });
+laptop.handle('slPhoneData', Object.assign({}, data, { club: { club: 'Club 1', season: 2, day: 3, days: 7, class: 'C', carClass: 'B', today: { night: { name: 'Quarry sprint', done: false }, day: { name: 'Time trial', done: false, open: true } },
+  standings: [{ place: 1, name: 'Ana', points: 18 }, { place: 2, name: 'You', points: 16, you: true }] } }));
+calls.length = 0;
+click('tile', 'clubs');
+assert.ok(titles()[0] === 'Club' && text().includes('season 2, day 3 of 7') && text().includes('Quarry sprint') && text().includes('Time trial') && text().includes('Ana') && text().includes('18'), 'the Club window: season, the day events and the standings');
+click('league', 'night');
+assert.ok(calls.includes('@sl_phone.enterLeague("night")'), 'Enter asks the club to enter the night league');
+click('winclose', 'club');
+
 // ---- the game closes it (the player drove away)
 laptop.handle('slLaptopClose', {});
 assert.ok($('.sll-screen.sll-gone'), 'the game can close it');

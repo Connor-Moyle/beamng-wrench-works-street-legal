@@ -127,6 +127,7 @@
     partShop: ['#c2412d', '<path d="M7 11h6l4 19h19l4-14H14"/><circle cx="19" cy="37" r="2.500"/><circle cx="33" cy="37" r="2.500"/>'],
     tuning: ['#4a8a2f', '<path d="M10 14h28M10 24h28M10 34h28"/><circle cx="18" cy="14" r="3.500" fill="#4a8a2f"/><circle cx="31" cy="24" r="3.500" fill="#4a8a2f"/><circle cx="22" cy="34" r="3.500" fill="#4a8a2f"/>'],
     painting: ['#b04a8f', '<rect x="9" y="9" width="26" height="10" rx="2"/><path d="M35 14h4v11H22v6"/><rect x="19" y="31" width="6" height="9" rx="1"/>'],
+    clubs: ['#6a2e7a', '<path d="M24 6l5 11 12 2-9 8 3 12-11-6-11 6 3-12-9-8 12-2z"/>'],
     phaseSwitch: ['#3b4a78', '<path d="M30 8a16 16 0 1 0 10 28A13 13 0 0 1 30 8z"/>'],
     partsMarket: ['#a3322c', '<path d="M8 21h32l-3 17H11z"/><path d="M16 21l6-11M32 21l-6-11"/><path d="M19 28v6M24 28v6M29 28v6"/>'],
     repair: ['#5a6a7a', '<path d="M34 10a8 8 0 0 0-8 10L10 36a3.500 3.500 0 0 0 5 5l16-16a8 8 0 0 0 10-8l-5 5-4-1-1-4z"/>'],
@@ -136,7 +137,7 @@
     return '<svg viewBox="0 0 48 48"' + (size ? ' width="' + size + '" height="' + size + '"' : '') + '><rect width="48" height="48" rx="10" fill="' + g[0] + '"/>' +
       '<g fill="none" stroke="#fff" stroke-width="2.600" stroke-linecap="round" stroke-linejoin="round">' + g[1] + '</g></svg>';
   }
-  var WINDOWS = { cars: ['vehicleInventory', 'My cars'], parts: ['partInventory', 'My parts'], bank: ['insurances', 'Bank / insurance'], cred: ['playerAbstract', 'Street cred'], dealers: ['vehicleShop', 'Car market'], partmarket: ['partsMarket', 'Part market'] };
+  var WINDOWS = { cars: ['vehicleInventory', 'My cars'], parts: ['partInventory', 'My parts'], bank: ['insurances', 'Bank / insurance'], cred: ['playerAbstract', 'Street cred'], dealers: ['vehicleShop', 'Car market'], partmarket: ['partsMarket', 'Part market'], club: ['clubs', 'Club'] };
 
   function createLaptop(doc, lua) {
     var root = doc.createElement('div');
@@ -340,6 +341,25 @@
       return body(cards.join('') || '<div class="sll-empty">The shelf in your garage is empty. Parts you take off a car, and parts delivered to you, wait there.</div>');
     }
 
+    // the club: the season, today's two events and the standings (the same data as the phone's Club app)
+    function clubBody() {
+      var c = st.data.club;
+      if (!c) return body('<div class="sll-empty">No club yet.</div>');
+      var ev = c.today || {};
+      var row = function (kind, label, e) {
+        if (!e) return '';
+        var act = e.done ? '<b>Done</b>' : (kind === 'day' && !e.open ? '<b>Soon</b>' : '<div class="sll-btn" data-a="league" data-v="' + kind + '">Enter</div>');
+        return '<div class="sll-kv"><span>' + label + ' &middot; ' + esc(e.name) + '</span>' + act + '</div>';
+      };
+      var table = arr(c.standings).map(function (r) {
+        return '<div class="sll-kv"' + (r.you ? ' style="font-weight:700"' : '') + '><span>' + r.place + '. ' + esc(r.name) + '</span><b>' + r.points + '</b></div>';
+      }).join('');
+      return body('<div class="sll-card"><h4>' + esc(c.club) + ': season ' + c.season + ', day ' + c.day + ' of ' + c.days + (ev.finale ? ' &middot; finale, double points' : '') + '</h4>' +
+        '<p>Class ' + esc(c['class'] || '?') + (c.carClass && c.carClass !== c['class'] ? ' &middot; this car: ' + esc(c.carClass) : '') + ' &middot; skip any event, it only costs its points</p>' +
+        row('night', 'Night league', ev.night) + row('day', 'Day league', ev.day) + '</div>' +
+        '<div class="sll-card"><h4>Standings</h4>' + table + '</div>');
+    }
+
     function bankBody() {
       var d = st.data, bk = d.bank, cards = '';
       if (bk) {
@@ -394,6 +414,7 @@
         case 'parts': return partsBody();
         case 'bank': return bankBody();
         case 'cred': return credBody();
+        case 'club': return clubBody();
         case 'partmarket': return tabsHtml('partmarket', [['revline', 'Revline'], ['auctions', 'Swap & Bid'], ['paper', 'Classifieds'], ['catalog', 'Catalog']]) + partMarketBody();
         default:
           return tabsHtml('dealers', [['dealers', 'Dealers'], ['ads', 'Private ads']]) +
@@ -602,6 +623,7 @@
         case 'mkaccept': var ap = String(v).split('|'); lua('@sl_phone.acceptOffer(' + JSON.stringify(ap[0]) + ',' + Number(ap[1]) + ')'); break;
         case 'mkwithdraw': lua('@sl_phone.withdrawListing(' + JSON.stringify(String(v)) + ')'); break;
         case 'pcatalog': lua('@sl_phone.catalog()'); break;
+        case 'league': lua('@sl_phone.enterLeague(' + JSON.stringify(String(v)) + ')'); break;
         case 'dealer': st.dview = 'offers'; st.offers = { name: 'Dealer', offers: [], dealer: v }; st.note = ''; focusKey = null; lua('@sl_dealers.offers(' + JSON.stringify(v) + ')'); render(); break;
         case 'report': st.rep[v] = !st.rep[v]; render(); break;
         case 'offer': st.dview = 'offer'; st.offerId = v; st.note = ''; focusKey = null; render(); break;
