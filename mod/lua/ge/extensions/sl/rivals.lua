@@ -210,7 +210,7 @@ local function proactive(s, m)
   end
   -- 5. a taunt, or a word of respect
   local pick = m.list[rng:int(#m.list)]
-  if pick and rules.allowed(m.list, pick.tier) and rng:float() < TAUNT_CHANCE then
+  if pick and rules.allowed(m.list, pick.tier) and (pick.beaten or 0) + (pick.youLost or 0) > 0 and rng:float() < TAUNT_CHANCE then      -- (a taunt presumes a past race)
     local w = rules.meterWord(pick.meter)
     say(s, pick, (w == 'respect' or w == 'friends') and 'respect' or 'taunt', 3)
     return true
@@ -288,9 +288,11 @@ function M.list()
   for _, rival in ipairs(m.list) do
     local racer = racerOf(s, rival.id)
     local info = racer and racer.car and racer.car.model and require('sl/carInfo').of({ id = 'rival:' .. rival.id, model = racer.car.model, config = racer.car.config }) or {}
-    out[#out + 1] = { id = rival.id, name = racer and roster.displayName(racer) or rival.id, tier = rival.tier, boss = rival.boss or nil, nemesis = rival.nemesis or nil,
-      beatenBoss = rival.bossBeaten or nil, crew = crewName(rival.crew), meter = rival.meter, word = rules.meterWord(rival.meter), beaten = rival.beaten, youLost = rival.youLost,
-      stage = rival.stage, car = racer and racer.car and racer.car.name or nil, preview = info.preview, step = rules.step(rival), locked = not rules.allowed(m.list, rival.tier) or nil,
+    local met = s.known[rival.id]
+    local gateBoss = rules.gatekeeper(m.list, rival.tier)
+    out[#out + 1] = { id = rival.id, name = met and racer and roster.displayName(racer) or (met and rival.id or strings.t('rivals.unknown')), tier = rival.tier, boss = rival.boss or nil, nemesis = rival.nemesis or nil,
+      beatenBoss = rival.bossBeaten or nil, crew = met and crewName(rival.crew) or nil, meter = rival.meter, word = rules.meterWord(rival.meter), beaten = rival.beaten, youLost = rival.youLost,
+      stage = rival.stage, car = met and racer and racer.car and racer.car.name or nil, preview = met and info.preview or nil, step = rules.step(rival), locked = gateBoss and nameOf(s, gateBoss) or nil,
       known = s.known[rival.id] or nil, offer = offerView(s, m, rival) }
   end
   local result = { rivals = out, rank = rules.rank(m.list) }
@@ -308,7 +310,7 @@ function M.met()
       local racer = racerOf(s, rival.id)
       local role = rival.boss and (strings.t('rivals.boss_star') .. ' ' .. rival.tier) or strings.t('rivals.nemesis')
       out[#out + 1] = { id = rival.id, name = racer and roster.displayName(racer) or rival.id, kind = 'rival', placeId = rival.metAt,
-        line = role .. ((crewName(rival.crew)) and (' - ' .. crewName(rival.crew)) or '') }
+        line = role .. ((crewName(rival.crew)) and (' · ' .. crewName(rival.crew)) or '') }
     end
   end
   return out

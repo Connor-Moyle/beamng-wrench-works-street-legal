@@ -494,13 +494,13 @@
     function rivalCards() {
       var rv = obj(st.rivals), list = arr(rv.rivals);
       if (!list.length) return '';
-      var words = { blood: T('rivals.meter_blood', 'Bad blood'), rivals: T('rivals.meter_rivals', 'Rivals'), neutral: T('rivals.meter_neutral', 'Neutral'), respect: T('rivals.meter_respect', 'Respect'), friends: T('rivals.meter_friends', 'Friends') };
+      var words = { blood: T('rivals.meter_blood', 'Bad blood'), rivals: T('rivals.meter_rivals', 'Rivalry'), neutral: T('rivals.meter_neutral', 'Neutral'), respect: T('rivals.meter_respect', 'Respect'), friends: T('rivals.meter_friends', 'Friends') };
       return '<h4>' + T('rivals.title', 'Rivals') + '</h4>' + list.map(function (r) {
         var tag = r.boss ? ' &middot; ' + T('rivals.boss_star', 'Boss') + ' ' + r.tier : (r.nemesis ? ' &middot; ' + T('rivals.nemesis', 'Nemesis') : '');
-        return '<div class="sll-card"' + (r.locked ? ' style="opacity:.55"' : '') + '><h4>' + (r.boss ? '&#9733; ' : '') + esc(r.name) + tag + '</h4>' +
+        return '<div class="sll-card"' + (r.locked ? ' style="opacity:.75"' : '') + '><h4>' + (r.boss ? '&#9733; ' : '') + esc(r.name) + tag + '</h4>' +
           '<p>' + esc(r.crew || '') + (r.car ? ' &middot; ' + esc(r.car) : '') + '</p>' +
           '<div class="sll-meter"><i style="width:' + Math.round(((r.meter || 0) + 100) / 2) + '%"></i></div>' +
-          '<p>' + words[r.word] + ' &middot; ' + T('ui.rival_record', 'You {1} - {2} them', r.beaten || 0, r.youLost || 0) + (r.locked ? ' &middot; ' + T('ui.rival_locked', 'Locked: beat the tier {1} boss first', Math.max(1, (r.tier || 2) - 1)) : '') + '</p>' +
+          '<p>' + words[r.word] + ' &middot; ' + T('ui.rival_record', 'Won {1}, lost {2}', r.beaten || 0, r.youLost || 0) + (r.locked ? ' &middot; ' + T('ui.rival_locked', 'Beat {1} to move up', esc(r.locked)) : '') + '</p>' +
         (r.offer ? '<p class="sll-warn">' + T('ui.rival_offer', 'Pink slip offer: your {1} against their {2}', esc(r.offer.myCar || '?'), esc(r.offer.theirCar || '?')) + '</p><div class="sll-acts">' +
           '<div class="sll-btn sll-pinkbtn" data-a="rvyes" data-v="' + esc(r.id) + '">' + T('ui.rival_accept', 'Accept the pink slips') + '</div>' +
           '<div class="sll-btn sll-tonal" data-a="rvmoney" data-v="' + esc(r.id) + '">' + T('ui.rival_money', 'Race for money instead') + '</div>' +
