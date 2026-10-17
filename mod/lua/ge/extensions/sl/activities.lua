@@ -5,6 +5,8 @@
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 local progression = require('sl/core/progression')
 local stateLib = require('sl/core/state')
 local splitphase = require('sl/core/splitphase')
@@ -112,7 +114,7 @@ function M.onAnyMissionChanged(change, mission)
   end
   if r.kind and not splitphase.available('races', r.kind, sl_career.phase()) then
     refuse = mission                                   -- (a track event at night: stopped as soon as the game has finished starting it)
-    tell('Track events run in the day.')
+    tell(strings.t('activities.track_events_run_in_the'))
     return
   end
   if r.kind then helmetForEvent(true) end
@@ -139,7 +141,7 @@ function M.onMissionAttemptAggregated(attempt, mission)
       tell(string.format('Champion! The Race of Champions is yours: $%d and %+d reputation.', r.prize, r.rep))
       sl_career.sendText('benny', sl_career.mapText('You won the Race of Champions. I always said you had it in you. (I did not.)'), 3)
     else
-      tell('Out of the Race of Champions. The entry fee is gone; enter again when you are ready.')
+      tell(strings.t('activities.out_of_the_race_of'))
     end
     extensions.hook('onStreetLegalChanged')
     return

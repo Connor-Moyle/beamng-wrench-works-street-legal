@@ -7,6 +7,8 @@
 local carreport = require('sl/core/carreport')
 local M = {}
 
+local strings = require('sl/core/strings')
+
 local L = require('sl/core/listings')
 local rngLib = require('sl/core/rng')
 local stateLib = require('sl/core/state')
@@ -407,10 +409,10 @@ end
 -- haggle: an offer to the seller; returns ok, text
 function M.offer(id, amount)
   local s = career()
-  if not s then return false, 'No career running.' end
+  if not s then return false, strings.t('bank.no_career_running') end
   local m = state(s)
   local l = find(m, id)
-  if not l or l.taken or l.channel == 'auction' or l.channel == 'meet' then return false, 'That listing is gone.' end   -- (a lot is only bid on; a stall is bought there)
+  if not l or l.taken or l.channel == 'auction' or l.channel == 'meet' then return false, strings.t('classifieds.that_listing_is_gone') end   -- (a lot is only bid on; a stall is bought there)
   local r, price = L.haggle(l, amount, m.rounds[id] or 0)
   m.rounds[id] = (m.rounds[id] or 0) + 1
   if r == 'accept' then l.agreed = price return true, string.format('%s: "Deal, $%d."', l.seller, price) end
@@ -423,10 +425,10 @@ end
 -- the rest at the seller's kerb)
 function M.buy(id, how)
   local s = career()
-  if not s then return false, 'No career running.' end
+  if not s then return false, strings.t('bank.no_career_running') end
   local m = state(s)
   local l = find(m, id)
-  if not l or l.taken or l.channel == 'auction' or l.channel == 'meet' then return false, 'That listing is gone.' end   -- (a lot is only bid on; a stall is bought there)
+  if not l or l.taken or l.channel == 'auction' or l.channel == 'meet' then return false, strings.t('classifieds.that_listing_is_gone') end   -- (a lot is only bid on; a stall is bought there)
   local price = l.agreed or l.ask
   local part = { part = l.item.part, name = l.item.name, slotId = l.item.slotId, value = price, wear = l.wear }
   if how == 'delivery' and l.kind == 'car' then
@@ -434,23 +436,23 @@ function M.buy(id, how)
     if l.scam then return false, l.seller .. ': "No delivery. Deposit by transfer, then you collect."' end
     local yard = sl_fleet and sl_fleet.forecourt(s, 0)
     if not (yard and l.offer and l.where) then return false, l.seller .. ': "Come and see it. Cash on the day."' end
-    if not sl_career.addMoney(-(price + L.delivery(price)), 'Revline: ' .. l.offer.name) then return false, 'Not enough money.' end
+    if not sl_career.addMoney(-(price + L.delivery(price)), 'Revline: ' .. l.offer.name) then return false, strings.t('career.not_enough_money') end
     l.taken = true
     local order = dealersLib.orderPrivate(s, l, price, yard, dealersLib.clock(s.day, sl_career.hour()))
     return true, string.format('Paid. The %s comes to your garage in about %d hours.', l.offer.name, order.hours)
   end
   if how == 'delivery' then
     if l.scam then return false, l.seller .. ': "No delivery. Deposit by transfer, then you collect."' end
-    if not sl_career.addMoney(-(price + L.delivery(price)), 'Revline: ' .. l.item.name) then return false, 'Not enough money.' end
+    if not sl_career.addMoney(-(price + L.delivery(price)), 'Revline: ' .. l.item.name) then return false, strings.t('career.not_enough_money') end
     l.taken = true
     m.deliveries[#m.deliveries + 1] = { due = now(s) + DELIVERY_HOURS, model = l.item.model, part = part }
     return true, string.format('Paid. The %s comes to your garage in about %d hours.', l.item.name, DELIVERY_HOURS)
   end
   local js = s.jobs
-  if js and js.active then return false, 'Finish the job you are on first.' end
-  if not (sl_fleet and sl_fleet.currentCar()) then return false, 'You need to be in one of your cars to go and fetch it.' end   -- (sl_jobs.take refuses after the deposit otherwise)
+  if js and js.active then return false, strings.t('classifieds.finish_the_job_you_are') end
+  if not (sl_fleet and sl_fleet.currentCar()) then return false, strings.t('classifieds.you_need_to_be_in') end   -- (sl_jobs.take refuses after the deposit otherwise)
   local deposit = L.deposit(price)
-  if not sl_career.addMoney(-deposit, 'Revline deposit: ' .. l.item.name) then return false, 'Not enough for the deposit.' end
+  if not sl_career.addMoney(-deposit, 'Revline deposit: ' .. l.item.name) then return false, strings.t('classifieds.not_enough_for_the_deposit') end
   l.taken = true
   local w = l.where
   local job = { id = 'market:' .. l.id, kind = 'market', title = 'Pick up', item = l.item.name, settle = 'market', seconds = 0, pay = 0,
@@ -469,16 +471,16 @@ end
 -- shelf). The part leaves the shelf while it is listed; a job car's part can't be listed
 function M.listPart(model, itemId, channel)
   local s = career()
-  if not s then return false, 'No career running.' end
+  if not s then return false, strings.t('bank.no_career_running') end
   local m = state(s)
   if #m.mine >= MINE_MAX then return false, 'You have ' .. MINE_MAX .. ' things listed already.' end
-  if not (slrr_garage and slrr_garage.shelfItems) then return false, 'Wrench Works is not running.' end
+  if not (slrr_garage and slrr_garage.shelfItems) then return false, strings.t('classifieds.wrench_works_is_not_running') end
   local copy
   for _, it in ipairs(slrr_garage.shelfItems(model) or {}) do if it.id == tonumber(itemId) then copy = it end end
-  if not copy then return false, 'That part is not on your shelf.' end
+  if not copy then return false, strings.t('classifieds.that_part_is_not_on') end
   if not L.canList(copy) then return false, "That part belongs to a customer's car." end
   local item = slrr_garage.takeShelfItem(model, copy.id)
-  if not item then return false, 'Not while you are in the garage.' end
+  if not item then return false, strings.t('classifieds.not_while_you_are_in') end
   local t = now(s)
   local y = { id = 'y' .. m.nextId, model = model, name = copy.name, value = worth(copy), condition = L.condition(copy),
     channel = channel == 'auction' and 'auction' or 'app', item = item, offers = {}, listed = t }
@@ -495,12 +497,12 @@ local function findMine(m, id) for i, y in ipairs(m.mine) do if y.id == id then 
 -- sell one of your cars on Revline: it stays yours (and drivable) until you accept an offer
 function M.listCar(carId)
   local s = career()
-  if not s then return false, 'No career running.' end
+  if not s then return false, strings.t('bank.no_career_running') end
   local m = state(s)
   if #m.mine >= MINE_MAX then return false, 'You have ' .. MINE_MAX .. ' things listed already.' end
   local car = carById(s, tonumber(carId) or carId)
-  if not car then return false, 'That car is not yours.' end
-  for _, y in ipairs(m.mine) do if y.carId == car.id then return false, 'It is listed already.' end end
+  if not car then return false, strings.t('classifieds.that_car_is_not_yours') end
+  for _, y in ipairs(m.mine) do if y.carId == car.id then return false, strings.t('classifieds.it_is_listed_already') end end
   local y = { id = 'y' .. m.nextId, kind = 'car', carId = car.id, name = car.name or car.model, model = car.model, value = car.value or 0,
     condition = car.condition or 0.5, channel = 'app', offers = {}, listed = now(s) }
   m.nextId = m.nextId + 1
@@ -516,15 +518,15 @@ end
 
 function M.acceptOffer(id, index)
   local s = career()
-  if not s then return false, 'No career running.' end
+  if not s then return false, strings.t('bank.no_career_running') end
   local m = state(s)
   local y, i = findMine(m, id)
   local o = y and y.offers[tonumber(index) or 0]
-  if not o then return false, 'That offer is gone.' end
+  if not o then return false, strings.t('classifieds.that_offer_is_gone') end
   local amount, sold = o.amount, nil
   if y.kind == 'car' then
     local cap = carCap(s, y.carId)
-    if not cap then table.remove(m.mine, i) return false, 'That car is not yours any more.' end
+    if not cap then table.remove(m.mine, i) return false, strings.t('classifieds.that_car_is_not_yours') end
     if amount > cap then               -- (the buyer sees the car as it is now: stripped or bent since, it is worth less)
       o.amount = cap
       return false, string.format('%s had a look at it and knocked the offer down to $%d.', o.buyer or 'The buyer', cap)
@@ -556,11 +558,11 @@ end
 
 function M.withdraw(id)
   local s = career()
-  if not s then return false, 'No career running.' end
+  if not s then return false, strings.t('bank.no_career_running') end
   local m = state(s)
   local y, i = findMine(m, id)
-  if not y then return false, 'That listing is gone.' end
-  if y.channel == 'auction' and (y.bid or 0) > 0 then return false, 'There are bids on it: the auction runs to the end.' end
+  if not y then return false, strings.t('classifieds.that_listing_is_gone') end
+  if y.channel == 'auction' and (y.bid or 0) > 0 then return false, strings.t('classifieds.there_are_bids_on_it') end
   table.remove(m.mine, i)
   if y.kind == 'car' then extensions.hook('onStreetLegalChanged') return true, string.format('Your %s is off Revline.', y.name) end
   if slrr_garage and slrr_garage.putShelfItem then slrr_garage.putShelfItem(y.model, y.item) end
@@ -571,14 +573,14 @@ end
 -- buy at a swap meet stall: there and then, at the asking price, straight onto your shelf
 function M.buyAtMeet(id)
   local s = career()
-  if not s then return false, 'No career running.' end
+  if not s then return false, strings.t('bank.no_career_running') end
   local m = state(s)
   local l, i = find(m, id)
-  if not l or l.channel ~= 'meet' then return false, 'That stall has sold it.' end
+  if not l or l.channel ~= 'meet' then return false, strings.t('classifieds.that_stall_has_sold_it') end
   if not meetOpen(s) then return false, 'The swap meet runs on the weekend' .. (sl_career.has('nightMeet') and ' nights' or '') .. '.' end
   if not atMeet() then return false, string.format('The swap meet is at the %s. Come and look.', (meetPlace() or {}).name or 'Tuning shop lot') end
-  if not (slrr_garage and slrr_garage.addShelfPart) then return false, 'You need Wrench Works running to take it home.' end
-  if not sl_career.addMoney(-l.ask, 'Swap meet: ' .. l.item.name) then return false, 'Not enough money.' end
+  if not (slrr_garage and slrr_garage.addShelfPart) then return false, strings.t('classifieds.you_need_wrench_works_running') end
+  if not sl_career.addMoney(-l.ask, 'Swap meet: ' .. l.item.name) then return false, strings.t('career.not_enough_money') end
   table.remove(m.listings, i)
   if slrr_garage and slrr_garage.addShelfPart then
     slrr_garage.addShelfPart(l.item.model, { part = l.item.part, name = l.item.name, slotId = l.item.slotId, value = l.ask, wear = l.wear })
@@ -590,12 +592,12 @@ end
 -- Swap & Bid: bid the next step on a lot (paid when it ends, if you are still the highest bidder)
 function M.bid(id)
   local s = career()
-  if not s then return false, 'No career running.' end
+  if not s then return false, strings.t('bank.no_career_running') end
   local l = find(state(s), id)
-  if not l or l.channel ~= 'auction' or l.expires <= now(s) then return false, 'That auction is over.' end
-  if l.high == 'you' then return false, 'You are the highest bidder already.' end
+  if not l or l.channel ~= 'auction' or l.expires <= now(s) then return false, strings.t('classifieds.that_auction_is_over') end
+  if l.high == 'you' then return false, strings.t('classifieds.you_are_the_highest_bidder') end
   local nb = l.bid + math.max(10, math.floor(l.bid * 0.05 / 10 + 0.5) * 10)
-  if (s.money or 0) < nb + L.delivery(nb) then return false, 'You could not pay that if you won.' end
+  if (s.money or 0) < nb + L.delivery(nb) then return false, strings.t('classifieds.you_could_not_pay_that') end
   l.bid, l.high, l.watched = nb, 'you', true
   extensions.hook('onStreetLegalChanged')
   return true, string.format('Your bid: $%d on the %s.', nb, l.item.name)
@@ -604,7 +606,7 @@ end
 -- the printed paper: $2 at a gas station; this week's print-only ads show on the phone after that
 function M.buyPaper()
   local s = career()
-  if not s then return false, 'No career running.' end
+  if not s then return false, strings.t('bank.no_career_running') end
   local m = state(s)
   if m.paperRead == m.edition then return false, "You have this week's paper already." end
   local v = getPlayerVehicle(0)
@@ -615,8 +617,8 @@ function M.buyPaper()
     local c = freeroam_gasStations and freeroam_gasStations.gasStationCenterRadius and freeroam_gasStations.gasStationCenterRadius(g)
     if c and here and (here - vec3(c.x, c.y, c.z)):length() < PAPER_REACH then near = true end
   end
-  if not near then return false, 'Pick up a copy at any gas station.' end
-  if not sl_career.addMoney(-L.PAPER_PRICE, sl_career.mapText('Valo Classifieds')) then return false, 'Not even $2?' end
+  if not near then return false, strings.t('classifieds.pick_up_a_copy_at') end
+  if not sl_career.addMoney(-L.PAPER_PRICE, sl_career.mapText('Valo Classifieds')) then return false, strings.t('classifieds.not_even_2') end
   m.paperRead = m.edition
   extensions.hook('onStreetLegalChanged')
   return true, sl_career.mapText("This week's Valo Classifieds. A few ads in here you won't find on the phone.")
@@ -646,7 +648,7 @@ function M.onUpdate(dtReal)
     local offer = deepcopy(j.privateCar)
     offer.price, offer.listingId = j.price, j.listing
     if not (sl_lot and sl_lot.openPrivate and sl_lot.openPrivate(offer, vec3(stop.x, stop.y, stop.z or 0), j.seller)) then
-      if not j.waitTold then toast('Close the lot screen you have open first.') j.waitTold = true end
+      if not j.waitTold then toast(strings.t('classifieds.close_the_lot_screen_you')) j.waitTold = true end
       return
     end
     sl_career.addMoney(j.deposit, 'Revline deposit back')

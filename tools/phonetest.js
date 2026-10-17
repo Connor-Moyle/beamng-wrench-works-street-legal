@@ -526,6 +526,30 @@ assert.ok(text().includes('Heat and the police'), 'back goes to the topics');
 phone.act('home');
 phone.act('open', 'turf');
 
+// #51 the player-facing text comes from the strings table: another text shows at once, a missing key keeps its fallback
+phone.act('home');
+phone.handle('slStrings', { text: { 'app.races': 'Rennen', 'app.wait': 'Warten {1}' } });
+assert.ok(text().includes('Rennen') && text().includes('Warten') && text().includes('Jobs'), 'the table changes the apps it has a text for, the rest keep their words');
+phone.handle('slStrings', { text: {} });
+assert.ok(text().includes('Races') && !text().includes('Rennen'), 'and back');
+phone.act('open', 'turf');
+
+// #51 text size: the setting scales the text, and a pad makes it at least Large; low levels carry a warning mark
+const zoomOf = () => Number(win.document.querySelector('[data-zoom]').getAttribute('data-zoom'));
+const realNow = win.Date.now;
+win.Date.now = () => realNow() + 300000;                // (the pad inputs of the tests above are old by now)
+phone.handle('slPhoneData', Object.assign({}, data, { textScale: 1 }));
+assert.strictEqual(zoomOf(), 1, 'normal text size: 1');
+phone.handle('slPhoneData', Object.assign({}, data, { textScale: 1.5 }));
+assert.strictEqual(zoomOf(), 1.5, 'huge text size: 1.5');
+phone.handle('slPhoneData', Object.assign({}, data, { textScale: 1 }));
+win.Date.now = realNow;
+win.document.dispatchEvent(new win.CustomEvent('ui_nav', { detail: { name: 'tab_r', value: 1 } }));
+phone.handle('slPhoneData', Object.assign({}, data, { textScale: 1 }));
+assert.strictEqual(zoomOf(), 1.25, 'a pad in use: at least Large');
+phone.handle('slPhoneData', data);
+phone.act('home');
+phone.act('open', 'turf');
 // #42 the turf map: a circle for every district at its place, coloured by its owner, and where you are
 assert.ok(!phone.root.querySelector('.slp-turfmap'), 'no positions, no map');
 phone.handle('slPhoneData', Object.assign({}, data, { turf: { held: 1, turfWar: false, you: { x: 100, y: 100 }, districts: [
@@ -533,7 +557,7 @@ phone.handle('slPhoneData', Object.assign({}, data, { turf: { held: 1, turfWar: 
   { id: 'd2', name: 'Alder Dragway', owner: 'Riverbed Runners', crew: 'riverbed', control: 75, x: 1000, y: 800 },
   { id: 'd3', name: 'Industrial', owner: 'Ring Road Ghosts', crew: 'ringroad', control: 40, x: -600, y: 500 } ], crews: [] } }));
 const map = phone.root.querySelector('.slp-turfmap');
-assert.ok(map && map.querySelectorAll('circle[fill-opacity]').length === 3 && map.textContent.includes('Belasco City') && map.textContent.includes('Alder Dragway') && map.innerHTML.includes('#34c759') && map.innerHTML.includes('#3b82f6') && map.innerHTML.includes('#a855f7') && map.querySelectorAll('circle[fill="none"]').length === 1, 'the map: three districts in their colours and you');
+assert.ok(map && map.querySelectorAll('circle[fill-opacity]').length === 3 && map.textContent.includes('Belasco City') && map.textContent.includes('Alder Dragway') && map.innerHTML.includes('#009e73') && map.innerHTML.includes('#0072b2') && map.innerHTML.includes('#cc79a7') && map.textContent.includes('R') && map.textContent.includes('G') && map.textContent.includes('✓') && map.querySelectorAll('circle[fill="none"]').length === 1, 'the map: three districts in colour-blind-safe colours, each with its own mark, and you');
 
 // Hardcore game over
 phone.handle('slPhoneData', { active: false });

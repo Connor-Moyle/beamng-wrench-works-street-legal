@@ -7,19 +7,20 @@ local M = {}
 -- page: what opens in the laptop; soon: not built yet (L3 dealers, L4 garage entry: delete the flag when it is).
 -- ids: a tile of ours that stands for any of several stock functions (the parts market needs a parts shop or a dealer).
 -- needs: a map capability (progression.MAPS has) the tile depends on, hidden where the map lacks it.
+local S = require('sl/core/strings')
 M.TILES = {
-  { id = 'vehicleInventory', label = 'My cars', group = 'general', page = 'cars' },
-  { id = 'partInventory', label = 'My parts', group = 'general', page = 'parts' },
-  { id = 'vehicleShop', label = 'Car market', group = 'general', page = 'dealers', shop = true },
-  { id = 'partsMarket', ids = { 'partShop', 'vehicleShop' }, label = 'Part market', group = 'general', page = 'partmarket', shop = true, needs = 'classifieds' },
-  { id = 'clubs', ids = { 'vehicleInventory', 'vehicleShop', 'partShop' }, label = 'Club', group = 'general', page = 'club', needs = 'clubs' },
-  { id = 'help', ids = { 'vehicleInventory', 'vehicleShop', 'partShop', 'insurances', 'playerAbstract' }, label = 'Help', group = 'general', page = 'help' },
-  { id = 'insurances', label = 'Bank / insurance', group = 'general', page = 'bank' },
-  { id = 'playerAbstract', label = 'Street cred', group = 'general', page = 'cred' },
-  { id = 'partShop', label = 'Part customization', group = 'car', mode = 'catalog' },
-  { id = 'tuning', label = 'Tuning', group = 'car', mode = 'tune' },
-  { id = 'painting', label = 'Painting', group = 'car', mode = 'paint' },
-  { id = 'repair', label = 'Repair', group = 'car', mode = 'repair' },
+  { id = 'vehicleInventory', label = S.t('laptop.mycars'), group = 'general', page = 'cars' },
+  { id = 'partInventory', label = S.t('laptop.myparts'), group = 'general', page = 'parts' },
+  { id = 'vehicleShop', label = S.t('laptop.carmarket'), group = 'general', page = 'dealers', shop = true },
+  { id = 'partsMarket', ids = { 'partShop', 'vehicleShop' }, label = S.t('laptop.partmarket'), group = 'general', page = 'partmarket', shop = true, needs = 'classifieds' },
+  { id = 'clubs', ids = { 'vehicleInventory', 'vehicleShop', 'partShop' }, label = S.t('laptop.club'), group = 'general', page = 'club', needs = 'clubs' },
+  { id = 'help', ids = { 'vehicleInventory', 'vehicleShop', 'partShop', 'insurances', 'playerAbstract' }, label = S.t('laptop.help'), group = 'general', page = 'help' },
+  { id = 'insurances', label = S.t('laptop.bank'), group = 'general', page = 'bank' },
+  { id = 'playerAbstract', label = S.t('laptop.cred'), group = 'general', page = 'cred' },
+  { id = 'partShop', label = S.t('laptop.partshop'), group = 'car', mode = 'catalog' },
+  { id = 'tuning', label = S.t('laptop.tuning'), group = 'car', mode = 'tune' },
+  { id = 'painting', label = S.t('laptop.painting'), group = 'car', mode = 'paint' },
+  { id = 'repair', label = S.t('laptop.repair'), group = 'car', mode = 'repair' },
 }
 
 -- mode: the Wrench Works garage opens on the chosen car in that mode (slrr_garage.enterWith).

@@ -5,6 +5,8 @@
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 local lib = require('sl/core/replay')
 
 local last                 -- { name, file, saved } the last recorded race
@@ -49,10 +51,10 @@ end
 
 -- the game's replay opens on the race, from its start
 function M.watch()
-  if not last or not last.file or not core_replay or not core_replay.loadFile then return false, 'No race recorded.' end
-  if not FS:fileExists(last.file) then return false, 'That replay is gone.' end
+  if not last or not last.file or not core_replay or not core_replay.loadFile then return false, strings.t('replay.no_race_recorded') end
+  if not FS:fileExists(last.file) then return false, strings.t('replay.that_replay_is_gone') end
   local ok, res = pcall(core_replay.loadFile, last.file, true)
-  if not ok or (type(res) == 'table' and res.success == false) then return false, 'The replay would not open.' end
+  if not ok or (type(res) == 'table' and res.success == false) then return false, strings.t('replay.the_replay_would_not_open') end
   return true, 'Replay: ' .. last.name .. '.'
 end
 
@@ -61,7 +63,7 @@ function M.save()
   if not last or not last.file or last.saved then return false, last and 'Already saved.' or 'No race recorded.' end
   local name = lib.clipName(last.name, os.date('%Y-%m-%d %H-%M'))
   local ok, res = pcall(core_replay.acceptRename, last.file, name)
-  if not ok or type(res) ~= 'table' or res.success ~= true then return false, 'Could not save the clip.' end
+  if not ok or type(res) ~= 'table' or res.success ~= true then return false, strings.t('replay.could_not_save_the_clip') end
   last.file = type(res.newFilename) == 'string' and res.newFilename or ((last.file:match('^(.*/)') or 'replays/') .. name .. '.rpl')
   last.saved = true
   extensions.hook('onStreetLegalChanged')

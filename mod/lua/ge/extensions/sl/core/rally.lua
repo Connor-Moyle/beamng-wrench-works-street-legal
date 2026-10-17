@@ -4,6 +4,8 @@
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 M.DS = 5                    -- m between the line's points (as the file is made)
 M.TURN_PER_STEP = 0.035     -- rad of turn in one step that makes it a corner (a radius under about 140 m)
 M.MIN_CALL = 6              -- m: a corner shorter than this is not called
@@ -135,7 +137,7 @@ end
 -- the class rule: a rally class car makes at most 300 PS and weighs at least 900 kg (no rocket and no featherweight); car: { power, weight } from the config
 M.CLASS = { maxPower = 300, minWeight = 900 }
 function M.classOk(car)
-  if type(car) ~= 'table' then return false, 'Bring a car.' end
+  if type(car) ~= 'table' then return false, strings.t('rally.bring_a_car') end
   local p, w = tonumber(car.power), tonumber(car.weight)
   if p and p > M.CLASS.maxPower then return false, string.format('Rally class is %d PS at most; this car has %d.', M.CLASS.maxPower, math.floor(p)) end
   if w and w < M.CLASS.minWeight then return false, string.format('Rally class cars weigh at least %d kg.', M.CLASS.minWeight) end

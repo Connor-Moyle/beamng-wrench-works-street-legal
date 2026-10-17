@@ -47,6 +47,7 @@
     '.slp-ib{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none}',
     '.slp-ib:hover{background:rgba(255,255,255,.08)}',
     '.slp-ib svg{width:22px;height:22px;fill:#e6e1e5}',
+    '.slp-page{zoom:var(--sl-zoom,1)}',
     '.slp-body{flex:1;overflow-y:auto;min-height:0;padding:0 0 12px 0}',
     '.slp-body::-webkit-scrollbar{width:0}',
     '.slp-row{display:flex;align-items:center;padding:10px 18px;cursor:pointer;min-height:64px}',
@@ -348,6 +349,11 @@
     function thread(id) { return arr(obj(st.data.threads)[id]); }
 
     // ---------------------------------------------------------------- pages
+    // the player-facing text: sl/core/strings (sl_phone.requestStrings); the second argument shows until it has arrived. {1}, {2} are the extra arguments.
+    function T(key, fallback) {
+      var text = st.strings && st.strings[key] !== undefined ? st.strings[key] : fallback, a = arguments;
+      return String(text).replace(/\{(\d+)\}/g, function (m, i) { var v = a[Number(i) + 1]; return v === undefined ? '' : v; });
+    }
     function bar(title, extra) {
       return '<div class="slp-bar"><div class="slp-ib" data-a="back">' + I.back + '</div><b>' + esc(title) + '</b>' + (extra || '') + '</div>';
     }
@@ -371,24 +377,24 @@
         (d.weather ? '<div class="slp-date" style="opacity:.85">' + (d.weather.wet ? '&#127783; ' : '') + esc(d.weather.text) + '</div>' : '') +
         '<div><span class="slp-chip">' + esc(d.title || '') + ' &middot; ' + (d.rep || 0) + ' rep &middot; ' + money(d.money) + '</span></div>' +
         tut + '<div class="slp-grid">' + appsHtml([
-          { id: 'races', title: 'Races', icon: I.flag, badge: arranged || 0 },
-          { id: 'garage', title: 'My cars', icon: I.cab },
-          { id: 'bank', title: 'Bank', icon: I.bank },
-          { id: 'me', title: 'Street cred', icon: I.me },
-          { id: 'jobs', title: 'Jobs', icon: I.jobs, badge: d.jobs && d.jobs.active ? 1 : 0 },
-          { id: 'wait', title: 'Wait', icon: I.wait },
-          { id: 'help', title: 'Help', icon: I.help },
-          { id: 'settings', title: 'Settings', icon: I.settings },
-          { id: 'club', title: 'Club', icon: I.club, hide: has.clubs === false },
-          { id: 'turf', title: 'Turf', icon: I.turf, hide: has.crews === false },
-          { id: 'carmarket', title: 'Car market', icon: I.cab },
-          { id: 'partmarket', title: 'Part market', icon: I.market, badge: (d.market && d.market.deliveries || 0) + (d.market ? arr(d.market.auctions).filter(function (l) { return l.high === 'you'; }).length : 0), hide: has.classifieds === false },
+          { id: 'races', title: T('app.races', 'Races'), icon: I.flag, badge: arranged || 0 },
+          { id: 'garage', title: T('app.garage', 'My cars'), icon: I.cab },
+          { id: 'bank', title: T('app.bank', 'Bank'), icon: I.bank },
+          { id: 'me', title: T('app.me', 'Street cred'), icon: I.me },
+          { id: 'jobs', title: T('app.jobs', 'Jobs'), icon: I.jobs, badge: d.jobs && d.jobs.active ? 1 : 0 },
+          { id: 'wait', title: T('app.wait', 'Wait'), icon: I.wait },
+          { id: 'help', title: T('app.help', 'Help'), icon: I.help },
+          { id: 'settings', title: T('app.settings', 'Settings'), icon: I.settings },
+          { id: 'club', title: T('app.club', 'Club'), icon: I.club, hide: has.clubs === false },
+          { id: 'turf', title: T('app.turf', 'Turf'), icon: I.turf, hide: has.crews === false },
+          { id: 'carmarket', title: T('app.carmarket', 'Car market'), icon: I.cab },
+          { id: 'partmarket', title: T('app.partmarket', 'Part market'), icon: I.market, badge: (d.market && d.market.deliveries || 0) + (d.market ? arr(d.market.auctions).filter(function (l) { return l.high === 'you'; }).length : 0), hide: has.classifieds === false },
         ]) + '</div>' +
         '<div class="slp-dock">' + appsHtml([
-          { id: 'phone', title: 'Phone', icon: I.phone },
-          { id: 'messages', title: 'Messages', icon: I.msg, badge: unread() || 0 },
-          { id: 'contacts', title: 'Contacts', icon: I.contacts },
-          { id: 'cab', title: 'Cab', icon: I.cab },
+          { id: 'phone', title: T('app.phone', 'Phone'), icon: I.phone },
+          { id: 'messages', title: T('app.messages', 'Messages'), icon: I.msg, badge: unread() || 0 },
+          { id: 'contacts', title: T('app.contacts', 'Contacts'), icon: I.contacts },
+          { id: 'cab', title: T('app.cab', 'Cab'), icon: I.cab },
         ]).replace(/<span>[^<]*<\/span>/g, '') + '</div></div>';
     }
 
@@ -406,12 +412,12 @@
         out.push('<div class="slp-row" data-a="contact" data-v="' + esc(c.id) + '">' + avatar(c) + '<div class="slp-rt"><b>' + esc(c.name) + '</b><span>' + contactLine(c) + '</span></div></div>');
       });
       if (list.length <= 1) out.push('<div class="slp-empty">Nobody else has given you their number yet. Win a few races and they will.</div>');
-      return bar('Contacts') + '<div class="slp-body">' + out.join('') + '</div>';
+      return bar(T('app.contacts', 'Contacts')) + '<div class="slp-body">' + out.join('') + '</div>';
     }
 
     function contactPage() {
       var c = contactById(st.contact);
-      if (!c) return bar('Contact') + '<div class="slp-empty">Gone.</div>';
+      if (!c) return bar(T('app.contact', 'Contact')) + '<div class="slp-empty">Gone.</div>';
       var record = c.system ? '' : '<div class="slp-card"><div class="slp-kv"><span>You beat them</span><b>' + (c.losses || 0) + '</b></div><div class="slp-kv" style="border:none"><span>They beat you</span><b>' + (c.wins || 0) + '</b></div></div>';
       return bar('') + '<div class="slp-body"><div class="slp-hero">' + avatar(c) + '<b>' + esc(c.name) + '</b><span>' + esc(c.phone) + '</span><span>' + contactLine(c) + '</span></div>' +
         '<div class="slp-acts3"><div class="slp-act" data-a="call" data-v="' + esc(c.id) + '"><i>' + I.phone + '</i>Call</div>' +
@@ -428,7 +434,7 @@
         return '<div class="slp-row" data-a="thread" data-v="' + esc(id) + '">' + avatar(c) + '<div class="slp-rt"><b>' + esc(c.name) + '</b><span' + (n ? ' class="slp-unread"' : '') + '>' +
           (lastMsg.from === 'me' ? 'You: ' : '') + esc(lastMsg.text) + '</span></div>' + (n ? '<div class="slp-badge" style="position:static;margin:0">' + n + '</div>' : '') + '</div>';
       });
-      return bar('Messages') + '<div class="slp-body">' + (rows.join('') || '<div class="slp-empty">No messages.</div>') + '</div>';
+      return bar(T('app.messages', 'Messages')) + '<div class="slp-body">' + (rows.join('') || '<div class="slp-empty">No messages.</div>') + '</div>';
     }
 
     function threadPage() {
@@ -462,15 +468,15 @@
         var pv = obj(c.preview);
         // the route as a small map (#18): the road it takes, the start (green) and the finish (red)
         var map = pv.points ? '<svg class="slp-rmap" viewBox="0 0 ' + (pv.w || 240) + ' ' + (pv.h || 140) + '"><polyline points="' + esc(pv.points) + '" fill="none" stroke="#a8c7fa" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>' +
-          '<circle cx="' + obj(pv.start).x + '" cy="' + obj(pv.start).y + '" r="5" fill="#7bd88f"/><circle cx="' + obj(pv.finish).x + '" cy="' + obj(pv.finish).y + '" r="5" fill="#f2b8b5"/></svg>' +
-          '<p class="slp-rmeta"><span class="slp-rs">&#9679; start</span> <span class="slp-rf">&#9679; finish</span> &middot; ' + ((pv.metres || 0) / 1000).toFixed(1) + ' km</p>' : '';
+          '<circle cx="' + obj(pv.start).x + '" cy="' + obj(pv.start).y + '" r="5" fill="#7bd88f"/><rect x="' + (obj(pv.finish).x - 5) + '" y="' + (obj(pv.finish).y - 5) + '" width="10" height="10" fill="#f2b8b5"/></svg>' +
+          '<p class="slp-rmeta"><span class="slp-rs">&#9679; ' + esc(T('status.start', 'start')) + '</span> <span class="slp-rf">&#9632; ' + esc(T('status.finish', 'finish')) + '</span> &middot; ' + ((pv.metres || 0) / 1000).toFixed(1) + ' km</p>' : '';
         return '<div class="slp-card">' + map + '<h4>' + esc(c.name) + '</h4><p>' + esc(c.raceName) + ' &middot; ' + stake + (c.nightOnly ? ' &middot; after dark' : '') + '</p>' +
           '<div class="slp-acts"><div class="slp-btn" data-a="gps" data-v="' + esc(c.id) + '">Show the way</div>' + (c.stake === 'money' ? '<div class="slp-btn slp-tonal" data-a="raise" data-v="' + esc(c.id) + '">Raise the stake</div>' : '') + '<div class="slp-btn slp-text" data-a="cancel" data-v="' + esc(c.id) + '">Call it off</div></div></div>';
       });
       var rp = st.data.replay;          // #48 the last race, recorded: watch it, keep it
       if (rp) cards.unshift('<div class="slp-card"><h4>Last race</h4><p>' + esc(rp.name) + (rp.saved ? ' &middot; saved' : '') + '</p><div class="slp-acts"><div class="slp-btn" data-a="watchreplay" data-v="1">Watch replay</div>' +
         (rp.saved ? '' : '<div class="slp-btn slp-tonal" data-a="saveclip" data-v="1">Save clip</div>') + '</div></div>');
-      return bar('Races') + '<div class="slp-body">' + (cards.join('') ||
+      return bar(T('app.races', 'Races')) + '<div class="slp-body">' + (cards.join('') ||
         '<div class="slp-empty">No races arranged. Call or text one of your contacts to set one up: for money, for high stakes, or for pink slips.</div>') + '</div>';
     }
 
@@ -538,7 +544,7 @@
     function adPage() {
       var m = obj(st.data.market), l = null;
       arr(m.listings).concat(arr(obj(m.paper).listings)).forEach(function (x) { if (x.id === st.adId) l = x; });
-      if (!l) return bar('Ad') + '<div class="slp-body"><div class="slp-empty">This ad has gone.</div></div>';
+      if (!l) return bar(T('app.ad', 'Ad')) + '<div class="slp-body"><div class="slp-empty">This ad has gone.</div></div>';
       var sp = obj(l.specs), faults = l.faultList ? arr(l.faultList) : [];
       var row = function (k, v) { return v == null || v === '' ? '' : '<div class="slp-kv"><span>' + k + '</span><b>' + v + '</b></div>'; };
       return bar((l.year ? l.year + ' ' : '') + l.name) + '<div class="slp-body"><div class="slp-card">' + adPic(l) +
@@ -593,7 +599,7 @@
     function marketPage() {
       var m = obj(st.data.market);
       var cards = arr(m.listings).map(adCard).join('');
-      return bar('Revline') + '<div class="slp-body">' + (m.deliveries ? '<div class="slp-empty">' + m.deliveries + ' on the way to your garage.</div>' : '') +
+      return bar(T('app.revline', 'Revline')) + '<div class="slp-body">' + (m.deliveries ? '<div class="slp-empty">' + m.deliveries + ' on the way to your garage.</div>' : '') +
         (cards || '<div class="slp-empty">Nothing listed right now. New ads come in through the day.</div>') + sellCards(m) + '</div>';
     }
 
@@ -625,7 +631,7 @@
               '<p><b>' + money(l.ask) + '</b></p>' + (meet.here ? '<div class="slp-acts"><div class="slp-btn" data-a="mkmeet" data-v="' + esc(l.id) + '">Buy it</div></div>' : '') + '</div>';
           }).join('');
       }
-      return bar('Swap & Bid') + '<div class="slp-body">' + stalls + (cards || '<div class="slp-empty">No lots right now.</div>') + '</div>';
+      return bar(T('app.bid', 'Swap & Bid')) + '<div class="slp-body">' + stalls + (cards || '<div class="slp-empty">No lots right now.</div>') + '</div>';
     }
 
     function jobsPage() {
@@ -640,7 +646,7 @@
           (a ? '' : '<div class="slp-acts"><div class="slp-btn" data-a="jobtake" data-v="' + esc(o.id) + '">Take it</div></div>') + '</div>';
       }).join('');
       var boostLine = j.boost && j.boost > 1.04 ? '<div class="slp-empty">New in town: jobs pay &times;' + j.boost.toFixed(1) + ' until you make a name or buy your first part.</div>' : '';
-      return bar('Jobs') + '<div class="slp-body">' + boostLine + activeCard + (cards || '<div class="slp-empty">Nothing on the board. New jobs come in the morning and at dusk.</div>') +
+      return bar(T('app.jobs', 'Jobs')) + '<div class="slp-body">' + boostLine + activeCard + (cards || '<div class="slp-empty">Nothing on the board. New jobs come in the morning and at dusk.</div>') +
         (j.crew ? '<div class="slp-card"><h4>Crew contract: ' + esc(j.crew.boss) + '</h4><p>Beat ' + j.crew.need + ' racers of tier ' + j.crew.tier + ' or better: ' + j.crew.won + ' so far, ' + j.crew.daysLeft + ' days left. ' + money(j.crew.pay) + '</p></div>' : '') +
         (j.sponsor ? '<div class="slp-card"><h4>Sponsor: ' + esc(j.sponsor.name) + '</h4><p>' + money(j.sponsor.weekly) + ' a week for two wins a week: ' + j.sponsor.weekWins + ' this week.</p></div>' : '') +
         (j.quarter || j.dyno ? '<div class="slp-card"><h4>Tuning challenges</h4><p>' + (j.quarter ? 'Quarter mile at the test track under ' + j.quarter + ' s. ' : '') + (j.dyno ? 'Dyno: ' + j.dyno + ' PS on the car info sheet in your garage.' : '') + '</p></div>' : '') +
@@ -651,7 +657,9 @@
     // the club: today's league events, the standings
     // Turf: the city's districts, who holds them and how firmly (sl_crews, X21)
     // the turf map: every district a circle at its place on the map, in its owner's colour (yours in green), bigger with more control; you are the white ring
-    var CREW_COLOURS = { southside: '#e5484d', riverbed: '#3b82f6', northend: '#f5a623', ringroad: '#a855f7' };
+    var CREW_COLOURS = { southside: '#d55e00', riverbed: '#0072b2', northend: '#f0e442', ringroad: '#cc79a7' };      // (Okabe-Ito: told apart by every kind of colour vision)
+    var YOURS_COLOUR = '#009e73';
+    var CREW_INITIALS = { southside: 'S', riverbed: 'R', northend: 'N', ringroad: 'G' };      // (each crew its own letter in its circle)
     function turfMap(t) {
       var ds = arr(t.districts).filter(function (d) { return typeof d.x === 'number' && typeof d.y === 'number'; });
       if (ds.length < 2) return '';
@@ -660,8 +668,9 @@
       var W = 300, H = 200, pad = 30, k = Math.min((W - 2 * pad) / Math.max(1, x1 - x0), (H - 2 * pad) / Math.max(1, y1 - y0));
       var px = function (x) { return Math.round(W / 2 + (x - (x0 + x1) / 2) * k); }, py = function (y) { return Math.round(H / 2 - (y - (y0 + y1) / 2) * k); };      // (north up)
       var dots = ds.map(function (d) {
-        var col = d.yours ? '#34c759' : (CREW_COLOURS[d.crew] || '#8e8e93');
-        return '<circle cx="' + px(d.x) + '" cy="' + py(d.y) + '" r="' + (8 + Math.round((d.control || 0) / 12)) + '" fill="' + col + '" fill-opacity="0.75" stroke="' + col + '"/>' +
+        var col = d.yours ? YOURS_COLOUR : (CREW_COLOURS[d.crew] || '#8e8e93'), r0 = 8 + Math.round((d.control || 0) / 12), initial = d.yours ? '✓' : CREW_INITIALS[d.crew] || String(d.owner || '?').charAt(0).toUpperCase();
+        return '<circle cx="' + px(d.x) + '" cy="' + py(d.y) + '" r="' + r0 + '" fill="' + col + '" fill-opacity="0.75" stroke="' + (d.yours ? '#fff' : col) + '" stroke-width="' + (d.yours ? 3 : 1) + '"/>' +
+          '<text x="' + px(d.x) + '" y="' + (py(d.y) + 4) + '" text-anchor="middle" font-size="12" font-weight="700" fill="#000">' + esc(initial) + '</text>' +
           '<text x="' + px(d.x) + '" y="' + (py(d.y) + 24) + '" text-anchor="middle" font-size="9" fill="#e6e1e5">' + esc(d.name) + '</text>';
       }).join('');
       var you = t.you ? '<circle cx="' + px(t.you.x) + '" cy="' + py(t.you.y) + '" r="4" fill="none" stroke="#fff" stroke-width="2"/>' : '';
@@ -674,14 +683,14 @@
           (d.yours ? 'Yours' : esc(d.owner)) + ' &middot; ' + d.control + '% control' + (d.home ? ' &middot; home of ' + esc(d.home) : '') + '</span></div></div>';
       }).join('');
       var crews = arr(t.crews).map(function (c) { return '<p>' + esc(c.name) + (c.leader ? ' &middot; led by ' + esc(c.leader) : '') + '</p>'; }).join('');
-      return bar('Turf') + '<div class="slp-body">' + turfMap(t) +
+      return bar(T('app.turf', 'Turf')) + '<div class="slp-body">' + turfMap(t) +
         '<div class="slp-empty">Beat a crew on its own streets to take the district. You hold ' + (t.held || 0) + '.' + (t.turfWar ? ' The leaders want a word.' : '') + '</div>' +
         (rows || '<div class="slp-empty">No districts on this map.</div>') + '<div class="slp-card"><h4>The crews</h4>' + crews + '</div></div>';
     }
 
     function clubPage() {
       var c = st.data.club;
-      if (!c) return bar('Club') + '<div class="slp-body"><div class="slp-empty">No club yet.</div></div>';
+      if (!c) return bar(T('app.club', 'Club')) + '<div class="slp-body"><div class="slp-empty">No club yet.</div></div>';
       var ev = c.today || {};
       var row = function (kind, label, e) {
         if (!e) return '';
@@ -719,7 +728,7 @@
           : '<div class="slp-card"><h4>Insurance</h4><p>' + money(bk.premium) + ' a week: half of repairs and impound bills over ' + money(bk.deductible) + ', from the next day</p>' +
             '<div class="slp-acts"><div class="slp-btn slp-tonal" data-a="insure" data-v="true">Insure</div></div></div>';
       }
-      return bar('Bank') + '<div class="slp-body"><div class="slp-bal"><small>Balance</small><div>' + money(st.data.money) + '</div></div>' + cards +
+      return bar(T('app.bank', 'Bank')) + '<div class="slp-body"><div class="slp-bal"><small>Balance</small><div>' + money(st.data.money) + '</div></div>' + cards +
         (rows.join('') || '<div class="slp-empty">No transactions yet.</div>') + '</div>';
     }
 
@@ -776,7 +785,7 @@
       } else {
         body = st.cmView === 'offer' ? dealerOffer() : (st.cmView === 'offers' ? dealerOffers() : dealerCards());
       }
-      return bar('Car market') + tabsHtml('cars', [['dealers', 'Dealers'], ['ads', 'Private ads']]) + body;
+      return bar(T('app.carmarket', 'Car market')) + tabsHtml('cars', [['dealers', 'Dealers'], ['ads', 'Private ads']]) + body;
     }
     function partMarketPage() {
       var m = obj(st.data.market), tab = st.tab.parts, body;
@@ -790,7 +799,7 @@
         body = '<div class="slp-body">' + (m.deliveries ? '<div class="slp-empty">' + m.deliveries + ' on the way to your garage.</div>' : '') +
           (cards || '<div class="slp-empty">Nothing listed right now. New ads come in through the day.</div>') + sellCards(m, 'parts') + '</div>';
       }
-      return bar('Part market') + tabsHtml('parts', [['revline', 'Revline'], ['auctions', 'Swap & Bid'], ['paper', 'Classifieds'], ['catalog', 'Catalog']]) + body;
+      return bar(T('app.partmarket', 'Part market')) + tabsHtml('parts', [['revline', 'Revline'], ['auctions', 'Swap & Bid'], ['paper', 'Classifieds'], ['catalog', 'Catalog']]) + body;
     }
 
     // Settings: Wrench Works' settings and the career's, as Android lists them
@@ -823,11 +832,11 @@
       var rows = arr(st.help).map(function (p) {
         return '<div class="slp-row" data-a="helppage" data-v="' + esc(p.id) + '"><div class="slp-rt"><b>' + esc(p.title) + '</b></div></div>';
       }).join('');
-      return bar('Help') + '<div class="slp-body">' + (rows || '<div class="slp-empty">Loading the help...</div>') + '</div>';
+      return bar(T('app.help', 'Help')) + '<div class="slp-body">' + (rows || '<div class="slp-empty">Loading the help...</div>') + '</div>';
     }
     function helpTopicPage() {
       var p = arr(st.help).filter(function (x) { return x.id === st.helpId; })[0];
-      if (!p) return bar('Help') + '<div class="slp-body"><div class="slp-empty">No such page.</div></div>';
+      if (!p) return bar(T('app.help', 'Help')) + '<div class="slp-body"><div class="slp-empty">No such page.</div></div>';
       var inList = false, html = '';
       arr(p.body).forEach(function (t) {
         var bullet = String(t).indexOf('- ') === 0;
@@ -843,7 +852,7 @@
       var defs = arr(obj(st.settings).defs), groups = [], by = {};
       defs.forEach(function (d) { var g = d.group || 'Other'; if (!by[g]) { by[g] = []; groups.push(g); } by[g].push(d); });
       var out = groups.map(function (g) { return '<div class="slp-seth">' + esc(g) + '</div>' + by[g].map(settingRow).join(''); }).join('');
-      return bar('Settings') + '<div class="slp-body">' + (out || '<div class="slp-empty">No settings yet.</div>') +
+      return bar(T('app.settings', 'Settings')) + '<div class="slp-body">' + (out || '<div class="slp-empty">No settings yet.</div>') +
         '<div class="slp-seth">Settings</div><div class="slp-acts"><div class="slp-btn slp-tonal" data-a="setreset">Reset to defaults</div></div>' +
         '<div class="slp-seth">Developer</div><div class="slp-set"><div class="slp-st"><b>All the money</b><small>For testing: the money goes to $99,999,999.</small></div></div>' +
         '<div class="slp-acts"><div class="slp-btn slp-pinkbtn" data-a="devmoney">Give all the money</div></div></div>';
@@ -851,11 +860,12 @@
 
     // waiting: to the next morning or a few hours on (the clock, deliveries and shop hours follow); refused in a race, on a job or with the police after you
     function waitPage() {
-      var h = [['switch', st.data.phaseSwitch || 'Start the night'], ['1', 'One hour'], ['3', 'Three hours'], ['6', 'Six hours']].map(function (x) {
+      var h = [['switch', st.data.phaseSwitch || T('phase.startNight', 'Start the night')], ['1', T('wait.hour1', 'One hour')], ['3', T('wait.hour3', 'Three hours')], ['6', T('wait.hour6', 'Six hours')]].map(function (x) {
         return '<div class="slp-btn' + (x[0] === 'switch' ? '' : ' slp-tonal') + '" data-a="wait" data-v="' + x[0] + '">' + x[1] + '</div>';
       }).join('');
-      return bar('Wait') + '<div class="slp-body"><div class="slp-card"><h4>' + (st.data.phase === 'night' ? 'Night' : 'Day') + ' ' + (st.data.day || 1) + ', ' + two(st.data.hour || 0) + ':' + two(st.data.minute || 0) + '</h4>' +
-        '<p>The clock stops at the end of the ' + (st.data.phase === 'night' ? 'night (04:00)' : 'day (19:00)') + '. Waiting never goes past it; ' + esc(st.data.phaseSwitch || 'Start the night').toLowerCase() + ' to go on. Not in a race, on a job or with the police after you.</p>' +
+      return bar(T('app.wait', 'Wait')) + '<div class="slp-body"><div class="slp-card"><h4>' + (st.data.phase === 'night' ? T('phase.night', 'Night') : T('phase.day', 'Day')) + ' ' + (st.data.day || 1) + ', ' + two(st.data.hour || 0) + ':' + two(st.data.minute || 0) + '</h4>' +
+        '<p>' + esc(T('wait.stops', 'The clock stops at the end of the {1}. Waiting never goes past it; {2} to go on. Not in a race, on a job or with the police after you.',
+          st.data.phase === 'night' ? T('wait.endNight', 'night (04:00)') : T('wait.endDay', 'day (19:00)'), String(st.data.phaseSwitch || T('phase.startNight', 'Start the night')).toLowerCase())) + '</p>' +
         '<div class="slp-acts">' + h + '</div></div></div>';
     }
 
@@ -873,7 +883,7 @@
         return '<div class="slp-row" data-a="taxi" data-v="' + esc(p.id) + '"><div class="slp-av" style="background:#ffd8a8">' + I.cab.replace('<svg', '<svg style="width:22px;height:22px;fill:#5b3d00"') + '</div>' +
           '<div class="slp-rt"><b>' + esc(p.name) + '</b><span>' + esc(p.kind) + (p.tierLabel ? ' &middot; ' + esc(p.tierLabel) : '') + '</span></div><div class="slp-ib" data-a="gps" data-v="' + esc(p.id) + '">' + I.gps + '</div></div>';
       });
-      return bar('Cab') + tabsHtml('cab', [['all', 'All'], ['garage', 'Garages'], ['shop', 'Shops'], ['dealer', 'Dealers'], ['junk', 'Junkyards']]) +
+      return bar(T('app.cab', 'Cab')) + tabsHtml('cab', [['all', 'All'], ['garage', 'Garages'], ['shop', 'Shops'], ['dealer', 'Dealers'], ['junk', 'Junkyards']]) +
         (st.tab.cab === 'dealer' ? tabsHtml('cabtier', CAB_TIERS) : '') +
         '<div class="slp-body"><div class="slp-card"><p>On foot, a cab takes you anywhere in town. In a car, the pin shows you the way.</p></div>' +
         (rows.join('') || '<div class="slp-empty">' + (st.tab.cab === 'all' ? 'The cab company does not know any places on this map yet.' : 'No such place here.') + '</div>') + '</div>';
@@ -886,9 +896,10 @@
       if (!k) return '';
       var pct = function (v) { return v == null ? '-' : Math.round(v * 100) + '%'; };
       var warn = function (v, low) { return v != null && v < low ? ' class="slp-warn"' : ''; };
-      var rows = '<div class="slp-kv"><span>Battery</span><b' + warn(k.battery, 0.3) + '>' + pct(k.battery) + '</b></div>' +
-        '<div class="slp-kv"><span>Oil</span><b' + warn(k.oilLevel, 0.5) + '>' + pct(k.oilLevel) + ' &middot; ' + (k.oilKm || 0).toLocaleString() + ' km old</b></div>' +
-        '<div class="slp-kv"><span>Coolant</span><b' + warn(k.coolantLevel, 0.5) + '>' + pct(k.coolantLevel) + '</b></div>' +
+      var mark = function (v, low) { return v != null && v < low ? '&#9888; ' : ''; };      // (#51: a mark as well as a colour)
+      var rows = '<div class="slp-kv"><span>Battery</span><b' + warn(k.battery, 0.3) + '>' + mark(k.battery, 0.3) + pct(k.battery) + '</b></div>' +
+        '<div class="slp-kv"><span>Oil</span><b' + warn(k.oilLevel, 0.5) + '>' + mark(k.oilLevel, 0.5) + pct(k.oilLevel) + ' &middot; ' + (k.oilKm || 0).toLocaleString() + ' km old</b></div>' +
+        '<div class="slp-kv"><span>Coolant</span><b' + warn(k.coolantLevel, 0.5) + '>' + mark(k.coolantLevel, 0.5) + pct(k.coolantLevel) + '</b></div>' +
         '<div class="slp-kv"><span>Fuel</span><b>' + pct(k.fuelLevel) + ' &middot; ' + esc(k.fuel) + '</b></div>' +
         (k.n2o != null ? '<div class="slp-kv"><span>Nitrous</span><b>' + pct(k.n2o) + '</b></div>' : '') +
         '<div class="slp-kv"><span>Engine</span><b>' + (k.engineKm || 0).toLocaleString() + ' km &middot; ' + Math.round((k.performance || 1) * 100) + '% power</b></div>';
@@ -920,7 +931,7 @@
         return '<div class="slp-kv"><span>' + esc(u.name) + '<br><small>' + esc(u.desc) + '</small></span><b>' +
           (u.has ? 'In the garage' : '<div class="slp-btn slp-tonal" data-a="upgrade" data-v="' + esc(u.id) + '">' + money(u.price) + '</div>') + '</b></div>';
       }).join('');
-      return bar('My cars') + '<div class="slp-body">' + (cards.join('') ||
+      return bar(T('app.garage', 'My cars')) + '<div class="slp-body">' + (cards.join('') ||
         '<div class="slp-empty">You have no car. The junkyard sells cheap ones that need work, the dealership new ones. The Cab app gets you there.</div>') +
         (ups ? '<div class="slp-card"><h4>The garage</h4>' + ups + '</div>' : '') + '</div>';
     }
@@ -932,7 +943,7 @@
       var acts = [];
       if (d.nextGarage && d.nextGarage.canMove) acts.push('<div class="slp-btn" data-a="move">Move to ' + esc(d.nextGarage.name) + '</div>');
       if (d.roc && !d.rocChampion) acts.push('<div class="slp-btn" data-a="roc">' + (d.rocRound ? 'ROC round ' + (d.rocRound + 1) + ' of 3' : 'Enter the ROC &middot; ' + money(d.rocEntry)) + '</div>');
-      return bar('Street cred') + '<div class="slp-body"><div class="slp-card"><h4>' + esc(d.title) + '</h4><p>' + (d.rep || 0) + ' reputation' + (to ? ' &middot; next title at ' + to : '') + '</p>' +
+      return bar(T('app.me', 'Street cred')) + '<div class="slp-body"><div class="slp-card"><h4>' + esc(d.title) + '</h4><p>' + (d.rep || 0) + ' reputation' + (to ? ' &middot; next title at ' + to : '') + '</p>' +
         '<div class="slp-meter"><i style="width:' + pct.toFixed(1) + '%"></i></div></div>' +
         '<div class="slp-card"><div class="slp-kv"><span>Garage</span><b>' + esc(d.garage || '') + '</b></div>' + next +
         (d.hasRoc === false ? '' : '<div class="slp-kv"><span>Race of Champions</span><b>' + (d.roc ? 'Open to you' : 'Not yet') + '</b></div>') +
@@ -1227,6 +1238,9 @@
         case 'garage': page = garagePage(); break;
         default: page = homePage();
       }
+      // #51 text size: the Text size setting, and at least Large while a pad is in use (read from a distance)
+      var zoom = Math.max(Number(d.textScale) || 1, Date.now() - padAt < 60000 ? 1.25 : 1);
+      layer.style.setProperty('--sl-zoom', zoom); layer.setAttribute('data-zoom', zoom);
       var isHome = st.app === 'home';
       var screen = '<div class="slp-screen' + (isHome ? ' slp-home-on' : '') + '"><div class="slp-cam"></div>' +
         '<div class="slp-status">' + two(d.hour || 0) + ':' + two(d.minute || 0) + '<div class="slp-sr">' + I.signal + I.wifi + I.battery + '</div></div>' +
@@ -1340,6 +1354,7 @@
     function home() { st.stack = []; st.app = 'home'; render(); }
     function setOpen(open) {
       st.open = open;
+      if (open && !st.strings) lua('requestStrings()');
       if (open) lua('request()'); else { st.stack = []; st.app = 'home'; }      // (B68: closed, it opens on the home screen next time)
       render();
     }
@@ -1552,6 +1567,7 @@
         case 'slGarage': st.garage = data.open ? data : null; render(); break;
         case 'slSettings': st.settings = data; render(); break;
         case 'slHelp': st.help = arr(data && data.pages); render(); break;
+        case 'slStrings': st.strings = obj(data && data.text); render(); break;
         case 'slLaptopDealers': st.dealers = data; render(); break;
         case 'slLaptopOffers': st.offers = data; render(); break;
         case 'slRace': st.race = data.on ? data : null; render(); break;
@@ -1585,7 +1601,7 @@
       var probe = new Image();
       probe.onload = function () { phone.handle('slArt'); };
       probe.src = '/ui/modModules/slHud/slrr/icons/cup.png';
-      ['slPhoneData', 'slPhoneToggle', 'slPhoneCall', 'slPhoneCallReply', 'slPhoneNotify', 'slPhoneToast', 'slFade', 'slLotData', 'slMeet', 'slRace', 'slMenu', 'slStation', 'slGarage', 'slSettings', 'slLaptopDealers', 'slLaptopOffers', 'slHelp'].forEach(function (name) {
+      ['slPhoneData', 'slPhoneToggle', 'slPhoneCall', 'slPhoneCallReply', 'slPhoneNotify', 'slPhoneToast', 'slFade', 'slLotData', 'slMeet', 'slRace', 'slMenu', 'slStation', 'slGarage', 'slSettings', 'slLaptopDealers', 'slLaptopOffers', 'slHelp', 'slStrings'].forEach(function (name) {
         $rootScope.$on(name, function (ev, data) { phone.handle(name, data); });
       });
       if (window.bngApi) window.bngApi.engineLua('if sl_phone then sl_phone.request() end if sl_menuTile then sl_menuTile.request() end');

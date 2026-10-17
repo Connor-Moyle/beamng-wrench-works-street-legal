@@ -17,6 +17,7 @@
     '.slh-left canvas.slh-map{width:200px;height:200px}',
     '.slh-left canvas.slh-dmg{width:86px;height:150px}',
     '.slh-status{position:absolute;left:50%;top:1.4vh;transform:translateX(-50%);padding:5px 16px;border-radius:16px;background:rgba(20,18,24,.72);color:#eee;font-size:15px;display:flex;gap:12px;align-items:center}',
+    '.slh-status,.slh-perf{zoom:var(--sl-zoom,1)}',
     '.slh-perf{position:fixed;left:8px;top:8px;z-index:60;padding:6px 10px;border-radius:6px;background:rgba(0,0,0,.6);color:#e8e8e8;font:12px/1.35 Consolas,monospace;pointer-events:none;white-space:pre}',
     '.slh-heat{color:#ff4a2a;letter-spacing:2px}.slh-heat i{font-style:normal;color:#55505a}',
   ].join('\n');
@@ -61,6 +62,7 @@
     root.appendChild(left); root.appendChild(dials); root.appendChild(status);
     doc.body.appendChild(root);
 
+    var labels = {};          // the Lua side's words (sl/core/strings): { day, night, engine, atRisk, heat }
     var settings = { enabled: true, speedo: true, tacho: true, map: true, damage: true, units: 'kmh' };
     var roads = null;         // { segs: [x1,y1,x2,y2,...], grid: { 'cx|cy': [index...] }, places }
     var CELL = 150;
@@ -248,11 +250,19 @@
     }
 
     // ---------------------------------------------------------------- damage: the car from above
+    // colour-blind safe (#51): blue, yellow, orange, magenta-red instead of green to red, and every state also has a mark (none, !, !!, X) drawn on it
+    var OK_COLOUR = '#3a9bff', WARN_COLOUR = '#ffd400', BAD_COLOUR = '#ff2d6f';
     function damageColour(v) {
-      if (!(v > 0.04)) return '#2fbf4f';
-      if (v < 0.25) return '#e6d21e';
-      if (v < 0.5) return '#ff8a1e';
-      return '#e01b1b';
+      if (!(v > 0.04)) return OK_COLOUR;
+      if (v < 0.25) return WARN_COLOUR;
+      if (v < 0.5) return '#ff9a1f';
+      return BAD_COLOUR;
+    }
+    function damageMark(v) {
+      if (!(v > 0.04)) return '';
+      if (v < 0.25) return '!';
+      if (v < 0.5) return '!!';
+      return 'X';
     }
     function drawDamage(d) {
       var g = dmgC.getContext('2d'), W = dmgC.width, H = dmgC.height;
@@ -263,14 +273,24 @@
       var body = d.body || {}, tyres = d.tyres || {};
       // tyres
       [['FL', bx - 12, by + bh * 0.12], ['FR', bx + bw, by + bh * 0.12], ['RL', bx - 12, by + bh * 0.72], ['RR', bx + bw, by + bh * 0.72]].forEach(function (t) {
-        g.fillStyle = tyres[t[0]] ? '#e01b1b' : '#3a3a40';
+        g.fillStyle = tyres[t[0]] ? BAD_COLOUR : '#3a3a40';
         g.fillRect(t[1], t[2], 12, bh * 0.16);
+        if (tyres[t[0]]) {                                   // a burst tyre is crossed out as well as coloured
+          g.strokeStyle = '#fff'; g.lineWidth = 2;
+          g.beginPath(); g.moveTo(t[1] + 1, t[2] + 2); g.lineTo(t[1] + 11, t[2] + bh * 0.16 - 2); g.moveTo(t[1] + 11, t[2] + 2); g.lineTo(t[1] + 1, t[2] + bh * 0.16 - 2); g.stroke();
+        }
       });
       // six zones: front, middle, rear; left and right (as seen from above, front up)
       ZONES.forEach(function (z) {
         var row = z[0] === 'F' ? 0 : (z[0] === 'M' ? 1 : 2), col = z[1] === 'L' ? 0 : 1;
         g.fillStyle = damageColour(body[z]);
         g.fillRect(bx + col * bw / 2 + 2, by + row * bh / 3 + 2, bw / 2 - 4, bh / 3 - 4);
+        var mark = damageMark(body[z]);
+        if (mark) {
+          g.font = 'bold 20px Overpass, Roboto, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+          g.lineWidth = 3; g.strokeStyle = '#000'; g.strokeText(mark, bx + col * bw / 2 + bw / 4, by + row * bh / 3 + bh / 6);
+          g.fillStyle = '#fff'; g.fillText(mark, bx + col * bw / 2 + bw / 4, by + row * bh / 3 + bh / 6);
+        }
       });
       if (ready(assets.osd)) {
         var sp = SPRITES.car;                                 // SLRR's own car outline over the zones
@@ -281,8 +301,8 @@
       }
       // engine
       g.font = 'bold 22px Overpass, Roboto, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-      g.fillStyle = d.engine === 2 ? '#e01b1b' : (d.engine === 1 ? '#ff8a1e' : '#2fbf4f');
-      g.fillText('ENGINE', W / 2, H * 0.92);
+      g.fillStyle = d.engine === 2 ? BAD_COLOUR : (d.engine === 1 ? '#ff9a1f' : OK_COLOUR);
+      g.fillText((labels.engine || 'ENGINE') + (d.engine === 2 ? ' X' : (d.engine === 1 ? ' !' : ' OK')), W / 2, H * 0.92);
     }
 
     // ---------------------------------------------------------------- what Lua says
@@ -298,8 +318,11 @@
         return;
       }
       if (name !== 'slHud') return;
+      if (data.labels) labels = data.labels;
       if (!data.show) { root.classList.add('slh-gone'); return; }
       if (data.settings) for (var k2 in data.settings) settings[k2] = data.settings[k2];
+      var zoom = Number(settings.textScale) || 1;          // #51 text size
+      root.style.setProperty('--sl-zoom', zoom); perf.style.setProperty('--sl-zoom', zoom); root.setAttribute('data-zoom', zoom);
       root.classList.remove('slh-gone');
       show('tacho', tachoC); show('speedo', speedoC); show('map', mapC); show('damage', dmgC);
       var mph = settings.units === 'mph';
@@ -331,7 +354,9 @@
       if (!d.phase) { status.classList.add('slh-gone'); return; }
       var night = d.phase === 'night', heat = Math.max(0, Math.min(5, d.heat | 0)), flames = '';
       for (var i = 1; i <= 5; i++) flames += i <= heat ? '&#9650;' : '<i>&#9650;</i>';
-      status.innerHTML = '<span>' + (night ? '&#9790; Night' : '&#9728; Day') + '</span>' + (heat > 0 || night ? '<span class="slh-heat" title="Heat ' + heat + '">' + flames + '</span>' : '') + (night && d.atRisk > 0 ? '<span title="Reputation you lose if you are busted; a garage banks it">+' + d.atRisk + ' rep at risk</span>' : '');
+      status.innerHTML = '<span>' + (night ? '&#9790; ' + (labels.night || 'Night') : '&#9728; ' + (labels.day || 'Day')) + '</span>' +
+        (heat > 0 || night ? '<span class="slh-heat" title="' + (labels.heat || 'Heat {1}').replace('{1}', heat) + '">' + flames + ' ' + heat + '</span>' : '') +
+        (night && d.atRisk > 0 ? '<span title="Reputation you lose if you are busted; a garage banks it">' + (labels.atRisk || '+{1} rep at risk').replace('{1}', d.atRisk) + '</span>' : '');
       status.classList.remove('slh-gone');
     }
 

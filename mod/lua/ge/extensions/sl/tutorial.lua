@@ -5,6 +5,8 @@
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 local stateLib = require('sl/core/state')
 local roster = require('sl/core/roster')
 
@@ -60,7 +62,7 @@ function M.skip()
   local s = career()
   if not s or not s.tutorial or s.tutorial.done then return end
   s.tutorial.skipped, s.tutorial.step = true, nil
-  sl_career.sendText('benny', 'Fair enough, you know your way around. Call me if you need anything.', 1)
+  sl_career.sendText('benny', strings.t('tutorial.fair_enough_you_know_your'), 1)
   extensions.hook('onStreetLegalChanged')
 end
 
@@ -95,7 +97,7 @@ function M.arrangeFirstRace(s)
   end
   local race = sl_career.nearestRace and sl_career.nearestRace(false)
   if not easiest or not race then
-    sl_career.sendText('benny', 'No easy race round here right now. Any street race will do: look in the Races app.', 20)
+    sl_career.sendText('benny', strings.t('tutorial.no_easy_race_round_here'), 20)
     return
   end
   s.known[easiest.id] = true

@@ -762,11 +762,11 @@ end
 -- taxi: on foot, the phone takes you across town
 
 function M.taxi(placeId)
-  if not active then return false, 'No career running.' end
+  if not active then return false, strings.t('bank.no_career_running') end
   local place = M.getPlaces()[placeId]
-  if not place then return false, 'The cab does not know that place.' end
+  if not place then return false, strings.t('career.the_cab_does_not_know') end
   local v = getPlayerVehicle(0)
-  if not v or v:getJBeamFilename() ~= 'unicycle' then return false, 'Cabs are for people on foot. Park the car and get out first.' end
+  if not v or v:getJBeamFilename() ~= 'unicycle' then return false, strings.t('career.cabs_are_for_people_on') end
   local fee = progression.taxiFee((v:getPosition() - place.pos):length())
   -- the floor: no car and no money for the fare (a pink slip lost, bets gone wrong): once a day a free
   -- ride, so the jobs that need no car (the junkyard's crushing run) are always in reach
@@ -775,7 +775,7 @@ function M.taxi(placeId)
     fee = 0
     M.sendText('benny', "My cousin will run you over there. Don't make a habit of it. The junkyard always has a wreck that needs driving to the crusher.", 1)
   end
-  if sl_cab and sl_cab.busy() then return false, 'A cab is already waiting for you.' end
+  if sl_cab and sl_cab.busy() then return false, strings.t('career.a_cab_is_already_waiting') end
   if fee > 0 and not wallet.add(-fee, 'Cab to ' .. place.name) then return false, string.format('The ride is $%d. You have $%d.', fee, s.money) end
   if sl_cab and sl_cab.call(place, fee) then return true end
   -- no lane for a cab to pull up on here: the old way, straight there
@@ -892,11 +892,11 @@ end
 
 -- raise the stake of an arranged money race by a step, as far as their car makes them willing (and you can pay)
 function M.raiseStake(id)
-  if not active then return false, 'No career running.' end
+  if not active then return false, strings.t('bank.no_career_running') end
   for _, c in ipairs(s.challenges) do
     if c.id == id then
       local racer = stateLib.racer(s, c.racer)
-      if c.stake ~= 'money' or not racer then return false, 'Nothing to raise.' end
+      if c.stake ~= 'money' or not racer then return false, strings.t('career.nothing_to_raise') end
       c.baseBet = c.baseBet or c.bet
       local cap, bet = roster.maxStake(racer, c.baseBet), c.bet + roster.stakeStep(c.baseBet)
       if bet > cap then return false, string.format('%s will not go past $%d.', roster.displayName(racer), cap) end
@@ -906,7 +906,7 @@ function M.raiseStake(id)
       return true, string.format('%s: "$%d it is."', roster.displayName(racer), bet)
     end
   end
-  return false, 'That race is off.'
+  return false, strings.t('career.that_race_is_off')
 end
 
 function M.cancelChallenge(id)
@@ -1129,12 +1129,12 @@ end
 
 -- a race at one of them against a racer: their car is built at the start, then the mission takes over
 function M.launchTrack(racerId, missionId)
-  if not active then return false, 'No career running.' end
+  if not active then return false, strings.t('bank.no_career_running') end
   local racer = stateLib.racer(s, racerId)
   local track
   for _, t in ipairs(M.tracksList() or {}) do if t.missionId == missionId then track = t end end
-  if not racer or not track then return false, 'That race is not on.' end
-  if not (sl_streets and sl_streets.buildRacerCar) then return false, 'Not now.' end
+  if not racer or not track then return false, strings.t('career.that_race_is_not_on') end
+  if not (sl_streets and sl_streets.buildRacerCar) then return false, strings.t('career.not_now') end
   local bet = math.floor(((racer.betMin or 100) + (racer.betMax or 300)) / 2 / 50) * 50
   for i = #s.challenges, 1, -1 do if s.challenges[i].racer == racerId then table.remove(s.challenges, i) end end
   local c = { id = racerId .. ':track:' .. now(), racer = racerId, stake = 'money', bet = bet, race = track.id, raceName = track.name,
@@ -1205,7 +1205,7 @@ end
 
 -- the impound: pay what is owed and the car is back at your garage
 function M.releaseCar(carId)
-  if not active then return false, 'No career running.' end
+  if not active then return false, strings.t('bank.no_career_running') end
   for _, car in ipairs(s.cars) do
     if car.id == carId and car.impounded then
       if not M.addMoney(-car.impounded, 'Impound: ' .. car.name) then return false, string.format('It is $%d. You have $%d.', car.impounded, s.money) end
@@ -1215,15 +1215,15 @@ function M.releaseCar(carId)
       return true, 'The ' .. car.name .. ' is back in your garage.'
     end
   end
-  return false, 'Nothing of yours is impounded.'
+  return false, strings.t('career.nothing_of_yours_is_impounded')
 end
 
 function M.moveGarage()
-  if not active then return false, 'No career running.' end
+  if not active then return false, strings.t('bank.no_career_running') end
   local n = progression.nextGarage(s)
-  if not n then return false, 'This is the best garage in town.' end
+  if not n then return false, strings.t('career.this_is_the_best_garage') end
   if not n.canMove then return false, n.garage.name .. ' ' .. n.why .. '.' end
-  if not M.addMoney(-n.garage.cost, 'Moved to ' .. n.garage.name) then return false, 'Not enough money.' end
+  if not M.addMoney(-n.garage.cost, 'Moved to ' .. n.garage.name) then return false, strings.t('career.not_enough_money') end
   local fromLevel = s.garageLevel
   s.garageLevel = n.garage.level
   places = nil
@@ -1364,7 +1364,7 @@ M.hour = hour
 -- the clock (shop hours, deliveries, listings) move together. false and the reason when it cannot be done now.
 -- a developer button on the phone's Settings: the money jumps to 99,999,999 (Connor's request, for testing)
 function M.devMoney()
-  if not s then return false, 'No career running.' end
+  if not s then return false, strings.t('bank.no_career_running') end
   local add = 99999999 - s.money
   if add > 0 then stateLib.addMoney(s, add, 'Developer: all the money', now()) changed() end
   return true, 'Money: $99,999,999.'
@@ -1423,8 +1423,8 @@ end
 -- "Start the night" / "Start the day" (a garage computer, the phone's Wait app): the phase turns over, the clock jumps to its first hour behind a
 -- short fade (the day counter goes up with a new day) and runs on. false and the reason when it cannot be done now.
 function M.switchPhase()
-  if not s then return false, 'No career running.' end
-  if switching then return false, 'One moment.' end
+  if not s then return false, strings.t('bank.no_career_running') end
+  if switching then return false, strings.t('career.one_moment') end
   local plan, why = phaseLib.switchPlan(s.phase or 'day', busyState())
   if not plan then return false, why end
   s.phase = plan.phase
@@ -1458,7 +1458,7 @@ function M.switchPhase()
 end
 
 function M.skipTime(what)
-  if not s then return false, 'No career running.' end
+  if not s then return false, strings.t('bank.no_career_running') end
   what = tostring(what)
   if what == 'switch' then return M.switchPhase() end
   local why = progression.skipRefusal(busyState())

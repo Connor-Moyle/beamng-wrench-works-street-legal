@@ -26,6 +26,7 @@ local function dashboardOn() return sl_options ~= nil and sl_options.get ~= nil 
 function M.getSettings()
   if not settings then load() end
   settings.enabled = dashboardOn()          -- (the option decides: an old hud.json 'enabled' no longer does)
+  settings.textScale = require('sl/core/strings').textScale(sl_options and sl_options.get and sl_options.get('slTextScale'))      -- (#51)
   return settings
 end
 
@@ -189,6 +190,7 @@ function M.onUpdate(dtReal)
   guihooks.trigger('slHud', {
     show = true, settings = M.getSettings(),
     atRisk = sl_career and sl_career.atRisk and sl_career.atRisk() or 0,
+    labels = (function() local S = require('sl/core/strings') return { day = S.t('phase.day'), night = S.t('phase.night'), engine = S.t('status.engine'), atRisk = S.TEXT['hud.atRisk'], heat = S.TEXT['hud.heat'] } end)(),
     phase = sl_career and sl_career.phase and sl_career.phase() or nil, heat = require('sl/core/phase').heatLevel(sl_police and sl_police.heat and sl_police.heat() or 0),
     speed = car.speed or v:getVelocity():length(), rpm = car.rpm or 0, maxRpm = car.maxRpm or 0, gear = car.gear,
     x = pos.x, y = pos.y, heading = math.atan2(dir.x, dir.y),

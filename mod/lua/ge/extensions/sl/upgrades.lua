@@ -6,6 +6,8 @@
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 local progression = require('sl/core/progression')
 
 local function career() return sl_career and sl_career.isActive() and sl_career.getState() or nil end
@@ -35,11 +37,11 @@ end
 
 function M.buy(id)
   local s = career()
-  if not s then return false, 'No career running.' end
+  if not s then return false, strings.t('bank.no_career_running') end
   local u = progression.upgrade(id)
-  if not u then return false, 'No such thing.' end
+  if not u then return false, strings.t('upgrades.no_such_thing') end
   local f = M.features(s)
-  if (id == 'shelves' and f.shelfSize > progression.SHELF.base) or (id ~= 'shelves' and f[id]) then return false, 'The garage has one already.' end
+  if (id == 'shelves' and f.shelfSize > progression.SHELF.base) or (id ~= 'shelves' and f[id]) then return false, strings.t('upgrades.the_garage_has_one_already') end
   if not sl_career.addMoney(-u.price, 'Garage: ' .. u.name) then return false, string.format('%s: $%d. You have $%d.', u.name, u.price, s.money) end
   bought(s)[id] = true
   push()

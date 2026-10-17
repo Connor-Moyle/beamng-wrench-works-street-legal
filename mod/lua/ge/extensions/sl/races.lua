@@ -8,6 +8,8 @@
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 local races = require('sl/core/races')
 local preview = require('sl/core/routepreview')
 local rngLib = require('sl/core/rng')
@@ -183,7 +185,7 @@ function M.launch(missionId, offer)
       veh:queueLuaCommand('controller.setFreeze(0)')
       if core_groundMarkers then core_groundMarkers.setPath(nil) end
       log('W', 'sl_races', 'launch ' .. race.missionId .. ': the opponent\'s car was not built')
-      tell('Nobody showed up.', 5)
+      tell(strings.t('races.nobody_showed_up'), 5)
       return
     end
     cur.oppVid = opp:getID()

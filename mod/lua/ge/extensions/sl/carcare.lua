@@ -7,6 +7,8 @@
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 local rules = require('sl_carcare')
 
 local attached = {}          -- vehicle id -> car id, once slCar is in it and set up
@@ -177,7 +179,7 @@ function M.refill(carId, kind, amount, fuelId)
   local s = career()
   local car = s and carById(s, carId)
   local veh = vehicleOfCar(carId)
-  if not car or not veh then return false, 'That car is not here.' end
+  if not car or not veh then return false, strings.t('carcare.that_car_is_not_here') end
   local c = M.careOf(car)
   if kind == 'battery' then c.battery = 1 end
   if kind == 'fuel' and fuelId then c.fuel = fuelId end
@@ -190,13 +192,13 @@ local USE = { oil = { 'oil', 4 }, coolant = { 'coolant', 5 }, battery = { 'batte
 function M.useItem(carId, itemId)
   local s = career()
   local car = s and carById(s, carId)
-  if not car then return false, 'No such car.' end
+  if not car then return false, strings.t('carcare.no_such_car') end
   local veh, player = vehicleOfCar(carId), getPlayerVehicle(0)
   if not veh or not player or (veh:getID() ~= player:getID() and (veh:getPosition() - player:getPosition()):length() > 6) then
-    return false, 'Go to the car first.'
+    return false, strings.t('carcare.go_to_the_car_first')
   end
   local c = M.careOf(car)
-  if not rules.trunkTake(c.trunk, itemId) then return false, 'There is none in the trunk.' end
+  if not rules.trunkTake(c.trunk, itemId) then return false, strings.t('carcare.there_is_none_in_the') end
   local use = USE[itemId]
   M.refill(carId, use[1], use[2], itemId == 'fuelCan' and (c.canFuel or c.fuel) or nil)
   extensions.hook('onStreetLegalChanged')
@@ -208,9 +210,9 @@ function M.buyItem(carId, itemId)
   local s = career()
   local car = s and carById(s, carId)
   local item = rules.ITEMS[itemId]
-  if not car or not item then return false, 'Nothing to buy.' end
+  if not car or not item then return false, strings.t('carcare.nothing_to_buy') end
   local c = M.careOf(car)
-  if #c.trunk >= rules.TRUNK_SLOTS then return false, 'The trunk is full.' end
+  if #c.trunk >= rules.TRUNK_SLOTS then return false, strings.t('carcare.the_trunk_is_full') end
   if not sl_career.addMoney(-item.price, 'Bought: ' .. item.name) then return false, string.format('It is $%d. You have $%d.', item.price, s.money) end
   rules.trunkAdd(c.trunk, itemId)
   extensions.hook('onStreetLegalChanged')

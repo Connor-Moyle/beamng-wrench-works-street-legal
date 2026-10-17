@@ -6,6 +6,8 @@
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 local rules = require('sl_carcare')
 local roster = require('sl/core/roster')
 local rngLib = require('sl/core/rng')
@@ -72,7 +74,7 @@ local function doRace(s, raceId)
   local race
   for _, r in ipairs(sl_career.racesList() or {}) do if tostring(r.id) == tostring(raceId) then race = r end end
   local racer = race and racerForEvent(s, raceId)
-  if not race or not racer then return toast('That race is not on.') end
+  if not race or not racer then return toast(strings.t('career.that_race_is_not_on')) end
   s.known[racer.id] = true
   -- the event: their usual stake, at that start line
   local bet = math.floor(((racer.betMin or 100) + (racer.betMax or 300)) / 2 / 50) * 50
@@ -124,7 +126,7 @@ function M.onWrenchWorksService(id, vid)
   local mtrack = id:match('^mtrack:(.+)$')
   if mtrack then
     local racer = racerForEvent(s, mtrack)
-    if not racer then return toast('Nobody to race.') end
+    if not racer then return toast(strings.t('clubs.nobody_to_race')) end
     s.known[racer.id] = true
     core_jobsystem.create(function(job)
       if slrr_garage and slrr_garage.leave then slrr_garage.leave() end
@@ -137,7 +139,7 @@ function M.onWrenchWorksService(id, vid)
   local track = id:match('^track:(.+)$')
   if track then
     local racer = racerForEvent(s, track)
-    if not racer then return toast('Nobody to race.') end
+    if not racer then return toast(strings.t('clubs.nobody_to_race')) end
     s.known[racer.id] = true
     core_jobsystem.create(function(job)
       if slrr_garage and slrr_garage.leave then slrr_garage.leave() end
@@ -150,14 +152,14 @@ function M.onWrenchWorksService(id, vid)
   if not car then return end
   local c = sl_carcare.careOf(car)
   if id == 'oil' then
-    if not sl_career.addMoney(-rules.oilChangeCost(4), 'Oil change: ' .. car.name) then return toast('Not enough money.') end
+    if not sl_career.addMoney(-rules.oilChangeCost(4), 'Oil change: ' .. car.name) then return toast(strings.t('career.not_enough_money')) end
     c.oilKm, c.oilLevel = 0, 1
     local veh = sl_fleet.vehicleOf(car.id)
     if veh then veh:queueLuaCommand('if slCar then slCar.setState({ oilKm = 0, oilLevel = 1 }) end') end
-    toast('Fresh oil in.')
+    toast(strings.t('services.fresh_oil_in'))
   elseif PRICES[id] then
     if id == 'n2o' and not c.n2o then return end
-    if not sl_career.addMoney(-PRICES[id], ({ coolant = 'Coolant', battery = 'Battery', n2o = 'Nitrous refill' })[id] .. ': ' .. car.name) then return toast('Not enough money.') end
+    if not sl_career.addMoney(-PRICES[id], ({ coolant = 'Coolant', battery = 'Battery', n2o = 'Nitrous refill' })[id] .. ': ' .. car.name) then return toast(strings.t('career.not_enough_money')) end
     sl_carcare.refill(car.id, id, id == 'coolant' and 10 or 0)
     toast(({ coolant = 'Coolant topped up.', battery = 'New battery in.', n2o = 'Nitrous bottle full.' })[id])
   elseif id == 'engine' then
@@ -167,7 +169,7 @@ function M.onWrenchWorksService(id, vid)
     sl_carcare.note(car, 'Engine rebuilt')
     local veh = sl_fleet.vehicleOf(car.id)
     if veh then veh:queueLuaCommand('if slCar then slCar.rebuildEngine() end') end
-    toast('The engine is rebuilt. Like new.')
+    toast(strings.t('services.the_engine_is_rebuilt_like'))
   end
   extensions.hook('onStreetLegalChanged')
 end

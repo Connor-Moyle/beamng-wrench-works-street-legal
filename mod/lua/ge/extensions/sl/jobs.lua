@@ -6,6 +6,8 @@
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 local jobsLib = require('sl/core/jobs')
 local rngLib = require('sl/core/rng')
 local progression = require('sl/core/progression')
@@ -319,14 +321,14 @@ end
 
 function M.take(jobId)
   local s = career()
-  if not s then return false, 'No career running.' end
+  if not s then return false, strings.t('bank.no_career_running') end
   local js = jobsState(s)
-  if js.active then return false, 'Finish the job you are on first.' end
-  if sl_hospital and not sl_hospital.canDrive() then return false, 'Not with those injuries. Rest up first.' end
-  if sl_streets and sl_streets.isRacing and sl_streets.isRacing() then return false, 'Not in the middle of a race.' end
+  if js.active then return false, strings.t('classifieds.finish_the_job_you_are') end
+  if sl_hospital and not sl_hospital.canDrive() then return false, strings.t('jobs.not_with_those_injuries_rest') end
+  if sl_streets and sl_streets.isRacing and sl_streets.isRacing() then return false, strings.t('jobs.not_in_the_middle_of') end
   for i, j in ipairs(js.offers) do
     if j.id == jobId then
-      if not j.car and not playerCarId() then return false, 'You need to be in one of your cars.' end
+      if not j.car and not playerCarId() then return false, strings.t('jobs.you_need_to_be_in') end
       if j.needCar and sl_fleet.carOfVehicle(playerCarId():getID()) ~= j.needCar then return false, 'That job is for your ' .. (j.item or 'other car') .. '.' end
       table.remove(js.offers, i)
       j.leg = 1
@@ -336,13 +338,13 @@ function M.take(jobId)
       return true, string.format('%s: go to %s.', j.title, j.legs[1].name)
     end
   end
-  return false, 'That job has gone.'
+  return false, strings.t('jobs.that_job_has_gone')
 end
 
 function M.giveUp()
   local s = career()
   local js = s and jobsState(s)
-  if not js or not js.active then return false, 'You are not on a job.' end
+  if not js or not js.active then return false, strings.t('jobs.you_are_not_on_a') end
   local j = js.active
   if j.car and j.carVid then
     if gameplay_walk then gameplay_walk.setWalkingMode(true, nil, nil, true) end
@@ -353,7 +355,7 @@ function M.giveUp()
   stateLib.addRep(s, -5)
   if core_groundMarkers then core_groundMarkers.setPath(nil) end
   extensions.hook('onStreetLegalChanged')
-  return true, 'Job dropped. Word gets round: -5 reputation.'
+  return true, strings.t('jobs.job_dropped_word_gets_round')
 end
 
 -- the first hour: "new in town" doubles job pay, tapering to nothing at 150 rep, and ends the moment
@@ -371,7 +373,7 @@ function M.onWrenchWorksPartBought(vid, slotPath, part, price)
   local js = jobsState(s)
   if not js.upgraded then
     js.upgraded = true
-    sl_career.sendText('benny', 'First upgrade on the car. Now we are getting somewhere. (The new-in-town favours stop here.)', 3)
+    sl_career.sendText('benny', strings.t('jobs.first_upgrade_on_the_car'), 3)
   end
 end
 
@@ -673,7 +675,7 @@ function M.onStreetLegalStarted()
   local js = s and s.jobs
   if js and js.active then
     js.active = nil
-    sl_career.sendText('benny', 'The job you were on got called off while you were away. No harm done; the board has more.', 4)
+    sl_career.sendText('benny', strings.t('jobs.the_job_you_were_on'), 4)
   end
 end
 

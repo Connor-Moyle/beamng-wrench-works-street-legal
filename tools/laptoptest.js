@@ -276,6 +276,16 @@ click('helpindex', '1');
 assert.ok(text().includes('What would you like to know?'), 'back to the topics');
 click('winclose', 'help');
 
+// ---- #51 text size and the strings table
+laptop.handle('slPhoneData', Object.assign({}, data, { textScale: 1.5 }));
+assert.strictEqual(win.document.querySelector('[data-zoom]').getAttribute('data-zoom'), '1.5', 'the laptop scales its text with the setting');
+laptop.handle('slPhoneData', data);
+laptop.handle('slStrings', { text: { 'laptop.help': 'Hilfe' } });
+click('tile', 'help');
+assert.ok(text().includes('Hilfe'), 'a window title comes from the table');
+click('winclose', 'help');
+laptop.handle('slStrings', { text: {} });
+
 // ---- the game closes it (the player drove away)
 laptop.handle('slLaptopClose', {});
 assert.ok($('.sll-screen.sll-gone'), 'the game can close it');

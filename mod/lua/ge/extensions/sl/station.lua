@@ -7,6 +7,8 @@
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 local rules = require('sl_carcare')
 
 local open                -- { name, scale } while at the pump (scale: the pump's own prices against ours)
@@ -58,15 +60,15 @@ local function toast(text) guihooks.trigger('slPhoneToast', { text = text }) end
 function M.fill(fuelId)
   local s = career()
   local car, c = careOfCurrent()
-  if not s or not car then toast('Fill what? Drive one of your cars up to the pump.') return end
+  if not s or not car then toast(strings.t('station.fill_what_drive_one_of')) return end
   local veh = sl_fleet.vehicleOf(car.id)
   local player = getPlayerVehicle(0)
-  if not veh or not player or veh:getID() ~= player:getID() then toast('Drive your car up to the pump first.') return end
+  if not veh or not player or veh:getID() ~= player:getID() then toast(strings.t('station.drive_your_car_up_to')) return end
   local litres = c.litresToFull or (c.fuelCapacity and c.fuelLitres and c.fuelCapacity - c.fuelLitres) or 40
   local price = rules.fuel(fuelId).pricePerLitre
   price = price * (open and open.scale or 1)
   litres = math.min(litres, math.floor(s.money / price))
-  if litres < 1 then toast('That will not buy any fuel.') return end
+  if litres < 1 then toast(strings.t('station.that_will_not_buy_any')) return end
   local cost = rules.fillCost(fuelId, litres, open and open.scale)
   sl_career.addMoney(-cost, string.format('%d L of %s', litres, rules.fuel(fuelId).name))
   sl_carcare.refill(car.id, 'fuel', litres, fuelId)
@@ -78,7 +80,7 @@ end
 -- the shop: into the trunk of the car you came in (a fuel can takes the grade chosen)
 function M.buy(itemId, fuelId)
   local car, c = careOfCurrent()
-  if not car then toast('You need a car to put it in.') return end
+  if not car then toast(strings.t('station.you_need_a_car_to')) return end
   local ok, text = sl_carcare.buyItem(car.id, itemId)
   if ok and itemId == 'fuelCan' then c.canFuel = fuelId or c.fuel end
   toast(text or '')
@@ -131,7 +133,7 @@ function M.wash()
   local car = careOfCurrent()
   local veh = car and sl_fleet.vehicleOf(car.id)
   local player = getPlayerVehicle(0)
-  if not s or not car or not veh or not player or veh:getID() ~= player:getID() then toast('Drive your car up to wash it.') return end
+  if not s or not car or not veh or not player or veh:getID() ~= player:getID() then toast(strings.t('station.drive_your_car_up_to')) return end
   if washCar(car.id, s) then send() end
 end
 

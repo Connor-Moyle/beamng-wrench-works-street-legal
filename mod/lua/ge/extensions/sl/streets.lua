@@ -9,6 +9,8 @@
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 local roster = require('sl/core/roster')
 local rngLib = require('sl/core/rng')
 local progression = require('sl/core/progression')
@@ -851,13 +853,13 @@ end
 -- a race at one of them against a racer, for their usual stake: you are taken to the grid
 function M.trackRace(racerId, trackId)
   local s = career()
-  if not s or race or busy then return false, 'Not now.' end
+  if not s or race or busy then return false, strings.t('career.not_now') end
   local racer = stateLib.racer(s, racerId)
   local track
   for _, t in ipairs(M.tracks()) do if t.id == trackId then track = t end end
-  if not racer or not track then return false, 'That race is not on.' end
+  if not racer or not track then return false, strings.t('career.that_race_is_not_on') end
   local v = playerCar()
-  if not v or not sl_fleet.currentCar() then return false, 'Bring your own car.' end
+  if not v or not sl_fleet.currentCar() then return false, strings.t('streets.bring_your_own_car') end
   local bet = math.floor(((racer.betMin or 100) + (racer.betMax or 300)) / 2 / 50) * 50
   if bet > s.money then return false, string.format('$%d on it, and you have $%d.', bet, s.money) end   -- (recordRace only takes what you have: a free roll otherwise)
   busy = true
@@ -906,16 +908,16 @@ end
 
 function M.enterRoc()
   local s = career()
-  if not s or race or busy then return false, 'Not now.' end
-  if not sl_career.has('roc') then return false, 'Not here.' end
-  if not progression.rocOpen(s) then return false, 'The ROC is for the top garage and the top names.' end
+  if not s or race or busy then return false, strings.t('career.not_now') end
+  if not sl_career.has('roc') then return false, strings.t('streets.not_here') end
+  if not progression.rocOpen(s) then return false, strings.t('streets.the_roc_is_for_the') end
   local roc = M.rocRound(s)
-  if roc.champion then return false, 'You are the champion. Nobody is left to beat.' end
+  if roc.champion then return false, strings.t('streets.you_are_the_champion_nobody') end
   local v = playerCar()
-  if not v or not sl_fleet.currentCar() then return false, 'Bring your own car to the ROC.' end
+  if not v or not sl_fleet.currentCar() then return false, strings.t('streets.bring_your_own_car_to') end
   if roc.round == 0 and not sl_career.addMoney(-progression.ROC.entry, 'ROC entry') then return false, string.format('Entry is $%d.', progression.ROC.entry) end
   local rival = champions(s)[3 - roc.round] or champions(s)[1]
-  if not rival then return false, 'Nobody to race.' end
+  if not rival then return false, strings.t('clubs.nobody_to_race') end
   local spot = scenetree.findObject('spawn_roc')
   local track = rocTrack()
   local start = spot and spot:getPosition() or v:getPosition()
@@ -955,7 +957,7 @@ function M.enterRoc()
       if ui_message then ui_message(string.format('ROC round %d of 3: %s. $%d.', roc.round + 1, roster.displayName(rival), bet), 6, 'streetLegal') end
     end
   end)
-  return true, 'To the ROC.'
+  return true, strings.t('streets.to_the_roc')
 end
 
 local baseFinish = finish
@@ -976,7 +978,7 @@ finish = function(playerWon)
     end
   else
     roc.round = 0
-    sl_career.sendText('benny', 'Out of the ROC. The entry fee is gone; come back when you are ready to pay it again.', 3)
+    sl_career.sendText('benny', strings.t('streets.out_of_the_roc_the'), 3)
   end
   extensions.hook('onStreetLegalChanged')
 end

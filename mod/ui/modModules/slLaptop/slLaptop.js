@@ -50,6 +50,7 @@
     '.sll-tb:hover,.sll-tb:focus{background:rgba(255,255,255,.16);outline:none;border-color:rgba(255,255,255,.3)}',
     '.sll-tb.sll-xb:hover,.sll-tb.sll-xb:focus{background:#c2412d;border-color:#f2b8b5}',
     '.sll-grip{position:absolute;right:2px;bottom:2px;width:14px;height:14px;opacity:.5;background:linear-gradient(135deg,transparent 0 55%,#cac4d0 55% 62%,transparent 62% 76%,#cac4d0 76% 83%,transparent 83%)}',
+    '.sll-body{zoom:var(--sl-zoom,1)}',
     '.sll-body{flex:1;overflow-y:auto;padding:14px 18px 6px 18px}',
     '.sll-note{flex:none;min-height:22px;padding:0 18px 8px 18px;font-size:13px;color:#f2b8b5}',
     /* the taskbar, the tray and the Start menu */
@@ -423,12 +424,19 @@
         '<div class="sll-kv"><span>Pink slips</span><b>' + (s.pinksWon || 0) + ' won, ' + (s.pinksLost || 0) + ' lost</b></div>' + acts + '</div>' + ach);
     }
 
+    // the player-facing text: sl/core/strings (sl_phone.requestStrings, event slStrings); the second argument shows until it has arrived
+    var WIN_KEYS = { cars: 'laptop.mycars', parts: 'laptop.myparts', bank: 'laptop.bank', cred: 'laptop.cred', dealers: 'laptop.carmarket', partmarket: 'laptop.partmarket', club: 'laptop.club', help: 'laptop.help' };
+    function T(key, fallback) {
+      var text = st.strings && st.strings[key] !== undefined ? st.strings[key] : fallback, a = arguments;
+      return String(text).replace(/\{(\d+)\}/g, function (m, i) { var v = a[Number(i) + 1]; return v === undefined ? '' : v; });
+    }
+    function winName(id) { return T(WIN_KEYS[id], WINDOWS[id][1]); }
     function winTitle(w) {
       if (w.id === 'dealers' && st.tab.dealers === 'dealers') {
-        if (st.dview === 'offers') return (st.offers && st.offers.name) || WINDOWS.dealers[1];
+        if (st.dview === 'offers') return (st.offers && st.offers.name) || winName('dealers');
         if (st.dview === 'offer') { var c = currentOffer(); return c ? (c.year ? c.year + ' ' : '') + c.name : 'Sold'; }
       }
-      return WINDOWS[w.id][1];
+      return winName(w.id);
     }
     function winBody(w) {
       switch (w.id) {
@@ -525,6 +533,8 @@
           '<div class="sll-desk">' + iconsHtml() + widgetHtml() + '</div>' + st.wins.map(function (w) { return winHtml(w, 0, top); }).join('') + menuHtml() +
           (st.note && !top ? '<div class="sll-balloon">' + esc(st.note) + '</div>' : '') + taskbarHtml();
       }
+      var zoom = Math.max(Number(st.data.textScale) || 1, Date.now() - st.padAt < 60000 ? 1.25 : 1);
+      layer.style.setProperty('--sl-zoom', zoom); layer.setAttribute('data-zoom', zoom);      // (#51 text size; at least Large on a pad)
       layer.innerHTML = '<div class="sll-screen' + (st.open ? '' : ' sll-gone') + '">' + inner + '</div>';
       navify();
     }
@@ -713,6 +723,7 @@
         case 'slLaptopClose': if (st.open) setOpen(false); break;
         case 'slLaptopParts': st.parts = arr(data.parts); if (st.open) render(); break;
         case 'slHelp': st.help = arr(data && data.pages); if (st.open) render(); break;
+        case 'slStrings': st.strings = obj(data && data.text); if (st.open) render(); break;
         case 'slLaptopDealers': st.dealers = data; if (st.open) render(); break;
         case 'slLaptopOffers': st.offers = data; if (st.open) render(); break;
         case 'slPhoneData': st.data = data || { active: false }; if (st.open) render(); break;
@@ -736,7 +747,7 @@
         window.bngApi.engineLua('if ' + ext + ' then ' + call.slice(1) + ' end');
       });
       window.__slLaptop = laptop;
-      ['slLaptopOpen', 'slLaptopClose', 'slLaptopParts', 'slLaptopDealers', 'slLaptopOffers', 'slPhoneData', 'slPhoneToast', 'slHelp'].forEach(function (name) {
+      ['slLaptopOpen', 'slLaptopClose', 'slLaptopParts', 'slLaptopDealers', 'slLaptopOffers', 'slPhoneData', 'slPhoneToast', 'slHelp', 'slStrings'].forEach(function (name) {
         $rootScope.$on(name, function (ev, data) { laptop.handle(name, data); });
       });
     }]);

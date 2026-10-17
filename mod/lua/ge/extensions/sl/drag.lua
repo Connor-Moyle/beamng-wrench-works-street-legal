@@ -7,6 +7,8 @@
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 local patch = require('sl/core/patch')
 local rules = require('sl/core/drag')
 local stateLib = require('sl/core/state')
@@ -101,14 +103,14 @@ local function addOpponent(data, myLane, racer)
   local pos, rot = laneSpawn(data, other)
   if not pos then
     run.practice = true
-    toast('Drag strip: the other lane has no spawn, a practice run.')
+    toast(strings.t('drag.drag_strip_the_other_lane'))
     return
   end
   if not (sl_streets and sl_streets.buildRacerCar) then run.practice = true return end
   local started = sl_streets.buildRacerCar(racer.racerId, pos + vec3(0, 0, 0.4), rot, function(veh)
     if not run or not veh then
       if veh then veh:delete() end
-      if run then run.practice = true toast('Nobody showed up at the strip.') end
+      if run then run.practice = true toast(strings.t('drag.nobody_showed_up_at_the')) end
       return
     end
     local vid = veh:getID()

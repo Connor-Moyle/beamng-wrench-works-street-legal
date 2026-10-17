@@ -15,8 +15,9 @@ M.DEFAULT_CLOCK = 'slow'
 function M.dayLength(clock) return M.CLOCKS[clock] or M.CLOCKS[M.DEFAULT_CLOCK] end
 
 function M.other(phase) return phase == 'night' and 'day' or 'night' end
-function M.title(phase) return phase == 'night' and 'Night' or 'Day' end
-function M.switchLabel(phase) return phase == 'night' and 'Start the day' or 'Start the night' end    -- the button, from the phase NOW
+local S = require('sl/core/strings')
+function M.title(phase) return phase == 'night' and S.t('phase.night') or S.t('phase.day') end
+function M.switchLabel(phase) return phase == 'night' and S.t('phase.startDay') or S.t('phase.startNight') end    -- the button, from the phase NOW
 function M.startHour(phase) return phase == 'night' and M.NIGHT.from or M.DAY.from end
 function M.endHour(phase) return phase == 'night' and M.NIGHT.to or M.DAY.to end
 
@@ -61,7 +62,7 @@ M.WAITS = { ['1'] = true, ['3'] = true, ['6'] = true }
 function M.waitPlan(phase, h, what)
   what = tostring(what)
   if not M.WAITS[what] then return nil, 'Wait how long?' end
-  if not running(phase, h) then return nil, phase == 'night' and 'The night is over. Start the day.' or 'The day is over. Start the night.' end
+  if not running(phase, h) then return nil, phase == 'night' and (S.t('phase.nightOver')) or (S.t('phase.dayOver')) end
   local hours = tonumber(what)
   local left = (M.endHour(phase) - h) % 24
   if hours >= left then return { hours = left, to = M.endHour(phase), ends = true } end

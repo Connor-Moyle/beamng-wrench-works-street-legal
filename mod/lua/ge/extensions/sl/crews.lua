@@ -6,6 +6,8 @@
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 local crews = require('sl/core/crews')
 local rngLib = require('sl/core/rng')
 local roster = require('sl/core/roster')
@@ -201,7 +203,7 @@ turfWarResult = function(s, c, racerId, won)
   local crewId = w and w.order[w.stage]
   if not crewId or c.leader[crewId] ~= racerId then return end
   if not won then
-    sl_career.sendText('benny', 'They beat you. The crews are laughing. Give it a week and try again.', 3)
+    sl_career.sendText('benny', strings.t('crews.they_beat_you_the_crews'), 3)
     c.turfWar, c.turfWarAfter = nil, s.day + 7
     return
   end
@@ -231,7 +233,7 @@ local function turfWarCheck(s, c)
   for _, id in ipairs(holding) do if #order < 3 then order[#order + 1] = id end end
   for _, id in ipairs(beaten) do if #order < 3 then order[#order + 1] = id end end
   c.turfWar = { stage = 1, order = order }
-  sl_career.sendText('benny', 'The crew leaders have noticed you. They want a turf war: three nights, three races, one each on their own streets. Win them all and the city is yours.', 3)
+  sl_career.sendText('benny', strings.t('crews.the_crew_leaders_have_noticed'), 3)
 end
 
 ----------------------------------------------------------------------------------------------

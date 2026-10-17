@@ -29,6 +29,13 @@ hud.handle('slHud', Object.assign({}, frame, { phase: 'night', heat: 3 }));
 assert.ok(!gone('.slh-status') && hud.root.querySelector('.slh-status').textContent.includes('Night') && hud.root.querySelectorAll('.slh-heat i').length === 2, 'night, heat 3: three of five lit');
 hud.handle('slHud', Object.assign({}, frame, { phase: 'day', heat: 0 }));
 assert.ok(hud.root.querySelector('.slh-status').textContent.includes('Day') && !hud.root.querySelector('.slh-heat'), 'day without heat: no heat meter');
+// #51 the words come from Lua (labels), the heat is a number as well as flames, the text size scales the HUD's text
+hud.handle('slHud', Object.assign({}, frame, { phase: 'night', heat: 2, atRisk: 80, labels: { day: 'Tag', night: 'Nacht', heat: 'Hitze {1}', atRisk: '+{1} Ruf' }, settings: Object.assign({}, frame.settings, { textScale: 1.5 }) }));
+const stText = hud.root.querySelector('.slh-status').textContent;
+assert.ok(stText.includes('Nacht') && stText.includes('2') && stText.includes('+80 Ruf') && hud.root.querySelector('.slh-heat').getAttribute('title') === 'Hitze 2', 'status: the labels, the heat number, the risk');
+assert.strictEqual(hud.root.getAttribute('data-zoom'), '1.5', 'the text size scales the HUD');
+hud.handle('slHud', Object.assign({}, frame, { phase: 'night', heat: 0, settings: frame.settings }));
+
 // #49 the performance box: shown by the slPerf event, whatever the HUD does, hidden when it says so
 const perfGone = () => hud.root.ownerDocument.querySelector('.slh-perf').classList.contains('slh-gone');
 assert.ok(perfGone(), 'off by default');

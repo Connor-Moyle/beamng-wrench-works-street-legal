@@ -5,6 +5,8 @@
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 local FILE = '/settings/street_legal/options.json'
 local GROUP = 'Street Legal'
 
@@ -34,6 +36,9 @@ M.defs = {
     desc = 'The SLRR gauges, map and damage diagram instead of the HUD apps of BeamNG itself while you drive the career. Off: the stock BeamNG layout (speedo, rev counter, minimap, damage...) as you have set it up.' },
   { key = 'slReplay', title = 'Record street races', type = 'bool', default = true,
     desc = 'Records a street race with the game\'s replay so the phone can show it again (Watch replay) or keep it (Save clip). The last race that was not saved is deleted when the next one starts.' },
+  { key = 'slTextScale', title = strings.t('settings.textSize'), type = 'choice', default = 'normal',
+    options = { { id = 'normal', label = strings.t('settings.textNormal') }, { id = 'large', label = strings.t('settings.textLarge') }, { id = 'huge', label = strings.t('settings.textHuge') } },
+    desc = strings.t('settings.textSizeDesc') },
   { key = 'slPerf', title = 'Performance overlay', type = 'bool', default = false,
     desc = 'A small box top-left with the frame time, fps, the worst frame of the last 10 seconds, video memory and how many cars, people and objects are about. For reporting stutters. Also a key (Options, Controls: Street Legal: performance overlay).' },
   { key = 'slWallpaper', title = 'Laptop wallpaper', type = 'choice', default = 'windows',

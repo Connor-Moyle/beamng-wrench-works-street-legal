@@ -60,6 +60,7 @@ local function snapshot()
     money = s.money, rep = s.rep, title = title, nextRep = nextRep, titleRep = titleRep,
     day = s.day, hour = math.floor(h), minute = math.floor((h % 1) * 60), night = sl_career.isNight(),
     atRisk = sl_career.atRisk and sl_career.atRisk() or 0,
+    textScale = require('sl/core/strings').textScale(sl_options and sl_options.get and sl_options.get('slTextScale')),
     heat = phaseLib.heatLevel(sl_police and sl_police.heat and sl_police.heat() or 0),
     phase = sl_career.phase and sl_career.phase() or nil, phaseSwitch = phaseLib.switchLabel(sl_career.phase and sl_career.phase() or nil),
     garage = (progression.garages[s.garageLevel] or {}).name,
@@ -162,6 +163,8 @@ end
 
 function M.request() wantSend = true end
 -- the help pages (sl/core/help), for the phone's Help app and the laptop's Help window
+-- all the player-facing text (sl/core/strings), once, for the UI's T()
+function M.requestStrings() guihooks.trigger('slStrings', { text = require('sl/core/strings').TEXT }) end
 function M.requestHelp() guihooks.trigger('slHelp', { pages = require('sl/core/help').PAGES }) end
 function M.markRead(thread) if career() then sl_career.markRead(thread) end end
 function M.waypoint(id) if career() then sl_career.waypoint(id) end end

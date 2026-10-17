@@ -4,6 +4,8 @@
 -- delivered to the garage when the order is due.
 local M = {}
 
+local strings = require('sl/core/strings')
+
 local rngLib = require('sl/core/rng')
 
 M.MIN_HOURS, M.MAX_HOURS, M.METRES_PER_HOUR = 2, 6, 3000
@@ -41,8 +43,8 @@ end
 
 -- can this offer be bought now? -> ok, reason
 function M.canBuy(s, offer)
-  if not offer then return false, 'That car has gone.' end
-  if (s.bought or {})[offer.id] or M.ordered(s, offer.id) then return false, 'That car has gone.' end
+  if not offer then return false, strings.t('dealers.that_car_has_gone') end
+  if (s.bought or {})[offer.id] or M.ordered(s, offer.id) then return false, strings.t('dealers.that_car_has_gone') end
   if s.money < offer.price then return false, string.format('It is $%d. You have $%d.', offer.price, s.money) end
   return true
 end

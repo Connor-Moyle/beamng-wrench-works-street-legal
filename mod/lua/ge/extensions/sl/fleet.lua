@@ -6,6 +6,8 @@
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 local builder = require('sl/carBuilder')
 local stateLib = require('sl/core/state')
 local progression = require('sl/core/progression')
@@ -191,12 +193,12 @@ end
 function M.tow(carId)
   local s = career()
   local car = s and carById(s, carId)
-  if not car then return false, 'No such car.' end
+  if not car then return false, strings.t('carcare.no_such_car') end
   local veh = M.vehicleOf(carId)
   local pos, rot = M.forecourt(s, 0)
-  if not pos then return false, 'Your garage is not on this map.' end
+  if not pos then return false, strings.t('fleet.your_garage_is_not_on') end
   local from = veh and veh:getPosition() or pos
-  if veh and (from - pos):length() < 25 then return false, 'It is at the garage already.' end
+  if veh and (from - pos):length() < 25 then return false, strings.t('fleet.it_is_at_the_garage') end
   local fee = progression.towFee((from - pos):length())
   if not sl_career.addMoney(-fee, 'Tow: ' .. car.name) then return false, string.format('The tow is $%d. You have $%d.', fee, s.money) end
   -- a real truck comes for a car out on the street (sl_tow); one not spawned is simply brought round
@@ -235,7 +237,7 @@ end
 function M.despawn(carId)
   local s = career()
   local car = s and carById(s, carId)
-  if not car then return false, 'No such car.' end
+  if not car then return false, strings.t('carcare.no_such_car') end
   local veh = M.vehicleOf(carId)
   if not veh then return false, 'The ' .. car.name .. ' is in the garage already.' end
   core_jobsystem.create(function(job)
@@ -256,9 +258,9 @@ end
 function M.workOn(carId)
   local s = career()
   local car = s and carById(s, carId)
-  if not car then return false, 'No such car.' end
-  if car.impounded then return false, 'It is in the police impound.' end
-  if not (slrr_garage and slrr_garage.enterWith) then return false, 'Wrench Works is not running.' end
+  if not car then return false, strings.t('carcare.no_such_car') end
+  if car.impounded then return false, strings.t('fleet.it_is_in_the_police') end
+  if not (slrr_garage and slrr_garage.enterWith) then return false, strings.t('classifieds.wrench_works_is_not_running') end
   core_jobsystem.create(function(job)
     if not M.vehicleOf(carId) then
       local ok = M.setActive(carId)
@@ -281,11 +283,11 @@ end
 function M.setActive(carId)
   local s = career()
   local car = s and carById(s, carId)
-  if not car then return false, 'No such car.' end
+  if not car then return false, strings.t('carcare.no_such_car') end
   if car.impounded then return false, string.format('It is in the police impound: $%d to get it back.', car.impounded) end
-  if s.activeCar == carId and M.vehicleOf(carId) then return false, 'You have that one out already.' end
+  if s.activeCar == carId and M.vehicleOf(carId) then return false, strings.t('fleet.you_have_that_one_out') end
   local player = getPlayerVehicle(0)
-  if not player or not M.atGarage(player:getPosition(), s) then return false, 'Swap cars at your garage.' end
+  if not player or not M.atGarage(player:getPosition(), s) then return false, strings.t('fleet.swap_cars_at_your_garage') end
   local old = s.activeCar and carById(s, s.activeCar)
   local oldVeh = old and M.vehicleOf(old.id)
   if oldVeh and not M.atGarage(oldVeh:getPosition(), s) then return false, 'Bring the ' .. old.name .. ' back to the garage first (or have it towed).' end
@@ -316,7 +318,7 @@ end
 function M.sell(carId, to)
   local s = career()
   local car = s and carById(s, carId)
-  if not car then return false, 'No such car.' end
+  if not car then return false, strings.t('carcare.no_such_car') end
   local veh = M.vehicleOf(carId)
   local parts = veh and builder.partsValue(veh:getID())
   local price = to == 'scrap' and market.scrapValue(car, parts) or market.resaleValue(car, parts)

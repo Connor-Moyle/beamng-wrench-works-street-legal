@@ -6,6 +6,8 @@
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 local roadspot = require('sl/core/roadspot')
 local cabplan = require('sl/core/cabplan')
 
@@ -119,7 +121,7 @@ function M.onUpdate(dtReal)
   ride.waited = ride.waited + dtReal
   if not cab or ride.waited > WAIT_SECONDS then
     if sl_career and ride.fee > 0 then sl_career.addMoney(ride.fee, 'Cab fare back') end
-    toast('The cab got tired of waiting. Your fare is back.')
+    toast(strings.t('cab.the_cab_got_tired_of'))
     if core_groundMarkers then core_groundMarkers.setPath(nil) end
     if cab then drop(ride.vid) end
     ride = nil
@@ -129,7 +131,7 @@ function M.onUpdate(dtReal)
   if ride.target and not ride.arrived and (cab:getPosition() - ride.target):length() < ARRIVED and cab:getVelocity():length() < 2 then
     ride.arrived = true
     cab:queueLuaCommand('ai.setState({mode = "disabled"}) electrics.set_warn_signal(1) input.event("parkingbrake", 1, FILTER_DIRECT)')
-    toast('Your cab is here, hazards on. Walk up to it.')
+    toast(strings.t('cab.your_cab_is_here_hazards'))
   end
   local me = onFoot()
   if me and (me:getPosition() - cab:getPosition()):length() < BOARD_RADIUS and (not ride.target or ride.arrived) then board() end

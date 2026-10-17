@@ -6,6 +6,8 @@
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 local clubs = require('sl/core/clubs')
 local rngLib = require('sl/core/rng')
 local roster = require('sl/core/roster')
@@ -151,13 +153,13 @@ end
 
 function M.enter(kind)
   local s = career()
-  if not s then return false, 'No career running.' end
+  if not s then return false, strings.t('bank.no_career_running') end
   local c = M.ensureSeason(s)
   local ev, d = today(s)
   local race = ev and ev[kind]
-  if not race then return false, 'Nothing on in that league today.' end
-  if c.raced[d .. kind] then return false, 'You have done that one today.' end
-  if kind == 'night' and sl_career.isNight and not sl_career.isNight() then return false, 'The night league races after dark.' end
+  if not race then return false, strings.t('clubs.nothing_on_in_that_league') end
+  if c.raced[d .. kind] then return false, strings.t('clubs.you_have_done_that_one') end
+  if kind == 'night' and sl_career.isNight and not sl_career.isNight() then return false, strings.t('clubs.the_night_league_races_after') end
   if kind == 'day' and not dayOpen(race) then
     return false, race.stock and 'The day league runs by day.' or 'The track events open soon. The drags run today.'
   end
@@ -165,12 +167,12 @@ function M.enter(kind)
     return true, string.format('Day league: %s today. Run it from its marker on the map; the stars you earn score your points.', race.name)
   end
   local car = sl_fleet and sl_fleet.currentCar()
-  if not car then return false, 'Bring one of your cars.' end
+  if not car then return false, strings.t('clubs.bring_one_of_your_cars') end
   if c.class and car.class and clubs.classIndex(car.class) > clubs.classIndex(c.class) then
     return false, string.format('This season you are class %s; the %s is class %s.', c.class, car.name, car.class)
   end
   local rival = M.rival(s)
-  if not rival then return false, 'Nobody to race.' end
+  if not rival then return false, strings.t('clubs.nobody_to_race') end
   s.known[rival.id] = true
   for i = #s.challenges, 1, -1 do if s.challenges[i].racer == rival.id then table.remove(s.challenges, i) end end
   local bet = math.floor(((rival.betMin or 100) + (rival.betMax or 300)) / 2 / 50) * 50
