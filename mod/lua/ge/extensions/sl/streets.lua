@@ -466,12 +466,20 @@ local function spawnCruiser(s)
   return true
 end
 
+-- the switch to night is a black fade: the first cruisers are built then (two, no gap, no speed gate), when a 1-1.6 s freeze costs the player nothing
+M.PRESPAWN = true
+local preCruisers, fadeUntil = 0, 0
+function M.onStreetLegalPhase(phase)
+  if phase == 'night' and M.PRESPAWN and career() then preCruisers, fadeUntil = 2, os.clock() + 4 end
+end
+
 local function updateCruisers(s, dt)
   local v = getPlayerVehicle(0)
   local count = 0
+  local inFade = os.clock() < fadeUntil                      -- (the clock reaches night a moment after the hook: those cars must not be sent away at once)
   for id, vid in pairs(cruisers) do
     local c = getObjectByID(vid)
-    if not c or not v or (c:getPosition() - v:getPosition()):length() > 700 or not night() then
+    if not c or not v or (c:getPosition() - v:getPosition()):length() > 700 or (not night() and not inFade) then
       retireCruiser(id, vid)
       cruisers[id] = nil
     else
@@ -479,6 +487,11 @@ local function updateCruisers(s, dt)
     end
   end
   spawnTimer = spawnTimer + dt
+  if preCruisers > 0 then
+    if not inFade or race then preCruisers = 0
+    elseif not busy and count < MAX_CRUISERS and spawnCruiser(s) then preCruisers = preCruisers - 1 spawnTimer = 0 end
+    return
+  end
   -- one build at a time, a gap between, and not while he races along (spawnplan.canBuild); the timer restarts only when a car is really begun
   local speed = v and v:getVelocity():length() or 0
   tryTimer = tryTimer + dt
