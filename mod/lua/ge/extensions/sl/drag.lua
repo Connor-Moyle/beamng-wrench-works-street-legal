@@ -50,6 +50,26 @@ local function restore()
   if gameplay_rawPois and gameplay_rawPois.clear then gameplay_rawPois.clear() end
 end
 
+-- for the console: what the patch sees (sl_drag.status())
+function M.status()
+  local out = { careerOn = careerOn(), phase = careerOn() and sl_career.phase() or nil, coreLoaded = core() ~= nil, pokeLoaded = gameplay_drag_poi ~= nil,
+    patched = savedCore.isDragEnabled ~= nil, enabledNow = core() and core().isDragEnabled and core().isDragEnabled() or false,
+    setting = settings and settings.getValue and settings.getValue('enableDragRaceInFreeroam') or false }
+  log('I', 'sl_drag', 'status ' .. dumps(out))
+  return out
+end
+
+-- the game's drag modules may load after the career starts: looked for every few seconds until the patch is in
+local installTimer = 0
+function M.onUpdate(dtReal)
+  if not careerOn() then return end
+  installTimer = installTimer + (dtReal or 0)
+  if installTimer > 3 then
+    installTimer = 0
+    if not core() and extensions and extensions.load then pcall(extensions.load, 'gameplay_drag_core') end
+    if not savedCore.isDragEnabled then install() end
+  end
+end
 M.onStreetLegalStarted = install
 M.onStreetLegalPhase = install              -- (pois.lua clears the marker list on the phase: the strip comes and goes with it)
 M.onStreetLegalPlacesChanged = install

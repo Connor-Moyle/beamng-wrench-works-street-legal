@@ -149,7 +149,8 @@ local function dayEventsHidden(levelId, list, gen)
   if filtered.src ~= list or filtered.phase ~= phase then
     local out = {}
     for _, e in ipairs(list) do
-      if not (e.data and e.data.type == 'mission' and rules.closed(levelId, e.data.missionId, phase)) then out[#out + 1] = e end
+      local dragStage = type(e.id) == 'string' and e.id:sub(1, 6) == 'drag##'        -- (the game's drag strip stage markers: a day event)
+      if not (dragStage or (e.data and e.data.type == 'mission' and rules.closed(levelId, e.data.missionId, phase))) then out[#out + 1] = e end
     end
     filtered = { src = list, phase = phase, out = out }
   end

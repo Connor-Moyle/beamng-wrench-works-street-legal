@@ -22,13 +22,6 @@ local function night() return sl_career.isNight() end
 local paidFee = {}   -- mission id -> true while a paid attempt runs
 
 local refuse
-function M.onUpdate()
-  local m = refuse
-  if not m then return end
-  local mm = gameplay_missions_missionManager
-  if not (m._isOngoing and mm and mm.attemptAbandonMissionWithFade) then refuse = nil return end
-  if mm.attemptAbandonMissionWithFade(m, true) then refuse = nil end      -- (true: it handles its own stopping; else onMissionAbandoned, or a running task: again next frame)
-end
 
 function M.onMissionAbandoned() refuse = nil end
 
@@ -53,10 +46,22 @@ local function syncRoc()
   for _, m in ipairs(rocMissions()) do
     local want = open or nil
     if u.isMissionVisible(m) ~= (open or false) then changed = true end
-    u.overrideVisible(m.id, want)
-    u.overrideStartable(m.id, want)
+    u.overrideVisible(m, want)                       -- (the mission object, not its id: 0.39 reads mission.id inside)
+    u.overrideStartable(m, want)
   end
   if changed and gameplay_rawPois and gameplay_rawPois.clear then gameplay_rawPois.clear() end
+end
+-- the rights change with the state (a rep gain, a move up): looked at every few seconds as well as on the hooks
+local rocTimer = 0
+function M.onUpdate(dtReal)
+  if refuse then
+    local m = refuse
+    local mm = gameplay_missions_missionManager
+    if not (m._isOngoing and mm and mm.attemptAbandonMissionWithFade) then refuse = nil
+    elseif mm.attemptAbandonMissionWithFade(m, true) then refuse = nil end
+  end
+  rocTimer = rocTimer + (dtReal or 0)
+  if rocTimer > 3 then rocTimer = 0 if career() then syncRoc() end end
 end
 M.onStreetLegalStarted = syncRoc
 M.onStreetLegalPhase = syncRoc
@@ -65,7 +70,7 @@ M.onStreetLegalChanged = syncRoc
 M.onStreetLegalStopped = function()
   local u = gameplay_missions_unlocks
   if not (u and u.overrideVisible) then return end
-  for _, m in ipairs(rocMissions()) do u.overrideVisible(m.id, nil) u.overrideStartable(m.id, nil) end
+  for _, m in ipairs(rocMissions()) do u.overrideVisible(m, nil) u.overrideStartable(m, nil) end
 end
 
 function M.onAnyMissionChanged(change, mission)
