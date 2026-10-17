@@ -308,6 +308,15 @@
     // ---------------------------------------------------------------- what Lua says
     function show(part, el) { el.classList.toggle('slh-gone', !settings[part]); }
 
+    // what was drawn last (UI smoothness): a canvas or the status line is only redrawn when what it shows changed; the counters go to the performance overlay
+    var last = { speed: null, rpm: null, gear: null, map: '', dmg: '', status: '', settings: '' }, draws = 0, skips = 0, reportAt = 0;
+    function report() {
+      var now = Date.now();
+      if (now - reportAt < 5000) return;
+      reportAt = now;
+      if (typeof window !== 'undefined' && window.bngApi) window.bngApi.engineLua('if sl_uipush then sl_uipush.js("hud",' + draws + ',' + skips + ') end');
+      draws = 0; skips = 0;
+    }
     function handle(name, data) {
       data = data || {};
       if (name === 'slHudSettings') { for (var k in data) settings[k] = data[k]; return; }
@@ -329,24 +338,31 @@
       var speed = Math.abs(data.speed || 0) * (mph ? 2.23694 : 3.6);
       var slrr = ready(assets.gauge);
       gearC.classList.toggle('slh-gone', !(slrr && settings.tacho));
+      var sKey = Math.round(speed * 2) + (settings.speedo ? 's' : '') + (mph ? 'm' : '') + (slrr ? 'r' : ''), rKey = Math.round((data.rpm || 0) / 20) + ':' + data.gear + (settings.tacho ? 't' : '') + (slrr ? 'r' : '') + (data.maxRpm | 0);
+      var sameSpeed = last.speed === sKey, sameRpm = last.rpm === rKey;
+      last.speed = sKey; last.rpm = rKey;
+      if (sameSpeed) skips++; else draws++;
+      if (sameRpm) skips++; else draws++;
       if (settings.speedo && slrr && !mph) {
-        slrrDial(speedoC, SPRITES.speedo, speed, String(Math.round(speed)));
-      } else if (settings.speedo) {
+        if (!sameSpeed) slrrDial(speedoC, SPRITES.speedo, speed, String(Math.round(speed)));
+      } else if (settings.speedo && !sameSpeed) {
         var top = mph ? 160 : 280;
         dial(speedoC, speed, top, { step: mph ? 20 : 40, minor: mph ? 4 : 4, caption: mph ? (labels.mph || 'MPH') : (labels.kmh || 'KM/H'), digits: String(Math.round(speed)) });
       }
       if (settings.tacho && slrr) {
-        slrrDial(tachoC, SPRITES.tacho, data.rpm || 0);
-        slrrGear(gearText(data.gear));
-      } else if (settings.tacho) {
+        if (!sameRpm) { slrrDial(tachoC, SPRITES.tacho, data.rpm || 0); slrrGear(gearText(data.gear)); }
+      } else if (settings.tacho && !sameRpm) {
         var redline = data.maxRpm > 1000 ? data.maxRpm : 7000;
         var max = Math.max(6000, Math.ceil((redline + 500) / 1000) * 1000);
         dial(tachoC, data.rpm || 0, max, { step: 1000, minor: 4, labelDiv: 1000, red: redline, caption: labels.rpm || 'RPM x1000',
           digits: gearText(data.gear), digitsColour: (data.rpm || 0) > redline * 0.97 ? '#ff2a1a' : '#ffd400' });
       }
-      if (settings.map) drawMap(data);
-      if (settings.damage) drawDamage(data);
+      var mKey = Math.round((data.x || 0) * 4) + ',' + Math.round((data.y || 0) * 4) + ',' + Math.round((data.heading || 0) * 100) + ',' + (data.target ? Math.round(data.target.x) + ',' + Math.round(data.target.y) : '-');
+      if (settings.map) { if (mKey !== last.map) { last.map = mKey; draws++; drawMap(data); } else skips++; }
+      var dKey = JSON.stringify([data.body, data.engine, data.tyres]);
+      if (settings.damage) { if (dKey !== last.dmg) { last.dmg = dKey; draws++; drawDamage(data); } else skips++; }
       drawStatus(data);
+      report();
     }
 
     // the phase (a sun or a moon) and the heat as five flames, lit as many as the heat level; nothing without a career
@@ -354,9 +370,10 @@
       if (!d.phase) { status.classList.add('slh-gone'); return; }
       var night = d.phase === 'night', heat = Math.max(0, Math.min(5, d.heat | 0)), flames = '';
       for (var i = 1; i <= 5; i++) flames += i <= heat ? '&#9650;' : '<i>&#9650;</i>';
-      status.innerHTML = '<span>' + (night ? '&#9790; ' + (labels.night || 'Night') : '&#9728; ' + (labels.day || 'Day')) + '</span>' +
+      var html = '<span>' + (night ? '&#9790; ' + (labels.night || 'Night') : '&#9728; ' + (labels.day || 'Day')) + '</span>' +
         (heat > 0 || night ? '<span class="slh-heat" title="' + (labels.heat || 'Heat {1}').replace('{1}', heat) + '">' + flames + ' ' + heat + '</span>' : '') +
         (night && d.atRisk > 0 ? '<span title="' + (labels.atRiskTip || 'Reputation you lose if you are busted; a garage banks it') + '">' + (labels.atRisk || '+{1} rep at risk').replace('{1}', d.atRisk) + '</span>' : '');
+      if (html !== last.status) { last.status = html; status.innerHTML = html; draws++; } else skips++;
       status.classList.remove('slh-gone');
     }
 

@@ -29,6 +29,7 @@ hud.handle('slHud', Object.assign({}, frame, { phase: 'night', heat: 3 }));
 assert.ok(!gone('.slh-status') && hud.root.querySelector('.slh-status').textContent.includes('Night') && hud.root.querySelectorAll('.slh-heat i').length === 2, 'night, heat 3: three of five lit');
 hud.handle('slHud', Object.assign({}, frame, { phase: 'day', heat: 0 }));
 assert.ok(hud.root.querySelector('.slh-status').textContent.includes('Day') && !hud.root.querySelector('.slh-heat'), 'day without heat: no heat meter');
+{ const node = hud.root.querySelector('.slh-status span'); hud.handle('slHud', Object.assign({}, frame, { phase: 'day', heat: 0 })); assert.ok(hud.root.querySelector('.slh-status span') === node, 'the same status again does not rebuild it (UI smoothness)'); hud.handle('slHud', Object.assign({}, frame, { phase: 'night', heat: 1 })); assert.ok(hud.root.querySelector('.slh-status span') !== node, 'a changed status is rebuilt'); hud.handle('slHud', Object.assign({}, frame, { phase: 'day', heat: 0 })); }
 // #51 the words come from Lua (labels), the heat is a number as well as flames, the text size scales the HUD's text
 hud.handle('slHud', Object.assign({}, frame, { phase: 'night', heat: 2, atRisk: 80, labels: { day: 'Tag', night: 'Nacht', heat: 'Hitze {1}', atRisk: '+{1} Ruf' }, settings: Object.assign({}, frame.settings, { textScale: 1.5 }) }));
 const stText = hud.root.querySelector('.slh-status').textContent;

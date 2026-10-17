@@ -1347,8 +1347,8 @@
         fadeView();
       // the game sends the data every few seconds: a screen that did not change is left alone (a rebuild between the press and the release of a click loses the
       // click, and drops what is typed, the hover and the scroll)
-      if (html === lastHtml && layer.firstChild) return;
-      lastHtml = html;
+      if (html === lastHtml && layer.firstChild) { renderSkips++; reportRenders(); return; }
+      lastHtml = html; renders++; reportRenders();
       layer.innerHTML = html;
       var after = layer.querySelector('.slp-body, .slp-msgs');
       if (after) {
@@ -1366,6 +1366,14 @@
     // away or a hidden panel never takes the focus), the pages scroll on the right stick, and the focus survives
     // a re-render (the same button again, else the first one).
     var focusKey = null, lastHtml = null;
+    var renders = 0, renderSkips = 0, reportAt = 0;      // how often the screen was rebuilt and how often that was skipped as unchanged: told to the overlay (sl_uipush) every 5 s
+    function reportRenders() {
+      var now = Date.now();
+      if (now - reportAt < 5000) return;
+      reportAt = now;
+      lua('@sl_uipush.js("phone",' + renders + ',' + renderSkips + ')');
+      renders = 0; renderSkips = 0;
+    }
     var padAt = 0;          // the last pad input: only then does the phone take the focus (mouse and keyboard keep theirs)
     function keyOf(el) { return el && el.getAttribute ? (el.getAttribute('data-a') || '') + '|' + (el.getAttribute('data-v') || '') : null; }
     function navify(key) {
@@ -1463,6 +1471,7 @@
     function home() { st.stack = []; st.app = 'home'; render(); }
     function setOpen(open) {
       st.open = open;
+      lua('uiOpen("phone", ' + (open ? 'true' : 'false') + ')');      // (the game side sends the phone's data faster while it is open)
       if (open && !TABLE) lua('requestStrings()');
       if (open) lua('request()'); else { st.stack = []; st.app = 'home'; }      // (B68: closed, it opens on the home screen next time)
       render();

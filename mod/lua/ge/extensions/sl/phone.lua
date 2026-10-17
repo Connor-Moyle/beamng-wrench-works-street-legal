@@ -90,7 +90,14 @@ local function snapshot()
   }
 end
 
-local function send() guihooks.trigger('slPhoneData', snapshot()) end
+-- the phone's data goes through sl_uipush (counted; the same snapshot again is not sent) and faster only while the phone or a laptop is open (the screens tell us: uiOpen)
+local screensOpen = {}
+local function anyOpen() return next(screensOpen) ~= nil end
+function M.uiOpen(name, open) screensOpen[tostring(name)] = open and true or nil wantSend = true end
+local function send()
+  local data = snapshot()
+  if sl_uipush and sl_uipush.push then sl_uipush.push('slPhoneData', data, { dedupe = true }) else guihooks.trigger('slPhoneData', data) end
+end
 
 ----------------------------------------------------------------------------------------------
 -- calls
@@ -294,7 +301,7 @@ end
 M.onUpdate = function(dtReal)
   sendTimer = sendTimer + dtReal
   -- the clock on the screen moves too: a refresh every few seconds, sooner when something changed
-  if (wantSend and sendTimer > 0.25) or (sendTimer > 5 and career()) then
+  if (wantSend and sendTimer > (anyOpen() and 0.25 or 1)) or (sendTimer > 5 and career()) then
     sendTimer, wantSend = 0, false
     send()
   end

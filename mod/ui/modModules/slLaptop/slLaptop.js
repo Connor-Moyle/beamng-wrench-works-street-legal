@@ -567,6 +567,14 @@
 
     // ---------------------------------------------------------------- drawing and gamepad focus
     var focusKey = null, lastHtml = null;
+    var renders = 0, renderSkips = 0, reportAt = 0;      // see slPhone.js: rebuilds and skipped rebuilds, told to the overlay every 5 s
+    function reportRenders() {
+      var now = Date.now();
+      if (now - reportAt < 5000 || !st.open) return;
+      reportAt = now;
+      lua('@sl_uipush.js("laptop",' + renders + ',' + renderSkips + ')');
+      renders = 0; renderSkips = 0;
+    }
     function keyOf(el) { return el && el.getAttribute ? (el.getAttribute('data-a') || '') + '|' + (el.getAttribute('data-v') || '') : null; }
     function render() {
       var inner = '';
@@ -579,8 +587,8 @@
       var zoom = Math.max(Number(st.data.textScale) || 1, Date.now() - st.padAt < 60000 ? 1.25 : 1);
       layer.style.setProperty('--sl-zoom', zoom); layer.setAttribute('data-zoom', zoom);      // (#51 text size; at least Large on a pad)
       var html = '<div class="sll-screen' + (st.open ? '' : ' sll-gone') + '">' + inner + '</div>';
-      if (html === lastHtml && layer.firstChild) return;
-      lastHtml = html;
+      if (html === lastHtml && layer.firstChild) { renderSkips++; reportRenders(); return; }
+      lastHtml = html; renders++; reportRenders();
       var rs0 = layer.querySelector('.sll-repbody');
       var repKeep = rs0 ? rs0.scrollTop : 0;
       layer.innerHTML = html;
@@ -660,7 +668,7 @@
       close();
     }
     function close() { lua('@sl_computer.close()'); setOpen(false); }
-    function setOpen(open) { if (open && !TABLE) lua('@sl_phone.requestStrings()'); st.open = open; if (!open) { st.wins = []; st.note = ''; st.menu = false; st.sel = null; focusKey = null; } render(); }
+    function setOpen(open) { if (open && !TABLE) lua('@sl_phone.requestStrings()'); lua('@sl_phone.uiOpen("laptop", ' + (open ? 'true' : 'false') + ')'); st.open = open; if (!open) { st.wins = []; st.note = ''; st.menu = false; st.sel = null; focusKey = null; } render(); }
     function act(a, v) {
       switch (a) {
         case 'start': st.menu = !st.menu; focusKey = null; render(); break;

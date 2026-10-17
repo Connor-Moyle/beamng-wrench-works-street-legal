@@ -1797,4 +1797,64 @@ do
   package.loaded['sl/perf'] = nil
 end
 
+-- UI smoothness: the push counter (rates over a 5 s window, the busiest events first, skipped pushes counted apart)
+do
+  local us = require('sl/core/uistats')
+  local st = us.new()
+  for i = 0, 49 do us.record(st, 'slHud', 400, i * 0.1, true) end                    -- 10 pushes a second of 400 bytes for 5 s
+  for i = 0, 9 do us.record(st, 'slPhoneData', 20000, i * 0.5, true) end              -- 2 a second of 20 kB
+  for i = 0, 19 do us.record(st, 'slHud', 0, 4.9 + i * 0.01, false) end               -- 20 skipped (the same payload again)
+  local r = us.rates(st, 5)
+  check('ui stats: rates over the window, the biggest sender first, skipped ones apart', #r == 2 and r[1].name == 'slPhoneData' and math.abs(r[1].perSec - 2) < 0.5 and r[1].kbPerSec > 30 and r[2].name == 'slHud'
+    and r[2].perSec > 8 and r[2].skippedPerSec > 2, r[1].name .. ' ' .. tostring(r[1].perSec))
+  local lines = us.lines(st, 5, 1)
+  check('ui stats: the overlay lines: a total and the busiest event', #lines == 2 and lines[1]:find('UI ') and lines[1]:find('pushes/s') and lines[2]:find('slPhoneData'))
+  check('ui stats: old pushes fall out of the window and a quiet event says nothing', #us.rates(st, 30) == 2 and us.rates(st, 30)[1].perSec == 0 and #us.lines(us.new(), 5, 3) == 0)
+  check('ui stats: totals keep counting beyond the window', st.names.slHud.total == 50 and st.names.slHud.totalSkipped == 20)
+end
+
+-- sl_uipush against a mocked game: dedupe, the minimum interval with the newest payload sent later, the counters
+do
+  local saved = { jsonEncode = jsonEncode, guihooks = guihooks }
+  local sent = {}
+  local function enc(v)
+    if type(v) ~= 'table' then return tostring(v) end
+    local keys = {}
+    for kk in pairs(v) do keys[#keys + 1] = kk end
+    table.sort(keys, function(a, b) return tostring(a) < tostring(b) end)
+    local out = {}
+    for _, kk in ipairs(keys) do out[#out + 1] = tostring(kk) .. '=' .. enc(v[kk]) end
+    return '{' .. table.concat(out, ',') .. '}'
+  end
+  jsonEncode = enc
+  guihooks = { trigger = function(name, data) sent[#sent + 1] = name .. ':' .. enc(data) end }
+  package.loaded['sl/uipush'] = nil
+  local up = require('sl/uipush')
+  up.push('a', { n = 1 }, { dedupe = true })
+  up.push('a', { n = 1 }, { dedupe = true })
+  up.push('a', { n = 2 }, { dedupe = true })
+  check('uipush: the same payload again is not sent, a changed one is', #sent == 2 and sent[2] == 'a:{n=2}')
+  up.push('b', { n = 1 })
+  up.push('b', { n = 1 })
+  check('uipush: without dedupe every push goes out (events that repeat on purpose)', #sent == 4)
+  local before = #sent
+  up.push('c', { n = 1 }, { minInterval = 0.2 })
+  up.push('c', { n = 2 }, { minInterval = 0.2 })
+  up.push('c', { n = 3 }, { minInterval = 0.2 })
+  check('uipush: inside the interval only the first goes out, the newest waits', #sent == before + 1 and sent[#sent] == 'c:{n=1}')
+  local t0 = os.clock()
+  while os.clock() - t0 < 0.25 do end
+  up.onUpdate()
+  check('uipush: when the time is up the newest held payload is sent once', #sent == before + 2 and sent[#sent] == 'c:{n=3}')
+  up.onUpdate()
+  check('uipush: and nothing more is sent after that', #sent == before + 2)
+  local lines = up.lines(5)
+  check('uipush: the overlay lines list what went out', #lines >= 2 and lines[1]:find('UI ') ~= nil)
+  up.js('phone', 3, 40)
+  local l2 = up.lines(5)
+  check('uipush: a screen own rebuild count is shown', l2[#l2]:find('phone 3 rebuilds, 40 skipped') ~= nil)
+  jsonEncode, guihooks = saved.jsonEncode, saved.guihooks
+  package.loaded['sl/uipush'] = nil
+end
+
 print(string.format('lua tests passed: %d checks', passed))

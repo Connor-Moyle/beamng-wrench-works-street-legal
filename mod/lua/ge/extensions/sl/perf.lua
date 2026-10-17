@@ -157,7 +157,9 @@ function M.onUpdate(dtReal)
   sendTimer = sendTimer + dtReal
   if sendTimer < 0.25 then return end
   sendTimer = 0
-  guihooks.trigger('slPerf', { show = true, lines = perf.lines(perf.read(sampler), counts, vram) })
+  local lines = perf.lines(perf.read(sampler), counts, vram)
+  if sl_uipush and sl_uipush.lines then for _, l in ipairs(sl_uipush.lines(3)) do lines[#lines + 1] = l end end      -- (UI smoothness: pushes and kB a second per event, screen rebuilds)
+  guihooks.trigger('slPerf', { show = true, lines = lines })
 end
 
 return M

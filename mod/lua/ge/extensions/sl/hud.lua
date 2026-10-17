@@ -131,6 +131,12 @@ end
 -- every frame: whether to show, and what
 
 local fastTimer, damageTimer, sendTimer = 0, 0, 0
+local staticsTimer, staticsDirty, staticsKey, sendTimer0 = 0, true, nil, 0.1
+-- a push to the browser side through sl_uipush (counted, the same payload skipped); a plain guihooks.trigger without it
+local function hudPush(name, data, opts)
+  if sl_uipush and sl_uipush.push then return sl_uipush.push(name, data, opts) end
+  guihooks.trigger(name, data)
+end
 local shown = false
 
 -- with the dashboard on, the game's own rev counter and damage app make way for it: the career
@@ -191,27 +197,37 @@ function M.onUpdate(dtReal)
   if v:getID() ~= carId then carId, car = v:getID(), {} end
   if not mapSent then sendMap() end
   fastTimer, damageTimer, sendTimer = fastTimer + dtReal, damageTimer + dtReal, sendTimer + dtReal
-  if fastTimer > 0.06 then fastTimer = 0 v:queueLuaCommand(ASK_FAST) end
+  if fastTimer > 0.1 then fastTimer = 0 v:queueLuaCommand(ASK_FAST) end
   if damageTimer > 0.5 then damageTimer = 0 v:queueLuaCommand(ASK_DAMAGE) end
-  if sendTimer < 0.06 then return end
+  if sendTimer < 0.1 then return end            -- (10 Hz: the dials are drawn from what arrives; faster only costs the browser)
   sendTimer = 0
   local pos, dir = v:getPosition(), v:getDirectionVector()
   local h = sl_career and sl_career.getState and sl_career.isActive() and sl_career.getState() or nil
+  -- the settings and the labels (words) are sent when they changed, not with every frame; the same payload as the last one is not sent at all (standing still)
+  staticsTimer = staticsTimer + sendTimer0
+  local payloadSettings, payloadLabels
+  if not shown or staticsDirty or staticsTimer > 2 then
+    staticsTimer = 0
+    local st, lb = M.getSettings(), hudLabels()
+    local key = jsonEncode and jsonEncode({ st, lb }) or tostring(os.clock())
+    if not shown or staticsDirty or key ~= staticsKey then payloadSettings, payloadLabels, staticsKey = st, lb, key end
+    staticsDirty = false
+  end
   shown = true
-  guihooks.trigger('slHud', {
-    show = true, settings = M.getSettings(),
+  hudPush('slHud', {
+    show = true, settings = payloadSettings,
     atRisk = sl_career and sl_career.atRisk and sl_career.atRisk() or 0,
-    labels = hudLabels(),
+    labels = payloadLabels,
     phase = sl_career and sl_career.phase and sl_career.phase() or nil, heat = require('sl/core/phase').heatLevel(sl_police and sl_police.heat and sl_police.heat() or 0),
     speed = car.speed or v:getVelocity():length(), rpm = car.rpm or 0, maxRpm = car.maxRpm or 0, gear = car.gear,
     x = pos.x, y = pos.y, heading = math.atan2(dir.x, dir.y),
     body = car.body, engine = car.engine, tyres = car.tyres,
     target = h and core_groundMarkers and core_groundMarkers.endWP and core_groundMarkers.endWP[1] and
       (function() local t = core_groundMarkers.endWP[1] return type(t) == 'cdata' and { x = t.x, y = t.y } or nil end)() or nil,
-  })
+  }, { dedupe = true })
 end
 
-function M.request() mapSent = false sendSettings() end
+function M.request() mapSent = false staticsDirty = true sendSettings() end
 function M.onStreetLegalOption(key) if key == 'slDashboard' then sendSettings() end end
 -- the career stops: the game's own layout comes back (the career's was a layout of its own, nothing of the stock one was touched)
 function M.onStreetLegalStopped()
