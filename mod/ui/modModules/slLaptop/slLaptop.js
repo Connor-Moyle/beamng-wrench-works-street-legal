@@ -526,7 +526,7 @@
     }
 
     // ---------------------------------------------------------------- drawing and gamepad focus
-    var focusKey = null;
+    var focusKey = null, lastHtml = null;
     function keyOf(el) { return el && el.getAttribute ? (el.getAttribute('data-a') || '') + '|' + (el.getAttribute('data-v') || '') : null; }
     function render() {
       var inner = '';
@@ -538,7 +538,10 @@
       }
       var zoom = Math.max(Number(st.data.textScale) || 1, Date.now() - st.padAt < 60000 ? 1.25 : 1);
       layer.style.setProperty('--sl-zoom', zoom); layer.setAttribute('data-zoom', zoom);      // (#51 text size; at least Large on a pad)
-      layer.innerHTML = '<div class="sll-screen' + (st.open ? '' : ' sll-gone') + '">' + inner + '</div>';
+      var html = '<div class="sll-screen' + (st.open ? '' : ' sll-gone') + '">' + inner + '</div>';
+      if (html === lastHtml && layer.firstChild) return;
+      lastHtml = html;
+      layer.innerHTML = html;
       navify();
     }
     // the game moves the focus between [bng-nav-item] elements with the d-pad/stick and clicks the focused one on A
@@ -683,15 +686,16 @@
         case 'move': lua('@sl_phone.moveGarage()'); break;
       }
     }
-    // a desktop icon works as in Windows: one click with the mouse selects it, a double click opens it; the pad's A (a click with no
-    // click count) and the keyboard's Enter open it at once. Everything else acts on the first click.
+    // a desktop icon opens on the first click (Connor's play 2: a double click did not arrive reliably in the game's browser, so no icon opened);
+    // the pad's A and the keyboard's Enter open it too. Everything acts on the first click.
+    // The screen is only drawn again when what it shows changed (render): the game sends the data every few seconds, and a screen rebuilt between the
+    // press and the release of a click loses that click.
     root.addEventListener('click', function (ev) {
       var el = ev.target;
       while (el && el !== root && !(el.getAttribute && el.getAttribute('data-a'))) el = el.parentNode;
       if (el && el !== root) {
         var a = el.getAttribute('data-a'), v = el.getAttribute('data-v');
-        if (a === 'tile' && ev.detail === 1 && el.classList.contains('sll-icon')) act('select', v);
-        else act(a, v);
+        act(a, v);
         return;
       }
       // a click anywhere in a window brings it forward; one on the bare desktop shuts the Start menu

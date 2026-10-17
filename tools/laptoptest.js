@@ -70,11 +70,10 @@ assert.ok($$('.sll-task [data-a]').every((e) => e.hasAttribute('bng-nav-item')),
 assert.ok($$('.sll-icon.sll-off').length === 0, 'nothing is greyed for a car at the garage');
 
 // ---- selecting and opening an icon as in Windows
-click('tile', 'vehicleInventory', 1);
-assert.ok($(sel('tile', 'vehicleInventory')).classList.contains('sll-sel') && !wins().length, 'one mouse click selects an icon');
 calls.length = 0;
-click('tile', 'vehicleInventory', 2);
-assert.ok(wins().length === 1 && titles()[0] === 'My cars' && calls.includes('@sl_phone.request()'), 'a double click opens it in a window (and asks for fresh data)');
+click('tile', 'vehicleInventory', 1);
+assert.ok(wins().length === 1 && titles()[0] === 'My cars' && calls.includes('@sl_phone.request()'), 'one mouse click opens an icon in a window (and asks for fresh data)');
+{ const keep = $('.sll-win'); laptop.handle('slPhoneData', data); assert.ok($('.sll-win') === keep, 'the same data again does not rebuild the screen (a click between press and release would be lost)'); }
 click('winclose', 'cars');
 assert.ok(!wins().length, 'the window closes');
 click('tile', 'vehicleInventory');
