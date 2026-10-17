@@ -50,4 +50,15 @@ return function(check, rngLib)
   check('a second restore (or one after a crash) changes nothing', live.AudioChannelPower == 0.7)
   local broken = { get = function() error('no audio') end, set = function() error('no audio') end }
   check('an audio system that errors does not break the lot', pcall(LA.mute, broken) and pcall(LA.restore, broken))
+
+  -- T45: one marker a place: the stock dealerships have the walking marker at their door only; the other lots a mission marker
+  local PO = require('sl/core/pois')
+  local recs = PO.records({
+    dealer = { id = 'dealer', kind = 'dealer', name = 'Jefferson Motors', at = { x = 1, y = 2, z = 3 }, stockId = 'jeffersonmotors' },
+    junkyard = { id = 'junkyard', kind = 'junkyard', name = 'Wrecks', at = { x = 4, y = 5, z = 6 } },
+    scrapyard = { id = 'scrapyard', kind = 'scrapyard', name = 'Scrap', at = { x = 7, y = 8, z = 9 } },
+  })
+  local byId = {}
+  for _, r in ipairs(recs) do byId[r.placeId] = r end
+  check('a stock dealership has one marker, the walking marker at its door; the used lot and the scrap yard one mission marker', byId.dealer.marker == 'walking' and byId.junkyard.marker == 'mission' and byId.scrapyard.marker == 'mission')
 end

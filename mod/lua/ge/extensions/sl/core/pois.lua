@@ -23,7 +23,8 @@ function M.records(places)
   for _, id in ipairs(ids) do
     local p, k = places[id], M.KINDS[places[id].kind]
     out[#out + 1] = { poiId = 'sl_place_' .. id, placeId = id, type = k.type, cardIcon = k.cardIcon, name = p.name, what = k.what,
-      pos = { p.at.x, p.at.y, p.at.z }, stockId = p.stockId }
+      pos = { p.at.x, p.at.y, p.at.z }, stockId = p.stockId,
+      marker = p.stockId and 'walking' or 'mission' }       -- (one marker a place: a stock dealership has the game's walking marker at its door)
   end
   return out
 end

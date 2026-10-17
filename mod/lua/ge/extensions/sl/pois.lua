@@ -3,8 +3,8 @@
 -- onGetRawPoiListForLevel. Nothing listed the career's lots on West Coast USA (Valo City's map mod did), so no lot had a marker
 -- or a prompt. Here: every dealer, used lot and scrap yard of sl_career.getPlaces(). A stock dealership gets the game's own marker
 -- (freeroam_facilities.formatFacilityToRawPoi: its doors, its icon, its name, its big-map card), with our data on it so
--- its prompt opens sl_lot (a walking marker, for someone on foot, plus a mission marker at the lot for a driver); the others
--- get the game's mission marker. The stock career's own markers are not added (it is not running).
+-- its prompt opens sl_lot: ONE marker, the walking marker at the dealership door (a driver drives up, gets out and walks in, as in the
+-- game's career); the used lot and the scrap yard get the game's mission marker. The stock career's own markers are not added (it is not running).
 
 local M = {}
 
@@ -33,11 +33,6 @@ function M.onGetRawPoiListForLevel(level, elements)
       local ok = pcall(freeroam_facilities.formatFacilityToRawPoi, fac, tmp)
       el = ok and tmp[1] or nil
       if el then el.id, el.data = r.poiId, data end                     -- (no .facility: the game's own dealership prompt would call its career shop)
-      -- The game's walking marker answers only to a player on foot (walkingMarker.lua: data.isWalking), as in its career where
-      -- you walk into the dealership. A driver gets a mission marker at the lot's arrival point as well; one POI, two markers.
-      if el then
-        el.markerInfo.missionMarker = { pos = vec3(r.pos[1], r.pos[2], r.pos[3]), rot = quat(0, 0, 0, 1), icon = ICON }
-      end
     end
     if not el then
       local pos = vec3(r.pos[1], r.pos[2], r.pos[3])
