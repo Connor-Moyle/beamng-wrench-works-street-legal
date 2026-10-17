@@ -11,10 +11,11 @@ local rules = require('sl/core/weather')
 local pr = require('sl_puddles')
 
 local TAG = 'sl_puddlefx'
-M.flags = { warp = true, splash = true, mist = true, physics = true, trail = true }
+M.flags = { warp = true, splash = true, mist = true, physics = true, trail = true, ripples = true, shimmer = true }
 
 local MATERIALS = '/art/street_legal/main.materials.json'
 local MATERIAL = 'sl_puddle'          -- translucent, alpha from its opacity map (the soft oval), shiny and dark
+local RIPPLE_MATERIAL = 'sl_ripple'   -- a sprite sheet of 8 growing, fading rings that the material plays by itself (animFlags 16, sequence): the shape's UV shows one frame
 local SHAPES = '/temp/street_legal/shapes/'
 local GRID = 5                        -- corners across a puddle's grid
 local PUDDLE_RADIUS = { 8, 70 }       -- puddles stand between these distances from the player
@@ -30,7 +31,7 @@ local counter = 0
 local placeTimer, meshTimer, feedTimer, trailTimer = 0, 0, 0, 0
 local debugPuddle
 local sentEmpty = true
-local stats = { tries = 0, noSurface = 0, notFlat = 0, noRoad = 0, placed = 0, shown = 0, fxCalls = 0, splashOn = 0, mistOn = 0, trails = 0, wheelsIn = 0 }
+local stats = { tries = 0, noSurface = 0, notFlat = 0, noRoad = 0, placed = 0, shown = 0, fxCalls = 0, splashOn = 0, mistOn = 0, trails = 0, wheelsIn = 0, ripples = 0 }
 local lastStatsLog = 0
 local logged = {}
 
@@ -72,8 +73,10 @@ end
 -- the model: a GRID x GRID mesh of unit size (a thin slab: a top and a bottom skin), written once per puddle with the ground heights of its corners
 
 -- heights: GRID * GRID numbers, row by row from the corner (-0.5, -0.5): how far the ground there is above the puddle's centre
-local function gridDae(heights)
-  local n = GRID
+local function gridDae(heights, opts)
+  local n = opts and opts.n or GRID
+  local material = opts and opts.material or MATERIAL
+  local uMax = opts and opts.uMax or 1
   local pos, uv = {}, {}
   for layer = 0, 1 do
     for iy = 0, n - 1 do
@@ -82,7 +85,7 @@ local function gridDae(heights)
       end
     end
   end
-  for iy = 0, n - 1 do for ix = 0, n - 1 do uv[#uv + 1] = string.format('%.3f %.3f', ix / (n - 1), iy / (n - 1)) end end
+  for iy = 0, n - 1 do for ix = 0, n - 1 do uv[#uv + 1] = string.format('%.4f %.3f', uMax * ix / (n - 1), iy / (n - 1)) end end
   local tris, count = {}, 0
   local function tri(a, b, c, normal)
     tris[#tris + 1] = string.format('%d %d %d %d %d %d %d %d %d', a[1], normal, a[2], b[1], normal, b[2], c[1], normal, c[2])
@@ -104,16 +107,16 @@ local function gridDae(heights)
     '<COLLADA xmlns="http://www.collada.org/2005/11/COLLADASchema" version="1.4.1">',
     '<asset><unit name="meter" meter="1"/><up_axis>Z_UP</up_axis></asset>',
     '<library_effects><effect id="fx"><profile_COMMON><technique sid="common"><phong><diffuse><color>1 1 1 1</color></diffuse></phong></technique></profile_COMMON></effect></library_effects>',
-    '<library_materials><material id="' .. MATERIAL .. '" name="' .. MATERIAL .. '"><instance_effect url="#fx"/></material></library_materials>',
+    '<library_materials><material id="' .. material .. '" name="' .. material .. '"><instance_effect url="#fx"/></material></library_materials>',
     '<library_geometries><geometry id="mesh" name="mesh"><mesh>',
     string.format('<source id="pos"><float_array id="pos-array" count="%d">%s</float_array><technique_common><accessor source="#pos-array" count="%d" stride="3"><param name="X" type="float"/><param name="Y" type="float"/><param name="Z" type="float"/></accessor></technique_common></source>', #pos * 3, table.concat(pos, ' '), #pos),
     '<source id="nrm"><float_array id="nrm-array" count="6">0 0 1 0 0 -1</float_array><technique_common><accessor source="#nrm-array" count="2" stride="3"><param name="X" type="float"/><param name="Y" type="float"/><param name="Z" type="float"/></accessor></technique_common></source>',
     string.format('<source id="uv"><float_array id="uv-array" count="%d">%s</float_array><technique_common><accessor source="#uv-array" count="%d" stride="2"><param name="S" type="float"/><param name="T" type="float"/></accessor></technique_common></source>', #uv * 2, table.concat(uv, ' '), #uv),
     '<vertices id="vtx"><input semantic="POSITION" source="#pos"/></vertices>',
-    string.format('<triangles material="%s" count="%d"><input semantic="VERTEX" source="#vtx" offset="0"/><input semantic="NORMAL" source="#nrm" offset="1"/><input semantic="TEXCOORD" source="#uv" offset="2" set="0"/>', MATERIAL, count),
+    string.format('<triangles material="%s" count="%d"><input semantic="VERTEX" source="#vtx" offset="0"/><input semantic="NORMAL" source="#nrm" offset="1"/><input semantic="TEXCOORD" source="#uv" offset="2" set="0"/>', material, count),
     '<p>' .. table.concat(tris, ' ') .. '</p></triangles>',
     '</mesh></geometry></library_geometries>',
-    '<library_visual_scenes><visual_scene id="Scene" name="Scene"><node id="slpuddle" name="slpuddle" type="NODE"><instance_geometry url="#mesh" name="slpuddle"><bind_material><technique_common><instance_material symbol="' .. MATERIAL .. '" target="#' .. MATERIAL .. '"/></technique_common></bind_material></instance_geometry></node></visual_scene></library_visual_scenes>',
+    '<library_visual_scenes><visual_scene id="Scene" name="Scene"><node id="slpuddle" name="slpuddle" type="NODE"><instance_geometry url="#mesh" name="slpuddle"><bind_material><technique_common><instance_material symbol="' .. material .. '" target="#' .. material .. '"/></technique_common></bind_material></instance_geometry></node></visual_scene></library_visual_scenes>',
     '<scene><instance_visual_scene url="#Scene"/></scene></COLLADA>',
   }, '\n')
 end
@@ -122,6 +125,13 @@ M.gridDae = gridDae          -- (for the offline test)
 local function flatPath()
   local path = SHAPES .. 'puddle_flat_v3.dae'
   if not FS:fileExists(path) then writeFile(path, gridDae(nil)) end
+  return path
+end
+
+-- a ripple: one small flat quad whose texture coordinates show the first frame of the ring sheet (the material plays the other seven)
+local function ripplePath()
+  local path = SHAPES .. 'ripple_v1.dae'
+  if not FS:fileExists(path) then writeFile(path, gridDae(nil, { n = 2, material = RIPPLE_MATERIAL, uMax = 0.125 })) end
   return path
 end
 
@@ -141,7 +151,7 @@ local function heightsFor(p)
 end
 
 local function newObject(name, path)
-  if FS:fileExists(MATERIALS) and not scenetree.findObject(MATERIAL) then loadJsonMaterialsFile(MATERIALS) end
+  if FS:fileExists(MATERIALS) and not (scenetree.findObject(MATERIAL) and scenetree.findObject(RIPPLE_MATERIAL)) then loadJsonMaterialsFile(MATERIALS) end
   local o = createObject('TSStatic')
   o:setField('shapeName', 0, path)
   o:setField('collisionType', 0, 'None')
@@ -153,7 +163,13 @@ end
 
 local function deleteObject(o) if o then pcall(function() o:delete() end) end end
 
+local function dropRipples(p)
+  for _, r in ipairs(p.ripples or {}) do deleteObject(r.obj) end
+  p.ripples = nil
+end
+
 local function dropPuddle(p)
+  dropRipples(p)
   deleteObject(p.obj)
   p.obj = nil
   if p.file then pcall(function() FS:removeFile(p.file) end) p.file = nil end
@@ -234,13 +250,14 @@ local function updatePlacement(dt, wet)
 end
 
 -- the planes: made when a puddle is first visible (its grid is dropped onto the surface then), grown while it is new, shrunk as the road dries
-local function updateMeshes(wet)
+local function updateMeshes(wet, intensity)
   for _, p in ipairs(puddles) do
     local f = rules.puddleAlpha(wet, os.clock() - p.born) / 0.8
     if f < 0.03 then
       if p.obj then dropPuddle(p) end
     else
       local k = 0.6 + 0.4 * f
+      if p.damp and M.flags.shimmer then k = k * rules.shimmer(os.clock(), p.id or 1, intensity) end      -- (the damp patches breathe with the rain: darker, then lighter)
       if not p.obj then
         p.obj = makeObject(p)
         putMesh(p, k)
@@ -250,6 +267,45 @@ local function updateMeshes(wet)
         putMesh(p, k)
       end
     end
+  end
+end
+
+-- ripples (the rain landing in the puddles): each puddle near the player has 0-3 small ring planes at random spots on it, played by the material itself; each is
+-- moved to a new spot every few seconds; none while it does not rain
+local function placeRipple(p, r)
+  local k = p.k or 1
+  local a, d = math.random() * 6.283, math.sqrt(math.random()) * 0.55
+  local lx, ly = math.cos(a) * d * p.sx * k * 0.5, math.sin(a) * d * p.sy * k * 0.5
+  local wx, wy = p.x + lx * p.dy + ly * p.dx, p.y - lx * p.dx + ly * p.dy
+  local z = groundZ(wx, wy, p.z + 2) or p.z
+  local size = 0.5 + math.random() * 0.5
+  local mx = MatrixF(true)
+  mx:createOrientFromDirUp(vec3(math.cos(a), math.sin(a), 0), vec3(0, 0, 1))
+  mx:setPosition(vec3(wx, wy, z + 0.07))
+  r.obj:setTransform(mx)
+  r.obj:setScale(vec3(size, size, 1))
+  r.born, r.life = os.clock(), 2.5 + math.random() * 3
+end
+
+local function updateRipples(intensity)
+  local want = M.flags.ripples and rules.rippleCount(intensity) or 0
+  local pos = playerPos()
+  local used, now = 0, os.clock()
+  for _, p in ipairs(puddles) do
+    local near = pos and p.obj and not p.damp and used < 8 and (p.x - pos.x) ^ 2 + (p.y - pos.y) ^ 2 < 35 * 35
+    local count = near and want or 0
+    if near and count > 0 then used = used + 1 end
+    p.ripples = p.ripples or {}
+    while #p.ripples > count do deleteObject(p.ripples[#p.ripples].obj) table.remove(p.ripples) end
+    while #p.ripples < count do
+      local r = { obj = newObject('sl_pd_ripple_' .. (counter + 1), ripplePath()) }
+      counter = counter + 1
+      placeRipple(p, r)
+      p.ripples[#p.ripples + 1] = r
+      stats.ripples = stats.ripples + 1
+      once('ripple', string.format('first ripple on a puddle at %.0f, %.0f (material %s %s)', p.x, p.y, RIPPLE_MATERIAL, tostring(scenetree.findObject(RIPPLE_MATERIAL) ~= nil)))
+    end
+    for _, r in ipairs(p.ripples) do if now - r.born > r.life then placeRipple(p, r) end end
   end
 end
 
@@ -375,21 +431,24 @@ end
 
 ----------------------------------------------------------------------------------------------
 
-function M.update(dt, wet)
+function M.update(dt, wet, intensity)
   dt = dt or 0
+  intensity = intensity or 0
   updatePlacement(dt, wet)
   meshTimer = meshTimer + dt
   if meshTimer > 0.25 then
     meshTimer = 0
-    local ok, err = pcall(updateMeshes, wet)
+    local ok, err = pcall(updateMeshes, wet, intensity)
     if not ok then once('meshErr', 'puddle planes: ' .. tostring(err)) end
+    ok, err = pcall(updateRipples, intensity)
+    if not ok then once('rippleErr', 'ripples: ' .. tostring(err)) end
   end
   feedVehicle(dt, wet)
   updateTrails(dt)
   if wet >= 0.15 and os.clock() - lastStatsLog > 15 then
     lastStatsLog = os.clock()
-    log('I', TAG, string.format('puddles: %d standing, %d shown (wet %.2f); tries %d, no surface %d, not flat %d, no road %d, placed %d; wheel calls %d (splash %d, mist %d), wheels in puddles %d, trails %d',
-      #puddles, stats.shown, wet, stats.tries, stats.noSurface, stats.notFlat, stats.noRoad, stats.placed, stats.fxCalls, stats.splashOn, stats.mistOn, stats.wheelsIn, stats.trails))
+    log('I', TAG, string.format('puddles: %d standing, %d shown (wet %.2f); tries %d, no surface %d, not flat %d, no road %d, placed %d; wheel calls %d (splash %d, mist %d), wheels in puddles %d, trails %d, ripples made %d',
+      #puddles, stats.shown, wet, stats.tries, stats.noSurface, stats.notFlat, stats.noRoad, stats.placed, stats.fxCalls, stats.splashOn, stats.mistOn, stats.wheelsIn, stats.trails, stats.ripples))
   end
 end
 

@@ -71,5 +71,33 @@
     "translucentZWrite": true,
     "doubleSided": true,
     "version": 1.5
+  },
+  "sl_ripple": {
+    "name": "sl_ripple",
+    "mapTo": "sl_ripple",
+    "class": "Material",
+    "Stages": [
+      {
+        "animFlags": 16,
+        "sequenceFramePerSec": 10,
+        "sequenceSegmentSize": 0.125,
+        "baseColorMap": "/art/street_legal/decals/ripples.color.png",
+        "opacityMap": "/art/street_legal/decals/ripples_o.data.png",
+        "metallicFactor": 0.7,
+        "roughnessFactor": 0.05
+      },
+      {},
+      {},
+      {}
+    ],
+    "annotation": "ASPHALT",
+    "castShadows": false,
+    "materialTag0": "decal",
+    "materialTag1": "road",
+    "materialTag2": "beamng",
+    "translucent": true,
+    "translucentZWrite": true,
+    "doubleSided": true,
+    "version": 1.5
   }
 }

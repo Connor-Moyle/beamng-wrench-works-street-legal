@@ -18,7 +18,10 @@ local levelId = 'medium'
 local nextId
 local blendT, blendFrom = 1, nil
 local BLEND_SECONDS = 25
-local gripTimer, applyTimer = 0, 0
+local gripTimer, applyTimer, gustTimer = 0, 0, 0
+M.flags = { gust = true }      -- the shower swells and ebbs, its wind drifts (sl/core/weather.gust, windAngle); sl_weather.flags.gust = false keeps it steady
+local gustSeed = 0
+local windBase                 -- the level's own ground wind, put back when the career stops
 local lastKey
 
 local wet = 0                    -- how wet the roads are, 0..1
@@ -70,6 +73,7 @@ local function readBaseline()
   end
   if info then baseline.fog = tonumber(info.fogDensity) or baseline.fog end
   baseline.speed = 1
+  pcall(function() if core_environment and core_environment.getGroundWind then local w = core_environment.getGroundWind() windBase = { x = w.x, y = w.y, z = w.z } end end)
   current = current or { drops = baseline.drops, cloud = baseline.cloud, cirrus = baseline.cirrus, density = baseline.density, fog = baseline.fog, grip = 1, wet = 0, speed = 1, tint = 0 }
   pcall(function() log('I', TAG, string.format('level sky: Precipitation %s (numOfDrops %s, numDrops %s, dataBlock %s), CloudLayer %s (coverage %s), LevelInfo fog %s, ScatterSky %s, core_environment %s, decal manager %s',
     tostring(rain ~= nil), tostring(rain and rain.numOfDrops), tostring(rain and rain.numDrops), tostring(rain and rain:getField('dataBlock', 0)), tostring(cloud ~= nil), tostring(cloud and cloud.coverage),
@@ -87,7 +91,7 @@ local function applySky(v)
     if v.cirrus then try(env.setCloudCirrusCoverage, v.cirrus) end
     if v.density then try(env.setCloudCirrusDensity, v.density) end
     try(env.setFogDensity, v.fog)
-    try(env.setPrecipitation, math.floor(v.drops + 0.5))
+    try(env.setPrecipitation, math.floor((M.flags.gust and rules.dropsAt(v.drops, os.clock(), gustSeed) or v.drops) + 0.5))
   else
     if rain then pcall(function() rain.numOfDrops = math.floor(v.drops + 0.5) end) end
     if cloud then pcall(function() cloud.coverage = v.cloud if cloud.postApply then cloud:postApply() end end) end
@@ -139,6 +143,7 @@ local function sync()
   if key == lastKey then return end
   lastKey = key
   stateId = rules.forecast(s.seed, s.day, phase)
+  gustSeed = type(s.seed) == 'number' and s.seed or 0
   levelId = stateId == 'rain' and rules.level(s.seed, s.day, phase) or nil
   local np, nd = rules.after(phase, s.day)
   nextId = rules.forecast(s.seed, nd, np)
@@ -209,7 +214,19 @@ function M.onUpdate(dtReal)
   end
   wet = rules.wetStep(wet, target and target.wet or 0, dtReal)
   if current and (current.drops or 0) > 0 then followRain() end
-  if sl_puddlefx then sl_puddlefx.update(dtReal, wet) end      -- (puddles, wheel spray, wet trails: sl/puddlefx.lua)
+  -- the shower is not steady: every second the drop count and the wind follow the gust (while the sky is still blending applySky does it)
+  gustTimer = gustTimer + dtReal
+  if gustTimer > 1 and current and (current.drops or 0) > 0 and blendT >= 1 and M.flags.gust then
+    gustTimer = 0
+    local env, t = core_environment, os.clock()
+    if env and env.setPrecipitation then pcall(env.setPrecipitation, math.floor(rules.dropsAt(current.drops, t, gustSeed) + 0.5)) end
+    if env and env.setGroundWind then
+      local speed = 1 + 3.5 * math.min(1, current.drops / 3000) * rules.gust(t, gustSeed)
+      local a = 1.1 + rules.windAngle(t, gustSeed)
+      pcall(env.setGroundWind, math.cos(a) * speed, math.sin(a) * speed, 0)
+    end
+  end
+  if sl_puddlefx then sl_puddlefx.update(dtReal, wet, current and math.min(1, (current.drops or 0) / 3000) or 0) end      -- (puddles, ripples, wheel spray, wet trails: sl/puddlefx.lua)
   tintTimer = tintTimer + dtReal
   if tintTimer > 0.5 then
     tintTimer = 0
@@ -254,6 +271,8 @@ end
 
 function M.onStreetLegalStopped()
   if baseline then applySky(baseline) end
+  if windBase and core_environment and core_environment.setGroundWind then pcall(core_environment.setGroundWind, windBase.x, windBase.y, windBase.z) end
+  windBase = nil
   local v = getPlayerVehicle(0)
   if v and v:getJBeamFilename() ~= 'unicycle' then v:queueLuaCommand('if slCar and slCar.setGrip then slCar.setGrip(1) end') end
   reset()

@@ -1602,6 +1602,22 @@ do
   local nums = 0
   for _ in plist:gmatch('%d+') do nums = nums + 1 end
   check('and its triangle list has three corners of three numbers each', nums == 64 * 9)
+  -- a shower is not steady: gusts, a drifting wind, ripples by intensity, the breathing damp patches
+  local gmin, gmax, jump = 1, 0, 0
+  for i = 0, 2000 do
+    local g = wx.gust(i * 1.0, 7)
+    gmin, gmax = math.min(gmin, g), math.max(gmax, g)
+    if i > 0 then jump = math.max(jump, math.abs(g - wx.gust((i - 1) * 1.0, 7))) end
+  end
+  check('the gust stays between .3 and 1, really varies over a few minutes, and moves smoothly (never a snap)', gmin >= 0.3 and gmax <= 1 and gmax - gmin > 0.4 and jump < 0.1, gmin .. ' ' .. gmax .. ' ' .. jump)
+  check('the drop count follows 55-100 % of the state, and the same time and seed give the same number', wx.dropsAt(1000, 0, 3) >= 550 and wx.dropsAt(1000, 0, 3) <= 1000 and wx.dropsAt(1000, 55, 3) == wx.dropsAt(1000, 55, 3) and wx.dropsAt(0, 5, 1) == 0)
+  local wmin, wmax = 0, 0
+  for i = 0, 1500 do local a = wx.windAngle(i * 1.0, 4) wmin, wmax = math.min(wmin, a), math.max(wmax, a) end
+  check('the wind angle drifts within about 40 degrees either way', wmin > -0.7 and wmax < 0.7 and wmax - wmin > 0.5)
+  check('ripples: none when it does not rain, 1 to 3 by intensity', wx.rippleCount(0) == 0 and wx.rippleCount(0.01) == 0 and wx.rippleCount(0.2) == 1 and wx.rippleCount(0.5) == 2 and wx.rippleCount(1) == 3 and wx.rippleCount(5) == 3)
+  local sh = 1
+  for i = 0, 200 do sh = math.max(sh, wx.shimmer(i * 0.5, 2, 1)) end
+  check('the damp patches breathe by a few percent when it rains hard and not at all when it does not', sh > 1.04 and sh <= 1.07 + 1e-9 and wx.shimmer(33, 2, 0) == 1)
   check('the forecast names the rain strength', wx.text('day', 'rain', nil, 'heavy'):find('Heavy rain') and wx.text('day', 'rain', nil, 'light'):find('Light rain') and wx.text('day', 'rain'):find('Rain'))
 end
 

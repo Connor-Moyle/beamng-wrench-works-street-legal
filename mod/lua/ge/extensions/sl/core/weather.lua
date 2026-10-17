@@ -82,6 +82,26 @@ function M.wetStep(wet, wetTarget, dt)
   return math.max(wetTarget, wet - dt / M.DRY_SECONDS)
 end
 
+-- a shower is not steady: gusts (the drop count swells and ebbs between 55 and 100 % of the state's number over tens of seconds), a wind that drifts the drops'
+-- angle, ripples on the puddles (how many per puddle by how hard it rains), the damp patches breathing a little. All smooth functions of time t (seconds) and a seed.
+function M.gust(t, seed)
+  seed = (seed or 0) % 97
+  local g = 0.62 + 0.22 * math.sin((t or 0) / 37 + seed) + 0.16 * math.sin((t or 0) / 11.3 + seed * 2.1)
+  return math.max(0.3, math.min(1, g))
+end
+function M.dropsAt(base, t, seed) return (base or 0) * (0.55 + 0.45 * M.gust(t, seed)) end
+function M.windAngle(t, seed)                   -- radians off the mean wind direction, slow
+  seed = (seed or 0) % 97
+  return 0.45 * math.sin((t or 0) / 53 + seed) + 0.2 * math.sin((t or 0) / 19 + seed * 1.7)
+end
+-- intensity 0..1 (the drop count of the state over the heaviest rain's): none when it does not rain
+function M.rippleCount(intensity)
+  intensity = intensity or 0
+  if intensity <= 0.02 then return 0 end
+  return math.min(3, math.ceil(intensity * 3))
+end
+function M.shimmer(t, id, intensity) return 1 + 0.07 * math.min(1, (intensity or 0) * 1.5) * math.sin((t or 0) / 2.3 + (id or 0) * 1.7) end
+
 -- a colour pulled towards the grey of the same brightness: c = { r, g, b }, amount 0..1
 function M.greyer(c, amount)
   amount = math.max(0, math.min(1, amount or 0))
