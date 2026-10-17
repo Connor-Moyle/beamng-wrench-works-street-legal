@@ -184,6 +184,16 @@ function M.setSetting(key, value)
 end
 -- for testing: all the money there can be (a ledger entry says so)
 function M.devMoney() if career() then answer(sl_career.devMoney()) end end
+-- the Wrench Works catalog from the market: the car you drive (else the one you last used) goes into the garage it stands at, catalog open
+function M.catalog()
+  local s = career()
+  if not s then return end
+  local car = sl_fleet.currentCar() or (s.activeCar and (function() for _, c in ipairs(s.cars) do if c.id == s.activeCar then return c end end end)())
+  local veh = car and sl_fleet.vehicleOf(car.id)
+  if not veh then return answer(false, 'Bring a car of yours to a garage first.') end
+  local ok, why = slrr_garage.enterWith(veh:getID(), 'catalog')
+  if not ok then answer(false, why or 'Not now.') end
+end
 function M.despawn(carId) if career() then answer(sl_fleet.despawn(tonumber(carId))) end end
 function M.workOn(carId) if career() then answer(sl_fleet.workOn(tonumber(carId))) end end
 -- on foot in a garage's doorway: the cars panel (take out, work on, put away); true when it opened. The cars come in the phone's own data.

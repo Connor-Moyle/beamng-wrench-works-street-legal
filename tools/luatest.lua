@@ -909,16 +909,16 @@ do
     servicestationOfficeComputer = fn('apmLandingPage', 'partShop', 'vehicleShop'),
   }
   local function labels(group) local out = {} for _, t in ipairs(group and group.tiles or {}) do out[#out + 1] = t.label end return table.concat(out, ',') end
-  local function view(id, state) local v = laptop.build(computers[id], state) return v, v.groups[1] and v.groups[1].id == 'car' and v.groups[1] or nil, v.groups[#v.groups] end
+  local function view(id, state) state.has = state.has or { classifieds = true } local v = laptop.build(computers[id], state) return v, v.groups[1] and v.groups[1].id == 'car' and v.groups[1] or nil, v.groups[#v.groups] end
   local ok = { hasCar = true, carHere = true }
   for _, id in ipairs({ 'servicestationGarageComputer', 'commercialGarageComputer', 'commercialGarageComputer2' }) do
     local v, car, general = view(id, ok)
-    check(id .. ': the car band and the general band', labels(car) == 'Part customization,Tuning,Painting' and labels(general) == 'My cars,My parts,Dealers,Bank / insurance,Street cred' and v.lists, labels(car) .. ' | ' .. labels(general))
+    check(id .. ': the car band and the general band', labels(car) == 'Part customization,Tuning,Painting' and labels(general) == 'My cars,My parts,Car market,Part market,Bank / insurance,Street cred' and v.lists, labels(car) .. ' | ' .. labels(general))
   end
   local _, car, general = view('alderDragwayGarageComputer', ok)
-  check('the drag strip garage: cars, parts, customization and tuning only', labels(car) == 'Part customization,Tuning' and labels(general) == 'My cars,My parts')
+  check('the drag strip garage: cars, parts, the part market, customization and tuning only', labels(car) == 'Part customization,Tuning' and labels(general) == 'My cars,My parts,Part market')
   local v, car2, general2 = view('servicestationOfficeComputer', ok)
-  check('the office lists no cars and no car band: dealers and the parts shop only', not v.lists and car2 == nil and labels(general2) == 'Dealers,Part customization' and general2.tiles[1].enabled and not general2.tiles[2].enabled and general2.tiles[2].reason == 'Use a computer in a garage for this.')
+  check('the office lists no cars and no car band: dealers and the parts shop only', not v.lists and car2 == nil and labels(general2) == 'Car market,Part market,Part customization' and general2.tiles[1].enabled and general2.tiles[2].enabled and not general2.tiles[3].enabled and general2.tiles[3].reason == 'Use a computer in a garage for this.')
   -- reasons, in order: a race or job, no car, not built yet
   local _, c1, g1 = view('commercialGarageComputer', { hasCar = false })
   local reasons = {}
@@ -927,7 +927,7 @@ do
   local _, c2, g2 = view('commercialGarageComputer', { hasCar = true, carHere = true })
   check('a car at the garage: the garage tiles open the garage in their mode, Dealers open their page, the reading pages are open',
     c2.tiles[1].enabled and c2.tiles[1].mode == 'catalog' and c2.tiles[2].mode == 'tune' and c2.tiles[3].mode == 'paint' and g2.tiles[3].enabled and g2.tiles[3].page == 'dealers'
-    and g2.tiles[1].enabled and g2.tiles[1].page == 'cars' and g2.tiles[2].page == 'parts' and g2.tiles[4].page == 'bank' and g2.tiles[5].page == 'cred')
+    and g2.tiles[1].enabled and g2.tiles[1].page == 'cars' and g2.tiles[2].page == 'parts' and g2.tiles[4].page == 'partmarket' and g2.tiles[5].page == 'bank' and g2.tiles[6].page == 'cred')
   local _, c3, g3 = view('commercialGarageComputer', { hasCar = true, busy = true })
   check('in a race or on a job: car tiles and Dealers wait, reading pages stay', c3.tiles[2].reason == 'Not during a race or a job.' and g3.tiles[3].reason == 'Not during a race or a job.' and g3.tiles[1].enabled)
   local _, c4, g4 = view('commercialGarageComputer', { hasCar = true, carHere = false })

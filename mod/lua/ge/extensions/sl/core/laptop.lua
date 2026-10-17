@@ -5,11 +5,13 @@ local M = {}
 
 -- id = the stock function key. group: 'car' tiles act on the chosen car (only at a computer that lists cars), 'general' ones do not.
 -- page: what opens in the laptop; soon: not built yet (L3 dealers, L4 garage entry: delete the flag when it is).
+-- ids: a tile of ours that stands for any of several stock functions (the parts market needs a parts shop or a dealer).
 -- needs: a map capability (progression.MAPS has) the tile depends on, hidden where the map lacks it.
 M.TILES = {
   { id = 'vehicleInventory', label = 'My cars', group = 'general', page = 'cars' },
   { id = 'partInventory', label = 'My parts', group = 'general', page = 'parts' },
-  { id = 'vehicleShop', label = 'Dealers', group = 'general', page = 'dealers', shop = true },
+  { id = 'vehicleShop', label = 'Car market', group = 'general', page = 'dealers', shop = true },
+  { id = 'partsMarket', ids = { 'partShop', 'vehicleShop' }, label = 'Part market', group = 'general', page = 'partmarket', shop = true, needs = 'classifieds' },
   { id = 'insurances', label = 'Bank / insurance', group = 'general', page = 'bank' },
   { id = 'playerAbstract', label = 'Street cred', group = 'general', page = 'cred' },
   { id = 'partShop', label = 'Part customization', group = 'car', mode = 'catalog' },
@@ -30,7 +32,9 @@ function M.build(functions, state, defs)
   local lists = functions.vehicleInventory ~= nil          -- a garage computer lists cars; an office one does not
   local car, general = {}, {}
   for _, def in ipairs(defs or M.TILES) do
-    if functions[def.id] and (not def.needs or has[def.needs]) then
+    local offered = functions[def.id]
+    for _, other in ipairs(def.ids or {}) do offered = offered or functions[other] end
+    if offered and (not def.needs or has[def.needs]) then
       local tile = { id = def.id, label = def.label, page = def.page, mode = def.mode, enabled = true }
       local onCar = def.group == 'car' and lists
       if def.group == 'car' and not lists then tile.enabled, tile.reason = false, 'Use a computer in a garage for this.'

@@ -130,12 +130,12 @@ click('wait', 'morning');
 click('wait', '3');
 assert.ok(calls.includes('wait("morning")') && calls.includes('wait("3")'), 'the buttons ask for the wait');
 click('back');
-const homeApps = () => ['Club', 'Turf', 'Revline', 'Classifieds', 'Swap & Bid'].filter((n) => text().includes(n));
-assert.ok(homeApps().length === 5, 'Valo City (no "has" sent): every app is on the home screen');
+const homeApps = () => ['Club', 'Turf', 'Car market', 'Part market'].filter((n) => text().includes(n));
+assert.ok(homeApps().length === 4, 'Valo City (no "has" sent): every app is on the home screen');
 phone.handle('slPhoneData', Object.assign({}, data, { has: { clubs: true, crews: true, classifieds: true } }));
-assert.ok(homeApps().length === 5, 'a map that hosts them shows Club, Turf, Revline, Classifieds and Swap & Bid');
+assert.ok(homeApps().length === 4, 'a map that hosts them shows Club, Turf, Car market and Part market');
 phone.handle('slPhoneData', Object.assign({}, data, { has: { clubs: false, crews: false, classifieds: false } }));
-assert.ok(homeApps().length === 0, 'West Coast USA: Club, Turf, Revline, Classifieds and Swap & Bid are hidden');
+assert.ok(homeApps().length === 1 && text().includes('Car market'), 'a map without clubs, crews and classifieds keeps the Car market (the dealers) and hides the rest');
 phone.handle('slPhoneData', data);
 assert.strictEqual($('.slp-dock .slp-badge').textContent, '1', 'unread messages badge on Messages');
 
@@ -499,6 +499,49 @@ assert.ok(calls.includes('@sl_lot.cameraDrag(10,0)') && calls.includes('@sl_lot.
 nav('back', 1);
 assert.ok(calls.includes('@sl_lot.close()'), 'B leaves the lot');
 phone.handle('slLotData', { open: false });
+// the two marketplaces: cars (dealers + private ads), parts (Revline, Swap & Bid, the paper, the catalog)
+phone.handle('slPhoneData', Object.assign({}, data, { market: { deliveries: 1, auctions: [{ id: 'a1', name: 'Coilovers', model: 'covet', bid: 100, next: 110, condition: 80, hoursLeft: 5, high: 'ai', delivery: 30 }], paper: { listings: [], edition: 2, price: 2 },
+  mine: [{ id: 'y1', name: 'Stock exhaust', model: 'covet', channel: 'app', offers: [] }, { id: 'y2', name: 'My Sunburst', model: 'sunburst', channel: 'app', carId: 3, offers: [] }],
+  shelf: [{ model: 'covet', id: 7, name: 'Stock radiator', estimate: 90 }], cars: [{ id: 3, name: 'Sunburst', estimate: 5200 }],
+  listings: [
+    { id: 'p1', name: 'Sport exhaust', model: 'covet', ask: 300, condition: 70, seller: 'Gabor', rating: 3, tells: [], deposit: 30, hoursLeft: 12, delivery: 20 },
+    { id: 'c1', name: 'Covet 1.5', model: 'covet', car: true, mileage: 100, faults: 0, ask: 2400, condition: 55, seller: 'Big Tony', rating: 4, tells: [], deposit: 240, hoursLeft: 30, delivery: 180, year: 2009, specs: {} }] } }));
+phone.act('home');
+if (!phone.state.open) phone.handle('slPhoneToggle');
+calls.length = 0;
+phone.act('open', 'carmarket');
+assert.ok(calls.includes('@sl_dealers.list()') && text().includes('Car market') && text().includes('Dealers') && text().includes('Private ads'), 'the Car market asks for the dealers and has the Dealers and Private ads tabs');
+phone.handle('slLaptopDealers', { dealers: [{ id: 'jeff', name: 'Jefferson Motors', metres: 4200, count: 5 }], coming: [{ name: 'Covet', hours: 3 }] });
+assert.ok(text().includes('Jefferson Motors') && text().includes('4.2 km away') && text().includes('5 cars today') && text().includes('in about 3 h'), 'dealers: name, distance, cars today, what is on its way');
+click('mdealer', 'jeff');
+assert.ok(calls.includes('@sl_dealers.offers("jeff")'), 'a dealer asks for its cars');
+phone.handle('slLaptopOffers', { dealer: 'jeff', name: 'Jefferson Motors', money: 9000, offers: [{ id: 'jeff:1', name: 'Bolide', brand: 'Bruckell', year: 2012, mileage: 20, condition: 1, price: 7000, faults: [], seller: 'Jefferson Motors', metres: 4200, hours: 3,
+  preview: '/vehicles/bolide/sport.png', specs: { power: 310, weight: 1250, transmission: 'Manual', drivetrain: 'RWD', fuel: 'Gasoline', topSpeed: 75 } }] });
+assert.ok(text().includes('2012 Bolide') && text().includes('310 PS') && text().includes('arrives in about 3 h') && phone.root.querySelector('.slp-pic img[src="/vehicles/bolide/sport.png"]'), 'a dealer\'s car: picture, year, specs, delivery');
+click('moffer', 'jeff:1');
+assert.ok(text().includes('Gasoline') && text().includes('270 km/h') && text().includes('to your garage in about 3 h'), 'its detail view');
+calls.length = 0;
+click('mbuy', 'jeff|jeff:1');
+assert.ok(calls.includes('@sl_dealers.buy("jeff","jeff:1")'), 'Buy asks the dealers');
+win.document.dispatchEvent(new win.CustomEvent('ui_nav', { detail: { name: 'back', value: 1 } }));
+assert.ok(text().includes('2012 Bolide') && !text().includes('Gasoline'), 'B goes back from the detail to the dealer\'s cars');
+win.document.dispatchEvent(new win.CustomEvent('ui_nav', { detail: { name: 'back', value: 1 } }));
+assert.ok(text().includes('Jefferson Motors') && text().includes('cars today'), 'and to the dealers');
+click('mtab', 'cars|ads');
+assert.ok(text().includes('Covet 1.5') && !text().includes('Sport exhaust') && text().includes('My Sunburst') && text().includes('List car') && !text().includes('Stock radiator'), 'Private ads: the car ads and your cars to sell, no parts');
+phone.act('home');
+phone.act('open', 'partmarket');
+assert.ok(text().includes('Revline') && text().includes('Swap & Bid') && text().includes('Classifieds') && text().includes('Catalog') && text().includes('Sport exhaust') && !text().includes('Covet 1.5'), 'the Part market: Revline parts, no car ads');
+assert.ok(text().includes('Stock radiator') && text().includes('Stock exhaust') && !text().includes('My Sunburst'), 'and the parts to sell, your parts listings only');
+click('mtab', 'parts|auctions');
+assert.ok(text().includes('Coilovers') && text().includes('Bid $110'), 'Swap & Bid');
+click('mtab', 'parts|paper');
+assert.ok(text().includes('Edition 2'), 'the paper');
+click('mtab', 'parts|catalog');
+calls.length = 0;
+click('pcatalog', '1');
+assert.ok(text().includes('Wrench Works catalog') && calls.includes('catalog()'), 'the Wrench Works catalog opens in the garage');
+phone.act('home');
 // on foot in a garage's doorway: the cars panel (take out, work on, put away), reachable by the pad, B leaves it
 phone.act('home');
 if (phone.state.open) phone.handle('slPhoneToggle');      // (the phone is in the pocket: the panel opens without it)
