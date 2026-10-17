@@ -652,6 +652,15 @@ do
   local f = { pay = 500, seconds = 300, fragile = true }
   check('a fragile load breaks', jobs.settle(f, 200, 0.06) == 0 and select(2, jobs.settle(f, 200, 0.06)) == 'broken' and jobs.settle(f, 200, 0.04) > 0)
   check('nothing to offer, no crash', #jobs.offers({}, {}, nil, rngLib.new(1), 4) == 0)
+  -- passenger comfort: a smooth ride tips well, hard pushes cost the tip
+  local calm, rough = jobs.comfortNew(), jobs.comfortNew()
+  for i = 1, 100 do
+    jobs.comfortStep(calm, 0.1, 10 + i * 0.02, 0, 0)
+    jobs.comfortStep(rough, 0.1, (i % 2 == 0) and 15 or 0, 0, 0)
+  end
+  check('a calm ride scores full and tips 50 %', jobs.comfortScore(calm) == 1 and jobs.tip(100, jobs.comfortScore(calm)) == 50)
+  check('a jerky ride scores zero and tips nothing', jobs.comfortScore(rough) == 0 and jobs.tip(100, 0) == 0)
+  check('tip tiers', jobs.tip(100, 0.75) == 30 and jobs.tip(100, 0.55) == 10)
 end
 
 -- show and shine

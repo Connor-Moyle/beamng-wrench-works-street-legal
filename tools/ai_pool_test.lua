@@ -161,7 +161,7 @@ return function(check, rngLib)
   check('day pays money, night pays rep', SP.pays('day') == 'money' and SP.pays('night') == 'rep')
   -- every kind the job board has today has an answer here (a new one without is on in both: say so in this table)
   local known = true
-  for _, kind in ipairs({ 'part', 'courier', 'food', 'taxi', 'crush', 'transport', 'hot', 'testdrive', 'recovery', 'valet', 'move' }) do
+  for _, kind in ipairs({ 'part', 'courier', 'food', 'taxi', 'crush', 'transport', 'scrapparts', 'tow', 'dealerdrive', 'hot', 'testdrive', 'recovery', 'valet', 'move' }) do
     if SP.JOBS[kind] == nil then known = false end
   end
   check('every job kind of the board is in the table', known)

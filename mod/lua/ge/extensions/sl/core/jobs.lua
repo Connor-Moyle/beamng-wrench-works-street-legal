@@ -68,4 +68,23 @@ function M.settle(job, elapsedSeconds, damage)
   return math.max(0, round10(pay)), verdict
 end
 
+-- passenger comfort (taxi fares): the car's speed is sampled; a push of more than HARSH m/s^2 (about 0.4 g, a hard brake, a quick corner) is a bump. The score is the
+-- share of the ride without one; the tip grows with it
+M.HARSH = 4
+function M.comfortNew() return { t = 0, harsh = 0, lastV = nil, peak = 0 } end
+function M.comfortStep(c, dt, vx, vy, vz)
+  if c.lastV and dt > 0 then
+    local a = math.sqrt((vx - c.lastV[1]) ^ 2 + (vy - c.lastV[2]) ^ 2 + (vz - c.lastV[3]) ^ 2) / dt
+    c.peak = math.max(c.peak, a)
+    if a > M.HARSH then c.harsh = c.harsh + dt end
+  end
+  c.lastV = { vx, vy, vz }
+  c.t = c.t + dt
+end
+function M.comfortScore(c) return c.t > 1 and math.max(0, 1 - 6 * c.harsh / c.t) or 1 end
+function M.tip(pay, score)
+  local f = score >= 0.9 and 0.5 or (score >= 0.7 and 0.25 or (score >= 0.5 and 0.1 or 0))
+  return round10(pay * f)
+end
+
 return M

@@ -154,7 +154,7 @@ local TYPES = {
       local metres = math.sqrt((to.x - k.x) ^ 2 + (to.y - k.y) ^ 2)
       if metres < 600 then return nil end
       return { item = strings.t('jobs.a_fare'), legs = { { id = 'kerb', name = STREETS[rng:int(#STREETS)], x = k.x, y = k.y, z = k.z }, leg(to) }, metres = math.floor(metres),
-        fragile = false, seconds = math.max(120, math.floor(metres * 1.4 / jobsLib.SPEED * 1.3)), pay = math.max(60, math.floor((40 + metres / 1000 * 90) / 10) * 10) }
+        fragile = false, comfort = true, passenger = true, seconds = math.max(120, math.floor(metres * 1.4 / jobsLib.SPEED * 1.3)), pay = math.max(60, math.floor((40 + metres / 1000 * 90) / 10) * 10) }
     end },
   -- the junkyard's crushing run: a wreck that barely goes, to the crusher at the scrapyard
   { kind = 'crush', title = strings.t('jobs.crushing_run'), unlock = 0, offer = function(ctx, rng)
@@ -234,6 +234,47 @@ local TYPES = {
           { id = v.id .. ':bay', name = strings.t('jobs.a_parking_bay'), x = bay[1], y = bay[2], z = bay[3], radius = 3 } },
         metres = 60, fragile = true, car = { model = ({ 'etk800', 'bastion', 'sunburst2', 'vivace', 'scintilla' })[rng:int(5)], wear = 0.02 },
         seconds = 90, pay = 40 + rng:int(4) * 10 }
+    end },
+  -- parts run from the scrapyard (or a parts shop) to a garage across town; the load is fragile
+  { kind = 'scrapparts', title = strings.t('jobs.scrapyard_parts'), unlock = 0, offer = function(ctx, rng)
+      local froms = { ctx.byId.scrapyard }
+      for _, sh in ipairs(ctx.shops) do froms[#froms + 1] = sh end
+      local from = froms[rng:int(#froms)]
+      local tos = {}
+      for _, p in ipairs(ctx.places) do if from and p.kind == 'garage' and p.id ~= from.id and jobsLib.distance(p, from) >= 1200 then tos[#tos + 1] = p end end
+      if not from or #tos == 0 then return nil end
+      local to = tos[rng:int(#tos)]
+      local metres = jobsLib.distance(from, to)
+      return { item = jobsLib.PART_ITEMS[rng:int(#jobsLib.PART_ITEMS)], legs = { leg(from), leg(to) }, metres = math.floor(metres), fragile = true,
+        seconds = math.max(jobsLib.MIN_SECONDS, math.floor(metres * 1.4 / jobsLib.SPEED * jobsLib.SLACK)),
+        pay = math.floor(math.max(jobsLib.MIN_PAY, metres / 1000 * jobsLib.PAY_PER_KM * jobsLib.FRAGILE_BONUS) / 10 + 0.5) * 10 }
+    end },
+  -- tow job: a dead car at the kerb, to a garage behind your own car on the game's tow coupler (the clock and the damage are the towed car's)
+  { kind = 'tow', title = strings.t('jobs.tow_job'), unlock = 300, offer = function(ctx, rng)
+      local k = kerbNear(ctx, rng, nil, 0, 0)
+      if not k then return nil end
+      local tos = {}
+      for _, p in ipairs(ctx.places) do if p.kind == 'garage' and math.sqrt((p.x - k.x) ^ 2 + (p.y - k.y) ^ 2) >= 600 then tos[#tos + 1] = p end end
+      if #tos == 0 then return nil end
+      local to = tos[rng:int(#tos)]
+      local metres = math.sqrt((to.x - k.x) ^ 2 + (to.y - k.y) ^ 2)
+      local stop = leg(to)
+      stop.radius = 14
+      return { item = strings.t('jobs.dead_car'), legs = { { id = 'kerb', name = STREETS[rng:int(#STREETS)], x = k.x, y = k.y, z = k.z, radius = 14 }, stop }, metres = math.floor(metres),
+        fragile = false, tow = true, hint = strings.t('jobs.hook_it_up'),
+        car = { model = ({ 'pessima', 'legran', 'midsize', 'fullsize', 'van' })[rng:int(5)], wear = 0.5, limp = 0 },
+        seconds = math.max(360, math.floor(metres * 1.4 / 6 * 1.5)), pay = math.floor((260 + metres / 1000 * 200) / 10) * 10 }
+    end },
+  -- a new car from the dealer to the customer's door: any scratch (Car Surface FX) or dent and it pays nothing
+  { kind = 'dealerdrive', title = strings.t('jobs.dealer_delivery'), unlock = 200, offer = function(ctx, rng)
+      local from = ctx.byId.dealer
+      local k = from and kerbNear(ctx, rng, from, 800, 3000)
+      if not k then return nil end
+      local metres = math.sqrt((k.x - from.x) ^ 2 + (k.y - from.y) ^ 2)
+      local model = ({ 'vivace', 'sunburst2', 'etk800', 'bastion', 'scintilla' })[rng:int(5)]
+      return { item = strings.t('jobs.new_1_for_a_customer', model), legs = { leg(from), { id = 'kerb', name = strings.t('jobs.the_customer_s_door'), x = k.x, y = k.y, z = k.z } },
+        metres = math.floor(metres), fragile = true, scratchCheck = true, car = { model = model, wear = 0 },
+        seconds = math.max(180, math.floor(metres * 1.4 / jobsLib.SPEED * 1.4)), pay = 350 + math.floor(metres / 1000 * 130 / 10) * 10 }
     end },
 }
 M.TYPES = TYPES
@@ -334,6 +375,7 @@ function M.take(jobId)
       table.remove(js.offers, i)
       j.leg = 1
       js.active = j
+      M.passengerAt(j)
       routeTo(j.legs[1])
       extensions.hook('onStreetLegalChanged')
       return true, string.format('%s: go to %s.', j.title, j.legs[1].name)
@@ -348,10 +390,11 @@ function M.giveUp()
   if not js or not js.active then return false, strings.t('jobs.you_are_not_on_a') end
   local j = js.active
   if j.car and j.carVid then
-    if gameplay_walk then gameplay_walk.setWalkingMode(true, nil, nil, true) end
+    if gameplay_walk and not j.tow then gameplay_walk.setWalkingMode(true, nil, nil, true) end
     local veh = getObjectByID(j.carVid)
     if veh then veh:delete() end
   end
+  M.dropPassenger(j)
   js.active = nil
   stateLib.addRep(s, -5)
   if core_groundMarkers then core_groundMarkers.setPath(nil) end
@@ -389,6 +432,7 @@ end
 
 -- a job called off before it was done (no pay, no rep, not counted as done)
 function M.cancel(s, js, j, text)
+  M.dropPassenger(j)
   js.active = nil
   if core_groundMarkers then core_groundMarkers.setPath(nil) end
   if text then toast(text) end
@@ -412,12 +456,22 @@ local function finish(s, js, j, v)
   local elapsed = j.startedAt and (os.clock() - j.startedAt) or 0
   local d0, d1 = j.damage0 or 0, damageOf(v:getID())
   local damage = math.max(0, math.min(1, ((d1 or 0) - d0) / DAMAGE_FULL))
+  if j.scratchCheck and j.carVid and sl_surfacefx then       -- (Car Surface FX: a new scratch on the paint counts as a wrecked load)
+    local l = sl_surfacefx.level(j.carVid)
+    if l and (tonumber(l.scratches) or 0) > (j.scratches0 or 0) + 0.001 then damage = 1 end
+  end
   local pay, verdict = jobsLib.settle(j, elapsed, damage)
   pay = M.bonusPay(s, js, j, pay)
+  local tip = 0
+  if j.comfort and pay > 0 and j.ride then
+    tip = jobsLib.tip(pay, jobsLib.comfortScore(j.ride))
+    pay = pay + tip
+  end
   if j.car and j.carVid then
     local id = j.carVid
+    local tow = j.tow
     core_jobsystem.create(function(job)
-      if gameplay_walk then gameplay_walk.setWalkingMode(true, nil, nil, true) end
+      if gameplay_walk and not tow then gameplay_walk.setWalkingMode(true, nil, nil, true) end
       job.sleep(1)
       local veh = getObjectByID(id)
       if veh then veh:delete() end
@@ -426,13 +480,47 @@ local function finish(s, js, j, v)
   if j.heat then s.heat = math.max(0, (s.heat or 0) - j.heat) end
   M.finishWith(s, js, j, pay, verdict == 'broken' and -5 or (verdict == 'late' and 4 or (j.kind == 'errand' and 15 or 10)),
     verdict == 'broken' and string.format(strings.t('jobs.the_s_is_broken_no'), j.item or 'load')
-    or string.format(strings.t('jobs.s_delivered_s_d'), j.item or 'Delivery', verdict == 'late' and strings.t('jobs.late') or '', pay))
+    or string.format(strings.t('jobs.s_delivered_s_d'), j.item or 'Delivery', verdict == 'late' and strings.t('jobs.late') or '', pay)
+      .. (tip > 0 and ' ' .. string.format(strings.t('jobs.tip_d_for_a_smooth_ride'), tip) or ''))
+end
+
+-- passengers (taxi fares): a walker waits at the first stop and is gone when you pull up; during the ride the car's pushes are counted
+local walkerList
+function M.passengerAt(j)
+  if not j.passenger or not (slrrPedestrians and slrrPedestrians.playActor) then return end
+  if not walkerList then
+    walkerList = {}
+    for _, d in ipairs(slrrDrivers and slrrDrivers.getDrivers and slrrDrivers.getDrivers() or {}) do
+      local did = type(d) == 'table' and d.id or d
+      if type(did) == 'string' and FS:directoryExists('/art/slrr_drivers/' .. did .. '/walker/') then walkerList[#walkerList + 1] = did end
+    end
+  end
+  if #walkerList == 0 then return end
+  local stop = j.legs[1]
+  j.actor = slrrPedestrians.playActor('/art/slrr_drivers/' .. walkerList[math.random(#walkerList)] .. '/walker/', { vec3(stop.x, stop.y, stop.z or 0) })
+end
+function M.dropPassenger(j)
+  if j and j.actor and slrrPedestrians and slrrPedestrians.stopActor then slrrPedestrians.stopActor(j.actor) end
+  if j then j.actor = nil end
+end
+
+local ridePrev = 0
+local function sampleRide(j, dtReal)
+  local v = getPlayerVehicle(0)
+  if not (j.comfort and j.ride and j.leg >= 2 and v) then return end
+  ridePrev = ridePrev + dtReal
+  if ridePrev < 0.1 then return end
+  local vel = v:getVelocity()
+  jobsLib.comfortStep(j.ride, ridePrev, vel.x, vel.y, vel.z)
+  ridePrev = 0
 end
 
 local timer = 0
 function M.onUpdate(dtReal)
   local s = career()
   if not s then return end
+  local act = jobsState(s).active
+  if act then sampleRide(act, dtReal) end
   timer = timer + dtReal
   if timer < 0.5 then return end
   timer = 0
@@ -456,9 +544,13 @@ function M.onUpdate(dtReal)
         local veh = spawnJobCar(j, stop)
         if not veh then return end
         j.carVid = veh:getID()
-        if gameplay_walk and gameplay_walk.getInVehicle then gameplay_walk.getInVehicle(veh) end
+        if not j.tow and gameplay_walk and gameplay_walk.getInVehicle then gameplay_walk.getInVehicle(veh) end      -- (a tow job stays in your own car)
         v = veh
+        if j.scratchCheck and sl_surfacefx then j.scratches0 = (sl_surfacefx.level(veh:getID()) or {}).scratches or 0 end
       end
+      M.dropPassenger(j)
+      if j.comfort then j.ride = jobsLib.comfortNew() end
+      if j.hint then toast(j.hint) end
       j.startedAt = os.clock()
       j.damage0 = damageOf(v:getID())
       toast(string.format(strings.t('jobs.picked_up_the_s_s'), j.item or 'load', j.fragile and ' (fragile)' or '', math.floor(j.seconds / 60), j.seconds % 60, j.legs[2].name))
