@@ -55,8 +55,7 @@
     '.slp-ib{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none}',
     '.slp-ib:hover{background:rgba(255,255,255,.08)}',
     '.slp-ib svg{width:22px;height:22px;fill:#e6e1e5}',
-    '.slp-page{zoom:var(--sl-zoom,1)}',
-    '.slp-body{flex:1;overflow-y:auto;min-height:0;padding:0 0 12px 0}',
+    '.slp-body{flex:1;overflow-y:auto;min-height:0;padding:0 0 12px 0;zoom:var(--sl-zoom,1)}',      /* (the text size scales the page's body, not its bar: a zoomed flex page overflowed the phone) */
     '.slp-body::-webkit-scrollbar{width:0}',
     '.slp-row{display:flex;align-items:center;padding:10px 18px;cursor:pointer;min-height:64px}',
     '.slp-row:hover{background:rgba(255,255,255,.05)}',
@@ -1335,7 +1334,7 @@
       var hu = st.hu;
       var huHtml = '<div class="slp-hu' + (hu && !st.open && !(st.lot && st.lot.open) ? '' : ' slp-gone') + '" data-a="openthread" data-v="' + esc(hu ? hu.thread : '') + '">' +
         (hu ? avatar({ id: hu.thread, name: hu.name }) + ('<div><small>' + T('ui.messages', 'Messages ') + '&middot;' + ' now' + '</small><b>') + esc(hu.name) + '</b><span>' + esc(hu.text) + '</span></div>' : '') + '</div>';
-      layer.innerHTML =
+      var html =
         '<div class="slp-pill"' + (st.open || (st.lot && st.lot.open) ? ' style="display:none"' : '') + '><b>' + money(d.money) + '</b><span>' + esc(d.title) + '</span>' +
           (d.phase ? '<span>' + (d.phase === 'night' ? '&#9790;' : '&#9728;') + '</span>' : '') + (d.heat > 0 ? '<span style="color:#ff6a4a">' + '&#9650;'.repeat(d.heat) + '</span>' : '') + (d.phase === 'night' && d.atRisk > 0 ? '<span style="color:#ffb74a">+' + d.atRisk + (T('ui.at_risk', ' at risk') + '</span>') : '') + '<span>' + two(d.hour || 0) + ':' + two(d.minute || 0) + '</span></div>' +
         '<div class="slp-device' + (st.open ? '' : ' slp-away') + '" style="transform:' + (st.open ? '' : 'translateY(70%) ') + 'scale(' + scale() + ')">' + screen + '</div>' +
@@ -1343,6 +1342,11 @@
         huHtml + reportModal() +
         '<div class="slp-toast' + (st.toast ? '' : ' slp-gone') + '">' + esc(st.toast || '') + '</div>' +
         fadeView();
+      // the game sends the data every few seconds: a screen that did not change is left alone (a rebuild between the press and the release of a click loses the
+      // click, and drops what is typed, the hover and the scroll)
+      if (html === lastHtml && layer.firstChild) return;
+      lastHtml = html;
+      layer.innerHTML = html;
       var after = layer.querySelector('.slp-body, .slp-msgs');
       if (after) {
         if (st.app === 'thread') after.scrollTop = after.scrollHeight;
@@ -1358,7 +1362,7 @@
     // our buttons are data-a divs, so they get bng-nav-item and a tabindex while they can be seen (a phone put
     // away or a hidden panel never takes the focus), the pages scroll on the right stick, and the focus survives
     // a re-render (the same button again, else the first one).
-    var focusKey = null;
+    var focusKey = null, lastHtml = null;
     var padAt = 0;          // the last pad input: only then does the phone take the focus (mouse and keyboard keep theirs)
     function keyOf(el) { return el && el.getAttribute ? (el.getAttribute('data-a') || '') + '|' + (el.getAttribute('data-v') || '') : null; }
     function navify(key) {
@@ -1649,6 +1653,7 @@
           render();
           break;
         case 'slPhoneToggle': setOpen(!st.open); break;
+        case 'slPhoneGo': if (!st.open) setOpen(true); st.stack = []; st.app = 'home'; if (data.app && data.app !== 'home') go(data.app); else render(); break;      // (a game test: open this app)
         case 'slPhoneCall':
           if (st.call && st.call.id === data.id) { st.call.result = data; settleCall(); }
           break;
@@ -1706,7 +1711,7 @@
       var probe = new Image();
       probe.onload = function () { phone.handle('slArt'); };
       probe.src = '/ui/modModules/slHud/slrr/icons/cup.png';
-      ['slPhoneData', 'slPhoneToggle', 'slPhoneCall', 'slPhoneCallReply', 'slPhoneNotify', 'slPhoneToast', 'slFade', 'slLotBars', 'slLotData', 'slMeet', 'slRace', 'slMenu', 'slStation', 'slGarage', 'slSettings', 'slLaptopDealers', 'slLaptopOffers', 'slHelp', 'slStrings'].forEach(function (name) {
+      ['slPhoneData', 'slPhoneToggle', 'slPhoneGo', 'slPhoneCall', 'slPhoneCallReply', 'slPhoneNotify', 'slPhoneToast', 'slFade', 'slLotBars', 'slLotData', 'slMeet', 'slRace', 'slMenu', 'slStation', 'slGarage', 'slSettings', 'slLaptopDealers', 'slLaptopOffers', 'slHelp', 'slStrings'].forEach(function (name) {
         $rootScope.$on(name, function (ev, data) { phone.handle(name, data); });
       });
       if (window.bngApi) window.bngApi.engineLua('if sl_phone then sl_phone.request() end if sl_menuTile then sl_menuTile.request() end');

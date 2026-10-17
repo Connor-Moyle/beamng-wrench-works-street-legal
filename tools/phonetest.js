@@ -125,6 +125,7 @@ phone.handle('slPhoneToggle');
 assert.ok(!$('.slp-device.slp-away'), 'K takes it out');
 assert.ok(calls.includes('request()'), 'opening asks for fresh data');
 assert.ok(text().includes('21:05') && text().includes('Day 2'), 'clock and day on the home screen');
+{ const keep = $('.slp-device'); phone.handle('slPhoneData', data); assert.ok($('.slp-device') === keep, 'the same data again does not rebuild the screen (a click between press and release would be lost)'); }
 assert.ok(text().includes('Wait'), 'the Wait app is on the home screen');
 phone.handle('slPhoneData', Object.assign({}, data, { weather: { state: 'rain', name: 'Rain', wet: true, text: 'Rain tonight. Wet roads, less grip, jobs and races pay a little more. Clear by day.' } }));
 assert.ok(text().includes('Rain tonight') && text().includes('Wet roads'), 'the forecast line on the home screen');

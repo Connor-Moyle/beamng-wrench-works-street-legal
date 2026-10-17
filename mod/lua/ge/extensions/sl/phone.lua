@@ -259,6 +259,13 @@ function M.taxi(placeId)
   guihooks.trigger('slPhoneToast', { text = ok and strings.t('phone.your_cab_is_on_its') or why })
 end
 
+-- for a game test: open the phone on this app ('home', 'races', 'garage', 'bank', 'me', 'jobs', 'wait', 'help', 'settings', 'club', 'turf', 'carmarket', 'partmarket', 'phone', 'messages', 'contacts', 'cab')
+function M.go(app)
+  if not career() then return end
+  guihooks.trigger('slPhoneGo', { app = tostring(app or 'home') })
+  wantSend = true
+end
+
 -- the K key (rebindable in Options > Controls)
 function M.toggle()
   if not career() then return end
