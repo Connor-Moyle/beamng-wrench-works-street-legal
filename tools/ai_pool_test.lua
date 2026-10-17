@@ -99,4 +99,19 @@ return function(check, rngLib)
   check('the markers follow the race route: a few waypoints along it, the goal last', #wps <= 5 and wps[#wps] == 'n20' and wps[1] ~= 'n1' and #wps >= 3 and #RA.waypoints({}, 4) == 0 and RA.waypoints({ 'x', 'y' }, 4)[1] == 'y')
   check('facing: a car along the route is fine, across is not, backwards is not, no direction is not', RA.facingOk({ x = 0, y = 1 }, { x = 0, y = 1 }) and RA.facingOk({ x = 0.2, y = 1 }, { x = 0, y = 1 })
     and not RA.facingOk({ x = 1, y = 0 }, { x = 0, y = 1 }) and not RA.facingOk({ x = 0, y = -1 }, { x = 0, y = 1 }) and not RA.facingOk({ x = 0, y = 0 }, { x = 0, y = 1 }))
+
+  -- B67: one game function swapped for ours while the career runs, the game's own put back after
+  local PT = require('sl/core/patch')
+  local game = { teleportToPoi = function() return 'game' end }
+  local original = game.teleportToPoi
+  local function ours() return 'ours' end
+  local saved = {}
+  check('installed: the module calls ours', PT.install(game, 'teleportToPoi', ours, saved) and game.teleportToPoi() == 'ours')
+  check('installing again changes nothing and keeps the game original', PT.install(game, 'teleportToPoi', ours, saved) == false and saved.teleportToPoi.original == original)
+  check('restored: the game original is back', PT.restore(game, 'teleportToPoi', saved) and game.teleportToPoi == original and saved.teleportToPoi == nil)
+  check('restoring twice does nothing', PT.restore(game, 'teleportToPoi', saved) == false and game.teleportToPoi == original)
+  PT.install(game, 'teleportToPoi', ours, saved)
+  game.teleportToPoi = function() return 'reloaded' end           -- the game reloaded the module in between: its fresh function is not overwritten by a restore
+  check('a module the game replaced meanwhile is left as the game made it', PT.restore(game, 'teleportToPoi', saved) == false and game.teleportToPoi() == 'reloaded')
+  check('nothing to patch, nothing to fear', PT.install(nil, 'x', ours, {}) == false and PT.install({}, 'x', 5, {}) == false and PT.restore(nil, 'x', {}) == false)
 end

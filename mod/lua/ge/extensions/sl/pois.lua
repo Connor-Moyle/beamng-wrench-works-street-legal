@@ -49,10 +49,51 @@ function M.onGetRawPoiListForLevel(level, elements)
   end
 end
 
+-- Fast travel keeps the damage (B67). The game's big map teleport outside ITS career resets the car (spawn.safeTeleport with a reset, then
+-- resetBrokenFlexMesh) and so repairs it for nothing; inside its own career it does not reset. So while this career runs,
+-- freeroam_bigMapMode.teleportToPoi is ours: the same steps, with no reset. The game's own is put back when the career stops.
+local patch = require('sl/core/patch')
+local saved = {}
+
+local function teleportToPoi(poiId)
+  local bm = freeroam_bigMapMode
+  for _, cluster in ipairs(gameplay_playmodeMarkers.getPlaymodeClusters()) do       -- the target for the marker interaction, as the game does
+    if cluster.containedIdsLookup and cluster.containedIdsLookup[poiId] then
+      cluster.focus = true
+      extensions.hook('onNavigateToMission', cluster.id)
+      gameplay_markerInteraction.reachedTargetPos = cluster.pos
+    end
+  end
+  for _, poi in ipairs(gameplay_rawPois.getRawPoiListByLevel(getCurrentLevelIdentifier())) do
+    if poiId == poi.id then
+      local veh = getPlayerVehicle(0)
+      if veh then
+        local pos, rot = (poi.markerInfo.bigmapMarker.quickTravelPosRotFunction or nop)(poi, veh)
+        if pos and rot then
+          spawn.safeTeleport(veh, pos, rot, nil, nil, nil, nil, false)          -- false: no reset, the damage stays
+          if core_groundMarkers.currentlyHasTarget() then bm.setNavFocus(core_groundMarkers.endWP[1]) end
+          bm.exitBigMap(false, true, true)
+          core_camera.resetCamera(0)
+          extensions.hook('teleportedFromBigmap')
+        end
+      end
+    end
+  end
+end
+
+local function installTeleport()
+  if freeroam_bigMapMode and careerOn() and not stockCareerOn() then patch.install(freeroam_bigMapMode, 'teleportToPoi', teleportToPoi, saved) end
+end
+local function removeTeleport()
+  if freeroam_bigMapMode then patch.restore(freeroam_bigMapMode, 'teleportToPoi', saved) end
+end
+
 -- the game builds this list once per level: again when a career starts or stops and when the places change
 local function refresh() if gameplay_rawPois and gameplay_rawPois.clear then gameplay_rawPois.clear() end end
-M.onStreetLegalStarted = refresh
-M.onStreetLegalStopped = refresh
+M.onStreetLegalStarted = function() refresh() installTeleport() end
+M.onStreetLegalStopped = function() refresh() removeTeleport() end
+M.onBigMapActivated = installTeleport            -- (the big map is opening: ours is in place, also after the game reloaded its module)
+M.onExtensionUnloaded = removeTeleport
 M.onStreetLegalPlacesChanged = refresh
 
 return M
