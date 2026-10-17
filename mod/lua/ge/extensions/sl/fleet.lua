@@ -101,7 +101,9 @@ function M.onWrenchWorksDamage(vid, data)
     car.damage = { nodes = data.nodes or {}, beams = data.beams or {}, latches = data.latches }   -- latches: shut doors are shut again
     -- a part that fell off on the road is not part of the car in the garage (A13)
     if type(data.lost) == 'table' and #data.lost > 0 and car.config and car.config.partsTree then
+      local before = deepcopy(car.config)                      -- (kept: if the stripped setup will not spawn, the whole one does)
       local gone = carsLib.stripParts(car.config.partsTree, data.lost)
+      if #gone > 0 then car.fullConfig = car.fullConfig or before end
       if #gone > 0 then log('I', 'street_legal', 'parts that fell off, taken out of ' .. tostring(car.name) .. ': ' .. table.concat(gone, ' ')) end
     end
     extensions.hook('onStreetLegalChanged')
@@ -240,7 +242,14 @@ function M.deliver(carId)
       spawn.safeTeleport(veh, pos, rot, true, nil, nil, nil, false)     -- (8th: resetVehicle, true by default, would repair it)
     else
       local v = builder.spawnOwned(job, car, pos, rot)
-      if v then spawned[car.id] = v:getID() end
+      if v then spawned[car.id] = v:getID()
+      else
+        -- not built: the car stays in the garage (it was marked out although nothing stood there, and could then neither be put away nor brought out again)
+        log('W', 'street_legal', 'deliver: ' .. tostring(car.name) .. ' could not be built; it stays in the garage')
+        guihooks.trigger('slPhoneToast', { text = tostring(car.name) .. ' could not be brought out. It is still in the garage.' })
+        extensions.hook('onStreetLegalChanged')
+        return
+      end
     end
     car.out = true
     M.snapshot(false)

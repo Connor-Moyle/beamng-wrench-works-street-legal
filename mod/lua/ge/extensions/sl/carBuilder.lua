@@ -130,7 +130,14 @@ function M.spawn(job, model, config, pos, rot, nobodyDrives)
   local callMs = (os.clock() - t0) * 1000
   if nobodyDrives and slrrDriverMount and slrrDriverMount.noPropsDone then slrrDriverMount.noPropsDone() end   -- (the hook has run inside the call)
   if not ok or not veh then
-    log('W', 'street_legal', 'could not spawn ' .. tostring(model) .. ': ' .. tostring(veh))
+    -- why: pcall's error text if it threw, else the game answered nothing (nil); the setup it was given, so a bad one can be told from a bad model
+    local what = type(config) == 'string' and ('config file ' .. config .. (FS:fileExists(config) and ' (exists)' or ' (MISSING)'))
+      or type(config) == 'table' and string.format('config table: model %s, main part %s, %d top slots, vars %s, paints %s', tostring(config.model),
+        tostring(config.partsTree and config.partsTree.chosenPartName), (function() local n = 0 for _ in pairs(config.partsTree and config.partsTree.children or {}) do n = n + 1 end return n end)(),
+        tostring(config.vars ~= nil), tostring(config.paints ~= nil))
+      or tostring(config)
+    log('W', 'street_legal', 'could not spawn ' .. tostring(model) .. ': ' .. (ok and 'the game answered nil' or ('error: ' .. tostring(veh))) .. '; ' .. what
+      .. '; model known to the game: ' .. tostring(core_vehicles.getModel and core_vehicles.getModel(model) ~= nil))
     return nil
   end
   local id = veh:getID()
@@ -347,10 +354,27 @@ end
 M.PLAYER_DRIVER_PROPS = true
 M.APPLY_DAMAGE_ON_SPAWN = true
 -- one of the player's cars, from its record
+-- A car of the player's must never become unspawnable: its saved setup, then the whole setup from before parts were struck off, then the game's stock
+-- default for the model, each tried only if the one before gave nothing (logged which one worked).
 function M.spawnOwned(job, car, pos, rot)
   if type(car.config) ~= 'table' then return nil end
-  local cfg = { model = car.config.model or car.model, partsTree = car.config.partsTree, vars = car.config.vars, paints = car.config.paints }
-  local veh = M.spawn(job, car.model, cfg, pos, rot, not M.PLAYER_DRIVER_PROPS)
+  local function cfgOf(c) return { model = c.model or car.model, partsTree = c.partsTree, vars = c.vars, paints = c.paints } end
+  local attempts = { { 'saved setup', cfgOf(car.config) } }
+  if type(car.fullConfig) == 'table' then attempts[#attempts + 1] = { 'setup before parts were struck off', cfgOf(car.fullConfig) } end
+  local m = core_vehicles.getModel and core_vehicles.getModel(car.model)
+  local pc = m and m.model and m.model.default_pc
+  if pc then attempts[#attempts + 1] = { 'stock default', 'vehicles/' .. car.model .. '/' .. pc .. '.pc' } end
+  local veh
+  for i, a in ipairs(attempts) do
+    veh = M.spawn(job, car.model, a[2], pos, rot, not M.PLAYER_DRIVER_PROPS)
+    if veh then
+      if i > 1 then
+        log('W', 'street_legal', 'owned car ' .. tostring(car.name) .. ': the ' .. attempts[1][1] .. ' would not spawn, built from the ' .. a[1])
+        if i == 2 then car.config, car.fullConfig = car.fullConfig, nil end          -- (the whole setup is the car again)
+      end
+      break
+    end
+  end
   if not veh then return nil end
   job.sleep(0.3)
   -- the car's recorded damage goes on only when its own Lua says it has settled (slrrGarageVeh.apply waits for 30 frames and a second; a crash 0.3 s after a

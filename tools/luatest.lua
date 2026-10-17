@@ -1605,4 +1605,20 @@ do
   check('the forecast names the rain strength', wx.text('day', 'rain', nil, 'heavy'):find('Heavy rain') and wx.text('day', 'rain', nil, 'light'):find('Light rain') and wx.text('day', 'rain'):find('Rain'))
 end
 
+do -- the car must not become unspawnable: only detachable parts are ever struck off
+  local cars = require('sl/core/cars')
+  check('a bumper, a door, a wheel, a mirror can go', cars.detachable('/covet/covet_bumper_F') and cars.detachable('/covet/covet_door_FR') and cars.detachable('/x/wheel_FL')
+    and cars.detachable('/x/mirror_R') and cars.detachable('/x/hood'))
+  check('the body, frame, engine, subframe never', not cars.detachable('/bastion/bastion_body') and not cars.detachable('/x/covet_frame') and not cars.detachable('/x/engine_i4')
+    and not cars.detachable('/x/subframe_F') and not cars.detachable('/x/transmission') and not cars.detachable('/x/suspension_R'))
+  check('a part with a door in its name but body too stays', not cars.detachable('/x/body_door_panel'))
+  check('an unknown part stays', not cars.detachable('/x/mystery_thing') and not cars.detachable(nil))
+  local tree = { id = 'main', chosenPartName = 'covet_body', partPath = '/covet/covet_body', children = {
+    bumper = { id = 'bumper', chosenPartName = 'bumper_F', partPath = '/covet/bumper_F' },
+    frame = { id = 'frame', chosenPartName = 'frame', partPath = '/covet/covet_frame' } } }
+  local gone = cars.stripParts(tree, { '/covet/covet_body', '/covet/bumper_F', '/covet/covet_frame' })
+  check('only the bumper is struck off, the body (the root) and the frame stay', #gone == 1 and tree.chosenPartName == 'covet_body' and tree.children.frame.chosenPartName == 'frame'
+    and tree.children.bumper.chosenPartName == '')
+end
+
 print(string.format('lua tests passed: %d checks', passed))
