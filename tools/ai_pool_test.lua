@@ -387,4 +387,35 @@ return function(check, rngLib)
   check('billboards: the sponsor first, else the club by its level, else the stock ads; a name without an atlas is ignored', BB.choose('Nightrun Energy', 2) == 'Nightrun Energy' and BB.choose(nil, 2) == 'Club 2' and BB.choose(nil, nil) == nil
     and BB.choose('Some Other Co', nil) == nil and BB.choose('Some Other Co', 3) == 'Club 3' and BB.choose(nil, 9) == nil)
   check('billboards: the atlas file is in the mod folder by slug; no name, no file', BB.file('Valo Tyre & Wheel') == '/art/street_legal/billboards/valo-tyre-wheel.jpg' and BB.file('Club 1') == '/art/street_legal/billboards/club-1.jpg' and BB.file(nil) == nil and BB.file('x') == nil)
+
+  -- #24: rally stages
+  local RL = require('sl/core/rally')
+  local function line(parts)
+    -- parts: { { 'straight', metres } | { 'left' | 'right', radius, degrees } }, points every 5 m from the origin heading east
+    local pts, x, y, h = { { 0, 0, 0 } }, 0, 0, 0
+    for _, p in ipairs(parts) do
+      if p[1] == 'straight' then
+        for _ = 1, math.floor(p[2] / 5) do x, y = x + math.cos(h) * 5, y + math.sin(h) * 5 pts[#pts + 1] = { x, y, 0 } end
+      else
+        local per = 5 / p[2]
+        local sign = p[1] == 'left' and 1 or -1
+        for _ = 1, math.floor(math.rad(p[3]) / per) do h = h + sign * per x, y = x + math.cos(h) * 5, y + math.sin(h) * 5 pts[#pts + 1] = { x, y, 0 } end
+      end
+    end
+    return pts
+  end
+  local stage = line({ { 'straight', 100 }, { 'right', 25, 90 }, { 'straight', 100 }, { 'left', 70, 60 }, { 'straight', 40 }, { 'left', 12, 160 }, { 'straight', 100 } })
+  local cs = RL.corners(stage)
+  check('rally corners: a 25 m right, a 70 m left, a 12 m hairpin left; the straights are not corners', #cs == 3 and cs[1].dir == 'right' and cs[1].sev == 2 and cs[2].dir == 'left' and cs[2].sev == 4 and cs[3].dir == 'left' and cs[3].sev == 1 and cs[1].at > 90 and cs[1].at < 115)
+  local notes = RL.pacenotes(stage)
+  check('rally notes: three calls, the hairpin says hairpin, distances to the next in tens of metres', #notes == 3 and notes[1].text == 'Right 2' and notes[2].text == 'Left 4 long' and notes[3].text == 'Hairpin left' and notes[1].dist % 10 == 0 and notes[3].dist == nil)
+  local close = RL.pacenotes(line({ { 'straight', 50 }, { 'left', 40, 60 }, { 'straight', 10 }, { 'right', 40, 60 }, { 'straight', 50 } }))
+  check('rally notes: two corners under 30 m apart are one call', #close == 1 and close[1].text:find(' into ') ~= nil)
+  local n1, i1 = RL.nextCall(notes, 50, 80)
+  check('rally next call: the first one ahead within the look-ahead, none beyond, none at the end', n1 == notes[1] and i1 == 1 and RL.nextCall(notes, 10, 50) == nil and RL.nextCall(notes, 1e6, 100) == nil)
+  local at, dist = RL.progress(stage, 102, 3, 1, 30)
+  local at2 = RL.progress(stage, 102, 3, 1, 5)
+  check('rally progress: the nearest point only a little ahead of where it was (a loop does not jump)', at >= 19 and at <= 22 and dist < 6 and at2 == 6)
+  check('rally class and prize: 300 PS and 900 kg, the prize best at par, the least at 1.35 x par, none for no time', RL.classOk({ power = 250, weight = 1300 }) and not RL.classOk({ power = 400, weight = 1300 }) and not RL.classOk({ power = 200, weight = 700 })
+    and not RL.classOk(nil) and RL.prize(100, 90) == 600 and RL.prize(100, 135) == 100 and RL.prize(100, 200) == 100 and RL.prize(100, 117.5) == 350 and RL.prize(100, nil) == 0 and math.abs(RL.parTime(800) - 40) < 1e-9)
 end
