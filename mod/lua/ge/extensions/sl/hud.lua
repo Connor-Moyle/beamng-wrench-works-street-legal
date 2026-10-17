@@ -9,8 +9,8 @@ local M = {}
 local SETTINGS_FILE = '/settings/street_legal/hud.json'
 local DEFAULTS = { enabled = false, speedo = true, tacho = true, map = true, damage = true, units = 'kmh', freeroam = false, enabledChosen = false }
 
--- off until the player turns it on (phone > Street cred > Dashboard, or the bindable 'dashboard' key); a file
--- written before that choice was asked for holds enabled = true only because every toggle saved them all
+-- #33 the game's own UI is the default in the career. The SLRR dashboard is an option (the Settings app: 'SLRR dashboard', sl_options slDashboard,
+-- off until the player turns it on; also phone > Street cred > Dashboard and the bindable 'dashboard' key). Its parts and units are kept in hud.json.
 local settings
 local function load()
   settings = {}
@@ -18,11 +18,14 @@ local function load()
   for k, v in pairs(DEFAULTS) do
     if type(saved) == 'table' and type(saved[k]) == type(v) then settings[k] = saved[k] else settings[k] = v end
   end
-  if not settings.enabledChosen then settings.enabled = false end
+  settings.enabledChosen = true
 end
+
+local function dashboardOn() return sl_options ~= nil and sl_options.get ~= nil and sl_options.get('slDashboard') == true end
 
 function M.getSettings()
   if not settings then load() end
+  settings.enabled = dashboardOn()          -- (the option decides: an old hud.json 'enabled' no longer does)
   return settings
 end
 
@@ -35,9 +38,11 @@ function M.toggle(key)
   local s = M.getSettings()
   if key == 'units' then
     s.units = s.units == 'kmh' and 'mph' or 'kmh'
+  elseif key == 'enabled' then
+    if sl_options and sl_options.set then sl_options.set('slDashboard', not dashboardOn()) end
+    s.enabled = dashboardOn()
   elseif type(DEFAULTS[key]) == 'boolean' and key ~= 'enabledChosen' then
     s[key] = not s[key]
-    if key == 'enabled' then s.enabledChosen = true end
   else
     return
   end
@@ -194,6 +199,14 @@ function M.onUpdate(dtReal)
 end
 
 function M.request() mapSent = false sendSettings() end
+function M.onStreetLegalOption(key) if key == 'slDashboard' then sendSettings() end end
+-- the career stops: the game's own layout comes back (the career's was a layout of its own, nothing of the stock one was touched)
+function M.onStreetLegalStopped()
+  if layoutSet and core_gamestate and core_gamestate.state and core_gamestate.state.appLayout == 'streetLegal' then
+    core_gamestate.setGameState('freeroam', 'freeroam')
+  end
+  layoutSet = nil
+end
 function M.onClientEndMission() mapSent, shown, carId, car, layoutSet = false, false, nil, {}, nil end
 function M.onClientPostStartMission() mapSent = false end
 M.onStreetLegalStarted = function() mapSent = false end
