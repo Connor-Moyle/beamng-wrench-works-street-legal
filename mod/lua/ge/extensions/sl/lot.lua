@@ -354,7 +354,7 @@ end
 
 M.NO_LIGHTS = false     -- true: no lights over the row (to find out whether they crash the game: T29)
 M.NO_CAMERA = false     -- true: the lot does not move the camera
-M.NO_DENTS = false      -- true: the cars of a lot are not dented (bisecting the 0x140386 crash)
+M.NO_DENTS = true       -- dents off: the dent round crashed the game (0x140386) 3 runs of 3; 0 of 3 without it (2026-10-17). Back on once slrrGarageVeh dents only touch plain beams
 M.NO_MUTE = false       -- true: the game's sound is not turned down while the row is built
 M.NO_DRIVER_CALL = false -- true: slrrDrivers.setDriver is not called for the lot's cars
 local function lightsOn(row)
