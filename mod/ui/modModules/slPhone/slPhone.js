@@ -1246,7 +1246,7 @@
     function home() { st.stack = []; st.app = 'home'; render(); }
     function setOpen(open) {
       st.open = open;
-      if (open) lua('request()');
+      if (open) lua('request()'); else { st.stack = []; st.app = 'home'; }      // (B68: closed, it opens on the home screen next time)
       render();
     }
     function startCall(id) {

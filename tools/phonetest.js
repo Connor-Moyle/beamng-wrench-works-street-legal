@@ -499,6 +499,14 @@ assert.ok(calls.includes('@sl_lot.cameraDrag(10,0)') && calls.includes('@sl_lot.
 nav('back', 1);
 assert.ok(calls.includes('@sl_lot.close()'), 'B leaves the lot');
 phone.handle('slLotData', { open: false });
+// B68: closing the phone while an app is open: the next opening is the home screen
+if (!phone.state.open) phone.handle('slPhoneToggle');
+phone.act('open', 'partmarket');
+assert.ok(text().includes('Revline'), 'an app is open');
+phone.handle('slPhoneToggle');
+phone.handle('slPhoneToggle');
+assert.ok(phone.state.open && text().includes('Car market') && text().includes('Part market') && !text().includes('Swap & Bid'), 'closed and opened again: the home screen, not the app');
+phone.act('home');
 // the two marketplaces: cars (dealers + private ads), parts (Revline, Swap & Bid, the paper, the catalog)
 phone.handle('slPhoneData', Object.assign({}, data, { market: { deliveries: 1, auctions: [{ id: 'a1', name: 'Coilovers', model: 'covet', bid: 100, next: 110, condition: 80, hoursLeft: 5, high: 'ai', delivery: 30 }], paper: { listings: [], edition: 2, price: 2 },
   mine: [{ id: 'y1', name: 'Stock exhaust', model: 'covet', channel: 'app', offers: [] }, { id: 'y2', name: 'My Sunburst', model: 'sunburst', channel: 'app', carId: 3, offers: [] }],
