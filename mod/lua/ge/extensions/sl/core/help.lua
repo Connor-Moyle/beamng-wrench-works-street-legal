@@ -1,5 +1,5 @@
--- Street Legal: the player's help, in one place (#55). Pure: no game calls (tested by tools/luatest.js).
--- The phone's Help app and the laptop's Help window show these pages (sl_phone.requestHelp sends them), and docs/PLAYER_GUIDE.md is made from them by
+-- Street Legal: the player\'s help, in one place (#55). Pure: no game calls (tested by tools/luatest.js).
+-- The phone\'s Help app and the laptop\'s Help window show these pages (sl_phone.requestHelp sends them), and docs/PLAYER_GUIDE.md is made from them by
 -- tools/helpdoc.py, so the game and the guide never disagree. A page is { id, title, body = { paragraph, ... } }; a paragraph that starts with
 -- "- " is a bullet. Keep a page short: it is read on a phone screen.
 
@@ -39,6 +39,30 @@ M.PAGES = {
     'By day you earn money: jobs, the track events, and selling what you do not need. Night pays in reputation instead.',
     'The Bank app shows your balance and statement. You can borrow against your reputation, your garage and the cars you own, up to a limit; a quarter of the loan is due each week, and missed payments cost reputation, then the car.',
     'Insurance costs a little every week and pays half of repair and impound bills over a deductible.',
+    'The pace: day jobs pay about a third more than they used to. Your first garage is free; the second needs 175 reputation and $6,000, the third 1,000 reputation and $25,000. A few days of jobs and a few night wins get you the second.',
+  } },
+  { id = 'dealers', title = 'Dealers, factory orders and the car report', body = {
+    'At a dealer, walk up to the door marker and choose Look at the cars. The game\'s own screen elements hide while you look. Left and right change the car; leave the camera alone and it plays cinematic shots (the wheels, the badge, the engine bay with the hood open); touch the camera to stop them.',
+    'Every car has a card with Test drive, Buy and Show full car report. The report opens a panel with every part by section (condition, the worst fault, a repair estimate) and scrolls with the wheel, by dragging or with the pad\'s stick. Close or B shuts it.',
+    'High-end dealers also take factory orders: Order from the factory opens a catalogue of every model with its trims. Pick a trim, then the factory options (paint, interior, wheels, steering wheel and more) with a live price. The car arrives at your garage six game hours after you pay, and My cars lists it as on order. Some vehicles (the quad bike, buggy, crawlers, loaders) can only be bought this way.',
+    'Dealers, the junkyard and the scrap yard are open by day and say "Closed. Opens at HH:00" at night.',
+  } },
+  { id = 'weather', title = 'Weather, wet roads and puddles', body = {
+    'Each half of a day has its own weather: clear, cloudy, rain in three strengths, and fog banks at night. The forecast is on the phone\'s home screen and in the Wait app.',
+    'In rain the sky goes grey and dark and the road gets wet. A wet road has less grip, so brake earlier. Puddles collect on the road: a wheel through one throws spray and leaves a wet trail, and at speed a deep puddle drags the car and can make it aquaplane (the wheels float and steering goes light). Lift off and keep straight.',
+    'The roads dry out after the rain. Some jobs pay more in bad weather.',
+  } },
+  { id = 'carcare', title = 'Dirt, scratches and washing', body = {
+    'With the optional Car Surface FX mod installed your cars get wet paint in the rain, pick up dust or mud on the road and can be scratched in a knock. Without it nothing here applies.',
+    '- My cars (phone and laptop) says how dirty and scratched each car is, for example "Dusty, light scratches". Dirt is clean, dusty or muddy; scratches are none, light or heavy.',
+    '- Wash: roll slowly through a car wash bay, or choose Wash at a fuel pump ($15). It takes the dirt off. It does not take scratches off.',
+    '- Repair: a repair in the garage (Wrench Works) buffs the scratches out with the dents. A paint job leaves the car clean and unscratched.',
+    '- A car you put away keeps its dirt and scratches, and so does the save.',
+  } },
+  { id = 'carmeets', title = 'Car meets', body = {
+    'At night a car meet fills a car park with parked cars in the painted bays, each with its owner beside it and some owners in pairs and trios. The meet has a theme (JDM, muscle, drift or euro) and a purple marker on the map.',
+    'Walk up to an owner on foot and press the prompt (Talk to the owner). They tell you a story and make an offer: a tip, a race word or a car for sale. Nothing opens by itself while you walk through. The music is loudest at one car and the crowd murmur is in the middle.',
+    'At high heat (4 or 5) the police can raid a meet: you get a text, the cars and people scatter and the heat goes up a little. Keep your heat low near a meet.',
   } },
   { id = 'jobs', title = 'Jobs', body = {
     'The Jobs app lists what is on offer now. Taking one gives you a destination or a task, and it pays when you finish: couriers, taxi, parts runs, test drives, dyno and quarter-mile jobs and more. Most jobs are by day; a few shady ones are by night.',
@@ -71,6 +95,16 @@ M.PAGES = {
   { id = 'meets', title = 'Swap meet and auctions', body = {
     'On weekend nights a swap meet fills the biggest car park in town with stalls. Go there and buy parts on the spot. It is on the Part market page of the phone and the laptop, and says where it is.',
     'Swap & Bid is the auction side: put a bid on a lot, and it is yours if nobody outbids you before it ends.',
+  } },
+  { id = 'graphics', title = 'Graphics: anti-aliasing and sharpening', body = {
+    'Wrench Works adds a group to the game\'s Options > Graphics page, under the anti-aliasing type: "Wrench Works: anti-aliasing and sharpening". The first time after installing, restart the game once to see it.',
+    '- Anti-aliasing: Game\'s own (the default; nothing changes), Off, FXAA, FXAA HQ, SMAA High, SMAA Ultra, or SMAA Ultra with Temporal smoothing (it blends with the last frame to calm shimmer but adds no detail). Each choice has a note under it, and Game\'s own puts the game back exactly as it was.',
+    '- Sharpening (off by default): AMD CAS, AMD FSR 1 RCAS or NVIDIA NIS, with a strength slider.',
+    '- Presets: Balanced, Smooth, Maximum. Heavier choices cost frame time, so try one and watch the performance overlay.',
+  } },
+  { id = 'extras', title = 'Optional extras', body = {
+    '- Performance overlay: Settings > Performance overlay (off by default) shows the frame time, the video memory and counts of what is in the world. Use it when the game stutters, and say what it showed when you report it.',
+    '- Flex driver (experimental, off by default): with the Drivers & Pedestrians mod the driver in the car is normally a set of rigid parts. To try the rigged driver, open the game\'s Lua console (the ~ key) and type slrrDriverMount.setDriverRig("flex"); it is saved and applies to cars spawned from then on. Type slrrDriverMount.setDriverRig("props") to go back.',
   } },
   { id = 'settings', title = 'Settings and tools', body = {
     'The Settings app has the options of the career: police and their aggression, pay, hardcore mode (no pull-outs, no insurance, no free cab), clock speed, race traffic, and more.',

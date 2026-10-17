@@ -1123,6 +1123,12 @@ do
   check('the help: at least ten pages, each with a unique id, a title and short paragraphs', okPages)
   check('the help covers the first hour, day and night, races, heat, clubs, crews', helpLib.page('first') and helpLib.page('daynight') and helpLib.page('races') and helpLib.page('heat') and helpLib.page('clubs') and helpLib.page('crews') and helpLib.page('nothing') == nil)
   local md = helpLib.markdown()
+  check('the help covers the new features and its economy numbers are the real ones', (function()
+    for _, id in ipairs({ 'dealers', 'weather', 'carcare', 'carmeets', 'graphics', 'extras' }) do if not helpLib.page(id) then return false end end
+    local money = table.concat(helpLib.page('money').body, ' ')
+    local g2, g3 = progression.garages[2], progression.garages[3]
+    return money:find(g2.rep .. ' reputation and $6,000', 1, true) ~= nil and g2.cost == 6000 and money:find(g3.rep == 1000 and '1,000 reputation and $25,000' or 'x', 1, true) ~= nil and g3.cost == 25000
+  end)())
   check('the guide is made from the same pages: every title and paragraph is in it', (function() for _, p in ipairs(helpLib.PAGES) do if not md:find('## ' .. p.title, 1, true) then return false end for _, para in ipairs(p.body) do if not md:find(para, 1, true) then return false end end end return md:sub(1, 2) == '# ' end)())
   local hv = require('sl/core/laptop').build({ vehicleInventory = true, insurances = true }, { hasCar = true })
   check('a Help tile on a garage computer', (function() for _, g in ipairs(hv.groups) do for _, t in ipairs(g.tiles) do if t.id == 'help' and t.page == 'help' then return true end end end return false end)())
