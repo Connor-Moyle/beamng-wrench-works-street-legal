@@ -27,6 +27,8 @@ local builds = require('sl/core/builds')
 local nightlife = require('sl/core/nightlife')
 local social = require('sl/core/meetsocial')
 local heatLib = require('sl/core/heat')
+local racekinds = require('sl/core/racekinds')
+local phaseLib = require('sl/core/phase')
 
 local MAX_CRUISERS = 3
 local FINISH_RADIUS = 22
@@ -257,17 +259,34 @@ local function cancelRace(why)
   core_jobsystem.create(function(job) job.sleep(8) despawn(vid) end)
 end
 
+-- the night's kind of race (core/racekinds): a goal from the road graph whose route is a city run, a highway run, a hill climb or (rolling start) a 60-130 pull.
+-- nil when the graph has none near here: the old far side of town is used. -> goal pos, goal node, route metres, kind id
+M.KINDS = true            -- false: every race goes to the far side of town, as before
+local function kindDest(v, standing, maxD)
+  local nodes = roadNodes()
+  local okc, a = pcall(function() return (map.findClosestRoad(v:getPosition())) end)
+  if not (okc and a and nodes[a]) then return nil end
+  local rng = rngLib.new(rngLib.hash('kind' .. tostring(os.clock())))
+  local id = racekinds.choose(rng, { rolling = not standing })
+  local pathFn = function(x, y) local ok, p = pcall(map.getPath, x, y) return ok and type(p) == 'table' and p or {} end
+  local goal, _, m = racekinds.pick(nodes, a, pathFn, id, rng, 40)
+  if not goal or (nodes[goal].pos - v:getPosition()):length() > (maxD or CITY_RACE) then return nil end
+  return nodes[goal].pos, goal, m.len, id
+end
+
 -- start a race against a racer whose car is out in the world (rolling: no countdown; standing: 3, 2, 1)
 local function startRace(racer, vid, stake, bet, standing, maxD, keepOpp)
   local v = playerCar()
   if not v or race then return false end
-  local dest, destNode, distance = farSide(v:getPosition(), maxD or CITY_RACE)
+  local dest, destNode, distance, kind
+  if M.KINDS then dest, destNode, distance, kind = kindDest(v, standing, maxD) end
+  if not dest then dest, destNode, distance = farSide(v:getPosition(), maxD or CITY_RACE) end
   if not dest then return false end
   race = { racer = racer.id, name = roster.displayName(racer), vid = vid, stake = stake, bet = bet, dest = dest, destNode = destNode,
-    destName = placeNear(dest), distance = distance, t = 0, countdown = standing and 3.5 or nil, skill = racer.skill }
+    destName = placeNear(dest), distance = distance, kind = kind, t = 0, countdown = standing and 3.5 or nil, skill = racer.skill }
   race.route, race.dir = lineUp(v, getObjectByID(vid), dest, standing, keepOpp)
   race.limit = cancel.timeLimit(distance)
-  racelog.add('race', 'setup', { racer = racer.id, name = race.name, stake = stake, bet = bet, standing = standing and 'yes' or 'no', dest = dest, destName = race.destName,
+  racelog.add('race', 'setup', { kind = kind or 'far side', racer = racer.id, name = race.name, stake = stake, bet = bet, standing = standing and 'yes' or 'no', dest = dest, destName = race.destName,
     metres = distance, dir = race.dir and string.format('(%.2f,%.2f)', race.dir.x, race.dir.y) or 'none', player = racelog.car(v), opponent = racelog.car(getObjectByID(vid)),
     model = (getObjectByID(vid) or v):getJBeamFilename() })
   if core_groundMarkers then core_groundMarkers.setPath(dest) end
@@ -292,6 +311,14 @@ local function finish(playerWon)
   local repDelta = stateLib.recordRace(s, { racer = r.racer, won = playerWon, stake = r.stake, bet = r.bet, night = night(), at = os.time() })
   if not r.roc and sl_career.afterRace then sl_career.afterRace(r.racer, playerWon, r.margin) end   -- (rematch rule, trash talk)
   extensions.hook('onStreetLegalRaceResult', playerWon, r.name, r.racer, r.stake)
+  if playerWon and r.kind and r.stake == 'money' then                    -- the kind's extra, more at high heat
+    local extra = racekinds.bonus(r.kind, r.bet, phaseLib.heatLevel(s.heat))
+    if extra > 0 then
+      sl_career.payOut(extra, strings.t('streets.kind_' .. r.kind))
+      if ui_message then ui_message(string.format(strings.t('streets.kind_bonus'), strings.t('streets.kind_' .. r.kind), extra), 6, 'streetLegal') end
+      racelog.add('race', 'kind bonus', { kind = r.kind, bet = r.bet, extra = extra, heat = phaseLib.heatLevel(s.heat) })
+    end
+  end
   if playerWon and r.t and r.destName then extensions.hook('onStreetLegalRaceTimed', r.destName, r.destName, r.t) end   -- (personal bests)
   local opp = getObjectByID(r.vid)
   if r.stake == 'pink' then

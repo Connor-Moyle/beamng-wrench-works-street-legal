@@ -1957,4 +1957,57 @@ do -- the night is never empty: the first meet 30 s in, retried 20 s after a mis
   check('meets: with half the tries failing, the first meet starts within 5 minutes (worst of 300 nights ' .. worst .. ' s)', worst <= 300)
 end
 
+do -- kinds of night race (core/racekinds)
+  local RK = require('sl/core/racekinds')
+  local RNG = require('sl/core/rng')
+  -- a small map: a long fast road east (A..F), a side street grid with turns (G1..G5), a climb north (H1..H5), a dead-end stub (Q)
+  local N = {}
+  local function node(name, x, y, z, r) N[name] = { pos = { x = x, y = y, z = z or 0 }, radius = r or 3, links = {} } end
+  local function L(a, b, d, s) local e = { drivability = d or 1, speedLimit = s or 14 } N[a].links[b] = e N[b].links[a] = e end
+  local names = { 'A', 'B', 'C', 'D', 'E', 'F' }
+  for i, c in ipairs(names) do node(c, (i - 1) * 600, 0, 0, 7) end
+  for i = 1, 5 do L(names[i], names[i + 1], 1, 30) end
+  local grid = { { 1500, 800 }, { 1500, 1000 }, { 1700, 1000 }, { 1700, 1200 }, { 1900, 1200 } }
+  for i, p in ipairs(grid) do node('G' .. i, p[1], p[2]) end
+  for i = 1, 4 do L('G' .. i, 'G' .. (i + 1)) end
+  L('B', 'G1')
+  for i = 1, 5 do node('H' .. i, 0, 200 * i, 30 * i) end
+  for i = 1, 4 do L('H' .. i, 'H' .. (i + 1), 1, 12) end
+  L('A', 'H1')
+  node('Q', 3000, 500) L('F', 'Q')
+  local function pathFn(a, b)                                        -- shortest hop path, breadth first
+    local prev, queue, seen, qi = {}, { a }, { [a] = true }, 1
+    while qi <= #queue do
+      local cur = queue[qi] qi = qi + 1
+      if cur == b then break end
+      local ns = {} for o in pairs(N[cur].links) do ns[#ns + 1] = o end table.sort(ns)
+      for _, o in ipairs(ns) do if not seen[o] then seen[o] = true prev[o] = cur queue[#queue + 1] = o end end
+    end
+    if not seen[b] then return {} end
+    local out, c = {}, b
+    while c do table.insert(out, 1, c) c = prev[c] end
+    return out
+  end
+  local hw = RK.measure(N, { 'A', 'B', 'C', 'D', 'E' })
+  check('racekinds: the freeway is fast, tarmac, straight and 2400 m', hw.len == 2400 and hw.fast == 1 and hw.tarmac == 1 and hw.turns == 0 and not hw.dead and RK.valid('highway', hw) and RK.valid('rolling', hw))
+  local cityM = RK.measure(N, { 'B', 'G1', 'G2', 'G3', 'G4', 'G5' })
+  check('racekinds: the zig-zag through the grid has turns and no fast road', cityM.turns >= 4 and cityM.fast == 0 and not RK.valid('highway', cityM))
+  local hillM = RK.measure(N, { 'A', 'H1', 'H2', 'H3', 'H4', 'H5' })
+  check('racekinds: the climb gains 150 m and is a hill, not a highway', hillM.gain == 150 and not RK.valid('highway', hillM))
+  check('racekinds: a route ending on a dead-end stub, or doubling back, is refused', RK.measure(N, { 'A', 'B', 'C', 'D', 'E', 'F', 'Q' }).dead and RK.measure(N, { 'A', 'B', 'A', 'B' }).dead and not RK.valid('highway', RK.measure(N, { 'A', 'B', 'C', 'D', 'E', 'F', 'Q' })))
+  local dirt = RK.measure(N, { 'A', 'B', 'C', 'D', 'E' }) dirt.tarmac = 0.5
+  check('racekinds: a route on dirt is refused', not RK.valid('highway', dirt))
+  local goal, path, m = RK.pick(N, 'A', pathFn, 'highway', RNG.new(5), 60)
+  check('racekinds: pick finds a highway goal from the west end (valid route)', goal ~= nil and RK.valid('highway', m) and path[1] == 'A' and #path >= 4)
+  check('racekinds: no hill goal from the far east end of the freeway -> nil', RK.pick(N, 'F', pathFn, 'hill', RNG.new(5), 60) == nil)
+  local counts, r2 = { city = 0, highway = 0, hill = 0, rolling = 0 }, RNG.new(11)
+  for _ = 1, 2000 do local id = RK.choose(r2, { rolling = false }) counts[id] = counts[id] + 1 end
+  check('racekinds: standing starts never get the rolling kind; city is the most common', counts.rolling == 0 and counts.city > counts.highway and counts.city > counts.hill and counts.highway > 300 and counts.hill > 300)
+  local c3 = { city = 0, highway = 0, hill = 0, rolling = 0 }
+  for _ = 1, 2000 do local id = RK.choose(r2, { rolling = true, have = { highway = false, rolling = false } }) c3[id] = c3[id] + 1 end
+  check('racekinds: a kind the map does not have is never chosen', c3.highway == 0 and c3.rolling == 0 and c3.city > 0 and c3.hill > 0)
+  check('racekinds: bonus: city 0, highway 25 %, rolling 40 %, doubled at heat 5 for the highway, 0 without a bet or a kind',
+    RK.bonus('city', 1000, 0) == 0 and RK.bonus('highway', 1000, 0) == 250 and RK.bonus('rolling', 1000, 0) == 400 and RK.bonus('highway', 1000, 5) == 500 and RK.bonus('hill', 0, 3) == 0 and RK.bonus('nope', 500, 1) == 0)
+end
+
 print(string.format('lua tests passed: %d checks', passed))
