@@ -85,6 +85,25 @@ end
 function M.chaseHud() return chaseState end
 function M.stripsSurvived() return stripsHit end
 
+-- the words for why the chase ended in a bust, with a space after (empty when it is not known): core/chase bustCause
+function M.bustCause(pursuit)
+  local v = getPlayerVehicle(0)
+  if not v then return '' end
+  local p = v:getPosition()
+  local cops = 0
+  for id in pairs(gameplay_police and gameplay_police.getPoliceVehicles and gameplay_police.getPoliceVehicles() or {}) do
+    local c = getObjectByID(id)
+    if c and id ~= v:getID() and (c:getPosition() - p):length() < 25 then cops = cops + 1 end
+  end
+  local car = sl_fleet and sl_fleet.currentCar and sl_fleet.currentCar()
+  local care = car and sl_carcare and sl_carcare.careOf and sl_carcare.careOf(car)
+  local key, n = chaseLib.bustCause({
+    fuelLitres = care and care.fuelLitres, strips = stripsHit, cops = cops,
+    roadblockDist = type(pursuit) == 'table' and (pursuit.roadblocks or 0) > 0 and pursuit.roadblockPos and (pursuit.roadblockPos - p):length() or nil })
+  if not key then return '' end
+  return (n and string.format(strings.t('police.bust_' .. key), n) or strings.t('police.bust_' .. key)) .. ' '
+end
+
 -- the spike strip (heat 3+, in a chase): the game's own 'spikestrip' prop (ground material 32: its tyre code deflates what rolls over it).
 -- One strip is built at night from heat 3 (the patrol build rule), parked out of play and switched off, and moved onto the road ahead of you
 -- 150-250 m down your route (core/chase stripSpot: on a straight, not under a roof, not on a bridge), with a warning on the HUD and a message.

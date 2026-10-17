@@ -71,6 +71,15 @@ function M.stripSpot(pts, okFn)
   return nil
 end
 
+-- why you were stopped: no fuel, a spike strip this chase, a roadblock within 40 m, two or more patrols round you; nil when none of them (and the cop count)
+function M.bustCause(i)
+  if i.fuelLitres and i.fuelLitres < 0.5 then return 'fuel' end
+  if (i.strips or 0) > 0 then return 'strip' end
+  if i.roadblockDist and i.roadblockDist < 40 then return 'roadblock' end
+  if (i.cops or 0) >= 2 then return 'boxed', i.cops end
+  return nil
+end
+
 -- a pursuit breaker (later): you pass within 6 m at speed (m/s) with a patrol inside 40 m
 function M.breakerHit(distToBreaker, speed, nearestCop)
   return (distToBreaker or 1e9) < 6 and (speed or 0) > 10 and (nearestCop or 1e9) < 40

@@ -2233,6 +2233,9 @@ do -- the depth of a night chase (core/chase)
   for i = 1, 30 do bend[#bend + 1] = { x = 300, y = i * 10, z = 0 } end                         -- ... then a right-angle corner at 300 m
   local p3 = CH.stripSpot(bend)
   check('chase: never on a corner (the spot keeps 30 m of straight either side)', p3 and p3.x == 150 and CH.stripSpot(bend, function(pt) return pt.x > 260 end) == nil)
+  check('chase: the bust cause: fuel first, then a strip, a roadblock within 40 m, two or more cars round you, else none',
+    CH.bustCause({ fuelLitres = 0.1, strips = 1, cops = 3 }) == 'fuel' and CH.bustCause({ fuelLitres = 20, strips = 1 }) == 'strip' and CH.bustCause({ roadblockDist = 30, cops = 3 }) == 'roadblock'
+    and select(2, CH.bustCause({ roadblockDist = 90, cops = 3 })) == 3 and CH.bustCause({ cops = 1, roadblockDist = 90 }) == nil and CH.bustCause({}) == nil)
   check('chase: a breaker is hit within 6 m at speed with a patrol inside 40 m', CH.breakerHit(4, 20, 30) and not CH.breakerHit(8, 20, 30) and not CH.breakerHit(4, 5, 30) and not CH.breakerHit(4, 20, 60))
 end
 
