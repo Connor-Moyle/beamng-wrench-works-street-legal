@@ -153,13 +153,18 @@ local function updateCamera(dt)
   local key = tostring(lot.index) .. ':' .. tostring(lot.veh)
   if cam.chosenFor ~= key then
     cam.chosenFor = key
+    -- the car's size sets the distance and the downward look; the quarter with room sets the side
+    local ok, he = pcall(function() return veh and veh:getSpawnWorldOOBB():getHalfExtents() end)
+    local diag = ok and he and (2 * he:length()) or 5.5
+    cam.dist, cam.pitch = lotcam.frame(diag)
     cam.yaw = lotcam.choose(t, dir, cam.pitch, cam.dist, wallRay)
   end
   local eye = lotcam.pull(t, lotcam.eyeAt(t, dir, cam.yaw, cam.pitch, cam.dist), wallRay)       -- (never inside a building)
   local want = vec3(eye.x, eye.y, eye.z)
   local k = 1 - math.exp(-4 * math.min(dt, 0.1))
   cam.pos = cam.pos and (cam.pos + (want - cam.pos) * k) or want
-  cam.look = cam.look and (cam.look + (target - cam.look) * k) or target
+  local aim = target - vec3(0, 0, lotcam.DROP * cam.dist)       -- (aimed below the car: it stands in the upper part of the screen, above the info card)
+  cam.look = cam.look and (cam.look + (aim - cam.look) * k) or aim
   core_camera.setPosition(0, cam.pos)
   core_camera.setRotation(0, quatFromDir((cam.look - cam.pos):normalized(), vec3(0, 0, 1)))
 end

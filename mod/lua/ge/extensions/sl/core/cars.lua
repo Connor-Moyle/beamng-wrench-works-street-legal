@@ -76,6 +76,11 @@ end
 
 local function partPath(node) return (node.path or '/') .. node.chosenPartName end
 
+-- Parts and slots a car for sale never has changed, whatever the model (a piece of the slot path, the slot id or the part name, lower
+-- case): a spare wheel is mounted on a door or a carrier and rebuilding it in place killed the game (a midtruck's rear-door spare
+-- wheel, swapped, crashed it twice at the same place: T29). opts.refuse replaces the list.
+M.REFUSE = { 'sparewheel', 'spare_wheel', 'spare' }
+
 -- Whether a part can go into a slot, as the game's own slot system decides it (jbeam/slotSystem partFitsSlot): the part's
 -- slotType (a string or a list) against the slot's allowTypes (slots2) or its single type (slots1); denyTypes refuse.
 -- No slot definition at all: it fits (the game will have its say).
@@ -110,6 +115,18 @@ function M.tweakTree(tree, opts)
   if type(tree) ~= 'table' then return result end
 
   local slotOf = opts.slotOf
+  local refuseList = opts.refuse or M.REFUSE
+  local function refusedNode(n)
+    local text = ((n.path or '') .. ' ' .. (n.id or '') .. ' ' .. (n.chosenPartName or '')):lower()
+    for _, w in ipairs(refuseList) do if text:find(w, 1, true) then return true end end
+    return false
+  end
+  local function refusedBelow(node)
+    for _, child in pairs(node.children or {}) do
+      if isChosen(child) and (refusedNode(child) or refusedBelow(child)) then return true end
+    end
+    return false
+  end
   local function coreBelow(node)
     for _, child in pairs(node.children or {}) do
       if isChosen(child) then
@@ -127,7 +144,9 @@ function M.tweakTree(tree, opts)
       local n = entry.node
       if wanted[entry.key] and isChosen(n) then
         local slot = slotOf and slotOf(n, entry.parent)
-        if slot and slot.coreSlot then
+        if refusedNode(n) or refusedBelow(n) then
+          result.refused[#result.refused + 1] = { path = partPath(n), why = 'never changed (spare wheel)' }
+        elseif slot and slot.coreSlot then
           result.refused[#result.refused + 1] = { path = partPath(n), why = 'core slot' }
         elseif slotOf and coreBelow(n) then
           result.refused[#result.refused + 1] = { path = partPath(n), why = 'core slot below' }
@@ -146,7 +165,9 @@ function M.tweakTree(tree, opts)
     local candidates, parents = {}, {}
     for _, entry in ipairs(nodes(tree, classify)) do
       local n = entry.node
-      if wanted[entry.key] and type(n.suitablePartNames) == 'table' and #n.suitablePartNames > 1 then
+      if wanted[entry.key] and (refusedNode(n) or refusedBelow(n)) then
+        result.refused[#result.refused + 1] = { path = partPath(n), why = 'never changed (spare wheel)' }
+      elseif wanted[entry.key] and type(n.suitablePartNames) == 'table' and #n.suitablePartNames > 1 then
         candidates[#candidates + 1] = n
         parents[n] = entry.parent
       end

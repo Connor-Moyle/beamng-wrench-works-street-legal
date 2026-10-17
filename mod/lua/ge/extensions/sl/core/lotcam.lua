@@ -5,8 +5,11 @@
 
 local M = {}
 
-M.DIST = 6.5                          -- m from the car's centre
-M.PITCH = math.rad(12)                -- 6.5 m * sin 12 + 0.4 = about 1.75 m above the car's centre
+M.DIST = 7.5                          -- m from the car's centre (before the car's own size sets it: frame)
+M.PITCH = math.rad(14)                -- (likewise)
+M.DROP = 0.22                         -- the look-at point is this much of the distance below the car's centre: the car sits in the upper
+                                      -- part of the screen, clear of the lot's info card over the bottom 40 %
+M.EYE_UP = 2.2                        -- m the eye stands above the car's centre (about 3 m above the ground)
 M.YAWS = { 145, -145, 120, -120, 90, -90, 35, -35, 180 }       -- degrees from the way the car faces: rear quarters first
 M.KEEP = 0.6                          -- m kept between the eye and a wall
 
@@ -19,6 +22,14 @@ end
 M.eyeAt = eyeAt
 
 local function len(a, b) return math.sqrt((b.x - a.x) ^ 2 + (b.y - a.y) ^ 2 + (b.z - a.z) ^ 2) end
+
+-- Distance and pitch from the car's size (diag = the length of its bounding box's diagonal): the whole car fits, the eye is EYE_UP
+-- above its centre, and 6.5 to 10 m out.
+function M.frame(diag)
+  local dist = math.max(6.5, math.min(10, 1.35 * (tonumber(diag) or 5)))
+  local pitch = math.asin(math.min(0.6, math.max(0.05, (M.EYE_UP - 0.4) / dist)))      -- (eyeAt adds 0.4 m)
+  return dist, pitch
+end
 
 -- the eye, pulled in front of whatever is between it and the car
 function M.pull(target, eye, ray)

@@ -208,9 +208,11 @@ local function slotLookups(id)
   return slotOf, function(name) local p = part(name) return p and p.slotType end
 end
 
--- Models whose parts are not swapped or taken off for a lot (they stand stock, dented): a midtruck crashed the game twice
--- right after it was rebuilt that way (T29, the cause not found yet: tools/probe_tweak.lua finds it). Empty the list when it has.
-M.NO_TWEAK_MODELS = { midtruck = true }
+-- Models whose parts are not swapped or taken off for a lot (they stand stock, dented). Empty: the midtruck crashes (T29) came from a
+-- swapped spare wheel, which M.REFUSE keeps from being changed on any model. Add a model here, or a word to M.REFUSE, if a car
+-- ever crashes the game again.
+M.NO_TWEAK_MODELS = {}
+M.REFUSE = { 'sparewheel', 'spare_wheel', 'spare' }       -- (pieces of a slot path, slot id or part name that are never taken off or swapped)
 
 -- A car for sale, built as its offer describes: stock, then parts swapped and taken off, then dented.
 -- A track special is built as a race car instead. Returns the vehicle (nil if it could not be made).
@@ -232,7 +234,7 @@ function M.buildOffer(job, offer, pos, rot)
   else
     local slotOf, partSlotType = slotLookups(id)
     tweak = carsLib.tweakTree(cfg.partsTree, { rng = rng, classify = classify(), valueOf = valueOf(id), faults = offer.faults, mods = offer.mods,
-      slotOf = slotOf, partSlotType = partSlotType })
+      slotOf = slotOf, partSlotType = partSlotType, refuse = M.REFUSE })
   end
   if #tweak.removed + #tweak.swapped + #(tweak.refused or {}) > 0 then       -- (one line a car: the last one before a crash names the change)
     local function paths(list, f) local t = {} for i, x in ipairs(list or {}) do t[i] = f(x) end return table.concat(t, ' ') end

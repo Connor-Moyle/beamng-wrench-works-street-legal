@@ -420,9 +420,21 @@ return function(check, rngLib)
   local clear = function() return nil end
   local yaw0, f0 = LC.choose(car, facing, LC.PITCH, LC.DIST, clear)
   check('a clear lot: the first rear quarter (145 degrees)', math.abs(yaw0 - math.rad(145)) < 1e-9 and f0 == 1)
-  local eye0 = LC.eyeAt(car, facing, yaw0, LC.PITCH, LC.DIST)
-  check('the eye is behind the car and to its side, 6.5 m out, about 1.7 m above its centre', eye0.y < car.y and math.abs(eye0.x - car.x) > 2.5 and math.abs(eye0.z - car.z - 1.75) < 0.1
-    and math.abs(math.sqrt((eye0.x - car.x) ^ 2 + (eye0.y - car.y) ^ 2) - LC.DIST * math.cos(LC.PITCH)) < 1e-6)
+  local fdist, fpitch = LC.frame(5.5)
+  local eye0 = LC.eyeAt(car, facing, yaw0, fpitch, fdist)
+  check('the eye is behind the car and to its side, 2.2 m above its centre (about 3 m above the ground), 6.5 to 10 m out', eye0.y < car.y and math.abs(eye0.x - car.x) > 2.5 and math.abs(eye0.z - car.z - LC.EYE_UP) < 0.01
+    and fdist >= 6.5 and fdist <= 10 and math.abs(math.sqrt((eye0.x - car.x) ^ 2 + (eye0.y - car.y) ^ 2) - fdist * math.cos(fpitch)) < 1e-6)
+  check('a 15 to 20 degree look down for an ordinary car', math.deg(fpitch) > 13 and math.deg(fpitch) < 20)
+  local small, _ = LC.frame(2.5)
+  local big, _ = LC.frame(30)
+  check('the distance follows the car size: never under 6.5 m, never over 10 m, more for a bigger car', small == 6.5 and big == 10 and LC.frame(8) > LC.frame(5))
+  -- the screen: the camera looks at a point DROP * dist below the car centre, so the car stands above the middle of the screen
+  local atan = math.atan2 or math.atan
+  local dropM = LC.DROP * fdist
+  local lookAngle = atan(eye0.z - (car.z - dropM), math.sqrt((eye0.x - car.x) ^ 2 + (eye0.y - car.y) ^ 2))
+  local carAngle = atan(eye0.z - car.z, math.sqrt((eye0.x - car.x) ^ 2 + (eye0.y - car.y) ^ 2))
+  local above = math.deg(lookAngle - carAngle)
+  check('the car centre is 8 to 18 degrees above the middle of the picture (clear of the info card over the bottom 40 percent)', above > 8 and above < 18)
   -- a building along the car's back (y < 97): everything behind is blocked at the wall; the sides are clear
   local wallBehind = function(a, b) if b.y < 97 then return math.abs((97 - a.y) / (b.y - a.y)) * math.sqrt((b.x - a.x) ^ 2 + (b.y - a.y) ^ 2 + (b.z - a.z) ^ 2) end end
   local yaw1, f1 = LC.choose(car, facing, LC.PITCH, LC.DIST, wallBehind)
@@ -436,4 +448,37 @@ return function(check, rngLib)
   local pulledBox = LC.pull(car, LC.eyeAt(car, facing, yaw2, LC.PITCH, LC.DIST), boxed)
   check('...and the eye stays at least 1.5 m from the car', math.sqrt((pulledBox.x - car.x) ^ 2 + (pulledBox.y - car.y) ^ 2 + (pulledBox.z - car.z - 0.8) ^ 2) >= 1.5 - 1e-9)
   check('a car facing another way gets the quarter relative to it', math.abs(LC.eyeAt(car, { x = 1, y = 0 }, math.rad(145), LC.PITCH, LC.DIST).x - car.x) > 4)
+
+  -- T29: a spare wheel (any model) is never taken off or swapped, nor the part it hangs from
+  local function spareTree()
+    return { chosenPartName = 'main', children = {
+      rims_f = { id = 'rims_f', path = '/rims_f/', chosenPartName = 'rim_a', suitablePartNames = { 'rim_a', 'rim_b' }, children = {} },
+      body = { id = 'body', path = '/body/', chosenPartName = 'midtruck_body', suitablePartNames = { 'midtruck_body' }, children = {
+        reardoor = { id = 'midtruck_reardoor', path = '/body/midtruck_reardoor/', chosenPartName = 'midtruck_reardoor', suitablePartNames = { 'midtruck_reardoor', 'midtruck_reardoor_b' }, children = {
+          spare = { id = 'midtruck_sparewheel', path = '/body/midtruck_reardoor/midtruck_sparewheel/', chosenPartName = 'midtruck_sparewheel_steel',
+            suitablePartNames = { 'midtruck_sparewheel_steel', 'midtruck_sparewheel_steel_alt', 'midtruck_sparewheel_beadlock' }, children = {} } } } } },
+    } }
+  end
+  local spareKinds = { rims_f = { 'running', 'rims_f' }, midtruck_sparewheel = { 'running', 'rims_f' }, midtruck_reardoor = { 'body', 'doors' } }
+  local function spareClassify(id) local k = spareKinds[id] if k then return k[1], k[2] end return 'body', 'misc' end
+  local touched = 0
+  for seed = 1, 60 do
+    local tr = spareTree()
+    local r = C.tweakTree(tr, { rng = rngLib.new(rngLib.hash('sp' .. seed)), classify = spareClassify, valueOf = function() return 1 end, faults = {}, mods = 3 })
+    local spare = tr.children.body.children.reardoor.children.spare
+    if spare.chosenPartName ~= 'midtruck_sparewheel_steel' or tr.children.body.children.reardoor.chosenPartName ~= 'midtruck_reardoor' then touched = touched + 1 end
+    for _, x in ipairs(r.swapped) do if tostring(x.path):find('spare', 1, true) or tostring(x.path):find('reardoor', 1, true) then touched = touched + 1 end end
+  end
+  check('a spare wheel slot (and the door it hangs on) is never swapped, over 60 random cars with 3 modifications each', touched == 0)
+  local trF = spareTree()
+  local rF = C.tweakTree(trF, { rng = rngLib.new(1), classify = function(id) if id == 'midtruck_sparewheel' then return 'engine', 'intake' end return 'body', 'misc' end, valueOf = function() return 1 end, faults = { 'engine' }, mods = 0 })
+  check('...nor taken off by a fault, and the refusal is named', #rF.removed == 0 and #rF.refused == 1 and rF.refused[1].why:find('spare', 1, true) ~= nil and trF.children.body.children.reardoor.children.spare.chosenPartName == 'midtruck_sparewheel_steel')
+  local otherSwaps = 0
+  for seed = 1, 60 do
+    local tr = spareTree()
+    local r = C.tweakTree(tr, { rng = rngLib.new(rngLib.hash('sp' .. seed)), classify = spareClassify, valueOf = function() return 1 end, faults = {}, mods = 3, refuse = { 'nothing' } })
+    for _, x in ipairs(r.swapped) do if tostring(x.path):find('spare', 1, true) then otherSwaps = otherSwaps + 1 end end
+  end
+  check('the list is the caller own (the proof the rule is what protects it): with another list the spare wheel does get swapped', otherSwaps > 0)
+  check('the default list names the spare wheel in its spellings', table.concat(C.REFUSE, ' '):find('sparewheel', 1, true) ~= nil and table.concat(C.REFUSE, ' '):find('spare_wheel', 1, true) ~= nil)
 end
