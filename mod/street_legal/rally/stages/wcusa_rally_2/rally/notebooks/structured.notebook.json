@@ -1,0 +1,446 @@
+{
+ "audioMode": 4,
+ "authors": "Street Legal",
+ "created_at": 1784000000,
+ "description": "",
+ "metadata": {},
+ "name": "structured",
+ "pacenotes": [
+  {
+   "audioMode": 1,
+   "distanceBeforeModifier": true,
+   "ignoreDistanceCalls": false,
+   "includeLinkWord": true,
+   "isolate": false,
+   "metadata": {},
+   "name": "Pacenote 1",
+   "oldId": 2,
+   "pacenoteWaypoints": [
+    {
+     "name": "corner start",
+     "normal": [
+      0.750527,
+      0.66079,
+      -0.008158
+     ],
+     "oldId": 3,
+     "pos": [
+      390.1,
+      61.9,
+      127.8
+     ],
+     "radius": 8,
+     "waypointType": "cornerStart"
+    },
+    {
+     "name": "corner end",
+     "normal": [
+      0.447194,
+      0.894388,
+      -0.009317
+     ],
+     "oldId": 4,
+     "pos": [
+      422.0,
+      101.5,
+      127.0
+     ],
+     "radius": 8,
+     "waypointType": "cornerEnd"
+    }
+   ],
+   "pk": "4c8210d7",
+   "slowCorner": false,
+   "slowCornerReleaseType": 30,
+   "structured": {
+    "items": {
+     "1": {},
+     "2": {},
+     "3": {},
+     "4": {
+      "type": "corner"
+     },
+     "5": {},
+     "6": {}
+    },
+    "schemaVersion": 3
+   },
+   "todo": false,
+   "triggerType": 15
+  },
+  {
+   "audioMode": 1,
+   "distanceBeforeModifier": true,
+   "ignoreDistanceCalls": false,
+   "includeLinkWord": true,
+   "isolate": false,
+   "metadata": {},
+   "name": "Pacenote 2",
+   "oldId": 5,
+   "pacenoteWaypoints": [
+    {
+     "name": "corner start",
+     "normal": [
+      0.447194,
+      0.894388,
+      -0.009317
+     ],
+     "oldId": 6,
+     "pos": [
+      422.0,
+      101.5,
+      127.0
+     ],
+     "radius": 8,
+     "waypointType": "cornerStart"
+    },
+    {
+     "name": "corner end",
+     "normal": [
+      -0.582087,
+      0.813074,
+      -0.009239
+     ],
+     "oldId": 7,
+     "pos": [
+      421.0,
+      152.0,
+      126.5
+     ],
+     "radius": 8,
+     "waypointType": "cornerEnd"
+    }
+   ],
+   "pk": "cfcea398",
+   "slowCorner": false,
+   "slowCornerReleaseType": 30,
+   "structured": {
+    "items": {
+     "1": {},
+     "2": {},
+     "3": {},
+     "4": {
+      "type": "corner"
+     },
+     "5": {},
+     "6": {}
+    },
+    "schemaVersion": 3
+   },
+   "todo": false,
+   "triggerType": 15
+  },
+  {
+   "audioMode": 1,
+   "distanceBeforeModifier": true,
+   "ignoreDistanceCalls": false,
+   "includeLinkWord": true,
+   "isolate": false,
+   "metadata": {},
+   "name": "Pacenote 3",
+   "oldId": 8,
+   "pacenoteWaypoints": [
+    {
+     "name": "corner start",
+     "normal": [
+      -0.582087,
+      0.813074,
+      -0.009239
+     ],
+     "oldId": 9,
+     "pos": [
+      421.0,
+      152.0,
+      126.5
+     ],
+     "radius": 8,
+     "waypointType": "cornerStart"
+    },
+    {
+     "name": "corner end",
+     "normal": [
+      -0.971048,
+      -0.238182,
+      0.018322
+     ],
+     "oldId": 10,
+     "pos": [
+      368.7,
+      171.2,
+      127.1
+     ],
+     "radius": 8,
+     "waypointType": "cornerEnd"
+    }
+   ],
+   "pk": "0c85308b",
+   "slowCorner": false,
+   "slowCornerReleaseType": 30,
+   "structured": {
+    "items": {
+     "1": {},
+     "2": {},
+     "3": {},
+     "4": {
+      "type": "corner"
+     },
+     "5": {},
+     "6": {}
+    },
+    "schemaVersion": 3
+   },
+   "todo": false,
+   "triggerType": 15
+  },
+  {
+   "audioMode": 1,
+   "distanceBeforeModifier": true,
+   "ignoreDistanceCalls": false,
+   "includeLinkWord": true,
+   "isolate": false,
+   "metadata": {},
+   "name": "Pacenote 4",
+   "oldId": 11,
+   "pacenoteWaypoints": [
+    {
+     "name": "corner start",
+     "normal": [
+      -0.971048,
+      -0.238182,
+      0.018322
+     ],
+     "oldId": 12,
+     "pos": [
+      368.7,
+      171.2,
+      127.1
+     ],
+     "radius": 8,
+     "waypointType": "cornerStart"
+    },
+    {
+     "name": "corner end",
+     "normal": [
+      -0.831962,
+      -0.554641,
+      0.014596
+     ],
+     "oldId": 13,
+     "pos": [
+      319.3,
+      148.4,
+      127.9
+     ],
+     "radius": 8,
+     "waypointType": "cornerEnd"
+    }
+   ],
+   "pk": "11db27c0",
+   "slowCorner": false,
+   "slowCornerReleaseType": 30,
+   "structured": {
+    "items": {
+     "1": {},
+     "2": {},
+     "3": {},
+     "4": {
+      "type": "corner"
+     },
+     "5": {},
+     "6": {}
+    },
+    "schemaVersion": 3
+   },
+   "todo": false,
+   "triggerType": 15
+  },
+  {
+   "audioMode": 1,
+   "distanceBeforeModifier": true,
+   "ignoreDistanceCalls": false,
+   "includeLinkWord": true,
+   "isolate": false,
+   "metadata": {},
+   "name": "Pacenote 5",
+   "oldId": 14,
+   "pacenoteWaypoints": [
+    {
+     "name": "corner start",
+     "normal": [
+      -0.781352,
+      -0.623996,
+      -0.010852
+     ],
+     "oldId": 15,
+     "pos": [
+      262.6,
+      105.9,
+      128.0
+     ],
+     "radius": 8,
+     "waypointType": "cornerStart"
+    },
+    {
+     "name": "corner end",
+     "normal": [
+      -0.180066,
+      -0.983435,
+      -0.020777
+     ],
+     "oldId": 16,
+     "pos": [
+      214.3,
+      44.6,
+      127.0
+     ],
+     "radius": 8,
+     "waypointType": "cornerEnd"
+    }
+   ],
+   "pk": "199b7a54",
+   "slowCorner": false,
+   "slowCornerReleaseType": 30,
+   "structured": {
+    "items": {
+     "1": {},
+     "2": {},
+     "3": {},
+     "4": {
+      "type": "corner"
+     },
+     "5": {},
+     "6": {}
+    },
+    "schemaVersion": 3
+   },
+   "todo": false,
+   "triggerType": 15
+  },
+  {
+   "audioMode": 1,
+   "distanceBeforeModifier": true,
+   "ignoreDistanceCalls": false,
+   "includeLinkWord": true,
+   "isolate": false,
+   "metadata": {},
+   "name": "Pacenote 6",
+   "oldId": 17,
+   "pacenoteWaypoints": [
+    {
+     "name": "corner start",
+     "normal": [
+      -0.180066,
+      -0.983435,
+      -0.020777
+     ],
+     "oldId": 18,
+     "pos": [
+      214.3,
+      44.6,
+      127.0
+     ],
+     "radius": 8,
+     "waypointType": "cornerStart"
+    },
+    {
+     "name": "corner end",
+     "normal": [
+      0.971987,
+      -0.234897,
+      0.0081
+     ],
+     "oldId": 19,
+     "pos": [
+      248.5,
+      -13.5,
+      126.7
+     ],
+     "radius": 8,
+     "waypointType": "cornerEnd"
+    }
+   ],
+   "pk": "10167066",
+   "slowCorner": false,
+   "slowCornerReleaseType": 30,
+   "structured": {
+    "items": {
+     "1": {},
+     "2": {},
+     "3": {},
+     "4": {
+      "type": "corner"
+     },
+     "5": {},
+     "6": {}
+    },
+    "schemaVersion": 3
+   },
+   "todo": false,
+   "triggerType": 15
+  },
+  {
+   "audioMode": 1,
+   "distanceBeforeModifier": true,
+   "ignoreDistanceCalls": false,
+   "includeLinkWord": true,
+   "isolate": false,
+   "metadata": {},
+   "name": "Pacenote 7",
+   "oldId": 20,
+   "pacenoteWaypoints": [
+    {
+     "name": "corner start",
+     "normal": [
+      0.971987,
+      -0.234897,
+      0.0081
+     ],
+     "oldId": 21,
+     "pos": [
+      248.5,
+      -13.5,
+      126.7
+     ],
+     "radius": 8,
+     "waypointType": "cornerStart"
+    },
+    {
+     "name": "corner end",
+     "normal": [
+      0.845824,
+      0.533354,
+      0.010775
+     ],
+     "oldId": 22,
+     "pos": [
+      319.6,
+      9.3,
+      127.6
+     ],
+     "radius": 8,
+     "waypointType": "cornerEnd"
+    }
+   ],
+   "pk": "e561b1d6",
+   "slowCorner": false,
+   "slowCornerReleaseType": 30,
+   "structured": {
+    "items": {
+     "1": {},
+     "2": {},
+     "3": {},
+     "4": {
+      "type": "corner"
+     },
+     "5": {},
+     "6": {}
+    },
+    "schemaVersion": 3
+   },
+   "todo": false,
+   "triggerType": 15
+  }
+ ],
+ "updated_at": 1784000000,
+ "version": "4"
+}

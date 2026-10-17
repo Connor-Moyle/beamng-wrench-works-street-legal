@@ -1,0 +1,134 @@
+{
+ "authors": "Street Legal",
+ "classification": {
+  "allowRollingStart": false,
+  "branching": false,
+  "closed": false,
+  "reversible": false
+ },
+ "date": 1784000000,
+ "defaultLaps": 1,
+ "defaultStartPosition": 2,
+ "description": "Back Country Loop",
+ "difficulty": 20,
+ "endNode": -1,
+ "forwardPrefabs": {},
+ "hideMission": false,
+ "name": "Back Country Loop",
+ "pacenotes": {},
+ "pathnodes": [
+  {
+   "customFields": {
+    "names": {},
+    "tags": {},
+    "types": {},
+    "values": {}
+   },
+   "mode": "manual",
+   "name": "Pathnode 1",
+   "navRadiusScale": 1,
+   "normal": [
+    0.598923,
+    -0.798564,
+    -0.059892
+   ],
+   "oldId": 4,
+   "pos": [
+    723.7,
+    33.4,
+    152.4
+   ],
+   "radius": 10,
+   "recovery": -1,
+   "reverseRecovery": -1,
+   "sidePadding": [
+    1,
+    3
+   ],
+   "useAsSplit": false,
+   "visible": true
+  },
+  {
+   "customFields": {
+    "names": {},
+    "tags": {},
+    "types": {},
+    "values": {}
+   },
+   "mode": "manual",
+   "name": "Pathnode 2",
+   "navRadiusScale": 1,
+   "normal": [
+    -0.759273,
+    -0.644232,
+    0.092033
+   ],
+   "oldId": 5,
+   "pos": [
+    728.8,
+    41.9,
+    156.6
+   ],
+   "radius": 10,
+   "recovery": -1,
+   "reverseRecovery": -1,
+   "sidePadding": [
+    1,
+    3
+   ],
+   "useAsSplit": false,
+   "visible": true
+  }
+ ],
+ "prefabs": {},
+ "reversePrefabs": {},
+ "reverseStartPosition": -1,
+ "rollingReverseStartPosition": -1,
+ "rollingStartPosition": -1,
+ "segments": [
+  {
+   "capsules": {},
+   "from": 4,
+   "mode": "waypoint",
+   "name": "Segment 1->2",
+   "oldId": 6,
+   "to": 5
+  }
+ ],
+ "simplifyAiPath": false,
+ "startNode": 4,
+ "startPositions": [
+  {
+   "group": "start",
+   "name": "SS_start_line",
+   "oldId": 2,
+   "pos": [
+    723.7,
+    33.4,
+    152.4
+   ],
+   "rot": [
+    0.0,
+    0.0,
+    -0.9486832980505138,
+    0.31622776601683794
+   ]
+  },
+  {
+   "group": "start",
+   "name": "SS_stop_control",
+   "oldId": 3,
+   "pos": [
+    728.8,
+    41.9,
+    156.6
+   ],
+   "rot": [
+    0.0,
+    0.0,
+    0.9074627948833739,
+    0.4201324504277856
+   ]
+  }
+ ]
+}

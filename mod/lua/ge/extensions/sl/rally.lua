@@ -11,6 +11,7 @@ local strings = require('sl/core/strings')
 local rules = require('sl/core/rally')
 local splitphase = require('sl/core/splitphase')
 local stateLib = require('sl/core/state')
+local racelog = require('sl/racelog')
 
 local stages            -- { { id, name, points, width, length, notes, par } }, loaded once per level
 local run               -- the stage being run: { stage, i, t, state, vid, calledAt, off }
@@ -52,9 +53,29 @@ local function carNumbers(v)
   return { power = cfg and cfg.Power, weight = cfg and cfg.Weight }
 end
 
+-- The game's own codriver (A9): gameplay_rally reads the stage's folder (tools/make_rally_stages.py: race, driveline, structured notebook) and calls the corners
+-- with a shared voicepack, from the car's place on the line. Without it (not loaded, a mission owns it) the text calls below stay the only ones.
+local VOICEPACK = { type = 'voicepack', id = 'global:ak_2026-06-15', scope = 'global', dirname = 'ak_2026-06-15' }
+M.CODRIVER = true
+local function codriverOn(stage)
+  if not M.CODRIVER then return false end
+  local ok, err = pcall(function()
+    pcall(extensions.load, 'gameplay_rally')
+    if not gameplay_rally then error('gameplay_rally is not loaded') end
+    local loaded, why = gameplay_rally.loadMission('sl_' .. stage.id, '/street_legal/rally/stages/' .. stage.id, nil, VOICEPACK, { owner = 'external' })
+    if not loaded then error(tostring(why)) end
+  end)
+  racelog.add('rally', 'codriver', { stage = stage.id, ok = ok and 'yes' or 'no', why = ok and '' or tostring(err) })
+  return ok
+end
+local function codriverOff()
+  pcall(function() if gameplay_rally and gameplay_rally.unloadMission then gameplay_rally.unloadMission({ owner = 'external' }) end end)
+end
+
 local function finish(ok, why)
   local r = run
   run = nil
+  codriverOff()
   cool = 8                       -- (a loop ends where it began: no new start at once)
   if not r then return end
   local v = getObjectByID(r.vid)
@@ -85,6 +106,7 @@ local function begin(stage, v)
   if not ok then say(why, 6) return end
   if not sl_career.addMoney(-rules.ENTRY_FEE, strings.t('rally.rally_entry_1', (stage.name))) then say(string.format(strings.t('rally.the_entry_is_d'), rules.ENTRY_FEE), 5) return end
   run = { stage = stage, i = 1, t = 0, state = 'countdown', vid = v:getID(), calledAt = 0, off = 0, count = COUNTDOWN }
+  run.codriver = codriverOn(stage)
   v:queueLuaCommand('controller.setFreeze(1)')
   say(string.format(strings.t('rally.s_d_m_d_calls'), stage.name, stage.length or 0, #stage.notes, rules.ENTRY_FEE), 5)
 end
@@ -133,7 +155,7 @@ local function running(dt)
   local note, idx = rules.nextCall(r.stage.notes, along, math.max(60, speed * 6))
   if note and idx ~= r.calledAt then
     r.calledAt = idx
-    say(note.text .. (note.dist and (' - ' .. note.dist .. ' m') or ''), 3)
+    if not r.codriver then say(note.text .. (note.dist and (' - ' .. note.dist .. ' m') or ''), 3) end
   end
   if r.i >= #pts - 1 and d < 25 then finish(true) end
 end
