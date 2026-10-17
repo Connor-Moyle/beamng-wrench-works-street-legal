@@ -3,6 +3,9 @@
 --   WALK_TO = { x = , y = , z = }   where to walk (set it first; z is only for the log)
 --   WALK_FROM = { x = , y = , z = } optional: the walker is put there first (a teleport, then it walks)
 --   WALK_SECONDS = 40               optional: give up after this long (default 40)
+--   WALK_EXIT = true                optional: the player is in a car: get out first, the way the game's own key does with the career's
+--                                   action filters up: gameplay_walk.setWalkingMode(true, nil, nil, true) (force: toggleWalkingMode refuses
+--                                   a car that is not at parking speed or while toggling is off, which is how a bought car stays 'roamer')
 -- It does what the walking controls do (lua/vehicle/controller/playerController.lua): the walker goes where the walking camera looks, so the
 -- camera is turned to the target (unicycle camera setCustomData, as gameplay_walk does) and the forward axis is held (walkUpDownRaw 1),
 -- at normal walking speed (the controller's speed coefficient 0). Every second it logs the distance (log tag walk_probe) and WALK_STATUS is
@@ -32,15 +35,28 @@ local function faceTo(v, toward)
   end
 end
 
-local v0 = walker()
-if not v0 then
+local exit = rawget(_G, 'WALK_EXIT') == true
+if not walker() and not exit then
   rawset(_G, 'WALK_STATUS', 'stuck')
-  log('W', TAG, 'the player is not on foot (no walking unicycle)')
+  log('W', TAG, 'the player is not on foot (no walking unicycle); set WALK_EXIT = true to get out of the car first')
   return 'the player is not on foot'
 end
 
 rawset(_G, 'WALK_STATUS', 'walking')
 core_jobsystem.create(function(job)
+  if exit and not walker() then
+    local ok = gameplay_walk and gameplay_walk.setWalkingMode and gameplay_walk.setWalkingMode(true, nil, nil, true)
+    local waited = 0
+    while not walker() and waited < 6 do job.sleep(0.2) waited = waited + 0.2 end
+    if not walker() then
+      rawset(_G, 'WALK_STATUS', 'stuck')
+      log('W', TAG, 'could not get out of the car (setWalkingMode returned ' .. tostring(ok) .. ')')
+      return
+    end
+    log('I', TAG, 'out of the car: the player is the walking unicycle now')
+    job.sleep(1)
+  end
+  local v0 = walker()
   local from = rawget(_G, 'WALK_FROM')
   if type(from) == 'table' and tonumber(from.x) and tonumber(from.y) then
     local face = goal - vec3(tonumber(from.x), tonumber(from.y), 0)
