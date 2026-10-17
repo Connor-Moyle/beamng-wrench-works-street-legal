@@ -138,11 +138,18 @@ local function parseColor(text)
   if not r then return nil end
   return { tonumber(r), tonumber(g), tonumber(b) }, a ~= '' and a or '1'
 end
+local tintSig      -- the inputs of the last applyTint pass
 local function applyTint(amount, dark, haze)
   local sky = first('ScatterSky')
   if not sky then return end
   local elevation = tonumber(sky.elevation)
   dark, amount = rules.skyFactors(elevation, dark, amount)
+  -- the same inputs and nothing rewritten by the game since: nothing to do (the setField/postApply pass rebuilds the sky: ms per call, twice a second, all night; hitch run 2026-10-18)
+  local sig = string.format('%.3f|%.3f|%.3f|%.1f', amount, dark, haze or 0, elevation or 0)
+  local same = sig == tintSig
+  if same then for _, k in pairs(TINT_FIELDS) do if sky:getField(k, 0) ~= written[k] then same = false break end end end
+  if same then return end
+  tintSig = sig
   M.skyNumbers.sun = { elevation = elevation, dark = dark, grey = amount }
   for part, k in pairs(TINT_FIELDS) do
     pcall(function()
@@ -196,6 +203,7 @@ end
 
 -- the career stops (or the weather clears): the values the game wrote come back, the sky brightness and the cloud exposure are the level's again
 local function restoreTint()
+  tintSig = nil
   local sky = first('ScatterSky')
   if sky then
     for _, k in pairs(TINT_FIELDS) do if orig[k] and sky:getField(k, 0) == written[k] then pcall(function() sky:setField(k, 0, orig[k]) end) end end
