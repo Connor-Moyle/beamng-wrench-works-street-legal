@@ -607,7 +607,7 @@ local function modelInfo(key)
 end
 
 local function catalogue()
-  lot.catalogue = lot.catalogue or factoryLib.catalogue(M.poolOf(lot.place))
+  lot.catalogue = lot.catalogue or factoryLib.withSpecial(M.poolOf(lot.place), builder.specialOrder())
   return lot.catalogue
 end
 
@@ -632,7 +632,7 @@ function M.factoryView()
   local out = { step = f.step, money = career() and career().money }
   if f.step == 'models' then
     out.models = {}
-    for i, m in ipairs(cat) do out.models[i] = { i = i, name = (m.brand ~= '' and (m.brand .. ' ') or '') .. tostring(modelInfo(m.model).Name or m.model), from = m.trims[1].value, trims = #m.trims } end
+    for i, m in ipairs(cat) do out.models[i] = { i = i, name = (m.brand ~= '' and (m.brand .. ' ') or '') .. tostring(modelInfo(m.model).Name or m.model), from = m.trims[1].value, trims = #m.trims, special = m.special } end
     return out
   end
   local m = cat[f.mi]

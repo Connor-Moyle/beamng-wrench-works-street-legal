@@ -1030,7 +1030,7 @@
       if (l.factory) {
         var f = l.factory, rows = '', back = '<div class="slp-lotleave"><div class="slp-btn slp-text" data-a="lot" data-v="factoryBack()">' + T('ui.factory_back', 'Back') + '</div></div>';
         if (f.step === 'models') arr(f.models).forEach(function (m) {
-          rows += '<div class="slp-btn slp-tonal" data-a="lot" data-v="factoryModel(' + m.i + ')">' + esc(m.name) + ' &middot; ' + T('ui.factory_from', 'from') + ' ' + money(m.from) + ' &middot; ' + T('ui.factory_trims_n', '{1} trims', m.trims) + '</div>';
+          rows += '<div class="slp-btn slp-tonal" data-a="lot" data-v="factoryModel(' + m.i + ')">' + esc(m.name) + (m.special ? ' &middot; ' + T('ui.special_order', 'Special order') : '') + ' &middot; ' + T('ui.factory_from', 'from') + ' ' + money(m.from) + ' &middot; ' + T('ui.factory_trims_n', '{1} trims', m.trims) + '</div>';
         });
         else if (f.step === 'trims') arr(f.trims).forEach(function (t) {
           rows += '<div class="slp-btn slp-tonal" data-a="lot" data-v="factoryTrim(' + t.i + ')">' + esc(t.name) + ' &middot; ' + money(t.price) + '</div>';

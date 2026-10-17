@@ -396,6 +396,7 @@ M.TEXT = {
   ["ui.factory_back"] = "Back",
   ["ui.factory_trims_n"] = "{1} trims",
   ["ui.on_order_1_arrives_day"] = "On order: {1}, {2} &middot; arrives day {3} {4}:00",
+  ["ui.special_order"] = "Special order",
   ["ui.skip"] = "Skip",
   ["ui.skip_any_event_it_only"] = " skip any event, it only costs its points",
   ["ui.skip_the_tutorial"] = "Skip the tutorial",

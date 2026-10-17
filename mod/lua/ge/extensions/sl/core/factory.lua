@@ -25,6 +25,13 @@ function M.catalogue(pool)
   return list
 end
 
+-- the dealer's own models, then the "Special order" group (the silly models no lot sells: carBuilder.specialOrder()), marked special = true
+function M.withSpecial(pool, special)
+  local list = M.catalogue(pool)
+  for _, m in ipairs(M.catalogue(special)) do m.special = true list[#list + 1] = m end
+  return list
+end
+
 -- the order record kept in the save; the price is the config's value, nothing added
 function M.order(model, trim, paint, now)
   return { model = model, config = trim.config, name = trim.name, price = trim.value, paint = paint, due = now + M.DELIVERY_HOURS }

@@ -1330,6 +1330,10 @@ do -- special-order models: on no lot, ad, racer pool or cruiser; only in the fa
   local found = false
   for _, m in ipairs(cat) do if m.model == 'atv' then found = true end end
   check('the Wydra is in the factory catalogue of the special-order list', found)
+  local both = factory.withSpecial({ c('covet') }, special)
+  local wydra
+  for _, m in ipairs(both) do if m.model == 'atv' then wydra = m end end
+  check('the dealer catalogue lists its own model first, then the special-order group with the Wydra', both[1].model == 'covet' and not both[1].special and wydra and wydra.special == true)
 end
 
 print(string.format('lua tests passed: %d checks', passed))
