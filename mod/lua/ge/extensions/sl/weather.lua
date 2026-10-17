@@ -28,6 +28,7 @@ local function guarded(name, fn, ...)
   local ok, err = pcall(fn, ...)
   if not ok and not errors[name] then errors[name] = tostring(err) log('E', 'sl_weather', name .. ' failed: ' .. tostring(err)) end
 end
+local tinted = false           -- the sky's light has been darkened and not yet put back
 local forced = false       -- a game test put the weather in a state (debugForce): the career's own weather does not replace it, and no career is needed for it to run
 
 local wet = 0                    -- how wet the roads are, 0..1
@@ -123,20 +124,66 @@ end
 
 -- the sky's sun, fog and ambient colours come from gradients that follow the time of day (at dawn they are orange, and a fog in them is an orange dust storm).
 -- In rain they are pulled towards grey of the same brightness; the game rewrites them with the time of day, so this is repeated twice a second while it is on.
-local TINT_FIELDS = { 'sunScale', 'fogScale', 'ambientScale' }
-local function applyTint(amount)
+-- Darker too (the rain sky must be moody, not just grey): the colours are scaled down by 'dark' (rules.keep: the sun's light, the ambient, the fog colour), the ScatterSky skyBrightness field
+-- and the cloud exposure field are lowered; all from the values the game itself wrote last (orig), so a repeat does not darken twice: if the field still holds what we wrote, it is left alone.
+local TINT_FIELDS = { sun = 'sunScale', fog = 'fogScale', ambient = 'ambientScale' }
+local orig, written = {}, {}
+local skyOrig, exposureOrig
+M.skyNumbers = {}                  -- what the last tint pass did, for a game test: { part = { from = .., to = .. } }
+local function parseColor(text)
+  local r, g, b, a = tostring(text):match('([%-%d%.e]+)%s+([%-%d%.e]+)%s+([%-%d%.e]+)%s*([%-%d%.e]*)')
+  if not r then return nil end
+  return { tonumber(r), tonumber(g), tonumber(b) }, a ~= '' and a or '1'
+end
+local function applyTint(amount, dark)
   local sky = first('ScatterSky')
   if not sky then return end
-  for _, k in ipairs(TINT_FIELDS) do
+  dark = dark or 0
+  for part, k in pairs(TINT_FIELDS) do
     pcall(function()
       local text = sky:getField(k, 0)
-      local r, g, b, a = tostring(text):match('([%-%d%.e]+)%s+([%-%d%.e]+)%s+([%-%d%.e]+)%s*([%-%d%.e]*)')
-      if not r then return end
-      local c = rules.greyer({ tonumber(r), tonumber(g), tonumber(b) }, amount)
-      sky:setField(k, 0, string.format('%f %f %f %s', c[1], c[2], c[3], a ~= '' and a or '1'))
+      if text ~= written[k] then orig[k] = text end            -- (the game wrote a new value: that is the one to start from)
+      local c, a = parseColor(orig[k])
+      if not c then return end
+      local out = rules.darker(rules.greyer(c, amount), rules.keep(part, dark))
+      local to = string.format('%f %f %f %s', out[1], out[2], out[3], a)
+      sky:setField(k, 0, to)
+      written[k] = sky:getField(k, 0)
+      M.skyNumbers[k] = { from = orig[k], to = written[k] }
     end)
   end
+  pcall(function()                                             -- the brightness of the sky itself: the field, not the deprecated setter of core_environment
+    skyOrig = skyOrig or tonumber(sky.skyBrightness)
+    if skyOrig then
+      sky:setField('skyBrightness', 0, tostring(skyOrig * rules.keep('sky', dark)))
+      M.skyNumbers.skyBrightness = { from = skyOrig, to = tonumber(sky.skyBrightness) }
+    end
+  end)
+  pcall(function()                                             -- the clouds' own brightness (exposure) and the fog's colour
+    local cloud = first('CloudLayer')
+    if cloud then
+      exposureOrig = exposureOrig or tonumber(cloud.exposure)
+      if exposureOrig then
+        cloud:setField('exposure', 0, tostring(exposureOrig * rules.keep('cloud', dark)))
+        M.skyNumbers.cloudExposure = { from = exposureOrig, to = tonumber(cloud.exposure) }
+        if cloud.postApply then cloud:postApply() end
+      end
+    end
+  end)
   pcall(function() if sky.postApply then sky:postApply() end end)
+end
+
+-- the career stops (or the weather clears): the values the game wrote come back, the sky brightness and the cloud exposure are the level's again
+local function restoreTint()
+  local sky = first('ScatterSky')
+  if sky then
+    for _, k in pairs(TINT_FIELDS) do if orig[k] and sky:getField(k, 0) == written[k] then pcall(function() sky:setField(k, 0, orig[k]) end) end end
+    if skyOrig then pcall(function() sky:setField('skyBrightness', 0, tostring(skyOrig)) end) end
+    pcall(function() if sky.postApply then sky:postApply() end end)
+  end
+  local cloud = first('CloudLayer')
+  if cloud and exposureOrig then pcall(function() cloud:setField('exposure', 0, tostring(exposureOrig)) if cloud.postApply then cloud:postApply() end end) end
+  orig, written, skyOrig, exposureOrig = {}, {}, nil, nil
 end
 
 -- the state of this phase of this day; a new one is blended in
@@ -159,7 +206,7 @@ local function sync()
   if st.id == 'rain' then lastRain = st end
   -- (rain's grip comes from the wetness, not from the state: a road stays slippery after the rain has stopped)
   target = { drops = st.drops, cloud = st.cloud, fog = st.id == 'clear' and baseline.fog or st.fog, grip = st.id == 'rain' and 1 or st.grip, wet = st.wet or 0, tint = st.tint or 0,
-    cirrus = st.cirrus or baseline.cirrus, density = st.density or baseline.density, speed = st.speed or 1 }
+    cirrus = st.cirrus or baseline.cirrus, density = st.density or baseline.density, speed = st.speed or 1, dark = st.dark or 0 }
   blendFrom, blendT = current, 0
   extensions.hook('onStreetLegalWeather', stateId)
 end
@@ -249,8 +296,9 @@ function M.onUpdate(dtReal)
   tintTimer = tintTimer + dtReal
   if tintTimer > 0.5 then
     tintTimer = 0
-    local amount = current and current.tint or 0
-    if amount > 0.02 then applyTint(amount) end
+    local amount, dark = current and current.tint or 0, current and current.dark or 0
+    if amount > 0.02 or dark > 0.02 then guarded('applyTint', applyTint, amount, dark) tinted = true
+    elseif tinted then tinted = false guarded('restoreTint', restoreTint) end
   end
   gripTimer = gripTimer + dtReal
   if gripTimer > 2 then gripTimer = 0 pushGrip() end
@@ -264,7 +312,7 @@ function M.debugForce(id, level)
   local st = rules.resolve(stateId, levelId)
   if st.id == 'rain' then lastRain = st end
   target = { drops = st.drops, cloud = st.cloud, fog = st.id == 'clear' and baseline.fog or st.fog, grip = st.id == 'rain' and 1 or st.grip, wet = st.wet or 0, tint = st.tint or 0,
-    cirrus = st.cirrus or baseline.cirrus, density = st.density or baseline.density, speed = st.speed or 1 }
+    cirrus = st.cirrus or baseline.cirrus, density = st.density or baseline.density, speed = st.speed or 1, dark = st.dark or 0 }
   current, blendT = rules.blend(current, target, 1), 1
   wet = target.wet
   M.lastLoggedDrops = nil
@@ -293,8 +341,13 @@ local function reset()
   wet, lastRain, followLogged = 0, nil, false
 end
 
+-- before and after: what the sky objects say now and what the tint pass last did (a game test prints it)
+function M.skyReport() return M.skyNumbers, tinted, current and current.dark, current and current.tint end
+
 function M.onStreetLegalStopped()
   if baseline then applySky(baseline) end
+  guarded('restoreTint', restoreTint)
+  tinted = false
   if windBase and core_environment and core_environment.setGroundWind then pcall(core_environment.setGroundWind, windBase.x, windBase.y, windBase.z) end
   windBase = nil
   local v = getPlayerVehicle(0)

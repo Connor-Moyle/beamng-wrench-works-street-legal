@@ -20,11 +20,11 @@ M.STATES = {
 -- rain comes in three strengths (the state stays 'rain'; the level of it is drawn from the seed too). A level changes what the sky does:
 -- drops (Precipitation numOfDrops), speed (a factor on the drops' own speeds), cloud (CloudLayer coverage; the game has no sky brightness any more, a thick
 -- overcast is what darkens it), cirrus / density (the high cloud over it), fog (kept thin: a thick fog takes the sun's colour, and at dawn that is an orange
--- dust storm), tint (0..1: how far the sky's sun, fog and ambient colours are pulled to grey), grip, pay, wet (how wet the roads get at most, 0..1)
+-- dust storm), tint (0..1: how far the sky's sun, fog and ambient colours are pulled to grey), dark (0..1: how much darker the sky's light, ambient, fog and clouds are made: moody, still day), grip, pay, wet (how wet the roads get at most, 0..1)
 M.RAIN_LEVELS = {
-  light = { id = 'light', name = 'Light rain', drops = 600, speed = 0.85, cloud = 1.3, cirrus = 0.6, density = 0.6, fog = 0.0005, grip = 0.88, pay = 1.04, wet = 0.45, tint = 0.5 },
-  medium = { id = 'medium', name = 'Rain', drops = 1500, speed = 1, cloud = 1.8, cirrus = 0.85, density = 0.85, fog = 0.0006, grip = 0.78, pay = 1.08, wet = 0.8, tint = 0.75 },
-  heavy = { id = 'heavy', name = 'Heavy rain', drops = 3000, speed = 1.25, cloud = 2.4, cirrus = 1, density = 1, fog = 0.0008, grip = 0.68, pay = 1.12, wet = 1, tint = 0.95 },
+  light = { id = 'light', name = 'Light rain', drops = 600, speed = 0.85, cloud = 1.3, cirrus = 0.6, density = 0.6, fog = 0.0005, grip = 0.88, pay = 1.04, wet = 0.45, tint = 0.5, dark = 0.4 },
+  medium = { id = 'medium', name = 'Rain', drops = 1500, speed = 1, cloud = 1.8, cirrus = 0.85, density = 0.85, fog = 0.0006, grip = 0.78, pay = 1.08, wet = 0.8, tint = 0.75, dark = 0.65 },
+  heavy = { id = 'heavy', name = 'Heavy rain', drops = 3000, speed = 1.25, cloud = 2.4, cirrus = 1, density = 1, fog = 0.0008, grip = 0.68, pay = 1.12, wet = 1, tint = 0.95, dark = 0.85 },
 }
 M.LEVEL_ODDS = { { 'light', 0.35 }, { 'medium', 0.45 }, { 'heavy', 0.20 } }
 
@@ -67,7 +67,7 @@ function M.resolve(id, level)
     for k, v in pairs(l) do out[k] = v end
     out.id = 'rain'
   elseif base.id == 'cloudy' then
-    out.cirrus, out.density, out.tint = 0.45, 0.4, 0.35        -- grey, no rain
+    out.cirrus, out.density, out.tint, out.dark = 0.45, 0.4, 0.35, 0.18        -- grey, no rain
   elseif base.id == 'fog' then
     out.cirrus, out.density = 0.3, 0.3
   end
@@ -108,6 +108,12 @@ function M.greyer(c, amount)
   local lum = 0.3 * c[1] + 0.59 * c[2] + 0.11 * c[3]
   return { c[1] + (lum - c[1]) * amount, c[2] + (lum - c[2]) * amount, c[3] + (lum - c[3]) * amount }
 end
+
+-- how much of its brightness each part of the sky keeps at darkness 0..1: the light of the sun most, the ambient least (it must still read as day), the fog and the cloud
+-- exposure in between, the sky brightness (the ScatterSky field) the least
+M.DARK_KEEP = { sun = 0.55, ambient = 0.35, fog = 0.5, cloud = 0.45, sky = 0.5 }
+function M.keep(part, dark) return 1 - (M.DARK_KEEP[part] or 0.4) * math.max(0, math.min(1, dark or 0)) end
+function M.darker(c, factor) return { c[1] * factor, c[2] * factor, c[3] * factor } end
 
 -- the tyres' grip follows how wet the road is, not the state: it falls as the road soaks and comes back as it dries. rain is the state table of the rain that
 -- wet it (grip = the grip at its wettest, wet = how wet that is); no rain yet = dry grip.
@@ -158,7 +164,7 @@ function M.earned(amount, id) return math.floor((amount or 0) * M.pay(id) / 10 +
 function M.blend(a, b, t)
   t = math.max(0, math.min(1, t or 1))
   local out = {}
-  for _, k in ipairs({ 'drops', 'cloud', 'fog', 'grip', 'wet', 'cirrus', 'density', 'speed', 'tint' }) do
+  for _, k in ipairs({ 'drops', 'cloud', 'fog', 'grip', 'wet', 'cirrus', 'density', 'speed', 'tint', 'dark' }) do
     local x, y = a[k], b[k]
     if x ~= nil and y ~= nil then out[k] = x + (y - x) * t else out[k] = y ~= nil and y or x end
   end
