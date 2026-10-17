@@ -9,6 +9,7 @@
 local M = {}
 
 local races = require('sl/core/races')
+local preview = require('sl/core/routepreview')
 local rngLib = require('sl/core/rng')
 
 local ROAD_STARTS, MIN_APART = 7, 400         -- start lines on the roads, and the least distance between any two
@@ -82,6 +83,25 @@ M.getState = function()
   if not cur then return { phase = state } end
   return { phase = state, raceId = cur.race.id, missionId = cur.race.missionId, start = cur.race.start, goal = cur.race.finish,
            playerVid = cur.playerVid, opponentVid = cur.oppVid, ready = cur.ready or false, t = cur.t, done = cur.done }
+end
+-- the race's route as a small map for the phone (#18): { points, start, finish, w, h, metres }, made once per race
+local previews = {}
+function M.preview(raceId)
+  if previews[raceId] ~= nil then return previews[raceId] or nil end
+  previews[raceId] = false
+  local nodes
+  for _, r in ipairs(build()) do
+    if r.id == raceId then
+      nodes = nodes or graph()
+      local pts = {}
+      for _, name in ipairs(r.path or {}) do
+        local n = nodes[name]
+        if n then pts[#pts + 1] = { x = n.pos.x, y = n.pos.y } end
+      end
+      previews[raceId] = preview.fit(preview.thin(pts, 70), 240, 140, 12) or false
+    end
+  end
+  return previews[raceId] or nil
 end
 M.acceptsVehicleId = true                     -- the offer may bring the racer's own car (offer.vehicleId)
 
@@ -197,8 +217,18 @@ local function go()
 end
 
 -- racing: two positions against the goal, once a frame, and nothing else (sl/core/races.step)
+-- the finish: a tall red line and its name over it, from wherever you are, for the whole race (#18)
+local finishColor, finishBg = ColorF(1, 0.25, 0.2, 1), ColorI(0, 0, 0, 170)
+local function drawFinish(c)
+  local f = c.race.finish
+  debugDrawer:drawLine(vec3(f.x, f.y, f.z), vec3(f.x, f.y, f.z + 60), finishColor)
+  debugDrawer:drawLine(vec3(f.x + 3, f.y, f.z), vec3(f.x + 3, f.y, f.z + 60), finishColor)
+  debugDrawer:drawTextAdvanced(vec3(f.x, f.y, f.z + 62), String('FINISH'), finishColor, true, false, finishBg)
+end
+
 function M.onUpdate(dtReal)
   if not cur or not cur.ready then return end
+  if debugDrawer then pcall(drawFinish, cur) end
   local t0 = os.clock()
   cur.t = cur.t + dtReal
   local pv = getObjectByID(cur.playerVid)

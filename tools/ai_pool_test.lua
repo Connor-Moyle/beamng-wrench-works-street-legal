@@ -179,4 +179,15 @@ return function(check, rngLib)
   check('far beyond sight range a spot in the camera direction is fine; unknown camera or player: allowed', SPN.hidden({ x = 0, y = 800 }, { x = 0, y = 0, vx = 0, vy = 0 }, cam) and SPN.hidden({ x = 5, y = 5 }, nil, nil))
   check('one build at a time, with a gap, and not while he races along (until it has been long)', not SPN.canBuild(5, 100, true) and not SPN.canBuild(5, 3, false) and SPN.canBuild(5, 10, false)
     and not SPN.canBuild(25, 20, false) and SPN.canBuild(25, 50, false) and SPN.canBuild(14, 9, false) and SPN.canBuild(0, nil, false))
+
+  -- #18: a race route as a small map
+  local RP = require('sl/core/routepreview')
+  local pts = {}
+  for i = 0, 200 do pts[#pts + 1] = { x = i * 10, y = 100 * math.sin(i / 20) } end
+  local th = RP.thin(pts, 50)
+  check('thin keeps the ends and at most n points', #th == 50 and th[1] == pts[1] and th[50] == pts[#pts] and #RP.thin({ pts[1], pts[2] }, 50) == 2)
+  local f = RP.fit({ { x = 0, y = 0 }, { x = 1000, y = 0 }, { x = 1000, y = 500 } }, 240, 140, 12)
+  check('fit: 1500 m, start bottom-left, finish above the end, inside the picture', f.metres == 1500 and f.start.x >= 12 and f.start.y > f.finish.y and f.finish.x <= 228 and f.finish.y >= 12 and f.start.y <= 128)
+  check('fit: nothing to draw with fewer than two points', RP.fit({ { x = 1, y = 1 } }) == nil and RP.fit(nil) == nil)
+  check('fit: a straight line (no height) does not divide by zero', RP.fit({ { x = 0, y = 5 }, { x = 100, y = 5 } }) ~= nil)
 end
