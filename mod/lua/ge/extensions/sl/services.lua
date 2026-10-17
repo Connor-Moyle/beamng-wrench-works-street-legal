@@ -43,16 +43,16 @@ function M.onWrenchWorksServices(list, vid)
   end
   if car then
     for _, r in ipairs(sl_career.racesList() or {}) do
-      list[#list + 1] = { id = 'race:' .. r.id, group = 'Races', label = r.name, desc = r.drag and 'drag strip, test track: a racer of your level waits' or 'a racer of your level waits at the start' }
+      list[#list + 1] = { id = 'race:' .. r.id, tab = 'races', group = 'Races', label = r.name, desc = r.drag and 'drag strip, test track: a racer of your level waits' or 'a racer of your level waits at the start' }
     end
     -- the race tracks: the map's own missions when it lists them, else its venue file
     local missionTracks = sl_career.tracksList and sl_career.tracksList()
     for _, t in ipairs(missionTracks or {}) do
-      list[#list + 1] = { id = 'mtrack:' .. t.missionId, group = 'Tracks', label = t.name,
+      list[#list + 1] = { id = 'mtrack:' .. t.missionId, tab = 'races', group = 'Tracks', label = t.name,
         desc = (t.laps and t.laps > 1 and t.laps .. ' laps' or 'start to finish') .. ': a racer of your level on the grid with you' }
     end
     for _, t in ipairs(not missionTracks and sl_streets and sl_streets.tracks and sl_streets.tracks() or {}) do
-      list[#list + 1] = { id = 'track:' .. t.id, group = 'Tracks', label = t.name,
+      list[#list + 1] = { id = 'track:' .. t.id, tab = 'races', group = 'Tracks', label = t.name,
         desc = (t.sprint and 'a stage, start to finish' or t.laps .. ' laps') .. (t.kind == 'offroad' and ', off road' or '') .. ': a racer of your level on the grid with you' }
     end
   end
