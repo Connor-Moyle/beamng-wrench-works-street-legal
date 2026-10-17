@@ -107,6 +107,16 @@ function M.partFits(slotType, slot)
   return true
 end
 
+-- The configs without the excluded models ({ model = true }): ONE rule for every pool the career builds cars from (lots, dealers,
+-- private ads, street racers and their opponents), so a model the game cannot build safely never appears (T29: the midtruck).
+function M.withoutModels(configs, excluded)
+  local out = {}
+  for _, c in ipairs(configs or {}) do
+    if not (excluded and excluded[c.model]) then out[#out + 1] = c end
+  end
+  return out
+end
+
 -- Make a stock parts tree into the car an offer describes. Changes the tree in place.
 -- opts: { rng, classify = function(slotId, partName, desc) -> section, sub,
 --         valueOf = function(partName) -> number, faults = { 'engine', ... }, mods = n,

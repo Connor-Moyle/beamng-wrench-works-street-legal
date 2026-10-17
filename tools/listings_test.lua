@@ -543,4 +543,7 @@ return function(check, rngLib)
   local offerTrucks = 0
   for _, o in ipairs(offers) do if o.model == 'midtruck' then offerTrucks = offerTrucks + 1 end end
   check('the offers made from the pool (used, private ad, laptop dealer: all through the same pool) have no midtruck', #offers > 0 and offerTrucks == 0)
+
+  -- (the pool tests are in ai_pool_test.lua: this function has no local variables left)
+  assert(loadfile(debug.getinfo(1, 'S').source:match('^@(.*[/' .. string.char(92) .. '])') .. 'ai_pool_test.lua'))()(check, rngLib)
 end

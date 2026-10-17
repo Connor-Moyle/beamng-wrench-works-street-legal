@@ -106,7 +106,7 @@ local function racerCar(s, racer)
     return racer.car
   end
   local seed = rngLib.hash(racer.id .. ':' .. s.seed)
-  local pick = carsLib.pickConfig(builder.configs(), racer.class, rngLib.new(seed))
+  local pick = carsLib.pickConfig(builder.aiPool(), racer.class, rngLib.new(seed))
   if not pick then return nil end
   local stage = builds.stageFor(racer.tier)
   racer.car = { model = pick.model, config = pick.config, value = pick.value, seed = seed, stage = stage,

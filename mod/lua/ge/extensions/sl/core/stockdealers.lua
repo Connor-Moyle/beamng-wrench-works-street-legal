@@ -146,8 +146,8 @@ end
 -- (excluded: { model = true }). One rule for every pool, so no lot lists a model the game cannot build safely (T29: the midtruck).
 function M.lotPool(configs, excluded)
   local out = {}
-  for _, c in ipairs(configs or {}) do
-    if M.forSale(c) and not (excluded and excluded[c.model]) then out[#out + 1] = c end
+  for _, c in ipairs(require('sl/core/cars').withoutModels(configs, excluded)) do
+    if M.forSale(c) then out[#out + 1] = c end
   end
   return out
 end

@@ -45,6 +45,12 @@ end
 -- another does the same: require('sl/carBuilder').LOT_EXCLUDE_MODELS.somecar = true.
 M.LOT_EXCLUDE_MODELS = { midtruck = true }
 
+-- the cars the career builds for its AI (street racers and their opponents): every config except the excluded models (a racer may drive a
+-- race car or a police car; no lot sells those)
+function M.aiPool()
+  return carsLib.withoutModels(M.configs(), M.LOT_EXCLUDE_MODELS)
+end
+
 -- the cars a lot or a private seller may offer: not the police, service or race cars, not an excluded model (sl/core/stockdealers.lotPool)
 function M.forSale()
   return require('sl/core/stockdealers').lotPool(M.configs(), M.LOT_EXCLUDE_MODELS)
