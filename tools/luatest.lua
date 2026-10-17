@@ -1476,6 +1476,12 @@ do
   check('they dry slower than they soak, and fully in the end', d < w and d > 0.4 and wx.wetStep(0.001, 0, 100) == 0)
   check('no puddles on a dry road, more when it is wetter, a cap', wx.puddleCount(0) == 0 and wx.puddleCount(0.14) == 0 and wx.puddleCount(0.5) < wx.puddleCount(1) and wx.puddleCount(1) == wx.MAX_PUDDLES)
   check('a puddle fades in over a few seconds and follows the wetness', wx.puddleAlpha(1, 0) == 0 and wx.puddleAlpha(1, 6) > wx.puddleAlpha(1, 2) and wx.puddleAlpha(0.2, 10) < wx.puddleAlpha(1, 10) and wx.puddleAlpha(0.05, 10) == 0)
+  local gm, gh = wx.resolve('rain', 'medium'), wx.resolve('rain', 'heavy')
+  check('grip follows the wetness: dry 1, fully wet = the rain\'s grip, halfway between, never below', wx.wetGrip(0, gm) == 1 and math.abs(wx.wetGrip(gm.wet, gm) - gm.grip) < 1e-9
+    and math.abs(wx.wetGrip(gm.wet / 2, gm) - (1 + gm.grip) / 2) < 1e-9 and wx.wetGrip(5, gh) == gh.grip and wx.wetGrip(0.4, nil) == 1)
+  local wetNow = gm.wet
+  for _ = 1, 210 do wetNow = wx.wetStep(wetNow, 0, 1) end      -- 3.5 min after the rain stopped
+  check('and the road is still slippery after the rain stops, and the grip comes back with the drying', wx.wetGrip(wetNow, gm) < 1 and wx.wetGrip(wetNow, gm) > gm.grip and wx.wetGrip(wx.wetStep(wetNow, 0, 400), gm) == 1)
   check('the forecast names the rain strength', wx.text('day', 'rain', nil, 'heavy'):find('Heavy rain') and wx.text('day', 'rain', nil, 'light'):find('Light rain') and wx.text('day', 'rain'):find('Rain'))
 end
 

@@ -22,6 +22,7 @@ local gripTimer, applyTimer = 0, 0
 local lastKey
 
 local wet = 0                    -- how wet the roads are, 0..1
+local lastRain                   -- the rain that wet them (core/weather.resolve), for the grip it leaves
 local puddles = {}               -- { x, y, z, sx, sy, dx, dy, born }
 local puddleTimer = 0
 local pool, poolSize, colors = {}, 0, {}
@@ -94,7 +95,9 @@ local function sync()
   nextId = rules.forecast(s.seed, nd, np)
   local st = rules.resolve(stateId, levelId)
   -- clear skies are the level's own fog, high cloud and speeds, and a lighter cloud cover than its default
-  target = { drops = st.drops, cloud = st.cloud, fog = st.id == 'clear' and baseline.fog or st.fog, grip = st.grip, wet = st.wet or 0,
+  if st.id == 'rain' then lastRain = st end
+  -- (rain's grip comes from the wetness, not from the state: a road stays slippery after the rain has stopped)
+  target = { drops = st.drops, cloud = st.cloud, fog = st.id == 'clear' and baseline.fog or st.fog, grip = st.id == 'rain' and 1 or st.grip, wet = st.wet or 0,
     cirrus = st.cirrus or baseline.cirrus, density = st.density or baseline.density, speed = st.speed or 1 }
   blendFrom, blendT = current, 0
   extensions.hook('onStreetLegalWeather', stateId)
@@ -104,7 +107,8 @@ function M.state() return stateId end
 function M.level() return levelId end
 function M.wetness() return wet end
 function M.bonus() return career() and rules.pay(stateId) or 1 end
-function M.grip() return career() and rules.grip(stateId) or 1 end
+-- the grip factor now: fog's own, or what the wet road leaves (whichever is less)
+function M.grip() return career() and math.min(current and current.grip or 1, rules.wetGrip(wet, lastRain)) or 1 end
 function M.forecast()
   if not career() then return nil end
   return { state = stateId, level = levelId, name = rules.state(stateId).name, text = rules.text(sl_career.phase() or 'day', stateId, nextId, levelId), wet = stateId == 'rain' }
@@ -114,7 +118,7 @@ end
 local function pushGrip(force)
   local v = getPlayerVehicle(0)
   if not v or v:getJBeamFilename() == 'unicycle' then return end
-  v:queueLuaCommand(string.format('if slCar and slCar.setGrip then slCar.setGrip(%f) end', current and current.grip or 1))
+  v:queueLuaCommand(string.format('if slCar and slCar.setGrip then slCar.setGrip(%f) end', M.grip()))
 end
 
 ----------------------------------------------------------------------------------------------
@@ -221,7 +225,7 @@ end
 
 local function reset()
   baseline, current, target, lastKey, blendFrom = nil, nil, nil, nil, nil
-  wet, puddles = 0, {}
+  wet, puddles, lastRain = 0, {}, nil
 end
 
 function M.onStreetLegalStopped()

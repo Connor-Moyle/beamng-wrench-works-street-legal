@@ -81,6 +81,13 @@ function M.wetStep(wet, wetTarget, dt)
   return math.max(wetTarget, wet - dt / M.DRY_SECONDS)
 end
 
+-- the tyres' grip follows how wet the road is, not the state: it falls as the road soaks and comes back as it dries. rain is the state table of the rain that
+-- wet it (grip = the grip at its wettest, wet = how wet that is); no rain yet = dry grip.
+function M.wetGrip(wet, rain)
+  if not rain or not rain.grip or (rain.wet or 0) <= 0 then return 1 end
+  return 1 - (1 - rain.grip) * math.min(1, math.max(0, wet or 0) / rain.wet)
+end
+
 -- puddles: how many may stand at this wetness, and how opaque they are (nothing below a damp road)
 M.MAX_PUDDLES = 18
 function M.puddleCount(wet) return wet < 0.15 and 0 or math.floor(M.MAX_PUDDLES * math.min(1, (wet - 0.1) / 0.9) + 0.5) end
