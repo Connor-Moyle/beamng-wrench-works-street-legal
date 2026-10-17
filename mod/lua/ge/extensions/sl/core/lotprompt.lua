@@ -11,4 +11,13 @@ function M.modes(kind, onFoot, inFleetCar)
   return out
 end
 
+-- stopping at a lot with no map markers (so no prompt to choose from; with them the prompt shows modes() and this is never asked): one thing opens.
+-- On foot, or a driver with no fleet car to sell: the cars. A driver in a fleet car at a junkyard or scrapyard: selling it (the one thing the walk-up
+-- cannot do), as before.
+function M.driveUp(kind, onFoot, inFleetCar)
+  if onFoot then return 'browse' end
+  local m = M.modes(kind, onFoot, inFleetCar)
+  return m[#m]
+end
+
 return M

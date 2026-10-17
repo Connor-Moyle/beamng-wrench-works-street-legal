@@ -1265,6 +1265,9 @@ do
   check('a driver outside a fleet car at a junkyard or scrapyard can look', m('used', false, false) == 'browse' and m('scrap', false, false) == 'browse')
   check('a driver in a fleet car at a junkyard or scrapyard: look, then sell', m('used', false, true) == 'browse+sell' and m('scrap', false, true) == 'browse+sell')
   check('a dealer is unchanged: look for a driver, never sell', m('dealer', false, false) == 'browse' and m('dealer', false, true) == 'browse')
+  check('stopping at a lot with no prompt: a driver with no fleet car browses at every lot, in a fleet car the junkyard/scrapyard sell, a dealer browses',
+    lp.driveUp('used', false, false) == 'browse' and lp.driveUp('scrap', false, false) == 'browse' and lp.driveUp('dealer', false, false) == 'browse'
+    and lp.driveUp('used', false, true) == 'sell' and lp.driveUp('scrap', false, true) == 'sell' and lp.driveUp('dealer', false, true) == 'browse' and lp.driveUp('used', true, true) == 'browse')
 end
 
 print(string.format('lua tests passed: %d checks', passed))

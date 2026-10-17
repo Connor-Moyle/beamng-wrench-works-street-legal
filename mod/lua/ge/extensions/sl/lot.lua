@@ -569,11 +569,7 @@ local function update(dt)
       local d = (pos - place.pos):length()
       if d > 15 then armedAt[id] = true end
       if armedAt[id] ~= false and d < 5 and v:getVelocity():length() < 1 then
-        if onFoot then
-          open(place, 'browse')
-        elseif sl_fleet.currentCar() and KIND[place.kind] ~= 'dealer' then
-          open(place, 'sell')
-        end
+        open(place, lotprompt.driveUp(KIND[place.kind], onFoot, sl_fleet.currentCar() ~= nil))      -- (no markers, so no prompt to choose in: see lotprompt)
         return
       end
     end
