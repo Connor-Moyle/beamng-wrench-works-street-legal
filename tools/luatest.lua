@@ -1368,4 +1368,15 @@ do -- A10: a street race is run by road cars
   check('a coupe still does', cars.racerOk({ name = 'Coupe', raw = { ['Body Style'] = 'Coupe', ['Config Type'] = 'Street' } }))
 end
 
+do -- A13: a part that fell off is not in the saved setup
+  local cars = require('sl/core/cars')
+  local tree = { id = 'main', chosenPartName = 'body', partPath = '/body', children = {
+    hood = { id = 'hood', chosenPartName = 'hood_a', partPath = '/body/hood_a', children = { latch = { id = 'latch', chosenPartName = 'latch_a', partPath = '/body/hood_a/latch_a' } } },
+    door = { id = 'door', chosenPartName = 'door_a', partPath = '/body/door_a' } } }
+  local gone = cars.stripParts(tree, { '/body/hood_a', '/nothing' })
+  check('the lost part is taken out', #gone == 1 and tree.children.hood.chosenPartName == '' and tree.children.hood.children == nil and tree.children.hood.decisionMethod == 'user-empty')
+  check('the others stay', tree.children.door.chosenPartName == 'door_a' and tree.chosenPartName == 'body')
+  check('nothing lost: nothing changes', #cars.stripParts(tree, {}) == 0 and #cars.stripParts(tree, nil) == 0)
+end
+
 print(string.format('lua tests passed: %d checks', passed))
