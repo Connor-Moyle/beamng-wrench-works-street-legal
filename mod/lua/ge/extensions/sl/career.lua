@@ -28,7 +28,7 @@ local SAVE_DIR = '/settings/street_legal/'
 -- slot n is careerN.json; their names and the last one played are in slots.json
 M.SLOTS = 6
 local SLOTS_FILE = SAVE_DIR .. 'slots.json'
-local function slotFile(n) return SAVE_DIR .. (n == 1 and 'career.json' or ('career' .. n .. '.json')) end
+local function slotFile(n) return SAVE_DIR .. (n == 'qa' and 'career_qa.json' or n == 1 and 'career.json' or ('career' .. n .. '.json')) end      -- ('qa': the automated tests' own slot, never one of the player's)
 local slot = 1
 local SAVE_FILE = slotFile(1)          -- the slot being played; set by M.start
 local PLACES_DIR = '/street_legal/places/'          -- any mod (the map) can bring its places here
@@ -709,8 +709,11 @@ function M.start(fresh, n, level)
   if M.inMultiplayer() then tell(mpLib.NOTE, 9) return false end
   if active then stop() end              -- (B26: the career being played is saved and stopped first, so nothing of it carries over)
   local m = slotsMeta()
-  n = tonumber(n)
-  if fresh then
+  local qa = n == 'qa'
+  n = not qa and tonumber(n) or nil
+  if qa then
+    n = 'qa'
+  elseif fresh then
     n = nil
     for i = 1, M.SLOTS do if not n and not slotUsed(i) then n = i end end
     if not n then tell(string.format(strings.t('career.all_d_career_slots_are'), M.SLOTS), 6) return false end
@@ -723,8 +726,10 @@ function M.start(fresh, n, level)
     if data and data.ended then tell(strings.t('career.that_career_is_over_it', (tostring(data.ended.day))), 6) return false end
   end
   slot, SAVE_FILE = n, slotFile(n)
-  m.last = n
-  writeMeta(m)
+  if not qa then
+    m.last = n
+    writeMeta(m)
+  end
   s = (not fresh) and readSave() or nil
   if not s then
     s = stateLib.new((os.time() % 1000000) * 31 + math.random(1, 997), now())
