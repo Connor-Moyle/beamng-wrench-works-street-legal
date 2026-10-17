@@ -381,4 +381,10 @@ return function(check, rngLib)
   local rk = {}
   for _, em in ipairs(rain) do rk[em.id] = true end
   check('plan in the rain: the crowd stays indoors; nothing at all far from everything', not rk.crowd and #AM.plan({ player = { x = -5000, y = 5000, z = 0 }, height = slope, waterZ = 0, nodes = nodes, places = places, phase = 'day' }) == 0 and #AM.plan({}) == 0)
+
+  -- #47: sponsor billboards
+  local BB = require('sl/core/billboards')
+  check('billboards: the sponsor first, else the club by its level, else the stock ads; a name without an atlas is ignored', BB.choose('Nightrun Energy', 2) == 'Nightrun Energy' and BB.choose(nil, 2) == 'Club 2' and BB.choose(nil, nil) == nil
+    and BB.choose('Some Other Co', nil) == nil and BB.choose('Some Other Co', 3) == 'Club 3' and BB.choose(nil, 9) == nil)
+  check('billboards: the atlas file is in the mod folder by slug; no name, no file', BB.file('Valo Tyre & Wheel') == '/art/street_legal/billboards/valo-tyre-wheel.jpg' and BB.file('Club 1') == '/art/street_legal/billboards/club-1.jpg' and BB.file(nil) == nil and BB.file('x') == nil)
 end
