@@ -2089,6 +2089,51 @@ do -- the car auction extension (sl_carauctions) against a mocked game: six lots
   for name, v in pairs(savedLoaded) do package.loaded[name] = v[1] end
   package.loaded['sl/carauctions'] = nil
 end
+do -- named rivals (sl/core/rivals)
+  local RV, ROS, CRW, RNG = require('sl/core/rivals'), require('sl/core/roster'), require('sl/core/crews'), require('sl/core/rng')
+  local racers = ROS.generate(11, 36)
+  local list, again = RV.generate(11, racers, CRW.CREWS), RV.generate(11, racers, CRW.CREWS)
+  local bosses, tiers, ids, personas, nem = 0, {}, {}, {}, 0
+  for i, r in ipairs(list) do
+    if r.boss then bosses = bosses + 1 tiers[r.tier] = true end
+    if r.nemesis then nem = nem + 1 end
+    ids[r.id], personas[r.persona] = true, true
+  end
+  local nIds, nPers = 0, 0
+  for _ in pairs(ids) do nIds = nIds + 1 end
+  for _ in pairs(personas) do nPers = nPers + 1 end
+  check('six rivals: a boss in each of the five tiers and one nemesis, all different racers and personas', #list == 6 and bosses == 5 and tiers[1] and tiers[2] and tiers[3] and tiers[4] and tiers[5] and nem == 1 and nIds == 6 and nPers == 6)
+  check('the same career gets the same rivals', again[1].id == list[1].id and again[6].persona == list[6].persona and again[3].crew == list[3].crew)
+  check('the rank starts at 1 and racers up to one tier above may be raced', RV.rank(list) == 1 and RV.allowed(list, 2) and not RV.allowed(list, 3) and RV.gatekeeper(list, 3) == RV.bossOfTier(list, 1) and RV.gatekeeper(list, 2) == nil)
+  RV.bossOfTier(list, 1).bossBeaten = true
+  check('beating a boss raises the rank and opens the next tier', RV.rank(list) == 2 and RV.allowed(list, 3) and not RV.allowed(list, 4) and RV.gatekeeper(list, 4) == RV.bossOfTier(list, 2))
+  local b2 = RV.bossOfTier(list, 2)
+  check('a boss asks for you only with the tier rep, enough wins in the tier and no cooldown', RV.bossReady(list, 10, 5, 1) == nil and RV.bossReady(list, 99999, 2, 1) == nil and RV.bossReady(list, 99999, 3, 1) == b2 and (function() b2.cooldown = 9 return RV.bossReady(list, 99999, 3, 4) == nil and RV.bossReady(list, 99999, 3, 9) == b2 end)())
+  local cocky, friendly = { persona = 'cocky', meter = 0 }, { persona = 'friendly', meter = 0 }
+  check('a close win earns respect; a big win humiliates the proud and pleases the rest', RV.meterAfter(cocky, true, 1) == 8 and RV.meterAfter(cocky, true, 12) == -10 and RV.meterAfter(friendly, true, 12) == 4)
+  check('a loss makes the cocky gloat and the others respect the try; pink slips count triple; the meter stays in range', RV.meterAfter(cocky, false, 5) == -4 and RV.meterAfter(friendly, false, 5) == 2 and RV.meterAfter(friendly, true, 1, 'pink') == 24 and RV.meterAfter({ persona = 'friendly', meter = 95 }, true, 1) == 100)
+  local w = { 'blood', 'rivals', 'neutral', 'respect', 'friends' }
+  check('the meter has words', RV.meterWord(-80) == w[1] and RV.meterWord(-30) == w[2] and RV.meterWord(0) == w[3] and RV.meterWord(50) == w[4] and RV.meterWord(90) == w[5])
+  local low, high = { tier = 1, races = 0, meter = 0 }, { tier = 4, races = 0, meter = 0 }
+  local racer = { betMin = 100, betMax = 400 }
+  check('the stake ladder climbs with the races between you: pocket money, top bet, high stakes', RV.step(low) == 1 and (function() low.races = 3 return RV.step(low) == 2 end)() and (function() low.races = 30 return RV.step(low) == 3 end)())
+  check('pink slips only at the top tiers or in bad blood', (function() high.races = 30 return RV.step(high) == 4 end)() and (function() low.meter = -70 return RV.step(low) == 4 end)())
+  check('the stakes rise with the step; the top step is a pink slip', RV.stake(low, racer, 1).bet < RV.stake(low, racer, 2).bet and RV.stake(low, racer, 2).bet < RV.stake(low, racer, 3).bet and RV.stake(low, racer, 4).stake == 'pink')
+  check('a showdown is twice the top bet, and pink slips against the top boss', RV.showdown({ tier = 2 }, racer).bet == 800 and RV.showdown({ tier = 5 }, racer).stake == 'pink')
+  check('their car gets better with your wins over them and with the days, up to what the tier allows', RV.stageNow({ tier = 1, beaten = 0 }, 0) == 0 and RV.stageNow({ tier = 1, beaten = 5 }, 100) == 1 and RV.stageNow({ tier = 3, beaten = 1 }, 5) == 2 and RV.stageNow({ tier = 5, beaten = 9 }, 99) == 3 and RV.skillNow(0.5, 2) == 0.54 and RV.skillNow(0.98, 3) == 0.99)
+  local all = true
+  for _, persona in ipairs(RV.PERSONAS) do
+    for _, kind in ipairs(RV.KINDS) do
+      for n = 1, RV.LINES_PER do
+        local txt = RV.text({ persona = persona }, kind, RNG.new(n), 'Boss Name')
+        if type(txt) ~= 'string' or #txt < 8 or txt:find('rivals%.') then all = false end
+      end
+    end
+  end
+  check('every persona has a line for every situation, and the gate names the boss', all and RV.text({ persona = 'cool' }, 'gate', nil, 'Viktor Halasz'):find('Viktor Halasz', 1, true) ~= nil)
+  local x = { told = {} }
+  check('a story beat is told once', RV.firstTime(x, 'intro') == true and RV.firstTime(x, 'intro') == false)
+end
 do -- ambient police patrols share the racers' build rule; a chase's patrol is never held back
   local SPP = require('sl/core/spawnplan')
   check('an ambient patrol waits for the gap, the speed rule and any other build', not SPP.patrolOk(5, 3, false, false) and not SPP.patrolOk(30, 30, false, false) and not SPP.patrolOk(5, 99, true, false) and SPP.patrolOk(5, 99, false, false))
