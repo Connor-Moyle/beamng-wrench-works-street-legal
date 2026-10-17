@@ -99,6 +99,17 @@ function M.fillCost(fuelId, litres, scale) return math.floor(M.fuel(fuelId).pric
 
 -- the stock station's price for a litre of petrol (freeroam_facilities_fuelPrice) against our Regular's: every grade's price moves with it, so the
 -- pump's own sign is what Regular costs. Nil or nonsense: 1. Kept between a third and three times.
+-- one abuse sample (#30; the same rules as sl/core/wear.sample, which is tested): the car calls this every frame
+function M.abuseSample(s)
+  local add = { engine = 0, brakes = 0, drive = 0 }
+  local dt = s.dt or 0
+  if (s.rpmRatio or 0) > 0.94 then add.engine = add.engine + dt end
+  if (s.coolantC or 0) > 112 then add.engine = add.engine + dt * 3 end
+  if (s.prevSpeed or 0) > 15 and (s.brake or 0) > 0.8 and ((s.prevSpeed or 0) - (s.speed or 0)) / math.max(dt, 1e-3) > 7 then add.brakes = add.brakes + dt end
+  if (s.throttle or 0) > 0.9 and (s.speed or 0) < 4 and (s.rpmRatio or 0) > 0.7 then add.drive = add.drive + dt end
+  return add
+end
+
 function M.scaleFor(stockPerLitre)
   local p = tonumber(stockPerLitre)
   if not p or p <= 0 then return 1 end

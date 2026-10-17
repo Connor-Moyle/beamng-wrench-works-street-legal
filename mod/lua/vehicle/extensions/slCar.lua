@@ -9,7 +9,8 @@ local M = {}
 
 local rules = require('sl_carcare')
 
-local state = { battery = 1, engineKm = 0, oilKm = 0, fuel = 'premium' }
+local state = { battery = 1, engineKm = 0, oilKm = 0, fuel = 'premium', abuse = { engine = 0, brakes = 0, drive = 0, susp = 0 } }
+local prevSpeed, abuseTimer, lastDamage = 0, 0, nil
 local engine, oil, coolant
 local factor = 1
 local lastPos
@@ -155,7 +156,7 @@ function M.report()
   local t = {
     battery = state.battery, oilLevel = level(oil), coolantLevel = level(coolant), fuelLevel = storageRatio('fuelTank'),
     n2o = storageRatio('n2oTank'), engineKm = state.engineKm, oilKm = state.oilKm, fuel = state.fuel, factor = factor,
-    coolantTemp = engine and engine.thermals and engine.thermals.coolantTemperature or nil,
+    coolantTemp = engine and engine.thermals and engine.thermals.coolantTemperature or nil, abuse = state.abuse,
     damage = beamstate and beamstate.damage or nil,                           -- a jump: a crash, kept at once
   }
   local tank = M.fuelTank()
@@ -203,6 +204,22 @@ function M.updateGFX(dt)
     end
   end
   lastPos = pos
+
+  -- how it is driven (#30): the rev limiter, overheating, hard stops from speed, launches, hard landings. Sampled every frame, counted in seconds/events.
+  local speed = obj:getVelocity():length()
+  local rpmRatio = engine and engine.maxRPM and engine.maxRPM > 0 and (electrics.values.rpm or 0) / engine.maxRPM or 0
+  local add = rules.abuseSample({ dt = dt, rpmRatio = rpmRatio, coolantC = engine and engine.thermals and engine.thermals.coolantTemperature, prevSpeed = prevSpeed,
+    speed = speed, brake = electrics.values.brake, throttle = electrics.values.throttle })
+  local ab = state.abuse
+  ab.engine, ab.brakes, ab.drive = (ab.engine or 0) + add.engine, (ab.brakes or 0) + add.brakes, (ab.drive or 0) + add.drive
+  abuseTimer = abuseTimer + dt
+  if abuseTimer > 0.5 then
+    abuseTimer = 0
+    prevSpeed = speed
+    local dmg = beamstate and beamstate.damage
+    if dmg and lastDamage and dmg - lastDamage > 150 and dmg - lastDamage < 2000 then ab.susp = (ab.susp or 0) + (dmg - lastDamage) / 150 end      -- (a crash is counted by the career)
+    lastDamage = dmg
+  end
 
   capTimer = capTimer + dt
   if capTimer > 1 then capTimer = 0 applyFactor() end

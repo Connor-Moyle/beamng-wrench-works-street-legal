@@ -248,4 +248,28 @@ return function(check, rngLib)
   local CC = require('sl_carcare')
   check('pump price: the stock litre price scales every grade; nil or nonsense is 1; held between a third and three times', math.abs(CC.scaleFor(0.725) - 0.5) < 1e-9 and CC.scaleFor(nil) == 1 and CC.scaleFor(-3) == 1
     and CC.scaleFor(0.01) == 1 / 3 and CC.scaleFor(100) == 3 and CC.fillCost('regular', 10) == 14.5 and CC.fillCost('regular', 10, 0.5) == 7.25)
+
+  -- #30: part wear and the engine swap
+  local WR = require('sl/core/wear')
+  local l0 = WR.lost(0, nil)
+  local l1 = WR.lost(120000, nil)
+  local l2 = WR.lost(120000, { brakes = 100 })
+  check('wear: nothing lost at no km, a section at its life loses half, the tyres wear before the engine', l0.engine == 0 and math.abs(l1.brakes - 0.5) < 1e-9 and l1.wheels == 0.5 and l1.engine < 0.2 and l1.wheels > l1.engine)
+  check('wear: hard stops wear the brakes (and a little the tyres) faster, never past the cap', l2.brakes == 0.5 and l2.wheels == 0.5 and WR.lost(1e9, nil).engine == 0.5 and WR.lost(5000, { drive = 1000 }).drivetrain > WR.lost(5000, nil).drivetrain)
+  check('wear: km since you bought it', WR.kmSince(105000, 100000) == 5000 and WR.kmSince(90, 100) == 0 and WR.kmSince(nil, nil) == 0)
+  local CCc = require('sl_carcare')
+  local a1 = CCc.abuseSample({ dt = 0.1, rpmRatio = 0.97, coolantC = 120, prevSpeed = 0, speed = 0 })
+  local a2 = CCc.abuseSample({ dt = 0.1, prevSpeed = 30, speed = 29.95, brake = 1 })
+  local a3 = CCc.abuseSample({ dt = 0.1, prevSpeed = 30, speed = 20, brake = 1 })
+  local a4 = CCc.abuseSample({ dt = 0.5, throttle = 1, speed = 1, rpmRatio = 0.8 })
+  check('abuse: the limiter and overheating count engine seconds, a hard stop from speed counts, a gentle one not, a launch counts', math.abs(a1.engine - 0.4) < 1e-9 and a2.brakes == 0 and a3.brakes == 0.1 and a4.drive == 0.5 and CCc.abuseSample({ dt = 1 }).engine == 0)
+  local worn = CR.build({ name = 'Worn', value = 10000, condition = 0.8, damage = 0, mileage = 50000, faults = {}, wear = WR.lost(100000, nil) })
+  local fresh = CR.build({ name = 'Worn', value = 10000, condition = 0.8, damage = 0, mileage = 50000, faults = {} })
+  check('report: the wear since you bought it lowers every wearing section, leaves the body and the interior, and adds to the estimate', worn.sections[4].condition < fresh.sections[4].condition and worn.sections[5].condition < fresh.sections[5].condition
+    and worn.sections[7].condition == fresh.sections[7].condition and worn.total > fresh.total)
+  local ES = require('sl/core/engineswap')
+  check('swap: 4 hours at the cheapest engine, more for a dear one, capped at 14; labour is hours times the rate', ES.hours(0) == 4 and ES.hours(10000) == 6 and ES.hours(1e6) == 14 and ES.labour(10000) == 540 and ES.labour(0) == 360)
+  local q = ES.quote({ name = 'V8', value = 10000, oldName = 'Inline-4', needs = { 'transmission', 'ecu' } })
+  check('swap: the quote says labour, the old engine on the shelf and what it needs (sorted)', q.labour == 540 and q.needs[1] == 'ecu' and q.text:find('$540') ~= nil and q.text:find('Inline%-4 goes on the shelf') ~= nil and q.text:find('ecu, transmission') ~= nil
+    and ES.NO_CROSS_MODEL:find('own engines') ~= nil)
 end

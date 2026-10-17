@@ -364,6 +364,7 @@ function M.list()
       scrap = market.scrapValue(c), resale = market.resaleValue(c), towFee = veh and progression.towFee((veh:getPosition() - (M.forecourt(s, 0) or veh:getPosition())):length()) or nil,
       care = sl_carcare and sl_carcare.summary and sl_carcare.summary(c) or nil,
       impounded = c.impounded,
+      report = (function() local ok, r = pcall(sl_carcare.reportOf, c) return ok and r or nil end)(),       -- (#30: with the wear since you bought it)
     }
   end
   return out

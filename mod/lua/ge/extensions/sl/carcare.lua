@@ -40,6 +40,17 @@ function M.careOf(car)
   return car.care
 end
 
+-- the full car report of a car of yours: the offer's numbers it has now, and the wear since you bought it (#30)
+function M.reportOf(car)
+  local c = M.careOf(car)
+  local wear = require('sl/core/wear')
+  local dents = car.damage and car.damage.nodes and next(car.damage.nodes) ~= nil
+  local view = { name = car.name, value = car.value, condition = car.condition, damage = dents and 0.2 or 0, mileage = c.engineKm or car.mileage,
+    faults = car.faults, fixed = car.fixed, repaired = car.repaired,
+    wear = wear.lost(wear.kmSince(c.engineKm, car.mileage), c.abuse) }
+  return require('sl/core/carreport').build(view)
+end
+
 function M.historyOf(car)
   M.careOf(car)
   return car.history
@@ -67,7 +78,7 @@ local function attach(vid, car)
     veh:queueLuaCommand(string.format('partCondition.initConditions(nil, %d, 1, 1)', math.floor((c.engineKm or 0) * 1000)))
   end
   veh:queueLuaCommand('if slCar then slCar.setState(' .. serialize({ battery = c.battery, engineKm = c.engineKm, oilKm = c.oilKm, fuel = c.fuel,
-    oilLevel = c.oilLevel, coolantLevel = c.coolantLevel, fuelLevel = c.fuelLevel, n2o = c.n2o }) .. ') end')
+    oilLevel = c.oilLevel, coolantLevel = c.coolantLevel, fuelLevel = c.fuelLevel, n2o = c.n2o, abuse = c.abuse }) .. ') end')
   -- the driver chosen for this car in the garage (SLRR Drivers mod), back in the seat
   -- (none chosen yet: the mod's default, also for a car bought straight off a lot, where the seats are empty)
   if slrrDrivers and slrrDrivers.setDriver then
@@ -83,7 +94,7 @@ function M.onReport(vid, t)
   local car = s and carId and carById(s, carId)
   if not car or type(t) ~= 'table' then return end
   local c = M.careOf(car)
-  for _, k in ipairs({ 'battery', 'oilLevel', 'coolantLevel', 'fuelLevel', 'n2o', 'engineKm', 'oilKm', 'fuel', 'factor', 'coolantTemp', 'fuelLitres', 'fuelCapacity' }) do
+  for _, k in ipairs({ 'battery', 'oilLevel', 'coolantLevel', 'fuelLevel', 'n2o', 'engineKm', 'oilKm', 'fuel', 'factor', 'coolantTemp', 'fuelLitres', 'fuelCapacity', 'abuse' }) do
     if t[k] ~= nil then c[k] = t[k] end
   end
   -- a crash: its dents and the parts it broke go into the save now, not at the next minute's look

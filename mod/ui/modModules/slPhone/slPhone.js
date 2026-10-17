@@ -856,7 +856,7 @@
       var h = k.history || {};
       var hist = '<div class="slp-kv" style="border:none"><span>History</span><b>' + (h.owners || 0) + ' owners before you &middot; ' + (h.wins || 0) + '/' + (h.races || 0) + ' races won' +
         (h.wrecks ? ' &middot; wrecked ' + h.wrecks + '&times;' : '') + '</b></div>';
-      return '<div class="slp-carcare">' + rows + (trunk ? '<div class="slp-trunk">Trunk</div>' + trunk : '') + hist + '</div>';
+      return '<div class="slp-carcare">' + rows + (trunk ? '<div class="slp-trunk">Trunk</div>' + trunk : '') + hist + reportBlock('car:' + c.id, c.report) + '</div>';
     }
 
     function garagePage() {

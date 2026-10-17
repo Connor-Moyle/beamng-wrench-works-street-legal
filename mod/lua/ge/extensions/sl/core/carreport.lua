@@ -53,6 +53,7 @@ function M.build(car)
     local base = cond
     if def.mech then base = base - M.MILEAGE_WEAR * clamp(mileage / 300000, 0, 1) end
     if def.id == 'body' then base = base * (1 - 0.6 * damage) end
+    base = base - ((car.wear or {})[def.id] or 0)              -- the wear of a car of yours (sl/core/wear)
     local sec = { id = def.id, title = def.title, parts = {}, faults = {}, estimate = 0 }
     local sum = 0
     for i, name in ipairs(def.parts) do
@@ -77,7 +78,8 @@ function M.build(car)
   local total = 0
   for _, sec in ipairs(sections) do
     local share = deficitSum > 0 and sec.deficit / deficitSum or 0
-    sec.estimate = r10(wear * share + #sec.faults * M.FAULT_COST * value)
+    local worn = ((car.wear or {})[sec.id] or 0) * value / market.REPAIR_CONDITION          -- what the wear since you bought it costs to put right
+    sec.estimate = r10(wear * share + #sec.faults * M.FAULT_COST * value + worn)
     sec.deficit = nil
     total = total + sec.estimate
   end

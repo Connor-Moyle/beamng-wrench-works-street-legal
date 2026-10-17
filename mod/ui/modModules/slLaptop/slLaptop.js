@@ -178,7 +178,7 @@
         if (c.out && !c.impounded) acts.push('<div class="sll-btn sll-text" data-a="despawn" data-v="' + c.id + '">Put it away</div>');
         var faults = arr(c.faults);
         return '<div class="sll-card"><h4>' + esc(c.name) + (c.active ? ' &#9733;' : '') + '</h4><p>' + esc(c.where) + ' &middot; condition ' + Math.round((c.condition || 0) * 100) + '% &middot; value ' + money(c.value) +
-          (faults.length ? '<br>Needs: ' + esc(faults.join(', ')) : '') + '</p>' + (acts.length ? '<div class="sll-acts">' + acts.join('') + '</div>' : '') + '</div>';
+          (faults.length ? '<br>Needs: ' + esc(faults.join(', ')) : '') + '</p>' + reportBlock('car:' + c.id, c.report) + (acts.length ? '<div class="sll-acts">' + acts.join('') + '</div>' : '') + '</div>';
       });
       return body(cards.join('') || '<div class="sll-empty">You have no car.</div>');
     }

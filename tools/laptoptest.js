@@ -41,7 +41,8 @@ const data = {
   active: true, money: 12400, rep: 140, title: 'Street kid', titleRep: 100, nextRep: 300, day: 9, hour: 21, minute: 5, garage: 'Industrial Garage', cars: 2, stats: { races: 4, wins: 3 },
   fleet: [
     { id: 1, name: 'Sunburst 2.0 Sport S AWD', where: 'At the garage', condition: 0.8, value: 8900, active: true, faults: [] },
-    { id: 2, name: 'Covet', where: 'Out on the street', condition: 0.5, value: 2100, out: true, towFee: 120, faults: ['battery'] },
+    { id: 2, name: 'Covet', where: 'Out on the street', condition: 0.5, value: 2100, out: true, towFee: 120, faults: ['battery'],
+      report: { condition: 50, label: 'Fair', mileage: 90000, damage: { amount: 0, label: 'None' }, faults: ['battery'], total: 420, sections: [{ id: 'engine', title: 'Engine', condition: 41, label: 'Worn', estimate: 420, faults: ['battery'], parts: [{ name: 'Battery cell', condition: 20, label: 'Poor', fault: 'battery' }] }] } },
   ],
   bank: { limit: 6000, rate: 0.02, premium: 90, deductible: 200 }, ledger: [{ label: 'Race', amount: 300 }, { label: 'Parts', amount: -80 }],
   achievements: { earned: 1, total: 2, list: [{ title: 'First win', desc: 'Win a race', day: 3 }, { title: 'King', desc: 'Win all' }] },
@@ -119,6 +120,9 @@ click('winmax', 'cars');
 assert.ok($('.sll-win[data-win="cars"]').classList.contains('sll-max'), 'maximise fills the desktop');
 click('winmax', 'cars');
 assert.ok(!$('.sll-win[data-win="cars"]').classList.contains('sll-max'), 'and restores it');
+assert.ok($('.sll-win[data-win="cars"]').textContent.includes('Show full car report'), 'my cars offer the report (with the wear since you bought it)');
+click('report', 'car:2');
+assert.ok($('.sll-win[data-win="cars"]').textContent.includes('Battery cell') && $('.sll-win[data-win="cars"]').textContent.includes('$420'), 'a car of mine reports its parts and the repair estimate');
 click('winclose', 'bank');
 assert.deepStrictEqual(taskbtns(), ['My cars'], 'closing a window removes its taskbar button');
 
