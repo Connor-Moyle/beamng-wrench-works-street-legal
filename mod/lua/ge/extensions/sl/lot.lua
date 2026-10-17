@@ -15,6 +15,7 @@ local hours = require('sl/core/hours')
 local stockLib = require('sl/core/stockdealers')
 local lotcam = require('sl/core/lotcam')
 local lotbuild = require('sl/core/lotbuild')
+local lotaudio = require('sl/core/lotaudio')
 
 local KIND = { junkyard = 'used', dealer = 'dealer', scrapyard = 'scrap' }
 local TITLES = { used = 'Used cars', dealer = 'New cars', scrap = 'Scrap yard' }
@@ -213,6 +214,23 @@ end
 function M.next() if lot and lot.mode == 'browse' then show(lot.index + 1) end end
 function M.prev() if lot and lot.mode == 'browse' then show(lot.index - 1) end end
 
+-- the cars' sound is off while the row is made (spawning, rebuilding and denting are loud); restored from the player's own settings
+local audioMuted = false
+local gameAudio = {
+  get = function(ch) return Engine.Audio.getChannelVolume(ch, false) end,
+  set = function(ch, v) Engine.Audio.setChannelVolume(ch, v, true) end,
+}
+local function muteCars()
+  if audioMuted or not (Engine and Engine.Audio) then return end
+  audioMuted = true
+  lotaudio.mute(gameAudio)
+end
+local function unmuteCars()
+  if not audioMuted then return end
+  audioMuted = false
+  lotaudio.restore(gameAudio)
+end
+
 -- The whole row is made before the lot shows (the screen says so while it is): first every car is spawned and rebuilt, one at a time
 -- (no dents yet), THEN the dents go on one car at a time, each waited for until the car says they are on, with nothing spawning or
 -- rebuilding meanwhile (T43: dents applied while the next car spawned beside it killed the game).
@@ -225,18 +243,19 @@ local function buildRow()
   lot.building = true
   mine.buildAlive = os.clock()
   mine.progress = { phase = 'cars', done = 0, total = #mine.offers }
+  muteCars()
   send()
   job = core_jobsystem.create(function(j)
     local gate = os.clock()
     while buildingNow and os.clock() - buildingNow < 30 and os.clock() - gate < 45 and lot == mine do j.sleep(0.2) end
-    if lot ~= mine or mine.abandoned then return end
+    if lot ~= mine or mine.abandoned then unmuteCars() return end
     buildingNow = os.clock()
     local function alive() mine.buildAlive, buildingNow = os.clock(), os.clock() return lot == mine and not mine.abandoned end
     local pending = {}                    -- car index -> its dents, to go on in the second round
     for i, offer in ipairs(mine.offers) do
       local spot = mine.spots[i]
       local veh, _, dents = builder.buildOffer(j, offer, spot.pos + vec3(0, 0, 0.4), quatFromDir(spot.dir, vec3(0, 0, 1)), { deferDents = true })
-      if not alive() then if veh then veh:delete() end buildingNow = nil return end
+      if not alive() then if veh then veh:delete() end buildingNow = nil unmuteCars() return end
       if veh then
         if slrrDrivers and slrrDrivers.setDriver then slrrDrivers.setDriver(veh:getID(), nil) end   -- a car for sale: nobody in it
         mine.cars[i] = veh:getID()
@@ -254,7 +273,7 @@ local function buildRow()
       local veh = mine.cars[i] and getObjectByID(mine.cars[i])
       if veh then builder.dentCar(j, veh, pending[i], mine.offers[i]) end
       mine.progress.done = k
-      if not alive() then buildingNow = nil return end
+      if not alive() then buildingNow = nil unmuteCars() return end
       send()
     end
     buildingNow = nil
@@ -262,6 +281,7 @@ local function buildRow()
     mine.index = lotbuild.shown(#mine.offers, mine.index, function(i) return mine.cars[i] and getObjectByID(mine.cars[i]) end)
     if not mine.index then
       mine.building = false
+      unmuteCars()
       guihooks.trigger('slPhoneToast', { text = 'Nothing to see here today. Come back tomorrow.' })
       M.close()
       return
@@ -269,6 +289,7 @@ local function buildRow()
     mine.veh = mine.cars[mine.index]
     mine.building = false
     mine.progress = nil
+    unmuteCars()
     send()
   end)
 end
@@ -375,7 +396,7 @@ function M.openPrivate(offer, pos, sellerName)
 end
 
 function M.close()
-  if not lot then return end
+  if not lot then unmuteCars() return end
   if test then return end
   dropCars()
   lightsOff()
@@ -553,8 +574,10 @@ function M.onUpdate(dtReal)
     log('W', 'street_legal', 'the lot build made no progress for ' .. BUILD_STUCK .. ' s: the row stays as it is')
     lot.building, lot.abandoned = false, true
     buildingNow = nil
+    unmuteCars()
     send()
   end
+  if audioMuted and not (lot and lot.building) then unmuteCars() end        -- (whatever ended the build: the sound comes back)
   updateCamera(dtReal)
   if test then
     sendTimer = sendTimer + dtReal
@@ -563,7 +586,7 @@ function M.onUpdate(dtReal)
 end
 
 function M.request() send() end
-function M.onStreetLegalStopped() if lot then dropCars() lightsOff() cameraOff() end lot, test = nil, nil send() end
-function M.onClientEndMission() lot, test, lights, cam = nil, nil, {}, nil end
+function M.onStreetLegalStopped() if lot then dropCars() lightsOff() cameraOff() end lot, test = nil, nil unmuteCars() send() end
+function M.onClientEndMission() lot, test, lights, cam = nil, nil, {}, nil unmuteCars() end
 
 return M

@@ -34,4 +34,20 @@ return function(check, rngLib)
   local function made(i) return madeSet[i] end
   check('the car shown is the one asked for if it was made, else the first that was', LB.shown(3, 3, made) == 3 and LB.shown(3, 1, made) == 2 and LB.shown(3, nil, made) == 2)
   check('nothing made: nothing to show', LB.shown(3, 1, function() return false end) == nil and LB.shown(0, 1, made) == nil)
+
+  -- T44: the cars' sound is off while a lot is made and comes back from the player's own settings
+  local LA = require('sl/core/lotaudio')
+  local vols = { AudioChannelMaster = 0.8, AudioChannelPower = 0.7, AudioChannelCollision = 0.5, AudioChannelUi = 0.9, AudioChannelMusic = 0.3 }
+  local live = {}
+  for k, v in pairs(vols) do live[k] = v end
+  local audio = { get = function(ch) return vols[ch] end, set = function(ch, v) live[ch] = v end }
+  LA.mute(audio)
+  check('the car channels go silent (power, collision, ...)', live.AudioChannelPower == 0 and live.AudioChannelCollision == 0 and live.AudioChannelSuspension == 0)
+  check('...the master, the music and the interface are left alone', live.AudioChannelMaster == 0.8 and live.AudioChannelMusic == 0.3 and live.AudioChannelUi == 0.9)
+  LA.restore(audio)
+  check('restored to what the player set, nothing was remembered by us', live.AudioChannelPower == 0.7 and live.AudioChannelCollision == 0.5)
+  LA.restore(audio)
+  check('a second restore (or one after a crash) changes nothing', live.AudioChannelPower == 0.7)
+  local broken = { get = function() error('no audio') end, set = function() error('no audio') end }
+  check('an audio system that errors does not break the lot', pcall(LA.mute, broken) and pcall(LA.restore, broken))
 end

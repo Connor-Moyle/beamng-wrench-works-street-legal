@@ -153,6 +153,14 @@
     '  background:rgba(20,18,24,.9);pointer-events:auto;box-shadow:0 20px 60px rgba(0,0,0,.5)}',
     '.slp-lothead{display:flex;justify-content:space-between;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#cac4d0}',
     '.slp-lotname{margin-top:6px;font-size:15px;color:#cac4d0}',
+    '.slp-lotload{position:fixed;left:0;top:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;background:rgba(10,9,14,.94);z-index:60;pointer-events:auto}',
+    '.slp-lotload .slp-lcard{min-width:300px;max-width:80vw;padding:26px 34px;border-radius:24px;background:#211f26;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.6)}',
+    '.slp-lotload b{display:block;font-size:20px;font-weight:400;margin:14px 0 4px 0}',
+    '.slp-lotload span{display:block;font-size:14px;color:#cac4d0}',
+    '.slp-lotload .slp-lbar{height:6px;margin-top:14px;border-radius:3px;background:rgba(255,255,255,.12);overflow:hidden}',
+    '.slp-lotload .slp-lbar i{display:block;height:100%;background:#a8c7fa;transition:width .3s}',
+    '.slp-lotload .slp-spin{width:34px;height:34px;margin:0 auto;border-radius:50%;border:3px solid rgba(255,255,255,.15);border-top-color:#a8c7fa;animation:slpspin 1s linear infinite}',
+    '@keyframes slpspin{to{transform:rotate(360deg)}}',
     '.slp-lotname b{display:block;font-size:28px;font-weight:400;color:#e6e1e5;line-height:1.15}',
     '.slp-lottitle{display:inline-block;margin-top:6px;padding:3px 10px;border-radius:10px;background:#3a3f4b;font-size:12px;color:#d7e3ff}',
     '.slp-lotstats{display:flex;gap:22px;margin-top:12px;font-size:13px;color:#cac4d0}',
@@ -694,6 +702,7 @@
         if (c.impounded) acts.push('<div class="slp-btn" data-a="release" data-v="' + c.id + '">Get it out of the impound &middot; ' + money(c.impounded) + '</div>');
         else if (!c.active) acts.push('<div class="slp-btn" data-a="usecar" data-v="' + c.id + '">Drive this one</div>');
         if (c.out && c.towFee && c.where === 'Out on the street') acts.push('<div class="slp-btn slp-tonal" data-a="tow" data-v="' + c.id + '">Tow it home &middot; ' + money(c.towFee) + '</div>');
+        if (c.out && !c.impounded) acts.push('<div class="slp-btn slp-text" data-a="despawn" data-v="' + c.id + '">Put it away</div>');
         return '<div class="slp-card"><h4>' + esc(c.name) + (c.active ? ' &#9733;' : '') + '</h4><p>' + esc(c.where) + ' &middot; condition ' + Math.round((c.condition || 0) * 100) + '%' +
           (faults.length ? '<br>Needs: ' + esc(faults.join(', ')) : '') + '</p>' + careView(c) + (acts.length ? '<div class="slp-acts">' + acts.join('') + '</div>' : '') + '</div>';
       });
@@ -784,6 +793,13 @@
           '<div class="slp-btn slp-tonal" data-a="lot" data-v="browse()">Look at their cars</div></div>' +
           '<div class="slp-lotleave"><div class="slp-btn slp-text" data-a="lot" data-v="close()">Not today</div></div></div>';
       }
+      if (l.building) {         // the row is being made: a loading screen, the lot shows when all is done
+        var pr = obj(l.progress), tot = pr.total || 0, dn = Math.min(pr.done || 0, tot);
+        return '<div class="slp-lotload"><div class="slp-lcard"><div class="slp-spin"></div><b>Getting the cars out&hellip;</b>' +
+          '<span>' + esc(l.name) + '</span><span>' + (tot ? (pr.phase === 'bodywork' ? 'Bodywork ' : 'Car ') + dn + ' of ' + tot : 'One moment') + '</span>' +
+          '<div class="slp-lbar"><i style="width:' + (tot ? Math.round(100 * dn / tot) : 5) + '%"></i></div>' +
+          '<div class="slp-btn slp-text" data-a="lot" data-v="close()" style="margin-top:10px">Cancel</div></div></div>';
+      }
       var o = l.offer || {};
       var faults = arr(o.faults);
       var body = l.building ? '<div class="slp-lotname"><b>Bringing it round\u2026</b></div>' :
@@ -801,6 +817,26 @@
     }
 
     // the gas station: a grade, fill the tank or a can, and the shop
+    // on foot in a garage's doorway: your cars, to take out, work on (the garage opens on it) or put away
+    function garageView() {
+      var g = st.garage;
+      if (!g || !g.open) return '';
+      var rows = arr(st.data.fleet).map(function (c) {
+        var acts = [];
+        if (c.impounded) acts.push('<div class="slp-btn slp-tonal slp-off">Impounded</div>');
+        else {
+          acts.push('<div class="slp-btn" data-a="workon" data-v="' + c.id + '">' + (c.out ? 'Work on it' : 'Take out and work on it') + '</div>');
+          if (!c.out) acts.push('<div class="slp-btn slp-tonal" data-a="usecar" data-v="' + c.id + '">Take out</div>');
+          else acts.push('<div class="slp-btn slp-tonal" data-a="despawn" data-v="' + c.id + '">Put away</div>');
+        }
+        return '<div class="slp-kv"><span>' + esc(c.name) + (c.active ? ' &#9733;' : '') + '<br><small>' + esc(c.where) + ' &middot; condition ' + Math.round((c.condition || 0) * 100) + '%</small></span></div>' +
+          '<div class="slp-lotbtns">' + acts.join('') + '</div>';
+      }).join('');
+      return '<div class="slp-lot"><div class="slp-lothead"><span>Garage &middot; ' + esc(g.name) + '</span></div>' +
+        '<div class="slp-lotname">Your cars</div>' + (rows || '<div class="slp-empty">You have no car.</div>') +
+        '<div class="slp-lotleave"><div class="slp-btn slp-text" data-a="garageclose">Leave</div></div></div>';
+    }
+
     function stationView() {
       var g = st.station;
       if (!g || !g.open) return '';
@@ -983,7 +1019,7 @@
       layer.innerHTML =
         '<div class="slp-pill"' + (st.open ? ' style="display:none"' : '') + '><b>' + money(d.money) + '</b><span>' + esc(d.title) + '</span><span>' + two(d.hour || 0) + ':' + two(d.minute || 0) + '</span></div>' +
         '<div class="slp-device' + (st.open ? '' : ' slp-away') + '" style="transform:' + (st.open ? '' : 'translateY(70%) ') + 'scale(' + scale() + ')">' + screen + '</div>' +
-        lotView() + stationView() + meetView() + raceView() +
+        lotView() + garageView() + stationView() + meetView() + raceView() +
         huHtml +
         '<div class="slp-toast' + (st.toast ? '' : ' slp-gone') + '">' + esc(st.toast || '') + '</div>' +
         fadeView();
@@ -1112,6 +1148,9 @@
         case 'raise': lua('raise(' + JSON.stringify(v) + ')'); break;
         case 'league': lua('enterLeague(' + JSON.stringify(v) + ')'); break;
         case 'adview': go('ad', { adId: v }); break;
+        case 'workon': lua('workOn(' + Number(v) + ')'); st.garage = null; break;
+        case 'despawn': lua('despawn(' + Number(v) + ')'); break;
+        case 'garageclose': lua('closeGarage()'); st.garage = null; render(); break;
         case 'wait': lua('wait(' + JSON.stringify(String(v)) + ')'); break;
         case 'borrow': lua('borrow(' + Number(v) + ')'); break;
         case 'repay': lua('repay(' + Number(v) + ')'); break;
@@ -1246,6 +1285,7 @@
         case 'slLotData': st.lot = data.open ? data : null; render(); break;
         case 'slMeet': st.meet = data.open ? data : null; render(); break;
         case 'slStation': st.station = data.open ? data : null; render(); break;
+        case 'slGarage': st.garage = data.open ? data : null; render(); break;
         case 'slRace': st.race = data.on ? data : null; render(); break;
         case 'slMenu': st.menu = data.show ? data : null; render(); break;
         case 'slArt': st.slrrArt = true; render(); break;
@@ -1277,7 +1317,7 @@
       var probe = new Image();
       probe.onload = function () { phone.handle('slArt'); };
       probe.src = '/ui/modModules/slHud/slrr/icons/cup.png';
-      ['slPhoneData', 'slPhoneToggle', 'slPhoneCall', 'slPhoneCallReply', 'slPhoneNotify', 'slPhoneToast', 'slFade', 'slLotData', 'slMeet', 'slRace', 'slMenu', 'slStation'].forEach(function (name) {
+      ['slPhoneData', 'slPhoneToggle', 'slPhoneCall', 'slPhoneCallReply', 'slPhoneNotify', 'slPhoneToast', 'slFade', 'slLotData', 'slMeet', 'slRace', 'slMenu', 'slStation', 'slGarage'].forEach(function (name) {
         $rootScope.$on(name, function (ev, data) { phone.handle(name, data); });
       });
       if (window.bngApi) window.bngApi.engineLua('if sl_phone then sl_phone.request() end if sl_menuTile then sl_menuTile.request() end');

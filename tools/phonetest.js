@@ -271,6 +271,19 @@ win.dispatchEvent(new win.MouseEvent('mouseup', {}));
 assert.ok(calls.includes('@sl_lot.cameraDrag(30,-5)'), 'dragging turns the camera');
 phone.handle('slLotData', { open: true, mode: 'browse', name: 'Valo Junkyard', kindTitle: 'Used cars', kind: 'used', index: 1, count: 8, money: 1000, offer: { name: 'X', price: 5000, faults: [] } });
 assert.ok($('[data-v="buy()"].slp-off') && text().includes('Runs and drives'), 'cannot buy what you cannot pay for');
+// T44: while the row is made the lot is a loading screen with a count; the car card comes when all is done
+phone.handle('slLotData', { open: true, mode: 'browse', name: 'Jefferson Motors', kindTitle: 'New cars', kind: 'dealer', index: 1, count: 4, money: 9000, building: true,
+  progress: { phase: 'cars', done: 2, total: 4 }, offer: { name: 'X', price: 5000, faults: [] } });
+assert.ok($('.slp-lotload') && text().includes('Getting the cars out') && text().includes('Car 2 of 4') && text().includes('Jefferson Motors') && $('.slp-lotload .slp-lbar i').style.width === '50%', 'a lot being made: the loading screen with its count');
+assert.ok(!$('[data-v="buy()"]') && !$('.slp-lotbtns'), 'no buy button, no card while it is made');
+phone.handle('slLotData', { open: true, mode: 'browse', name: 'Jefferson Motors', kindTitle: 'New cars', kind: 'dealer', index: 1, count: 4, money: 9000, building: true,
+  progress: { phase: 'bodywork', done: 1, total: 2 }, offer: { name: 'X', price: 5000, faults: [] } });
+assert.ok(text().includes('Bodywork 1 of 2'), 'the second round is counted too');
+calls.length = 0;
+click('lot', 'close()');
+assert.ok(calls.some(function (c) { return c.indexOf('close()') >= 0; }), 'the loading screen can be cancelled');
+phone.handle('slLotData', { open: true, mode: 'browse', name: 'Jefferson Motors', kindTitle: 'New cars', kind: 'dealer', index: 1, count: 4, money: 9000, building: false, offer: { name: 'Roamer', price: 5000, faults: [] } });
+assert.ok(!$('.slp-lotload') && $('[data-v="buy()"]') && text().includes('Roamer'), 'built: the loading screen is gone and the card shows');
 phone.handle('slLotData', { open: true, mode: 'sell', name: 'Scrap & Salvage', kindTitle: 'Scrap yard', kind: 'scrap', sellCar: { name: 'Covet', price: 410 } });
 assert.ok(text().includes('$410 for the Covet') && text().includes('Scrap it'), 'selling at the scrap yard');
 phone.handle('slLotData', { open: true, mode: 'test', name: 'Valo Junkyard', testLeft: 95 });
@@ -486,6 +499,31 @@ assert.ok(calls.includes('@sl_lot.cameraDrag(10,0)') && calls.includes('@sl_lot.
 nav('back', 1);
 assert.ok(calls.includes('@sl_lot.close()'), 'B leaves the lot');
 phone.handle('slLotData', { open: false });
+// on foot in a garage's doorway: the cars panel (take out, work on, put away), reachable by the pad, B leaves it
+phone.act('home');
+if (phone.state.open) phone.handle('slPhoneToggle');      // (the phone is in the pocket: the panel opens without it)
+phone.handle('slPhoneData', Object.assign({}, data, { fleet: [
+  { id: 1, name: 'Sunburst', where: 'Out on the street', out: true, active: true, condition: 0.8, faults: [] },
+  { id: 2, name: 'Covet', where: 'In the garage', out: false, condition: 0.5, faults: [] },
+  { id: 3, name: 'Pessima', where: 'In the garage', out: false, impounded: 300, condition: 0.4, faults: [] }] }));
+phone.handle('slLotData', { open: false }); phone.handle('slStation', { open: false });
+phone.handle('slGarage', { open: true, name: 'Club Garage 1' });
+assert.ok(phone.root.querySelector('.slp-lot') && text().includes('Club Garage 1') && text().includes('Your cars'), 'the doorway shows a cars panel');
+assert.ok(text().includes('Work on it') && text().includes('Take out and work on it') && text().includes('Put away') && text().includes('Impounded'), 'work on one that is out, take out a stored one, put one away, an impounded one is marked');
+assert.ok(phone.root.querySelector('.slp-lot [data-a="workon"]').hasAttribute('bng-nav-item'), 'the buttons are gamepad nav items with the phone away');
+calls.length = 0;
+click('despawn', '1');
+click('workon', '2');
+assert.ok(calls.includes('despawn(1)') && calls.includes('workOn(2)'), 'put away and work on call the career');
+phone.handle('slGarage', { open: true, name: 'Club Garage 1' });
+calls.length = 0;
+win.document.dispatchEvent(new win.CustomEvent('ui_nav', { detail: { name: 'back', value: 1 } }));
+assert.ok(calls.includes('closeGarage()') && !phone.root.querySelector('.slp-lot'), 'B leaves the panel');
+// a car that is out can be put away from My cars
+phone.handle('slPhoneToggle');
+phone.act('open', 'garage');
+assert.ok(phone.root.querySelector('[data-a="despawn"][data-v="1"]') && !phone.root.querySelector('[data-a="despawn"][data-v="2"]'), 'My cars: Put it away for a car that is out only');
+phone.act('home');
 // a fade is plain black: no SLRR loading picture, whatever the game sends
 phone.handle('slFade', { on: true, pic: 'loading_city.png' });
 assert.ok(phone.root.querySelector('.slp-fade.slp-in') && !(phone.root.querySelector('.slp-fade').getAttribute('style') || '').includes('url('), 'a fade has no picture');
