@@ -15,6 +15,7 @@ local strings = require('sl/core/strings')
 local heatLib = require('sl/core/heat')
 local chaseLib = require('sl/core/chase')
 local spawnplan = require('sl/core/spawnplan')
+local rngLib = require('sl/core/rng')
 
 local PATROLS = 2
 local CONFIGS = {
@@ -192,7 +193,7 @@ local function stripWatch()
   if (stripPassed and now - stripAt > 8) or now - stripAt > 30 then parkStrip() end
 end
 function M.stripWarning() return stripPos ~= nil and not stripPassed end
-function M.stripReset() parkStrip() end
+function M.stripReset() parkStrip() if M.breakerReset then M.breakerReset() end end
 function M.stripTick(v)       -- (from the chase tick)
   if M.STRIP and not stripPos and stripVeh() and chaseLib.stripDue(sl_career.phase(), M.level(), true, os.clock() - lastStrip) then placeStrip(v) end
 end
@@ -217,6 +218,103 @@ local function updateStrip(v)
       log('W', 'street_legal', 'chase: strip could not be built: ' .. tostring(sv))
     end
     stripBusy = false
+  end)
+end
+
+-- pursuit breakers (heat 2+, in a chase): up to 3 marked spots on straight wide roads near you (core/chase breakerSpots, an orange post at night).
+-- Pass one at speed with a patrol 25-55 m behind and a wall of tyres (the game's 'tirestacks' wall, a pooled prop like the strip) drops across
+-- the road behind you; it is parked 25 s later, and a breaker is ready again after 60 s.
+M.BREAKERS = true                     -- false: no breakers
+M.BREAKER_CONFIG = 'vehicles/tirestacks/wall.pc'
+M.BREAKER_YAW = 0                     -- degrees, to turn the prop across the road (checked in game)
+local spots, spotsAt, prevD = nil, nil, nil
+local wallId, wallBusy, wallPark, wallAt, lastBreaker = nil, false, nil, -1e9, -1e9
+local wallOut = false
+local function wallVeh()
+  local v = wallId and getObjectByID(wallId)
+  if not v then wallId = nil end
+  return v
+end
+local function parkWall()
+  local wv = wallVeh()
+  if wv and wallPark and wallOut then
+    spawn.safeTeleport(wv, wallPark, quat(0, 0, 0, 1), true, nil, nil, nil, false)
+    wv:setActive(0)
+  end
+  wallOut = false
+end
+function M.breakerReset() parkWall() end
+local function dropWall(v)
+  local wv = wallVeh()
+  if not wv then return end
+  local dir = v:getVelocity()
+  dir = vec3(dir.x, dir.y, 0)
+  if dir:length() < 1 then return end
+  dir = dir:normalized()
+  local p = v:getPosition()
+  local rot = quatFromDir(vec3(-dir.y, dir.x, 0), vec3(0, 0, 1))
+  if M.BREAKER_YAW ~= 0 then rot = rot * quatFromAxisAngle(vec3(0, 0, 1), math.rad(M.BREAKER_YAW)) end
+  wv:setActive(1)
+  spawn.safeTeleport(wv, p - dir * 15 + vec3(0, 0, 0.3), rot, true, nil, nil, nil, false)
+  wallOut, wallAt, lastBreaker = true, os.clock(), os.clock()
+  if ui_message then ui_message(strings.t('police.breaker'), 4, 'streetLegal') end
+  log('I', 'street_legal', string.format('chase: breaker dropped at %.0f,%.0f', p.x, p.y))
+end
+-- every frame at night from heat 2: the posts, and the pass
+local function breakerWatch()
+  if not (M.BREAKERS and spots and #spots > 0 and night() and M.level() >= 2) then return end
+  local v = getPlayerVehicle(0)
+  if not v then return end
+  local p = v:getPosition()
+  local near, nearD = nil, 1e9
+  for _, s in ipairs(spots) do
+    local d = math.sqrt((s.x - p.x) ^ 2 + (s.y - p.y) ^ 2)
+    if d < nearD then near, nearD = s, d end
+    if d < 300 and debugDrawer then
+      local pulse = 0.5 + 0.5 * math.sin(os.clock() * 4)
+      debugDrawer:drawCylinder(vec3(s.x, s.y, s.z), vec3(s.x, s.y, s.z + 7), 0.35, ColorF(1, 0.55, 0.1, 0.35 + 0.35 * pulse))
+    end
+  end
+  if wallOut and os.clock() - wallAt > 25 then parkWall() end
+  if not (chaseState and wallVeh() and not wallOut and chaseLib.breakerReady(os.clock() - lastBreaker)) then prevD = nil return end
+  local d = nearD < 60 and nearD or nil
+  if prevD and d and prevD < 8 and d > prevD then
+    local cop = gameplay_police and gameplay_police.getNearestPoliceVehicle and gameplay_police.getNearestPoliceVehicle(v:getID(), false, true)
+    local c = cop and getObjectByID(cop)
+    if chaseLib.breakerPassed(prevD, d, v:getVelocity():length(), c and (c:getPosition() - p):length() or nil) then dropWall(v) end
+  end
+  prevD = d
+end
+-- the spots (when none yet, or over 1200 m from where they were chosen) and the wall (built once, like the strip, with the patrol build rule)
+local function updateBreakers(v)
+  if not M.BREAKERS or not night() or M.level() < 2 then return end
+  local p = v:getPosition()
+  if not spots or not spotsAt or (spotsAt - p):length() > 1200 then
+    local ok, nodes = pcall(function() return map.getMap().nodes end)
+    if ok and type(nodes) == 'table' then
+      spots, spotsAt = chaseLib.breakerSpots(nodes, 3, p, 1800, rngLib.new(rngLib.hash('breakers' .. math.floor(p.x / 1000) .. ',' .. math.floor(p.y / 1000)))), p
+      log('I', 'street_legal', 'chase: ' .. #spots .. ' breaker spots near ' .. string.format('%.0f,%.0f', p.x, p.y))
+    end
+  end
+  if wallId or wallBusy or #(spots or {}) == 0 or M.inPursuit() then return end
+  local node = nodeAround(p, 500, 900)
+  if not node then return end
+  local sBusy, sSince = false, 1e9
+  if sl_streets and sl_streets.buildGate then sBusy, sSince = sl_streets.buildGate() end
+  if not spawnplan.patrolOk(v:getVelocity():length(), math.min(sSince or 1e9, os.clock() - lastBuild), sBusy, false) then return end
+  wallBusy, lastBuild = true, os.clock()
+  if sl_streets and sl_streets.noteBuild then sl_streets.noteBuild() end
+  core_jobsystem.create(function(job)
+    local ok, wv = pcall(core_vehicles.spawnNewVehicle, 'tirestacks', { config = M.BREAKER_CONFIG, pos = node.pos + vec3(0, 0, 0.5), autoEnterVehicle = false, canSpawnAnotherVehicleCheck = false })
+    if ok and wv then
+      job.sleep(1)
+      wallId, wallPark, wallOut = wv:getID(), node.pos + vec3(0, 0, 0.5), false
+      wv:setActive(0)
+      log('I', 'street_legal', 'chase: breaker wall built, parked out of play')
+    else
+      log('W', 'street_legal', 'chase: breaker wall could not be built: ' .. tostring(wv))
+    end
+    wallBusy = false
   end)
 end
 
@@ -321,6 +419,7 @@ function M.onStreetLegalPhase(phase)
   if phase ~= 'night' then
     for i = #units, 1, -1 do despawn(units[i]) units[i] = nil end
     if stripId then despawn(stripId) stripId, stripPos = nil, nil end
+    if wallId then despawn(wallId) wallId, wallOut, spots = nil, false, nil end
   end
 end
 
@@ -360,17 +459,19 @@ function M.onUpdate(dtReal)
   if not career() then
     if #units > 0 then for _, id in ipairs(units) do despawn(id) end units = {} end
     if stripId then despawn(stripId) stripId, stripPos = nil, nil end
+    if wallId then despawn(wallId) wallId, wallOut, spots = nil, false, nil end
     return
   end
   timer = timer + dtReal
   nearTimer = nearTimer + dtReal
   stripWatch()
+  breakerWatch()
   if nearTimer > 1 then chaseTick(nearTimer) nearTimer = 0 nearMiss(os.clock()) end
   if timer > 5 then
     timer = 0
     updatePatrols()
     local pv = getPlayerVehicle(0)
-    if pv then updateStrip(pv) end
+    if pv then updateStrip(pv) updateBreakers(pv) end
     local s = career()
     if night() then
       if not M.inPursuit() then s.heat = heatLib.cooled(s.heat, 5 / 60) end      -- heat cools as time passes while nobody is after you
@@ -380,7 +481,7 @@ function M.onUpdate(dtReal)
   end
 end
 
-function M.onStreetLegalStopped() for _, id in ipairs(units) do despawn(id) end units = {} if stripId then despawn(stripId) stripId, stripPos = nil, nil end end
-function M.onClientEndMission() units = {} busy = false stripId, stripPos, stripBusy = nil, nil, false end
+function M.onStreetLegalStopped() for _, id in ipairs(units) do despawn(id) end units = {} if stripId then despawn(stripId) stripId, stripPos = nil, nil end if wallId then despawn(wallId) wallId, wallOut, spots = nil, false, nil end end
+function M.onClientEndMission() units = {} busy = false stripId, stripPos, stripBusy = nil, nil, false wallId, wallOut, wallBusy, spots = nil, false, false, nil end
 
 return M

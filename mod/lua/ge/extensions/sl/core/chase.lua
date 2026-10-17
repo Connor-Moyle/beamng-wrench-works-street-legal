@@ -80,9 +80,44 @@ function M.bustCause(i)
   return nil
 end
 
--- a pursuit breaker (later): you pass within 6 m at speed (m/s) with a patrol inside 40 m
-function M.breakerHit(distToBreaker, speed, nearestCop)
-  return (distToBreaker or 1e9) < 6 and (speed or 0) > 10 and (nearestCop or 1e9) < 40
+-- pursuit breakers: a wall of tyres drops across the road behind you as you pass a breaker spot at speed with a patrol 25-55 m back
+-- (closer and it would land on the patrol). Spots: up to n straight, wide road nodes (two links in line, radius 4 m or more) within maxD of
+-- `around`, at least 300 m apart, picked in the order of the rng. nodes[name] = { pos, radius, links = { [other] = edge } } (the game's graph).
+M.BREAKER_RADIUS, M.BREAKER_GAP, M.BREAKER_EVERY = 4, 300, 60
+function M.breakerSpots(nodes, n, around, maxD, rng)
+  local names = {}
+  for name in pairs(nodes) do names[#names + 1] = name end
+  table.sort(names)
+  local cands = {}
+  for _, name in ipairs(names) do
+    local node = nodes[name]
+    local pos = node.pos
+    if (node.radius or 0) >= M.BREAKER_RADIUS and dist(pos, around) <= maxD and dist(pos, around) >= 60 then
+      local others = {}
+      for o in pairs(node.links or {}) do if nodes[o] then others[#others + 1] = nodes[o].pos end end
+      if #others == 2 then
+        local ax, ay, bx, by = others[1].x - pos.x, others[1].y - pos.y, others[2].x - pos.x, others[2].y - pos.y
+        local la, lb = math.sqrt(ax * ax + ay * ay), math.sqrt(bx * bx + by * by)
+        if la > 1 and lb > 1 and (ax * bx + ay * by) / (la * lb) < -0.95 then
+          cands[#cands + 1] = { x = pos.x, y = pos.y, z = pos.z or 0, dx = bx / lb, dy = by / lb }
+        end
+      end
+    end
+  end
+  local out = {}
+  while #cands > 0 and #out < n do
+    local c = table.remove(cands, rng:int(1, #cands))
+    local far = true
+    for _, o in ipairs(out) do if dist(o, c) < M.BREAKER_GAP then far = false break end end
+    if far then out[#out + 1] = c end
+  end
+  return out
 end
+
+-- you have just passed a breaker (the distance to it was under 8 m and is growing) at speed (m/s), with the nearest patrol 25-55 m off
+function M.breakerPassed(prevDist, dist, speed, nearestCop)
+  return (prevDist or 1e9) < 8 and (dist or 0) > prevDist and (speed or 0) > 10 and (nearestCop or 0) > 25 and (nearestCop or 1e9) < 55
+end
+function M.breakerReady(sinceLast) return (sinceLast or 1e9) >= M.BREAKER_EVERY end
 
 return M
