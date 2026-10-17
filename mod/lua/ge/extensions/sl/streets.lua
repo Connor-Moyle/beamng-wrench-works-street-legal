@@ -624,6 +624,18 @@ local function meetHidden(pos)
   return spawnplan.hidden({ x = pos.x, y = pos.y }, { x = pp.x, y = pp.y, vx = pv.x, vy = pv.y }, cam)
 end
 
+-- a meet's cars are built one by one with a gap, and only while the player is slow or far away (each build is a 1-1.6 s freeze: 6-11 in a row was a stutter train)
+local MEET_GAP, MEET_SLOW, MEET_FAR, MEET_MAX_WAIT = 4, 8, 300, 40
+local function meetPace(job, pos)
+  local waited = 0
+  while waited < MEET_MAX_WAIT do                                 -- (after that it is built anyway: the meet must still fill)
+    local v = getPlayerVehicle(0)
+    if not v or v:getVelocity():length() < MEET_SLOW or (v:getPosition() - pos):length() > MEET_FAR then break end
+    job.sleep(1) waited = waited + 1
+  end
+  job.sleep(MEET_GAP)
+end
+
 local function startMeet(s)
   local list = {}
   for _, p in pairs(sl_career.getPlaces() or {}) do if p.kind == 'meet' then list[#list + 1] = p end end
@@ -657,6 +669,8 @@ local function startMeet(s)
       if not meetHidden(place.pos) then break end                -- he is coming: no more cars appear in front of him
       local pos, rot = nextSpot()
       if not pos then break end                                  -- no bay left: a small car park holds fewer cars
+      meetPace(job, place.pos)
+      if not meetHidden(place.pos) then break end
       local r = table.remove(racers, rng:int(#racers))
       local veh = spawnRacer(job, s, r, pos, rot)
       if veh and meet then
@@ -677,6 +691,8 @@ local function startMeet(s)
       if not meet or not meetHidden(place.pos) then break end
       local pos, rot = nextSpot()
       if not pos then break end
+      meetPace(job, place.pos)
+      if not meet or not meetHidden(place.pos) then break end
       local veh = builder.buildCustom(job, c.model, c.config, { stage = rng:int(0, 2), seed = rngLib.hash(place.id .. ':' .. s.day .. ':' .. i) }, pos, rot)
       if veh and meet then
         veh:queueLuaCommand('controller.setFreeze(1) input.event("parkingbrake", 1, FILTER_DIRECT)')
