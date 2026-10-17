@@ -739,7 +739,7 @@
         }
         cards += bk.policy ? ('<div class="slp-card"><h4>' + T('ui.insured', 'Insured') + '</h4><p>') + (bk.policy.startsIn ? T('ui.cover_starts_tomorrow', 'Cover starts tomorrow') : T('ui.covering_half_of_repairs_and', 'Covering half of repairs and impound bills over {1}', money(bk.deductible))) + '</p>' +
             ('<div class="slp-acts"><div class="slp-btn slp-text" data-a="insure" data-v="false">' + T('ui.cancel', 'Cancel') + '</div></div></div>')
-          : ('<div class="slp-card"><h4>' + T('ui.insurance', 'Insurance') + '</h4><p>') + money(bk.premium) + T('ui.a_week_half_of_repairs', ' a week: half of repairs and impound bills over ') + money(bk.deductible) + (T('ui.from_the_next_day', ', from the next day') + '</p>') +
+          : ('<div class="slp-card"><h4>' + T('ui.insurance', 'Insurance') + '</h4><p>') + money(bk.premium) + T('ui.a_week_half_of_repairs', ' a week: half of repairs and impound bills over ') + money(bk.deductible) + (T('ui.from_the_next_day', ', from the next day') + '</p>') + (bk.premiumWhy ? '<p class="slp-sub">' + esc(bk.premiumWhy) + '</p>' : '') +
             ('<div class="slp-acts"><div class="slp-btn slp-tonal" data-a="insure" data-v="true">' + T('ui.insure', 'Insure') + '</div></div></div>');
       }
       return bar(T('app.bank', 'Bank')) + ('<div class="slp-body"><div class="slp-bal"><small>' + T('ui.balance', 'Balance') + '</small><div>') + money(st.data.money) + '</div></div>' + cards +

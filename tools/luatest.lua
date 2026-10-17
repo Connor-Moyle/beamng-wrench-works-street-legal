@@ -729,7 +729,11 @@ do
   check('half over the deductible', bank.claim(policy, 2200, 5) == 1000)
   check('small claims pay nothing', bank.claim(policy, 150, 9) == 0)
   check('no policy, no payout', bank.claim(nil, 5000, 9) == 0 and bank.claim({ active = false, from = 0 }, 5000, 9) == 0)
-  check('premium by fleet value', bank.premium(0) == 100 and bank.premium(20000) == 400)
+  check('B10: the premium starts low and does not follow the cars', bank.premium(nil, 10) == bank.BASE_PREMIUM and bank.premium({}, 10) == bank.BASE_PREMIUM and bank.BASE_PREMIUM < 100)
+  check('it rises with each recent claim, up to a cap', bank.premium({ 8 }, 10) == bank.BASE_PREMIUM + bank.CLAIM_LOAD and bank.premium({ 3, 8 }, 10) == bank.BASE_PREMIUM + 2 * bank.CLAIM_LOAD
+    and bank.premium({ 1, 2, 3, 4, 5, 6, 7 }, 8) == bank.BASE_PREMIUM + bank.MAX_CLAIMS * bank.CLAIM_LOAD)
+  check('claims older than the window fall out; a claim "in the future" does not count', bank.premium({ 2 }, 2 + bank.CLAIM_WINDOW) == bank.BASE_PREMIUM and bank.premium({ 20 }, 10) == bank.BASE_PREMIUM)
+  check('and the premium says why', bank.premiumWhy({}, 5):find('No claims') and bank.premiumWhy({ 4 }, 5):find('1 claim') and bank.premiumWhy({ 4 }, 5):find('60'))
 end
 
 -- clubs, leagues and the season (X20/X5)

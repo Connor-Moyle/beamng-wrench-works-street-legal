@@ -54,7 +54,7 @@ function M.insure(on)
   if on then
     if b.policy and b.policy.active then return false, strings.t('bank.you_are_insured_already') end
     if sl_options and sl_options.get('slHardcore') then return false, strings.t('bank.hardcore_career_nobody_will_insure') end
-    local premium = bank.premium(fleetValue(s))
+    local premium = bank.premium(b.claims, s.day)
     if not sl_career.addMoney(-premium, strings.t('bank.insurance_premium')) then return false, string.format(strings.t('bank.the_first_week_is_d'), premium) end
     b.policy = { active = true, from = s.day + 1, nextPremium = s.day + bank.WEEK }
     extensions.hook('onStreetLegalChanged')
@@ -74,7 +74,9 @@ function M.onStreetLegalSpent(cost, label)
   local payout = bank.claim(b.policy, cost, s.day)
   if payout > 0 then
     sl_career.addMoney(payout, strings.t('bank.insurance_1', (label)))
-    toast(string.format(strings.t('bank.the_insurance_pays_d_of'), payout))
+    b.claims = b.claims or {}
+    b.claims[#b.claims + 1] = s.day                                 -- the claims history the premium follows
+    toast(string.format(strings.t('bank.the_insurance_pays_d_of'), payout) .. ' ' .. strings.t('bank.next_weeks_premium_is_1', bank.premium(b.claims, s.day)))
   end
 end
 
@@ -123,7 +125,7 @@ function M.onStreetLegalNewDay(day)
   end
   local p = b.policy
   if p and p.active and day >= p.nextPremium then
-    local premium = bank.premium(fleetValue(s))
+    local premium = bank.premium(b.claims, day)
     if sl_career.addMoney(-premium, strings.t('bank.insurance_premium')) then p.nextPremium = day + bank.WEEK
     else p.active = false sl_career.sendText('benny', strings.t('bank.your_insurance_lapsed_not_enough'), 1) end
   end
@@ -135,7 +137,7 @@ function M.summary()
   local s = career()
   if not s then return nil end
   local b = bankState(s)
-  local out = { limit = bank.loanLimit(s.rep, s.garageLevel, fleetValue(s)), rate = bank.RATE, premium = bank.premium(fleetValue(s)), deductible = bank.DEDUCTIBLE }
+  local out = { limit = bank.loanLimit(s.rep, s.garageLevel, fleetValue(s)), rate = bank.RATE, premium = bank.premium(b.claims, s.day), premiumWhy = bank.premiumWhy(b.claims, s.day), deductible = bank.DEDUCTIBLE }
   if b.loan then out.loan = { owed = b.loan.owed, due = bank.due(b.loan), dueIn = b.loan.nextDue - s.day, missed = b.loan.missed } end
   if b.policy and b.policy.active then out.policy = { from = b.policy.from, startsIn = math.max(0, b.policy.from - s.day) } end
   return out

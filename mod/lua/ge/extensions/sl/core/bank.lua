@@ -5,6 +5,8 @@
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 M.RATE = 0.03              -- interest per in-game day on what is owed
 M.MAX_GROWTH = 1.5         -- what is owed never passes this times what was borrowed
 M.WEEK = 7
@@ -54,9 +56,29 @@ function M.payment(loan, money)
   return loan.missed == 1 and 'warning' or 'final', 0
 end
 
--- insurance: the weekly premium for a fleet worth this much
-function M.premium(fleetValue)
-  return math.floor((100 + (fleetValue or 0) * 0.015) / 10) * 10
+-- insurance (B10): the weekly premium starts low and only rises with the claims history, never with what the cars are worth. Each claim paid in the last
+-- CLAIM_WINDOW days adds CLAIM_LOAD to the base (up to MAX_CLAIMS); the claims fall out of the history after the window and the premium comes back down.
+M.BASE_PREMIUM = 80
+M.CLAIM_LOAD = 60
+M.CLAIM_WINDOW = 28
+M.MAX_CLAIMS = 5
+
+-- claims: the days on which a claim was paid
+function M.recentClaims(claims, day)
+  local n = 0
+  for _, d in ipairs(claims or {}) do if (day or 0) - d < M.CLAIM_WINDOW and d <= (day or 0) then n = n + 1 end end
+  return math.min(n, M.MAX_CLAIMS)
+end
+
+function M.premium(claims, day)
+  return M.BASE_PREMIUM + M.CLAIM_LOAD * M.recentClaims(claims, day)
+end
+
+-- why it is what it is, in words for the phone and the laptop
+function M.premiumWhy(claims, day)
+  local n = M.recentClaims(claims, day)
+  if n == 0 then return strings.t('bank.no_claims_in_the_last_1_days', M.CLAIM_WINDOW) end
+  return strings.t('bank.1_claims_in_the_last_2', n, M.CLAIM_WINDOW, M.CLAIM_LOAD * n)
 end
 
 -- what a claim pays: nothing before cover starts (the day after buying), half over the deductible after
