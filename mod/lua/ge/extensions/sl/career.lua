@@ -68,6 +68,14 @@ local function hour()
   return (tod.time * 24 + 12) % 24
 end
 
+-- the sun the sky is drawn with now: its elevation in degrees (the game's ScatterSky), or nil
+local function sunElevation()
+  local names = scenetree.findClassObjects and scenetree.findClassObjects('ScatterSky') or {}
+  local sky = names[1] and scenetree.findObject(names[1])
+  return sky and tonumber(sky.elevation) or nil
+end
+M.sunElevation = sunElevation
+
 -- (D1) the clock runs inside the phase and stands still when the phase has run out (the phase's end hour), at the speed of the Clock setting
 local function clockRuns(h) return not (s and s.phase and phaseLib.ended(s.phase, h)) end
 local function setHour(h)
@@ -78,6 +86,7 @@ local function setHour(h)
   tod.time = ((h - 12) % 24) / 24
   tod.play = run
   tod.dayLength = length
+  tod.year, tod.month, tod.day = phaseLib.SKY_DATE.year, phaseLib.SKY_DATE.month, phaseLib.SKY_DATE.day      -- (the equinox: see sl/core/phase)
   core_environment.setTimeOfDay(tod)
   -- the setter leaves "play" off on this level (seen in game: the clock stood at 20:30 all night),
   -- so start it on the TimeOfDay object itself
@@ -617,6 +626,9 @@ local function begin()
     setHour((wanted + 12) % 24)
     job.sleep(0.5)
     setHour(wanted)
+    job.sleep(0.3)
+    local el = sunElevation()
+    log('I', 'sl_career', string.format('career start: clock %.2f, sun elevation %s', wanted, el and string.format('%.1f deg', el) or 'unknown'))
     lastHour = hour()
     if guihooks then guihooks.trigger('slFade', { on = false }) end
     -- the level loaded with nobody in it, so the game left its free camera on: follow the player
@@ -1312,6 +1324,26 @@ function M.bankRep()
   return n
 end
 
+-- Moves the clock so that the SKY really follows. A small jump of the TimeOfDay value can leave the sun where it was (seen in game: hour 21, sun up),
+-- so the clock goes by way of the opposite hour first, as the start of a career does. Then the sun is read back: at a night hour it should be below
+-- the horizon; if not, one wider detour, and the elevations go to the log (sl_career) either way. Runs inside a job (it sleeps).
+local function moveClock(h, job)
+  setHour((h + 12) % 24)
+  job.sleep(0.35)
+  setHour(h)
+  job.sleep(0.35)
+  local el = sunElevation()
+  log('I', 'sl_career', string.format('clock set to %.2f: sun elevation %s', h, el and string.format('%.1f deg', el) or 'unknown'))
+  if el and phaseLib.isDarkHour(h) and el > 0 then
+    setHour((h + 6) % 24)
+    job.sleep(0.5)
+    setHour(h)
+    job.sleep(0.5)
+    el = sunElevation()
+    log('W', 'sl_career', string.format('the sun was up at night hour %.2f; after a wider detour: %s', h, el and string.format('%.1f deg', el) or 'unknown'))
+  end
+end
+
 -- "Start the night" / "Start the day" (a garage computer, the phone's Wait app): the phase turns over, the clock jumps to its first hour behind a
 -- short fade (the day counter goes up with a new day) and runs on. false and the reason when it cannot be done now.
 local switching = false
@@ -1330,22 +1362,20 @@ function M.switchPhase()
   else
     pinkTipOff()
   end
-  local function jump()
-    setHour(plan.to)
-    lastHour = hour()
-    switching = false
-  end
   if core_jobsystem and core_jobsystem.create and guihooks then
     switching = true
     guihooks.trigger('slFade', { on = true })
     core_jobsystem.create(function(job)
       job.sleep(0.6)
-      jump()
-      job.sleep(0.5)
+      moveClock(plan.to, job)
+      lastHour = hour()
+      switching = false
+      job.sleep(0.3)
       guihooks.trigger('slFade', { on = false })
     end)
   else
-    jump()
+    setHour(plan.to)
+    lastHour = hour()
   end
   changed()
   extensions.hook('onStreetLegalPhase', s.phase, s.day)
@@ -1360,9 +1390,21 @@ function M.skipTime(what)
   if why then return false, why end
   local plan, reason = phaseLib.waitPlan(s.phase or 'day', hour(), what)
   if not plan then return false, reason end
-  setHour(plan.to)
   lastHour = plan.to
   clockHeld = plan.ends or false
+  if core_jobsystem and core_jobsystem.create and guihooks and not switching then
+    switching = true
+    guihooks.trigger('slFade', { on = true })
+    core_jobsystem.create(function(job)
+      job.sleep(0.5)
+      moveClock(plan.to, job)
+      switching = false
+      job.sleep(0.3)
+      guihooks.trigger('slFade', { on = false })
+    end)
+  else
+    setHour(plan.to)
+  end
   changed()
   local text = string.format('You wait until %02d:%02d.', math.floor(plan.to), math.floor((plan.to % 1) * 60))
   if plan.ends then text = text .. (s.phase == 'night' and ' The night is over.' or ' The day is over.') end

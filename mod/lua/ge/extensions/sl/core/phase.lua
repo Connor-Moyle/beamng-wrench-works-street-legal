@@ -20,6 +20,15 @@ function M.switchLabel(phase) return phase == 'night' and 'Start the day' or 'St
 function M.startHour(phase) return phase == 'night' and M.NIGHT.from or M.DAY.from end
 function M.endHour(phase) return phase == 'night' and M.NIGHT.to or M.DAY.to end
 
+-- The sky follows the real sun for the level's place and date (core_celestial), and the levels' authored dates are summer ones: Valo City is
+-- the engine default (47 N, 8 E, 20 June: the sun sets at 21:30 local) and West Coast USA is 22 June (sunset 20:35). A night starting at 21:00 would
+-- begin in daylight. The career moves the date to the spring equinox: sunrise about 06:30 and sunset about 18:30 (Valo), 07:10 and 19:20 (West
+-- Coast), so the day phase (07:00-19:00) is the daylight and the night phase (21:00-04:00) is dark.
+M.SKY_DATE = { year = 2026, month = 3, day = 20 }
+
+-- is the sun expected below the horizon at this hour (the night phase's hours)? Used to check the sky after a jump of the clock.
+function M.isDarkHour(h) return h >= M.NIGHT.from or h < M.NIGHT.to end
+
 -- heat as the player sees it, 0 (none) to 5: the police's attention (sl_police keeps it 0..1)
 function M.heatLevel(heat)
   heat = tonumber(heat) or 0
