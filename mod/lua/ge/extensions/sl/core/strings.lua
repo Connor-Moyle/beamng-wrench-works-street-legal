@@ -876,6 +876,7 @@ M.TEXT = {
   ["lot.factory_ordered"] = "Your %s is on order. It will be at your garage in about %d hours.",
   ["lot.factory_delivered"] = "Your new %s has arrived at your garage.",
   ["lot.factory_delivered_text"] = "Your new %s from %s is at your garage. Go and get it.",
+  ["lot.bought_car_at_garage"] = "The car could not be brought out. It is waiting in your garage.",
   ["lot.you_bought_the_s_it"] = "You bought the %s? It has problems: %s. Drive it home if it goes, or call a tow, and we will sort it in the garage.",
   ["markers.collada_xmlns_http_www_collada"] = "<COLLADA xmlns=\"http://www.collada.org/2005/11/COLLADASchema\" version=\"1.4.1\">",
   ["markers.instance_material_symbol_s_material"] = "<instance_material symbol=\"%s-material\" target=\"#%s-material\"/>",

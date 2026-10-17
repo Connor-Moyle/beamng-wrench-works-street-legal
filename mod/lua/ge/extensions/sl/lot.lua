@@ -499,13 +499,38 @@ end
 local CUT_TIME, MOVE_TIME = 1.3, 1.4
 local reveal
 function M.skip() if reveal then reveal.skip = true end end
-local function getInWhereItStands(veh)
+-- The lot's display car was spawned without driver props (a lot car has no driver); the car the player owns has them, drawn by the car itself
+-- (carBuilder.PLAYER_DRIVER_PROPS). So the bought car is rebuilt from its record at the same spot: damage captured, the car deleted, a new one
+-- spawned (never respawned in place: heap corruption). Returns the new vehicle's id, or the old one if it could not be done.
+local function withDriverProps(j, veh, car)
+  local id, pos, rot = veh:getID(), veh:getPosition(), veh:getRotation()
+  car.damage = nil
+  veh:queueLuaCommand('extensions.load("slrrGarageVeh") if slrrGarageVeh then slrrGarageVeh.capture() end')
+  for _ = 1, 40 do                                -- (sl_fleet.onWrenchWorksDamage answers within a few frames)
+    if car.damage then break end
+    j.sleep(0.05)
+  end
+  veh:delete()
+  j.sleep(0.5)
+  local new = builder.spawnOwned(j, car, pos, rot) or (j.sleep(1) or builder.spawnOwned(j, car, pos, rot))
+  if not new then
+    car.out, car.where = false, nil               -- (it waits in the garage: nothing lost)
+    guihooks.trigger('slPhoneToast', { text = strings.t('lot.bought_car_at_garage') })
+    return nil
+  end
+  sl_fleet.adopt(car.id, new:getID())
+  new:queueLuaCommand('controller.setFreeze(0) extensions.load("slrrGarageVeh")')
+  return new:getID()
+end
+
+local function getInWhereItStands(veh, car)
   local id = veh:getID()
   veh:queueLuaCommand('controller.setFreeze(0) input.event("parkingbrake", 0, FILTER_DIRECT)')
   reveal = {}
   guihooks.trigger('slLotData', { open = true, mode = 'reveal' })
   core_jobsystem.create(function(j)
-    local v = getObjectByID(id)
+    if car then id = withDriverProps(j, veh, car) end
+    local v = id and getObjectByID(id)
     local from = cam and cam.shown or (cam and cam.pos and cam.look and { pos = cam.pos, look = cam.look })
     local function put(p, l)
       local sf = core_camera.getGlobalCameras and core_camera.getGlobalCameras().scriptedFree
@@ -549,7 +574,7 @@ local function getInWhereItStands(veh)
     end
     reveal = nil
     guihooks.trigger('slLotData', { open = false })
-    v = getObjectByID(id)
+    v = id and getObjectByID(id)
     if v then
       if gameplay_walk and gameplay_walk.getInVehicle then gameplay_walk.getInVehicle(v) else be:enterVehicle(0, v) end
     end
@@ -578,7 +603,7 @@ function M.buy()
   lightsOff()
   lot = nil
   send()
-  if veh then getInWhereItStands(veh) else cameraOff() end
+  if veh then getInWhereItStands(veh, car) else cameraOff() end
   local broken = #(offer.faults or {}) > 0
   sl_career.sendText('benny', broken and string.format(strings.t('lot.you_bought_the_s_it'), offer.name, table.concat(offer.faults, ', '))
     or string.format(strings.t('lot.nice_the_s_bring_it'), offer.name), 4)

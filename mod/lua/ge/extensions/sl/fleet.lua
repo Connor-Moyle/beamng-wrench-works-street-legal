@@ -171,6 +171,16 @@ function M.registerVehicle(vid, info)
   return car
 end
 
+-- a car's world vehicle is now `vid` (the lot rebuilt a bought car from its record: the old one is already gone)
+function M.adopt(carId, vid)
+  local s = career()
+  local car = s and carById(s, carId)
+  if not car or not getObjectByID(vid) then return false end
+  spawned[carId], car.out = vid, true
+  extensions.hook('onStreetLegalChanged')
+  return true
+end
+
 -- the cars that were out in the world when the career was saved come back
 function M.restore(job)
   local s = career()
