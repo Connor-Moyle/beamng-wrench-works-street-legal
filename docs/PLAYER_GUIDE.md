@@ -148,7 +148,7 @@ Wrench Works adds a group to the game's Options > Graphics page, under the anti-
 ## Optional extras
 
 - Performance overlay: Settings > Performance overlay (off by default) shows the frame time, the video memory and counts of what is in the world. Use it when the game stutters, and say what it showed when you report it.
-- Flex driver (experimental, off by default): with the Drivers & Pedestrians mod the driver in the car is normally a set of rigid parts. To try the rigged driver, open the game's Lua console (the ~ key) and type slrrDriverMount.setDriverRig("flex"); it is saved and applies to cars spawned from then on. Type slrrDriverMount.setDriverRig("props") to go back.
+- Flex driver (EXPERIMENTAL, can crash the game when switching cars: leave it off; off by default): with the Drivers & Pedestrians mod the driver in the car is normally a set of rigid parts. To try the rigged driver, open the game's Lua console (the ~ key) and type slrrDriverMount.setDriverRig("flex"); it is saved and applies to cars spawned from then on. Type slrrDriverMount.setDriverRig("props") to go back.
 
 ## Settings and tools
 
