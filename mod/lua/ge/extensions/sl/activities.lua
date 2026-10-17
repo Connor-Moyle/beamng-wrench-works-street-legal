@@ -67,13 +67,32 @@ M.onStreetLegalStarted = syncRoc
 M.onStreetLegalPhase = syncRoc
 M.onStreetLegalGarageMoved = syncRoc
 M.onStreetLegalChanged = syncRoc
+-- #37 at a track event the driver wears a helmet, if there is a helmet mesh for that driver (SLRR Drivers: models/<model>/helmet.dae; the garage's
+-- Drivers tab says). The player's own choice is put back when the event ends.
+local savedHelmet
+local function helmetForEvent(on)
+  if not (slrrDrivers and slrrDrivers.setAppearance and slrrDrivers.getAppearance and slrrDrivers.getDriver and slrr_garage and slrr_garage.driverHasHelmet) then return end
+  if on then
+    local v = getPlayerVehicle(0)
+    local driver = v and slrrDrivers.getDriver(v:getID())
+    if savedHelmet or not driver or not slrr_garage.driverHasHelmet(driver) then return end
+    savedHelmet = { vid = v:getID(), helmet = (slrrDrivers.getAppearance(v:getID()) or {}).helmet == true }
+    slrrDrivers.setAppearance(savedHelmet.vid, { helmet = true })
+  elseif savedHelmet then
+    slrrDrivers.setAppearance(savedHelmet.vid, { helmet = savedHelmet.helmet })      -- (false clears it)
+    savedHelmet = nil
+  end
+end
+
 M.onStreetLegalStopped = function()
+  helmetForEvent(false)
   local u = gameplay_missions_unlocks
   if not (u and u.overrideVisible) then return end
   for _, m in ipairs(rocMissions()) do u.overrideVisible(m, nil) u.overrideStartable(m, nil) end
 end
 
 function M.onAnyMissionChanged(change, mission)
+  if change == 'stopped' then helmetForEvent(false) end
   local s = career()
   local r = s and change == 'started' and mission and ruleFor(mission.id)
   if not r then return end
@@ -96,6 +115,7 @@ function M.onAnyMissionChanged(change, mission)
     tell('Track events run in the day.')
     return
   end
+  if r.kind then helmetForEvent(true) end
   if not r.fee then return end
   if r.nightOnly and not night() then return end                    -- by day: a practice run, nothing on it
   if r.prizeOnce and (s.activitiesDone or {})[mission.id] then return end      -- done before: a practice run
