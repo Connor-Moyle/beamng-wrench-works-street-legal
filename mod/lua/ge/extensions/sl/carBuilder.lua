@@ -215,7 +215,17 @@ end
 
 -- A stock car made into a custom one. recipe = { stage = 0..3 | 'race', seed }: the parts the
 -- stage calls for, at their best, and the paint job that goes with the seed. Returns the vehicle.
+-- A custom car is spawned stock and then spawned AGAIN with its parts changed (two freezes of 1-1.4 s, 2 s apart: the pairs in the hitch recordings).
+-- The finished setup is remembered per car recipe, so the next time the same car is built (a racer back from the pool, the same meet) it is one spawn.
+M.CACHE_MAX = 24
+local customCache, customOrder = {}, {}
 function M.buildCustom(job, model, config, recipe, pos, rot, nobodyDrives)
+  local key = table.concat({ tostring(model), type(config) == 'table' and 'table' or tostring(config), tostring(recipe.stage), tostring(recipe.seed) }, '|')
+  if customCache[key] then
+    local v = M.spawn(job, model, deepcopy(customCache[key]), pos, rot, nobodyDrives)
+    if v then return v end
+    customCache[key] = nil                                      -- (it did not take: built the long way below)
+  end
   local veh = M.spawn(job, model, config, pos, rot, nobodyDrives)
   if not veh then return nil end
   local id = veh:getID()
@@ -226,8 +236,15 @@ function M.buildCustom(job, model, config, recipe, pos, rot, nobodyDrives)
   local paints = buildsLib.paints(recipe.seed or 1, recipe.stage == 'race')
   if #result.upgraded + #result.stripped > 0 then
     cfg.paints = paints
+    job.sleep(1)                                                -- (the frames come back between the two spawns)
+    local keep = deepcopy(cfg)
     veh = rebuild(job, veh, model, cfg, pos, rot, nobodyDrives)
     if not veh then return nil end
+    if type(config) ~= 'table' and not customCache[key] then
+      customCache[key] = keep
+      customOrder[#customOrder + 1] = key
+      if #customOrder > M.CACHE_MAX then customCache[table.remove(customOrder, 1)] = nil end
+    end
   else
     -- nothing to change underneath: just the paint, without a rebuild
     for i, p in ipairs(paints) do pcall(core_vehicle_manager.liveUpdateVehicleColors, id, veh, i, p) end
