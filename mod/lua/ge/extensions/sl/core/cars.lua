@@ -81,6 +81,12 @@ local function partPath(node) return (node.path or '/') .. node.chosenPartName e
 -- wheel, swapped, crashed it twice at the same place: T29). opts.refuse replaces the list.
 M.REFUSE = { 'sparewheel', 'spare_wheel', 'spare' }
 
+-- Panels a car for sale is never dented on (pieces of the slot path, slot id or part name, lower case; a panel with such a part below it
+-- too): dents bend nodes in place, and a body the engine cannot deform that way leaves a broken car (T29: the used lot's dents on a
+-- midtruck crashed the game). Empty until tools/probe_tweak.lua (PROBE_DENTS, PROBE_EACH) names the panel; extend it in the console:
+-- table.insert(require('sl/carBuilder').REFUSE_DENTS, 'cargo').
+M.REFUSE_DENTS = {}
+
 -- Whether a part can go into a slot, as the game's own slot system decides it (jbeam/slotSystem partFitsSlot): the part's
 -- slotType (a string or a list) against the slot's allowTypes (slots2) or its single type (slots1); denyTypes refuse.
 -- No slot definition at all: it fits (the game will have its say).
@@ -207,13 +213,20 @@ end
 
 -- Dents for a damaged car: which panels, and how bent (0..1 damage -> a few cm at most).
 -- Returns { { partPath, dent, seed } } in the form Wrench Works' vehicle extension applies.
-function M.dents(tree, classify, rng, damage)
+function M.dents(tree, classify, rng, damage, refuse)
   local out = {}
   if (damage or 0) <= 0 then return out end
+  local words = refuse or M.REFUSE_DENTS
+  local function refused(n)
+    local text = ((n.path or '') .. ' ' .. (n.id or '') .. ' ' .. (n.chosenPartName or '')):lower()
+    for _, w in ipairs(words) do if text:find(w, 1, true) then return true end end
+    for _, child in pairs(n.children or {}) do if isChosen(child) and refused(child) then return true end end
+    return false
+  end
   local wanted = set(M.DENT_PARTS)
   local panels = {}
   for _, entry in ipairs(nodes(tree, classify)) do
-    if wanted[entry.key] then panels[#panels + 1] = entry.node end
+    if wanted[entry.key] and not refused(entry.node) then panels[#panels + 1] = entry.node end
   end
   local count = math.min(#panels, math.max(1, math.floor(#panels * damage + 0.5)))
   for _ = 1, count do

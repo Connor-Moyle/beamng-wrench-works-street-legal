@@ -497,4 +497,30 @@ return function(check, rngLib)
   local _, p4 = LC.angles(0, 1, 1)
   check('angles: +Y is yaw 0, +X is yaw 90, a descending look has positive pitch, a rising one negative, a zero vector is 0', math.abs(y1) < 1e-9 and math.abs(p1) < 1e-9 and math.abs(y2 - 90) < 1e-9
     and math.abs(math.abs(y3) - 180) < 1e-9 and math.abs(p3 - 45) < 1e-9 and math.abs(p4 + 45) < 1e-9 and select(1, LC.angles(0, 0, 0)) == 0)
+
+  -- T29: panels a car is never dented on (carsLib.REFUSE_DENTS)
+  local function dentTree()
+    return { chosenPartName = 'main', children = {
+      hood = { id = 'hood', path = '/hood/', chosenPartName = 'midtruck_hood', children = {} },
+      bumper = { id = 'bumper_F', path = '/bumper_F/', chosenPartName = 'midtruck_bumper_F', children = {} },
+      cargo = { id = 'cargo', path = '/cargo/', chosenPartName = 'midtruck_cargobox', children = { tail = { id = 'tailgate', path = '/cargo/tailgate/', chosenPartName = 'midtruck_tailgate', children = {} } } },
+      roof = { id = 'roof', path = '/roof/', chosenPartName = 'midtruck_roof', children = {} },
+    } }
+  end
+  local dentKinds = { hood = 'hoods', bumper_F = 'bumpers_f', cargo = 'trunk', roof = 'roof', tailgate = 'trunk' }
+  local function dentClassify(id) return 'body', dentKinds[id] or 'misc' end
+  local function dentedPaths(refuse, seed)
+    local out = {}
+    for _, d in ipairs(C.dents(dentTree(), dentClassify, rngLib.new(seed or 5), 1, refuse)) do out[d.partPath] = true end
+    return out
+  end
+  local all = dentedPaths({})
+  check('without a refusal every panel of the body takes a dent at full damage', all['/hood/midtruck_hood'] and all['/bumper_F/midtruck_bumper_F'] and all['/cargo/midtruck_cargobox'] and all['/cargo/tailgate/midtruck_tailgate'] and all['/roof/midtruck_roof'])
+  check('the default list is empty (the panel is found by the probe)', #C.REFUSE_DENTS == 0)
+  local some = dentedPaths({ 'cargo' })
+  check('a refused word keeps the panel, and a panel with such a part below it, from every dent', not some['/cargo/midtruck_cargobox'] and not some['/cargo/tailgate/midtruck_tailgate'] and some['/hood/midtruck_hood'] and some['/roof/midtruck_roof'])
+  local byChild = dentedPaths({ 'tailgate' })
+  check('...the parent of a refused part too (the box the tailgate hangs on)', not byChild['/cargo/midtruck_cargobox'] and not byChild['/cargo/tailgate/midtruck_tailgate'] and byChild['/hood/midtruck_hood'])
+  local lcase = dentedPaths({ 'hood' })
+  check('matching is on the slot path, id and part name, lower case', not lcase['/hood/midtruck_hood'] and lcase['/roof/midtruck_roof'])
 end

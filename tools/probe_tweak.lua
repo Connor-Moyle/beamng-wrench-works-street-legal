@@ -7,6 +7,7 @@
 --   PROBE_CONFIG   a config file name (part of it) to run alone; default every config of the model
 --   PROBE_DENTS    true: instead of the part changes, do what a USED lot does to its cars: spawn every config, dent it (applyDents with
 --                  keepLatches, damage 0.5), park-brake + freeze, leave it 2 s, delete it, for PROBE_ROUNDS (default 3) rounds
+--   PROBE_EACH     with PROBE_DENTS: one dent per car instead of all of the lot's, damage 1: 'BEFORE dent <part path>' names the panel
 -- For every stock config of the model: spawn it stock 20 m ahead of the player, then ONE change at a time (each fault's parts taken
 -- off, then single swaps with seeds 1..8) rebuilt in place exactly as carBuilder.buildOffer does, left 3 s, back to stock.
 -- EVERY step is written BEFORE it is done, to three places: the game's log (beamng.log, lines "probe_tweak"), the file
@@ -36,6 +37,7 @@ local MODEL = rawget(_G, 'PROBE_MODEL') or 'midtruck'
 local GUARDED = rawget(_G, 'PROBE_GUARDED') == true
 local ONLY = rawget(_G, 'PROBE_ONLY')
 local DENTS = rawget(_G, 'PROBE_DENTS') == true
+local EACH = rawget(_G, 'PROBE_EACH') == true
 local ROUNDS = tonumber(rawget(_G, 'PROBE_ROUNDS')) or 3
 local CONFIG = rawget(_G, 'PROBE_CONFIG')
 local FAULTS = { 'engine', 'gearbox', 'radiator', 'battery', 'tyres', 'brakes', 'exhaust' }
@@ -107,10 +109,36 @@ local function body(job)
           local id = veh:getID()
           local vd = vehData(id)
           local rng = rngLib.new(round * 1000 + 7)
-          local dents = cars.dents(vd and vd.config.partsTree, builder.classify(), rng, 0.5)
-          note('BEFORE dents (' .. #dents .. ' panels)')
-          builder.applyDents(veh, dents, { keepLatches = true })
-          veh:queueLuaCommand('input.event("parkingbrake", 1, FILTER_DIRECT) controller.setFreeze(1)')
+          local dents = cars.dents(vd and vd.config.partsTree, builder.classify(), rng, EACH and 1 or 0.5, {})      -- (no refusals: to find the panel)
+          local lists = { dents }
+          if EACH then
+            lists = {}
+            for _, d in ipairs(dents) do lists[#lists + 1] = { d } end
+          end
+          for k, list in ipairs(lists) do
+            local names = {}
+            for i, d in ipairs(list) do names[i] = tostring(d.partPath) .. ':' .. string.format('%.3f', d.dent or 0) end
+            if EACH and k > 1 then
+              veh = builder.spawn(job, c.model, c.config, pos, quatFromDir(vec3(0, 1, 0), vec3(0, 0, 1)))
+              note((veh and 'OK' or 'FAILED') .. ' spawn (next panel)')
+              if not veh then break end
+              id = veh:getID()
+            end
+            note('BEFORE dent ' .. table.concat(names, ' '))
+            builder.applyDents(veh, list, { keepLatches = true })
+            veh:queueLuaCommand('input.event("parkingbrake", 1, FILTER_DIRECT) controller.setFreeze(1)')
+            if EACH then
+              job.sleep(2)
+              note('OK dent')
+              note('BEFORE delete')
+              local v3 = getObjectByID(id)
+              if v3 then v3:delete() end
+              job.sleep(1)
+              note('OK delete')
+              veh = nil
+            end
+          end
+          if not veh then goto continue end
           job.sleep(2)
           note('OK dents')
           note('BEFORE delete')
@@ -119,6 +147,7 @@ local function body(job)
           job.sleep(1)
           note('OK delete')
         end
+        ::continue::
       end
     end
     note('== DONE (dents) ==')

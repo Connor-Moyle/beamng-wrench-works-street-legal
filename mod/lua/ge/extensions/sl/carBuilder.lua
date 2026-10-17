@@ -212,6 +212,7 @@ end
 -- swapped spare wheel, which M.REFUSE keeps from being changed on any model. Add a model here, or a word to M.REFUSE, if a car
 -- ever crashes the game again.
 M.NO_TWEAK_MODELS = {}
+M.REFUSE_DENTS = {}             -- see carsLib.REFUSE_DENTS: panels a car is never dented on
 M.NO_DENTS = false              -- true: a car for sale is not dented (to find out whether the dents crash the game: T29)
 M.REFUSE = { 'sparewheel', 'spare_wheel', 'spare' }       -- (pieces of a slot path, slot id or part name that are never taken off or swapped)
 
@@ -249,7 +250,12 @@ function M.buildOffer(job, offer, pos, rot)
     if not veh then return nil end
   end
   vd = vehData(id)
-  local dents = carsLib.dents(vd and vd.config.partsTree or cfg.partsTree, classify(), rng, offer.damage)
+  local dents = carsLib.dents(vd and vd.config.partsTree or cfg.partsTree, classify(), rng, offer.damage, M.REFUSE_DENTS)
+  if #dents > 0 and not M.NO_DENTS then          -- (one line a car, before the dents go on: the last one before a crash names the panels)
+    local t = {}
+    for i, d in ipairs(dents) do t[i] = string.format('%s:%.3f', tostring(d.partPath), d.dent or 0) end
+    log('I', 'street_legal', string.format('lot car %s (%s, %s): dents [%s]', tostring(offer.id), tostring(offer.model), tostring(offer.config), table.concat(t, ' ')))
+  end
   if not M.NO_DENTS then M.applyDents(veh, dents, { keepLatches = true }) end      -- (the doors stay shut: Wrench Works' apply does not release them)
   -- a car on a lot does not roll away
   veh:queueLuaCommand('input.event("parkingbrake", 1, FILTER_DIRECT) controller.setFreeze(1)')
