@@ -58,22 +58,48 @@ function M.configurator(m)
     if okLoad then ctx = c pcall(jbeamIO.finishLoading) end
   end
   local cache = {}
-  local function info(part)
+  local function raw(part)
     if cache[part] == nil then
       local okPart, p = false, nil
       if ctx then okPart, p = pcall(jbeamIO.getPart, ctx, part) end
-      cache[part] = okPart and p and p.information or false
+      cache[part] = okPart and p or false
     end
     return cache[part] or {}
   end
+  local function info(part) return raw(part).information or {} end
+  -- the slots' own descriptions, from the parts that offer them (their slots2 rows: name, allowTypes, denyTypes, default, description)
+  local descriptions = {}
+  local seenPart = {}
+  for _, parts in ipairs(configs) do
+    for _, part in pairs(parts) do
+      if type(part) == 'string' and part ~= '' and not seenPart[part] then
+        seenPart[part] = true
+        for i, row in ipairs(raw(part).slots2 or {}) do
+          if i > 1 and type(row) == 'table' and row.name and row.description then descriptions[row.name] = row.description end
+        end
+      end
+    end
+  end
   return {
-    pcs = pcs, options = factoryLib.optionsOf(configs),
+    pcs = pcs, options = factoryLib.optionsOf(configs), brand = m.brand or '',
     value = function(part) return part and part ~= '' and tonumber(info(part).value) or 0 end,
-    name = function(part) return partinfo.displayName(info(part).name, part, m.model) end,
+    name = function(part) return M.translate(info(part).name, part, m) end,
+    slotLabel = function(slot) return descriptions[slot] and M.translate(descriptions[slot], slot, m, true) or nil end,
   }
 end
 
--- the screen's groups for a trim and the picks so far: { { id, slots = { { n, label, options = { { part, name, delta, on } } } } } }, and the total delta
+-- a jbeam text the way the stock part UI says it: translated by its key, BRAND replaced by the model's brand; an untranslated key without a
+-- translation falls back to its last words, or (no jbeam at all) the id turned into words
+function M.translate(text, id, m, isSlot)
+  local t = type(text) == 'string' and text or nil
+  if t and translateLanguage then t = translateLanguage(t, t) end
+  if t and t:find('^ui%.') then t = t:match('([^%.]+)$') end
+  if t and t ~= '' and not t:find('^ui%.') then return (t:gsub('BRAND', (m and m.brand ~= '' and m.brand) or ''):gsub('^%s+', '')) end
+  return partinfo.displayName(nil, id, m and m.model or '')
+end
+
+-- the screen's groups for a trim and the picks so far: { { id, slots = { { n, label, options = { { part, name, delta, on } } } } } }, and the total delta.
+-- A slot without a group (not something a buyer would call an option) is left out.
 function M.groups(cfg, trimIdx, picks)
   local base = (cfg.pcs[trimIdx] and cfg.pcs[trimIdx].parts) or {}
   local byGroup, slots = {}, {}
@@ -81,17 +107,27 @@ function M.groups(cfg, trimIdx, picks)
   table.sort(slots)
   local n, deltas = 0, {}
   for _, slot in ipairs(slots) do
-    n = n + 1
-    local current = picks[slot] or base[slot] or ''
-    local entry = { n = n, slot = slot, label = partinfo.displayName(nil, slot, ''), options = {} }
-    local own = cfg.value(base[slot])
+    local names, joined, seen, dup = {}, {}, {}, false
     for j, part in ipairs(cfg.options[slot]) do
-      entry.options[j] = { j = j, part = part, name = cfg.name(part), delta = cfg.value(part) - own, on = part == current }
+      names[j] = cfg.name(part)
+      joined[#joined + 1] = names[j]
+      if seen[names[j]] then dup = true end
+      seen[names[j]] = true
     end
-    if picks[slot] then deltas[slot] = cfg.value(picks[slot]) - own end
-    local g = factoryLib.groupOf(slot)
-    byGroup[g] = byGroup[g] or { id = g, slots = {} }
-    table.insert(byGroup[g].slots, entry)
+    local label = cfg.slotLabel and cfg.slotLabel(slot) or partinfo.displayName(nil, slot, '')
+    local g = factoryLib.groupOf(slot .. ' ' .. label, table.concat(joined, ' '))
+    if g then
+      n = n + 1
+      local current = picks[slot] or base[slot] or ''
+      local entry = { n = n, slot = slot, label = label, options = {} }
+      local own = cfg.value(base[slot])
+      for j, part in ipairs(cfg.options[slot]) do
+        entry.options[j] = { j = j, part = part, name = dup and partinfo.displayName(nil, part, '') or names[j], delta = cfg.value(part) - own, on = part == current }
+      end
+      if picks[slot] then deltas[slot] = cfg.value(picks[slot]) - own end
+      byGroup[g] = byGroup[g] or { id = g, slots = {} }
+      table.insert(byGroup[g].slots, entry)
+    end
   end
   local out = {}
   for _, g in ipairs(factoryLib.GROUPS) do if byGroup[g] then out[#out + 1] = byGroup[g] end end

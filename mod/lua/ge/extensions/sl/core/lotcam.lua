@@ -102,6 +102,30 @@ function M.shot(kind, c, f, L, W, s)
   return at(math.cos(a) * d, math.sin(a) * d, -0.1), at(0, 0, 0.1)
 end
 
+-- Line of sight (C5/C6): a detail shot is usable only when, along its whole drift, nothing static stands between the eye and the car (which
+-- also means the eye is not inside a wall or pillar). ray(a, b) as in M.pull: the distance to the first hit, or nil.
+function M.shotClear(kind, c, f, L, W, ray)
+  local from = { x = c.x, y = c.y, z = c.z + 0.5 }
+  for _, s in ipairs({ 0, 0.25, 0.5, 0.75, 1 }) do
+    local eye = M.shot(kind, c, f, L, W, s)
+    local total = len(from, eye)
+    local hit = total > 0.5 and ray(from, eye)
+    if hit and hit < total - 0.3 then return false end
+  end
+  return true
+end
+
+-- The look-at point moved on the screen (C6): `drop` of the distance lower (the car rises) and `side` of it to the camera's right (the car
+-- moves left), so the car sits in the upper left, clear of the lot's card at the bottom centre. Returns the new look-at point.
+function M.framed(pos, look, drop, side)
+  local dx, dy, dz = look.x - pos.x, look.y - pos.y, look.z - pos.z
+  local flat = math.sqrt(dx * dx + dy * dy)
+  local d = math.sqrt(flat * flat + dz * dz)
+  if flat < 1e-6 then return look end
+  return { x = look.x + (dy / flat) * side * d, y = look.y - (dx / flat) * side * d, z = look.z - drop * d }
+end
+
+M.SIDE = 0.16                         -- of the distance the look-at point is moved right: the car stands left of the middle
 M.SHOT_TIME = 5                       -- s a browsing shot lasts
 M.SHOT_EASE = 1.0                     -- s it takes to ease in from, and out to, the normal orbit
 M.IDLE = 6                            -- s without input before the browsing shots start

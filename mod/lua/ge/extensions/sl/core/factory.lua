@@ -55,14 +55,22 @@ end
 -- when an order arrives: game day and hour
 function M.arrives(o) return math.floor(o.due / 24), o.due % 24 end
 
--- C4 configurator: which group of the screen a slot belongs to (by its name), and the factory options of a slot.
-M.GROUPS = { 'interior', 'wheels', 'steering', 'mudflaps', 'other' }
+-- C4 configurator: which group of the screen a slot belongs to, from its name, its own description and its option names; nil = not an option
+-- a buyer would call one (lettering, taillight panels, sensors, ECUs, mounts ...): hidden. Only the visible, felt choices are kept.
+M.GROUPS = { 'interior', 'wheels', 'steering', 'mudflaps', 'body', 'engine' }
 local WORDS = { { 'mudflap', 'mudflaps' }, { 'steering', 'steering' }, { 'wheel', 'wheels' }, { 'tire', 'wheels' }, { 'rim', 'wheels' }, { 'hubcap', 'wheels' },
-  { 'interior', 'interior' }, { 'seat', 'interior' }, { 'upholst', 'interior' }, { 'dash', 'interior' }, { 'trim', 'interior' } }
-function M.groupOf(slot)
-  local name = tostring(slot):lower()
+  { 'interior', 'interior' }, { 'seat', 'interior' }, { 'upholst', 'interior' }, { 'dashboard', 'interior' },
+  { 'bumper', 'body' }, { 'spoiler', 'body' }, { 'wing', 'body' }, { 'hood', 'body' }, { 'roof', 'body' }, { 'skirt', 'body' }, { 'diffuser', 'body' }, { 'grille', 'body' },
+  { 'engine', 'engine' }, { 'motor', 'engine' } }
+local DENY = { 'lettering', 'panel', 'ecu', 'internals', 'mount', 'flywheel', 'sensor', 'cooling', 'intake', 'light', 'badge', 'plate', 'bar', 'gauge', 'mirror' }
+function M.groupOf(slotText, optionText)
+  local slot = tostring(slotText):lower()
+  for _, d in ipairs(DENY) do
+    if slot:find(d, 1, true) and not (d == 'bar' and (slot:find('steering', 1, true) or slot:find('bumper', 1, true))) then return nil end
+  end
+  local name = slot .. ' ' .. tostring(optionText or ''):lower()
   for _, w in ipairs(WORDS) do if name:find(w[1], 1, true) then return w[2] end end
-  return 'other'
+  return nil
 end
 
 -- the factory options of the slots: configs = the parts maps (slot -> part) of the model's factory configs; a slot is an option when the

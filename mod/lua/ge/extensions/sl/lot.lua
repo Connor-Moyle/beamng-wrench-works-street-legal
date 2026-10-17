@@ -197,21 +197,28 @@ local function updateCamera(dt)
   cam.idle = (cam.idle or 0) + ds
   local auto = cam.idle > lotcam.IDLE and not cam.glide and not M.NO_SHOTS
   if auto and not cam.shot then
-    cam.shotIdx = (cam.shotIdx or 0) % #lotcam.BROWSE_SHOTS + 1
-    cam.shot = { kind = lotcam.BROWSE_SHOTS[cam.shotIdx], t = 0, b = 0 }
+    -- the next shot whose whole drift has a clear view of the car (not through or inside a wall or pillar); none: try again after another idle time
+    for _ = 1, #lotcam.BROWSE_SHOTS do
+      cam.shotIdx = (cam.shotIdx or 0) % #lotcam.BROWSE_SHOTS + 1
+      local kind = lotcam.BROWSE_SHOTS[cam.shotIdx]
+      if lotcam.shotClear(kind, t, dir, cam.L or 4.5, cam.W or 1.9, wallRay) then cam.shot = { kind = kind, t = 0, b = 0 } break end
+    end
+    if not cam.shot then cam.idle = 0 end
   end
   local pos, look = cam.pos, cam.look
-  local shot = cam.shot
+  local shot, e = cam.shot, 0
   if shot then
     shot.t = shot.t + ds
     local out = not auto or shot.t > lotcam.SHOT_TIME
     shot.b = math.max(0, math.min(1, shot.b + (out and -ds or ds) / lotcam.SHOT_EASE))
     if out and shot.b <= 0 then cam.shot = nil end
-    local e = shot.b * shot.b * (3 - 2 * shot.b)
+    e = shot.b * shot.b * (3 - 2 * shot.b)
     local sp2, sl2 = lotcam.shot(shot.kind, t, dir, cam.L or 4.5, cam.W or 1.9, shot.t / lotcam.SHOT_TIME)
     pos = cam.pos + (vec3(sp2.x, sp2.y, sp2.z) - cam.pos) * e
     look = cam.look + (vec3(sl2.x, sl2.y, sl2.z) - cam.look) * e
   end
+  local fl = lotcam.framed(pos, look, lotcam.DROP * e, lotcam.SIDE)       -- (the car stands upper left, clear of the card at the bottom centre)
+  look = vec3(fl.x, fl.y, fl.z)
   cam.shown = { pos = pos, look = look }
   -- the script-driven camera takes yaw and pitch (pitch positive = looking down): given in its own terms
   local sf = core_camera.getGlobalCameras and core_camera.getGlobalCameras().scriptedFree
@@ -530,7 +537,9 @@ local function getInWhereItStands(veh)
       local look = { x = from.look.x, y = from.look.y, z = from.look.z }
       for _, kind in ipairs(lotcam.REVEAL_SHOTS) do
         if reveal.skip then break end
+        if not lotcam.shotClear(kind, cc, ff, L, W, wallRay) then goto next end      -- (a shot through or inside a pillar is left out)
         run(CUT_TIME, function(t) local p, l = lotcam.shot(kind, cc, ff, L, W, t / CUT_TIME); pos, look = p, l; put(p, l) end)      -- (a cut to each: no move in between)
+        ::next::
       end
       reveal.skip = false
       local p1, l1 = lotcam.chase(cc, ff)

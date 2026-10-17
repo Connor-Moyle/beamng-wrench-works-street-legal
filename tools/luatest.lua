@@ -1307,6 +1307,10 @@ do
   local pw = lotcam.shot('wheel', c, f, 4.5, 1.9, 0)
   local pc = lotcam.shot('cabin', c, f, 4.5, 1.9, 0)
   check('the wheel shot stands by the front wheel, the cabin shot inside the car', pw.y > c.y + 1 and math.abs(pw.x - c.x) > 2 and dist(pc) < 1.5)
+  check('a clear view passes, a pillar between eye and car fails every shot that looks through it', lotcam.shotClear('side', c, f, 4.5, 1.9, function() return nil end)
+    and not lotcam.shotClear('side', c, f, 4.5, 1.9, function(a, b) return 1.0 end))
+  local look = lotcam.framed({ x = 0, y = 0, z = 1 }, { x = 0, y = 10, z = 1 }, 0.1, 0.2)
+  check('framing moves the look-at point right of and below the car (looking along +y, right is +x)', math.abs(look.x - 2) < 1e-6 and look.y == 10 and math.abs(look.z - 0) < 1e-6)
   local worst = 0
   for i = 0, 400 do worst = math.max(worst, math.abs(lotcam.sway(i * 0.25))) end
   check('sway is bounded', worst <= lotcam.SWAY + 1e-9 and worst > lotcam.SWAY * 0.9)
@@ -1327,7 +1331,8 @@ do
   check('the chosen paint is the saved record first paint, the other paints stay, the config itself is not changed', rec.config.paints[1] == red and rec.config.paints[2] == own[2] and own[1].baseColor[3] == 1 and #F.withPaint(nil, red) == 1 and #F.withPaint(own, nil) == 2)
   local day, hr = F.arrives({ due = 24 * 5 + 7 })
   check('an order says the day and hour it arrives', day == 5 and hr == 7)
-  check('slots go to the screen group by name', F.groupOf('covet_mudflap_F') == 'mudflaps' and F.groupOf('steering_wheel') == 'steering' and F.groupOf('wheel_F_5') == 'wheels' and F.groupOf('interior_color') == 'interior' and F.groupOf('exhaust') == 'other')
+  check('slots go to the screen group by name', F.groupOf('covet_mudflap_F') == 'mudflaps' and F.groupOf('steering_wheel') == 'steering' and F.groupOf('wheel_F_5') == 'wheels' and F.groupOf('interior_color') == 'interior' and F.groupOf('exhaust') == nil)
+  check('lettering, panels, ECUs and mounts are hidden, bumpers, motors and steering wheels stay, option names can place a slot', F.groupOf('sbr_lettering_tailgate') == nil and F.groupOf('sbr_taillight_b_panel_l') == nil and F.groupOf('covet_enginemounts') == nil and F.groupOf('covet_bumper_F') == 'body' and F.groupOf('sbr_differential_F', 'Front Electric Motor') == 'engine' and F.groupOf('steering_bar') == 'steering' and F.groupOf('wheel_F_5', 'Lightweight wheel') == 'wheels')
   local opts = F.optionsOf({ { seat = 'seat_a', wheel = 'w1', roof = '' }, { seat = 'seat_b', wheel = 'w1', roof = 'roof_x' }, { seat = 'seat_a', wheel = 'w1' } })
   check('options are the parts used across configs; a slot with one part everywhere is no option; fitted in some only is', #opts.seat == 2 and opts.wheel == nil and #opts.roof == 1)
   check('paint to CSS from 0..1 and 0..255, alpha ignored', F.css({ 1, 0, 0.5, 1.2 }) == 'rgb(255,0,128)' and F.css({ 200, 10, 0, 255 }) == 'rgb(200,10,0)' and F.css(nil) == 'rgb(128,128,128)')
