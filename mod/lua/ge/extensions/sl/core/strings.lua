@@ -1002,6 +1002,7 @@ M.TEXT = {
   ["pois.scrap_yard"] = "Scrap yard",
   ["pois.used_cars"] = "Used cars",
   ["police.back_at_the_garage_d"] = "Back at the garage: %d reputation banked.",
+  ["police.strip_ahead"] = "Spike strip ahead!",
   ["police.police_lose_them_or_lose"] = "Police! Lose them, or lose the race and pay.",
   ["progression.alder_dragway_garage"] = "Alder Dragway Garage",
   ["progression.belasco_city_garage"] = "Belasco City Garage",
