@@ -154,19 +154,31 @@ local function updateCamera(dt)
   -- the car in front of the camera changed: stand on the side with room (a rear quarter, away from the wall)
   local key = tostring(lot.index) .. ':' .. tostring(lot.veh)
   if cam.chosenFor ~= key then
+    local first = cam.chosenFor == nil
     cam.chosenFor = key
     -- the car's size sets the distance and the downward look; the quarter with room sets the side
     local ok, he = pcall(function() return veh and veh:getSpawnWorldOOBB():getHalfExtents() end)
     local diag = ok and he and (2 * he:length()) or 5.5
     cam.dist, cam.pitch = lotcam.frame(diag)
     cam.yaw = lotcam.choose(t, dir, cam.pitch, cam.dist, wallRay)
+    -- another car of the row: the camera glides there along the lot (0.8 s), it does not jump
+    if not first and cam.pos and cam.look then
+      cam.glide = { t = 0, fp = { x = cam.pos.x, y = cam.pos.y, z = cam.pos.z }, fl = { x = cam.look.x, y = cam.look.y, z = cam.look.z } }
+    end
   end
   local eye = lotcam.pull(t, lotcam.eyeAt(t, dir, cam.yaw, cam.pitch, cam.dist), wallRay)       -- (never inside a building)
   local want = vec3(eye.x, eye.y, eye.z)
   local k = 1 - math.exp(-4 * math.min(dt, 0.1))
-  cam.pos = cam.pos and (cam.pos + (want - cam.pos) * k) or want
   local aim = target - vec3(0, 0, lotcam.DROP * cam.dist)       -- (aimed below the car: it stands in the upper part of the screen, above the info card)
-  cam.look = cam.look and (cam.look + (aim - cam.look) * k) or aim
+  if cam.glide then
+    cam.glide.t = cam.glide.t + math.min(dt, 0.1)
+    local p, l, done = lotcam.glide(cam.glide.fp, { x = want.x, y = want.y, z = want.z }, cam.glide.fl, { x = aim.x, y = aim.y, z = aim.z }, cam.glide.t)
+    cam.pos, cam.look = vec3(p.x, p.y, p.z), vec3(l.x, l.y, l.z)
+    if done then cam.glide = nil end
+  else
+    cam.pos = cam.pos and (cam.pos + (want - cam.pos) * k) or want
+    cam.look = cam.look and (cam.look + (aim - cam.look) * k) or aim
+  end
   -- the script-driven camera takes yaw and pitch (pitch positive = looking down): given in its own terms
   local sf = core_camera.getGlobalCameras and core_camera.getGlobalCameras().scriptedFree
   if sf and sf.setPose and core_camera.getActiveCamName(0) == 'scriptedFree' then

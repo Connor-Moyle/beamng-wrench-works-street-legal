@@ -114,4 +114,26 @@ return function(check, rngLib)
   game.teleportToPoi = function() return 'reloaded' end           -- the game reloaded the module in between: its fresh function is not overwritten by a restore
   check('a module the game replaced meanwhile is left as the game made it', PT.restore(game, 'teleportToPoi', saved) == false and game.teleportToPoi() == 'reloaded')
   check('nothing to patch, nothing to fear', PT.install(nil, 'x', ours, {}) == false and PT.install({}, 'x', 5, {}) == false and PT.restore(nil, 'x', {}) == false)
+
+  -- B69: the lot camera glides from one car to the next
+  local LCG = require('sl/core/lotcam')
+  local A, B, LA, LB = { x = 0, y = 0, z = 2 }, { x = 30, y = 6, z = 2.5 }, { x = 5, y = 0, z = 0 }, { x = 35, y = 6, z = 0.4 }
+  local p0, l0, d0 = LCG.glide(A, B, LA, LB, 0, 0.8, 1.2)
+  local p1, l1, d1 = LCG.glide(A, B, LA, LB, 0.8, 0.8, 1.2)
+  check('the glide starts where the camera was and ends at the next framing, position and look-at', p0.x == 0 and p0.z == 2 and l0.x == 5 and not d0 and p1.x == 30 and p1.z == 2.5 and l1.x == 35 and d1)
+  local pm = LCG.glide(A, B, LA, LB, 0.4, 0.8, 1.2)
+  check('half way: half way along, lifted 1.2 m over the cars between', math.abs(pm.x - 15) < 1e-9 and math.abs(pm.y - 3) < 1e-9 and math.abs(pm.z - (2.25 + 1.2)) < 1e-9)
+  local prev, monotone = -1, true
+  for i = 0, 20 do
+    local p = LCG.glide(A, B, LA, LB, i * 0.04, 0.8, 1.2)
+    if p.x < prev - 1e-12 then monotone = false end
+    prev = p.x
+  end
+  check('it only ever moves forward (along the lot to the next car), never back', monotone)
+  local pa = LCG.glide(A, B, LA, LB, 0.02, 0.8, 1.2)
+  local pb = LCG.glide(A, B, LA, LB, 0.78, 0.8, 1.2)
+  check('slow at both ends (smoothstep: no jerk), the middle fastest', pa.x < 0.1 and pb.x > 29.9)
+  local pOver = LCG.glide(A, B, LA, LB, 5, 0.8)
+  local pUnder = LCG.glide(A, B, LA, LB, -1, 0.8)
+  check('time outside the glide is clamped; the defaults are 0.8 s and 1.2 m', pOver.x == 30 and pUnder.x == 0 and LCG.GLIDE == 0.8 and LCG.GLIDE_LIFT == 1.2)
 end

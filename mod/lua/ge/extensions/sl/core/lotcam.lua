@@ -64,4 +64,19 @@ function M.angles(dx, dy, dz)
   return math.deg((math.atan2 or math.atan)(dx, dy)), math.deg(math.asin(math.max(-1, math.min(1, -dz / len))))
 end
 
+-- From one framing to the next, along the lot (B69: the camera used to jump between cars). Position and look-at point go from the first to
+-- the second by a smoothstep over `dur` seconds (still at both ends), the position lifted `lift` metres at the middle so it passes over the
+-- cars in between. Returns pos, look at time t (clamped), and whether it is done.
+M.GLIDE = 0.8
+M.GLIDE_LIFT = 1.2
+function M.glide(fromPos, toPos, fromLook, toLook, t, dur, lift)
+  dur = dur or M.GLIDE
+  local u = dur > 0 and math.max(0, math.min(1, t / dur)) or 1
+  local s = u * u * (3 - 2 * u)
+  local function mix(a, b) return { x = a.x + (b.x - a.x) * s, y = a.y + (b.y - a.y) * s, z = a.z + (b.z - a.z) * s } end
+  local pos = mix(fromPos, toPos)
+  pos.z = pos.z + (lift or M.GLIDE_LIFT) * math.sin(math.pi * s)
+  return pos, mix(fromLook, toLook), u >= 1
+end
+
 return M
