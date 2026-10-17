@@ -238,7 +238,18 @@ local function offlineData(model, config)
     return { ioCtx = jbeamIO.startLoading(dirs), config = cfg }
   end)
   if ok and vd then return vd, jbeamIO end
+  pcall(jbeamIO.finishLoading)                                  -- (a half-open loading state must not stay)
   return nil
+end
+
+-- the part chosen at a path in a parts tree (the live car's, to check what was asked for)
+local function partAt(node, path)
+  if type(node) ~= 'table' then return nil end
+  if node.path == path then return node.chosenPartName end
+  for _, child in pairs(node.children or {}) do
+    local found = partAt(child, path)
+    if found then return found end
+  end
 end
 
 function M.buildCustom(job, model, config, recipe, pos, rot, nobodyDrives)
@@ -250,6 +261,7 @@ function M.buildCustom(job, model, config, recipe, pos, rot, nobodyDrives)
   end
   -- the parts tree without a spawn: one spawn for a custom car, the first time too
   if M.OFFLINE_TREE then
+    local t0 = os.clock()
     local od, jbeamIO = offlineData(model, config)
     if od then
       local cfg = deepcopy(od.config)
@@ -259,8 +271,19 @@ function M.buildCustom(job, model, config, recipe, pos, rot, nobodyDrives)
       if okApply and result and #result.upgraded + #result.stripped > 0 then
         cfg.paints = buildsLib.paints(recipe.seed or 1, recipe.stage == 'race')
         local keep = deepcopy(cfg)
+        local readMs = (os.clock() - t0) * 1000
         local v = M.spawn(job, model, cfg, pos, rot, nobodyDrives)
         if v then
+          -- did the car come out with what was asked for: one changed slot against the live car's tree
+          local up = result.upgraded[1]
+          local vdLive = up and vehData(v:getID())
+          local live = vdLive and vdLive.config and partAt(vdLive.config.partsTree, up.path)
+          if up and live ~= up.to then
+            log('W', 'street_legal', string.format('offline build mismatch: %s %s asked for %s, the car has %s; offline tree switched off', tostring(model), tostring(up.path), tostring(up.to), tostring(live)))
+            M.OFFLINE_TREE = false
+          else
+            log('I', 'street_legal', string.format('offline tree: %s read in %.0f ms, %d parts changed, one spawn', tostring(model), readMs, #result.upgraded + #result.stripped))
+          end
           if type(config) ~= 'table' and not customCache[key] then
             customCache[key] = keep
             customOrder[#customOrder + 1] = key
