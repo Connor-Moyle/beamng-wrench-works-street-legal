@@ -1890,4 +1890,15 @@ do
   package.loaded['sl/surfacefx'] = nil
 end
 
+do -- the night cruisers built behind the fade (spawnplan.preStep)
+  local SPN = require('sl/core/spawnplan')
+  check('prespawn: nothing wanted -> none', SPN.preStep(0, true, false, false, 0, 4) == 'none' and SPN.preStep(nil, true, false, false, 0, 4) == 'none')
+  check('prespawn: in the fade and free -> build', SPN.preStep(2, true, false, false, 0, 4) == 'build')
+  check('prespawn: one at a time and not over the cap -> wait', SPN.preStep(2, true, false, true, 0, 4) == 'wait' and SPN.preStep(2, true, false, false, 4, 4) == 'wait')
+  check('prespawn: the fade is over or a race began -> reset', SPN.preStep(2, false, false, false, 0, 4) == 'reset' and SPN.preStep(2, true, true, false, 0, 4) == 'reset')
+  local pre, built = 2, 0                                        -- two drain, then none
+  for _ = 1, 6 do if SPN.preStep(pre, true, false, false, built, 4) == 'build' then pre, built = pre - 1, built + 1 end end
+  check('prespawn: two are built, then it stops', pre == 0 and built == 2 and SPN.preStep(pre, true, false, false, built, 4) == 'none')
+end
+
 print(string.format('lua tests passed: %d checks', passed))

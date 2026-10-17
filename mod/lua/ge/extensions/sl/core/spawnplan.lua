@@ -41,4 +41,13 @@ function M.canBuild(speed, since, busy)
   return true
 end
 
+-- the cruisers built behind the fade of the switch to night: what to do this frame with `pre` still wanted
+-- -> 'reset' (the fade is over or a race began: forget the rest), 'build', or 'wait' (one at a time, none while too many are out)
+function M.preStep(pre, inFade, race, busy, count, max)
+  if (pre or 0) <= 0 then return 'none' end
+  if not inFade or race then return 'reset' end
+  if busy or count >= max then return 'wait' end
+  return 'build'
+end
+
 return M

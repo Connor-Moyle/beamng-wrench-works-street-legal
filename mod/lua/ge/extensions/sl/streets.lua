@@ -487,9 +487,10 @@ local function updateCruisers(s, dt)
     end
   end
   spawnTimer = spawnTimer + dt
-  if preCruisers > 0 then
-    if not inFade or race then preCruisers = 0
-    elseif not busy and count < MAX_CRUISERS and spawnCruiser(s) then preCruisers = preCruisers - 1 spawnTimer = 0 end
+  local pre = spawnplan.preStep(preCruisers, inFade, race, busy, count, MAX_CRUISERS)
+  if pre ~= 'none' then
+    if pre == 'reset' then preCruisers = 0
+    elseif pre == 'build' and spawnCruiser(s) then preCruisers = preCruisers - 1 spawnTimer = 0 end
     return
   end
   -- one build at a time, a gap between, and not while he races along (spawnplan.canBuild); the timer restarts only when a car is really begun
