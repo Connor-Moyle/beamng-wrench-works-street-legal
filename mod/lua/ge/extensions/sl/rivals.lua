@@ -116,6 +116,10 @@ function M.onStreetLegalRaceResult(won, opponent, racerId, stake)
       stateLib.addRep(s, 25 * rival.tier)
       say(s, rival, 'bossw', 20)
       toast(string.format(strings.t('rivals.rank_up'), nameOf(s, rival), rules.rank(m.list)))
+      if rules.rank(m.list) > 5 and not m.finale then      -- the last boss: the campaign's end (no ROC on every map); the street goes on
+        m.finale = true
+        sl_career.sendText('benny', strings.t('rivals.finale'), 40)
+      end
     else
       rival.cooldown = s.day + rules.BOSS_COOLDOWN
       say(s, rival, 'bossl', 20)
@@ -146,6 +150,9 @@ local OFFER_DAYS = 3
 local function makeOffer(s, m, rival, isBoss)
   m.offers = m.offers or {}
   m.offers[rival.id] = { stake = 'pink', boss = isBoss or nil, day = s.day }
+  roster.pinkForced[rival.id] = true
+  local racer = racerOf(s, rival.id)
+  if racer then racer.pinkOK = true end      -- (a rival who offers is up for it)
   say(s, rival, isBoss and 'bosscall' or 'escalate', 3)
 end
 
@@ -160,14 +167,17 @@ end
 local function proactive(s, m)
   local rng = rngLib.new(rngLib.hash('rivalnight:' .. tostring(s.day) .. ':' .. tostring(s.seed)))
   -- 1. a boss asks for you
-  local boss = not m.bossActive and rules.bossReady(m.list, s.rep, m.tierWins[rules.rank(m.list)] or 0, s.day)
+  -- the wins that count are those over racers of the boss's tier or above (a player who races the tier above has earned the call just as well)
+  local wins = 0
+  for t = rules.rank(m.list), 5 do wins = wins + (m.tierWins[t] or 0) end
+  local boss = not m.bossActive and rules.bossReady(m.list, s.rep, wins, s.day)
   if boss and not activeChallenge(s, boss.id) then
     local racer = racerOf(s, boss.id)
     local sd = rules.showdown(boss, racer)
     if sd.stake == 'pink' then
       if not (m.offers and m.offers[boss.id]) then makeOffer(s, m, boss, true) return true end
     elseif (s.money or 0) >= sd.bet then
-      local c = challenge(s, boss, 'high')
+      local c = challenge(s, boss, 'race')      -- (the showdown's bet is set below)
       if c then
         if sd.stake == 'money' then c.bet = sd.bet end
         c.boss = true
@@ -227,7 +237,7 @@ function M.onUpdate(dtReal)
   if not s then return end
   local m = state(s)
   applyStages(s, m)
-  for id, o in pairs(m.offers or {}) do if (s.day or 0) - (o.day or 0) > OFFER_DAYS then m.offers[id] = nil end end
+  for id, o in pairs(m.offers or {}) do if (s.day or 0) - (o.day or 0) > OFFER_DAYS then m.offers[id] = nil roster.pinkForced[id] = nil end end
   if night() and m.lastTextDay ~= s.day and #(s.cars or {}) > 0 and not (sl_streets and sl_streets.raceActive and sl_streets.raceActive()) then
     m.lastTextDay = s.day
     pcall(proactive, s, m)
@@ -248,6 +258,7 @@ function M.accept(id)
   c.boss = offer.boss
   if offer.boss then m.bossActive = rival.id end
   m.offers[rival.id] = nil
+  roster.pinkForced[rival.id] = nil
   toast(string.format(strings.t('rivals.pink_on'), mine.name or '?'))
   extensions.hook('onStreetLegalChanged')
   return true
@@ -261,12 +272,13 @@ function M.decline(id, forMoney)
   local offer = rival and m.offers and m.offers[rival.id]
   if not offer then return false end
   m.offers[rival.id] = nil
+  roster.pinkForced[rival.id] = nil
   rival.meter = math.max(rules.METER[1], (rival.meter or 0) - 5)
   if forMoney then
     local racer = racerOf(s, rival.id)
     local bet = offer.boss and rules.showdown({ tier = 2 }, racer).bet or rules.stake(rival, racer, 2).bet
     if (s.money or 0) >= bet then
-      local c = challenge(s, rival, 'high')
+      local c = challenge(s, rival, 'race')      -- (a plain race: the stake is set below, so a poor player is not refused for 'high' = three times a bet)
       if c then
         c.bet = bet
         if offer.boss then c.boss = true m.bossActive = rival.id end
@@ -334,11 +346,12 @@ function M.rank() local s = career() return s and rules.rank(state(s).list) or 1
 function M.onStreetLegalStarted()
   local s = career()
   if not s then return end
-  state(s)
+  local m = state(s)
   roster.gateHook = gate
+  for id in pairs(m.offers or {}) do roster.pinkForced[id] = true end      -- (an offer made before the save)
 end
 
-function M.onStreetLegalStopped() roster.gateHook = nil end
-function M.onExtensionUnloaded() roster.gateHook = nil end
+function M.onStreetLegalStopped() roster.gateHook = nil roster.pinkForced = {} end
+function M.onExtensionUnloaded() roster.gateHook = nil roster.pinkForced = {} end
 
 return M

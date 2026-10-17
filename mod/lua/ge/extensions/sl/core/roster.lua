@@ -219,7 +219,10 @@ M._TAUNTS, M._REMATCH = TAUNTS, REMATCH   -- (for the tests)
 -- Pink slips are special: on any one night only a few of the racers who would ever bet their car
 -- are up for it (a different few each night, the same all night). day: the career's day number.
 M.PINK_NIGHT_CHANCE = 0.12
+-- sl_rivals: racers who have a pink slip offer open with the player are always up for it (a rival who offers must not then say 'not tonight')
+M.pinkForced = {}
 function M.pinkTonight(racer, day, seed)
+  if racer and M.pinkForced[racer.id] then return true end
   if not racer or not racer.pinkOK then return false end
   return rngLib.hash(racer.id .. ':pinks:' .. tostring(day) .. ':' .. tostring(seed or 0)) % 1000 < M.PINK_NIGHT_CHANCE * 1000
 end

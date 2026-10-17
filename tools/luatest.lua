@@ -2201,10 +2201,20 @@ do -- the rivals extension (sl_rivals) against a mocked game: the tier gate, a r
   check('beating the boss raises the rank and clears the showdown', boss1.bossBeaten == true and s.rivals.bossActive == nil and RVE.rank() == 2)
   local g3 = ROS.respond(tier3, 'race', { rep = 99999, money = 99999, hasCar = true }, require('sl/core/rng').new(1))
   check('the next tier is open now (the gate has moved up one boss)', g3.accept == true or g3.text ~= nil)
+  -- the last boss: the finale and the achievement
+  local RVC = require('sl/core/rivals')
+  for _, r in ipairs(s.rivals.list) do if r.boss and r.tier < 5 then r.bossBeaten = true r.grandfathered = nil end end
+  local boss5 = RVC.bossOfTier(s.rivals.list, 5)
+  s.rivals.bossActive = boss5.id
+  texts[#texts + 1] = { thread = '|', text = '|' }
+  RVE.onStreetLegalRaceResult(true, 'x', boss5.id, 'pink')
+  local fin = false
+  for i = #texts, 1, -1 do if texts[i].thread == '|' then break end if texts[i].thread == 'benny' then fin = true end end
+  check('beating the last boss ends the campaign with a text from Benny, and earns the achievement', fin and s.rivals.finale == true and RVC.rank(s.rivals.list) == 6 and require('sl/core/achievements').update(s)[1] ~= nil)
   local metList = RVE.met()
   check('the rivals you know are listed as contacts with a line', #metList >= 1 and metList[1].kind == 'rival' and #metList[1].line > 3 and metList[1].name ~= nil)
   local r1 = RVE.list()
-  check('the rivals list for the screens has six with a record and a word', #r1.rivals == 6 and r1.rank == 2 and r1.rivals[1].word and r1.rivals[1].beaten ~= nil)
+  check('the rivals list for the screens has six with a record and a word', #r1.rivals == 6 and r1.rank == 6 and r1.rivals[1].word and r1.rivals[1].beaten ~= nil)
   -- pink slips are never arranged by a rival himself: an offer, accepted with a named car, or declined with only the meter paying
   local mine = { name = 'Covet 1.5' }
   _G.sl_fleet = { currentCar = function() return mine end }
@@ -2231,7 +2241,7 @@ do -- the rivals extension (sl_rivals) against a mocked game: the tier gate, a r
   check('walking away costs only a little meter: no challenge, no race', RVE.decline(pinkRival.id, false) == true and pinkRival.meter == meterBefore - 5 + 0 and #s.challenges == 0 and s.rivals.offers[pinkRival.id] == nil)
   s.rivals.offers[pinkRival.id] = { stake = 'pink', day = s.day }
   local nAsked = #asked
-  check('racing for money instead is a normal race at their top bet', RVE.decline(pinkRival.id, true) == true and asked[#asked].kind == 'high' and #asked == nAsked + 1)
+  check('racing for money instead is a normal race at their top bet', RVE.decline(pinkRival.id, true) == true and asked[#asked].kind == 'race' and #asked == nAsked + 1 and s.challenges[#s.challenges].bet >= 100)
   s.rivals.offers[pinkRival.id] = { stake = 'pink', day = s.day }
   mine = nil
   check('with no car out, the pink offer cannot be accepted', RVE.accept(pinkRival.id) == false)
@@ -2256,6 +2266,65 @@ do -- the rivals extension (sl_rivals) against a mocked game: the tier gate, a r
   for name, v in pairs(saved) do _G[name] = v[1] end
   for name, v in pairs(savedLoaded) do package.loaded[name] = v[1] end
   package.loaded['sl/rivals'] = nil
+end
+do -- the campaign end (tier 1 to the last boss), walked offline: a player who wins every race he is offered, one race a game day at night
+  local PR, ROS, RV, ST, CRW = require('sl/core/progression'), require('sl/core/roster'), require('sl/core/rivals'), require('sl/core/state'), require('sl/core/crews')
+  local racers = ROS.generate(7, 36)
+  local count = {}
+  for _, r in ipairs(racers) do count[r.tier] = (count[r.tier] or 0) + 1 end
+  local enough = true
+  for t = 1, 5 do if (count[t] or 0) < RV.BOSS_WINS + 1 then enough = false end end
+  check('every tier has the boss and at least three other racers to beat before him', enough, (count[1] or 0) .. ' ' .. (count[2] or 0) .. ' ' .. (count[3] or 0) .. ' ' .. (count[4] or 0) .. ' ' .. (count[5] or 0))
+  local list = RV.generate(7, racers, CRW.CREWS)
+  local rep, races, wins = 0, 0, {}
+  local known = {}
+  local milestones = {}
+  local stuck = false
+  local rank = 1
+  local function knownTier(t) return ROS.TIERS[t].rep[1] <= math.max(select(3, PR.titleFor(rep)), rep) * 1.2 end
+  while rank <= 5 and races < 3000 do
+    -- the boss asks for you when ready; else race the best racer you may race and know
+    local above = 0
+    for t = rank, 5 do above = above + (wins[t] or 0) end
+    local boss = RV.bossReady(list, rep, above, 99)
+    if boss then
+      local racer
+      for _, r in ipairs(racers) do if r.id == boss.id then racer = r end end
+      local sd = RV.showdown(boss, racer)
+      local gain = PR.raceResult({ won = true, stake = sd.stake, bet = sd.bet, night = true, opponentRep = racer.rep, playerRep = rep })
+      rep = rep + gain
+      races = races + 1
+      boss.bossBeaten = true
+      milestones['boss' .. boss.tier] = { races = races, rep = rep }
+      rank = RV.rank(list)
+    else
+      local best
+      for _, r in ipairs(racers) do
+        if r.tier <= rank + 1 and knownTier(r.tier) and PR and (rep >= ROS.TIERS[r.tier].rep[1] * 0.5) and not RV.byId(list, r.id) then
+          if not best or r.tier > best.tier or (r.tier == best.tier and r.rep > best.rep) then best = r end
+        end
+      end
+      if not best then stuck = true break end
+      local gain = PR.raceResult({ won = true, stake = 'money', bet = best.betMax, night = true, opponentRep = best.rep, playerRep = rep })
+      rep = rep + gain
+      races = races + 1
+      wins[best.tier] = (wins[best.tier] or 0) + 1
+    end
+  end
+  check('the climb never dead-ends: with every race won, each boss gets his turn and the last one is beaten', not stuck and rank == 6 and milestones.boss5 ~= nil, 'rank ' .. rank .. ' races ' .. races)
+  check('the whole climb is a few dozen races, not hundreds', races > 15 and races < 120, 'races ' .. races)
+  local detail = {}
+  for t = 1, 5 do local m = milestones['boss' .. t] detail[#detail + 1] = t .. ':' .. (m and (m.races .. '/' .. m.rep) or '-') end
+  -- the top: the ROC wants rep 6000, garage 3 and 50000 for the entry; what is left to earn after the last boss
+  local toRoc, extra = PR.ROC.rep - rep, 0
+  while rep < PR.ROC.rep and extra < 500 do
+    local best = nil
+    for _, r in ipairs(racers) do if r.tier == 5 and (not best or r.rep > best.rep) then best = r end end
+    rep = rep + PR.raceResult({ won = true, stake = 'money', bet = best.betMax, night = true, opponentRep = best.rep, playerRep = rep })
+    extra = extra + 1
+  end
+  check('after the last boss, rep 6000 for the ROC is a few more races at the top', rep >= PR.ROC.rep and extra < 80, 'extra ' .. extra .. ' ' .. table.concat(detail, ' '))
+  if os.getenv and os.getenv('SL_CAMPAIGN_REPORT') then print('campaign: races ' .. races .. ', to the ROC rep ' .. extra .. ' more; boss races/rep ' .. table.concat(detail, ' ')) end
 end
 do -- ambient police patrols share the racers' build rule; a chase's patrol is never held back
   local SPP = require('sl/core/spawnplan')

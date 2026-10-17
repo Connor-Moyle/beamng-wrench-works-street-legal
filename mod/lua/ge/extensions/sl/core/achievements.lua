@@ -24,6 +24,7 @@ M.LIST = {
   { id = 'garage_3', title = strings.t('achievements.top_floor'), desc = strings.t('achievements.move_to_club_garage_3'), check = function(s) return (s.garageLevel or 1) >= 3 end },
   { id = 'rep_1500', title = 'Contender', desc = strings.t('achievements.reach_1_500_reputation'), check = function(s) return (s.rep or 0) >= 1500 end },
   { id = 'rep_6000', title = strings.t('achievements.king_of_valo_city'), desc = strings.t('achievements.reach_6_000_reputation'), check = function(s) return (s.rep or 0) >= 6000 end },
+  { id = 'all_bosses', title = strings.t('achievements.top_of_the_strip'), desc = strings.t('achievements.beat_the_boss_of_every'), check = function(s) local n = 0 for _, r in ipairs(s.rivals and s.rivals.list or {}) do if r.boss and r.bossBeaten and not r.grandfathered then n = n + 1 end end return n >= 5 end },
   { id = 'roc', title = 'Champion', desc = strings.t('achievements.win_the_roc'), check = function(s) return s.roc and s.roc.champion == true end },
   { id = 'money_100k', title = strings.t('achievements.six_figures'), desc = strings.t('achievements.have_100_000_in_the'), check = function(s) return (s.money or 0) >= 100000 end },
   { id = 'jobs_25', title = strings.t('achievements.working_stiff'), desc = strings.t('achievements.finish_25_jobs'), check = function(s) return (jobs(s).done or 0) >= 25 end },
