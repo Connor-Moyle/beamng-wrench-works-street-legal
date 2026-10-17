@@ -212,6 +212,7 @@ end
 -- swapped spare wheel, which M.REFUSE keeps from being changed on any model. Add a model here, or a word to M.REFUSE, if a car
 -- ever crashes the game again.
 M.NO_TWEAK_MODELS = {}
+M.NO_DENTS = false              -- true: a car for sale is not dented (to find out whether the dents crash the game: T29)
 M.REFUSE = { 'sparewheel', 'spare_wheel', 'spare' }       -- (pieces of a slot path, slot id or part name that are never taken off or swapped)
 
 -- A car for sale, built as its offer describes: stock, then parts swapped and taken off, then dented.
@@ -249,7 +250,7 @@ function M.buildOffer(job, offer, pos, rot)
   end
   vd = vehData(id)
   local dents = carsLib.dents(vd and vd.config.partsTree or cfg.partsTree, classify(), rng, offer.damage)
-  M.applyDents(veh, dents, { keepLatches = true })      -- (the doors stay shut: Wrench Works' apply does not release them)
+  if not M.NO_DENTS then M.applyDents(veh, dents, { keepLatches = true }) end      -- (the doors stay shut: Wrench Works' apply does not release them)
   -- a car on a lot does not roll away
   veh:queueLuaCommand('input.event("parkingbrake", 1, FILTER_DIRECT) controller.setFreeze(1)')
   return veh, tweak

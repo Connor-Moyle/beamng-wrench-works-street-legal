@@ -5,6 +5,8 @@
 --   PROBE_GUARDED  true: with the slot guards of carsLib.tweakTree (core slots kept, only slot-legal swaps); default false (the old rules)
 --   PROBE_ONLY     a label to run alone, e.g. 'fault battery' or 'swap seed 3'; default every change
 --   PROBE_CONFIG   a config file name (part of it) to run alone; default every config of the model
+--   PROBE_DENTS    true: instead of the part changes, do what a USED lot does to its cars: spawn every config, dent it (applyDents with
+--                  keepLatches, damage 0.5), park-brake + freeze, leave it 2 s, delete it, for PROBE_ROUNDS (default 3) rounds
 -- For every stock config of the model: spawn it stock 20 m ahead of the player, then ONE change at a time (each fault's parts taken
 -- off, then single swaps with seeds 1..8) rebuilt in place exactly as carBuilder.buildOffer does, left 3 s, back to stock.
 -- EVERY step is written BEFORE it is done, to three places: the game's log (beamng.log, lines "probe_tweak"), the file
@@ -33,6 +35,8 @@ end
 local MODEL = rawget(_G, 'PROBE_MODEL') or 'midtruck'
 local GUARDED = rawget(_G, 'PROBE_GUARDED') == true
 local ONLY = rawget(_G, 'PROBE_ONLY')
+local DENTS = rawget(_G, 'PROBE_DENTS') == true
+local ROUNDS = tonumber(rawget(_G, 'PROBE_ROUNDS')) or 3
 local CONFIG = rawget(_G, 'PROBE_CONFIG')
 local FAULTS = { 'engine', 'gearbox', 'radiator', 'battery', 'tyres', 'brakes', 'exhaust' }
 
@@ -92,6 +96,35 @@ local function body(job)
   local pv = getPlayerVehicle(0)
   note('player vehicle: ' .. tostring(pv and pv:getJBeamFilename()))
   local pos = (pv and (pv:getPosition() + vec3(pv:getDirectionVector()) * 20) or vec3(0, 0, 0)) + vec3(0, 0, 0.5)
+  if DENTS then
+    for round = 1, ROUNDS do
+      for _, c in ipairs(list) do
+        note(string.format('round %d config %s', round, tostring(c.config)))
+        note('BEFORE spawn ' .. tostring(c.config))
+        local veh = builder.spawn(job, c.model, c.config, pos, quatFromDir(vec3(0, 1, 0), vec3(0, 0, 1)))
+        note((veh and 'OK' or 'FAILED') .. ' spawn')
+        if veh then
+          local id = veh:getID()
+          local vd = vehData(id)
+          local rng = rngLib.new(round * 1000 + 7)
+          local dents = cars.dents(vd and vd.config.partsTree, builder.classify(), rng, 0.5)
+          note('BEFORE dents (' .. #dents .. ' panels)')
+          builder.applyDents(veh, dents, { keepLatches = true })
+          veh:queueLuaCommand('input.event("parkingbrake", 1, FILTER_DIRECT) controller.setFreeze(1)')
+          job.sleep(2)
+          note('OK dents')
+          note('BEFORE delete')
+          local v2 = getObjectByID(id)
+          if v2 then v2:delete() end
+          job.sleep(1)
+          note('OK delete')
+        end
+      end
+    end
+    note('== DONE (dents) ==')
+    rawset(_G, 'PROBE_STATUS', 'done')
+    return
+  end
   for _, c in ipairs(list) do
     note('config ' .. tostring(c.config))
     note('BEFORE spawn ' .. tostring(c.config))

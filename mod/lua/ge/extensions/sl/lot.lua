@@ -115,7 +115,7 @@ end
 local cam             -- { yaw, pitch, dist, pos, look, previous }
 
 local function cameraOn()
-  if cam then return end
+  if cam or M.NO_CAMERA then return end
   cam = { yaw = math.rad(lotcam.YAWS[1]), pitch = lotcam.PITCH, dist = lotcam.DIST, previous = lot and lot.previousCamera }
   -- the script-driven camera (it takes its pose from us every frame and shows no free-camera help); the free camera as a fallback
   local ok = core_camera and core_camera.setByName and pcall(core_camera.setByName, 0, 'scriptedFree', false, { locked = true })
@@ -249,9 +249,14 @@ local function lightsOff()
   lights = {}
 end
 
+M.NO_LIGHTS = false     -- true: no lights over the row (to find out whether they crash the game: T29)
+M.NO_CAMERA = false     -- true: the lot does not move the camera
 local function lightsOn(row)
   lightsOff()
+  if M.NO_LIGHTS then return end
   for i, sp in ipairs(row) do
+    local stale = scenetree and scenetree.findObject('slLotLight' .. i)         -- (one left from the last lot would make the name clash)
+    if stale then pcall(function() stale:delete() end) end
     local l = createObject('PointLight')
     l.canSave = false
     l.radius = 9
