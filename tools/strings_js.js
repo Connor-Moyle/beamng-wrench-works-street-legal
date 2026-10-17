@@ -9,16 +9,18 @@ const fs = require('fs'), path = require('path');
 const acorn = require('acorn');
 
 const ROOT = path.join(__dirname, '..');
-const STRINGS = path.join(ROOT, 'mod', 'lua', 'ge', 'extensions', 'sl', 'core', 'strings.lua');
+const WW = process.argv.includes('--ww');          // Wrench Works: the garage screen says $scope.t('key', 'text'); the table is slrr/garageStrings.lua
+const CALL = WW ? '$scope.t' : 'T', PREFIX = WW ? 'p' : 'ui';
+const STRINGS = WW ? 'C:/Dev/Beam NG SLRR MOD/mod/lua/ge/extensions/slrr/garageStrings.lua' : path.join(ROOT, 'mod', 'lua', 'ge', 'extensions', 'sl', 'core', 'strings.lua');
 const BEGIN = '  -- BEGIN extracted (tools/strings_extract.py)', END = '  -- END extracted';
 const args = process.argv.slice(2);
 const dry = args.includes('--dry'), audit = args.includes('--audit');
 const only = args.filter((a) => !a.startsWith('--'));
-const FILES = only.length ? only.map((f) => path.resolve(f)) : ['slPhone/slPhone.js', 'slLaptop/slLaptop.js'].map((f) => path.join(ROOT, 'mod', 'ui', 'modModules', f));
+const FILES = WW ? ['C:/Dev/Beam NG SLRR MOD/mod/ui/modules/apps/slrrGarage/app.js'] : only.length ? only.map((f) => path.resolve(f)) : ['slPhone/slPhone.js', 'slLaptop/slLaptop.js'].map((f) => path.join(ROOT, 'mod', 'ui', 'modModules', f));
 
 const SKIP_METHODS = new Set(['querySelector', 'querySelectorAll', 'getAttribute', 'setAttribute', 'removeAttribute', 'addEventListener', 'removeEventListener', 'createElement',
   'contains', 'add', 'remove', 'toggle', 'hasOwnProperty', 'setProperty', 'getPropertyValue', 'engineLua',
-  'serializeToLua', 'matches', 'closest', 'dispatchEvent', 'getElementById', 'getElementsByClassName', 'createTextNode', 'join']);
+  'serializeToLua', 'matches', 'closest', 'dispatchEvent', 'getElementById', 'getElementsByClassName', 'createTextNode', 'join'].concat(WW ? ['t'] : []));
 const FIRST_ONLY = new Set(['indexOf', 'lastIndexOf', 'split', 'replace', 'test', 'match', 'search', 'startsWith', 'endsWith', 'includes']);      // (only the pattern is code: replace('<h4>', '<h4>text'))
 const SKIP_FUNCS = new Set(['lua', 'require', 'T', 'icon', 'svg', 'RegExp', 'parseInt', 'Number', 'setTimeout', 'avatar', 'kv']);
 const SKIP_ASSIGN = new Set(['className', 'id', 'type', 'href', 'src', 'display', 'cssText', 'name', 'value', 'placeholder']);
@@ -54,8 +56,8 @@ function keyFor(text) {
   let key = table.byText.get(text);
   if (key) return key;
   const words = (text.toLowerCase().match(/[a-z0-9]+/g) || ['text']).slice(0, 5).join('_');
-  key = 'ui.' + words;
-  for (let n = 2; table.taken.has(key) || newEntries.has(key); n++) key = 'ui.' + words + '_' + n;
+  key = PREFIX + '.' + words;
+  for (let n = 2; table.taken.has(key) || newEntries.has(key); n++) key = PREFIX + '.' + words + '_' + n;
   table.byText.set(text, key);
   newEntries.set(key, text);
   return key;
@@ -132,7 +134,7 @@ function run(file) {
     let k = 0;
     const template = parts.map((x) => (isStr(x) ? x.value : '{' + (++k) + '}')).join('');
     if (!textLike(template.replace(/\{\d\}/g, 'x'))) continue;
-    const call = 'T(' + q(keyFor(template)) + ', ' + q(template) + vars.map((v) => ', ' + src.slice(v.range[0], v.range[1])).join('') + ')';
+    const call = CALL + '(' + q(keyFor(template)) + ', ' + q(template) + vars.map((v) => ', ' + src.slice(v.range[0], v.range[1])).join('') + ')';
     add(n.range[0], n.range[1], call);
     parts.forEach((x) => done.add(x));
   }
@@ -143,10 +145,10 @@ function run(file) {
     if (/[<>]/.test(v)) {
       const pieces = split(v);
       if (!pieces.some((x) => x.text !== undefined && textLike(x.text))) continue;
-      const code = '(' + pieces.map((x) => (x.markup !== undefined ? q(x.markup) : (textLike(x.text) ? 'T(' + q(keyFor(x.text)) + ', ' + q(x.text) + ')' : q(x.text)))).join(' + ') + ')';
+      const code = '(' + pieces.map((x) => (x.markup !== undefined ? q(x.markup) : (textLike(x.text) ? CALL + '(' + q(keyFor(x.text)) + ', ' + q(x.text) + ')' : q(x.text)))).join(' + ') + ')';
       add(n.range[0], n.range[1], code);
     } else if (textLike(v)) {
-      add(n.range[0], n.range[1], 'T(' + q(keyFor(v)) + ', ' + q(v) + ')');
+      add(n.range[0], n.range[1], CALL + '(' + q(keyFor(v)) + ', ' + q(v) + ')');
     }
   }
   return { src, rep, count };
@@ -186,8 +188,8 @@ for (const file of FILES) {
 if (!audit && !dry && newEntries.size) {
   let s = fs.readFileSync(STRINGS, 'utf8');
   const nl = s.includes('\r\n') ? '\r\n' : '\n';
-  const ei = s.indexOf(END);
-  s = s.slice(0, ei) + [...newEntries].sort().map(([k, v]) => '  [' + luaQuote(k) + '] = ' + luaQuote(v) + ',' + nl).join('') + s.slice(ei);
+  const ei = WW ? s.indexOf('}' + nl + nl + 'function M.t') : s.indexOf(END);
+  s = s.slice(0, ei) + [...newEntries].sort().map(([k, v]) => '  [' + (WW ? q(k) + '] = ' + q(v) : luaQuote(k) + '] = ' + luaQuote(v)) + ',' + nl).join('') + s.slice(ei);
   fs.writeFileSync(STRINGS, s);
 }
 console.log('TOTAL', total, audit || dry ? 'texts still in code' : 'texts moved, ' + newEntries.size + ' new keys');
