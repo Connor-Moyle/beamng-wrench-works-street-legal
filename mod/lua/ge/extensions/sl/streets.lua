@@ -727,7 +727,7 @@ local function startMeet(s)
       local pos, rot = nextSpot()
       if not pos then break end                                  -- no bay left: a small car park holds fewer cars
       meetPace(job)
-      if not meetHidden(place.pos) then break end
+      if not meet or not meetHidden(place.pos) then break end       -- (the meet may have ended while the job slept)
       local r = table.remove(racers, rng:int(#racers))
       local veh = pool[r.id] and getObjectByID(pool[r.id])
       if veh then          -- the racer's car waits in the pool: put on its bay, not built again
