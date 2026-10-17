@@ -48,6 +48,8 @@ M.defs = {
   { key = 'slWallpaper', title = strings.t('options.laptop_wallpaper'), type = 'choice', default = 'windows',
     options = { { id = 'windows', label = strings.t('options.my_windows_wallpaper') }, { id = 'builtin', label = 'Built-in' } },
     desc = strings.t('options.the_laptop_s_desktop_your') },
+  { key = 'slAutoPhoto', title = strings.t('options.photo_of_a_new_car'), type = 'bool', default = true,
+    desc = strings.t('options.a_new_car_is_photographed') },
   { key = 'slWeather', needs = 'weather', title = 'Weather', type = 'bool', default = true,
     desc = strings.t('options.rain_wet_roads_and_night') },
   { key = 'slRain', needs = 'weather', title = 'Rain', type = 'range', min = 0, max = 0.5, step = 0.02, default = 0.12, unit = '/h',

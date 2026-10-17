@@ -64,6 +64,7 @@ local function snapshot()
     atRisk = sl_career.atRisk and sl_career.atRisk() or 0,
     textScale = require('sl/core/strings').textScale(sl_options and sl_options.get and sl_options.get('slTextScale')),
     colorBlind = sl_options ~= nil and sl_options.get ~= nil and sl_options.get('slColorBlind') == true,      -- (#51)
+    wall = sl_photos and sl_photos.wallpapers and sl_photos.wallpapers().phone or nil,      -- (a photo as the home screen's wallpaper)
     heat = phaseLib.heatLevel(sl_police and sl_police.heat and sl_police.heat() or 0),
     phase = sl_career.phase and sl_career.phase() or nil, phaseSwitch = phaseLib.switchLabel(sl_career.phase and sl_career.phase() or nil),
     garage = (progression.garages[s.garageLevel] or {}).name,
@@ -182,6 +183,9 @@ function M.requestStrings()
   end
   guihooks.trigger('slStrings', { text = out })
 end
+function M.photos() if sl_photos then sl_photos.list() end end
+function M.takePhoto() if sl_photos then answer(sl_photos.take()) end end
+function M.setWallpaper(which, file) if sl_photos then answer(sl_photos.setWallpaper(tostring(which), file ~= '' and tostring(file) or false)) end end
 function M.requestHelp() guihooks.trigger('slHelp', { pages = require('sl/core/help').PAGES }) end
 function M.markRead(thread) if career() then sl_career.markRead(thread) end end
 function M.waypoint(id) if career() then sl_career.waypoint(id) end end

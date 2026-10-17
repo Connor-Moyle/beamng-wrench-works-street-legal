@@ -761,6 +761,7 @@ local function getInWhereItStands(veh, car, wait)
         local u = t / MOVE_TIME
         put(lotcam.arc(cc, sp, p1, u * u * (3 - 2 * u)), l)       -- (round the car to the chase pose, not through it)
       end)
+      if car and sl_photos and not reveal.skip then sl_photos.newCar(j, car.name) end      -- (a photo of the new car, in the gallery)
     end
   end
   -- whatever happens in the reveal (an error included), the screen, the camera and the game's UI come back

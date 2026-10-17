@@ -66,6 +66,10 @@
     '.slp-rt span.slp-unread{color:#e6e1e5;font-weight:600}',
     '.slp-rx{margin-left:10px;font-size:12px;color:#cac4d0;text-align:right;flex:none}',
     '.slp-letter{padding:14px 18px 2px 18px;font-size:13px;color:#a8c7fa;font-weight:500}',
+    '.slp-photos{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:10px 12px}',
+    '.slp-ph{aspect-ratio:16/9;border-radius:10px;background:#211f26 center/cover no-repeat;cursor:pointer;border:2px solid transparent}',
+    '.slp-ph.slp-on{border-color:#a8c7fa}',
+    '.slp-bigph{margin:10px 12px;border-radius:14px;width:calc(100% - 24px);aspect-ratio:16/9;background:#211f26 center/cover no-repeat}',
     '.slp-empty{padding:40px 30px;text-align:center;color:#938f99;font-size:14px;line-height:1.5}',
     '.slp-btn{display:inline-flex;align-items:center;justify-content:center;height:40px;padding:0 20px;border-radius:20px;background:#a8c7fa;color:#062e6f;font-size:14px;font-weight:500;cursor:pointer;border:none}',
     '.slp-btn.slp-tonal{background:#3a3f4b;color:#d7e3ff}',
@@ -298,6 +302,8 @@
   // icons (Material-style shapes, drawn here)
   function svg(path, viewBox) { return '<svg viewBox="' + (viewBox || '0 0 24 24') + '"><path d="' + path + '"/></svg>'; }
   var I = {
+    camera: svg('M9 3 7.2 5H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.200L15 3zm3 14.500a4.500 4.500 0 1 1 0-9 4.500 4.500 0 0 1 0 9zm0-2a2.500 2.500 0 1 0 0-5 2.500 2.500 0 0 0 0 5z'),
+    gallery: svg('M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2zM8.500 13.500l2.500 3 3.500-4.500 4.500 6H5z'),
     settings: svg('M19.400 13a7.600 7.600 0 0 0 0-2l2-1.600-2-3.400-2.400 1a7.500 7.500 0 0 0-1.700-1L15 3.400h-4l-.4 2.600a7.500 7.500 0 0 0-1.700 1l-2.400-1-2 3.400 2 1.600a7.600 7.600 0 0 0 0 2l-2 1.600 2 3.400 2.400-1c.5.400 1.100.7 1.700 1l.4 2.600h4l.4-2.600c.6-.3 1.200-.6 1.700-1l2.400 1 2-3.400zM13 15.500a3.500 3.500 0 1 1 0-7 3.500 3.500 0 0 1 0 7z'),
     help: svg('M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 16h-2v-2h2zm2.100-7.700-.9.9c-.7.700-1.200 1.300-1.200 2.800h-2v-.5c0-1.100.5-2.100 1.200-2.800l1.200-1.300a2 2 0 1 0-3.400-1.400H8a4 4 0 1 1 8 0c0 .9-.4 1.700-.9 2.300z'),
     wait: svg('M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 5v5.4l4 2.3-.8 1.3L11 13V7z'),
@@ -339,7 +345,7 @@
   var SLRR_ART = '/ui/modModules/slHud/slrr/icons/';
   var SLRR_ICON = { races: 'cup.png', garage: 'garage.png', bank: 'dollar.png', cab: 'city.png', me: 'roc.png' };
   function slrrIcon(name, cls) { return '<img class="slp-slrr ' + (cls || '') + '" src="' + SLRR_ART + name + '" alt="">'; }
-  var APP_COLORS = { carmarket: '#2e7d4f', partmarket: '#a3322c', settings: '#5c6474', wait: '#4a5d7a', market: '#a3322c', paper: '#5b5346', bid: '#b5651d', club: '#6a2e7a', jobs: '#3d7a2e', phone: '#2e7d4f', messages: '#2f5fb3', contacts: '#7b4fb0', races: '#c2541e', bank: '#1f7a70', cab: '#b58a12', me: '#5c6474', garage: '#8a3b8f' };
+  var APP_COLORS = { camera: '#3b6fa0', gallery: '#a05a8a', carmarket: '#2e7d4f', partmarket: '#a3322c', settings: '#5c6474', wait: '#4a5d7a', market: '#a3322c', paper: '#5b5346', bid: '#b5651d', club: '#6a2e7a', jobs: '#3d7a2e', phone: '#2e7d4f', messages: '#2f5fb3', contacts: '#7b4fb0', races: '#c2541e', bank: '#1f7a70', cab: '#b58a12', me: '#5c6474', garage: '#8a3b8f' };
   var AV_COLORS = ['#a8c7fa', '#f2b8b5', '#c3e7c6', '#ffd8a8', '#d0bcff', '#9fe0e8', '#ffb4ab', '#e8def8'];
   var CLASS_NAMES = { beater: T('ui.beaters', 'Beaters'), compact: T('ui.compacts', 'Compacts'), muscle: T('ui.muscle', 'Muscle'), tuner: T('ui.tuners', 'Tuners'), sport: T('ui.sports_cars', 'Sports cars'), super: T('ui.supercars', 'Supercars') };
 
@@ -412,7 +418,7 @@
       var arranged = arr(d.challenges).length;
       var tut = d.tutorial ? ('<div class="slp-card slp-tut"><h4>' + T('ui.getting_started', 'Getting started ')) + d.tutorial.step + '/' + d.tutorial.total + ': ' + esc(d.tutorial.title) + '</h4><p>' + esc(d.tutorial.text) + '</p>' +
         ('<div class="slp-acts"><div class="slp-btn slp-text" data-a="tutskip" data-v="1">' + T('ui.skip_the_tutorial', 'Skip the tutorial') + '</div></div></div>') : '';
-      return '<div class="slp-wall"></div><div class="slp-home">' +
+      return '<div class="slp-wall"' + (d.wall ? ' style="background:url(\'' + esc(d.wall) + '\') center/cover no-repeat"' : '') + '></div><div class="slp-home">' +
         '<div class="slp-clock">' + two(d.hour || 0) + ':' + two(d.minute || 0) + '</div>' +
         ('<div class="slp-date">' + T('ui.day_2', 'Day ')) + (d.day || 1) + ' &middot; ' + esc(d.mapName || T('progression.valo_city', 'Valo City')) + (d.night ? ' &middot; night' : '') + '</div>' +
         (d.weather ? '<div class="slp-date" style="opacity:.85">' + (d.weather.wet ? '&#127783; ' : '') + esc(d.weather.text) + '</div>' : '') +
@@ -425,6 +431,8 @@
           { id: 'jobs', title: T('app.jobs', 'Jobs'), icon: I.jobs, badge: d.jobs && d.jobs.active ? 1 : 0 },
           { id: 'wait', title: T('app.wait', 'Wait'), icon: I.wait },
           { id: 'help', title: T('app.help', 'Help'), icon: I.help },
+          { id: 'camera', title: T('app.camera', 'Camera'), icon: I.camera },
+          { id: 'gallery', title: T('app.gallery', 'Gallery'), icon: I.gallery },
           { id: 'settings', title: T('app.settings', 'Settings'), icon: I.settings },
           { id: 'club', title: T('app.club', 'Club'), icon: I.club, hide: has.clubs === false },
           { id: 'turf', title: T('app.turf', 'Turf'), icon: I.turf, hide: has.crews === false },
@@ -941,6 +949,27 @@
       return bar(p.title) + '<div class="slp-body"><div class="slp-card">' + html + '</div></div>';
     }
 
+    // the camera, the gallery and a photo with the wallpaper buttons (sl_photos)
+    function cameraPage() {
+      return bar(T('app.camera', 'Camera')) + '<div class="slp-body"><div class="slp-card"><p>' + esc(T('ui.camera_text', 'Takes a picture of what you see, without the phone or any other screen. It is kept in the Gallery and in the folder screenshots/street_legal.')) + '</p>' +
+        '<div class="slp-acts"><div class="slp-btn" data-a="photo">' + T('ui.take_a_photo', 'Take a photo') + '</div></div></div></div>';
+    }
+    function galleryPage() {
+      var list = arr(obj(st.photos).photos);
+      var body = list.length ? '<div class="slp-photos">' + list.map(function (p) {
+        return '<div class="slp-ph' + (p.file === st.photos.phone || p.file === st.photos.laptop ? ' slp-on' : '') + '" data-a="photoopen" data-v="' + esc(p.file) + '" style="background-image:url(\'' + esc(p.file) + '\')"></div>';
+      }).join('') + '</div>' : '<div class="slp-empty">' + T('ui.no_photos_yet', 'No photos yet. Take one with the Camera.') + '</div>';
+      return bar(T('app.gallery', 'Gallery')) + '<div class="slp-body">' + body + '</div>';
+    }
+    function photoPage() {
+      var f = st.photoFile || '';
+      return bar(T('app.gallery', 'Gallery')) + '<div class="slp-body"><div class="slp-bigph" style="background-image:url(\'' + esc(f) + '\')"></div>' +
+        '<div class="slp-acts" style="padding:0 12px 12px;display:flex;gap:8px;flex-wrap:wrap">' +
+        '<div class="slp-btn" data-a="setwall" data-v="laptop|' + esc(f) + '">' + T('ui.set_as_laptop_wallpaper', 'Set as laptop wallpaper') + '</div>' +
+        '<div class="slp-btn" data-a="setwall" data-v="phone|' + esc(f) + '">' + T('ui.set_as_phone_wallpaper', 'Set as phone wallpaper') + '</div>' +
+        '<div class="slp-btn slp-tonal" data-a="setwall" data-v="both|">' + T('ui.usual_wallpapers', 'Back to the usual wallpapers') + '</div></div></div>';
+    }
+
     function settingsPage() {
       var defs = arr(obj(st.settings).defs), groups = [], by = {};
       defs.forEach(function (d) { var g = d.group || T('ui.other', 'Other'); if (!by[g]) { by[g] = []; groups.push(g); } by[g].push(d); });
@@ -1360,6 +1389,9 @@
         case 'races': page = racesPage(); break;
         case 'wait': page = waitPage(); break;
         case 'settings': page = settingsPage(); break;
+        case 'camera': page = cameraPage(); break;
+        case 'gallery': page = galleryPage(); break;
+        case 'photo': page = photoPage(); break;
         case 'help': page = helpPage(); break;
         case 'helppage': page = helpTopicPage(); break;
         case 'carmarket': page = carMarketPage(); break;
@@ -1503,6 +1535,7 @@
       st.stack.push({ app: st.app, contact: st.contact, thread: st.thread });
       st.app = app;
       if (app === 'settings') lua('settings()');
+      if (app === 'gallery') lua('photos()');
       if (app === 'help' && !arr(st.help).length) lua('requestHelp()');
       if (app === 'carmarket') { st.cmView = 'dealers'; lua('@sl_dealers.list()'); }
       if (params) for (var k in params) st[k] = params[k];
@@ -1590,6 +1623,9 @@
             lua('setSetting(' + JSON.stringify(sp[0]) + ',' + Math.round(nv * 10000) / 10000 + ')');
           }
           break;
+        case 'photo': lua('takePhoto()'); break;
+        case 'photoopen': go('photo', { photoFile: v }); break;
+        case 'setwall': (function () { var q = String(v).split('|'); lua('setWallpaper(' + JSON.stringify(q[0]) + ',' + JSON.stringify(q[1] || '') + ')'); })(); break;
         case 'setreset': lua('setSetting("__reset",true)'); break;
         case 'devmoney': lua('devMoney()'); break;
         case 'mtab': var tp = String(v).split('|'); st.tab[tp[0]] = tp[1]; if (tp[0] === 'cars' && tp[1] === 'dealers') { st.cmView = 'dealers'; lua('@sl_dealers.list()'); }
@@ -1753,6 +1789,7 @@
         case 'slStation': st.station = data.open ? data : null; render(); break;
         case 'slGarage': st.garage = data.open ? data : null; render(); break;
         case 'slSettings': st.settings = data; render(); break;
+        case 'slPhotos': st.photos = data; render(); break;
         case 'slHelp': st.help = arr(data && data.pages); render(); break;
         case 'slStrings': TABLE = (data && data.text) || {}; render(); break;
         case 'slLaptopDealers': st.dealers = data; render(); break;
@@ -1789,7 +1826,7 @@
       var probe = new Image();
       probe.onload = function () { phone.handle('slArt'); };
       probe.src = '/ui/modModules/slHud/slrr/icons/cup.png';
-      ['slPhoneData', 'slPhoneToggle', 'slPhoneGo', 'slPhoneCall', 'slPhoneCallReply', 'slPhoneNotify', 'slPhoneToast', 'slFade', 'slLotBars', 'slLotData', 'slMeet', 'slRace', 'slMenu', 'slStation', 'slGarage', 'slSettings', 'slLaptopDealers', 'slAuctions', 'slLaptopOffers', 'slHelp', 'slStrings'].forEach(function (name) {
+      ['slPhoneData', 'slPhoneToggle', 'slPhoneGo', 'slPhoneCall', 'slPhoneCallReply', 'slPhoneNotify', 'slPhoneToast', 'slFade', 'slLotBars', 'slLotData', 'slMeet', 'slRace', 'slMenu', 'slStation', 'slGarage', 'slSettings', 'slPhotos', 'slLaptopDealers', 'slAuctions', 'slLaptopOffers', 'slHelp', 'slStrings'].forEach(function (name) {
         $rootScope.$on(name, function (ev, data) { phone.handle(name, data); });
       });
       if (window.bngApi) window.bngApi.engineLua('if sl_phone then sl_phone.request() end if sl_menuTile then sl_menuTile.request() end');

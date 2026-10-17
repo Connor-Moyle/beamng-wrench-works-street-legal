@@ -777,6 +777,29 @@ phone.act('home');
 phone.handle('slFade', { on: true, pic: 'loading_city.png' });
 assert.ok(phone.root.querySelector('.slp-fade.slp-in') && !(phone.root.querySelector('.slp-fade').getAttribute('style') || '').includes('url('), 'a fade has no picture');
 phone.handle('slFade', { on: false });
+// Camera and Gallery: the camera asks for a photo, the gallery lists the photos (the wallpapers marked), a photo sets the wallpapers
+phone.act('home');
+if (!phone.state.open) phone.handle('slPhoneToggle');
+calls.length = 0;
+phone.act('open', 'camera');
+click('photo');
+assert.ok(calls.includes('takePhoto()'), 'the camera button takes a photo');
+phone.act('home');
+phone.act('open', 'gallery');
+assert.ok(calls.includes('photos()'), 'opening the Gallery asks for the photos');
+assert.ok(/No photos yet/.test(phone.root.textContent), 'an empty gallery says so');
+phone.handle('slPhotos', { photos: [{ file: '/settings/street_legal/photos/20261018_a.png', name: 'a' }, { file: '/settings/street_legal/photos/20261018_b.png', name: 'b' }], phone: '/settings/street_legal/photos/20261018_b.png' });
+assert.strictEqual(phone.root.querySelectorAll('.slp-ph').length, 2, 'two thumbnails');
+assert.strictEqual(phone.root.querySelectorAll('.slp-ph.slp-on').length, 1, 'the phone wallpaper is marked');
+calls.length = 0;
+click('photoopen', '/settings/street_legal/photos/20261018_a.png');
+click('setwall', 'laptop|/settings/street_legal/photos/20261018_a.png');
+click('setwall', 'phone|/settings/street_legal/photos/20261018_a.png');
+click('setwall', 'both|');
+assert.ok(calls.includes('setWallpaper("laptop","/settings/street_legal/photos/20261018_a.png")') && calls.includes('setWallpaper("phone","/settings/street_legal/photos/20261018_a.png")') && calls.includes('setWallpaper("both","")'), 'the wallpaper buttons');
+phone.act('home');
+phone.handle('slPhoneData', Object.assign({}, data, { wall: '/settings/street_legal/photos/20261018_a.png' }));
+assert.ok(/20261018_a\.png/.test(phone.root.querySelector('.slp-wall').getAttribute('style') || ''), 'a photo wallpaper is the home screen');
 console.log('phone test passed');
 
 // a page to look at: the phone in several states side by side

@@ -60,6 +60,8 @@ local at          -- the laptop open now: { id, pos, functions }
 -- virtual file system, not the registry or the Pictures folder); the setting can choose the built-in one instead
 local WALLPAPER = '/settings/street_legal/wallpaper.jpg'
 local function wallpaper()
+  local photo = sl_photos and sl_photos.wallpapers and sl_photos.wallpapers().laptop      -- (a photo chosen in the Gallery wins)
+  if photo then return photo end
   if sl_options and sl_options.get and sl_options.get('slWallpaper') == 'builtin' then return nil end
   return FS and FS.fileExists and FS:fileExists(WALLPAPER) and WALLPAPER or nil
 end
