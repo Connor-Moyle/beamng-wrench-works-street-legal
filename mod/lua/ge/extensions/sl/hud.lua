@@ -190,7 +190,7 @@ function M.onUpdate(dtReal)
   guihooks.trigger('slHud', {
     show = true, settings = M.getSettings(),
     atRisk = sl_career and sl_career.atRisk and sl_career.atRisk() or 0,
-    labels = (function() local S = require('sl/core/strings') return { day = S.t('phase.day'), night = S.t('phase.night'), engine = S.t('status.engine'), atRisk = S.TEXT['hud.atRisk'], heat = S.TEXT['hud.heat'] } end)(),
+    labels = (function() local S = require('sl/core/strings') return { day = S.t('phase.day'), night = S.t('phase.night'), engine = S.t('status.engine'), atRisk = S.TEXT['hud.atRisk'], heat = S.TEXT['hud.heat'], rpm = S.TEXT['hud.rpm'], mph = S.TEXT['hud.mph'], kmh = S.TEXT['hud.kmh'], atRiskTip = S.TEXT['hud.atRiskTip'] } end)(),
     phase = sl_career and sl_career.phase and sl_career.phase() or nil, heat = require('sl/core/phase').heatLevel(sl_police and sl_police.heat and sl_police.heat() or 0),
     speed = car.speed or v:getVelocity():length(), rpm = car.rpm or 0, maxRpm = car.maxRpm or 0, gear = car.gear,
     x = pos.x, y = pos.y, heading = math.atan2(dir.x, dir.y),

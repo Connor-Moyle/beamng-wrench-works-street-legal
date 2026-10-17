@@ -24,7 +24,8 @@ M.TEXT = {
   -- status words (shown with the colour, never by colour alone)
   ['status.ok'] = 'OK', ['status.warn'] = 'Damaged', ['status.bad'] = 'Wrecked', ['status.engine'] = 'ENGINE', ['status.tyre'] = 'Burst tyre',
   ['status.yours'] = 'Yours', ['status.start'] = 'start', ['status.finish'] = 'finish', ['status.ahead'] = 'ahead', ['status.behind'] = 'behind',
-  ['hud.atRisk'] = '+{1} rep at risk', ['hud.heat'] = 'Heat {1}',
+  ['hud.atRisk'] = '+{1} rep at risk', ['hud.heat'] = 'Heat {1}', ['hud.rpm'] = 'RPM x1000', ['hud.mph'] = 'MPH', ['hud.kmh'] = 'KM/H',
+  ['hud.atRiskTip'] = 'Reputation you lose if you are busted; a garage banks it',
   -- laptop
   ['laptop.mycars'] = 'My cars', ['laptop.myparts'] = 'My parts', ['laptop.carmarket'] = 'Car market', ['laptop.partmarket'] = 'Part market',
   ['laptop.club'] = 'Club', ['laptop.help'] = 'Help', ['laptop.bank'] = 'Bank / insurance', ['laptop.cred'] = 'Street cred',

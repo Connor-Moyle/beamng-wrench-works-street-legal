@@ -62,7 +62,7 @@
     root.appendChild(left); root.appendChild(dials); root.appendChild(status);
     doc.body.appendChild(root);
 
-    var labels = {};          // the Lua side's words (sl/core/strings): { day, night, engine, atRisk, heat }
+    var labels = {};          // the Lua side's words (sl/core/strings): { day, night, engine, atRisk, heat, rpm, mph, kmh, atRiskTip }
     var settings = { enabled: true, speedo: true, tacho: true, map: true, damage: true, units: 'kmh' };
     var roads = null;         // { segs: [x1,y1,x2,y2,...], grid: { 'cx|cy': [index...] }, places }
     var CELL = 150;
@@ -333,7 +333,7 @@
         slrrDial(speedoC, SPRITES.speedo, speed, String(Math.round(speed)));
       } else if (settings.speedo) {
         var top = mph ? 160 : 280;
-        dial(speedoC, speed, top, { step: mph ? 20 : 40, minor: mph ? 4 : 4, caption: mph ? 'MPH' : 'KM/H', digits: String(Math.round(speed)) });
+        dial(speedoC, speed, top, { step: mph ? 20 : 40, minor: mph ? 4 : 4, caption: mph ? (labels.mph || 'MPH') : (labels.kmh || 'KM/H'), digits: String(Math.round(speed)) });
       }
       if (settings.tacho && slrr) {
         slrrDial(tachoC, SPRITES.tacho, data.rpm || 0);
@@ -341,7 +341,7 @@
       } else if (settings.tacho) {
         var redline = data.maxRpm > 1000 ? data.maxRpm : 7000;
         var max = Math.max(6000, Math.ceil((redline + 500) / 1000) * 1000);
-        dial(tachoC, data.rpm || 0, max, { step: 1000, minor: 4, labelDiv: 1000, red: redline, caption: 'RPM x1000',
+        dial(tachoC, data.rpm || 0, max, { step: 1000, minor: 4, labelDiv: 1000, red: redline, caption: labels.rpm || 'RPM x1000',
           digits: gearText(data.gear), digitsColour: (data.rpm || 0) > redline * 0.97 ? '#ff2a1a' : '#ffd400' });
       }
       if (settings.map) drawMap(data);
@@ -356,7 +356,7 @@
       for (var i = 1; i <= 5; i++) flames += i <= heat ? '&#9650;' : '<i>&#9650;</i>';
       status.innerHTML = '<span>' + (night ? '&#9790; ' + (labels.night || 'Night') : '&#9728; ' + (labels.day || 'Day')) + '</span>' +
         (heat > 0 || night ? '<span class="slh-heat" title="' + (labels.heat || 'Heat {1}').replace('{1}', heat) + '">' + flames + ' ' + heat + '</span>' : '') +
-        (night && d.atRisk > 0 ? '<span title="Reputation you lose if you are busted; a garage banks it">' + (labels.atRisk || '+{1} rep at risk').replace('{1}', d.atRisk) + '</span>' : '');
+        (night && d.atRisk > 0 ? '<span title="' + (labels.atRiskTip || 'Reputation you lose if you are busted; a garage banks it') + '">' + (labels.atRisk || '+{1} rep at risk').replace('{1}', d.atRisk) + '</span>' : '');
       status.classList.remove('slh-gone');
     }
 
