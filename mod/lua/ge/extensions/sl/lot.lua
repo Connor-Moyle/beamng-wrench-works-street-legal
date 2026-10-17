@@ -127,8 +127,8 @@ local cam             -- { yaw, pitch, dist, pos, look, previous }
 
 -- The cinematic touches (each behind a flag, all restored by fxStop): letterbox bars (the UI slides them), the game's depth of field focused on
 -- the car, the car's lights on, a slow field-of-view drift. What to show for the camera chain's state is in sl/core/lotfx.
-M.FX = { bars = true, dof = true, lights = true, fov = true }
-local DOF_FIELDS = { 'autoFocusEnabled', 'focalDist', 'minRange', 'maxRange', 'nearBlurMax', 'farBlurMax', 'nearSlope', 'farSlope' }
+M.FX = { bars = true, dof = true, lights = true, fov = true, dofDebug = false }      -- (dofDebug: the effect's own debug view, red = far blur, blue = near blur, green line = the focus plane)
+local DOF_FIELDS = { 'debugModeEnabled', 'autoFocusEnabled', 'focalDist', 'minRange', 'maxRange', 'nearBlurMax', 'farBlurMax', 'nearSlope', 'farSlope' }
 local function setBars(on)
   on = (M.FX.bars and on) or false
   if cam and cam.bars == on then return end
@@ -148,7 +148,7 @@ local function dofRestore()
   end
   cam.dofSaved = nil
 end
-local function dofOn(dist, L, w)
+local function dofOn(eye, look, c, w)
   local dof = scenetree and scenetree.findObject('DOFPostEffect')
   if not dof then return end
   if not cam.dofSaved then
@@ -158,7 +158,10 @@ local function dofOn(dist, L, w)
     cam.dofSaved = saved
     pcall(function() dof.autoFocusEnabled = false if not saved.enabled then dof:enable() end end)
   end
-  for k, v in pairs(lotfx.dofParams(dist, L, w)) do pcall(function() dof[k] = v end) end
+  local far = tonumber(VariableRegistry and VariableRegistry.get('$Param::FarDist')) or 2000
+  local params = lotfx.dofParams(eye, look, c, cam.L or 4.5, cam.W or 1.9, cam.H or 1.5, far, w)
+  for k, v in pairs(params) do pcall(function() dof[k] = v end) end
+  pcall(function() dof.debugModeEnabled = M.FX.dofDebug == true end)
 end
 -- back to the player's own settings: depth of field, field of view, the car's lights, the bars
 local function fxStop()
@@ -345,7 +348,7 @@ local function updateCamera(dt)
     if litWant then setLit(litWant, true) end
     cam.lit = litWant
   end
-  if M.FX.dof and ch and e > 0.01 and not lotfx.isCabin(kind) then dofOn((pos - vec3(t.x, t.y, t.z)):length(), cam.L or 4.5, e) else dofRestore() end
+  if M.FX.dof and ch and e > 0.01 and not lotfx.isCabin(kind) then dofOn(pos, look, t, e) else dofRestore() end
   local sf0 = core_camera.getGlobalCameras and core_camera.getGlobalCameras().scriptedFree
   if M.FX.fov and sf0 and sf0.setFOV then
     cam.baseFov = cam.baseFov or sf0.fov

@@ -1357,8 +1357,24 @@ do
     check('fov: a shot tightens 0 to 3 degrees, the move to the next brings it back, the cabin keeps the normal view', fx.fovDrift({ phase = 'shot', kind = 'side', t = 0 }) == 0 and math.abs(fx.fovDrift({ phase = 'shot', kind = 'side', t = 5 }) - 3) < 1e-9
       and math.abs(fx.fovDrift({ phase = 'trans', kind = 'side', nextKind = 'rear', u = 0 }) - 3) < 1e-9 and fx.fovDrift({ phase = 'trans', kind = 'side', nextKind = 'rear', u = 1 }) == 0
       and fx.fovDrift({ phase = 'shot', kind = 'cabin', t = 4 }) == 0 and fx.fovDrift({ phase = 'trans', kind = 'cabin', nextKind = 'side', u = 0 }) == 0 and fx.fovDrift(nil) == 0)
-    local p = fx.dofParams(8, 4.5, 0.5)
-    check('dof: the car length sets the sharp range, the blur follows the shot weight', p.focalDist == 8 and p.minRange == 9 and p.maxRange == 18 and p.farBlurMax == 0.175 and fx.dofParams(8, 4.5, 0).nearBlurMax == 0)
+    -- depth of field: for many eyes and car sizes the sharp window of the game's own formulas covers the whole car plus the margin, nothing is blurred in front
+    local good, worst = true, nil
+    for _, far in ipairs({ 800, 2000, 4000 }) do
+      for _, sz in ipairs({ { 3.4, 1.6, 1.3 }, { 4.5, 1.9, 1.5 }, { 6.5, 2.4, 2.4 } }) do
+        for _, eyeAt in ipairs({ { 6, 0, 1 }, { 10, 3, 1.5 }, { 2.5, 1, 0.5 }, { 14, -6, 4 }, { 0, 7, 2 } }) do
+          local c0 = { x = 100, y = 100, z = 10 }
+          local eye = { x = c0.x + eyeAt[1], y = c0.y + eyeAt[2], z = c0.z + eyeAt[3] }
+          local p, need = fx.dofParams(eye, c0, c0, sz[1], sz[2], sz[3], far, 1)
+          local lo, hi = fx.dofWindow(p, far)
+          if not (lo <= math.max(need.near, 0) + 1e-6 and hi >= need.far - 1e-6 and p.nearBlurMax == 0 and p.focalDist >= 0 and p.minRange >= 0) then good = false worst = worst or (far .. ' ' .. sz[1] .. ' ' .. eyeAt[1] .. ' lo=' .. lo .. ' hi=' .. hi .. ' need=' .. need.near .. '..' .. need.far) end
+        end
+      end
+    end
+    check('dof: the sharp window of the effect covers the car from its nearest to its farthest point plus the margin, with no blur in front', good, worst)
+    local p2, need2 = fx.dofParams({ x = 8, y = 0, z = 1 }, { x = 0, y = 0, z = 1 }, { x = 0, y = 0, z = 1 }, 4.5, 1.9, 1.5, 2000, 0.5)
+    local _, hi2 = fx.dofWindow(p2, 2000)
+    check('dof: the blur follows the shot weight and starts just beyond the car', p2.farBlurMax == 0.25 and fx.dofParams({ x = 8, y = 0, z = 1 }, { x = 0, y = 0, z = 1 }, { x = 0, y = 0, z = 1 }, 4.5, 1.9, 1.5, 2000, 0).farBlurMax == 0
+      and math.abs(hi2 - need2.far) < 1e-6 and need2.far - 8 < 6)
   end
   -- the shuffle bag: every kind once per round, never the same kind twice in a row, unusable kinds dropped
   do
