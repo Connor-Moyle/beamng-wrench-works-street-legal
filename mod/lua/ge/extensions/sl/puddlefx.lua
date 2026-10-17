@@ -15,7 +15,7 @@ M.flags = { warp = true, splash = true, mist = true, physics = true, trail = tru
 
 local MATERIALS = '/art/street_legal/main.materials.json'
 local MATERIAL = 'sl_puddle'          -- translucent, alpha from its opacity map (the soft oval), shiny and dark
-local RIPPLE_MATERIAL = 'sl_ripple'   -- a sprite sheet of 8 growing, fading rings that the material plays by itself (animFlags 16, sequence): the shape's UV shows one frame
+local RIPPLE_MATERIAL = 'sl_ripple_s' -- one crisp ring; the ripple planes grow it from small to large over about a second (the scale is moved from Lua ten times a second)
 local SHAPES = '/temp/street_legal/shapes/'
 local GRID = 5                        -- corners across a puddle's grid
 local PUDDLE_RADIUS = { 8, 70 }       -- puddles stand between these distances from the player
@@ -28,10 +28,10 @@ local trails = {}                     -- { obj, born, dx, dy }
 local lastTrail = {}                  -- the last trail put down per wheel index: { x, y }
 local emitters = {}                   -- the four particle emitters, reused
 local counter = 0
-local placeTimer, meshTimer, feedTimer, trailTimer = 0, 0, 0, 0
+local placeTimer, meshTimer, feedTimer, trailTimer, rippleTimer = 0, 0, 0, 0, 0
 local debugPuddle
 local sentEmpty = true
-local stats = { tries = 0, noSurface = 0, notFlat = 0, noRoad = 0, placed = 0, shown = 0, fxCalls = 0, splashOn = 0, mistOn = 0, trails = 0, wheelsIn = 0, ripples = 0 }
+local stats = { tries = 0, noSurface = 0, notFlat = 0, noRoad = 0, placed = 0, shown = 0, fxCalls = 0, splashOn = 0, mistOn = 0, trails = 0, wheelsIn = 0, ripples = 0, rejected = 0 }
 local lastStatsLog = 0
 local logged = {}
 
@@ -130,8 +130,8 @@ end
 
 -- a ripple: one small flat quad whose texture coordinates show the first frame of the ring sheet (the material plays the other seven)
 local function ripplePath()
-  local path = SHAPES .. 'ripple_v1.dae'
-  if not FS:fileExists(path) then writeFile(path, gridDae(nil, { n = 2, material = RIPPLE_MATERIAL, uMax = 0.125 })) end
+  local path = SHAPES .. 'ripple_v2.dae'
+  if not FS:fileExists(path) then writeFile(path, gridDae(nil, { n = 2, material = RIPPLE_MATERIAL })) end
   return path
 end
 
@@ -149,6 +149,22 @@ local function heightsFor(p)
   end
   return h
 end
+
+-- how a puddle's ground is: the range of the grid's heights and the biggest step between neighbouring corners (a kerb or a block edge is a step; a crown is a slope)
+local function groundShape(h)
+  local n, lo, hi, step = GRID, math.huge, -math.huge, 0
+  for iy = 0, n - 1 do
+    for ix = 0, n - 1 do
+      local v = h[iy * n + ix + 1]
+      lo, hi = math.min(lo, v), math.max(hi, v)
+      if ix < n - 1 then step = math.max(step, math.abs(v - h[iy * n + ix + 2])) end
+      if iy < n - 1 then step = math.max(step, math.abs(v - h[(iy + 1) * n + ix + 1])) end
+    end
+  end
+  return hi - lo, step
+end
+M.groundShape = groundShape          -- (for the offline test)
+M.MAX_RANGE, M.MAX_STEP = 0.15, 0.04      -- more than this and the spot is not a puddle's (a kerb, a block, a dip)
 
 local function newObject(name, path)
   if FS:fileExists(MATERIALS) and not (scenetree.findObject(MATERIAL) and scenetree.findObject(RIPPLE_MATERIAL)) then loadJsonMaterialsFile(MATERIALS) end
@@ -175,13 +191,22 @@ local function dropPuddle(p)
   if p.file then pcall(function() FS:removeFile(p.file) end) p.file = nil end
 end
 
-local function makeObject(p)
+local function makeObject(p, force)
   counter = counter + 1
   p.id = p.id or counter
   local path
   if M.flags.warp then
+    local h = heightsFor(p)
+    local range, step = groundShape(h)
+    -- a damp patch is big and faint: it may cross a crown; a puddle must lie on one even surface (no kerb, no step)
+    if not force and (step > M.MAX_STEP * (p.damp and 2 or 1) or range > M.MAX_RANGE * (p.damp and 2 or 1)) then
+      stats.rejected = stats.rejected + 1
+      once('reject', string.format('a puddle spot was rejected: ground range %.1f cm, biggest step %.1f cm (limits %.0f / %.0f)', range * 100, step * 100, M.MAX_RANGE * 100, M.MAX_STEP * 100))
+      return nil
+    end
+    p.range, p.step = range, step
     path = SHAPES .. 'puddle_g' .. p.id .. '.dae'
-    writeFile(path, gridDae(heightsFor(p)))
+    writeFile(path, gridDae(h))
     p.file = path
   else
     path = flatPath()
@@ -258,15 +283,22 @@ local function updateMeshes(wet, intensity)
     else
       local k = 0.6 + 0.4 * f
       if p.damp and M.flags.shimmer then k = k * rules.shimmer(os.clock(), p.id or 1, intensity) end      -- (the damp patches breathe with the rain: darker, then lighter)
-      if not p.obj then
+      if not p.obj and not p.dead then
         p.obj = makeObject(p)
-        putMesh(p, k)
-        stats.shown = stats.shown + 1
-        once('first', string.format('puddle plane: first one at %.0f, %.0f, %.2f (%.1f x %.1f m, warped %s, world box %s)', p.x, p.y, p.z + 0.05, p.sx * k, p.sy * k, tostring(M.flags.warp), worldBox(p.obj)))
-      elseif math.abs((p.k or 0) - k) > 0.02 then
+        if not p.obj then p.dead = true end
+        if p.obj then putMesh(p, k) stats.shown = stats.shown + 1 end
+        if p.obj and stats.shown == 1 then
+        once('first', string.format('puddle plane: first one at %.0f, %.0f, %.2f (%.1f x %.1f m, warped %s, ground range %.1f cm, step %.1f cm, world box %s)', p.x, p.y, p.z + 0.05, p.sx * k, p.sy * k, tostring(M.flags.warp), (p.range or 0) * 100, (p.step or 0) * 100, worldBox(p.obj))) end
+      elseif p.obj and math.abs((p.k or 0) - k) > 0.02 then
         putMesh(p, k)
       end
     end
+  end
+end
+
+local function removeDead()
+  for i = #puddles, 1, -1 do
+    if puddles[i].dead then dropPuddle(puddles[i]) table.remove(puddles, i) end
   end
 end
 
@@ -278,13 +310,12 @@ local function placeRipple(p, r)
   local lx, ly = math.cos(a) * d * p.sx * k * 0.5, math.sin(a) * d * p.sy * k * 0.5
   local wx, wy = p.x + lx * p.dy + ly * p.dx, p.y - lx * p.dx + ly * p.dy
   local z = groundZ(wx, wy, p.z + 2) or p.z
-  local size = 0.5 + math.random() * 0.5
   local mx = MatrixF(true)
   mx:createOrientFromDirUp(vec3(math.cos(a), math.sin(a), 0), vec3(0, 0, 1))
-  mx:setPosition(vec3(wx, wy, z + 0.07))
+  mx:setPosition(vec3(wx, wy, z + 0.08))
   r.obj:setTransform(mx)
-  r.obj:setScale(vec3(size, size, 1))
-  r.born, r.life = os.clock(), 2.5 + math.random() * 3
+  r.size, r.born, r.life = 1.0 + math.random() * 0.9, os.clock() - math.random() * 0.8, 0.9 + math.random() * 0.6   -- (rings of 1-2 m across when full, each at its own point of growing)
+  r.obj:setScale(vec3(0.05, 0.05, 1))
 end
 
 local function updateRipples(intensity)
@@ -305,7 +336,19 @@ local function updateRipples(intensity)
       stats.ripples = stats.ripples + 1
       once('ripple', string.format('first ripple on a puddle at %.0f, %.0f (material %s %s)', p.x, p.y, RIPPLE_MATERIAL, tostring(scenetree.findObject(RIPPLE_MATERIAL) ~= nil)))
     end
-    for _, r in ipairs(p.ripples) do if now - r.born > r.life then placeRipple(p, r) end end
+  end
+end
+
+-- the rings grow (from a dot to full size over their life), ten times a second: the ripple of a drop landing in the puddle, then another one elsewhere
+local function growRipples()
+  local now = os.clock()
+  for _, p in ipairs(puddles) do
+    for _, r in ipairs(p.ripples or {}) do
+      local age = now - r.born
+      if age > r.life then placeRipple(p, r) age = now - r.born end
+      local k = math.max(0.05, math.min(1, age / r.life))
+      pcall(function() r.obj:setScale(vec3(r.size * k, r.size * k, 1)) end)
+    end
   end
 end
 
@@ -440,9 +483,12 @@ function M.update(dt, wet, intensity)
     meshTimer = 0
     local ok, err = pcall(updateMeshes, wet, intensity)
     if not ok then once('meshErr', 'puddle planes: ' .. tostring(err)) end
+    removeDead()
     ok, err = pcall(updateRipples, intensity)
     if not ok then once('rippleErr', 'ripples: ' .. tostring(err)) end
   end
+  rippleTimer = rippleTimer + dt
+  if rippleTimer > 0.1 then rippleTimer = 0 pcall(growRipples) end
   feedVehicle(dt, wet)
   updateTrails(dt)
   if wet >= 0.15 and os.clock() - lastStatsLog > 15 then
@@ -469,14 +515,36 @@ function M.puddleNear()
   local z = groundZ(x, y, pos.z + 12) or pos.z
   if debugPuddle then dropPuddle(debugPuddle) end
   debugPuddle = { x = x, y = y, z = z, sx = 4, sy = 4, dx = dir.x / len, dy = dir.y / len, k = 1 }
-  debugPuddle.obj = makeObject(debugPuddle)
+  debugPuddle.obj = makeObject(debugPuddle, true)
   putMesh(debugPuddle, 1)
   local box = worldBox(debugPuddle.obj)
-  log('I', TAG, string.format('puddleNear: a 4 m puddle at %.1f, %.1f, %.2f (the road under it %.2f, the car at %.2f); warped %s; world box %s', x, y, z + 0.05, z, pos.z, tostring(M.flags.warp), box))
+  log('I', TAG, string.format('puddleNear: a 4 m puddle at %.1f, %.1f, %.2f (the road under it %.2f, the car at %.2f); warped %s; ground range %.1f cm, biggest step %.1f cm (a real one is refused above %.0f / %.0f); world box %s',
+    x, y, z + 0.05, z, pos.z, tostring(M.flags.warp), (debugPuddle.range or 0) * 100, (debugPuddle.step or 0) * 100, M.MAX_RANGE * 100, M.MAX_STEP * 100, box))
   return { x = x, y = y, z = z + 0.05 }, box
 end
 
+-- for a game test: one 2 m ring standing still 8 m in front of the player's car (proves the ripple material and plane draw); ringTest(false) takes it away
+local ringObj
+function M.ringTest(on)
+  if ringObj then deleteObject(ringObj) ringObj = nil end
+  if on == false then return 'removed' end
+  local pos, v = playerPos()
+  if not pos then return 'no player vehicle' end
+  local dir = v:getDirectionVector()
+  local x, y = pos.x + dir.x * 8, pos.y + dir.y * 8
+  local z = groundZ(x, y, pos.z + 12) or pos.z
+  ringObj = newObject('sl_pd_ringtest', ripplePath())
+  local mx = MatrixF(true)
+  mx:createOrientFromDirUp(vec3(dir.x, dir.y, 0), vec3(0, 0, 1))
+  mx:setPosition(vec3(x, y, z + 0.08))
+  ringObj:setTransform(mx)
+  ringObj:setScale(vec3(2, 2, 1))
+  log('I', TAG, string.format('ringTest: a 2 m ring at %.1f, %.1f, %.2f; world box %s; material %s', x, y, z + 0.08, worldBox(ringObj), tostring(scenetree.findObject(RIPPLE_MATERIAL) ~= nil)))
+  return { x = x, y = y, z = z + 0.08 }
+end
+
 function M.clear()
+  if ringObj then deleteObject(ringObj) ringObj = nil end
   for _, p in ipairs(puddles) do dropPuddle(p) end
   puddles = {}
   if debugPuddle then dropPuddle(debugPuddle) debugPuddle = nil end

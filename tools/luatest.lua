@@ -1618,6 +1618,18 @@ do
   local sh = 1
   for i = 0, 200 do sh = math.max(sh, wx.shimmer(i * 0.5, 2, 1)) end
   check('the damp patches breathe by a few percent when it rains hard and not at all when it does not', sh > 1.04 and sh <= 1.07 + 1e-9 and wx.shimmer(33, 2, 0) == 1)
+  -- which spots may hold a puddle: an even or gently sloping ground yes, a kerb or a block edge no
+  local fxm = require('sl/puddlefx')
+  local flat, slope, kerb = {}, {}, {}
+  for iy = 0, 4 do for ix = 0, 4 do
+    flat[iy * 5 + ix + 1] = 0
+    slope[iy * 5 + ix + 1] = 0.01 * ix                     -- 4 cm over the width: a crown
+    kerb[iy * 5 + ix + 1] = ix >= 3 and 0.12 or 0          -- a 12 cm kerb along two columns
+  end end
+  local r0, s0 = fxm.groundShape(flat)
+  local r1, s1 = fxm.groundShape(slope)
+  local r2, s2 = fxm.groundShape(kerb)
+  check('ground shape: flat and a gentle crown pass, a kerb has a step far over the limit', r0 == 0 and s0 == 0 and r1 < fxm.MAX_RANGE and s1 <= fxm.MAX_STEP and s2 > fxm.MAX_STEP * 2 and r2 > 0.1)
   check('the forecast names the rain strength', wx.text('day', 'rain', nil, 'heavy'):find('Heavy rain') and wx.text('day', 'rain', nil, 'light'):find('Light rain') and wx.text('day', 'rain'):find('Rain'))
 end
 

@@ -55,8 +55,8 @@
       {
         "baseColorMap": "/art/street_legal/decals/puddle.color.png",
         "opacityMap": "/art/street_legal/decals/puddle_o.data.png",
-        "metallicFactor": 0.7,
-        "roughnessFactor": 0.04
+        "metallicFactor": 0.1,
+        "roughnessFactor": 0.03
       },
       {},
       {},
@@ -72,19 +72,16 @@
     "doubleSided": true,
     "version": 1.5
   },
-  "sl_ripple": {
-    "name": "sl_ripple",
-    "mapTo": "sl_ripple",
+  "sl_ripple_s": {
+    "name": "sl_ripple_s",
+    "mapTo": "sl_ripple_s",
     "class": "Material",
     "Stages": [
       {
-        "animFlags": 16,
-        "sequenceFramePerSec": 10,
-        "sequenceSegmentSize": 0.125,
-        "baseColorMap": "/art/street_legal/decals/ripples.color.png",
-        "opacityMap": "/art/street_legal/decals/ripples_o.data.png",
-        "metallicFactor": 0.7,
-        "roughnessFactor": 0.05
+        "baseColorMap": "/art/street_legal/decals/ripple.color.png",
+        "opacityMap": "/art/street_legal/decals/ripple_o.data.png",
+        "metallicFactor": 0.1,
+        "roughnessFactor": 0.03
       },
       {},
       {},
