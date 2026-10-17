@@ -56,6 +56,18 @@ local function catalog()
   end
   return catalogCache or nil
 end
+local picturesCache
+local function pictures()
+  if picturesCache == nil then
+    picturesCache = false
+    local ok, j = pcall(function() return jsonReadFile and jsonReadFile(partinfo.PICTURE_DIR .. 'manifest.json') end)
+    if ok and type(j) == 'table' and type(j.parts) == 'table' then
+      picturesCache = {}
+      for _, name in ipairs(j.parts) do picturesCache[name] = true end
+    end
+  end
+  return picturesCache or nil
+end
 local modelCache = {}
 local function modelInfo(model)
   if modelCache[model] then return modelCache[model] end
@@ -75,6 +87,7 @@ local function partFields(card, item)
   local mi = modelInfo(item.model or card.model)
   card.name, card.category, card.categoryTitle, card.chapter = d.name, d.category, d.categoryTitle, d.chapter
   card.fits, card.preview = mi.name, mi.preview
+  card.partPic = partinfo.picture(item.part, pictures())          -- the part's own picture, where the mod ships one
   return card
 end
 

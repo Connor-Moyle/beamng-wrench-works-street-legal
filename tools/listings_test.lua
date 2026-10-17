@@ -382,6 +382,8 @@ return function(check, rngLib)
   check('a jbeam display name is kept as it is', PI.displayName('Sport exhaust', 'covet_exhaust_sport', 'covet') == 'Sport exhaust')
   check('an internal id as the name becomes words (the model prefix dropped)', PI.displayName('covet_exhaust_sport_2', 'covet_exhaust_sport_2', 'covet') == 'Exhaust sport 2'
     and PI.displayName(nil, 'etk800_body/fender_L', 'etk800') == 'Body fender l' and PI.displayName('', 'x', 'y') == 'X' and PI.displayName(nil, nil, nil) == 'Part')
+  check('a part picture is used only when the manifest lists it, under its safe file name', PI.picture('covet_exhaust_sport', { covet_exhaust_sport = true }) == '/art/street_legal/parts/covet_exhaust_sport.png'
+    and PI.picture('etk800_body/fender_L', { etk800_body_fender_L = true }) == '/art/street_legal/parts/etk800_body_fender_L.png' and PI.picture('x', {}) == nil and PI.picture('x', nil) == nil)
   local cat = {
     classify = function(slotId) if slotId == 'exhaust' then return 'engine', 'exhaust' end return 'body', 'misc' end,
     sections = { { id = 'engine', title = 'ENGINE', subs = { { id = 'exhaust', title = 'EXHAUST SYSTEMS' } } }, { id = 'body', title = 'BODY', subs = { { id = 'misc', title = 'MISC BODY' } } } },

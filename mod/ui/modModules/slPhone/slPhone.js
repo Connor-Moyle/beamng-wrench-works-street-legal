@@ -86,6 +86,7 @@
     '.slp-pic{margin:-14px -16px 10px -16px;aspect-ratio:16/9;border-radius:18px 18px 0 0;overflow:hidden;background:#0d0b12;display:flex;align-items:center;justify-content:center;color:#6f6a78;font-size:12px}',
     '.slp-pic{position:relative}',
     '.slp-pic img{position:absolute;left:0;top:0;width:100%;height:100%;object-fit:cover}',
+    '.slp-pic img.slp-partpic{object-fit:contain;padding:8px;box-sizing:border-box}',
     '.slp-pico svg{width:56px;height:56px;fill:#6f6a78}',
     '.slp-pbadge{position:absolute;left:10px;bottom:10px;display:flex;align-items:center;gap:6px;padding:4px 10px 4px 6px;border-radius:14px;background:rgba(20,18,24,.82);color:#e6e1e5;font-size:12px}',
     '.slp-pbadge svg{width:18px;height:18px;fill:#a8c7fa}',
@@ -469,7 +470,7 @@
     function catKey(l) { return l.car ? 'cat_car' : (l.category && I['cat_' + l.category] ? 'cat_' + l.category : (l.category === 'car' ? 'cat_car' : 'cat_part')); }
     function adPic(l) {
       return '<div class="slp-pic"><div class="slp-pico">' + I[catKey(l)] + '</div>' +
-        (l.preview ? '<img src="' + esc(l.preview) + '" alt="" onerror="this.style.display=\'none\'">' : '') +
+        ((l.partPic || l.preview) ? '<img' + (l.partPic ? ' class="slp-partpic"' : '') + ' src="' + esc(l.partPic || l.preview) + '" alt="" onerror="this.style.display=\'none\'">' : '') +
         (!l.car && l.category && l.category !== 'car' ? '<div class="slp-pbadge">' + I[catKey(l)] + esc(l.categoryTitle || 'Part') + '</div>' : '') + '</div>';
     }
     // a part ad's second line: the catalog chapter and the car it fits
