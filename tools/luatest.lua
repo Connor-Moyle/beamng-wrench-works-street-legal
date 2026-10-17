@@ -1296,14 +1296,70 @@ do
   local p1 = lotcam.chase(c, f)
   check('the chase pose is 7.5 m behind and 2.4 m up', math.abs(p1.x - 10) < 1e-6 and math.abs(p1.y - 12.5) < 1e-6 and math.abs(p1.z - 3.4) < 1e-6)
   local function dist(p) return math.sqrt((p.x - c.x) ^ 2 + (p.y - c.y) ^ 2) end
-  local ok = true
-  for _, kind in ipairs({ 'front', 'side', 'wheel', 'cabin', 'badge', 'rear' }) do
-    for _, s in ipairs({ 0, 0.5, 1 }) do
-      local p, l = lotcam.shot(kind, c, f, 4.5, 1.9, s)
-      if not (p.x == p.x and l.x == l.x and dist(p) < 9 and math.abs(p.z - c.z) < 1) then ok = false end
+  local ok, outsideOk = true, true
+  local sizes = { { 3.4, 1.6, 1.3 }, { 4.5, 1.9, 1.5 }, { 5.5, 2.0, 1.4 }, { 6.5, 2.4, 2.4 } }
+  for _, sz in ipairs(sizes) do
+    for _, kind in ipairs(lotcam.BROWSE_SHOTS) do
+      for _, s in ipairs({ 0, 0.25, 0.5, 0.75, 1 }) do
+        local p, l = lotcam.shot(kind, c, f, sz[1], sz[2], s)
+        if not (p.x == p.x and l.x == l.x and dist(p) < 12 and math.abs(p.z - c.z) < 5) then ok = false end
+        if kind ~= 'cabin' and kind ~= 'cabin_pass' and lotcam.inBox(c, f, sz[1], sz[2], sz[3], p) then outsideOk = false end
+      end
     end
   end
-  check('every detail shot is finite, close to the car and low', ok)
+  check('every detail shot (16 kinds, four car sizes) is finite and close to the car', ok)
+  check('every shot but the cabin ones keeps its eye outside the car box plus the margin along its whole drift', outsideOk)
+  -- the cabin shots turn the head from the driver camera position and never move the eye
+  local eye = { x = c.x - 0.4, y = c.y + 0.1, z = c.z + 0.2 }
+  local e0 = lotcam.shot('cabin', c, f, 4.5, 1.9, 0, eye)
+  local e1 = lotcam.shot('cabin', c, f, 4.5, 1.9, 1, eye)
+  local q0, ql = lotcam.shot('cabin_pass', c, f, 4.5, 1.9, 0, eye)
+  check('the cabin shot stays at the driver camera and only turns', e0.x == eye.x and e1.x == eye.x and e1.y == eye.y and e0.z == eye.z and math.abs(q0.x - (c.x + 0.4)) < 1e-6)
+  -- a transition between any two shots never puts the eye inside the car box (but for the short move through the driver's window to a cabin shot)
+  do
+    local orbit = { pos = { x = 10, y = 14, z = 2.5 }, look = { x = 10, y = 20, z = 1 } }
+    local bad
+    for _, sz in ipairs(sizes) do
+      local ctx2 = { c = c, f = f, L = sz[1], W = sz[2], H = sz[3] }
+      for _, A in ipairs(lotcam.BROWSE_SHOTS) do
+        for _, B in ipairs(lotcam.BROWSE_SHOTS) do
+          if A ~= B then
+            local pa, la = lotcam.shot(A, c, f, sz[1], sz[2], 1)
+            local st = { phase = 'shot', kind = A, t = lotcam.SHOT_TIME - 0.001, pos = pa, look = la }
+            local frames, inside, lastP, jump = 0, 0, pa, 0
+            for i = 1, 30 * 6 do
+              local pos
+              st, pos = lotcam.chain(st, 1 / 30, true, orbit, ctx2, function() return B end)
+              if not st or st.phase == 'shot' then break end
+              frames = frames + 1
+              if lotcam.inBox(c, f, sz[1], sz[2], sz[3], pos) then inside = inside + 1 end
+              jump = math.max(jump, math.sqrt((pos.x - lastP.x) ^ 2 + (pos.y - lastP.y) ^ 2 + (pos.z - lastP.z) ^ 2))
+              lastP = pos
+            end
+            local cabin = A == 'cabin' or B == 'cabin' or A == 'cabin_pass' or B == 'cabin_pass'
+            if cabin then ok = ok and inside <= frames * ((A:find('cabin') and B:find('cabin')) and 0.5 or 0.3) else ok = ok and inside == 0 end
+            if jump > 1.5 then ok = false end
+            if not ok and not bad then bad = A .. '>' .. B .. ' ' .. sz[1] .. ' inside=' .. inside .. '/' .. frames .. ' jump=' .. jump end
+          end
+        end
+      end
+    end
+    check('no transition between any two shots (16x15 pairs, four sizes) crosses the car box, and none jumps', ok, bad)
+  end
+  -- the shuffle bag: every kind once per round, never the same kind twice in a row, unusable kinds dropped
+  do
+    local state, rnd = { bag = {} }, function(n) return math.random(n) end
+    local prev, repeated, seenK, drops = nil, false, {}, 0
+    for _ = 1, 600 do
+      local k = lotcam.draw(state, rnd, function(kind) if kind == 'engine' or kind == 'top' then drops = drops + 1 return false end return true end)
+      if k == prev then repeated = true end
+      prev, seenK[k] = k, true
+    end
+    local n = 0 for _ in pairs(seenK) do n = n + 1 end
+    check('the shuffle never repeats back to back, covers every usable kind, and drops unusable ones', not repeated and n == #lotcam.BROWSE_SHOTS - 2 and not seenK.engine and not seenK.top and drops > 0)
+    local nothing = lotcam.draw({ bag = {} }, rnd, function() return false end)
+    check('nothing usable: nil', nothing == nil)
+  end
   local pw = lotcam.shot('wheel', c, f, 4.5, 1.9, 0)
   local pc = lotcam.shot('cabin', c, f, 4.5, 1.9, 0)
   check('the wheel shot stands by the front wheel, the cabin shot inside the car', pw.y > c.y + 1 and math.abs(pw.x - c.x) > 2 and dist(pc) < 1.5)
@@ -1317,13 +1373,13 @@ do
     local ctx = { c = c, f = f, L = 4.5, W = 1.9 }
     local kinds, n = lotcam.BROWSE_SHOTS, 0
     local function pick() n = n + 1 return kinds[(n - 1) % #kinds + 1] end
-    local st, last, shots, minOrbit, maxStep, atRest = nil, nil, 0, 1e9, 0, false
+    local st, last, shots, minOrbit, maxStep, atRest, worstAt = nil, nil, 0, 1e9, 0, false, ''
     local seen = {}
-    for i = 1, 30 * 80 do
+    for i = 1, 30 * 220 do
       local pos
       st, pos = lotcam.chain(st, 1 / 30, true, orbit, ctx, pick)
       if st then
-        if last then maxStep = math.max(maxStep, math.sqrt((pos.x - last.x) ^ 2 + (pos.y - last.y) ^ 2 + (pos.z - last.z) ^ 2)) end
+        if last then local stp = math.sqrt((pos.x - last.x) ^ 2 + (pos.y - last.y) ^ 2 + (pos.z - last.z) ^ 2) if stp > maxStep then maxStep, worstAt = stp, st.phase .. ' ' .. tostring(st.kind) .. '>' .. tostring(st.nextKind) .. ' u=' .. tostring(st.u) end end
         last = pos
         if st.phase == 'shot' or st.phase == 'trans' then
           seen[st.kind] = true
@@ -1334,7 +1390,7 @@ do
     local count = 0
     for _ in pairs(seen) do count = count + 1 end
     check('shots follow each other (all the kinds come round) and never go back through the orbit pose', count == #kinds and minOrbit > 0.5, minOrbit)
-    check('no jump: a frame moves the camera less than 0.8 m', maxStep < 0.8, maxStep)
+    check('no jump: a frame moves the camera less than 0.8 m', maxStep < 0.8, maxStep .. ' ' .. worstAt)
     -- the player moves the camera: it eases back to the orbit, in about SHOT_EASE seconds, and ends at rest
     local out, rest = st, false
     for i = 1, 60 do

@@ -151,6 +151,65 @@ local function wallRay(a, b)
   return ok and h and h < d - 0.01 and h or nil
 end
 
+-- The engine shots (C6) open the car's own hood (or engine lid) through its latch controller, as the game does, and shut it again before the next
+-- shot: slrrGarageVeh.shutLatches pushes every lid shut and retries while the release's force dies down. A car on show is frozen, so it is let go
+-- (parking brake on) while a lid is open and frozen again once it has latched. A car's latch controllers are asked once, when it comes on show.
+local latches = {}             -- vehicle id -> the names of its latch controllers
+local hoods = {}              -- vehicle id -> { state = 'open' | 'closing', t }
+local HOOD_SHUT = 4           -- s from the shut command until the car is frozen again (the latch retries take up to this long)
+function M.onLatches(vid, names) latches[vid] = names end
+local function askLatches(veh)
+  veh:queueLuaCommand([[local n = {} for k, c in pairs(controller.getAllControllers and controller.getAllControllers() or {}) do if type(c) == 'table' and c.detachGroup and c.getGroupState then n[#n + 1] = "'" .. tostring(k):gsub("'", "") .. "'" end end obj:queueGameEngineLua('sl_lot.onLatches(' .. obj:getID() .. ',{' .. table.concat(n, ',') .. '})')]])
+end
+-- 'front' (a hood), 'rear' (an engine lid) or nil for a car whose lid we cannot open (or do not know yet)
+local function lidOf(vid)
+  local rear
+  for _, name in ipairs(latches[vid] or {}) do
+    local n = name:lower()
+    if n:find('hood', 1, true) then return 'front' end
+    if n:find('enginelid', 1, true) or n:find('enginecover', 1, true) or (n:find('engine', 1, true) and n:find('latch', 1, true)) then rear = true end
+  end
+  return rear and 'rear' or nil
+end
+local function openLid(veh, side)
+  hoods[veh:getID()] = { state = 'open', t = 0 }
+  local pat = side == 'front' and "'hood'" or "'engine'"
+  veh:queueLuaCommand('controller.setFreeze(0) input.event("parkingbrake", 1, FILTER_DIRECT) for k, c in pairs(controller.getAllControllers and controller.getAllControllers() or {}) do if type(c) == "table" and c.detachGroup and tostring(k):lower():find(' .. pat .. ', 1, true) then c.detachGroup() end end')
+end
+local function shutLids()
+  for vid, h in pairs(hoods) do
+    if h.state == 'open' then
+      local v = getObjectByID(vid)
+      if v then v:queueLuaCommand('extensions.load("slrrGarageVeh") if slrrGarageVeh and slrrGarageVeh.shutLatches then slrrGarageVeh.shutLatches() end') end
+      h.state, h.t = 'closing', 0
+    end
+  end
+end
+local function tickLids(dt)
+  for vid, h in pairs(hoods) do
+    if h.state == 'closing' then
+      h.t = h.t + dt
+      if h.t >= HOOD_SHUT then
+        local v = getObjectByID(vid)
+        if v then v:queueLuaCommand('controller.setFreeze(1)') end
+        hoods[vid] = nil
+      end
+    end
+  end
+end
+-- how long a purchase has to wait for the lid of this car to be shut
+local function lidWait(vid) local h = hoods[vid] return h and (h.state == 'open' and HOOD_SHUT or math.max(0, HOOD_SHUT - h.t)) or 0 end
+
+-- where the game's own driver camera sits in this car (its 'onboard.driver' camera node): the cabin shot turns its head from there and never moves,
+-- so it cannot clip through a seat or the roof. nil when the car has none (the shot then uses a guess).
+function M.driverEye(veh)
+  local ok, p = pcall(function()
+    local node = core_camera.getDriverData(veh)
+    return node and (veh:getPosition() + veh:getNodePosition(node))
+  end)
+  return ok and p and { x = p.x, y = p.y, z = p.z } or nil
+end
+
 local function updateCamera(dt)
   if not cam or not lot or lot.mode ~= 'browse' then return end
   local sp = lot.spots and lot.spots[lot.index or 1]
@@ -169,6 +228,7 @@ local function updateCamera(dt)
     local diag = ok and he and (2 * he:length()) or 5.5
     cam.dist, cam.pitch = lotcam.frame(diag)
     cam.L, cam.W = ok and he and 2 * math.max(he.x, he.y) or 4.5, ok and he and 2 * math.min(he.x, he.y) or 1.9
+    cam.H, cam.eye = ok and he and 2 * he.z or 1.5, veh and M.driverEye(veh)
     cam.yaw = lotcam.choose(t, dir, cam.pitch, cam.dist, wallRay)
     -- another car of the row: the camera glides there along the lot (0.8 s), it does not jump
     if not first and cam.pos and cam.look then
@@ -176,6 +236,8 @@ local function updateCamera(dt)
       cam.glide = { t = 0, fp = { x = fp.x, y = fp.y, z = fp.z }, fl = { x = fl.x, y = fl.y, z = fl.z } }
     end
     cam.idle, cam.chain = 0, nil
+    shutLids()
+    if veh and not latches[veh:getID()] then askLatches(veh) end
   end
   cam.t = (cam.t or 0) + math.min(dt, 0.1)
   local eye = lotcam.pull(t, lotcam.eyeAt(t, dir, cam.yaw + lotcam.sway(cam.t), cam.pitch, cam.dist), wallRay)       -- (never inside a building)
@@ -196,16 +258,25 @@ local function updateCamera(dt)
   local ds = math.min(dt, 0.1)
   cam.idle = (cam.idle or 0) + ds
   local auto = cam.idle > lotcam.IDLE and not cam.glide and not M.NO_SHOTS
-  -- the next shot whose whole drift has a clear view of the car (not through or inside a wall or pillar)
+  -- the next shot, in shuffled order, whose whole drift has a clear view of the car (not through or inside a wall or pillar) and which the car
+  -- can do (the engine shots need a lid we can open)
+  local vid = lot.veh
   local function pick()
-    for _ = 1, #lotcam.BROWSE_SHOTS do
-      cam.shotIdx = (cam.shotIdx or 0) % #lotcam.BROWSE_SHOTS + 1
-      local kind = lotcam.BROWSE_SHOTS[cam.shotIdx]
-      if lotcam.shotClear(kind, t, dir, cam.L or 4.5, cam.W or 1.9, wallRay) then return kind end
-    end
+    cam.bag = cam.bag or { bag = {} }
+    return lotcam.draw(cam.bag, math.random, function(kind)
+      if kind == 'engine' and lidOf(vid) ~= 'front' then return false end
+      if kind == 'engine_rear' and lidOf(vid) ~= 'rear' then return false end
+      return lotcam.shotClear(kind, t, dir, cam.L or 4.5, cam.W or 1.9, wallRay, cam.eye)
+    end)
   end
   local failed, sp2, sl2, e
-  cam.chain, sp2, sl2, e, failed = lotcam.chain(cam.chain, ds, auto, { pos = cam.pos, look = cam.look }, { c = t, f = dir, L = cam.L or 4.5, W = cam.W or 1.9 }, pick)
+  cam.chain, sp2, sl2, e, failed = lotcam.chain(cam.chain, ds, auto, { pos = cam.pos, look = cam.look }, { c = t, f = dir, L = cam.L or 4.5, W = cam.W or 1.9, H = cam.H or 1.5, eye = cam.eye }, pick)
+  -- the lid is open exactly while an engine shot is on or arriving; shut as soon as it is not (also when the player moves the camera)
+  local ch, wantLid = cam.chain, nil
+  if ch and (((ch.phase == 'in' or ch.phase == 'shot') and (ch.kind == 'engine' or ch.kind == 'engine_rear')) or (ch.phase == 'trans' and (ch.nextKind == 'engine' or ch.nextKind == 'engine_rear'))) then
+    wantLid = (ch.phase == 'trans' and ch.nextKind or ch.kind) == 'engine' and 'front' or 'rear'
+  end
+  if wantLid and veh and not hoods[vid] then openLid(veh, wantLid) elseif not wantLid then shutLids() end
   if failed then cam.idle = 0 end             -- (none usable: try again after another idle time)
   local pos, look = cam.pos, cam.look
   if sp2 then pos, look = vec3(sp2.x, sp2.y, sp2.z), vec3(sl2.x, sl2.y, sl2.z) end
@@ -502,8 +573,10 @@ function M.skip() if reveal then reveal.skip = true end end
 -- The lot's display car was spawned without driver props (a lot car has no driver); the car the player owns has them, drawn by the car itself
 -- (carBuilder.PLAYER_DRIVER_PROPS). So the bought car is rebuilt from its record at the same spot: damage captured, the car deleted, a new one
 -- spawned (never respawned in place: heap corruption). Returns the new vehicle's id, or the old one if it could not be done.
-local function withDriverProps(j, veh, car)
+local function withDriverProps(j, veh, car, wait)
   local id, pos, rot = veh:getID(), veh:getPosition(), veh:getRotation()
+  if wait > 0 then j.sleep(wait) end            -- (an open hood is shut and latched first: its latch state is part of the saved damage)
+  hoods[id] = nil
   car.damage = nil
   veh:queueLuaCommand('extensions.load("slrrGarageVeh") if slrrGarageVeh then slrrGarageVeh.capture() end')
   for _ = 1, 40 do                                -- (sl_fleet.onWrenchWorksDamage answers within a few frames)
@@ -523,13 +596,13 @@ local function withDriverProps(j, veh, car)
   return new:getID()
 end
 
-local function getInWhereItStands(veh, car)
+local function getInWhereItStands(veh, car, wait)
   local id = veh:getID()
   veh:queueLuaCommand('controller.setFreeze(0) input.event("parkingbrake", 0, FILTER_DIRECT)')
   reveal = {}
   guihooks.trigger('slLotData', { open = true, mode = 'reveal' })
   core_jobsystem.create(function(j)
-    if car then id = withDriverProps(j, veh, car) end
+    if car then id = withDriverProps(j, veh, car, wait or 0) end
     local v = id and getObjectByID(id)
     local from = cam and cam.shown or (cam and cam.pos and cam.look and { pos = cam.pos, look = cam.look })
     local function put(p, l)
@@ -557,10 +630,11 @@ local function getInWhereItStands(veh, car)
       local cc, ff = { x = c.x, y = c.y, z = c.z }, { x = f.x, y = f.y }
       local pos = { x = from.pos.x, y = from.pos.y, z = from.pos.z }
       local look = { x = from.look.x, y = from.look.y, z = from.look.z }
+      local eye = M.driverEye(v)
       for _, kind in ipairs(lotcam.REVEAL_SHOTS) do
         if reveal.skip then break end
-        if not lotcam.shotClear(kind, cc, ff, L, W, wallRay) then goto next end      -- (a shot through or inside a pillar is left out)
-        run(CUT_TIME, function(t) local p, l = lotcam.shot(kind, cc, ff, L, W, t / CUT_TIME); pos, look = p, l; put(p, l) end)      -- (a cut to each: no move in between)
+        if not lotcam.shotClear(kind, cc, ff, L, W, wallRay, eye) then goto next end      -- (a shot through or inside a pillar is left out)
+        run(CUT_TIME, function(t) local p, l = lotcam.shot(kind, cc, ff, L, W, t / CUT_TIME, eye); pos, look = p, l; put(p, l) end)      -- (a cut to each: no move in between)
         ::next::
       end
       reveal.skip = false
@@ -599,11 +673,13 @@ function M.buy()
   local veh = getObjectByID(lot.veh)
   if lot.private and sl_classifieds and sl_classifieds.onPrivateSold then sl_classifieds.onPrivateSold(lot.private, car and car.id) end
   lot.soldVeh = lot.veh
+  shutLids()
+  local wait = lidWait(lot.soldVeh)
   dropCars()                                    -- the rest of the row goes away; the camera stays and glides to the car (no cut)
   lightsOff()
   lot = nil
   send()
-  if veh then getInWhereItStands(veh, car) else cameraOff() end
+  if veh then getInWhereItStands(veh, car, wait) else cameraOff() end
   local broken = #(offer.faults or {}) > 0
   sl_career.sendText('benny', broken and string.format(strings.t('lot.you_bought_the_s_it'), offer.name, table.concat(offer.faults, ', '))
     or string.format(strings.t('lot.nice_the_s_bring_it'), offer.name), 4)
@@ -611,6 +687,8 @@ function M.buy()
 end
 
 function M.testDrive()
+  shutLids()
+  hoods = {}                       -- (the car is driven now: it must not be frozen again when the countdown ends)
   local s = career()
   if not s or not lot or lot.mode ~= 'browse' or not lot.veh or lot.kind == 'scrap' then return end
   local veh = getObjectByID(lot.veh)
@@ -874,6 +952,7 @@ end
 local sendTimer = 0
 function M.onUpdate(dtReal)
   update(dtReal)
+  tickLids(dtReal)
   local cs = career()
   if cs then deliverOrders(cs) end
   if lot and lot.building and lot.buildAlive and os.clock() - lot.buildAlive > BUILD_STUCK then
