@@ -367,6 +367,7 @@
       return '<div class="slp-wall"></div><div class="slp-home">' +
         '<div class="slp-clock">' + two(d.hour || 0) + ':' + two(d.minute || 0) + '</div>' +
         '<div class="slp-date">Day ' + (d.day || 1) + ' &middot; ' + esc(d.mapName || 'Valo City') + (d.night ? ' &middot; night' : '') + '</div>' +
+        (d.weather ? '<div class="slp-date" style="opacity:.85">' + (d.weather.wet ? '&#127783; ' : '') + esc(d.weather.text) + '</div>' : '') +
         '<div><span class="slp-chip">' + esc(d.title || '') + ' &middot; ' + (d.rep || 0) + ' rep &middot; ' + money(d.money) + '</span></div>' +
         tut + '<div class="slp-grid">' + appsHtml([
           { id: 'races', title: 'Races', icon: I.flag, badge: arranged || 0 },

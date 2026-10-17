@@ -126,6 +126,10 @@ assert.ok(!$('.slp-device.slp-away'), 'K takes it out');
 assert.ok(calls.includes('request()'), 'opening asks for fresh data');
 assert.ok(text().includes('21:05') && text().includes('Day 2'), 'clock and day on the home screen');
 assert.ok(text().includes('Wait'), 'the Wait app is on the home screen');
+phone.handle('slPhoneData', Object.assign({}, data, { weather: { state: 'rain', name: 'Rain', wet: true, text: 'Rain tonight. Wet roads, less grip, jobs and races pay a little more. Clear by day.' } }));
+assert.ok(text().includes('Rain tonight') && text().includes('Wet roads'), 'the forecast line on the home screen');
+phone.handle('slPhoneData', data);
+
 calls.length = 0;
 phone.act('open', 'wait');
 assert.ok(text().includes('Start the night') && text().includes('Six hours') && !text().includes('next morning'), 'the Wait page offers to start the night and a few hours');

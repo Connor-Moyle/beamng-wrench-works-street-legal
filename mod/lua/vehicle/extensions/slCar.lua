@@ -227,7 +227,29 @@ function M.updateGFX(dt)
   if reportTimer > 2 then reportTimer = 0 M.report() end
 end
 
+-- the weather's grip (#45): the tyres' friction, scaled on the tread nodes (a wet road). Reapplied after a reset, which restores the jbeam's values.
+local gripFactor = 1
+local function applyGrip()
+  for _, wheel in pairs(wheels and wheels.wheels or {}) do
+    if wheel.treadNodes and not wheel.isTireDeflated then
+      for _, cid in pairs(wheel.treadNodes) do
+        local n = v.data.nodes[cid]
+        local fc = n and n.frictionCoef
+        if fc then obj:setNodeFrictionSlidingCoefs(cid, fc * gripFactor, (n.slidingFrictionCoef or fc) * gripFactor) end
+      end
+    end
+  end
+end
+
+function M.setGrip(f)
+  f = math.max(0.3, math.min(1.2, tonumber(f) or 1))
+  if math.abs(f - gripFactor) < 1e-3 then return end
+  gripFactor = f
+  applyGrip()
+end
+
 function M.onReset()
+  if gripFactor ~= 1 then applyGrip() end
   findFluids()
   lastPos = nil
   applyFactor()

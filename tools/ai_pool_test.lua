@@ -302,4 +302,27 @@ return function(check, rngLib)
   check('main strips: half-width 3 m or more', NL.mainStrip(3) and NL.mainStrip(4.5) and not NL.mainStrip(2) and not NL.mainStrip(nil))
   check('beside: nearly stopped for a moment, the racer alongside at 2-8 m; not ahead, not too far, not moving, not just stopped', NL.besideStopped({ x = 4, y = 0 }, { x = 0, y = 1 }, 0.5, 2) and NL.besideStopped({ x = -3, y = 2 }, { x = 0, y = 1 }, 1, 1.5)
     and not NL.besideStopped({ x = 0, y = 12 }, { x = 0, y = 1 }, 0, 3) and not NL.besideStopped({ x = 12, y = 0 }, { x = 0, y = 1 }, 0, 3) and not NL.besideStopped({ x = 4, y = 0 }, { x = 0, y = 1 }, 6, 3) and not NL.besideStopped({ x = 4, y = 0 }, { x = 0, y = 1 }, 0, 0.3))
+
+  -- #45: the weather
+  local WX = require('sl/core/weather')
+  local counts = { day = {}, night = {} }
+  for d = 1, 400 do
+    for _, ph in ipairs({ 'day', 'night' }) do
+      local id = WX.forecast(77, d, ph)
+      counts[ph][id] = (counts[ph][id] or 0) + 1
+      assert(WX.forecast(77, d, ph) == id, 'the same every time')
+    end
+  end
+  check('weather: by day clear, cloudy and rain (no fog), at night fog too; rain about a fifth of the time', (counts.day.clear or 0) > 150 and (counts.day.rain or 0) > 50 and (counts.day.rain or 0) < 120 and counts.day.fog == nil
+    and (counts.night.fog or 0) > 40 and (counts.night.fog or 0) < 110)
+  check('weather: another career has another sky; the forecast is the same when asked twice', WX.forecast(1, 5, 'day') == WX.forecast(1, 5, 'day'))
+  check('weather: rain is wet (less grip), pays more, fog a little less grip; clear is plain', WX.grip('rain') < 0.85 and WX.pay('rain') > 1 and WX.grip('fog') < 1 and WX.pay('clear') == 1 and WX.grip('nonsense') == 1 and WX.pay(nil) == 1)
+  local a, b = WX.after('day', 4)
+  local c, d2 = WX.after('night', 4)
+  check('weather: the night follows the day, the next day follows the night', a == 'night' and b == 4 and c == 'day' and d2 == 5)
+  check('weather: the forecast line says now, the wet and what is next', WX.text('night', 'rain', 'clear'):find('Rain tonight') ~= nil and WX.text('night', 'rain', 'clear'):find('Wet roads') ~= nil and WX.text('day', 'clear', 'fog'):find('Fog banks tonight') ~= nil
+    and WX.text('night', 'fog', nil):find('Visibility') ~= nil)
+  check('weather: earned money in the rain is 8 percent more, rounded to ten', WX.earned(1000, 'rain') == 1080 and WX.earned(1000, 'clear') == 1000 and WX.earned(55, 'rain') == 60)
+  local mid = WX.blend(WX.STATES.clear, WX.STATES.rain, 0.5)
+  check('weather: the sky blends between states', mid.drops == 175 and math.abs(mid.grip - 0.89) < 1e-9 and WX.blend(WX.STATES.clear, WX.STATES.rain, 2).drops == 350 and WX.blend(WX.STATES.clear, WX.STATES.rain, -1).drops == 0)
 end

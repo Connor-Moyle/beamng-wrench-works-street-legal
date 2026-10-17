@@ -320,6 +320,7 @@ end
 -- sales, refunds or bets, which stay as they are)
 function M.payOut(amount, label)
   local k = sl_options and sl_options.get('slEconomy') or 1
+  k = k * (sl_weather and sl_weather.bonus and sl_weather.bonus() or 1)        -- a little more in the wet (#45)
   return wallet.add(math.floor((amount or 0) * k / 10 + 0.5) * 10, label)
 end
 
