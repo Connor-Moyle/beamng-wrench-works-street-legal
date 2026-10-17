@@ -98,11 +98,32 @@ local function waitData(job, id, seconds)
   return false
 end
 
+-- Spawn cost (A12): the first spawn of a model parses every jbeam file of its folder (the game's jbeam/io keeps them in a cache after that), which is a large
+-- part of the freeze inside spawnNewVehicle. preloadModel fills that cache for a model ahead of time (without making a car), at a moment of our choosing.
+-- Returns the milliseconds it took, and whether the model was in the cache already (nothing to parse).
+local seenModels = {}
+function M.preloadModel(model)
+  if type(model) ~= 'string' or model == '' or seenModels[model] or (M.preloaded and M.preloaded[model]) then return 0, true end
+  local ok, io = pcall(require, 'jbeam/io')
+  if not ok or not io or not io.startLoading then return 0, false end
+  local t0 = os.clock()
+  local done = pcall(io.startLoading, { '/vehicles/' .. model .. '/', '/vehicles/common/' })
+  local stats = io.getLastStartLoadingStats and io.getLastStartLoadingStats() or {}
+  if io.finishLoading then pcall(io.finishLoading) end
+  local ms = (os.clock() - t0) * 1000
+  log('I', 'street_legal', string.format('preload %s: %.0f ms (jbeam files %s, already cached %s)', model, ms, tostring(stats.total), tostring(stats.cachedHits)))
+  M.preloaded = M.preloaded or {}
+  M.preloaded[model] = ms
+  return ms, (stats.cachedHits or 0) >= (stats.total or 1) and (stats.total or 0) > 0
+end
+
 -- a vehicle spawned, not driven by the player. config: a .pc path or a config table. nobodyDrives: a lot's display car
 -- or one of the player's own (the player's driver is a full one): Drivers & Pedestrians gives it no driver props
 function M.spawn(job, model, config, pos, rot, nobodyDrives)
   if nobodyDrives and slrrDriverMount and slrrDriverMount.noPropsNext then slrrDriverMount.noPropsNext() end
   local t0 = os.clock()
+  local firstOfModel = not seenModels[model]
+  seenModels[model] = true
   local ok, veh = pcall(core_vehicles.spawnNewVehicle, model, {
     config = config, pos = pos, rot = rot, autoEnterVehicle = false, canSpawnAnotherVehicleCheck = false,
   })
@@ -117,7 +138,10 @@ function M.spawn(job, model, config, pos, rot, nobodyDrives)
   job.sleep(0.2)
   -- A12: what a spawn costs. callMs is the game standing still inside spawnNewVehicle (the lag the player feels); the rest is waiting between frames
   M.lastSpawn = { model = model, callMs = callMs, totalMs = (os.clock() - t0) * 1000 }
-  log('I', 'street_legal', string.format('spawn %s: %.0f ms inside the game call, %.0f ms until built', tostring(model), callMs, M.lastSpawn.totalMs))
+  M.lastSpawn.first = firstOfModel
+  local stats = require('jbeam/io').getLastStartLoadingStats and require('jbeam/io').getLastStartLoadingStats() or {}
+  log('I', 'street_legal', string.format('spawn %s: %.0f ms inside the game call, %.0f ms until built (%s; jbeam files %s, from the cache %s)', tostring(model), callMs, M.lastSpawn.totalMs,
+    firstOfModel and 'first of its model this session' or 'model seen before', tostring(stats.total), tostring(stats.cachedHits)))
   return getObjectByID(id)
 end
 

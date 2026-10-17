@@ -1133,7 +1133,41 @@ function M.onUpdate(dtReal)
   drawLabels(s)
 end
 
+-- A12: the racers' car models are read into the game's jbeam cache a few at a time while the player drives slowly or stands, so that the first time a racer
+-- is built its freeze is shorter. One model at a time, after a quiet moment; M.PRELOAD = false turns it off.
+M.PRELOAD = true
+local preloading
+local function startPreload(s)
+  if preloading or not M.PRELOAD then return end
+  local models, seen = {}, {}
+  for _, r in ipairs(s.racers or {}) do
+    local c = racerCar(s, r)
+    if c and c.model and not seen[c.model] then seen[c.model] = true models[#models + 1] = c.model end
+  end
+  racelog.add('spawn', 'preload plan', { models = #models })
+  preloading = core_jobsystem.create(function(job)
+    job.sleep(25)
+    for _, model in ipairs(models) do
+      local waited = 0
+      while career() and waited < 180 do
+        local v = getPlayerVehicle(0)
+        local speed = v and v:getVelocity():length() or 0
+        if not busy and not race and speed < 10 then break end
+        job.sleep(1)
+        waited = waited + 1
+      end
+      if not career() then break end
+      local ms, cached = builder.preloadModel(model)
+      if ms > 0 then racelog.add('spawn', 'preloaded', { model = model, ms = ms }) end
+      job.sleep(cached and 0.2 or 3)          -- (a model that took time is followed by a pause: the frames come back)
+    end
+    preloading = nil
+  end)
+end
+function M.onStreetLegalStarted() local s = career() if s then startPreload(s) end end
+
 function M.onStreetLegalStopped()
+  preloading = nil
   for _, vid in pairs(cruisers) do despawn(vid) end
   cruisers = {}
   pulling = nil
