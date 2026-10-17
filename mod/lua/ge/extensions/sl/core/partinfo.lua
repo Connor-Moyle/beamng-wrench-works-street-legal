@@ -51,12 +51,13 @@ function M.displayName(name, partId, model)
 end
 
 -- The part's own picture (T41: tools/part_shots in the Wrench Works repo renders one for every stock part and the mod ships them in
--- art/street_legal/parts with a manifest). pictures = the set of file names the manifest lists (partPictures); nil or a part without one: no picture.
+-- art/street_legal/parts with a manifest). pictures = { fileName = true | the picture's fileName } from the manifest (parts, alias); nil or a part without one: no picture.
 M.PICTURE_DIR = '/art/street_legal/parts/'
 function M.fileName(partName) return (tostring(partName or ''):gsub('[^%w_%-]', '_')) end
 function M.picture(partName, pictures)
   local f = M.fileName(partName)
-  if pictures and pictures[f] then return M.PICTURE_DIR .. f .. '.png' end
+  local v = pictures and pictures[f]
+  if v then return M.PICTURE_DIR .. (type(v) == 'string' and v or f) .. '.png' end      -- (a string: the picture of a part drawn with the same meshes)
 end
 
 -- item = { part, name, slotId, model }; catalog = { classify = function(slotId, partName, desc) -> section, sub, sections = { { id, title, subs = { { id, title } } } } }

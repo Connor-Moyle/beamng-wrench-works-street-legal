@@ -65,6 +65,7 @@ local function pictures()
     if ok and type(j) == 'table' and type(j.parts) == 'table' then
       picturesCache = {}
       for _, name in ipairs(j.parts) do picturesCache[name] = true end
+      for part, canon in pairs(type(j.alias) == 'table' and j.alias or {}) do if type(canon) == 'string' then picturesCache[part] = canon end end
     end
   end
   return picturesCache or nil
