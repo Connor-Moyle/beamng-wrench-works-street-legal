@@ -29,6 +29,14 @@ hud.handle('slHud', Object.assign({}, frame, { phase: 'night', heat: 3 }));
 assert.ok(!gone('.slh-status') && hud.root.querySelector('.slh-status').textContent.includes('Night') && hud.root.querySelectorAll('.slh-heat i').length === 2, 'night, heat 3: three of five lit');
 hud.handle('slHud', Object.assign({}, frame, { phase: 'day', heat: 0 }));
 assert.ok(hud.root.querySelector('.slh-status').textContent.includes('Day') && !hud.root.querySelector('.slh-heat'), 'day without heat: no heat meter');
+// #49 the performance box: shown by the slPerf event, whatever the HUD does, hidden when it says so
+const perfGone = () => hud.root.ownerDocument.querySelector('.slh-perf').classList.contains('slh-gone');
+assert.ok(perfGone(), 'off by default');
+hud.handle('slPerf', { show: true, lines: ['16.7 ms  60 fps', 'worst 40 ms (10 s)'] });
+assert.ok(!perfGone() && hud.root.ownerDocument.querySelector('.slh-perf').textContent.includes('worst 40 ms'), 'the numbers show');
+hud.handle('slPerf', { show: false });
+assert.ok(perfGone(), 'and go');
+
 hud.handle('slHud', { show: false });
 assert.ok(hud.root.classList.contains('slh-gone'), 'hidden on foot, in the garage and so on');
 

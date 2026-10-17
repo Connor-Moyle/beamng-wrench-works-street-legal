@@ -32,6 +32,8 @@ M.defs = {
     desc = 'How fast the in-game clock runs inside the day or the night. It stops at the end of each; Start the night / Start the day moves on.' },
   { key = 'slDashboard', title = 'SLRR dashboard', type = 'bool', default = false,
     desc = 'The SLRR gauges, map and damage diagram instead of the HUD apps of BeamNG itself while you drive the career. Off: the stock BeamNG layout (speedo, rev counter, minimap, damage...) as you have set it up.' },
+  { key = 'slPerf', title = 'Performance overlay', type = 'bool', default = false,
+    desc = 'A small box top-left with the frame time, fps, the worst frame of the last 10 seconds, video memory and how many cars, people and objects are about. For reporting stutters. Also a key (Options, Controls: Street Legal: performance overlay).' },
   { key = 'slWallpaper', title = 'Laptop wallpaper', type = 'choice', default = 'windows',
     options = { { id = 'windows', label = 'My Windows wallpaper' }, { id = 'builtin', label = 'Built-in' } },
     desc = 'The laptop\'s desktop. Your own wallpaper is used after tools/wallpaper.ps1 (Wrench Works: Street Legal) has copied it into the game\'s user folder; without that, the built-in one.' },

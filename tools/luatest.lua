@@ -1086,6 +1086,20 @@ do
   check('districts take the name of the nearest place; a second one with the same area is numbered; with no places the old names stay', ds[1].name == 'Belasco City' and ds[2].name == 'Alder Dragway' and ds[3].name == 'Alder Dragway 2' and crewsCore.nameByPlaces({ { id = 'x', name = 'Southside', centre = { x = 1, y = 1 } } }, {})[1].name == 'Southside')
   check('West Coast USA hosts crews', progression.has('west_coast_usa', 'crews'))
 
+  -- #49 the performance overlay's numbers
+  local perfLib = require('sl/core/perf')
+  local ps = perfLib.new()
+  for _ = 1, 59 do perfLib.add(ps, 1 / 60) end
+  perfLib.add(ps, 0.05)
+  local pr = perfLib.read(ps)
+  check('perf: the average over the last second, the fps it makes and the worst frame', math.abs(pr.ms - 17.4) < 0.5 and math.abs(pr.fps - 57.5) < 1.5 and math.abs(pr.worstMs - 50) < 0.01)
+  for _ = 1, 700 do perfLib.add(ps, 1 / 60) end
+  check('and the worst frame is forgotten after 10 seconds', perfLib.read(ps).worstMs < 20 and #ps.frames <= 620)
+  check('bad frames (zero, huge, text) are ignored', (function() local q = perfLib.new() perfLib.add(q, 0) perfLib.add(q, 99) perfLib.add(q, 'x') return #q.frames == 0 and perfLib.read(q).fps == 0 end)())
+  check('vram: a number, used / total, used alone, nothing', perfLib.vramText(2048) == '2048 MB' and perfLib.vramText({ used = 3000, total = 8000 }) == '3000 / 8000 MB' and perfLib.vramText({ usedMB = 512 }) == '512 MB' and perfLib.vramText({ foo = 1 }) == nil and perfLib.vramText(nil) == nil)
+  local pl = perfLib.lines({ ms = 16.7, fps = 59.9, worstMs = 41 }, { traffic = 12, others = 3, peds = 20, statics = 5000 }, '3000 / 8000 MB')
+  check('the overlay lines: frame, worst, VRAM, cars, people', #pl == 5 and pl[1] == '16.7 ms  60 fps' and pl[2] == 'worst 41 ms (10 s)' and pl[3] == 'VRAM 3000 / 8000 MB' and pl[4] == 'cars: 12 traffic, 3 other' and pl[5] == 'people 20, objects 5000' and #perfLib.lines({}, {}, nil) == 4)
+
   -- the sun, for a sky without core_celestial
   local sun = require('sl/core/sun')
   local function el(lat, lon, utc, m, d, h) return (sun.position(lat, lon, utc, m, d, h, 2026)) end

@@ -17,6 +17,7 @@
     '.slh-left canvas.slh-map{width:200px;height:200px}',
     '.slh-left canvas.slh-dmg{width:86px;height:150px}',
     '.slh-status{position:absolute;left:50%;top:1.4vh;transform:translateX(-50%);padding:5px 16px;border-radius:16px;background:rgba(20,18,24,.72);color:#eee;font-size:15px;display:flex;gap:12px;align-items:center}',
+    '.slh-perf{position:fixed;left:8px;top:8px;z-index:60;padding:6px 10px;border-radius:6px;background:rgba(0,0,0,.6);color:#e8e8e8;font:12px/1.35 Consolas,monospace;pointer-events:none;white-space:pre}',
     '.slh-heat{color:#ff4a2a;letter-spacing:2px}.slh-heat i{font-style:normal;color:#55505a}',
   ].join('\n');
 
@@ -54,6 +55,8 @@
     gearC.classList.add('slh-gone');
     left.appendChild(mapC); left.appendChild(dmgC);
     dials.appendChild(tachoC); dials.appendChild(gearC); dials.appendChild(speedoC);
+    var perf = doc.createElement('div'); perf.className = 'slh-perf slh-gone';          // #49 the performance box: outside the HUD, which hides on foot
+    doc.body.appendChild(perf);
     var status = doc.createElement('div'); status.className = 'slh-status slh-gone';       // D4: day or night, and the heat
     root.appendChild(left); root.appendChild(dials); root.appendChild(status);
     doc.body.appendChild(root);
@@ -289,6 +292,11 @@
       data = data || {};
       if (name === 'slHudSettings') { for (var k in data) settings[k] = data[k]; return; }
       if (name === 'slHudMap') { setRoads(data); return; }
+      if (name === 'slPerf') {
+        if (!data.show || !Array.isArray(data.lines)) perf.classList.add('slh-gone');
+        else { perf.textContent = data.lines.join(String.fromCharCode(10)); perf.classList.remove('slh-gone'); }
+        return;
+      }
       if (name !== 'slHud') return;
       if (!data.show) { root.classList.add('slh-gone'); return; }
       if (data.settings) for (var k2 in data.settings) settings[k2] = data.settings[k2];
@@ -339,7 +347,7 @@
       var img = function (name) { var i = new Image(); i.src = base + name; return i; };
       var hud = createHud(document, { gauge: img('general_gauge.png'), osd: img('osd.png') });
       window.__slHud = hud;
-      ['slHud', 'slHudMap', 'slHudSettings'].forEach(function (name) {
+      ['slHud', 'slHudMap', 'slHudSettings', 'slPerf'].forEach(function (name) {
         $rootScope.$on(name, function (ev, data) { hud.handle(name, data); });
       });
       if (window.bngApi) window.bngApi.engineLua('if sl_hud then sl_hud.request() end');

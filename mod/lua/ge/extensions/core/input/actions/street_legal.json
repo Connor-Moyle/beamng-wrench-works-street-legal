@@ -1,3 +1,4 @@
 {
-"slPhone" :{"cat":"gameplay", "order": 92, "ctx": "tlua", "onDown": "if sl_phone then sl_phone.toggle() end", "title": "Wrench Works: Street Legal: phone", "desc": "Takes the phone out of your pocket, or puts it away." }
+"slPhone" :{"cat":"gameplay", "order": 92, "ctx": "tlua", "onDown": "if sl_phone then sl_phone.toggle() end", "title": "Wrench Works: Street Legal: phone", "desc": "Takes the phone out of your pocket, or puts it away." },
+"slPerf" :{"cat":"gameplay", "order": 93, "ctx": "tlua", "onDown": "if sl_perf then sl_perf.toggle() end", "title": "Wrench Works: Street Legal: performance overlay", "desc": "Shows or hides the small frame time, fps and counts box top-left." }
 }
