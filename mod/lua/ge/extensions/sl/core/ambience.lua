@@ -7,6 +7,13 @@ local M = {}
 M.RANGE = { harbour = 160, freeway = 130, crowd = 90, music = 110 }
 M.BASE = { harbour = 0.55, freeway = 0.45, crowd = 0.5, music = 0.7 }
 M.FILES = { harbour = 'harbour.wav', freeway = 'freeway.wav', crowd = 'crowd.wav' }
+-- the game's own FMOD ambience events to try for each kind, best first (the game's banks cannot be listed offline: sl_ambience.probe() logs which of
+-- these make a source in the running game; sl_ambience.USE_STOCK stays off until one is confirmed to be heard)
+M.STOCK = {
+  harbour = { 'event:>Ambient>Water>Waves_Shore', 'event:>Ambient>Water>Harbor' },
+  freeway = { 'event:>Ambient>Traffic>Highway', 'event:>Ambient>Traffic>Traffic_Loop' },
+  crowd = { 'event:>Ambient>Crowds>Crowd_Murmur', 'event:>Ambient>Urban>City' },
+}
 M.WIDE_ROAD = 5            -- road node half-width (m) of a freeway-sized road
 M.CROWD_MIN = 2            -- places within CROWD_R of each other that make a crowd
 M.CROWD_R = 60

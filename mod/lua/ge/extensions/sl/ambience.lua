@@ -17,6 +17,8 @@ local nodeCache
 local tracks, trackAt = nil, 0
 local waterZ
 local volumeScale = 1
+M.USE_STOCK = false          -- stock game events instead of the synthesised loops, once sl_ambience.probe() shows them to exist
+local stockOk = {}           -- kind -> the stock event that made a source (or false)
 
 local function career() return sl_career and sl_career.isActive() and sl_career.getState() or nil end
 local function source(e) return e and e.sid and scenetree.findObjectById(e.sid) or nil end
@@ -83,7 +85,18 @@ local function ensure(em)
   if not e then
     local file = em.file and (DIR .. em.file) or musicFile()
     if not file then return end
-    local sid = Engine.Audio.createSource(PLACED, file)
+    local sid
+    if M.USE_STOCK and em.file then
+      if stockOk[em.kind] == nil then
+        stockOk[em.kind] = false
+        for _, ev in ipairs(rules.STOCK[em.kind] or {}) do
+          local id = Engine.Audio.createSource(PLACED, ev)
+          if type(id) == 'number' and id ~= 0 and scenetree.findObjectById(id) then stockOk[em.kind] = ev Engine.Audio.deleteSource(id) break end
+        end
+      end
+      if stockOk[em.kind] then file = stockOk[em.kind] end
+    end
+    sid = Engine.Audio.createSource(PLACED, file)
     if type(sid) ~= 'number' or sid == 0 or not scenetree.findObjectById(sid) then return end
     e = { sid = sid, file = file }
     sources[em.id] = e
@@ -104,6 +117,21 @@ local function ensure(em)
   end
 end
 
+-- which stock events the running game accepts: one log line per candidate (read the game log for 'sl_ambience probe')
+function M.probe()
+  local out = {}
+  for kind, list in pairs(rules.STOCK) do
+    for _, ev in ipairs(list) do
+      local ok, id = pcall(Engine.Audio.createSource, PLACED, ev)
+      local valid = ok and type(id) == 'number' and id ~= 0 and scenetree.findObjectById(id) ~= nil
+      if valid then pcall(Engine.Audio.deleteSource, id) end
+      out[#out + 1] = kind .. ' ' .. ev .. ' -> ' .. (valid and 'source made' or 'refused')
+      log('I', 'street_legal', 'sl_ambience probe: ' .. out[#out])
+    end
+  end
+  return out
+end
+
 function M.setVolume(v) volumeScale = math.max(0, math.min(1, tonumber(v) or 1)) end
 
 function M.onUpdate(dtReal)
@@ -117,7 +145,7 @@ function M.onUpdate(dtReal)
   if timer > 0 then return end
   timer = 1.5
   -- in a garage, a menu or a cab: the world is not heard
-  local silent = (slrr_garage and slrr_garage.getPhase and slrr_garage.getPhase() ~= 'idle') or (simTimeAuthority and simTimeAuthority.getPause and simTimeAuthority.getPause())
+  local silent = (slrr_garage and slrr_garage.getPhase and slrr_garage.getPhase() ~= 'idle') or (simTimeAuthority and simTimeAuthority.getPause and simTimeAuthority.getPause()) or (sl_lot and sl_lot.uiHidden and sl_lot.uiHidden())
   local ctx = not silent and context() or nil
   local plan = ctx and rules.plan(ctx) or {}
   local wanted = {}
@@ -131,7 +159,7 @@ function M.status()
   return out
 end
 
-function M.onStreetLegalStopped() dropAll() nodeCache, waterZ = nil, nil end
+function M.onStreetLegalStopped() dropAll() nodeCache, waterZ, stockOk = nil, nil, {} end
 function M.onClientEndMission() dropAll() nodeCache, waterZ = nil, nil tracks = nil end
 function M.onExtensionUnloaded() dropAll() end
 

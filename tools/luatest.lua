@@ -1734,4 +1734,13 @@ do
   check('ambience: the meet music plays from the speaker car', music and music.pos.x == 5)
 end
 
+do
+  local amb = require('sl/core/ambience')
+  local all = true
+  for _, kind in ipairs({ 'harbour', 'freeway', 'crowd' }) do
+    all = all and type(amb.STOCK[kind]) == 'table' and #amb.STOCK[kind] > 0 and amb.FILES[kind] ~= nil
+  end
+  check('ambience: every synthesised kind has stock event candidates to try', all)
+end
+
 print(string.format('lua tests passed: %d checks', passed))
