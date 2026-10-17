@@ -11,6 +11,7 @@ M.MIN_SECONDS = 120
 M.MIN_METRES = 400
 M.PAY_PER_KM = 140
 M.MIN_PAY = 120
+M.DAY_PAY = 1.35        -- every day job's pay (not the night ones) x this when the board is made (economy balance, tools/economy_sim.py)
 M.FRAGILE_BONUS = 1.5
 M.PART_ITEMS = { 'turbocharger', 'gearbox', strings.t('jobs.set_of_wheels'), strings.t('jobs.exhaust_manifold'), 'radiator', 'bonnet', strings.t('jobs.set_of_coilovers'), 'ECU' }
 M.PARCELS = { 'parcel', strings.t('jobs.box_of_spark_plugs'), 'envelope', strings.t('jobs.case_of_oil'), strings.t('jobs.tool_box'), strings.t('jobs.crate_of_brake_pads') }

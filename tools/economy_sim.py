@@ -11,9 +11,10 @@ minute of every job and activity (to spot exploits), and how police fines land.
 Assumptions (check in game): real minutes per in-game day (DAY_MIN), drive speed in town, and how
 often the player wins against each tier with a car of a given class.
 """
-import math, random, sys, statistics
+import math, os, random, sys, statistics
 
 PLAYERS, HOURS = 45, 12   # simulated players, hours of play each
+DAY_PAY = float(os.environ.get('DAY_PAY', '1.35'))     # = core/jobs.lua DAY_PAY
 BOOST = '--noboost' not in sys.argv     # the early-game boost in sl_jobs
 DAY_MIN = 30.0            # real minutes per in-game day (BeamNG's TimeOfDay dayLength; verify in game)
 NIGHT = (20, 5)           # night hours, as progression.isNight
@@ -188,11 +189,12 @@ class Player:
         night = is_night(self.hour())
         options = [j for j in JOBS if self.rep >= j[1] and (not j[2] or night)]
         if not options: return False
-        name, _, _, pay_fn, min_fn, _ = self.r.choice(options)
+        name, _, night_only, pay_fn, min_fn, _ = self.r.choice(options)
         rep = TUNE['job_rep']
         pay, fail = pay_fn(self.r)
         minutes = min_fn(self.r)
         if self.r.random() < fail: pay = 0
+        if not night_only: pay = round(pay * DAY_PAY, -1)     # sl_jobs.refresh: every day job's pay x jobsLib.DAY_PAY
         if pay and BOOST:                   # sl_jobs: "new in town" and the first-time bonus
             n = self.kind_done[name] = self.kind_done.get(name, 0) + 1
             mult = 1 if self.upgraded else 1 + max(0, 1 - self.rep / 150)

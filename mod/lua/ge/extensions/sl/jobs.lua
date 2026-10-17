@@ -267,6 +267,7 @@ local function refresh(s, force)
     local ok, j = pcall(t.offer, ctx, rng)
     if ok and j and j.legs and #j.legs >= 2 then
       j.id, j.kind, j.title = key .. ':' .. i, t.kind, t.title
+      if not t.night and j.pay then j.pay = math.floor(j.pay * jobsLib.DAY_PAY / 10 + 0.5) * 10 end
       js.offers[#js.offers + 1] = j
     end
   end
