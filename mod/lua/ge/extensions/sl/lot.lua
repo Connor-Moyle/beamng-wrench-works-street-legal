@@ -276,6 +276,7 @@ local gameAudio = {
   set = function(ch, v) Engine.Audio.setChannelVolume(ch, v, true) end,
 }
 local function muteCars()
+  if M.NO_MUTE then return end
   if audioMuted or not (Engine and Engine.Audio) then return end
   audioMuted = true
   lotaudio.mute(gameAudio)
@@ -312,9 +313,9 @@ local function buildRow()
       local veh, _, dents = builder.buildOffer(j, offer, spot.pos + vec3(0, 0, 0.4), quatFromDir(spot.dir, vec3(0, 0, 1)), { deferDents = true })
       if not alive() then if veh then veh:delete() end buildingNow = nil unmuteCars() return end
       if veh then
-        if slrrDrivers and slrrDrivers.setDriver then slrrDrivers.setDriver(veh:getID(), nil) end   -- a car for sale: nobody in it
+        if not M.NO_DRIVER_CALL and slrrDrivers and slrrDrivers.setDriver then slrrDrivers.setDriver(veh:getID(), nil) end   -- a car for sale: nobody in it
         mine.cars[i] = veh:getID()
-        if dents and #dents > 0 then pending[i] = dents end
+        if dents and #dents > 0 and not M.NO_DENTS then pending[i] = dents end
       else
         log('W', 'street_legal', 'lot car ' .. tostring(offer.id) .. ' could not be built: left out of the row')
       end
@@ -360,6 +361,9 @@ end
 
 M.NO_LIGHTS = false     -- true: no lights over the row (to find out whether they crash the game: T29)
 M.NO_CAMERA = false     -- true: the lot does not move the camera
+M.NO_DENTS = false      -- true: the cars of a lot are not dented (bisecting the 0x140386 crash)
+M.NO_MUTE = false       -- true: the game's sound is not turned down while the row is built
+M.NO_DRIVER_CALL = false -- true: slrrDrivers.setDriver is not called for the lot's cars
 local function lightsOn(row)
   lightsOff()
   if M.NO_LIGHTS then return end

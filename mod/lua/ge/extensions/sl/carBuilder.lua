@@ -113,7 +113,7 @@ function M.spawn(job, model, config, pos, rot, nobodyDrives)
     return nil
   end
   local id = veh:getID()
-  if not waitData(job, id) then return nil end
+  if not waitData(job, id) then log('W', 'street_legal', 'spawn ' .. tostring(model) .. ': the game never reported the car built (15 s): left out') return nil end
   job.sleep(0.2)
   -- A12: what a spawn costs. callMs is the game standing still inside spawnNewVehicle (the lag the player feels); the rest is waiting between frames
   M.lastSpawn = { model = model, callMs = callMs, totalMs = (os.clock() - t0) * 1000 }
@@ -233,6 +233,7 @@ end
 -- ever crashes the game again.
 M.NO_TWEAK_MODELS = {}
 M.REFUSE_DENTS = {}             -- see carsLib.REFUSE_DENTS: panels a car is never dented on
+M.NO_REBUILD = false           -- true: a lot car is spawned stock and never rebuilt (no part removed or swapped): bisecting the 0x140386 crash
 M.NO_DENTS = false              -- true: a car for sale is not dented (to find out whether the dents crash the game: T29)
 M.REFUSE = { 'sparewheel', 'spare_wheel', 'spare' }       -- (pieces of a slot path, slot id or part name that are never taken off or swapped)
 
@@ -289,7 +290,7 @@ function M.buildOffer(job, offer, pos, rot, opts)
       paths(tweak.removed, tostring), paths(tweak.swapped, function(x) return tostring(x.path) .. '=' .. tostring(x.from) .. '>' .. tostring(x.to) end),
       paths(tweak.refused, function(x) return tostring(x.path) .. ':' .. tostring(x.why) end)))
   end
-  if #tweak.removed + #tweak.swapped > 0 then
+  if #tweak.removed + #tweak.swapped > 0 and not M.NO_REBUILD then
     veh = rebuild(job, veh, offer.model, cfg, pos, rot, true)
     if not veh then return nil end
     id = veh:getID()
