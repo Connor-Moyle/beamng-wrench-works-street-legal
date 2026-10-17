@@ -24,7 +24,7 @@ function M.borrow(amount)
   local b = bankState(s)
   if b.loan then return false, 'Pay off the loan you have first.' end
   amount = math.floor((tonumber(amount) or 0) / 100) * 100
-  local limit = bank.loanLimit(s.rep)
+  local limit = bank.loanLimit(s.rep, s.garageLevel, fleetValue(s))
   if amount < 100 or amount > limit then return false, string.format('The bank lends up to $%d.', limit) end
   b.loan = bank.newLoan(amount, s.day)
   sl_career.addMoney(amount, 'Loan')
@@ -77,9 +77,9 @@ function M.onStreetLegalSpent(cost, label)
 end
 
 local function repossess(s, b, day)
+  stateLib.addRep(s, bank.MISS_REP.repossess)
   local car = sl_fleet and sl_fleet.currentCar() or s.cars[1]
   if not car then                              -- (B27: nothing to take: the debt stays, and grows, until there is)
-    stateLib.addRep(s, -20)
     b.loan.nextDue = day + bank.WEEK
     sl_career.sendText('benny', string.format('The bank came for your car and found none. The debt stays: $%d, and they will be back next week.', b.loan.owed), 1)
     return
@@ -109,9 +109,10 @@ function M.onStreetLegalNewDay(day)
         sl_career.addMoney(-paid, 'Loan payment')
         if b.loan.owed <= 0 then b.loan = nil sl_career.sendText('benny', 'The bank says your loan is paid off. Good.', 1) end
       elseif result == 'warning' then
+        stateLib.addRep(s, bank.MISS_REP.warning)
         sl_career.sendText('benny', string.format('The bank wanted $%d this week and you did not have it. They will try again next week.', bank.due(b.loan)), 1)
       elseif result == 'final' then
-        stateLib.addRep(s, -20)
+        stateLib.addRep(s, bank.MISS_REP.final)
         sl_career.sendText('benny', 'Second missed payment. Next week the bank takes your car. Pay something now (phone, Bank).', 1)
       else
         repossess(s, b, day)
@@ -132,7 +133,7 @@ function M.summary()
   local s = career()
   if not s then return nil end
   local b = bankState(s)
-  local out = { limit = bank.loanLimit(s.rep), rate = bank.RATE, premium = bank.premium(fleetValue(s)), deductible = bank.DEDUCTIBLE }
+  local out = { limit = bank.loanLimit(s.rep, s.garageLevel, fleetValue(s)), rate = bank.RATE, premium = bank.premium(fleetValue(s)), deductible = bank.DEDUCTIBLE }
   if b.loan then out.loan = { owed = b.loan.owed, due = bank.due(b.loan), dueIn = b.loan.nextDue - s.day, missed = b.loan.missed } end
   if b.policy and b.policy.active then out.policy = { from = b.policy.from, startsIn = math.max(0, b.policy.from - s.day) } end
   return out

@@ -691,7 +691,12 @@ end
 -- the bank: loans that can't spiral, insurance that can't be gamed
 do
   local bank = require('sl/core/bank')
-  check('loan limits grow with rep, capped', bank.loanLimit(0) == 3000 and bank.loanLimit(1500) == 6000 and bank.loanLimit(1e6) == 20000)
+  check('loan limits grow with rep, capped', bank.loanLimit(0) == 3000 and bank.loanLimit(1500) == 6000 and bank.loanLimit(1e6) == bank.MAX_LOAN and bank.MAX_LOAN == 120000)
+  check('and with the garage you hold and the cars you own', bank.loanLimit(0, 2, 0) == 9000 and bank.loanLimit(0, 3, 0) == 15000 and bank.loanLimit(0, 1, 3000) == 4500
+    and bank.loanLimit(300, 2, 20000) == 19500 and bank.loanLimit(0, 1, 90000) == 48000 and bank.loanLimit(6000, 3, 300000) == bank.MAX_LOAN)
+  check('a beginner is still lent only a little, and always in steps of $500', bank.loanLimit(0, 1, 0) == 3000 and bank.loanLimit(123, 1, 777) % 500 == 0)
+  check('missed payments cost reputation, more each time, and the car last', bank.MISS_REP.warning < 0 and bank.MISS_REP.final < bank.MISS_REP.warning and bank.MISS_REP.repossess < bank.MISS_REP.final)
+  check('a big loan is paid back like a small one: a quarter a week, interest capped', bank.due({ owed = 40000 }) == 10000 and bank.accrue({ borrowed = 40000, owed = 59990 }) == 60000)
   local loan = bank.newLoan(5000, 10)
   for _ = 1, 100 do bank.accrue(loan) end
   check('owed never passes 1.5x', loan.owed == 7500)

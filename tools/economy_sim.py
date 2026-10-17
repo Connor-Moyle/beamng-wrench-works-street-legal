@@ -92,9 +92,9 @@ class Player:
         self.crew = None                    # [tier, wins needed, pay]
         self.loan = None                    # core/bank: [borrowed, owed, nextDue day, missed]
         self.repossessed = 0
-        if style == 'borrower':             # takes the full loan at once (core/bank.loanLimit at 0 rep)
-            self.loan = [3000, 3000, 7, 0]
-            self.money += 3000
+        if style == 'borrower':             # takes the full loan at once (core/bank.loanLimit at 0 rep, the first garage, a $3,000 starter car)
+            self.loan = [4500, 4500, 7, 0]
+            self.money += 4500
 
     def hour(self): return (20.5 + self.t / DAY_MIN * 24) % 24
     def day(self): return int((20.5 / 24 * DAY_MIN + self.t) // DAY_MIN)

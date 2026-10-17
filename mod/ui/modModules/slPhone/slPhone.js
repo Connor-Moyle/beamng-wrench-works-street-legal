@@ -655,9 +655,9 @@
             (bk.loan.missed ? ' &middot; <span class="slp-pink">' + bk.loan.missed + ' missed</span>' : '') + '</p>' +
             '<div class="slp-acts"><div class="slp-btn" data-a="repay" data-v="' + Math.min(bk.loan.owed, st.data.money || 0) + '">Pay ' + money(Math.min(bk.loan.owed, st.data.money || 0)) + '</div></div></div>';
         } else {
-          var half = Math.floor(bk.limit / 200) * 100;
+          var half = Math.floor(bk.limit / 200) * 100, quarter = Math.floor(bk.limit / 400) * 100;
           cards += '<div class="slp-card"><h4>Borrow</h4><p>Up to ' + money(bk.limit) + ' &middot; ' + Math.round(bk.rate * 100) + '% a day &middot; a quarter due each week</p>' +
-            '<div class="slp-acts"><div class="slp-btn slp-tonal" data-a="borrow" data-v="' + half + '">' + money(half) + '</div><div class="slp-btn slp-tonal" data-a="borrow" data-v="' + bk.limit + '">' + money(bk.limit) + '</div></div></div>';
+            '<div class="slp-acts">' + (quarter >= 100 && quarter < half ? '<div class="slp-btn slp-tonal" data-a="borrow" data-v="' + quarter + '">' + money(quarter) + '</div>' : '') + '<div class="slp-btn slp-tonal" data-a="borrow" data-v="' + half + '">' + money(half) + '</div><div class="slp-btn slp-tonal" data-a="borrow" data-v="' + bk.limit + '">' + money(bk.limit) + '</div></div></div>';
         }
         cards += bk.policy ? '<div class="slp-card"><h4>Insured</h4><p>' + (bk.policy.startsIn ? 'Cover starts tomorrow' : 'Covering half of repairs and impound bills over ' + money(bk.deductible)) + '</p>' +
             '<div class="slp-acts"><div class="slp-btn slp-text" data-a="insure" data-v="false">Cancel</div></div></div>'

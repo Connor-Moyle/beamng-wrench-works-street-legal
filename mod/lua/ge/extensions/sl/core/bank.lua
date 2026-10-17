@@ -11,10 +11,20 @@ M.WEEK = 7
 M.DEDUCTIBLE = 200
 M.COVER = 0.5              -- of a claim over the deductible
 
--- how much the bank will lend: about three days of jobs, more with a name, never more than $20,000
-function M.loanLimit(rep)
-  return math.min(20000, math.floor((3000 + (rep or 0) * 2) / 100) * 100)
+M.MAX_LOAN = 120000
+M.GARAGE_STEP = 6000       -- more for each garage above the first
+M.COLLATERAL = 0.5         -- of what the cars you own are worth
+
+-- how much the bank will lend: $3,000 to start (about three days of jobs), more with a name ($2 a point of reputation), with the
+-- garage you hold ($6,000 for each level above the first) and against the cars you own (half their value, which is what it takes back if
+-- you stop paying); in steps of $500, never more than $120,000
+function M.loanLimit(rep, garageLevel, fleetValue)
+  local raw = 3000 + (rep or 0) * 2 + math.max(0, (garageLevel or 1) - 1) * M.GARAGE_STEP + (fleetValue or 0) * M.COLLATERAL
+  return math.min(M.MAX_LOAN, math.floor(raw / 500) * 500)
 end
+
+-- what a missed weekly payment costs in reputation: the first is a warning with a small cost, the second a bigger one, the third the car
+M.MISS_REP = { warning = -10, final = -20, repossess = -50 }
 
 function M.newLoan(amount, day)
   return { borrowed = amount, owed = amount, day = day, nextDue = day + M.WEEK, missed = 0 }
