@@ -477,6 +477,8 @@ end
 function M.update(dt, wet, intensity)
   dt = dt or 0
   intensity = intensity or 0
+  -- dry road, nothing standing, nothing to draw and the car already told so: no player or car calls at all (hitch recordings showed ~8 ms a frame here while cars were being built)
+  if wet < 0.01 and sentEmpty and #puddles == 0 and #trails == 0 and not debugPuddle then return end
   updatePlacement(dt, wet)
   meshTimer = meshTimer + dt
   if meshTimer > 0.25 then
