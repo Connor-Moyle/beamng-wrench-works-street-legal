@@ -382,7 +382,7 @@ end
 -- a private seller's car (the used-car ads, sl_classifieds): offer as the lots make them ({ name, model, config,
 -- condition, faults, mileage, price, value } + listingId), standing on the street by the seller's kerb at pos.
 -- Looked round, test driven and bought as at a lot; a sale calls sl_classifieds.onPrivateSold(listingId, carId)
-function M.privateOffers(seed, count) return market.offers(builder.forSale(), 'used', seed or 1, 0, count or 6) end
+function M.privateOffers(seed, count) return market.offers(builder.forSale(), 'used', seed or 1, 0, count or 6, true) end      -- (no starter car: a seller's ad is not the lot's cheap tired one)
 function M.openPrivate(offer, pos, sellerName)
   if not career() or lot or type(offer) ~= 'table' or not pos then return false end
   pos = vec3(pos.x, pos.y, pos.z or 0)

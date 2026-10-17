@@ -54,7 +54,7 @@ end
 -- cars: { { model, config, name, brand, value, year } } - the stock configurations the game has
 -- kind: 'dealer' | 'used' | 'scrap'    seed: the career's seed; day: the in-game day number
 -- Returns a list of offers.
-function M.offers(cars, kind, seed, day, count)
+function M.offers(cars, kind, seed, day, count, noStarter)
   local rng = rngLib.new(rngLib.hash(kind .. ':' .. tostring(seed) .. ':' .. tostring(day)))
   local pool = {}
   for _, c in ipairs(cars or {}) do
@@ -115,7 +115,7 @@ function M.offers(cars, kind, seed, day, count)
   -- a starter: the used lot always has something a new player's $5,000 buys (the tutorial sends them there for
   -- "something that runs"); the game's own car values start near $10,000, so the cheapest car on the lot is
   -- a tired or damaged one at the starter price when nothing else is that cheap
-  if kind == 'used' and #out > 0 then
+  if kind == 'used' and #out > 0 and not noStarter then
     local cheapest = out[1]
     for _, o in ipairs(out) do if o.price < cheapest.price then cheapest = o end end
     if cheapest.price > M.STARTER_PRICE then

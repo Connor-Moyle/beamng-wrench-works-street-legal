@@ -189,9 +189,16 @@ local function refresh(s, force)
     end
   end
   local function carAds() local n = 0 for _, l in ipairs(m.listings) do if l.kind == 'car' and not l.taken then n = n + 1 end end return n end
-  for _ = 1, CAR_ADS * 2 do               -- private cars: the used lot's kind of car, sold from a kerb
-    if carAds() >= CAR_ADS or not (sl_lot and sl_lot.privateOffers) then break end
-    local offer = (sl_lot.privateOffers(rng:int(1, 1000000), 1) or {})[1]
+  -- private cars: the used lot's kind of car, sold from a kerb. One draw of many different cars (B60: a draw of one gave the lot's cheapest
+  -- car every time, the same model for every ad)
+  local fresh = sl_lot and sl_lot.privateOffers and sl_lot.privateOffers(rng:int(1, 1000000), CAR_ADS * 3) or {}
+  local listed = {}
+  for _, l in ipairs(m.listings) do if l.kind == 'car' and not l.taken and l.offer then listed[l.offer.config or l.offer.model] = true end end
+  for i = 1, #fresh do
+    if carAds() >= CAR_ADS then break end
+    local offer = fresh[i]
+    if listed[offer.config or offer.model] then offer = nil end
+    if offer then listed[offer.config or offer.model] = true end
     local k = offer and sl_jobs and sl_jobs.randomKerb and sl_jobs.randomKerb(rng)
     if k then
       local l = L.listing(rng, { kind = 'car', name = offer.name, value = offer.value or 0, model = offer.model, condition = offer.condition }, 'app', L.demand(rng), t)

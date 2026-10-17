@@ -169,6 +169,16 @@ do
   local again = market.offers(cars, 'used', 1, 3, 8)
   local tomorrow = market.offers(cars, 'used', 1, 4, 8)
   check('8 used cars', #used == 8)
+  -- B60: private car ads were drawn one at a time, and a draw of one always came back as the lot's starter (its cheapest car)
+  local models = {}
+  for seed = 1, 6 do local one = market.offers(cars, 'used', seed, 0, 1, true)[1] models[one.config] = true end
+  local ads = market.offers(cars, 'used', 5, 0, 8, true)
+  local variety = {}
+  for _, o in ipairs(ads) do variety[o.model] = true end
+  local nModels, nAds = 0, 0
+  for _ in pairs(variety) do nModels = nModels + 1 end
+  for _ in pairs(models) do nAds = nAds + 1 end
+  check('private ads (no starter): a draw of many gives many models, and draws of one differ by seed', #ads == 8 and nModels >= 4 and nAds >= 3, nModels .. ' / ' .. nAds)
   check('the same day, the same cars', used[1].config == again[1].config and used[8].price == again[8].price)
   local differ = false
   for i = 1, 8 do if used[i].config ~= tomorrow[i].config then differ = true end end
