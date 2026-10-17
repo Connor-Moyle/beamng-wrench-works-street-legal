@@ -486,6 +486,10 @@ assert.ok(calls.includes('@sl_lot.cameraDrag(10,0)') && calls.includes('@sl_lot.
 nav('back', 1);
 assert.ok(calls.includes('@sl_lot.close()'), 'B leaves the lot');
 phone.handle('slLotData', { open: false });
+// a fade is plain black: no SLRR loading picture, whatever the game sends
+phone.handle('slFade', { on: true, pic: 'loading_city.png' });
+assert.ok(phone.root.querySelector('.slp-fade.slp-in') && !(phone.root.querySelector('.slp-fade').getAttribute('style') || '').includes('url('), 'a fade has no picture');
+phone.handle('slFade', { on: false });
 console.log('phone test passed');
 
 // a page to look at: the phone in several states side by side

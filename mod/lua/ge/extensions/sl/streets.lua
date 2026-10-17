@@ -720,7 +720,7 @@ function M.trackRace(racerId, trackId)
   if bet > s.money then return false, string.format('$%d on it, and you have $%d.', bet, s.money) end   -- (recordRace only takes what you have: a free roll otherwise)
   busy = true
   core_jobsystem.create(function(job)
-    guihooks.trigger('slFade', { on = true, pic = 'loading_roc_track.png' })
+    guihooks.trigger('slFade', { on = true })
     job.sleep(0.6)
     -- on the grid, side by side behind the start, facing along the track
     local first = track.start or track.cps[1].pos
@@ -779,7 +779,7 @@ function M.enterRoc()
   local start = spot and spot:getPosition() or v:getPosition()
   busy = true
   core_jobsystem.create(function(job)
-    guihooks.trigger('slFade', { on = true, pic = 'loading_roc_track.png' })
+    guihooks.trigger('slFade', { on = true })
     job.sleep(0.6)
     local rot, right
     if track then

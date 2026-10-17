@@ -581,7 +581,7 @@ local function begin()
   core_jobsystem.create(function(job)
     job.sleep(3)
     if not active then return end
-    if guihooks then guihooks.trigger('slFade', { on = true, pic = 'loading_garage_blue_cheetah.png' }) end
+    if guihooks then guihooks.trigger('slFade', { on = true }) end
     job.sleep(0.6)
     setHour((wanted + 12) % 24)
     job.sleep(0.5)
@@ -679,7 +679,7 @@ function M.taxi(placeId)
   if sl_cab and sl_cab.call(place, fee) then return true end
   -- no lane for a cab to pull up on here: the old way, straight there
   core_jobsystem.create(function(job)
-    if guihooks then guihooks.trigger('slFade', { on = true, pic = 'loading_city.png' }) end
+    if guihooks then guihooks.trigger('slFade', { on = true }) end
     job.sleep(0.6)
     spawn.safeTeleport(getPlayerVehicle(0), place.pos + vec3(0, 0, 0.3), quatFromDir(place.dir, vec3(0, 0, 1)), true)
     job.sleep(0.6)

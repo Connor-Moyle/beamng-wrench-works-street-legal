@@ -62,7 +62,7 @@ local function board()
   ride = nil
   if core_groundMarkers then core_groundMarkers.setPath(nil) end
   core_jobsystem.create(function(job)
-    guihooks.trigger('slFade', { on = true, pic = 'loading_city.png' })
+    guihooks.trigger('slFade', { on = true })
     job.sleep(0.8)
     local cab, me = getObjectByID(r.vid), onFoot()
     local c = spot(r.place.pos, 0)

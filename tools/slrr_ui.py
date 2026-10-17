@@ -25,7 +25,6 @@ FOLDERS = {
     r"frontend\textures\interface\icons\buttons": "icons",
     r"frontend\textures\interface\icons\main_menu\active": "icons",
     r"frontend\textures\interface\icons\event_list": "icons",
-    r"frontend\textures\interface\loading": "loading",
 }
 
 

@@ -47,9 +47,9 @@ end
 local function leaveFrom(place) return place.exit and place.exit[#place.exit] or place.pos end
 
 -- fade out, the car to the road, the player in it, fade in
-local function driveAwayFromRoad(veh, from, pic)
+local function driveAwayFromRoad(veh, from)
   core_jobsystem.create(function(j)
-    guihooks.trigger('slFade', { on = true, pic = pic })
+    guihooks.trigger('slFade', { on = true })
     j.sleep(0.6)
     if not M.toRoad(veh, from) then veh:queueLuaCommand('controller.setFreeze(0) input.event("parkingbrake", 0, FILTER_DIRECT)') end
     j.sleep(0.3)
@@ -345,7 +345,7 @@ function M.buy()
   lightsOff()
   lot = nil
   send()
-  if veh then driveAwayFromRoad(veh, from, 'loading_dealer_used_enter.png') end
+  if veh then driveAwayFromRoad(veh, from) end
   local broken = #(offer.faults or {}) > 0
   sl_career.sendText('benny', broken and string.format('You bought the %s? It has problems: %s. Drive it home if it goes, or call a tow, and we will sort it in the garage.', offer.name, table.concat(offer.faults, ', '))
     or string.format('Nice, the %s. Bring it to the garage and let us have a look at it.', offer.name), 4)
@@ -361,7 +361,7 @@ function M.testDrive()
   lot.mode = 'test'
   test = { timeLeft = TEST_SECONDS, driven = 0 }
   if slrrDrivers and slrrDrivers.setDriver then slrrDrivers.setDriver(veh:getID(), slrrDrivers.getDefaultDriver and slrrDrivers.getDefaultDriver() or nil) end   -- you, at the wheel
-  driveAwayFromRoad(veh, leaveFrom(lot.place), 'loading_dealer_used_enter.png')
+  driveAwayFromRoad(veh, leaveFrom(lot.place))
   if core_groundMarkers then core_groundMarkers.setPath(lot.place.pos) end
   send()
 end
@@ -373,7 +373,7 @@ local function endTest()
   local veh = lot.veh and getObjectByID(lot.veh)
   if core_groundMarkers then core_groundMarkers.setPath(nil) end
   core_jobsystem.create(function(j)
-    guihooks.trigger('slFade', { on = true, pic = 'loading_dealer_used_enter.png' })
+    guihooks.trigger('slFade', { on = true })
     j.sleep(0.6)
     if gameplay_walk then gameplay_walk.setWalkingMode(true, lot and lot.place.pos + vec3(0, 0, 0.3) or nil, nil, true) end
     test = nil

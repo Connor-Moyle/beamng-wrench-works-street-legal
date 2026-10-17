@@ -47,7 +47,7 @@ function M.toHospital(vehId, severity, died)
   local place
   for _, p in pairs(sl_career.getPlaces() or {}) do if p.kind == 'hospital' then place = p end end
   core_jobsystem.create(function(job)
-    guihooks.trigger('slFade', { on = true, pic = 'loading_city.png' })
+    guihooks.trigger('slFade', { on = true })
     job.sleep(1.0)
     if gameplay_walk then gameplay_walk.setWalkingMode(true, nil, nil, true) end
     job.sleep(0.6)

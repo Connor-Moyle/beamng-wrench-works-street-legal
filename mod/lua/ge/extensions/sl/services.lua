@@ -84,7 +84,7 @@ local function doRace(s, raceId)
     job.sleep(4)
     local v = getPlayerVehicle(0)
     if not v then return end
-    guihooks.trigger('slFade', { on = true, pic = 'loading_nightrace_start_' .. (1 + os.time() % 5) .. '.png' })
+    guihooks.trigger('slFade', { on = true })
     job.sleep(0.8)
     local dir = race.finish and (race.finish - race.start) or vec3(0, 1, 0)
     dir.z = 0

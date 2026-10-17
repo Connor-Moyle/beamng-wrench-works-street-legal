@@ -922,8 +922,7 @@
 
     // the fade: black, or one of SLRR's loading screens (a cab ride, the garage, the dealer)
     function fadeView() {
-      var pic = st.slrrArt && st.fadePic ? ' style="background:#000 url(/ui/modModules/slHud/slrr/loading/' + esc(st.fadePic) + ') center/cover no-repeat"' : '';
-      return '<div class="slp-fade' + (st.fade ? ' slp-in' : '') + '"' + pic + '></div>';
+      return '<div class="slp-fade' + (st.fade ? ' slp-in' : '') + '"></div>';
     }
 
     // Hardcore: the driver died and the career is over (sl_hospital); what it came to, and what next
@@ -1243,7 +1242,7 @@
           break;
         case 'slPhoneToast': toast(data.text); break;
         case 'slGameOver': st.gameOver = data && data.day ? data : null; render(); break;
-        case 'slFade': st.fade = !!data.on; if (data.on) st.fadePic = data.pic || null; render(); break;
+        case 'slFade': st.fade = !!data.on; render(); break;
         case 'slLotData': st.lot = data.open ? data : null; render(); break;
         case 'slMeet': st.meet = data.open ? data : null; render(); break;
         case 'slStation': st.station = data.open ? data : null; render(); break;
