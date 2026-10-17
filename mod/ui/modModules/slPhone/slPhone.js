@@ -1120,6 +1120,17 @@
           '<div class="slp-lbar"><i style="width:' + (tot ? Math.round(100 * dn / tot) : 5) + '%"></i></div>' +
           ('<div class="slp-btn slp-text" data-a="lot" data-v="close()" style="margin-top:10px">' + T('ui.cancel', 'Cancel') + '</div></div></div>');
       }
+      if (l.mode === 'auction' && l.auction) {      // the yard's live auction: the lot's card and the bid buttons
+        var au = l.auction, al = obj(au.lot), aplus = Math.round((al.bid || al.next) * 1.1 / 10) * 10, aleader = al.high === 'you';
+        return '<div class="slp-catch" data-catch="lot"></div><div class="slp-lot"><div class="slp-lothead"><span>' + T('ui.auction_yard', 'Car auction') + ' &middot; ' + esc(l.name) + '</span><span>' + T('ui.auction_lot_of', 'Lot {1} of {2}', au.index, au.total) + '</span></div>' +
+          '<div class="slp-lotname"><b>' + esc(al.name) + '</b></div><div class="slp-lottitle">' + T('ui.auction_grade', 'Grade {1}', esc(al.grade)) + ' &middot; ' + T('ui.auction_condition', 'Condition {1}%', al.condition) + '</div>' +
+          reportBlock('lot', al.report) +
+          '<div class="slp-lotprice">' + money(al.bid) + '</div><div class="slp-lottitle">' + (aleader ? T('ui.auction_high_you', 'You are the highest bidder') : (al.bid > 0 ? T('ui.auction_outbid', 'Outbid') : T('ui.auction_no_bids', 'No bids yet'))) +
+          ' &middot; ' + (al.reserveMet ? T('ui.auction_reserve_met', 'Reserve met') : T('ui.auction_reserve_not_met', 'Reserve not met')) + ' &middot; ' + (au.waiting ? T('ui.auction_next_lot', 'The next lot is coming up.') : T('ui.auction_going_in', 'Going in {1} s', al.secondsLeft)) + '</div>' +
+          '<div class="slp-lotbtns">' + (aleader || au.waiting ? '' : '<div class="slp-btn' + (au.money != null && au.money < al.next ? ' slp-off' : '') + '" data-a="abid" data-v="' + esc(al.id) + '|' + al.next + '">' + T('ui.auction_bid_next', 'Bid {1}', money(al.next)) + '</div>' +
+          '<div class="slp-btn slp-tonal" data-a="abid" data-v="' + esc(al.id) + '|' + aplus + '">' + T('ui.auction_bid_plus', 'Bid +10% ({1})', money(aplus)) + '</div>') + '</div>' +
+          '<div class="slp-lotleave"><div class="slp-btn slp-text" data-a="lot" data-v="close()">' + T('ui.leave', 'Leave') + '</div></div></div>';
+      }
       if (l.factory) {
         var f = l.factory, rows = '';
         function pic(u) { return u ? '<img class="slp-shopimg" src="' + esc(u) + '">' : '<div class="slp-shopimg"></div>'; }

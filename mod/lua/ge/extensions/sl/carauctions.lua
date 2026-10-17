@@ -19,7 +19,7 @@ local LOTS = 6                 -- on the screen at once
 local HOURS = { 12, 40 }       -- a lot closes this many game hours after it opens
 local MAX_CATCHUP = 3000       -- lot-clock steps in one call (a long Wait)
 
-local yard, liveLot      -- the live yard session and its current lot (below)
+local yard, liveLot, pushToLot      -- the live yard session, its current lot and the push to the lot's screen (below)
 local function career() return sl_career and sl_career.isActive() and sl_career.getState() or nil end
 local function now(s) return dealerRules.clock(s.day, sl_career.hour()) end
 local function toast(text) guihooks.trigger('slPhoneToast', { text = text }) end
@@ -169,12 +169,17 @@ function M.list()
   local y = liveLot()
   if y then out.live = { index = yard.idx, total = #yard.lots, lot = card(y, t), waiting = not y.open or yard.gap > 0 } end
   guihooks.trigger('slAuctions', out)
+  if pushToLot then pushToLot(out) end
   return out
 end
 
 -- ---- the weekly auction at the junkyard: six lots one after the other, each open for rules.DURATION real seconds
 local YARD = { weekday = 5, from = 10, to = 13, lots = 6, gap = 4 }      -- every 7th day, 10:00-13:00
 -- (yard: the session { day, lots, idx, gap, rng, pushT })
+
+local function yardPlace()
+  for _, p in pairs(sl_career.getPlaces() or {}) do if p.kind == 'junkyard' then return p end end
+end
 
 function M.yardOpen()
   local s = career()
@@ -260,7 +265,7 @@ function M.join()
   if not yard or yard.day ~= s.day then
     local rng = rngLib.new(rngLib.hash('yard:' .. tostring(s.day) .. ':' .. tostring(s.seed)))
     local offers = market.offers(pool(), 'used', tostring(s.seed) .. ':yard', s.day, YARD.lots + 4)
-    yard = { day = s.day, lots = {}, idx = 1, gap = 2, rng = rng, pushT = 0 }
+    yard = { day = s.day, lots = {}, idx = 1, gap = 2, rng = rng, pushT = 0, place = yardPlace() }
     for i, offer in ipairs(offers) do
       if #yard.lots >= YARD.lots then break end
       offer.id = 'yard:' .. s.day .. ':' .. i
@@ -270,8 +275,11 @@ function M.join()
     end
     toast(strings.t('carauction.the_auction_starts'))
   end
-  guihooks.trigger('slPhoneGo', { app = 'carmarket', tabs = { cars = 'auction' } })
-  viewing = true
+  -- the cars stand in the yard's bays and the camera is on the lot being bid on; without the row (no place, a build that failed) the phone's tab does it
+  local offers = {}
+  for i, l in ipairs(yard.lots) do offers[i] = l.offer end
+  local inYard = yard.place and sl_lot and sl_lot.openAuction and sl_lot.openAuction(yard.place, offers)
+  if not inYard then guihooks.trigger('slPhoneGo', { app = 'carmarket', tabs = { cars = 'auction' } }) viewing = true end
   M.list()
   return true
 end
@@ -312,6 +320,7 @@ local function tickYard(dt)
   yard.pushT = yard.pushT + dt
   local y = liveLot()
   if y then
+    if sl_lot and sl_lot.auctionOpen and sl_lot.auctionOpen() and not sl_lot.auctionReady() then return end      -- (the cars are still coming out: the lots wait)
     if yard.gap > 0 then
       yard.gap = yard.gap - dt
     elseif y.open then
@@ -325,6 +334,13 @@ local function tickYard(dt)
     return
   end
   if yard and yard.pushT >= 0.5 then yard.pushT = 0 M.list() end
+end
+
+-- the yard's lot bar (sl_lot's screen): the live lot's card, and the lot to put the camera on
+pushToLot = function(out)
+  if not (sl_lot and sl_lot.auctionOpen and sl_lot.auctionOpen()) then return end
+  if out.live then sl_lot.auctionView({ lot = out.live.lot, waiting = out.live.waiting, index = out.live.index, total = out.live.total, money = out.money }, out.live.index)
+  else sl_lot.auctionView(nil) end
 end
 
 -- a won car arrives (sl/dealers builds it from the order): the mechanic's finding comes in a text
@@ -342,6 +358,11 @@ function M.onUpdate(dtReal)
   timer = 0
   local s = career()
   if not s then return end
+  local m = state(s)
+  if (s.day or 0) % 7 == YARD.weekday and m.yardTold ~= s.day and sl_career.hour() >= 9 and sl_career.hour() < YARD.to and not (sl_career.isNight and sl_career.isNight()) then
+    m.yardTold = s.day
+    sl_career.sendText('benny', strings.t('carauction.auction_morning'), 2)
+  end
   local ok, err = pcall(function() tick(s) if viewing then M.list() end end)
   if not ok and not failed then failed = true log('E', 'sl_carauctions', 'tick failed: ' .. tostring(err)) end      -- (once: a failing tick must not fill the log)
 end

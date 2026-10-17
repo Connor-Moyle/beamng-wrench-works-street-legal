@@ -111,7 +111,7 @@ local function send()
   local parts = mineVeh and builder.partsValue(mineVeh:getID())       -- (what was fitted since counts, as at the sale)
   guihooks.trigger('slLotData', {
     open = true, mode = lot.mode, name = lot.place.name, kindTitle = lot.private and strings.t('lot.private_sale') or TITLES[lot.kind], kind = lot.kind,
-    index = lot.index, count = #lot.offers, offer = offerForUi(lot.offers[lot.index]), building = lot.mode == 'browse' and lot.building == true, progress = lot.progress,
+    index = lot.index, count = #lot.offers, offer = offerForUi(lot.offers[lot.index]), auction = lot.mode == 'auction' and lot.auction or nil, building = (lot.mode == 'browse' or lot.mode == 'auction') and lot.building == true, progress = lot.progress,
     canFactory = lot.mode == 'browse' and not lot.private and lot.kind == 'dealer' and M.tier(lot.place) == 'high' or nil, factory = lot.factory and M.factoryView() or nil,
     money = s.money, testLeft = test and math.ceil(test.timeLeft) or nil,
     sellCar = mine and { name = mine.name, price = lot.kind == 'scrap' and market.scrapValue(mine, parts) or market.resaleValue(mine, parts) } or nil,
@@ -610,7 +610,7 @@ local function open(place, mode, given)
   lot = { place = place, kind = kind, offers = offers, index = 1, cars = {}, mode = mode or 'browse', previousCamera = core_camera.getActiveCamName(0),
     private = place.private }
   armedAt[place.id] = false
-  if lot.mode == 'browse' then
+  if lot.mode == 'browse' or lot.mode == 'auction' then
     if #offers == 0 then
       guihooks.trigger('slPhoneToast', { text = strings.t('lot.nothing_for_sale_here_today') })
       lot = nil
@@ -638,6 +638,22 @@ function M.openPrivate(offer, pos, sellerName)
   open({ id = 'private:' .. tostring(offer.listingId), kind = 'private', name = (sellerName or strings.t('lot.a_private_seller')) .. strings.t('career.s_car'),
     pos = pos, dir = dir, displays = { { pos = at, dir = dir } }, private = offer.listingId or true }, 'browse', { offer })
   return lot ~= nil
+end
+
+-- the weekly car auction at the junkyard (sl_carauctions): the six lot cars stand in the yard's bays (the same row build as a dealer's: one car at a time, the
+-- dents on the safe path afterwards), the camera is on the lot being bid on; the screen's bar is the bidding bar (state: sl_carauctions' card of the live lot)
+function M.openAuction(place, offers)
+  if not career() or lot or type(offers) ~= 'table' or #offers == 0 then return false end
+  open(place, 'auction', offers)
+  return lot ~= nil and lot.mode == 'auction'
+end
+function M.auctionOpen() return lot ~= nil and lot.mode == 'auction' end
+function M.auctionReady() return lot ~= nil and lot.mode == 'auction' and not lot.building end
+function M.auctionView(state, index)
+  if not lot or lot.mode ~= 'auction' then return end
+  lot.auction = state
+  if index and index ~= lot.index and not lot.building then show(index) return end      -- (show sends)
+  send()
 end
 
 function M.close()

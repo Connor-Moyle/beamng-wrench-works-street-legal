@@ -685,6 +685,13 @@ assert.ok(text().includes('Live at the yard: lot 2 of 6') && text().includes('Li
 click('abid', 'y12_2|1260');
 assert.ok(calls.includes('@sl_carauctions.bid("y12_2",1260)'), 'a live lot is bid on the same way');
 assert.ok(calls.includes('@sl_carauctions.sell(7,1600)'), 'Sell at auction sends the car and the reserve');
+// the yard's own screen: the bidding bar on the lot, with the live lot's card
+phone.handle('slLotData', { open: true, mode: 'auction', name: 'Junkyard', kindTitle: 'Used cars', index: 2, count: 6, money: 5000, auction: { index: 2, total: 6, waiting: false, money: 5000,
+  lot: { id: 'y12_2', name: 'Live Hopper', grade: 'B', condition: 75, bid: 1200, next: 1260, high: 'ai', reserveMet: true, live: true, secondsLeft: 33, report: null } } });
+assert.ok(text().includes('Car auction') && text().includes('Lot 2 of 6') && text().includes('Live Hopper') && text().includes('Going in 33 s') && text().includes('Bid $1,260') && text().includes('Leave'), 'the yard shows the bidding bar on the lot screen');
+click('abid', 'y12_2|1260');
+assert.ok(calls.includes('@sl_carauctions.bid("y12_2",1260)'), 'the bar bids on the live lot');
+phone.handle('slLotData', { open: false });
 phone.act('home');
 assert.ok(calls.includes('@sl_carauctions.view(false)'), 'home stops the live view');
 phone.act('open', 'carmarket');

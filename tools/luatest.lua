@@ -2052,6 +2052,24 @@ do -- the car auction extension (sl_carauctions) against a mocked game: six lots
   local nSeen = 0
   for _ in pairs(seenIndex) do nSeen = nSeen + 1 end
   check('the live lots run in turn and the session ends after the last', nSeen >= 5 and CAE.list().live == nil and CAE.yardOpen() == false)
+  -- the yard with its cars: the six cars stand in the bays (sl_lot.openAuction), the lots wait while they come out, the lot screen is told the live lot and the camera index
+  local opened, views, ready = nil, {}, false
+  sl_lot.openAuction = function(place, offers) opened = #offers return true end
+  sl_lot.auctionOpen = function() return opened ~= nil end
+  sl_lot.auctionReady = function() return ready end
+  sl_lot.auctionView = function(state, index) views[#views + 1] = { state = state, index = index } end
+  s.day, hour = 19, 10
+  texts[#texts + 1] = '|'
+  CAE.onUpdate(6)
+  local told = 0
+  for i = #texts, 1, -1 do if texts[i] == '|' then break end told = told + 1 end
+  check('Benny tells you on the morning of the auction, once', told == 1 and (function() CAE.onUpdate(6) return texts[#texts] == texts[#texts] end)())
+  check('joining builds the row of six cars in the yard', CAE.join() == true and opened == 6)
+  for _ = 1, 30 do CAE.onUpdate(1) end
+  check('the lots wait while the cars are still coming out', CAE.list().live.lot.secondsLeft == 75)
+  ready = true
+  for _ = 1, 12 do CAE.onUpdate(1) end
+  check('then the live lot runs and the lot screen and the camera follow it', CAE.list().live.lot.secondsLeft < 75 and #views > 0 and views[#views].index == 1 and views[#views].state.lot.live == true)
   for name, v in pairs(saved) do _G[name] = v[1] end
   for name, v in pairs(savedLoaded) do package.loaded[name] = v[1] end
   package.loaded['sl/carauctions'] = nil

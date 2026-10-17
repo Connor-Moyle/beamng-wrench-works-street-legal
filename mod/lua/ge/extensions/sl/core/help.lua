@@ -96,6 +96,7 @@ M.PAGES = {
   { id = 'meets', title = 'Swap meet and auctions', body = {
     'On weekend nights a swap meet fills the biggest car park in town with stalls. Go there and buy parts on the spot. It is on the Part market page of the phone and the laptop, and says where it is.',
     'Swap & Bid is the auction side: put a bid on a lot, and it is yours if nobody outbids you before it ends.',
+    'Car auctions (Car market, on the phone and the laptop): six used cars with a grade from A to E and the full car report. The reserve stays secret, the screen only says whether it is met. A bid in the last seconds adds time. Win one and it is delivered to your garage; a car can hide a fault the report does not show, and the mechanic tells you after you have it. Put one of your own cars up with a reserve of your choosing. Every seventh day, 10:00 to 13:00, the junkyard holds a live auction: walk up and press Join the car auction.',
   } },
   { id = 'graphics', title = 'Graphics: anti-aliasing and sharpening', body = {
     'Wrench Works adds a group to the game\'s Options > Graphics page, under the anti-aliasing type: "Wrench Works: anti-aliasing and sharpening". The first time after installing, restart the game once to see it.',
