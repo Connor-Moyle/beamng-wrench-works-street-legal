@@ -145,6 +145,9 @@ assert.deepStrictEqual(taskbtns(), ['My cars'], 'closing a window removes its ta
 // ---- B: the top window, then the next, then the laptop
 click('tile', 'playerAbstract');
 assert.ok(text().includes('Street kid') && text().includes('140 reputation') && text().includes('Achievements 1 / 2') && text().includes('First win'), 'street cred');
+laptop.handle('slRivals', { rank: 2, rivals: [ { id: 'r05', name: 'Viktor "Nitro" Halasz', tier: 1, boss: true, crew: 'Ring Road Ghosts', car: 'Covet "Dodger"', meter: -80, word: 'blood', beaten: 3, youLost: 1 }, { id: 'r20', name: 'Dora Kovacs', tier: 3, crew: 'Riverbed Runners', car: 'Pickup', meter: 40, word: 'respect', beaten: 0, youLost: 2, locked: true } ] });
+assert.ok(text().includes('Rivals') && text().includes('Boss 1') && text().includes('Bad blood') && text().includes('You 3 - 1 them') && text().includes('Respect') && text().includes('Locked: beat the tier 2 boss first') && text().includes('Ring Road Ghosts'), 'the rivals show with crew, car, the meter word, the record and the lock');
+
 let leaked = 0;
 win.document.addEventListener('ui_nav', () => { leaked++; });
 nav('back');

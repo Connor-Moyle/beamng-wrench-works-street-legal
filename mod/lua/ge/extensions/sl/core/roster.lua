@@ -229,7 +229,14 @@ end
 --   player: { rep, money, hasCar, pinkTonight (this racer is up for pinks tonight: M.pinkTonight) }
 --   rng: an rng from sl/core/rng (decides the stake within their range)
 -- Returns { accept, stake = 'money'|'pink', bet, text, when }
+-- sl_rivals sets this: a function(racer) -> a text when the racer will not race you yet (the boss in front of their tier has not been beaten), else nil
+M.gateHook = nil
+
 function M.respond(racer, kind, player, rng)
+  if M.gateHook then
+    local gate = M.gateHook(racer)
+    if gate then return { accept = false, text = gate } end
+  end
   local when = racer.nightOnly and 'tonight' or strings.t('roster.any_time')
   local floor = TIERS[racer.tier].rep[1] * 0.5           -- below this they will not take you seriously
   if (player.rep or 0) < floor then return { accept = false, text = line('nobody', racer.style) } end

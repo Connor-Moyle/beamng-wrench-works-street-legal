@@ -241,6 +241,9 @@ click('mtab', 'cab|dealer'); click('mtab', 'cabtier|all'); click('mtab', 'cab|al
 click('home');
 click('open', 'me');
 assert.ok(text().includes('Street kid') && text().includes('needs 1500 reputation'), 'street cred page');
+phone.handle('slRivals', { rank: 2, rivals: [ { id: 'r05', name: 'Viktor "Nitro" Halasz', tier: 1, boss: true, crew: 'Ring Road Ghosts', car: 'Covet "Dodger"', meter: -80, word: 'blood', beaten: 3, youLost: 1 }, { id: 'r20', name: 'Dora Kovacs', tier: 3, crew: 'Riverbed Runners', car: 'Pickup', meter: 40, word: 'respect', beaten: 0, youLost: 2, locked: true } ] });
+assert.ok(text().includes('Rivals') && text().includes('Boss 1') && text().includes('Bad blood') && text().includes('You 3 - 1 them') && text().includes('Respect') && text().includes('Locked: beat the tier 2 boss first') && text().includes('Ring Road Ghosts'), 'the rivals show with crew, car, the meter word, the record and the lock');
+
 phone.handle('slPhoneData', Object.assign({}, data, { hud: { enabled: true, speedo: true, tacho: true, map: false, damage: true, units: 'mph', freeroam: false } }));
 assert.ok(text().includes('Dashboard') && text().includes('Rev counter') && text().includes('mph'), 'dashboard switches');
 calls.length = 0;

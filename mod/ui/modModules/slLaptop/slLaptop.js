@@ -175,7 +175,7 @@
 
     // wins: the open windows, the last one on top; each { id, min, max }. dview: what the dealers window shows (dealers | offers | offer)
     var st = { repOpen: null, repSec: {}, open: false, view: null, data: { active: false }, parts: [], wins: [], menu: false, sel: null, car: 0, note: '', padAt: 0,
-      dealers: null, auction: null, offers: null, dview: 'dealers', offerId: null, wallpaper: null, tab: { dealers: 'dealers', partmarket: 'revline' } };
+      dealers: null, auction: null, rivals: null, offers: null, dview: 'dealers', offerId: null, wallpaper: null, tab: { dealers: 'dealers', partmarket: 'revline' } };
 
     // ---------------------------------------------------------------- what the windows hold
     function dist(m) { m = Number(m) || 0; return m >= 1000 ? (m / 1000).toFixed(1) + ' km' : Math.round(m) + ' m'; }
@@ -489,6 +489,21 @@
       return body(('<div class="sll-card"><h4>' + T('ui.balance', 'Balance') + '</h4><p style="font-size:24px;color:#e6e1e5">') + money(d.money) + '</p></div>' + cards + '<div class="sll-card">' + (rows || ('<p>' + T('ui.no_transactions_yet', 'No transactions yet.') + '</p>')) + '</div>');
     }
 
+
+    // the named rivals (sl_rivals): six cards with the crew, the car, the rivalry meter and your record against them
+    function rivalCards() {
+      var rv = obj(st.rivals), list = arr(rv.rivals);
+      if (!list.length) return '';
+      var words = { blood: T('rivals.meter_blood', 'Bad blood'), rivals: T('rivals.meter_rivals', 'Rivals'), neutral: T('rivals.meter_neutral', 'Neutral'), respect: T('rivals.meter_respect', 'Respect'), friends: T('rivals.meter_friends', 'Friends') };
+      return '<h4>' + T('rivals.title', 'Rivals') + '</h4>' + list.map(function (r) {
+        var tag = r.boss ? ' &middot; ' + T('rivals.boss_star', 'Boss') + ' ' + r.tier : (r.nemesis ? ' &middot; ' + T('rivals.nemesis', 'Nemesis') : '');
+        return '<div class="sll-card"' + (r.locked ? ' style="opacity:.55"' : '') + '><h4>' + (r.boss ? '&#9733; ' : '') + esc(r.name) + tag + '</h4>' +
+          '<p>' + esc(r.crew || '') + (r.car ? ' &middot; ' + esc(r.car) : '') + '</p>' +
+          '<div class="sll-meter"><i style="width:' + Math.round(((r.meter || 0) + 100) / 2) + '%"></i></div>' +
+          '<p>' + words[r.word] + ' &middot; ' + T('ui.rival_record', 'You {1} - {2} them', r.beaten || 0, r.youLost || 0) + (r.locked ? ' &middot; ' + T('ui.rival_locked', 'Locked: beat the tier {1} boss first', Math.max(1, (r.tier || 2) - 1)) : '') + '</p></div>';
+      }).join('');
+    }
+
     function credBody() {
       var d = st.data, s = obj(d.stats);
       var from = d.titleRep || 0, to = d.nextRep, pct = to ? Math.max(0, Math.min(100, ((d.rep || 0) - from) / (to - from) * 100)) : 100;
@@ -505,7 +520,7 @@
         ('<div class="sll-card"><div class="sll-kv"><span>' + T('ui.garage', 'Garage') + '</span><b>') + esc(d.garage || '') + '</b></div>' + next +
         ('<div class="sll-kv"><span>' + T('ui.cars', 'Cars') + '</span><b>') + (d.cars || 0) + '</b></div>' +
         ('<div class="sll-kv"><span>' + T('ui.races', 'Races') + '</span><b>') + (s.races || 0) + ' (' + (s.wins || 0) + (T('ui.won_2', ' won)') + '</b></div>') +
-        ('<div class="sll-kv"><span>' + T('crews.pink_slips', 'Pink slips') + '</span><b>') + (s.pinksWon || 0) + T('ui.won_3', ' won, ') + (s.pinksLost || 0) + ' lost</b></div>' + acts + '</div>' + ach);
+        ('<div class="sll-kv"><span>' + T('crews.pink_slips', 'Pink slips') + '</span><b>') + (s.pinksWon || 0) + T('ui.won_3', ' won, ') + (s.pinksLost || 0) + ' lost</b></div>' + acts + '</div>' + rivalCards() + ach);
     }
 
     var WIN_KEYS = { cars: 'laptop.mycars', parts: 'laptop.myparts', bank: 'laptop.bank', cred: 'laptop.cred', dealers: 'laptop.carmarket', partmarket: 'laptop.partmarket', club: 'laptop.club', help: 'laptop.help' };
@@ -719,6 +734,7 @@
             openWin(t.page);
             if (t.page === 'parts') lua('@sl_computer.parts()');
             if (t.page === 'dealers') lua('@sl_dealers.list()');
+            if (t.page === 'cred') lua('@sl_rivals.list()');
             if (t.page === 'help' && !arr(st.help).length) lua('@sl_phone.requestHelp()');
             lua('@sl_phone.request()');
             render();
@@ -835,6 +851,7 @@
         case 'slStrings': TABLE = (data && data.text) || {}; if (st.open) render(); break;
         case 'slLaptopDealers': st.dealers = data; if (st.open) render(); break;
         case 'slAuctions': st.auction = data; if (st.open) render(); break;
+        case 'slRivals': st.rivals = data; if (st.open) render(); break;
         case 'slLaptopOffers': st.offers = data; if (st.open) render(); break;
         case 'slPhoneData': st.data = data || { active: false }; if (st.open) render(); break;
         case 'slPhoneToast': if (st.open && data && data.text) { st.note = data.text; render(); } break;
@@ -857,7 +874,7 @@
         window.bngApi.engineLua('if ' + ext + ' then ' + call.slice(1) + ' end');
       });
       window.__slLaptop = laptop;
-      ['slLaptopOpen', 'slLaptopClose', 'slLaptopParts', 'slLaptopDealers', 'slAuctions', 'slLaptopOffers', 'slPhoneData', 'slPhoneToast', 'slHelp', 'slStrings'].forEach(function (name) {
+      ['slLaptopOpen', 'slLaptopClose', 'slLaptopParts', 'slLaptopDealers', 'slAuctions', 'slRivals', 'slLaptopOffers', 'slPhoneData', 'slPhoneToast', 'slHelp', 'slStrings'].forEach(function (name) {
         $rootScope.$on(name, function (ev, data) { laptop.handle(name, data); });
       });
     }]);

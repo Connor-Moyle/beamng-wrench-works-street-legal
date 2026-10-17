@@ -387,7 +387,7 @@
     doc.body.appendChild(root);
 
     var st = {
-      repOpen: null, repSec: {}, tab: { cars: 'dealers', parts: 'revline', cab: 'all', cabtier: 'all' }, cmView: 'dealers', cmOffer: null, dealers: null, auction: null, offers: null,
+      repOpen: null, repSec: {}, tab: { cars: 'dealers', parts: 'revline', cab: 'all', cabtier: 'all' }, cmView: 'dealers', cmOffer: null, dealers: null, auction: null, rivals: null, offers: null,
       open: false, data: { active: false }, app: 'home', stack: [], contact: null, thread: null,
       call: null, dial: '', hu: null, toast: null, fade: false,
     };
@@ -1080,6 +1080,21 @@
         (ups ? ('<div class="slp-card"><h4>' + T('ui.the_garage', 'The garage') + '</h4>') + ups + '</div>' : '') + '</div>';
     }
 
+
+    // the named rivals (sl_rivals): six cards with the crew, the car, the rivalry meter and your record against them
+    function rivalCards() {
+      var rv = obj(st.rivals), list = arr(rv.rivals);
+      if (!list.length) return '';
+      var words = { blood: T('rivals.meter_blood', 'Bad blood'), rivals: T('rivals.meter_rivals', 'Rivals'), neutral: T('rivals.meter_neutral', 'Neutral'), respect: T('rivals.meter_respect', 'Respect'), friends: T('rivals.meter_friends', 'Friends') };
+      return '<h4>' + T('rivals.title', 'Rivals') + '</h4>' + list.map(function (r) {
+        var tag = r.boss ? ' &middot; ' + T('rivals.boss_star', 'Boss') + ' ' + r.tier : (r.nemesis ? ' &middot; ' + T('rivals.nemesis', 'Nemesis') : '');
+        return '<div class="slp-card"' + (r.locked ? ' style="opacity:.55"' : '') + '><h4>' + (r.boss ? '&#9733; ' : '') + esc(r.name) + tag + '</h4>' +
+          '<p>' + esc(r.crew || '') + (r.car ? ' &middot; ' + esc(r.car) : '') + '</p>' +
+          '<div class="slp-meter"><i style="width:' + Math.round(((r.meter || 0) + 100) / 2) + '%"></i></div>' +
+          '<p>' + words[r.word] + ' &middot; ' + T('ui.rival_record', 'You {1} - {2} them', r.beaten || 0, r.youLost || 0) + (r.locked ? ' &middot; ' + T('ui.rival_locked', 'Locked: beat the tier {1} boss first', Math.max(1, (r.tier || 2) - 1)) : '') + '</p></div>';
+      }).join('');
+    }
+
     function mePage() {
       var d = st.data, s = obj(d.stats);
       var from = d.titleRep || 0, to = d.nextRep, pct = to ? Math.max(0, Math.min(100, ((d.rep || 0) - from) / (to - from) * 100)) : 100;
@@ -1096,7 +1111,7 @@
         ('<div class="slp-kv" style="border:none"><span>' + T('crews.pink_slips', 'Pink slips') + '</span><b>') + (s.pinksWon || 0) + T('ui.won_3', ' won, ') + (s.pinksLost || 0) + ' lost</b></div>' +
         (acts.length ? '<div class="slp-acts">' + acts.join('') + '</div>' : '') + '</div>' +
         (d.rocChampion ? ('<div class="slp-card"><h4>' + T('streets.roc_champion', 'ROC champion') + '</h4><p>' + T('ui.the_best_in', 'The best in ')) + esc(d.mapName || T('progression.valo_city', 'Valo City')) + (T('ui.there_is_nobody_left_to', '. There is nobody left to beat.') + '</p></div>') : '') +
-        achievementsCard(d.achievements) + hudCard(d.hud) + '</div>';
+        rivalCards() + achievementsCard(d.achievements) + hudCard(d.hud) + '</div>';
     }
 
     // achievements (earned ones lit, the rest dimmed) and personal best times
@@ -1559,6 +1574,7 @@
       if (app === 'map') { st.mapAt = Date.now(); lua('mapPlaces()'); }
       if (app === 'help' && !arr(st.help).length) lua('requestHelp()');
       if (app === 'carmarket') { st.cmView = 'dealers'; lua('@sl_dealers.list()'); }
+      if (app === 'me') lua('@sl_rivals.list()');
       if (params) for (var k in params) st[k] = params[k];
       if (app === 'thread' && st.thread) { lua('markRead(' + JSON.stringify(st.thread) + ')'); var u = obj(st.data.unread); delete u[st.thread]; }
       render();
@@ -1820,6 +1836,7 @@
         case 'slStrings': TABLE = (data && data.text) || {}; render(); break;
         case 'slLaptopDealers': st.dealers = data; render(); break;
         case 'slAuctions': st.auction = data; render(); break;
+        case 'slRivals': st.rivals = data; render(); break;
         case 'slLaptopOffers': st.offers = data; render(); break;
         case 'slRace': st.race = data.on ? data : null; render(); break;
         case 'slMenu': st.menu = data.show ? data : null; render(); break;
@@ -1852,7 +1869,7 @@
       var probe = new Image();
       probe.onload = function () { phone.handle('slArt'); };
       probe.src = '/ui/modModules/slHud/slrr/icons/cup.png';
-      ['slPhoneData', 'slPhoneToggle', 'slPhoneGo', 'slPhoneCall', 'slPhoneCallReply', 'slPhoneNotify', 'slPhoneToast', 'slFade', 'slLotBars', 'slLotData', 'slMeet', 'slRace', 'slMenu', 'slStation', 'slGarage', 'slSettings', 'slPhotos', 'slMap', 'slLaptopDealers', 'slAuctions', 'slLaptopOffers', 'slHelp', 'slStrings'].forEach(function (name) {
+      ['slPhoneData', 'slPhoneToggle', 'slPhoneGo', 'slPhoneCall', 'slPhoneCallReply', 'slPhoneNotify', 'slPhoneToast', 'slFade', 'slLotBars', 'slLotData', 'slMeet', 'slRace', 'slMenu', 'slStation', 'slGarage', 'slSettings', 'slPhotos', 'slMap', 'slLaptopDealers', 'slAuctions', 'slRivals', 'slLaptopOffers', 'slHelp', 'slStrings'].forEach(function (name) {
         $rootScope.$on(name, function (ev, data) { phone.handle(name, data); });
       });
       if (window.bngApi) window.bngApi.engineLua('if sl_phone then sl_phone.request() end if sl_menuTile then sl_menuTile.request() end');

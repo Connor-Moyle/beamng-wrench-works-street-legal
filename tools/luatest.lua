@@ -2134,6 +2134,52 @@ do -- named rivals (sl/core/rivals)
   local x = { told = {} }
   check('a story beat is told once', RV.firstTime(x, 'intro') == true and RV.firstTime(x, 'intro') == false)
 end
+do -- the rivals extension (sl_rivals) against a mocked game: the tier gate, a result, a boss showdown at night
+  local saved, savedLoaded = {}, {}
+  local function setg(name, value) saved[name] = { _G[name] } _G[name] = value end
+  local function setp(name, value) savedLoaded[name] = { package.loaded[name] } package.loaded[name] = value end
+  local ROS = require('sl/core/roster')
+  local s = { seed = 11, day = 4, rep = 99999, money = 99999, racers = ROS.generate(11, 36), known = {}, challenges = {}, cars = { { id = 1 } } }
+  local texts, asked, isNight = {}, {}, true
+  setp('sl/carInfo', { of = function() return {} end })
+  setg('log', function() end)
+  setg('guihooks', { trigger = function() end })
+  setg('extensions', { hook = function() end })
+  setg('sl_career', { isActive = function() return true end, getState = function() return s end, isNight = function() return isNight end,
+    sendText = function(thread, text) texts[#texts + 1] = { thread = thread, text = text } end,
+    challenge = function(id, kind) asked[#asked + 1] = { id = id, kind = kind } local c = { id = id .. ':x', racer = id, bet = 100 } s.challenges[#s.challenges + 1] = c return { accept = true, challenge = c, text = 'ok' } end })
+  package.loaded['sl/rivals'] = nil
+  local RVE = require('sl/rivals')
+  RVE.onStreetLegalStarted()
+  local list = s.rivals.list
+  local tier3 = nil
+  for _, r in ipairs(s.racers) do if r.tier == 3 and not tier3 then tier3 = r end end
+  local answer = ROS.respond(tier3, 'race', { rep = 99999, money = 99999, hasCar = true }, require('sl/core/rng').new(1))
+  check('a racer two tiers above your rank sends you to the boss in front of them', answer.accept == false and answer.text:find(ROS.displayName(s.racers[1]) or '', 1, true) == nil and #answer.text > 8)
+  local boss1 = require('sl/core/rivals').bossOfTier(list, 1)
+  local tier1 = nil
+  for _, r in ipairs(s.racers) do if r.tier == 1 and r.id ~= boss1.id then tier1 = r end end
+  check('a racer of the next tier up still answers normally', ROS.respond(tier1, 'race', { rep = 99999, money = 99999, hasCar = true }, require('sl/core/rng').new(1)).text ~= nil)
+  -- a win over a tier-1 racer counts toward the boss; the night brings the first hello
+  RVE.onStreetLegalRaceResult(true, 'x', tier1.id, 'money')
+  RVE.onStreetLegalRaceResult(true, 'x', tier1.id, 'money')
+  RVE.onStreetLegalRaceResult(true, 'x', tier1.id, 'money')
+  check('wins over the tier count toward its boss', s.rivals.tierWins[1] == 3)
+  RVE.onUpdate(9)
+  check('at night the boss calls you out with a showdown challenge', s.rivals.bossActive == boss1.id and #asked >= 1 and asked[#asked].id == boss1.id and s.challenges[#s.challenges].boss == true and #texts >= 1)
+  -- the result of the showdown: a win raises the rank and opens the next tier
+  RVE.onStreetLegalRaceResult(true, 'x', boss1.id, 'money')
+  check('beating the boss raises the rank and clears the showdown', boss1.bossBeaten == true and s.rivals.bossActive == nil and RVE.rank() == 2)
+  local g3 = ROS.respond(tier3, 'race', { rep = 99999, money = 99999, hasCar = true }, require('sl/core/rng').new(1))
+  check('the next tier is open now (the gate has moved up one boss)', g3.accept == true or g3.text ~= nil)
+  local r1 = RVE.list()
+  check('the rivals list for the screens has six with a record and a word', #r1.rivals == 6 and r1.rank == 2 and r1.rivals[1].word and r1.rivals[1].beaten ~= nil)
+  RVE.onStreetLegalStopped()
+  check('stopping the career takes the gate away', ROS.gateHook == nil)
+  for name, v in pairs(saved) do _G[name] = v[1] end
+  for name, v in pairs(savedLoaded) do package.loaded[name] = v[1] end
+  package.loaded['sl/rivals'] = nil
+end
 do -- ambient police patrols share the racers' build rule; a chase's patrol is never held back
   local SPP = require('sl/core/spawnplan')
   check('an ambient patrol waits for the gap, the speed rule and any other build', not SPP.patrolOk(5, 3, false, false) and not SPP.patrolOk(30, 30, false, false) and not SPP.patrolOk(5, 99, true, false) and SPP.patrolOk(5, 99, false, false))
