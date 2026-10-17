@@ -1273,6 +1273,7 @@ function M.onPursuitAction(id, action, pursuit)
     end
     -- could not pay it all, or the heat is 4 or 5: the car goes to the impound until the rest is paid (as in SLRR)
     local impound = heatLib.impounds(ph, level)
+    local why = sl_police and sl_police.bustCause and sl_police.bustCause(pursuit) or ''      -- (the cause, in words, in front of the message)
     local car = (owed > fine or impound) and sl_fleet and sl_fleet.currentCar()
     if car then
       car.impounded = math.max(0, owed - fine) + (impound and heatLib.impoundFee(level) or 500)
@@ -1280,9 +1281,9 @@ function M.onPursuitAction(id, action, pursuit)
       local veh = sl_fleet.vehicleOf(car.id)
       if gameplay_walk then gameplay_walk.setWalkingMode(true, nil, nil, true) end
       if veh then core_jobsystem.create(function(job) job.sleep(1) if veh then veh:delete() end end) end
-      tell(string.format(strings.t('career.busted_and_you_cannot_pay'), car.name, car.impounded), 9)
+      tell(why .. string.format(strings.t('career.busted_and_you_cannot_pay'), car.name, car.impounded), 9)
     else
-      tell(string.format(strings.t('career.busted_d_in_fines_s'), fine, racing and strings.t('career.and_the_race_is_lost') or '', lost > 0 and string.format(strings.t('career.and_the_d_reputation_you'), lost) or ''), 7)
+      tell(why .. string.format(strings.t('career.busted_d_in_fines_s'), fine, racing and strings.t('career.and_the_race_is_lost') or '', lost > 0 and string.format(strings.t('career.and_the_d_reputation_you'), lost) or ''), 7)
     end
     changed()
   elseif action == 'evade' then
