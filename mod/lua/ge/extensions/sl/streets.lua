@@ -679,14 +679,14 @@ local function meetHidden(pos)
 end
 
 -- a meet's cars are built one by one, and a build freezes the whole game wherever the car is (distance hides nothing): so the gap depends on how he drives.
--- Stopped or slow: 6 s. Moving: 10 s. Fast (15 m/s and up): 20 s, so a meet fills slowly while he cruises and quickly while he waits.
+-- Standing (under 3 m/s): 4 s. Slow: 10 s. Moving: 16 s. Fast (15 m/s and up): 25 s, so a meet fills quickly while he waits and slowly while he cruises.
 -- (hitch recordings: 10 owner cars in 65 s while he drove past at 20 m/s was a stutter train)
-local MEET_GAPS = { slow = 6, mid = 10, fast = 20 }
-local MEET_SLOW, MEET_FAST = 8, 15
+local MEET_GAPS = { still = 4, slow = 10, mid = 16, fast = 25 }
+local MEET_STILL, MEET_SLOW, MEET_FAST = 3, 8, 15
 local function meetGap()
   local v = getPlayerVehicle(0)
   local sp = v and v:getVelocity():length() or 0
-  return sp >= MEET_FAST and MEET_GAPS.fast or sp >= MEET_SLOW and MEET_GAPS.mid or MEET_GAPS.slow
+  return sp >= MEET_FAST and MEET_GAPS.fast or sp >= MEET_SLOW and MEET_GAPS.mid or sp >= MEET_STILL and MEET_GAPS.slow or MEET_GAPS.still
 end
 local function meetPace(job)
   job.sleep(meetGap())
