@@ -76,6 +76,25 @@ local function sunElevation()
 end
 M.sunElevation = sunElevation
 
+-- frames the game has drawn (onPreRender): the sky is positioned there (core_celestial), so a clock set while nothing is drawn leaves the sun where it was
+local framesDrawn = 0
+function M.onPreRender() framesDrawn = framesDrawn + 1 end
+
+-- one line to the log about the clock and the sky, to see which of them is not following (sl_career)
+local lastFrames = 0
+local function skyReport(tag)
+  local tod = core_environment and core_environment.getTimeOfDay and core_environment.getTimeOfDay() or {}
+  local names = scenetree.findClassObjects and scenetree.findClassObjects('ScatterSky') or {}
+  local sky = names[1] and scenetree.findObject(names[1])
+  local cel = core_celestial and core_celestial.getState and core_celestial.getState() or {}
+  local paused = false
+  pcall(function() paused = bullettime and bullettime.getPause and bullettime.getPause() or false end)
+  log('I', 'sl_career', string.format('sky %s: tod.time %s play %s, celestial %s (sees time %s, %s-%s-%s), sun elevation %s azimuth %s, %d frames drawn since the last report, paused %s',
+    tag, tostring(tod.time), tostring(tod.play), core_celestial and tostring(cel.enabled) or 'not loaded', tostring(cel.time), tostring(cel.year), tostring(cel.month), tostring(cel.day),
+    sky and tostring(sky.elevation) or 'no sky', sky and tostring(sky.azimuth) or '-', framesDrawn - lastFrames, tostring(paused)))
+  lastFrames = framesDrawn
+end
+
 -- (D1) the clock runs inside the phase and stands still when the phase has run out (the phase's end hour), at the speed of the Clock setting
 local function clockRuns(h) return not (s and s.phase and phaseLib.ended(s.phase, h)) end
 local function setHour(h)
@@ -634,8 +653,7 @@ local function begin()
     job.sleep(0.5)
     setHour(wanted)
     job.sleep(0.3)
-    local el = sunElevation()
-    log('I', 'sl_career', string.format('career start: clock %.2f, sun elevation %s', wanted, el and string.format('%.1f deg', el) or 'unknown'))
+    skyReport(string.format('career start (clock %.2f)', wanted))
     lastHour = hour()
     if guihooks then guihooks.trigger('slFade', { on = false }) end
     -- the level loaded with nobody in it, so the game left its free camera on: follow the player
@@ -1247,8 +1265,10 @@ end
 
 -- (D1) the phase runs out: the clock stops at its end hour and stays there until the player switches (a new day starts only when the day is started)
 local clockHeld = false
+local switching = false          -- a phase switch is moving the clock behind a fade (the hold below must not touch it)
 local function updateClock()
   local h = hour()
+  if switching then lastHour = h return end
   if s.phase and phaseLib.ended(s.phase, h) then
     if not clockHeld then
       clockHeld = true
@@ -1335,10 +1355,13 @@ end
 -- so the clock goes by way of the opposite hour first, as the start of a career does. Then the sun is read back: at a night hour it should be below
 -- the horizon; if not, one wider detour, and the elevations go to the log (sl_career) either way. Runs inside a job (it sleeps).
 local function moveClock(h, job)
+  skyReport('before the jump to ' .. string.format('%.2f', h))
   setHour((h + 12) % 24)
   job.sleep(0.35)
+  skyReport('on the opposite hour')
   setHour(h)
   job.sleep(0.35)
+  skyReport('on the hour')
   local el = sunElevation()
   log('I', 'sl_career', string.format('clock set to %.2f: sun elevation %s', h, el and string.format('%.1f deg', el) or 'unknown'))
   if el and phaseLib.isDarkHour(h) and el > 0 then
@@ -1353,7 +1376,6 @@ end
 
 -- "Start the night" / "Start the day" (a garage computer, the phone's Wait app): the phase turns over, the clock jumps to its first hour behind a
 -- short fade (the day counter goes up with a new day) and runs on. false and the reason when it cannot be done now.
-local switching = false
 function M.switchPhase()
   if not s then return false, 'No career running.' end
   if switching then return false, 'One moment.' end
