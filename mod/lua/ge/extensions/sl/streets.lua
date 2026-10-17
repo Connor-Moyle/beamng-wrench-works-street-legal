@@ -22,6 +22,7 @@ local builder = require('sl/carBuilder')
 local racesLib = require('sl/core/races')
 local cancel = require('sl/core/racecancel')
 local racelog = require('sl/racelog')
+local meetspots = require('sl/core/meetspots')
 local builds = require('sl/core/builds')
 local nightlife = require('sl/core/nightlife')
 
@@ -576,16 +577,27 @@ local function startMeet(s)
   end
   if #racers == 0 then return end
   local theme = nightlife.theme(place.id, s.day)
+  local count = math.min(#racers, rng:int(3, 6))
+  -- A11: the cars stand in the painted bays near the meet (a car park), not on a circle that lay across the road
+  local bays, roads = sl_career.paintedBays({ x = place.pos.x, y = place.pos.y, z = place.pos.z })
+  local spots = meetspots.pick(place.pos, bays, roads, count + 5)
+  racelog.add('meet', 'spots', { place = place.id, bays = bays and #bays or -1, spots = #spots })
+  if #spots < 3 then return false end                            -- no car park here (or the sites are not loaded yet): no meet, tried again later
   meet = { place = place, cars = {}, day = s.day, theme = theme, owners = {} }
   busy = true
-  local count = math.min(#racers, rng:int(3, 6))
+  local taken = 0
+  local function nextSpot()
+    taken = taken + 1
+    local sp = spots[taken]
+    if sp then return vec3(sp.x, sp.y, sp.z + 0.4), quatFromDir(vec3(sp.dx, sp.dy, 0), vec3(0, 0, 1)) end
+    return nil
+  end
   core_jobsystem.create(function(job)
     for i = 1, count do
       if not meetHidden(place.pos) then break end                -- he is coming: no more cars appear in front of him
+      local pos, rot = nextSpot()
+      if not pos then break end                                  -- no bay left: a small car park holds fewer cars
       local r = table.remove(racers, rng:int(#racers))
-      local a = (i / count) * math.pi * 2
-      local pos = place.pos + vec3(math.cos(a) * 9, math.sin(a) * 9, 0.5)
-      local rot = quatFromDir((place.pos - pos):normalized(), vec3(0, 0, 1))
       local veh = spawnRacer(job, s, r, pos, rot)
       if veh and meet then
         veh:queueLuaCommand('controller.setFreeze(1) input.event("parkingbrake", 1, FILTER_DIRECT) electrics.set_warn_signal(1)')
@@ -603,9 +615,8 @@ local function startMeet(s)
     local cars = nightlife.pickCars(theme.id, builder.aiPool(), rng:int(3, 5), rng)
     for i, c in ipairs(cars) do
       if not meet or not meetHidden(place.pos) then break end
-      local a = ((i - 0.5) / #cars) * math.pi * 2 + math.pi / #cars
-      local pos = place.pos + vec3(math.cos(a) * 14, math.sin(a) * 14, 0.5)
-      local rot = quatFromDir((place.pos - pos):normalized(), vec3(0, 0, 1))
+      local pos, rot = nextSpot()
+      if not pos then break end
       local veh = builder.buildCustom(job, c.model, c.config, { stage = rng:int(0, 2), seed = rngLib.hash(place.id .. ':' .. s.day .. ':' .. i) }, pos, rot)
       if veh and meet then
         veh:queueLuaCommand('controller.setFreeze(1) input.event("parkingbrake", 1, FILTER_DIRECT)')

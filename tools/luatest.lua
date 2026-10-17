@@ -1389,4 +1389,18 @@ do -- A13: a part that fell off is not in the saved setup
   check('nothing lost: nothing changes', #cars.stripParts(tree, {}) == 0 and #cars.stripParts(tree, nil) == 0)
 end
 
+do -- A11: meet cars stand in free bays off the road, nearest first
+  local ms = require('sl/core/meetspots')
+  local bays = { { x = 5, y = 0, z = 0, dx = 0, dy = 1 }, { x = 10, y = 0, z = 0, dx = 0, dy = 1 }, { x = 14, y = 0, z = 0, dx = 0, dy = 1 },
+    { x = 8, y = 20, z = 0, dx = 1, dy = 0, occupied = true }, { x = 0, y = 30, z = 0, dx = 1, dy = 0 }, { x = 200, y = 0, z = 0, dx = 0, dy = 1 },
+    { x = 3, y = 40, z = 0, dx = 0, dy = 0 }, { x = 6, y = 6, z = 0, dx = 1, dy = 0 } }
+  local roads = { { x1 = 6, y1 = -50, x2 = 6, y2 = 50, half = 3 } }          -- a road along x = 6 takes the bays at x 5 and 6,6 (and x 10 is clear)
+  local out = ms.pick({ x = 0, y = 0 }, bays, roads, 5)
+  local xs = {}
+  for _, p in ipairs(out) do xs[#xs + 1] = p.x end
+  check('meet spots: off the road, free, near, facing', #out == 3 and out[1].x == 10 and out[2].x == 14 and out[3].x == 0 and out[1].dy == 1, table.concat(xs, ','))
+  check('meet spots: at most n', #ms.pick({ x = 0, y = 0 }, bays, {}, 2) == 2)
+  check('meet spots: no bays, no spots', #ms.pick({ x = 0, y = 0 }, nil, nil, 4) == 0)
+end
+
 print(string.format('lua tests passed: %d checks', passed))
