@@ -76,7 +76,7 @@ local SEV_WORD = { [1] = 'hairpin', [2] = '2', [3] = '3', [4] = '4', [5] = '5', 
 -- the call for a corner: 'Left 4', 'Hairpin right', 'Right 3 long' (a long one over 60 m)
 function M.callText(c)
   local side = c.dir == 'left' and 'Left' or 'Right'
-  if c.sev == 1 then return 'Hairpin ' .. c.dir end
+  if c.sev == 1 then return strings.t('rally.hairpin_1', (c.dir)) end
   return side .. ' ' .. SEV_WORD[c.sev] .. (c.len > 60 and ' long' or '')
 end
 
@@ -139,8 +139,8 @@ M.CLASS = { maxPower = 300, minWeight = 900 }
 function M.classOk(car)
   if type(car) ~= 'table' then return false, strings.t('rally.bring_a_car') end
   local p, w = tonumber(car.power), tonumber(car.weight)
-  if p and p > M.CLASS.maxPower then return false, string.format('Rally class is %d PS at most; this car has %d.', M.CLASS.maxPower, math.floor(p)) end
-  if w and w < M.CLASS.minWeight then return false, string.format('Rally class cars weigh at least %d kg.', M.CLASS.minWeight) end
+  if p and p > M.CLASS.maxPower then return false, string.format(strings.t('rally.rally_class_is_d_ps'), M.CLASS.maxPower, math.floor(p)) end
+  if w and w < M.CLASS.minWeight then return false, string.format(strings.t('rally.rally_class_cars_weigh_at'), M.CLASS.minWeight) end
   return true
 end
 

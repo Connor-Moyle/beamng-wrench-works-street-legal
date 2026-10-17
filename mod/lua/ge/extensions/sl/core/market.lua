@@ -8,15 +8,17 @@
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 local rngLib = require('sl/core/rng')
 
 -- condition of a used car: how it looks and runs, and what that does to the price
 M.CONDITIONS = {
-  { id = 'good_stock', title = 'Good, stock', weight = 3, condition = { 0.75, 0.95 }, damage = { 0, 0.05 }, mods = 0, broken = 0, price = 0.75 },
-  { id = 'tired_stock', title = 'Tired, stock', weight = 3, condition = { 0.45, 0.75 }, damage = { 0.05, 0.25 }, mods = 0, broken = 0.15, price = 0.5 },
-  { id = 'damaged_stock', title = 'Damaged, stock', weight = 2, condition = { 0.2, 0.5 }, damage = { 0.3, 0.7 }, mods = 0, broken = 0.4, price = 0.3 },
-  { id = 'modified_good', title = 'Modified, good', weight = 2, condition = { 0.7, 0.95 }, damage = { 0, 0.1 }, mods = { 2, 5 }, broken = 0, price = 0.95 },
-  { id = 'modified_broken', title = 'Modified, needs work', weight = 2, condition = { 0.25, 0.55 }, damage = { 0.2, 0.6 }, mods = { 1, 4 }, broken = 0.6, price = 0.45 },
+  { id = 'good_stock', title = strings.t('market.good_stock'), weight = 3, condition = { 0.75, 0.95 }, damage = { 0, 0.05 }, mods = 0, broken = 0, price = 0.75 },
+  { id = 'tired_stock', title = strings.t('market.tired_stock'), weight = 3, condition = { 0.45, 0.75 }, damage = { 0.05, 0.25 }, mods = 0, broken = 0.15, price = 0.5 },
+  { id = 'damaged_stock', title = strings.t('market.damaged_stock'), weight = 2, condition = { 0.2, 0.5 }, damage = { 0.3, 0.7 }, mods = 0, broken = 0.4, price = 0.3 },
+  { id = 'modified_good', title = strings.t('market.modified_good'), weight = 2, condition = { 0.7, 0.95 }, damage = { 0, 0.1 }, mods = { 2, 5 }, broken = 0, price = 0.95 },
+  { id = 'modified_broken', title = strings.t('market.modified_needs_work'), weight = 2, condition = { 0.25, 0.55 }, damage = { 0.2, 0.6 }, mods = { 1, 4 }, broken = 0.6, price = 0.45 },
 }
 
 -- what can be wrong with it; the car is built without these (or with them damaged)
@@ -81,7 +83,7 @@ function M.offers(cars, kind, seed, day, count, noStarter)
         offer.price = round(car.value * rng:range(1.0, 1.08), 50)
         -- now and then a quick car comes ready for the track: built and stripped, at a price
         if car.value > 30000 and rng:chance(0.3) then
-          offer.build, offer.title = 'race', 'Track special'
+          offer.build, offer.title = 'race', strings.t('market.track_special')
           offer.price = round(offer.price * 1.6, 50)
         end
       elseif kind == 'scrap' then

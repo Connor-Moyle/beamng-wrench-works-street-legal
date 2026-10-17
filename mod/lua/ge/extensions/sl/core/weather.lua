@@ -6,6 +6,8 @@ local rngLib = require('sl/core/rng')
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 -- drops: the level's Precipitation numDrops; cloud: CloudLayer coverage; fog: LevelInfo fogDensity (the level's own clear air is 0.00035)
 -- grip: a factor on tyre friction; pay: a factor on what is earned
 M.STATES = {
@@ -44,7 +46,7 @@ function M.grip(id) return M.state(id).grip end
 function M.pay(id) return M.state(id).pay end
 
 local WORDS = {
-  clear = 'Clear', cloudy = 'Cloudy', rain = 'Rain', fog = 'Fog banks',
+  clear = 'Clear', cloudy = 'Cloudy', rain = 'Rain', fog = strings.t('weather.fog_banks'),
 }
 
 -- the forecast line: now and what the next phase brings
@@ -52,8 +54,8 @@ function M.text(phase, nowId, nextId)
   local now = M.state(nowId)
   local nextPhase = M.after(phase, 1)
   local line = string.format('%s %s', WORDS[now.id], phase == 'night' and 'tonight' or 'today')
-  if now.id == 'rain' then line = line .. '. Wet roads, less grip, jobs and races pay a little more'
-  elseif now.id == 'fog' then line = line .. '. Visibility is poor by the water' end
+  if now.id == 'rain' then line = strings.t('weather.1_wet_roads_less_grip', (line))
+  elseif now.id == 'fog' then line = strings.t('weather.1_visibility_is_poor_by', (line)) end
   if nextId then line = line .. string.format('. %s %s', WORDS[M.state(nextId).id], nextPhase == 'night' and 'tonight' or 'by day') end
   return line .. '.'
 end

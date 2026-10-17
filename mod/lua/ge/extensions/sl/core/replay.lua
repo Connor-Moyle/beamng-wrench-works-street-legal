@@ -2,6 +2,8 @@
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 -- a race's name as a replay file's base name: no path or Windows-forbidden characters, one line, not too long, with the time it was made
 -- ('Street Legal - Quarry sprint 2026-10-17 21-30'). The game keeps it next to the recording and adds .rpl.
 function M.clipName(raceName, stamp)
@@ -17,7 +19,7 @@ function M.raceName(r)
   if type(r) ~= 'table' then return 'Race' end
   if type(r.raceName) == 'string' and r.raceName ~= '' then return r.raceName end
   if type(r.name) == 'string' and r.name ~= '' then return r.name end
-  if type(r.opponent) == 'string' and r.opponent ~= '' then return 'Race against ' .. r.opponent end
+  if type(r.opponent) == 'string' and r.opponent ~= '' then return strings.t('replay.race_against_1', (r.opponent)) end
   return 'Race'
 end
 

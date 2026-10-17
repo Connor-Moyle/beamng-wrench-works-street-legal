@@ -4,7 +4,9 @@
 
 local M = {}
 
-M.NOTE = 'The Street Legal career is single-player. Leave the BeamMP server to play it; your career is saved and waits for you.'
+local strings = require('sl/core/strings')
+
+M.NOTE = strings.t('multiplayer.the_street_legal_career_is')
 
 -- core: the MPCoreNetwork table (or nil), game: the MPGameNetwork table (or nil). Never raises.
 function M.inSession(core, game)

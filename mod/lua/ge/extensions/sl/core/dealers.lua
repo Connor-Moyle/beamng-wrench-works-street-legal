@@ -45,7 +45,7 @@ end
 function M.canBuy(s, offer)
   if not offer then return false, strings.t('dealers.that_car_has_gone') end
   if (s.bought or {})[offer.id] or M.ordered(s, offer.id) then return false, strings.t('dealers.that_car_has_gone') end
-  if s.money < offer.price then return false, string.format('It is $%d. You have $%d.', offer.price, s.money) end
+  if s.money < offer.price then return false, string.format(strings.t('dealers.it_is_d_you_have'), offer.price, s.money) end
   return true
 end
 

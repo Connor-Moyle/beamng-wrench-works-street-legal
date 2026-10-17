@@ -8,14 +8,16 @@ local rngLib = require('sl/core/rng')
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 M.SECTIONS = {
-  { id = 'engine', title = 'Engine', mech = true, parts = { 'Engine block', 'Cooling', 'Battery', 'Exhaust', 'Intake and fuel' } },
+  { id = 'engine', title = 'Engine', mech = true, parts = { strings.t('carreport.engine_block'), 'Cooling', 'Battery', 'Exhaust', strings.t('carreport.intake_and_fuel') } },
   { id = 'drivetrain', title = 'Drivetrain', mech = true, parts = { 'Gearbox', 'Clutch', 'Driveshaft', 'Differential' } },
-  { id = 'suspension', title = 'Suspension', mech = true, parts = { 'Springs and dampers', 'Arms and bushings' } },
-  { id = 'brakes', title = 'Brakes', mech = true, parts = { 'Pads and discs', 'Calipers and lines' } },
-  { id = 'wheels', title = 'Wheels and tyres', parts = { 'Tyres', 'Wheels' } },
-  { id = 'body', title = 'Body', parts = { 'Panels and doors', 'Frame and glass' } },
-  { id = 'interior', title = 'Interior', parts = { 'Seats', 'Dash and trim' } },
+  { id = 'suspension', title = 'Suspension', mech = true, parts = { strings.t('carreport.springs_and_dampers'), strings.t('carreport.arms_and_bushings') } },
+  { id = 'brakes', title = 'Brakes', mech = true, parts = { strings.t('carreport.pads_and_discs'), strings.t('carreport.calipers_and_lines') } },
+  { id = 'wheels', title = strings.t('carreport.wheels_and_tyres'), parts = { 'Tyres', 'Wheels' } },
+  { id = 'body', title = 'Body', parts = { strings.t('carreport.panels_and_doors'), strings.t('carreport.frame_and_glass') } },
+  { id = 'interior', title = 'Interior', parts = { 'Seats', strings.t('carreport.dash_and_trim') } },
 }
 
 -- which section (and which of its parts, by index) a fault belongs to

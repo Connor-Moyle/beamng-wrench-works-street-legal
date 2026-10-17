@@ -6,6 +6,8 @@
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 -- the jobs on the phone's board (sl_jobs TYPES kinds, and the ones other modules add)
 M.JOBS = {
   part = 'day', courier = 'day', taxi = 'day', crush = 'day', transport = 'day', testdrive = 'day', recovery = 'day', errand = 'day',
@@ -60,8 +62,8 @@ end
 -- what a closed place or an unavailable thing says
 function M.closedText(table_, kind, phase)
   if M.available(table_, kind, phase) then return nil end
-  if M.phaseOf(table_, kind) == 'day' then return 'Closed for the night. Open by day.' end
-  return 'Only after dark.'
+  if M.phaseOf(table_, kind) == 'day' then return strings.t('splitphase.closed_for_the_night_open') end
+  return strings.t('splitphase.only_after_dark')
 end
 
 -- what a phase pays in (D5 builds on it): money by day, rep by night; a heat multiplier applies to the night's rep

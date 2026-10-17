@@ -3,6 +3,8 @@
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 local function round10(x) return math.floor(x / 10 + 0.5) * 10 end
 
 ----------------------------------------------------------------------------------------------
@@ -29,7 +31,7 @@ function M.tuneSpec(rng, rep)
   if n == 0 then return nil end
   local metric = rng:chance(0.5) and 'power' or 'quarter'
   local t = (metric == 'power' and M.POWER or M.QUARTER)[rng:int(math.max(1, n - 1), n)]
-  local text = metric == 'power' and string.format('%d PS for under $%d', t[1], t[2]) or string.format('a %.1f s quarter mile for under $%d', t[1], t[2])
+  local text = metric == 'power' and string.format(strings.t('wwjobs.d_ps_for_under_d'), t[1], t[2]) or string.format(strings.t('wwjobs.a_1f_s_quarter_mile'), t[1], t[2])
   return { metric = metric, target = t[1], budget = t[2], pay = t[3], item = text }
 end
 

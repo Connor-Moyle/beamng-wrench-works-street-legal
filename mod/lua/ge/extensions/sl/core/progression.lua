@@ -8,6 +8,8 @@
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 M.START_MONEY = 5000
 M.START_HOUR = 10            -- a daytime start (Connor, 2026-10-16); the races are still at night
 
@@ -18,12 +20,12 @@ M.START_HOUR = 10            -- a daytime start (Connor, 2026-10-16); the races 
 -- (the phone's Club, Turf, Revline, Classifieds and Swap & Bid apps) are release 2 and Valo City's for now. A feature a map lacks is hidden, not half-run.
 local ALL = { roc = true, tracks = true, testdrive = true, clubDays = true, swapMeet = true, clubs = true, crews = true, classifieds = true }
 M.MAPS = {
-  slrr_valo_city = { name = 'Valo City', races = 'slrrValoRaces', has = ALL },
+  slrr_valo_city = { name = strings.t('progression.valo_city'), races = 'slrrValoRaces', has = ALL },
   -- stockFacilities: the map's own dealerships and garages (game data) become places; Valo City has its own
   -- clubs (#41): the night league races the map's sprints; the day league is the stock track events (stockEvents, scored by the game's stars)
-  west_coast_usa = { name = 'West Coast USA', races = 'sl_races', has = { stockFacilities = true, classifieds = true, clubs = true, stockEvents = true, swapMeet = true, nightMeet = true, crews = true }, garages = {
-    { id = 'alderDragwayGarage', name = 'Alder Dragway Garage' }, { id = 'commercialGarage', name = 'Industrial Garage' },
-    { id = 'belascoCityGarage', name = 'Belasco City Garage' } } },
+  west_coast_usa = { name = strings.t('progression.west_coast_usa'), races = 'sl_races', has = { stockFacilities = true, classifieds = true, clubs = true, stockEvents = true, swapMeet = true, nightMeet = true, crews = true }, garages = {
+    { id = 'alderDragwayGarage', name = strings.t('progression.alder_dragway_garage') }, { id = 'commercialGarage', name = strings.t('progression.industrial_garage') },
+    { id = 'belascoCityGarage', name = strings.t('progression.belasco_city_garage') } } },
 }
 M.MAP_ORDER = { 'slrr_valo_city', 'west_coast_usa' }
 M.DEFAULT_MAP = 'slrr_valo_city'
@@ -52,9 +54,9 @@ end
 
 -- no waiting in a race, on a job or with the police on you (state = { racing, job, heat })
 function M.skipRefusal(state)
-  if state.racing then return 'Not in the middle of a race.' end
-  if state.job then return 'Finish the job you are on first.' end
-  if (state.heat or 0) > 0.3 then return 'The police are after you. Lose them first.' end
+  if state.racing then return strings.t('jobs.not_in_the_middle_of') end
+  if state.job then return strings.t('classifieds.finish_the_job_you_are') end
+  if (state.heat or 0) > 0.3 then return strings.t('phase.the_police_are_after_you') end
   return nil
 end
 
@@ -64,31 +66,31 @@ function M.difficulty(rep) return math.max(0, math.min(1, (rep or 0) / 6000)) en
 -- what people call you
 M.titles = {
   { rep = 0, title = 'Nobody' },
-  { rep = 100, title = 'Street kid' },
+  { rep = 100, title = strings.t('progression.street_kid') },
   { rep = 300, title = 'Regular' },
-  { rep = 700, title = 'Known face' },
+  { rep = 700, title = strings.t('progression.known_face') },
   { rep = 1500, title = 'Contender' },
-  { rep = 3000, title = 'Local legend' },
-  { rep = 6000, title = 'King of Valo City' },
+  { rep = 3000, title = strings.t('progression.local_legend') },
+  { rep = 6000, title = strings.t('achievements.king_of_valo_city') },
 }
 
 -- the garages, in order. Moving up needs the reputation and the money. (site and name are Valo City's; the career
 -- sets them per map from MAPS, so every module reads one ladder)
 M.garages = {
-  { level = 1, site = 'slrrGarage1', name = 'Club Garage 1', rep = 0, cost = 0 },
-  { level = 2, site = 'slrrGarage2', name = 'Club Garage 2', rep = 1500, cost = 25000 },
-  { level = 3, site = 'slrrGarage3', name = 'Club Garage 3', rep = 3000, cost = 75000 },
+  { level = 1, site = 'slrrGarage1', name = strings.t('progression.club_garage_1'), rep = 0, cost = 0 },
+  { level = 2, site = 'slrrGarage2', name = strings.t('progression.club_garage_2'), rep = 1500, cost = 25000 },
+  { level = 3, site = 'slrrGarage3', name = strings.t('progression.club_garage_3'), rep = 3000, cost = 75000 },
 }
 
 -- garage upgrades (X58, Design 7): what a garage has is bought, and kept with that garage. The club garages (2, 3)
 -- come with the lift and the workbench. Off a career Wrench Works has everything.
 M.UPGRADES = {
-  { id = 'lift', name = 'Two-post lift', price = 2000, desc = 'Engine, gearbox, suspension and exhaust work at home.' },
-  { id = 'workbench', name = 'Workbench and tools', price = 1500, desc = 'Repairs at the normal price; engine rebuilds.' },
-  { id = 'dyno', name = 'Dyno', price = 6000, desc = 'Power curves, before and after.' },
-  { id = 'paint', name = 'Paint booth', price = 5000, desc = 'Paint, liveries and tint at home.' },
-  { id = 'shelves', name = 'Parts shelves', price = 1000, desc = 'Three times the shelf space.' },
-  { id = 'photo', name = 'Photo corner', price = 800, desc = 'Photo mode in the garage, and a showcase shot for the meets.' },
+  { id = 'lift', name = strings.t('progression.two_post_lift'), price = 2000, desc = strings.t('progression.engine_gearbox_suspension_and_exhaust') },
+  { id = 'workbench', name = strings.t('progression.workbench_and_tools'), price = 1500, desc = strings.t('progression.repairs_at_the_normal_price') },
+  { id = 'dyno', name = 'Dyno', price = 6000, desc = strings.t('progression.power_curves_before_and_after') },
+  { id = 'paint', name = strings.t('progression.paint_booth'), price = 5000, desc = strings.t('progression.paint_liveries_and_tint_at') },
+  { id = 'shelves', name = strings.t('progression.parts_shelves'), price = 1000, desc = strings.t('progression.three_times_the_shelf_space') },
+  { id = 'photo', name = strings.t('progression.photo_corner'), price = 800, desc = strings.t('progression.photo_mode_in_the_garage') },
 }
 M.GARAGE_COMES_WITH = { [2] = { lift = true, workbench = true }, [3] = { lift = true, workbench = true } }
 M.SHELF = { base = 12, shelves = 40 }       -- parts per model on the shelf
@@ -123,10 +125,10 @@ function M.nextGarage(state)
   local nextOne = M.garages[(state.garageLevel or 1) + 1]
   if not nextOne then return nil end
   if (state.rep or 0) < nextOne.rep then
-    return { garage = nextOne, canMove = false, why = string.format('needs %d reputation', nextOne.rep) }
+    return { garage = nextOne, canMove = false, why = string.format(strings.t('progression.needs_d_reputation'), nextOne.rep) }
   end
   if (state.money or 0) < nextOne.cost then
-    return { garage = nextOne, canMove = false, why = string.format('costs $%d', nextOne.cost) }
+    return { garage = nextOne, canMove = false, why = string.format(strings.t('progression.costs_d'), nextOne.cost) }
   end
   return { garage = nextOne, canMove = true }
 end
@@ -137,8 +139,8 @@ function M.garageAccess(state, siteId)
   for _, g in ipairs(M.garages) do
     if g.site == siteId then
       if g.level <= (state.garageLevel or 1) then return true end
-      if (state.rep or 0) < g.rep then return false, string.format('You need %d reputation to use %s.', g.rep, g.name) end
-      return false, string.format('Move up to %s first (Street cred on your phone).', g.name)
+      if (state.rep or 0) < g.rep then return false, string.format(strings.t('progression.you_need_d_reputation_to'), g.rep, g.name) end
+      return false, string.format(strings.t('progression.move_up_to_s_first'), g.name)
     end
   end
   return true

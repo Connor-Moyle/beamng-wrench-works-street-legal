@@ -3,6 +3,8 @@
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 M.DIR = '/art/street_legal/billboards/'
 M.MATERIAL = 'billboards'
 M.ORIGINAL = '/levels/west_coast_usa/art/shapes/objects/t_billboards_b.color.png'
@@ -16,7 +18,7 @@ M.SLUGS = {
 -- the name for the billboards, or nil for the stock ads. sponsor: the sponsor's name or nil; clubLevel: 1..3 or nil
 function M.choose(sponsor, clubLevel)
   if type(sponsor) == 'string' and M.SLUGS[sponsor] then return sponsor end
-  local club = clubLevel and ('Club ' .. tostring(clubLevel))
+  local club = clubLevel and (strings.t('billboards.club_1', (tostring(clubLevel))))
   if club and M.SLUGS[club] then return club end
   return nil
 end

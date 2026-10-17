@@ -5,7 +5,9 @@
 
 local M = {}
 
-M.CATEGORIES = { engine = 'Engine', body = 'Body', running = 'Running gear', interior = 'Interior', paint = 'Paint' }
+local strings = require('sl/core/strings')
+
+M.CATEGORIES = { engine = 'Engine', body = 'Body', running = strings.t('partinfo.running_gear'), interior = 'Interior', paint = 'Paint' }
 
 -- the catalog's chapter title in words ("EXHAUST SYSTEMS" -> "Exhaust systems")
 local function sentence(t)

@@ -3,34 +3,36 @@
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 local function stat(s, k) return s.stats and s.stats[k] or 0 end
 local function jobs(s) return s.jobs or {} end
 local function count(t) local n = 0 for _ in pairs(t or {}) do n = n + 1 end return n end
 
 M.LIST = {
-  { id = 'first_car', title = 'Wheels', desc = 'Own a car.', check = function(s) return #(s.cars or {}) > 0 end },
-  { id = 'first_job', title = 'Paid work', desc = 'Finish a job.', check = function(s) return (jobs(s).done or 0) >= 1 end },
-  { id = 'first_part', title = 'Spanners out', desc = 'Buy your first part in Wrench Works.', check = function(s) return jobs(s).upgraded == true end },
-  { id = 'first_race', title = 'Lights out', desc = 'Race on the street.', check = function(s) return stat(s, 'races') >= 1 end },
-  { id = 'first_win', title = 'First blood', desc = 'Win a race.', check = function(s) return stat(s, 'wins') >= 1 end },
-  { id = 'wins_10', title = 'Regular winner', desc = 'Win 10 races.', check = function(s) return stat(s, 'wins') >= 10 end },
-  { id = 'wins_50', title = 'Street machine', desc = 'Win 50 races.', check = function(s) return stat(s, 'wins') >= 50 end },
-  { id = 'pink_won', title = 'Pink slip', desc = "Win somebody's car.", check = function(s) return stat(s, 'pinksWon') >= 1 end },
-  { id = 'pink_lost', title = 'Walking home', desc = 'Lose a car on a pink slip.', check = function(s) return stat(s, 'pinksLost') >= 1 end },
-  { id = 'fleet_3', title = 'Collector', desc = 'Own three cars at once.', check = function(s) return #(s.cars or {}) >= 3 end },
-  { id = 'garage_2', title = 'Moving up', desc = 'Move to Club Garage 2.', check = function(s) return (s.garageLevel or 1) >= 2 end },
-  { id = 'garage_3', title = 'Top floor', desc = 'Move to Club Garage 3.', check = function(s) return (s.garageLevel or 1) >= 3 end },
-  { id = 'rep_1500', title = 'Contender', desc = 'Reach 1,500 reputation.', check = function(s) return (s.rep or 0) >= 1500 end },
-  { id = 'rep_6000', title = 'King of Valo City', desc = 'Reach 6,000 reputation.', check = function(s) return (s.rep or 0) >= 6000 end },
-  { id = 'roc', title = 'Champion', desc = 'Win the ROC.', check = function(s) return s.roc and s.roc.champion == true end },
-  { id = 'money_100k', title = 'Six figures', desc = 'Have $100,000 in the bank.', check = function(s) return (s.money or 0) >= 100000 end },
-  { id = 'jobs_25', title = 'Working stiff', desc = 'Finish 25 jobs.', check = function(s) return (jobs(s).done or 0) >= 25 end },
-  { id = 'jobs_all', title = 'Jack of all trades', desc = 'Finish eight different kinds of job.', check = function(s) return count(jobs(s).kindDone) >= 8 end },
-  { id = 'turf', title = 'On the map', desc = 'Take a district from a crew.', check = function(s) for _, t in pairs(s.crews and s.crews.territory or {}) do if t.owner == 'player' then return true end end return false end },
-  { id = 'home', title = 'Their own front door', desc = "Take a crew's home district.", check = function(s) for _, t in pairs(s.crews and s.crews.territory or {}) do if t.home and t.owner == 'player' then return true end end return false end },
-  { id = 'king', title = 'King of Valo', desc = 'Win the turf war against the crew leaders.', check = function(s) return s.crews ~= nil and s.crews.king ~= nil end },
-  { id = 'flip', title = 'Flipper', desc = 'Sell a car for more than you paid.', check = function(s) return jobs(s).flip ~= nil and (jobs(s).flip.flips or 0) >= 1 end },
-  { id = 'activities_5', title = 'Explorer', desc = 'Complete five different activities.', check = function(s) return count(s.activitiesDone) >= 5 end },
+  { id = 'first_car', title = 'Wheels', desc = strings.t('achievements.own_a_car'), check = function(s) return #(s.cars or {}) > 0 end },
+  { id = 'first_job', title = strings.t('achievements.paid_work'), desc = strings.t('achievements.finish_a_job'), check = function(s) return (jobs(s).done or 0) >= 1 end },
+  { id = 'first_part', title = strings.t('achievements.spanners_out'), desc = strings.t('achievements.buy_your_first_part_in'), check = function(s) return jobs(s).upgraded == true end },
+  { id = 'first_race', title = strings.t('achievements.lights_out'), desc = strings.t('achievements.race_on_the_street'), check = function(s) return stat(s, 'races') >= 1 end },
+  { id = 'first_win', title = strings.t('achievements.first_blood'), desc = strings.t('achievements.win_a_race'), check = function(s) return stat(s, 'wins') >= 1 end },
+  { id = 'wins_10', title = strings.t('achievements.regular_winner'), desc = strings.t('achievements.win_10_races'), check = function(s) return stat(s, 'wins') >= 10 end },
+  { id = 'wins_50', title = strings.t('achievements.street_machine'), desc = strings.t('achievements.win_50_races'), check = function(s) return stat(s, 'wins') >= 50 end },
+  { id = 'pink_won', title = strings.t('achievements.pink_slip'), desc = strings.t('achievements.win_somebody_s_car'), check = function(s) return stat(s, 'pinksWon') >= 1 end },
+  { id = 'pink_lost', title = strings.t('achievements.walking_home'), desc = strings.t('achievements.lose_a_car_on_a'), check = function(s) return stat(s, 'pinksLost') >= 1 end },
+  { id = 'fleet_3', title = 'Collector', desc = strings.t('achievements.own_three_cars_at_once'), check = function(s) return #(s.cars or {}) >= 3 end },
+  { id = 'garage_2', title = strings.t('achievements.moving_up'), desc = strings.t('achievements.move_to_club_garage_2'), check = function(s) return (s.garageLevel or 1) >= 2 end },
+  { id = 'garage_3', title = strings.t('achievements.top_floor'), desc = strings.t('achievements.move_to_club_garage_3'), check = function(s) return (s.garageLevel or 1) >= 3 end },
+  { id = 'rep_1500', title = 'Contender', desc = strings.t('achievements.reach_1_500_reputation'), check = function(s) return (s.rep or 0) >= 1500 end },
+  { id = 'rep_6000', title = strings.t('achievements.king_of_valo_city'), desc = strings.t('achievements.reach_6_000_reputation'), check = function(s) return (s.rep or 0) >= 6000 end },
+  { id = 'roc', title = 'Champion', desc = strings.t('achievements.win_the_roc'), check = function(s) return s.roc and s.roc.champion == true end },
+  { id = 'money_100k', title = strings.t('achievements.six_figures'), desc = strings.t('achievements.have_100_000_in_the'), check = function(s) return (s.money or 0) >= 100000 end },
+  { id = 'jobs_25', title = strings.t('achievements.working_stiff'), desc = strings.t('achievements.finish_25_jobs'), check = function(s) return (jobs(s).done or 0) >= 25 end },
+  { id = 'jobs_all', title = strings.t('achievements.jack_of_all_trades'), desc = strings.t('achievements.finish_eight_different_kinds_of'), check = function(s) return count(jobs(s).kindDone) >= 8 end },
+  { id = 'turf', title = strings.t('achievements.on_the_map'), desc = strings.t('achievements.take_a_district_from_a'), check = function(s) for _, t in pairs(s.crews and s.crews.territory or {}) do if t.owner == 'player' then return true end end return false end },
+  { id = 'home', title = strings.t('achievements.their_own_front_door'), desc = strings.t('achievements.take_a_crew_s_home'), check = function(s) for _, t in pairs(s.crews and s.crews.territory or {}) do if t.home and t.owner == 'player' then return true end end return false end },
+  { id = 'king', title = strings.t('achievements.king_of_valo'), desc = strings.t('achievements.win_the_turf_war_against'), check = function(s) return s.crews ~= nil and s.crews.king ~= nil end },
+  { id = 'flip', title = 'Flipper', desc = strings.t('achievements.sell_a_car_for_more'), check = function(s) return jobs(s).flip ~= nil and (jobs(s).flip.flips or 0) >= 1 end },
+  { id = 'activities_5', title = 'Explorer', desc = strings.t('achievements.complete_five_different_activities'), check = function(s) return count(s.activitiesDone) >= 5 end },
 }
 
 -- the achievements a career has just earned (and marks them earned on that day)

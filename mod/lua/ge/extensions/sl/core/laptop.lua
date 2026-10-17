@@ -3,6 +3,8 @@
 -- this turns that and the career's state into the screen's tiles: which exist, which are greyed, and why.
 local M = {}
 
+local strings = require('sl/core/strings')
+
 -- id = the stock function key. group: 'car' tiles act on the chosen car (only at a computer that lists cars), 'general' ones do not.
 -- page: what opens in the laptop; soon: not built yet (L3 dealers, L4 garage entry: delete the flag when it is).
 -- ids: a tile of ours that stands for any of several stock functions (the parts market needs a parts shop or a dealer).
@@ -41,11 +43,11 @@ function M.build(functions, state, defs)
     if offered and (not def.needs or has[def.needs]) then
       local tile = { id = def.id, label = def.label, page = def.page, mode = def.mode, enabled = true }
       local onCar = def.group == 'car' and lists
-      if def.group == 'car' and not lists then tile.enabled, tile.reason = false, 'Use a computer in a garage for this.'
-      elseif (onCar or def.shop) and state.busy then tile.enabled, tile.reason = false, 'Not during a race or a job.'
-      elseif onCar and not state.hasCar then tile.enabled, tile.reason = false, 'You have no car yet.'
-      elseif def.soon then tile.enabled, tile.reason = false, 'Coming soon.'
-      elseif onCar and state.carHere == false then tile.enabled, tile.reason = false, 'Bring the car into the garage first.' end
+      if def.group == 'car' and not lists then tile.enabled, tile.reason = false, strings.t('laptop.use_a_computer_in_a')
+      elseif (onCar or def.shop) and state.busy then tile.enabled, tile.reason = false, strings.t('laptop.not_during_a_race_or')
+      elseif onCar and not state.hasCar then tile.enabled, tile.reason = false, strings.t('laptop.you_have_no_car_yet')
+      elseif def.soon then tile.enabled, tile.reason = false, strings.t('laptop.coming_soon')
+      elseif onCar and state.carHere == false then tile.enabled, tile.reason = false, strings.t('laptop.bring_the_car_into_the') end
       local list = onCar and car or general
       list[#list + 1] = tile
     end
@@ -53,11 +55,11 @@ function M.build(functions, state, defs)
   -- (D1) a garage computer starts the night or the day
   if lists and state.phase then
     local tile = { id = 'phaseSwitch', label = phase.switchLabel(state.phase), run = 'phase', enabled = true }
-    if state.busy then tile.enabled, tile.reason = false, 'Not during a race or a job.' end
+    if state.busy then tile.enabled, tile.reason = false, strings.t('laptop.not_during_a_race_or') end
     general[#general + 1] = tile
   end
   local groups = {}
-  if #car > 0 then groups[#groups + 1] = { id = 'car', title = 'Vehicle management', tiles = car } end
+  if #car > 0 then groups[#groups + 1] = { id = 'car', title = strings.t('laptop.vehicle_management'), tiles = car } end
   if #general > 0 then groups[#groups + 1] = { id = 'general', title = 'General', tiles = general } end
   return { groups = groups, lists = lists }
 end

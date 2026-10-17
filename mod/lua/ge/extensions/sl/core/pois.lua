@@ -4,11 +4,13 @@
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 -- kind of place -> what the game's lists call it (type: dealership shows under the big map's Dealerships; icons are the big map's)
 M.KINDS = {
-  dealer = { type = 'dealership', cardIcon = 'carDealer', what = 'New cars' },
-  junkyard = { type = 'other', cardIcon = 'carDealer', what = 'Used cars' },
-  scrapyard = { type = 'other', cardIcon = 'info', what = 'Scrap yard' },
+  dealer = { type = 'dealership', cardIcon = 'carDealer', what = strings.t('pois.new_cars') },
+  junkyard = { type = 'other', cardIcon = 'carDealer', what = strings.t('pois.used_cars') },
+  scrapyard = { type = 'other', cardIcon = 'info', what = strings.t('pois.scrap_yard') },
 }
 
 -- places: id -> { id, kind, name, at = {x, y, z}, stockId }.  Returns a list sorted by id, one record per place with a marker.

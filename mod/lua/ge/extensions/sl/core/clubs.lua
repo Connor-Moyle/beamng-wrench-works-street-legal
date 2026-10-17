@@ -6,6 +6,8 @@
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 M.SEASON_DAYS = 7
 M.POINTS = { 10, 6, 4, 3, 2, 1 }
 M.FINISHED = 1                    -- for any place past the table
@@ -13,9 +15,9 @@ M.CLASSES = { 'D', 'C', 'B', 'A', 'S' }
 local LIMITS = { 90, 130, 180, 250 }   -- PS per tonne at the top of D, C, B, A
 
 M.CLUBS = {
-  { name = 'Club 1', classes = { 'D', 'C' }, tiers = { 1, 2 }, purse = 300, seasonRep = 100 },
-  { name = 'Club 2', classes = { 'C', 'B' }, tiers = { 2, 3 }, purse = 1500, seasonRep = 250 },
-  { name = 'Club 3', classes = { 'B', 'A', 'S' }, tiers = { 4, 5 }, purse = 6000, seasonRep = 600 },
+  { name = strings.t('clubs.club_1'), classes = { 'D', 'C' }, tiers = { 1, 2 }, purse = 300, seasonRep = 100 },
+  { name = strings.t('clubs.club_2'), classes = { 'C', 'B' }, tiers = { 2, 3 }, purse = 1500, seasonRep = 250 },
+  { name = strings.t('clubs.club_3'), classes = { 'B', 'A', 'S' }, tiers = { 4, 5 }, purse = 6000, seasonRep = 600 },
 }
 
 -- the class of a car: its peak power (PS) over its mass (kg)

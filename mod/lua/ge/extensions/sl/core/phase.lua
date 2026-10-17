@@ -6,6 +6,8 @@
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 M.DAY = { from = 7, to = 19 }
 M.NIGHT = { from = 21, to = 4 }       -- the night crosses midnight
 
@@ -61,7 +63,7 @@ end
 M.WAITS = { ['1'] = true, ['3'] = true, ['6'] = true }
 function M.waitPlan(phase, h, what)
   what = tostring(what)
-  if not M.WAITS[what] then return nil, 'Wait how long?' end
+  if not M.WAITS[what] then return nil, strings.t('phase.wait_how_long') end
   if not running(phase, h) then return nil, phase == 'night' and (S.t('phase.nightOver')) or (S.t('phase.dayOver')) end
   local hours = tonumber(what)
   local left = (M.endHour(phase) - h) % 24
@@ -73,9 +75,9 @@ end
 -- state = { racing, job, heat } as progression.skipRefusal
 function M.switchPlan(phase, state)
   state = state or {}
-  if state.racing then return nil, 'Not in the middle of a race.' end
-  if state.job then return nil, 'Finish the job you are on first.' end
-  if (state.heat or 0) > 0.3 then return nil, 'The police are after you. Lose them first.' end
+  if state.racing then return nil, strings.t('jobs.not_in_the_middle_of') end
+  if state.job then return nil, strings.t('classifieds.finish_the_job_you_are') end
+  if (state.heat or 0) > 0.3 then return nil, strings.t('phase.the_police_are_after_you') end
   local to = M.other(phase)
   return { phase = to, to = M.startHour(to), day = to == 'day' }
 end

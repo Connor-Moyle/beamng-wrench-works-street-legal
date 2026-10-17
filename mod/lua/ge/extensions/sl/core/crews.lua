@@ -6,11 +6,13 @@
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 M.CREWS = {
   { id = 'southside', name = 'the Southside Kings' },
-  { id = 'riverbed', name = 'Riverbed Runners' },
+  { id = 'riverbed', name = strings.t('crews.riverbed_runners') },
   { id = 'northend', name = 'the North End crew' },
-  { id = 'ringroad', name = 'Ring Road Ghosts' },
+  { id = 'ringroad', name = strings.t('crews.ring_road_ghosts') },
 }
 M.START_CONTROL = 60
 M.TAKEN_CONTROL = 50          -- a district changing hands starts with this much for its new owner
@@ -53,7 +55,7 @@ M.inside = inside
 
 local atan2 = math.atan2 or function(y, x) return math.atan(y, x) end     -- (LuaJIT in the game; Lua 5.4 in the tests)
 
-local COMPASS = { 'East Side', 'North-East', 'Northside', 'North-West', 'West End', 'South-West', 'Southside', 'South-East' }
+local COMPASS = { strings.t('crews.east_side'), 'North-East', 'Northside', 'North-West', strings.t('crews.west_end'), 'South-West', 'Southside', 'South-East' }
 
 -- k districts from points ({ x, y }): a few rounds of k-means from evenly spread seeds; named by where they lie
 -- from the middle of town (the one nearest the middle is Downtown)

@@ -6,6 +6,8 @@
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 local rngLib = require('sl/core/rng')
 local builds = require('sl/core/builds')
 
@@ -54,7 +56,7 @@ function M.lineup(configs, seed)
       files[key] = true
       out[#out + 1] = {
         model = c.model, config = c.config, stage = stage, seed = s, nick = nick, class = class, file = file,
-        label = string.format('%s "%s" (%s)', c.name, nick, stage == 'race' and 'Track' or ('Stage ' .. stage)),
+        label = string.format('%s "%s" (%s)', c.name, nick, stage == 'race' and 'Track' or (strings.t('showroom.stage_1', (stage)))),
         brand = c.brand, value = math.floor((c.value or 0) * VALUE[stage] / 50 + 0.5) * 50,
       }
     end

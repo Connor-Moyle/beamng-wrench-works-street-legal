@@ -7,6 +7,8 @@
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 local rngLib = require('sl/core/rng')
 
 -- the street stages: each adds to the one before
@@ -27,9 +29,9 @@ M.RACE_STRIP = { 'interior/seats_r', 'interior/trim', 'interior/extras', 'body/p
 local STREET_WORDS = { 'sport', 'street', 'tuner', 'turbo', 'stage', 'race', 'performance', 'drift' }
 local RACE_WORDS = { 'race', 'racing', 'track', 'slick', 'semi', 'competition', 'drag', 'cage', 'pro', 'rally', 'stage', 'ultralight', 'lightweight' }
 
-M.NICKNAMES = { 'Night Fury', 'Asphalt Ghost', 'Red Mist', 'Widowmaker', 'Boost Junkie', 'Static', 'Black Mamba', 'Midnight Express',
-  'Sleeper', 'Hellcat', 'Tarmac Shark', 'Northern Lights', 'Neon Wolf', 'Paper Plane', 'Lowrider', 'Kingpin', 'Graveyard Shift',
-  'Second Chance', 'Monday Morning', 'Ricochet', 'Blue Thunder', 'Nightcrawler', 'Hot Wire', 'Wild Card' }
+M.NICKNAMES = { strings.t('builds.night_fury'), strings.t('builds.asphalt_ghost'), strings.t('builds.red_mist'), 'Widowmaker', strings.t('builds.boost_junkie'), 'Static', strings.t('builds.black_mamba'), strings.t('builds.midnight_express'),
+  'Sleeper', 'Hellcat', strings.t('builds.tarmac_shark'), strings.t('builds.northern_lights'), strings.t('builds.neon_wolf'), strings.t('builds.paper_plane'), 'Lowrider', 'Kingpin', strings.t('builds.graveyard_shift'),
+  strings.t('builds.second_chance'), strings.t('builds.monday_morning'), 'Ricochet', strings.t('builds.blue_thunder'), 'Nightcrawler', strings.t('builds.hot_wire'), strings.t('builds.wild_card') }
 
 -- street colours: loud, metallic or matte; track cars wear a livery colour and a stripe colour
 local STREET_COLOURS = { { 0.9, 0.05, 0.05 }, { 0.02, 0.15, 0.85 }, { 0.95, 0.6, 0.02 }, { 0.1, 0.8, 0.15 }, { 0.6, 0.02, 0.7 },

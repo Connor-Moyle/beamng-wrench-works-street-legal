@@ -4,6 +4,8 @@
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 M.WORST_WINDOW = 10          -- seconds the worst frame is remembered
 M.AVG_WINDOW = 1             -- seconds the average is taken over
 
@@ -51,12 +53,12 @@ end
 function M.lines(r, c, vram)
   c = c or {}
   local out = {
-    string.format('%.1f ms  %d fps', r.ms or 0, math.floor((r.fps or 0) + 0.5)),
-    string.format('worst %.0f ms (10 s)', r.worstMs or 0),
+    string.format(strings.t('perf.1f_ms_d_fps'), r.ms or 0, math.floor((r.fps or 0) + 0.5)),
+    string.format(strings.t('perf.worst_0f_ms_10_s'), r.worstMs or 0),
   }
-  if vram then out[#out + 1] = 'VRAM ' .. vram end
-  out[#out + 1] = string.format('cars: %d traffic, %d other', c.traffic or 0, c.others or 0)
-  out[#out + 1] = string.format('people %d, objects %d', c.peds or 0, c.statics or 0)
+  if vram then out[#out + 1] = strings.t('perf.vram_1', (vram)) end
+  out[#out + 1] = string.format(strings.t('perf.cars_d_traffic_d_other'), c.traffic or 0, c.others or 0)
+  out[#out + 1] = string.format(strings.t('perf.people_d_objects_d'), c.peds or 0, c.statics or 0)
   return out
 end
 

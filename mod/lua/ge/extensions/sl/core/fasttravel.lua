@@ -9,18 +9,20 @@ local tiers = require('sl/core/tiers')
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 M.KINDS = {
   garage = { cardIcon = 'garage01', what = 'Garage' },
-  shop = { cardIcon = 'wrench', what = 'Parts shop' },
+  shop = { cardIcon = 'wrench', what = strings.t('fasttravel.parts_shop') },
 }
 
 -- the text that refuses a trip, or nil. ctx: { racing, job, chase, cab } booleans
 function M.refusal(ctx)
   ctx = ctx or {}
-  if ctx.racing then return 'No fast travel during a race.' end
-  if ctx.chase then return 'No fast travel with the police on you.' end
-  if ctx.cab then return 'You are in a cab.' end
-  if ctx.job then return 'Finish or cancel your job first.' end
+  if ctx.racing then return strings.t('fasttravel.no_fast_travel_during_a') end
+  if ctx.chase then return strings.t('fasttravel.no_fast_travel_with_the') end
+  if ctx.cab then return strings.t('fasttravel.you_are_in_a_cab') end
+  if ctx.job then return strings.t('fasttravel.finish_or_cancel_your_job') end
   return nil
 end
 

@@ -2,6 +2,8 @@
 -- hour is (time * 24 + 12) % 24, as in sl/career.
 local M = {}
 
+local strings = require('sl/core/strings')
+
 local HOURS = { shop = { 8, 18 }, dealer = { 9, 17 }, junkyard = { 8, 17 }, scrapyard = { 8, 17 } }
 
 local function hour(time) return (time * 24 + 12) % 24 end
@@ -18,7 +20,7 @@ function M.opensAt(kind) return HOURS[kind] and HOURS[kind][1] or nil end
 
 function M.closedText(kind, time)
   if M.isOpen(kind, time) then return nil end
-  return string.format('Closed. Opens at %02d:00', M.opensAt(kind))
+  return string.format(strings.t('hours.closed_opens_at_02d_00'), M.opensAt(kind))
 end
 
 return M

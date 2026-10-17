@@ -4,6 +4,8 @@
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 M.ENTRY_FEE = 50          -- $ to line up
 M.WIN_RATE = 1.9          -- of the entry fee back on a win (the other car's fee, less the strip's cut)
 M.WIN_REP = 12            -- reputation for a win by day (the street gives rep at night; the strip pays money)
@@ -55,12 +57,12 @@ function M.slip(racer)
 end
 
 function M.slipText(s)
-  if s.dq then return 'Disqualified: ' .. tostring(s.dq) end
-  if not s.et then return 'No time.' end
+  if s.dq then return strings.t('drag.disqualified_1', (tostring(s.dq))) end
+  if not s.et then return strings.t('drag.no_time') end
   local parts = { string.format('ET %.3f s', s.et) }
-  if s.mph then parts[#parts + 1] = string.format('%.1f mph', s.mph) end
+  if s.mph then parts[#parts + 1] = string.format(strings.t('drag.1f_mph'), s.mph) end
   if s.reaction then parts[#parts + 1] = string.format('R/T %.3f', s.reaction) end
-  if s.dial and s.dial > 0 then parts[#parts + 1] = string.format('dial %.2f%s', s.dial, s.breakout and ' (break-out)' or '') end
+  if s.dial and s.dial > 0 then parts[#parts + 1] = string.format(strings.t('drag.dial_2f_s'), s.dial, s.breakout and ' (break-out)' or '') end
   return table.concat(parts, ' · ')
 end
 

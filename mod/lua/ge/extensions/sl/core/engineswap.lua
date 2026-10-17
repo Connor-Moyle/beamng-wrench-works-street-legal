@@ -4,9 +4,11 @@
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 M.RATE = 90                  -- $ an hour
 M.MIN_HOURS, M.MAX_HOURS = 4, 14
-M.NO_CROSS_MODEL = "Only this model's own engines fit its engine mounts; another model's engine does not."
+M.NO_CROSS_MODEL = strings.t('engineswap.only_this_model_s_own')
 
 function M.hours(engineValue)
   local h = M.MIN_HOURS + (tonumber(engineValue) or 0) / 5000
@@ -21,8 +23,8 @@ function M.quote(info)
   for _, n in ipairs(info.needs or {}) do needs[#needs + 1] = tostring(n) end
   table.sort(needs)
   local q = { hours = M.hours(info.value), labour = M.labour(info.value), price = math.floor(tonumber(info.value) or 0), needs = needs, oldName = info.oldName }
-  q.text = string.format('Swap: $%d labour (%.1f h)%s%s', q.labour, q.hours, info.oldName and ('. The ' .. info.oldName .. ' goes on the shelf') or '',
-    #needs > 0 and ('. It needs: ' .. table.concat(needs, ', ')) or '')
+  q.text = string.format(strings.t('engineswap.swap_d_labour_1f_h'), q.labour, q.hours, info.oldName and (strings.t('engineswap.the_1_goes_on_the', (info.oldName))) or '',
+    #needs > 0 and (strings.t('engineswap.it_needs_1', (table.concat(needs, ', ')))) or '')
   return q
 end
 

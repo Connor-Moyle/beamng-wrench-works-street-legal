@@ -7,24 +7,26 @@ local rngLib = require('sl/core/rng')
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 -- models (the game's vehicle folder names) by theme; drift is by build: rear-drive, light, with some power
 M.JDM = { bx = true, covet = true, hopper = true, miramar = true, midsize = true, pessima = true, pigeon = true, sunburst2 = true, sbr = true }
 M.MUSCLE = { barstow = true, moonhawk = true, burnside = true, bluebuck = true, nine = true, legran = true }
 M.EURO = { bolide = true, scintilla = true, etk800 = true, etkc = true, etki = true, vivace = true, autobello = true }
 
 M.THEMES = {
-  { id = 'jdm', name = 'JDM night', blurb = 'Tuned imports from the East.', tips = {
-    'The cops sit by the on-ramp after one. Take the back streets.', 'A small turbo does more than a big exhaust. Learn the boost first.',
-    'Light cars win the hill. Weight is the enemy.' } },
-  { id = 'muscle', name = 'Muscle night', blurb = 'Big engines, straight lines.', tips = {
-    'All that power is useless without tyres. Spend there first.', 'The drag strip pays by day. Bring the big one.',
-    'Rear-drive and a wet road: easy on the throttle.' } },
-  { id = 'drift', name = 'Drift night', blurb = 'Rear-drive, light, sideways.', tips = {
-    'Do not fight the slide. Look where you want to go.', 'A locked diff is half of it. The other half is your left foot.',
-    'Cold tyres bite. Warm them up before the corner.' } },
-  { id = 'euro', name = 'Euro night', blurb = 'Clean lines from across the sea.', tips = {
-    'They take care of their cars here. A dirty car gets you nowhere at the show.', 'Brakes first, then power. The Europeans know.',
-    'Old money sells quiet. Ask who is selling.' } },
+  { id = 'jdm', name = strings.t('nightlife.jdm_night'), blurb = strings.t('nightlife.tuned_imports_from_the_east'), tips = {
+    strings.t('nightlife.the_cops_sit_by_the'), strings.t('nightlife.a_small_turbo_does_more'),
+    strings.t('nightlife.light_cars_win_the_hill') } },
+  { id = 'muscle', name = strings.t('nightlife.muscle_night'), blurb = strings.t('nightlife.big_engines_straight_lines'), tips = {
+    strings.t('nightlife.all_that_power_is_useless'), strings.t('nightlife.the_drag_strip_pays_by'),
+    strings.t('nightlife.rear_drive_and_a_wet') } },
+  { id = 'drift', name = strings.t('nightlife.drift_night'), blurb = strings.t('nightlife.rear_drive_light_sideways'), tips = {
+    strings.t('nightlife.do_not_fight_the_slide'), strings.t('nightlife.a_locked_diff_is_half'),
+    strings.t('nightlife.cold_tyres_bite_warm_them') } },
+  { id = 'euro', name = strings.t('nightlife.euro_night'), blurb = strings.t('nightlife.clean_lines_from_across_the'), tips = {
+    strings.t('nightlife.they_take_care_of_their'), strings.t('nightlife.brakes_first_then_power_the'),
+    strings.t('nightlife.old_money_sells_quiet_ask') } },
 }
 local byId = {}
 for _, t in ipairs(M.THEMES) do byId[t.id] = t end
@@ -69,10 +71,10 @@ function M.offer(theme, rng, ctx)
   local x = rng:float()
   if x < 0.35 and (ctx.value or 0) > 0 then
     local price = math.floor((ctx.value * rng:range(0.5, 0.85)) / 50 + 0.5) * 50
-    return { kind = 'sale', price = price, text = string.format("I'd let this one go for $%d. Take a look.", price) }
+    return { kind = 'sale', price = price, text = string.format(strings.t('nightlife.i_d_let_this_one'), price) }
   elseif x < 0.65 then
     local bet = math.floor(math.max(100, (ctx.rep or 0) * 0.5 + 100 * rng:range(1, 5)) / 50 + 0.5) * 50
-    return { kind = 'race', bet = bet, text = string.format('Somebody here wants a race for $%d. Ask around the cars.', bet) }
+    return { kind = 'race', bet = bet, text = string.format(strings.t('nightlife.somebody_here_wants_a_race'), bet) }
   end
   local tips = theme and theme.tips or M.THEMES[1].tips
   return { kind = 'tip', text = tips[rng:int(#tips)] }
