@@ -94,6 +94,15 @@ function M.trunkCount(trunk, itemId)
 end
 
 function M.oilChangeCost(litresCapacity) return math.floor(25 + 12 * (litresCapacity or 5) + 0.5) end
-function M.fillCost(fuelId, litres) return math.floor(M.fuel(fuelId).pricePerLitre * (litres or 0) * 100 + 0.5) / 100 end
+-- scale: the pump's own price against ours (M.scaleFor), 1 without one
+function M.fillCost(fuelId, litres, scale) return math.floor(M.fuel(fuelId).pricePerLitre * (scale or 1) * (litres or 0) * 100 + 0.5) / 100 end
+
+-- the stock station's price for a litre of petrol (freeroam_facilities_fuelPrice) against our Regular's: every grade's price moves with it, so the
+-- pump's own sign is what Regular costs. Nil or nonsense: 1. Kept between a third and three times.
+function M.scaleFor(stockPerLitre)
+  local p = tonumber(stockPerLitre)
+  if not p or p <= 0 then return 1 end
+  return math.max(1 / 3, math.min(3, p / byId.regular.pricePerLitre))
+end
 
 return M

@@ -9,7 +9,7 @@ local M = {}
 
 local rules = require('sl_carcare')
 
-local open                -- { name } while at the pump
+local open                -- { name, scale } while at the pump (scale: the pump's own prices against ours)
 local patched, original
 
 local function career() return sl_career and sl_career.isActive() and sl_career.getState() or nil end
@@ -24,22 +24,29 @@ local function send()
   if not open or not s then guihooks.trigger('slStation', { open = false }) return end
   local car, c = careOfCurrent()
   local fuels, items = {}, {}
-  for _, f in ipairs(rules.FUELS) do fuels[#fuels + 1] = { id = f.id, name = f.name, price = f.pricePerLitre } end
+  for _, f in ipairs(rules.FUELS) do fuels[#fuels + 1] = { id = f.id, name = f.name, price = math.floor(f.pricePerLitre * open.scale * 100 + 0.5) / 100 } end
   for _, id in ipairs({ 'fuelCan', 'oil', 'coolant', 'battery' }) do
     local it = rules.ITEMS[id]
     items[#items + 1] = { id = id, name = it.name, price = it.price }
   end
   guihooks.trigger('slStation', {
-    open = true, name = open.name, money = s.money, fuels = fuels, items = items,
+    open = true, name = open.name, money = s.money, fuels = fuels, items = items, washPrice = M.WASH_PRICE,
     car = car and car.name or nil, inTank = c and rules.fuel(c.fuel).name or nil,
     tank = c and c.fuelLevel or nil, litresToFull = c and c.fuelCapacity and c.fuelLitres and math.max(0, c.fuelCapacity - c.fuelLitres) or nil,
     trunk = c and #c.trunk or 0, trunkSlots = rules.TRUNK_SLOTS,
   })
 end
 
-function M.open(name)
+-- the pump's own price of petrol (the stock station's sign), as a scale on ours; stationId is the facility's id
+local function pumpScale(stationId)
+  local fp = freeroam_facilities_fuelPrice
+  local ok, price = pcall(function() return fp and fp.getFuelPrice and stationId and fp.getFuelPrice(stationId, 'gasoline') end)
+  return rules.scaleFor(ok and price or nil)
+end
+
+function M.open(name, stationId)
   if not career() then return end
-  open = { name = name or 'Gas station' }
+  open = { name = name or 'Gas station', scale = pumpScale(stationId) }
   send()
 end
 
@@ -57,9 +64,10 @@ function M.fill(fuelId)
   if not veh or not player or veh:getID() ~= player:getID() then toast('Drive your car up to the pump first.') return end
   local litres = c.litresToFull or (c.fuelCapacity and c.fuelLitres and c.fuelCapacity - c.fuelLitres) or 40
   local price = rules.fuel(fuelId).pricePerLitre
+  price = price * (open and open.scale or 1)
   litres = math.min(litres, math.floor(s.money / price))
   if litres < 1 then toast('That will not buy any fuel.') return end
-  local cost = rules.fillCost(fuelId, litres)
+  local cost = rules.fillCost(fuelId, litres, open and open.scale)
   sl_career.addMoney(-cost, string.format('%d L of %s', litres, rules.fuel(fuelId).name))
   sl_carcare.refill(car.id, 'fuel', litres, fuelId)
   c.fuelLitres = (c.fuelLitres or 0) + litres
@@ -89,7 +97,7 @@ local function patch()
   original = freeroam_gasStations.refuelCar
   freeroam_gasStations.refuelCar = function(elem, fuelTypes, veh)
     if career() then
-      M.open(elem and elem.facility and elem.facility.name)
+      M.open(elem and elem.facility and elem.facility.name, elem and elem.facility and elem.facility.id)
     else
       return original(elem, fuelTypes, veh)
     end
@@ -108,6 +116,25 @@ local washTimer = 0
 
 function M.washedToday(carId) local s = career() return s ~= nil and carId ~= nil and washedOn[carId] == s.day end
 
+-- wash the car you are in: the fee, the dirt off (Surface FX), fresh for the day's show and shine. Both day and night.
+local function washCar(carId, s)
+  if not sl_career.addMoney(-M.WASH_PRICE, 'Car wash') then toast('A wash is $' .. M.WASH_PRICE .. '.') return false end
+  if surfaceFXBody and surfaceFXBody.wash then surfaceFXBody.wash() end
+  washedOn[carId] = s.day
+  toast(string.format("Washed and dried. $%d. It looks the part for tonight's meet.", M.WASH_PRICE))
+  return true
+end
+
+-- at a pump: a wash is offered with the fuel (the stock stations have no bay of their own)
+function M.wash()
+  local s = career()
+  local car = careOfCurrent()
+  local veh = car and sl_fleet.vehicleOf(car.id)
+  local player = getPlayerVehicle(0)
+  if not s or not car or not veh or not player or veh:getID() ~= player:getID() then toast('Drive your car up to wash it.') return end
+  if washCar(car.id, s) then send() end
+end
+
 local function updateWash(dt)
   washTimer = washTimer + dt
   if washTimer < 0.25 then return end
@@ -121,10 +148,7 @@ local function updateWash(dt)
   end
   if bay ~= inBay and bay and v:getVelocity():length() < WASH_SPEED then
     inBay = bay
-    if not sl_career.addMoney(-M.WASH_PRICE, 'Car wash') then toast('A wash is $' .. M.WASH_PRICE .. '.') return end
-    if surfaceFXBody and surfaceFXBody.wash then surfaceFXBody.wash() end
-    washedOn[carId] = s.day
-    toast(string.format("Washed and dried. $%d. It looks the part for tonight's meet.", M.WASH_PRICE))
+    washCar(carId, s)
   elseif not bay then
     inBay = nil
   end

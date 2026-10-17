@@ -243,4 +243,9 @@ return function(check, rngLib)
   local sl = DR.slip({ et = 12.9, reaction = 0.043, speed = 50, dial = 13.2 })
   check('drag: the slip has mph, the diff against the dial and a break-out when under it', math.abs(sl.mph - 111.8) < 0.1 and math.abs(sl.diff + 0.3) < 1e-9 and sl.breakout and not DR.slip({ et = 13.5, dial = 13.2 }).breakout)
   check('drag: the slip text', DR.slipText(sl):find('ET 12.900 s') ~= nil and DR.slipText(sl):find('break%-out') ~= nil and DR.slipText({ dq = 'red light' }):find('red light') ~= nil and DR.slipText({}) == 'No time.')
+
+  -- #34: the pump's own price
+  local CC = require('sl_carcare')
+  check('pump price: the stock litre price scales every grade; nil or nonsense is 1; held between a third and three times', math.abs(CC.scaleFor(0.725) - 0.5) < 1e-9 and CC.scaleFor(nil) == 1 and CC.scaleFor(-3) == 1
+    and CC.scaleFor(0.01) == 1 / 3 and CC.scaleFor(100) == 3 and CC.fillCost('regular', 10) == 14.5 and CC.fillCost('regular', 10, 0.5) == 7.25)
 end

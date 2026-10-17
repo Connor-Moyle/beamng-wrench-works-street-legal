@@ -1017,7 +1017,8 @@
       return '<div class="slp-lot"><div class="slp-lothead"><span>Gas station &middot; ' + esc(g.name) + '</span><span>' + money(g.money) + '</span></div>' +
         '<div class="slp-lotname">' + tank + '</div>' +
         '<div class="slp-lotbtns slp-grades">' + grades + '</div>' +
-        '<div class="slp-lotbtns"><div class="slp-btn slp-go" data-a="station" data-v="fill|' + esc(pick) + '">Fill the tank</div></div>' +
+        '<div class="slp-lotbtns"><div class="slp-btn slp-go" data-a="station" data-v="fill|' + esc(pick) + '">Fill the tank</div>' +
+        (g.washPrice != null ? '<div class="slp-btn slp-tonal" data-a="station" data-v="wash">Car wash &middot; ' + money(g.washPrice) + '</div>' : '') + '</div>' +
         '<div class="slp-trunk">Shop &middot; into the trunk (' + (g.trunk || 0) + '/' + (g.trunkSlots || 6) + ')' + ' &middot; a fuel can takes the grade above</div>' + shop +
         '<div class="slp-lotleave"><div class="slp-btn slp-text" data-a="station" data-v="close">Drive on</div></div></div>';
     }
@@ -1408,6 +1409,7 @@
           var sv = String(v).split('|');
           if (sv[0] === 'close') { lua('@sl_station.close()'); st.station = null; render(); }
           else if (sv[0] === 'fill') lua('@sl_station.fill(' + JSON.stringify(sv[1]) + ')');
+          else if (sv[0] === 'wash') lua('@sl_station.wash()');
           else if (sv[0] === 'buy') lua('@sl_station.buy(' + JSON.stringify(sv[1]) + ',' + JSON.stringify(st.fuelPick || 'premium') + ')');
           break;
         case 'useitem': var ui = String(v).split('|'); lua('useItem(' + Number(ui[0]) + ',' + JSON.stringify(ui[1]) + ')'); break;

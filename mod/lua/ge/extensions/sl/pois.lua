@@ -79,6 +79,16 @@ function M.onGetRawPoiListForLevel(level, elements)
     end
     elements[#elements + 1] = el
   end
+  -- the map's own gas stations (their pump prompt opens sl_station): the game lists them for its career or with its freeroam setting only
+  local gs = freeroam_gasStations
+  local listed = settings and settings.getValue and settings.getValue('enableGasStationsInFreeroam')
+  if gs and gs.formatGasStationPoi and freeroam_facilities and not listed then
+    local f = freeroam_facilities.getFacilities(level)
+    for _, g in ipairs(f and f.gasStations or {}) do
+      local ok, el = pcall(gs.formatGasStationPoi, g)
+      if ok and el then elements[#elements + 1] = el end
+    end
+  end
   -- the garages and the Wrench Works shops: on the big map only (their own markers stand at their doors); a locked garage greyed, with what it needs
   local sites = pcall(require, 'slrr/garageSites') and require('slrr/garageSites') or nil
   local state = sl_career.getState()
