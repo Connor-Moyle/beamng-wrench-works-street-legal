@@ -649,15 +649,20 @@ local function meetHidden(pos)
 end
 
 -- a meet's cars are built one by one with a gap, and only while the player is slow or far away (each build is a 1-1.6 s freeze: 6-11 in a row was a stutter train)
-local MEET_GAP, MEET_SLOW, MEET_FAR, MEET_MAX_WAIT = 4, 8, 300, 40
+local MEET_GAP, MEET_SLOW, MEET_FAR, MEET_MAX_WAIT = 6, 8, 300, 40
+local function meetCalm(pos)
+  local v = getPlayerVehicle(0)
+  return not v or v:getVelocity():length() < MEET_SLOW or (v:getPosition() - pos):length() > MEET_FAR
+end
+-- false: he kept driving fast near the meet for MEET_MAX_WAIT s: no more cars (a thinner meet, not a stutter; hitch recording: 11 builds in 45 s while he drove past)
 local function meetPace(job, pos)
   local waited = 0
-  while waited < MEET_MAX_WAIT do                                 -- (after that it is built anyway: the meet must still fill)
-    local v = getPlayerVehicle(0)
-    if not v or v:getVelocity():length() < MEET_SLOW or (v:getPosition() - pos):length() > MEET_FAR then break end
+  while not meetCalm(pos) do
+    if waited >= MEET_MAX_WAIT then return false end
     job.sleep(1) waited = waited + 1
   end
   job.sleep(MEET_GAP)
+  return true
 end
 
 local function startMeet(s)
@@ -667,6 +672,7 @@ local function startMeet(s)
   local rng = rngLib.new(rngLib.hash('meet' .. s.day .. math.floor(sl_career.hour())))
   local place = list[rng:int(#list)]
   if not meetHidden(place.pos) then return false end         -- tried again at the next chance
+  if not meetCalm(place.pos) then return false end           -- he is driving fast nearby: not now (the next try is 20 s later)
   local racers = {}
   for _, r in ipairs(s.racers) do
     if math.abs(r.rep - s.rep) < 1500 + s.rep * 0.5 and not cruisers[r.id] then racers[#racers + 1] = r end
@@ -693,8 +699,7 @@ local function startMeet(s)
       if not meetHidden(place.pos) then break end                -- he is coming: no more cars appear in front of him
       local pos, rot = nextSpot()
       if not pos then break end                                  -- no bay left: a small car park holds fewer cars
-      meetPace(job, place.pos)
-      if not meetHidden(place.pos) then break end
+      if not meetPace(job, place.pos) or not meetHidden(place.pos) then break end
       local r = table.remove(racers, rng:int(#racers))
       local veh = spawnRacer(job, s, r, pos, rot)
       if veh and meet then
@@ -715,8 +720,7 @@ local function startMeet(s)
       if not meet or not meetHidden(place.pos) then break end
       local pos, rot = nextSpot()
       if not pos then break end
-      meetPace(job, place.pos)
-      if not meet or not meetHidden(place.pos) then break end
+      if not meetPace(job, place.pos) or not meet or not meetHidden(place.pos) then break end
       local veh = builder.buildCustom(job, c.model, c.config, { stage = rng:int(0, 2), seed = rngLib.hash(place.id .. ':' .. s.day .. ':' .. i) }, pos, rot)
       if veh and meet then
         veh:queueLuaCommand('controller.setFreeze(1) input.event("parkingbrake", 1, FILTER_DIRECT)')
