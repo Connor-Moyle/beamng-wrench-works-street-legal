@@ -285,8 +285,17 @@ end
 -- hooks
 
 M.onStreetLegalChanged = function() wantSend = true end
-M.onStreetLegalStarted = function() wantSend = true end
 M.onStreetLegalStopped = function() guihooks.trigger('slPhoneData', { active = false }) end
+-- the Wrench Works garage screen has no access to our settings: it is told the text size and the colour-blind palette (event slAccess) when they change and every 5 s
+local lastAccess = 0
+local function sendAccess()
+  if not career() then return end
+  guihooks.trigger('slAccess', { textScale = require('sl/core/strings').textScale(sl_options and sl_options.get and sl_options.get('slTextScale')),
+    colorBlind = sl_options ~= nil and sl_options.get ~= nil and sl_options.get('slColorBlind') == true })
+end
+M.sendAccess = sendAccess
+M.onStreetLegalOption = function(key) if key == 'slTextScale' or key == 'slColorBlind' then sendAccess() end end
+M.onStreetLegalStarted = function() wantSend = true sendAccess() end
 
 M.onStreetLegalText = function(thread, text)
   local s = career()
@@ -305,6 +314,7 @@ M.onUpdate = function(dtReal)
   if (wantSend and sendTimer > (anyOpen() and 0.25 or 1)) or (sendTimer > 5 and career()) then
     sendTimer, wantSend = 0, false
     send()
+    if os.clock() - lastAccess > 5 then lastAccess = os.clock() sendAccess() end
   end
 end
 
