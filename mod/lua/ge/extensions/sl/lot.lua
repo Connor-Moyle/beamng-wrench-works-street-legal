@@ -392,6 +392,13 @@ function M.debugShot(kind)
   return true
 end
 
+-- for the in-game suite: what the lot is showing now ({ mode, veh (the shown car's id), index, count, factory (the step), L, W, H })
+function M.debugState()
+  if not lot then return nil end
+  return { mode = lot.mode, veh = lot.veh, index = lot.index, count = #lot.offers, factory = lot.factory and lot.factory.step or nil,
+    building = lot.building == true, L = cam and cam.L, W = cam and cam.W, H = cam and cam.H, kind = lot.kind, tier = M.tier(lot.place) }
+end
+
 function M.cameraZoom(steps)
   if cam then cam.idle = 0 end
   if cam then cam.dist = math.max(4, math.min(14, cam.dist - (tonumber(steps) or 0) * 0.6)) end

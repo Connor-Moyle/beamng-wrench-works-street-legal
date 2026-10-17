@@ -880,6 +880,8 @@ function M.onActivityAcceptGatherData(elemData, activityData)
   end
 end
 
+-- for the game tester: start a meet now (night only; the player must be out of sight of it, 130 m away) and raid it
+function M.debugStartMeet() local s = career() if s and night() and not meet and not busy then return startMeet(s) end end
 -- for the game tester: raid the meet now
 function M.debugRaid() local s = career() if s and meet then raidMeet(s, true) end end
 
