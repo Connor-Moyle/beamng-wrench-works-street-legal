@@ -42,6 +42,7 @@ local meet                -- { place, cars = { racer id -> vehicle id }, until (
 local race                -- the race running: { racer, vid, stake, bet, dest = vec3, destName, t, countdown, started }
 local beam = { on = false, onAt = 0 }
 local pollTimer, spawnTimer, meetTimer = 0, 0, 0
+local meetEmptied = false   -- the meet that started built no car: it does not count for the night
 local meetsTonight = 0   -- meets started since dusk (the first of a night is tried after 30 s, spawnplan.meetDue)
 local tryTimer = 0
 local busy = false        -- a job is spawning something
@@ -743,6 +744,10 @@ local function startMeet(s)
       end
     end
     busy = false
+    if meet and next(meet.cars) == nil and next(meet.owners) == nil then      -- he kept driving fast nearby: no car was built, so this is no meet
+      meet, meetEmptied = nil, true
+      guihooks.trigger('slMeet', { open = false })
+    end
     pcall(function() sl_pois.refresh() end)          -- (the owners' walk-up prompts)
   end)
   local who = racers[1] or s.racers[1]
@@ -797,6 +802,7 @@ end
 local function updateMeet(s, dt)
   local v = getPlayerVehicle(0)
   if not meet then
+    if meetEmptied then meetEmptied, meetsTonight, meetTimer = false, math.max(0, meetsTonight - 1), 0 end
     meetTimer = meetTimer + dt
     local due = night() and not race and not busy and spawnplan.meetDue(meetTimer, meetsTonight, math.random())
     if due == 'skip' then meetTimer = 0
