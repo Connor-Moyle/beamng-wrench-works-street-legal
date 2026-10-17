@@ -218,9 +218,11 @@ return function(check, rngLib)
   local W, V = 'west_coast_usa', 'slrr_valo_city'
   check('West Coast USA: a stock evade pays like a Valo City evade', AR.ruleFor(W, W .. '/evade/anyEvade').heat == -0.3 and AR.ruleFor(W, W .. '/evade/anyEvade').heatRep == 60)
   check('West Coast USA: parking, drift and time trials are rules', AR.ruleFor(W, W .. '/precisionParking/p1').firstOnly and AR.ruleFor(W, W .. '/drift/d1').fee == 50
-    and AR.ruleFor(W, W .. '/timeTrial/t1').title == 'Street sprint')
+    and AR.ruleFor(W, W .. '/timeTrial/t1').title == 'Time trial')
   local tt = AR.ruleFor(W, W .. '/timeTrial/t1')
-  check('a stock time trial pays its prize and rep once, not again and again (no money loop)', tt.prizeOnce and tt.firstOnly and tt.fee == 100 and tt.nightOnly)
+  check('a stock time trial pays its prize and rep once, not again and again (no money loop)', tt.prizeOnce and tt.firstOnly and tt.fee == 100 and tt.kind == 'timeTrial' and not tt.nightOnly)
+  check('the drag strips and circuits of a stock map are day events with prize money', AR.ruleFor(W, W .. '/dragStripRace/a').kind == 'drag' and AR.ruleFor(W, W .. '/dragStripAPM/a').prize > 0
+    and AR.ruleFor(W, W .. '/aiRace/a').kind == 'circuit' and AR.ruleFor(V, V .. '/aiRace/a') == nil)
   check('Valo City is unchanged: its sprints and evades by their slrr_ names only', AR.ruleFor(V, V .. '/timeTrial/slrr_sprint_x').prizeOnce == nil
     and AR.ruleFor(V, V .. '/evade/slrr_evade_x').heat == -0.3 and AR.ruleFor(V, V .. '/timeTrial/other') == nil and AR.ruleFor(V, V .. '/evade/other') == nil
     and AR.ruleFor(V, V .. '/timeTrial/slrr_rally_x').firstOnly)

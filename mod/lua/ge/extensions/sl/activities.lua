@@ -7,6 +7,7 @@ local M = {}
 
 local progression = require('sl/core/progression')
 local stateLib = require('sl/core/state')
+local splitphase = require('sl/core/splitphase')
 
 local rules = require('sl/core/activityrules')      -- which missions pay, and what
 M.RULES = rules.RULES
@@ -20,10 +21,27 @@ local function night() return sl_career.isNight() end
 
 local paidFee = {}   -- mission id -> true while a paid attempt runs
 
+local refuse
+function M.onUpdate()
+  local m = refuse
+  if not m then return end
+  local mm = gameplay_missions_missionManager
+  if not (m._isOngoing and mm and mm.attemptAbandonMissionWithFade) then refuse = nil return end
+  if mm.attemptAbandonMissionWithFade(m, true) then refuse = nil end      -- (true: it handles its own stopping; else onMissionAbandoned, or a running task: again next frame)
+end
+
+function M.onMissionAbandoned() refuse = nil end
+
 function M.onAnyMissionChanged(change, mission)
   local s = career()
   local r = s and change == 'started' and mission and ruleFor(mission.id)
-  if not r or not r.fee then return end
+  if not r then return end
+  if r.kind and not splitphase.available('races', r.kind, sl_career.phase()) then
+    refuse = mission                                   -- (a track event at night: stopped as soon as the game has finished starting it)
+    tell('Track events run in the day.')
+    return
+  end
+  if not r.fee then return end
   if r.nightOnly and not night() then return end                    -- by day: a practice run, nothing on it
   if r.prizeOnce and (s.activitiesDone or {})[mission.id] then return end      -- done before: a practice run
   if sl_career.addMoney(-r.fee, r.title .. ' entry') then paidFee[mission.id] = true end

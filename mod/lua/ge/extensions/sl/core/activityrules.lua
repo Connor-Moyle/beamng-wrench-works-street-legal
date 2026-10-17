@@ -14,7 +14,11 @@ M.RULES = {
   { match = '/timeTrial/slrr_sprint_', title = 'Street sprint', fee = 100, prize = 400, perStar = 0.25, rep = 15, nightOnly = true },
   { match = '/timeTrial/slrr_rally_', title = 'Rally loop', rep = 20, firstOnly = true },      -- (the ROC rally: a closed timeTrial)
   { match = '/evade/slrr_evade_', title = 'Evade', rep = 20, heatRep = 60, heat = -0.3 },
-  { match = '/timeTrial/', generic = true, title = 'Street sprint', fee = 100, prize = 400, perStar = 0.25, rep = 15, firstOnly = true, nightOnly = true, prizeOnce = true },
+  -- the stock track events of a map like West Coast USA are day events (D2, kind = splitphase.RACES): they pay prize money, once, and are refused at night
+  { match = '/timeTrial/', generic = true, kind = 'timeTrial', title = 'Time trial', fee = 100, prize = 400, perStar = 0.25, rep = 15, firstOnly = true, prizeOnce = true },
+  { match = '/dragStripRace/', generic = true, kind = 'drag', title = 'Drag strip', fee = 50, prize = 300, perStar = 0.25, rep = 10, firstOnly = true, prizeOnce = true },
+  { match = '/dragStripAPM/', generic = true, kind = 'drag', title = 'Drag strip', fee = 50, prize = 200, perStar = 0.25, rep = 10, firstOnly = true, prizeOnce = true },
+  { match = '/aiRace/', generic = true, kind = 'circuit', title = 'Circuit race', fee = 100, prize = 500, perStar = 0.25, rep = 15, firstOnly = true, prizeOnce = true },
   { match = '/evade/', generic = true, title = 'Evade', rep = 20, heatRep = 60, heat = -0.3 },
   { match = '/drift/', title = 'Drift contest', fee = 50, prize = 300, perStar = 0.3, rep = 12 },
   { match = '/precisionParking/', title = 'Parking', rep = 10, firstOnly = true },
