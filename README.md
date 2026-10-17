@@ -1,60 +1,57 @@
-# BeamNG Wrench Works: Street Legal
+# Wrench Works: Street Legal
 
-A career in the spirit of *Street Legal Racing: Redline*, played on the Wrench Works: Valo City map or on West Coast USA (New career asks which; the save keeps it). You start on foot in the first garage with a few thousand and no car. The city's street racers are in your phone. Reputation from racing, worth more at night, takes you up through the three garages to the ROC.
+A street-racing career for BeamNG.drive on **West Coast USA**, in the spirit of *Street Legal Racing: Redline*. You start on foot with a few thousand dollars and no car. Buy something that runs, fix it up in the garage, earn money by day, race the streets by night, keep ahead of the police and build a name: from a beater to the best in town.
 
-Part of the **BeamNG Wrench Works** family. Needs **Wrench Works** (the garage). Plays on West Coast USA, or on the **Wrench Works: Valo City** map (`slrr_valo_city`) when it is installed. **Wrench Works: Drivers & Pedestrians** (SLRR's drivers in the cars, and pedestrians on the sidewalks) is optional. BeamNG.drive 0.39.
+Part of the **Wrench Works** family. BeamNG.drive 0.39.
 
-## How it plays
+## What you need
 
-- **Start**: the main menu's **Career** button asks which career: BeamNG's own, or **Wrench Works: Street Legal** (Continue, another of your careers, or New career: up to six careers side by side, each with its own backup; rename or delete them on the main menu's Career chooser). Also under Gameplay > Wrench Works: Street Legal. A daytime start, you on foot in the first garage with $5,000 and no car. Benny from the garage texts you where to begin.
-- **Getting a car**: walk up to the junkyard's lot, the dealership or the scrap yard (the phone's Cab app takes you). Two to six cars stand in a row under floodlights (a different count and choice each day); the camera glides from one to the next as you go left and right, right-drag to look round the one on show. Used cars come as tidy stock, tired stock, damaged, modified, or modified and broken (and the junkyard's cheapest car is never over $3,500: there is always a starter); what is wrong with them is really wrong (parts missing, panels bent, parts swapped). Test drive it, buy it, then drive it home or have it towed.
-- **Your cars**: kept between sessions with their setup, their dents and where you left them. Phone > My cars: tow one home, swap which one you drive (at the garage). Drive up to the junkyard or scrap yard in one and they make you an offer for it.
-- **The garage**: Wrench Works, paid from career money. Its **Services** drawer, as in SLRR: an oil change, coolant, a new battery, a nitrous refill, an **engine rebuild** (only the engine, the rest of the car as it is), swap the car on the lift for another of yours, and a **race selector** (pick an event and a racer of your level waits at the start). Bent parts are fixed one at a time with Wrench Works' repair tool.
-- **Looking after a car**: damage stays until you fix it. Every car has a 12 V battery (the lights drain it; flat, it will not start), oil and coolant (low oil, old oil and a worn engine cost power; a high-mileage engine leaks oil and leaves drops on the road with the Enhanced Skidmarks mod), a fuel grade (Regular 91 to Race 102, a little more power with each) and nitrous that stays as empty as you left it. Phone > My cars shows it all, and each car's history: owners, races, wins, wrecks.
-- **Hurt at the wheel** (with Drivers & Pedestrians' injuries): broken bones mean a doctor's bill and no racing or jobs until they heal; knocked out or killed, you wake up at the hospital with its bill (insurance pays its share) and the car is towed to your garage as it is. In a Hardcore career, dying at the wheel is game over: the career is kept to look at, not to play on.
-- **Rival crews**: every racer is in one of four crews, and each crew holds districts of the city. Beat a crew on its own streets to take the district (phone > Turf).
-- **The garage's kit**: Club Garage 1 starts bare (bolt-ons from the floor, a mobile mechanic's repair prices). Put in a lift ($2,000: engine, gearbox, suspension, headers), a workbench, a dyno, a paint booth, more shelving and a photo corner from My cars; the club garages come with the lift and bench.
-- **Settings**: a Street Legal group in Wrench Works' settings. For this career (kept in its save): police on/off and aggression, Pay (what jobs, purses and prizes pay), Hardcore (no pull-outs, no free cab, no insurance). For every career: traffic in street races, race flares and start lines, text pop-ups, and Valo City's weather and rain (with the map's weather).
-- **No freeroam shortcuts**: in the career the vehicle selector, the parts and tuning menus, the environment and level pages, the World Editor, camera teleports, the rewind and the vehicle reload are off: parts come from Wrench Works and repairs cost money. The reset key quotes a pull back onto the nearest road, as the car is (no repairs, by how far off the road you are); press it again to pay. The map's races keep their own reset.
-- **Gas stations and the trunk**: the pumps charge career money and sell fuel by grade, plus a fuel can, oil, coolant and a battery that go in the trunk. Use them from My cars: top up the oil after a smashed sump to limp home, cool an overheating engine, refill from the can.
-- **Racing**, at night for the most reputation:
-  - the map's night races, at their start lines;
-  - **flash your high beams** at a racer cruising the streets (their name hangs over the car): if they rate you, it is a race to the other side of town for their usual stake;
-  - **car meets**: some nights racers gather in a car park (you get a text); roll in and pick somebody: for money, high stakes or **pink slips**;
-  - races **arranged by phone**, at a start line they choose, or a **drag race** down the test track's quarter mile or mile. The racer turns up in their own car.
-  - **race tracks**: from the garage's Tracks list, SLRR's circuits and rally stages in the valley (Spa, Nürburgring, Laguna Seca, the UK rally stages...), you and a racer of your level on the grid; rivals drive the map's racing lines, faster the better they are.
-  - when the map provides them, the races run as BeamNG missions (its race UI and timing), with your racer, stake and pink slips intact.
-- **Every racer has their own car**: a stock car of their class built up by tier, from a stock beater to Stage 3 (turbo, brakes, aero, suspension), with a nickname and a paint job. At the ROC they bring the track version: race parts, stripped interior. The dealership now and then has a **Track special**.
-- **Race starts and flares**: start lines with a chequered line and posts; when a race goes green, orange road flares (some throwing a flickering light) line both edges of the whole route, or every checkpoint of the ROC circuit.
-- **Pink slips are special**: only a few racers put their car up on any one night (Benny texts you at dusk who), and only they offer it. They are real: win and their car goes to your garage; lose and they drive off in yours and you walk home.
-- **The police**: patrol cars cruise at night, and racing raises your heat, which draws them. Caught, you pay a fine per offence (more mid-race, and the race is lost) and lose face; can't pay and the car goes to the impound until you can (phone > My cars). Getting away earns a little. Heat cools off day by day.
-- **It gets harder**: the more reputation, the sharper the racers drive and the closer their cars are to yours.
-- **Up the ladder**: reputation brings titles, new numbers in your phone, and the right to move to Club Garage 2 (1,500 rep, $25,000) and Club Garage 3 (3,000 rep, $75,000). From garage 3 at 6,000 rep: the **ROC**, three rounds against the best in town on the ROC island ($50,000 entry, $250,000 to the champion).
+- **Wrench Works: Garage** (`wrench_works.zip`): the garage this career works in. Required.
+- **Wrench Works: Drivers & Pedestrians** (`slrr_drivers.zip`): a driver in every car and people on the sidewalks. Optional, recommended.
+- The map **West Coast USA** that comes with the game.
 
-## The map
+The download **Wrench Works Street Legal - West Coast** has all three in one file, with the versions each one needs of the others.
 
-On the Wrench Works: Valo City map the career gets its places (garages, junkyard, dealership, scrap yard, meet spots, the lots' display spots), the night and drag races and the ROC track; docs/integration.md has the contract between the two.
+## Install
 
-## The SLRR dashboard
+1. Unzip the download and copy the `.zip` files inside (not the other files) into your BeamNG mods folder: `%LOCALAPPDATA%\BeamNG\BeamNG.drive\current\mods`. Do not unzip those zips.
+2. Start BeamNG.drive. On the main menu, **Career** asks which career: BeamNG's own or **Wrench Works: Street Legal**. Pick it, then **New career** and **West Coast USA**.
+3. The mods check each other's versions when a level loads and tell you if one is too old or missing.
 
-SLRR's own art (the dials and icons) is not shipped: it belongs to SLRR. Without it the dashboard and the phone draw their own gauges and icons. The fades (a cab ride, a tow, a drive-away from a lot) are always plain black: no loading pictures of SLRR's, and a level loads with BeamNG's own loading screen. To use the original art, unpack `street_legal.zip` into `mods/unpacked/street_legal` (delete the zip), then run `python tools/slrr_ui.py "<your Street Legal Racing Redline folder>" "<...>/mods/unpacked/street_legal/ui/modModules/slHud/slrr"` with `tools/slrr_ui.py` from this repository.
+## Your first hour
 
-Off at first (the game's own apps show the speed, damage and minimap): turn it on with phone > Street cred > Dashboard, or bind a key to "Wrench Works: Street Legal: dashboard" in Options > Controls; the choice is kept. While you drive in the career: a rev counter (with the gear) and a speedometer, SLRR's round white-on-black dials, a road map that turns with the car (your garage, the lots and meets marked, the way to a race in red), and a damage diagram (six body zones, burst tyres, the engine). The game's own rev counter and damage app make way for it. Each part can be switched off, km/h or mph, and it can be used outside the career too: phone > Street cred > Dashboard.
+1. You wake up on foot in your garage. **Benny** texts you: open **Messages** on the phone (key **K**). The tutorial takes you through buying a car.
+2. Get a car: the **Cab** app takes you to a dealer or the junkyard. A few cars stand in a row; look at them, test drive one, buy it. The cheapest car on the used lot is one you can afford.
+3. Drive it to your garage. Walk or drive into the door: the car goes onto the lift. Click a part to take it off, click a part on the shelf to fit it. The **Catalog** sells new parts; hover one to see what it does.
+4. Earn money by day: the **Jobs** app. Spend it on parts (**Part market**) or a better car (**Car market**).
+5. When you are ready, open **Wait** and **Start the night**. Racers are in your **Contacts**: ask for a race for money or pink slips.
 
-## The laptop
+The whole guide is in the game: the phone's **Help** app and the **Help** icon on every laptop. It is also in `docs/PLAYER_GUIDE.md`, made from the same words.
 
-Walk or drive into a computer's marker on West Coast USA and press "Use the laptop": a Windows-style desktop opens full screen, with an icon for each thing that computer does (My cars, My parts, Dealers, Bank / insurance, Street cred, and Part customization, Tuning, Painting, Repair at a garage computer), each opening in a window with a title bar and minimise / maximise / close buttons, a taskbar with a button per open window, a Start menu, and the clock, day and money in the tray. On a pad the d-pad moves, A opens, B closes the top window. For your own Windows wallpaper on the desktop run `tools/wallpaper.ps1` (also in the mod as `street_legal/wallpaper.ps1`) once; it copies the wallpaper into the game's user folder (`settings/street_legal/wallpaper.jpg`). Settings > Street Legal > Laptop wallpaper switches back to the built-in one.
+## Day and night
 
-## The phone
+- **Day** (07:00-19:00): the legal half. Jobs, shops and dealers, the track events (time trials, drag strips, circuits) with prize money, clubs' day events. Money.
+- **Night** (21:00-04:00): the street half. Street races, car meets, pink slips, the swap meet. Reputation, worth more with **heat**. Shops and dealers are closed.
+- The clock runs slowly inside each half and stops at its end; **Start the night** / **Start the day** (the Wait app or a garage computer) moves on. A new day starts when you start the day.
 
-Press **K** (Options > Controls > Gameplay to change it). It is an Android-style phone: home screen with a dock, three-button navigation, notifications that drop in when a text arrives.
+## Racing, heat and the police
 
-- **Contacts and Phone**: call a racer or dial their number. If they pick up, ask for a race for money, for high stakes (three times their usual), or for pink slips. Big names will not talk to you until you have a name yourself, and nobody races you without a car.
-- **Messages**: the same by text, with quick replies; they write back after a moment.
-- **Races**: what you have arranged, with directions to the start line on the road; raise the stake on a money race (up to 2x in a racer's beater, 4x against a supercar).
-- **My cars**: where each one is, tow it home (a tow truck comes for it; stand by the car and you ride along), take another one out. **Bank**: balance and statement. **Cab**: on foot, book a ride to anywhere the career knows about: a taxi pulls up on the nearest street with its hazards on, walk up to it and you step out at the other end (the fare is back if you never turn up). **Street cred**: title, reputation, garage, the ROC.
+- Races are at night, against racers from your phone: for money, high stakes or **pink slips** (win and their car is yours, lose and you walk home).
+- **Heat** (1-5) is how much the police want you. It exists only at night, rises with street races, near misses and chases, and the hotter it is the more patrols, the harder to shake, and roadblocks from 4.
+- Reputation earned at night is **at risk** until you bank it at a garage (or by starting the day). Busted: a fine, the unbanked reputation, and at heat 4-5 the car is impounded.
+- **Clubs** run seven-day seasons (a night race and a day track event each day), **crews** hold the districts of the map (phone > Turf), and a **swap meet** fills a car park on weekend nights.
 
-It is built as a web page inside the game's interface. A real Android system cannot run inside BeamNG.
+## The phone and the laptop
+
+The phone (K) has Races, My cars, Bank, Street cred, Jobs, Wait, Settings, Club, Turf, Car market, Part market and Help, with Messages, Contacts, Phone and Cab in the dock. Garage computers (and the other computers on the map) open a Windows-style laptop with the same markets, your cars, the bank and Help, and the garage's own tools.
+
+## Settings
+
+The phone's **Settings** app: police and how hard they are, pay, hardcore mode (no pull-outs, no insurance, no free cab), the clock's speed, traffic in street races, the laptop wallpaper, the **SLRR dashboard** (off: BeamNG's own HUD is used), a **performance overlay** for reporting stutters and **Record street races** (watch a race again from the Races app and keep a clip).
+
+## Also in the repository
+
+The career can also run on the Wrench Works: Valo City map (`slrr_valo_city`); that map is on hold and not part of this release. The SLRR dashboard's own art (dials and icons) is not shipped; see `tools/slrr_ui.py`. `docs/integration.md` has the contract with the map and Wrench Works.
 
 ## Install (development)
 

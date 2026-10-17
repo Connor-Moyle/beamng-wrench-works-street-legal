@@ -511,6 +511,21 @@ phone.handle('slPhoneData', data);
 phone.act('home');
 phone.act('open', 'turf');
 
+// #55 Help: topics, then a page; the pages come from Lua once
+const helpPages = [{ id: 'first', title: 'Your first hour', body: ['Get a car.', '- Buy one', '- Fix it'] }, { id: 'heat', title: 'Heat and the police', body: ['Heat is 1 to 5.'] }];
+phone.act('home');
+calls.length = 0;
+phone.act('open', 'help');
+assert.ok(calls.includes('requestHelp()') && text().includes('Loading the help'), 'opening Help asks for the pages');
+phone.handle('slHelp', { pages: helpPages });
+assert.ok(text().includes('Your first hour') && text().includes('Heat and the police'), 'the topics');
+click('helppage', 'first');
+assert.ok(text().includes('Get a car.') && phone.root.querySelectorAll('li').length === 2 && text().includes('Buy one'), 'a page: its paragraphs and bullets');
+phone.act('back');
+assert.ok(text().includes('Heat and the police'), 'back goes to the topics');
+phone.act('home');
+phone.act('open', 'turf');
+
 // #42 the turf map: a circle for every district at its place, coloured by its owner, and where you are
 assert.ok(!phone.root.querySelector('.slp-turfmap'), 'no positions, no map');
 phone.handle('slPhoneData', Object.assign({}, data, { turf: { held: 1, turfWar: false, you: { x: 100, y: 100 }, districts: [

@@ -256,6 +256,7 @@
   function svg(path, viewBox) { return '<svg viewBox="' + (viewBox || '0 0 24 24') + '"><path d="' + path + '"/></svg>'; }
   var I = {
     settings: svg('M19.400 13a7.600 7.600 0 0 0 0-2l2-1.600-2-3.400-2.400 1a7.500 7.500 0 0 0-1.700-1L15 3.400h-4l-.4 2.600a7.500 7.500 0 0 0-1.700 1l-2.400-1-2 3.400 2 1.600a7.600 7.600 0 0 0 0 2l-2 1.600 2 3.400 2.400-1c.5.400 1.100.7 1.700 1l.4 2.600h4l.4-2.600c.6-.3 1.200-.6 1.700-1l2.400 1 2-3.400zM13 15.500a3.500 3.500 0 1 1 0-7 3.500 3.500 0 0 1 0 7z'),
+    help: svg('M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 16h-2v-2h2zm2.100-7.700-.9.9c-.7.700-1.200 1.300-1.200 2.800h-2v-.5c0-1.100.5-2.100 1.200-2.800l1.200-1.300a2 2 0 1 0-3.400-1.400H8a4 4 0 1 1 8 0c0 .9-.4 1.700-.9 2.300z'),
     wait: svg('M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 5v5.4l4 2.3-.8 1.3L11 13V7z'),
     market: svg('M3 4h18l-2 6H5zm2 8h14v8H5zm4 2v4h6v-4z'),
     // what a part ad shows when there is no picture (and beside the picture): its category
@@ -376,6 +377,7 @@
           { id: 'me', title: 'Street cred', icon: I.me },
           { id: 'jobs', title: 'Jobs', icon: I.jobs, badge: d.jobs && d.jobs.active ? 1 : 0 },
           { id: 'wait', title: 'Wait', icon: I.wait },
+          { id: 'help', title: 'Help', icon: I.help },
           { id: 'settings', title: 'Settings', icon: I.settings },
           { id: 'club', title: 'Club', icon: I.club, hide: has.clubs === false },
           { id: 'turf', title: 'Turf', icon: I.turf, hide: has.crews === false },
@@ -816,6 +818,27 @@
       return '<div class="slp-set">' + title + slider + '</div><div class="slp-val"><div class="slp-mini" data-a="setstep" data-v="' + esc(d.key) + '|-1">&minus;</div>' + esc(settingValue(d)) +
         '<div class="slp-mini" data-a="setstep" data-v="' + esc(d.key) + '|1">+</div></div></div>';
     }
+    // Help: the topics (sl/core/help, the same words as docs/PLAYER_GUIDE.md), then one page
+    function helpPage() {
+      var rows = arr(st.help).map(function (p) {
+        return '<div class="slp-row" data-a="helppage" data-v="' + esc(p.id) + '"><div class="slp-rt"><b>' + esc(p.title) + '</b></div></div>';
+      }).join('');
+      return bar('Help') + '<div class="slp-body">' + (rows || '<div class="slp-empty">Loading the help...</div>') + '</div>';
+    }
+    function helpTopicPage() {
+      var p = arr(st.help).filter(function (x) { return x.id === st.helpId; })[0];
+      if (!p) return bar('Help') + '<div class="slp-body"><div class="slp-empty">No such page.</div></div>';
+      var inList = false, html = '';
+      arr(p.body).forEach(function (t) {
+        var bullet = String(t).indexOf('- ') === 0;
+        if (bullet && !inList) { html += '<ul style="margin:6px 0 6px 18px;padding:0">'; inList = true; }
+        if (!bullet && inList) { html += '</ul>'; inList = false; }
+        html += bullet ? '<li style="margin:4px 0">' + esc(String(t).slice(2)) + '</li>' : '<p>' + esc(t) + '</p>';
+      });
+      if (inList) html += '</ul>';
+      return bar(p.title) + '<div class="slp-body"><div class="slp-card">' + html + '</div></div>';
+    }
+
     function settingsPage() {
       var defs = arr(obj(st.settings).defs), groups = [], by = {};
       defs.forEach(function (d) { var g = d.group || 'Other'; if (!by[g]) { by[g] = []; groups.push(g); } by[g].push(d); });
@@ -1187,6 +1210,8 @@
         case 'races': page = racesPage(); break;
         case 'wait': page = waitPage(); break;
         case 'settings': page = settingsPage(); break;
+        case 'help': page = helpPage(); break;
+        case 'helppage': page = helpTopicPage(); break;
         case 'carmarket': page = carMarketPage(); break;
         case 'partmarket': page = partMarketPage(); break;
         case 'jobs': page = jobsPage(); break;
@@ -1294,6 +1319,7 @@
       st.stack.push({ app: st.app, contact: st.contact, thread: st.thread });
       st.app = app;
       if (app === 'settings') lua('settings()');
+      if (app === 'help' && !arr(st.help).length) lua('requestHelp()');
       if (app === 'carmarket') { st.cmView = 'dealers'; lua('@sl_dealers.list()'); }
       if (params) for (var k in params) st[k] = params[k];
       if (app === 'thread' && st.thread) { lua('markRead(' + JSON.stringify(st.thread) + ')'); var u = obj(st.data.unread); delete u[st.thread]; }
@@ -1336,6 +1362,7 @@
     function act(a, v) {
       switch (a) {
         case 'open': go(v); break;
+        case 'helppage': go('helppage', { helpId: v }); break;
         case 'back': back(); break;
         case 'home': home(); break;
         case 'away': setOpen(false); break;
@@ -1524,6 +1551,7 @@
         case 'slStation': st.station = data.open ? data : null; render(); break;
         case 'slGarage': st.garage = data.open ? data : null; render(); break;
         case 'slSettings': st.settings = data; render(); break;
+        case 'slHelp': st.help = arr(data && data.pages); render(); break;
         case 'slLaptopDealers': st.dealers = data; render(); break;
         case 'slLaptopOffers': st.offers = data; render(); break;
         case 'slRace': st.race = data.on ? data : null; render(); break;
@@ -1557,7 +1585,7 @@
       var probe = new Image();
       probe.onload = function () { phone.handle('slArt'); };
       probe.src = '/ui/modModules/slHud/slrr/icons/cup.png';
-      ['slPhoneData', 'slPhoneToggle', 'slPhoneCall', 'slPhoneCallReply', 'slPhoneNotify', 'slPhoneToast', 'slFade', 'slLotData', 'slMeet', 'slRace', 'slMenu', 'slStation', 'slGarage', 'slSettings', 'slLaptopDealers', 'slLaptopOffers'].forEach(function (name) {
+      ['slPhoneData', 'slPhoneToggle', 'slPhoneCall', 'slPhoneCallReply', 'slPhoneNotify', 'slPhoneToast', 'slFade', 'slLotData', 'slMeet', 'slRace', 'slMenu', 'slStation', 'slGarage', 'slSettings', 'slLaptopDealers', 'slLaptopOffers', 'slHelp'].forEach(function (name) {
         $rootScope.$on(name, function (ev, data) { phone.handle(name, data); });
       });
       if (window.bngApi) window.bngApi.engineLua('if sl_phone then sl_phone.request() end if sl_menuTile then sl_menuTile.request() end');

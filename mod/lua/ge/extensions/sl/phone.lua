@@ -161,6 +161,8 @@ end
 -- the rest of the buttons
 
 function M.request() wantSend = true end
+-- the help pages (sl/core/help), for the phone's Help app and the laptop's Help window
+function M.requestHelp() guihooks.trigger('slHelp', { pages = require('sl/core/help').PAGES }) end
 function M.markRead(thread) if career() then sl_career.markRead(thread) end end
 function M.waypoint(id) if career() then sl_career.waypoint(id) end end
 function M.cancel(challengeId) if career() then sl_career.cancelChallenge(challengeId) end end

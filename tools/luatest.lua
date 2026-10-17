@@ -923,7 +923,7 @@ do
   local ok = { hasCar = true, carHere = true }
   for _, id in ipairs({ 'servicestationGarageComputer', 'commercialGarageComputer', 'commercialGarageComputer2' }) do
     local v, car, general = view(id, ok)
-    check(id .. ': the car band and the general band', labels(car) == 'Part customization,Tuning,Painting' and labels(general) == 'My cars,My parts,Car market,Part market,Bank / insurance,Street cred' and v.lists, labels(car) .. ' | ' .. labels(general))
+    check(id .. ': the car band and the general band', labels(car) == 'Part customization,Tuning,Painting' and labels(general) == 'My cars,My parts,Car market,Part market,Help,Bank / insurance,Street cred' and v.lists, labels(car) .. ' | ' .. labels(general))
   end
   local vp = view('alderDragwayGarageComputer', { hasCar = true, phase = 'day' })
   local vn = view('alderDragwayGarageComputer', { hasCar = true, phase = 'night', busy = true })
@@ -934,18 +934,18 @@ do
   local function hasTile(v, id) for _, g in ipairs(v.groups) do for _, t in ipairs(g.tiles) do if t.id == id then return true end end end return false end
   check('#41: a Club tile on a map that hosts clubs, none where it does not', hasTile(vcl, 'clubs') and not hasTile(view('alderDragwayGarageComputer', { hasCar = true }), 'clubs'))
   local _, car, general = view('alderDragwayGarageComputer', ok)
-  check('the drag strip garage: cars, parts, the part market, customization and tuning only', labels(car) == 'Part customization,Tuning' and labels(general) == 'My cars,My parts,Part market')
+  check('the drag strip garage: cars, parts, the part market, help, customization and tuning only', labels(car) == 'Part customization,Tuning' and labels(general) == 'My cars,My parts,Part market,Help')
   local v, car2, general2 = view('servicestationOfficeComputer', ok)
-  check('the office lists no cars and no car band: dealers and the parts shop only', not v.lists and car2 == nil and labels(general2) == 'Car market,Part market,Part customization' and general2.tiles[1].enabled and general2.tiles[2].enabled and not general2.tiles[3].enabled and general2.tiles[3].reason == 'Use a computer in a garage for this.')
+  check('the office lists no cars and no car band: dealers and the parts shop only', not v.lists and car2 == nil and labels(general2) == 'Car market,Part market,Help,Part customization' and general2.tiles[1].enabled and general2.tiles[2].enabled and general2.tiles[3].enabled and not general2.tiles[4].enabled and general2.tiles[4].reason == 'Use a computer in a garage for this.')
   -- reasons, in order: a race or job, no car, not built yet
   local _, c1, g1 = view('commercialGarageComputer', { hasCar = false })
   local reasons = {}
   for _, t in ipairs(c1.tiles) do reasons[t.label] = t.reason end
-  check('no car yet: the car tiles say so, the pages that need none stay open', reasons.Tuning == 'You have no car yet.' and g1.tiles[1].enabled and g1.tiles[4].enabled and g1.tiles[5].enabled)
+  check('no car yet: the car tiles say so, the pages that need none stay open', reasons.Tuning == 'You have no car yet.' and g1.tiles[1].enabled and g1.tiles[5].enabled and g1.tiles[6].enabled)
   local _, c2, g2 = view('commercialGarageComputer', { hasCar = true, carHere = true })
   check('a car at the garage: the garage tiles open the garage in their mode, Dealers open their page, the reading pages are open',
     c2.tiles[1].enabled and c2.tiles[1].mode == 'catalog' and c2.tiles[2].mode == 'tune' and c2.tiles[3].mode == 'paint' and g2.tiles[3].enabled and g2.tiles[3].page == 'dealers'
-    and g2.tiles[1].enabled and g2.tiles[1].page == 'cars' and g2.tiles[2].page == 'parts' and g2.tiles[4].page == 'partmarket' and g2.tiles[5].page == 'bank' and g2.tiles[6].page == 'cred')
+    and g2.tiles[1].enabled and g2.tiles[1].page == 'cars' and g2.tiles[2].page == 'parts' and g2.tiles[4].page == 'partmarket' and g2.tiles[5].page == 'help' and g2.tiles[6].page == 'bank' and g2.tiles[7].page == 'cred')
   local _, c3, g3 = view('commercialGarageComputer', { hasCar = true, busy = true })
   check('in a race or on a job: car tiles and Dealers wait, reading pages stay', c3.tiles[2].reason == 'Not during a race or a job.' and g3.tiles[3].reason == 'Not during a race or a job.' and g3.tiles[1].enabled)
   local _, c4, g4 = view('commercialGarageComputer', { hasCar = true, carHere = false })
@@ -1105,6 +1105,21 @@ do
   check('a clip is named after the race, safe for a file name, with the time', rep.clipName('Quarry sprint', '2026-10-17 21-30') == 'Street Legal - Quarry sprint 2026-10-17 21-30' and rep.clipName('a/b:c*d?"e<f>g|h', '') == 'Street Legal - a b c d e f g h' and rep.clipName('', 'x') == 'Street Legal - Race x' and rep.clipName(nil, nil) == 'Street Legal - Race')
   check('a long name is cut, not left ragged', #rep.clipName(string.rep('word ', 40), '') <= #'Street Legal - ' + 60 and rep.clipName(string.rep('word ', 40), ''):sub(-1) ~= ' ')
   check('the race name: its own, else against whom', rep.raceName({ raceName = 'Dock run', opponent = 'Ana' }) == 'Dock run' and rep.raceName({ opponent = 'Ana' }) == 'Race against Ana' and rep.raceName({}) == 'Race' and rep.raceName(nil) == 'Race')
+
+  -- #55 the help pages
+  local helpLib = require('sl/core/help')
+  local ids, okPages = {}, #helpLib.PAGES >= 10
+  for _, p in ipairs(helpLib.PAGES) do
+    okPages = okPages and type(p.id) == 'string' and p.id ~= '' and not ids[p.id] and type(p.title) == 'string' and p.title ~= '' and type(p.body) == 'table' and #p.body > 0
+    ids[p.id] = true
+    for _, para in ipairs(p.body) do okPages = okPages and type(para) == 'string' and para ~= '' and #para < 700 end
+  end
+  check('the help: at least ten pages, each with a unique id, a title and short paragraphs', okPages)
+  check('the help covers the first hour, day and night, races, heat, clubs, crews', helpLib.page('first') and helpLib.page('daynight') and helpLib.page('races') and helpLib.page('heat') and helpLib.page('clubs') and helpLib.page('crews') and helpLib.page('nothing') == nil)
+  local md = helpLib.markdown()
+  check('the guide is made from the same pages: every title and paragraph is in it', (function() for _, p in ipairs(helpLib.PAGES) do if not md:find('## ' .. p.title, 1, true) then return false end for _, para in ipairs(p.body) do if not md:find(para, 1, true) then return false end end end return md:sub(1, 2) == '# ' end)())
+  local hv = require('sl/core/laptop').build({ vehicleInventory = true, insurances = true }, { hasCar = true })
+  check('a Help tile on a garage computer', (function() for _, g in ipairs(hv.groups) do for _, t in ipairs(g.tiles) do if t.id == 'help' and t.page == 'help' then return true end end end return false end)())
 
   -- the sun, for a sky without core_celestial
   local sun = require('sl/core/sun')

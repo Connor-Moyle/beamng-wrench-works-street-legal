@@ -263,6 +263,19 @@ click('league', 'night');
 assert.ok(calls.includes('@sl_phone.enterLeague("night")'), 'Enter asks the club to enter the night league');
 click('winclose', 'club');
 
+// ---- Help (#55): the same pages as the phone's
+laptop.handle('slLaptopOpen', { name: 'Garage', lists: true, groups: [{ id: 'general', title: 'General', tiles: [tile('help', 'Help', true, null, 'help')] }], byCar: {}, parts: [] });
+calls.length = 0;
+click('tile', 'help');
+assert.ok(titles()[0] === 'Help' && calls.includes('@sl_phone.requestHelp()'), 'the Help window asks for the pages');
+laptop.handle('slHelp', { pages: [{ id: 'first', title: 'Your first hour', body: ['Get a car.', '- Buy one'] }, { id: 'heat', title: 'Heat', body: ['Heat is 1 to 5.'] }] });
+assert.ok(text().includes('Your first hour') && text().includes('Heat'), 'the topics');
+click('helptopic', 'first');
+assert.ok(text().includes('Get a car.') && text().includes('Buy one') && text().includes('All topics'), 'a page');
+click('helpindex', '1');
+assert.ok(text().includes('What would you like to know?'), 'back to the topics');
+click('winclose', 'help');
+
 // ---- the game closes it (the player drove away)
 laptop.handle('slLaptopClose', {});
 assert.ok($('.sll-screen.sll-gone'), 'the game can close it');

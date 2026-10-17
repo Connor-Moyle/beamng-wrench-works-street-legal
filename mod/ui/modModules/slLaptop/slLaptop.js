@@ -127,6 +127,7 @@
     partShop: ['#c2412d', '<path d="M7 11h6l4 19h19l4-14H14"/><circle cx="19" cy="37" r="2.500"/><circle cx="33" cy="37" r="2.500"/>'],
     tuning: ['#4a8a2f', '<path d="M10 14h28M10 24h28M10 34h28"/><circle cx="18" cy="14" r="3.500" fill="#4a8a2f"/><circle cx="31" cy="24" r="3.500" fill="#4a8a2f"/><circle cx="22" cy="34" r="3.500" fill="#4a8a2f"/>'],
     painting: ['#b04a8f', '<rect x="9" y="9" width="26" height="10" rx="2"/><path d="M35 14h4v11H22v6"/><rect x="19" y="31" width="6" height="9" rx="1"/>'],
+    help: ['#2d6cdf', '<circle cx="24" cy="24" r="17" fill="none" stroke="#fff" stroke-width="3"/><path d="M18 19a6 6 0 1 1 9 5c-2 1.500-3 2.500-3 5M24 34v.5" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/>'],
     clubs: ['#6a2e7a', '<path d="M24 6l5 11 12 2-9 8 3 12-11-6-11 6 3-12-9-8 12-2z"/>'],
     phaseSwitch: ['#3b4a78', '<path d="M30 8a16 16 0 1 0 10 28A13 13 0 0 1 30 8z"/>'],
     partsMarket: ['#a3322c', '<path d="M8 21h32l-3 17H11z"/><path d="M16 21l6-11M32 21l-6-11"/><path d="M19 28v6M24 28v6M29 28v6"/>'],
@@ -137,7 +138,7 @@
     return '<svg viewBox="0 0 48 48"' + (size ? ' width="' + size + '" height="' + size + '"' : '') + '><rect width="48" height="48" rx="10" fill="' + g[0] + '"/>' +
       '<g fill="none" stroke="#fff" stroke-width="2.600" stroke-linecap="round" stroke-linejoin="round">' + g[1] + '</g></svg>';
   }
-  var WINDOWS = { cars: ['vehicleInventory', 'My cars'], parts: ['partInventory', 'My parts'], bank: ['insurances', 'Bank / insurance'], cred: ['playerAbstract', 'Street cred'], dealers: ['vehicleShop', 'Car market'], partmarket: ['partsMarket', 'Part market'], club: ['clubs', 'Club'] };
+  var WINDOWS = { cars: ['vehicleInventory', 'My cars'], parts: ['partInventory', 'My parts'], bank: ['insurances', 'Bank / insurance'], cred: ['playerAbstract', 'Street cred'], dealers: ['vehicleShop', 'Car market'], partmarket: ['partsMarket', 'Part market'], club: ['clubs', 'Club'], help: ['help', 'Help'] };
 
   function createLaptop(doc, lua) {
     var root = doc.createElement('div');
@@ -341,6 +342,27 @@
       return body(cards.join('') || '<div class="sll-empty">The shelf in your garage is empty. Parts you take off a car, and parts delivered to you, wait there.</div>');
     }
 
+    // Help: the topics, then one page (sl/core/help: the same words as the phone's Help and docs/PLAYER_GUIDE.md)
+    function helpBody() {
+      var pages = arr(st.help);
+      if (!pages.length) return body('<div class="sll-empty">Loading the help...</div>');
+      var p = pages.filter(function (x) { return x.id === st.helpId; })[0];
+      if (!p) {
+        return body('<div class="sll-card"><h4>What would you like to know?</h4>' + pages.map(function (x) {
+          return '<div class="sll-kv" data-a="helptopic" data-v="' + esc(x.id) + '" style="cursor:pointer"><span>' + esc(x.title) + '</span><b>&rsaquo;</b></div>';
+        }).join('') + '</div>');
+      }
+      var inList = false, html = '';
+      arr(p.body).forEach(function (t) {
+        var bullet = String(t).indexOf('- ') === 0;
+        if (bullet && !inList) { html += '<ul style="margin:6px 0 6px 18px;padding:0">'; inList = true; }
+        if (!bullet && inList) { html += '</ul>'; inList = false; }
+        html += bullet ? '<li style="margin:4px 0">' + esc(String(t).slice(2)) + '</li>' : '<p>' + esc(t) + '</p>';
+      });
+      if (inList) html += '</ul>';
+      return body('<div class="sll-btn sll-text" data-a="helpindex" data-v="1">&lsaquo; All topics</div><div class="sll-card"><h4>' + esc(p.title) + '</h4>' + html + '</div>');
+    }
+
     // the club: the season, today's two events and the standings (the same data as the phone's Club app)
     function clubBody() {
       var c = st.data.club;
@@ -415,6 +437,7 @@
         case 'bank': return bankBody();
         case 'cred': return credBody();
         case 'club': return clubBody();
+        case 'help': return helpBody();
         case 'partmarket': return tabsHtml('partmarket', [['revline', 'Revline'], ['auctions', 'Swap & Bid'], ['paper', 'Classifieds'], ['catalog', 'Catalog']]) + partMarketBody();
         default:
           return tabsHtml('dealers', [['dealers', 'Dealers'], ['ads', 'Private ads']]) +
@@ -589,6 +612,7 @@
             openWin(t.page);
             if (t.page === 'parts') lua('@sl_computer.parts()');
             if (t.page === 'dealers') lua('@sl_dealers.list()');
+            if (t.page === 'help' && !arr(st.help).length) lua('@sl_phone.requestHelp()');
             lua('@sl_phone.request()');
             render();
           } else if (t.run === 'phase') {
@@ -623,6 +647,8 @@
         case 'mkaccept': var ap = String(v).split('|'); lua('@sl_phone.acceptOffer(' + JSON.stringify(ap[0]) + ',' + Number(ap[1]) + ')'); break;
         case 'mkwithdraw': lua('@sl_phone.withdrawListing(' + JSON.stringify(String(v)) + ')'); break;
         case 'pcatalog': lua('@sl_phone.catalog()'); break;
+        case 'helptopic': st.helpId = String(v); render(); break;
+        case 'helpindex': st.helpId = null; render(); break;
         case 'league': lua('@sl_phone.enterLeague(' + JSON.stringify(String(v)) + ')'); break;
         case 'dealer': st.dview = 'offers'; st.offers = { name: 'Dealer', offers: [], dealer: v }; st.note = ''; focusKey = null; lua('@sl_dealers.offers(' + JSON.stringify(v) + ')'); render(); break;
         case 'report': st.rep[v] = !st.rep[v]; render(); break;
@@ -686,6 +712,7 @@
           break;
         case 'slLaptopClose': if (st.open) setOpen(false); break;
         case 'slLaptopParts': st.parts = arr(data.parts); if (st.open) render(); break;
+        case 'slHelp': st.help = arr(data && data.pages); if (st.open) render(); break;
         case 'slLaptopDealers': st.dealers = data; if (st.open) render(); break;
         case 'slLaptopOffers': st.offers = data; if (st.open) render(); break;
         case 'slPhoneData': st.data = data || { active: false }; if (st.open) render(); break;
@@ -709,7 +736,7 @@
         window.bngApi.engineLua('if ' + ext + ' then ' + call.slice(1) + ' end');
       });
       window.__slLaptop = laptop;
-      ['slLaptopOpen', 'slLaptopClose', 'slLaptopParts', 'slLaptopDealers', 'slLaptopOffers', 'slPhoneData', 'slPhoneToast'].forEach(function (name) {
+      ['slLaptopOpen', 'slLaptopClose', 'slLaptopParts', 'slLaptopDealers', 'slLaptopOffers', 'slPhoneData', 'slPhoneToast', 'slHelp'].forEach(function (name) {
         $rootScope.$on(name, function (ev, data) { laptop.handle(name, data); });
       });
     }]);
