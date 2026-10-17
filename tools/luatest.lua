@@ -1100,6 +1100,12 @@ do
   local pl = perfLib.lines({ ms = 16.7, fps = 59.9, worstMs = 41 }, { traffic = 12, others = 3, peds = 20, statics = 5000 }, '3000 / 8000 MB')
   check('the overlay lines: frame, worst, VRAM, cars, people', #pl == 5 and pl[1] == '16.7 ms  60 fps' and pl[2] == 'worst 41 ms (10 s)' and pl[3] == 'VRAM 3000 / 8000 MB' and pl[4] == 'cars: 12 traffic, 3 other' and pl[5] == 'people 20, objects 5000' and #perfLib.lines({}, {}, nil) == 4)
 
+  -- #48 race replays: the clip's file name
+  local rep = require('sl/core/replay')
+  check('a clip is named after the race, safe for a file name, with the time', rep.clipName('Quarry sprint', '2026-10-17 21-30') == 'Street Legal - Quarry sprint 2026-10-17 21-30' and rep.clipName('a/b:c*d?"e<f>g|h', '') == 'Street Legal - a b c d e f g h' and rep.clipName('', 'x') == 'Street Legal - Race x' and rep.clipName(nil, nil) == 'Street Legal - Race')
+  check('a long name is cut, not left ragged', #rep.clipName(string.rep('word ', 40), '') <= #'Street Legal - ' + 60 and rep.clipName(string.rep('word ', 40), ''):sub(-1) ~= ' ')
+  check('the race name: its own, else against whom', rep.raceName({ raceName = 'Dock run', opponent = 'Ana' }) == 'Dock run' and rep.raceName({ opponent = 'Ana' }) == 'Race against Ana' and rep.raceName({}) == 'Race' and rep.raceName(nil) == 'Race')
+
   -- the sun, for a sky without core_celestial
   local sun = require('sl/core/sun')
   local function el(lat, lon, utc, m, d, h) return (sun.position(lat, lon, utc, m, d, h, 2026)) end

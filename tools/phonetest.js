@@ -496,6 +496,21 @@ phone.handle('slPhoneData', Object.assign({}, data, { turf: { held: 1, turfWar: 
 phone.act('home');
 phone.act('open', 'turf');
 assert.ok(text().includes('The Docks') && text().includes('you are here') && text().includes('home of the North End crew') && text().includes('led by Nina'), 'Turf lists districts and crews');
+// #48 the last race's replay on the Races page
+phone.handle('slPhoneData', Object.assign({}, data, { replay: { name: 'Quarry sprint', saved: false } }));
+phone.act('home');
+phone.act('open', 'races');
+calls.length = 0;
+assert.ok(text().includes('Last race') && text().includes('Quarry sprint') && text().includes('Watch replay') && text().includes('Save clip'), 'the last race can be watched and saved');
+click('watchreplay', '1');
+click('saveclip', '1');
+assert.ok(calls.includes('watchReplay()') && calls.includes('saveClip()'), 'the buttons ask the replay module');
+phone.handle('slPhoneData', Object.assign({}, data, { replay: { name: 'Quarry sprint', saved: true } }));
+assert.ok(text().includes('saved') && !text().includes('Save clip'), 'a saved clip offers no second save');
+phone.handle('slPhoneData', data);
+phone.act('home');
+phone.act('open', 'turf');
+
 // #42 the turf map: a circle for every district at its place, coloured by its owner, and where you are
 assert.ok(!phone.root.querySelector('.slp-turfmap'), 'no positions, no map');
 phone.handle('slPhoneData', Object.assign({}, data, { turf: { held: 1, turfWar: false, you: { x: 100, y: 100 }, districts: [

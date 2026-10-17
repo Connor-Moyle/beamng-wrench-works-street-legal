@@ -465,6 +465,9 @@
         return '<div class="slp-card">' + map + '<h4>' + esc(c.name) + '</h4><p>' + esc(c.raceName) + ' &middot; ' + stake + (c.nightOnly ? ' &middot; after dark' : '') + '</p>' +
           '<div class="slp-acts"><div class="slp-btn" data-a="gps" data-v="' + esc(c.id) + '">Show the way</div>' + (c.stake === 'money' ? '<div class="slp-btn slp-tonal" data-a="raise" data-v="' + esc(c.id) + '">Raise the stake</div>' : '') + '<div class="slp-btn slp-text" data-a="cancel" data-v="' + esc(c.id) + '">Call it off</div></div></div>';
       });
+      var rp = st.data.replay;          // #48 the last race, recorded: watch it, keep it
+      if (rp) cards.unshift('<div class="slp-card"><h4>Last race</h4><p>' + esc(rp.name) + (rp.saved ? ' &middot; saved' : '') + '</p><div class="slp-acts"><div class="slp-btn" data-a="watchreplay" data-v="1">Watch replay</div>' +
+        (rp.saved ? '' : '<div class="slp-btn slp-tonal" data-a="saveclip" data-v="1">Save clip</div>') + '</div></div>');
       return bar('Races') + '<div class="slp-body">' + (cards.join('') ||
         '<div class="slp-empty">No races arranged. Call or text one of your contacts to set one up: for money, for high stakes, or for pink slips.</div>') + '</div>';
     }
@@ -1347,6 +1350,8 @@
         case 'cancel': lua('cancel(' + JSON.stringify(v) + ')'); break;
         case 'raise': lua('raise(' + JSON.stringify(v) + ')'); break;
         case 'league': lua('enterLeague(' + JSON.stringify(v) + ')'); break;
+        case 'watchreplay': lua('watchReplay()'); break;
+        case 'saveclip': lua('saveClip()'); break;
         case 'adview': go('ad', { adId: v }); break;
         case 'report': st.rep[v] = !st.rep[v]; render(); break;
         case 'workon': lua('workOn(' + Number(v) + ')'); st.garage = null; break;
