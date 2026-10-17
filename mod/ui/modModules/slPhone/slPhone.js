@@ -1132,7 +1132,7 @@
       var picked = maps.filter(function (x) { return x.id === st.newMap; })[0] || maps[0];
       return picked ? picked.id : null;
     }
-    function newMapArg() { var id = newMapId(); return id ? T('ui.nil_1', ', nil, {1}', JSON.stringify(id)) : ''; }   // (none known: the career's default)
+    function newMapArg() { var id = newMapId(); return id ? ', nil, ' + JSON.stringify(id) : ''; }   // (none known: the career's default)
     function mapsHtml(m) {
       var maps = installedMaps(m), pick = newMapId();
       if (maps.length < 2) return '';

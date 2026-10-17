@@ -298,7 +298,6 @@ M.TEXT = {
   ["ui.next_garage"] = "Next garage",
   ["ui.next_payment"] = "Next payment ",
   ["ui.next_stop"] = "Next stop: ",
-  ["ui.nil_1"] = ", nil, {1}",
   ["ui.nitrous"] = "Nitrous",
   ["ui.no_ads_right_now_new"] = "No ads right now. New ones come out through the week.",
   ["ui.no_bids_yet"] = "no bids yet",
