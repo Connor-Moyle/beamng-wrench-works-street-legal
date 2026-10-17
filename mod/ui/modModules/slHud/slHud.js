@@ -323,7 +323,7 @@
       if (!d.phase) { status.classList.add('slh-gone'); return; }
       var night = d.phase === 'night', heat = Math.max(0, Math.min(5, d.heat | 0)), flames = '';
       for (var i = 1; i <= 5; i++) flames += i <= heat ? '&#9650;' : '<i>&#9650;</i>';
-      status.innerHTML = '<span>' + (night ? '&#9790; Night' : '&#9728; Day') + '</span>' + (heat > 0 || night ? '<span class="slh-heat" title="Heat ' + heat + '">' + flames + '</span>' : '');
+      status.innerHTML = '<span>' + (night ? '&#9790; Night' : '&#9728; Day') + '</span>' + (heat > 0 || night ? '<span class="slh-heat" title="Heat ' + heat + '">' + flames + '</span>' : '') + (night && d.atRisk > 0 ? '<span title="Reputation you lose if you are busted; a garage banks it">+' + d.atRisk + ' rep at risk</span>' : '');
       status.classList.remove('slh-gone');
     }
 

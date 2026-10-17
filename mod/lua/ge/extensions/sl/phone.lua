@@ -55,6 +55,7 @@ local function snapshot()
     active = true,
     money = s.money, rep = s.rep, title = title, nextRep = nextRep, titleRep = titleRep,
     day = s.day, hour = math.floor(h), minute = math.floor((h % 1) * 60), night = sl_career.isNight(),
+    atRisk = sl_career.atRisk and sl_career.atRisk() or 0,
     heat = phaseLib.heatLevel(sl_police and sl_police.heat and sl_police.heat() or 0),
     phase = sl_career.phase and sl_career.phase() or nil, phaseSwitch = phaseLib.switchLabel(sl_career.phase and sl_career.phase() or nil),
     garage = (progression.garages[s.garageLevel] or {}).name,
