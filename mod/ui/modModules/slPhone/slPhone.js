@@ -1173,7 +1173,9 @@
           '<div class="slp-btn slp-tonal" data-a="meet" data-v="' + esc(r.id) + ('|high">' + T('ui.high', 'High') + '</div>') +
           (r.pinkTonight ? '<div class="slp-btn slp-pinkbtn" data-a="meet" data-v="' + esc(r.id) + ('|pink">' + T('ui.pinks', 'Pinks') + '</div>') : '') + '</div></div>';
       });
-      var owners = arr(m.owners).map(function (o) {
+      var owners = arr(m.owners).sort(function (x, y) { return (y.near ? 1 : 0) - (x.near ? 1 : 0); }).map(function (o) {
+        if (o.near) return '<div class="slp-row slp-near"><div class="slp-rt"><b>' + esc(o.name) + '</b><span>' + esc(o.car) + '</span><span>&ldquo;' + esc(o.story || '') + '&rdquo;</span></div><div class="slp-acts">' +
+          '<div class="slp-btn slp-tonal" data-a="meettalk" data-v="' + esc(o.id) + ('">' + T('ui.talk', 'Talk') + '</div></div></div>');
         return '<div class="slp-row"><div class="slp-rt"><b>' + esc(o.name) + '</b><span>' + esc(o.car) + (o.talked ? T('ui.middot_spoken_to', ' &middot; spoken to') : '') + '</span></div><div class="slp-acts">' +
           '<div class="slp-btn slp-tonal" data-a="meettalk" data-v="' + esc(o.id) + ('">' + T('ui.talk', 'Talk') + '</div></div></div>');
       }).join('');

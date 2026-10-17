@@ -68,11 +68,12 @@ local function context()
   if not v then return nil end
   local p = v:getPosition()
   local meetPos = sl_streets and sl_streets.meetPos and sl_streets.meetPos()
+  local speaker = meetPos and sl_streets.meetSpeakerPos and sl_streets.meetSpeakerPos() or meetPos
   return {
     player = { x = p.x, y = p.y, z = p.z },
     height = function(x, y) local ok, h = pcall(core_terrain.getTerrainHeight, vec3(x, y, 0)) return ok and h or nil end,
     waterZ = water(), nodes = roadNodes(), places = sl_career.getPlaces(), phase = sl_career.phase(),
-    meet = meetPos and { pos = { x = meetPos.x, y = meetPos.y, z = meetPos.z } } or nil,
+    meet = meetPos and { pos = { x = meetPos.x, y = meetPos.y, z = meetPos.z }, speaker = { x = speaker.x, y = speaker.y, z = speaker.z } } or nil,
     raining = sl_weather and sl_weather.state and sl_weather.state() == 'rain',
   }
 end

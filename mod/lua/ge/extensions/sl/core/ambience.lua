@@ -88,7 +88,7 @@ function M.plan(ctx)
     if centre then add('crowd', 'crowd', centre) end
   end
   if ctx.meet and ctx.meet.pos then
-    add('music', 'music', ctx.meet.pos)
+    add('music', 'music', ctx.meet.speaker or ctx.meet.pos)         -- from one car's speakers
     if ctx.phase == 'night' then add('crowd_meet', 'crowd', ctx.meet.pos) end         -- people stand about at a meet
   end
   table.sort(out, function(a, b) return a.volume > b.volume end)

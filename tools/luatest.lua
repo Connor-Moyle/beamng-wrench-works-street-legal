@@ -1712,4 +1712,26 @@ do
   package.loaded['sl/weather'] = nil
 end
 
+-- the meet as a social hub (#43)
+do
+  local soc = require('sl/core/meetsocial')
+  local owners = { o1 = { pos = { x = 0, y = 0 } }, o2 = { pos = { x = 10, y = 0 } } }
+  check('meetsocial: nobody within reach, nobody offered', soc.nearest(owners, { x = 50, y = 50 }) == nil)
+  check('meetsocial: the nearest owner within reach is offered', soc.nearest(owners, { x = 9, y = 1 }) == 'o2' and soc.nearest(owners, { x = 2, y = 0 }) == 'o1')
+  check('meetsocial: the owner stays offered up to the leave distance, then not', soc.focus(owners, { x = 7, y = 0 }, 'o1') == 'o1' and soc.focus(owners, { x = 12, y = 0 }, 'o1') ~= 'o1')
+  check('meetsocial: the speaker car is the same one every time', soc.speaker(owners) == 'o1' and soc.speaker({}) == nil)
+  local n1 = soc.group(1)
+  local n2, offs = soc.group(2)
+  local n3 = soc.group(3)
+  check('meetsocial: groups of one, two and three', n1 == 0 and n2 == 1 and #offs == 1 and n3 == 2)
+  check('meetsocial: raids only at heat 4 and 5', not soc.raided(3, 0) and soc.raided(4, 0.1) and not soc.raided(4, 0.3) and soc.raided(5, 0.3))
+  local line = soc.story('drift', { car = 'Covet' })
+  check('meetsocial: the story names the car, by theme, with a default', line:find('Covet') and soc.story('nope', { car = 'X' }):find('X'))
+  local amb = require('sl/core/ambience')
+  local plan = amb.plan({ player = { x = 0, y = 0, z = 0 }, phase = 'night', meet = { pos = { x = 100, y = 0, z = 0 }, speaker = { x = 5, y = 0, z = 0 } } })
+  local music
+  for _, e in ipairs(plan) do if e.kind == 'music' then music = e end end
+  check('ambience: the meet music plays from the speaker car', music and music.pos.x == 5)
+end
+
 print(string.format('lua tests passed: %d checks', passed))
