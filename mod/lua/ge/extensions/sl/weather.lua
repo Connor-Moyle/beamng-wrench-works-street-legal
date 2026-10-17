@@ -310,7 +310,15 @@ function M.onStreetLegalStarted() lastKey = nil sync() end
 function M.onStreetLegalPhase() sync() end
 function M.onStreetLegalNewDay() sync() end
 
-function M.onUpdate(dtReal)
+local prof, lapAt
+local function lap(name)
+  if not prof then return end
+  local now = os.clock()
+  prof.parts[name] = (prof.parts[name] or 0) + (now - lapAt) * 1000
+  lapAt = now
+end
+local function update(dtReal)
+  if prof then lapAt = os.clock() end
   if not career() and not forced then return end
   if not baseline or not lastKey then sync() end
   dtReal = dtReal or 0
@@ -320,9 +328,11 @@ function M.onUpdate(dtReal)
     applyTimer = applyTimer + dtReal
     if applyTimer > 0.2 or blendT >= 1 then applyTimer = 0 applySky(current) end      -- (the objects are applied a few times a second, not every frame)
   end
+  lap('blend')
   wet = rules.wetStep(wet, target and target.wet or 0, dtReal)
   ticks = ticks + 1
   if current and (current.drops or 0) > 0 then guarded('followRain', followRain) end
+  lap('rain')
   -- the shower is not steady: every second the drop count and the wind follow the gust (while the sky is still blending applySky does it)
   gustTimer = gustTimer + dtReal
   if gustTimer > 1 and current and (current.drops or 0) > 0 and blendT >= 1 and M.flags.gust then
@@ -335,7 +345,9 @@ function M.onUpdate(dtReal)
       pcall(env.setGroundWind, math.cos(a) * speed, math.sin(a) * speed, 0)
     end
   end
+  lap('gust')
   if sl_puddlefx then guarded('puddlefx.update', sl_puddlefx.update, dtReal, wet, current and math.min(1, (current.drops or 0) / 3000) or 0) else guarded('no puddlefx', function() error('sl_puddlefx is not loaded') end) end      -- (puddles, ripples, wheel spray, wet trails: sl/puddlefx.lua)
+  lap('puddles')
   tintTimer = tintTimer + dtReal
   if tintTimer > 0.5 then
     tintTimer = 0
@@ -343,8 +355,25 @@ function M.onUpdate(dtReal)
     if amount > 0.02 or dark > 0.02 then guarded('applyTint', applyTint, amount, dark, haze) tinted = true
     elseif tinted then tinted = false guarded('restoreTint', restoreTint) end
   end
+  lap('tint')
   gripTimer = gripTimer + dtReal
   if gripTimer > 2 then gripTimer = 0 pushGrip() end
+  lap('grip')
+end
+
+-- a game test: sl_weather.profile(true) times the parts of the per-frame update, sl_weather.profile() answers { frames, total ms, max ms, parts = ms per part (summed) } since the last call
+function M.profile(on)
+  if on ~= nil then prof = on and { frames = 0, total = 0, max = 0, parts = {} } or nil return on end
+  local out = prof
+  if prof then prof = { frames = 0, total = 0, max = 0, parts = {} } end
+  return out or 'off: sl_weather.profile(true)'
+end
+function M.onUpdate(dtReal)
+  if not prof then return update(dtReal) end
+  local t0 = os.clock()
+  update(dtReal)
+  local ms = (os.clock() - t0) * 1000
+  prof.frames, prof.total, prof.max = prof.frames + 1, prof.total + ms, math.max(prof.max, ms)
 end
 
 -- for a game test: put the weather in this state at once (no blend), e.g. sl_weather.debugForce('rain', 'heavy')
