@@ -1305,10 +1305,10 @@
         (st.call ? callPage() : '') +
         '<div class="slp-nav"><div data-a="back">' + NAV.back + '</div><div data-a="home">' + NAV.home + '</div><div data-a="away">' + NAV.recent + '</div></div></div>';
       var hu = st.hu;
-      var huHtml = '<div class="slp-hu' + (hu && !st.open ? '' : ' slp-gone') + '" data-a="openthread" data-v="' + esc(hu ? hu.thread : '') + '">' +
+      var huHtml = '<div class="slp-hu' + (hu && !st.open && !(st.lot && st.lot.open) ? '' : ' slp-gone') + '" data-a="openthread" data-v="' + esc(hu ? hu.thread : '') + '">' +
         (hu ? avatar({ id: hu.thread, name: hu.name }) + ('<div><small>' + T('ui.messages', 'Messages ') + '&middot;' + ' now' + '</small><b>') + esc(hu.name) + '</b><span>' + esc(hu.text) + '</span></div>' : '') + '</div>';
       layer.innerHTML =
-        '<div class="slp-pill"' + (st.open ? ' style="display:none"' : '') + '><b>' + money(d.money) + '</b><span>' + esc(d.title) + '</span>' +
+        '<div class="slp-pill"' + (st.open || (st.lot && st.lot.open) ? ' style="display:none"' : '') + '><b>' + money(d.money) + '</b><span>' + esc(d.title) + '</span>' +
           (d.phase ? '<span>' + (d.phase === 'night' ? '&#9790;' : '&#9728;') + '</span>' : '') + (d.heat > 0 ? '<span style="color:#ff6a4a">' + '&#9650;'.repeat(d.heat) + '</span>' : '') + (d.phase === 'night' && d.atRisk > 0 ? '<span style="color:#ffb74a">+' + d.atRisk + (T('ui.at_risk', ' at risk') + '</span>') : '') + '<span>' + two(d.hour || 0) + ':' + two(d.minute || 0) + '</span></div>' +
         '<div class="slp-device' + (st.open ? '' : ' slp-away') + '" style="transform:' + (st.open ? '' : 'translateY(70%) ') + 'scale(' + scale() + ')">' + screen + '</div>' +
         lotView() + garageView() + stationView() + meetView() + raceView() +

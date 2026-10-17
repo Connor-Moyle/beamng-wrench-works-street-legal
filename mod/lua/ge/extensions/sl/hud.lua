@@ -162,6 +162,7 @@ local function wanted()
   if not s.enabled then return nil end
   local v = getPlayerVehicle(0)
   if not v or v:getJBeamFilename() == 'unicycle' then return nil end
+  if sl_lot and sl_lot.uiHidden and sl_lot.uiHidden() then return nil end           -- (a lot is open: only its own menu shows)
   local career = sl_career and sl_career.isActive and sl_career.isActive()
   if not career and not s.freeroam then return nil end
   local cam = core_camera and core_camera.getActiveCamName and core_camera.getActiveCamName(0)

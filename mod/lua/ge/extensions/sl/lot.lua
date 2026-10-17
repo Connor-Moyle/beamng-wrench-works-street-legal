@@ -1034,8 +1034,21 @@ function M.onActivityAcceptGatherData(elemData, activityData)
 end
 
 local sendTimer = 0
+-- The game's own UI (the HUD apps: dials, minimap, messages and tips) is out of the way while a lot is open, the purchase reveal plays and so on,
+-- through the game's own app switch (guihooks 'ShowApps', as its observer camera and flowgraph do), so our card, the shop, the Skip button and
+-- the letterbox stay. It is shown again the moment the lot is gone, a test drive starts, the career stops or the level unloads.
+M.HIDE_GAME_UI = true
+local uiHidden = false
+function M.uiHidden() return uiHidden end
+local function gameUi(show)
+  if show == not uiHidden then return end
+  uiHidden = not show
+  guihooks.trigger('ShowApps', show)
+end
+
 function M.onUpdate(dtReal)
   update(dtReal)
+  gameUi(not (M.HIDE_GAME_UI and ((lot and lot.mode ~= 'test') or reveal)))
   tickLids(dtReal)
   local cs = career()
   if cs then deliverOrders(cs) end
@@ -1055,7 +1068,7 @@ function M.onUpdate(dtReal)
 end
 
 function M.request() send() end
-function M.onStreetLegalStopped() if lot then dropCars() lightsOff() cameraOff() end lot, test = nil, nil unmuteCars() send() end
-function M.onClientEndMission() lot, test, lights, cam = nil, nil, {}, nil unmuteCars() end
+function M.onStreetLegalStopped() gameUi(true) if lot then dropCars() lightsOff() cameraOff() end lot, test = nil, nil unmuteCars() send() end
+function M.onClientEndMission() gameUi(true) lot, test, lights, cam = nil, nil, {}, nil unmuteCars() end
 
 return M
