@@ -325,4 +325,34 @@ return function(check, rngLib)
   check('weather: earned money in the rain is 8 percent more, rounded to ten', WX.earned(1000, 'rain') == 1080 and WX.earned(1000, 'clear') == 1000 and WX.earned(55, 'rain') == 60)
   local mid = WX.blend(WX.STATES.clear, WX.STATES.rain, 0.5)
   check('weather: the sky blends between states', mid.drops == 175 and math.abs(mid.grip - 0.89) < 1e-9 and WX.blend(WX.STATES.clear, WX.STATES.rain, 2).drops == 350 and WX.blend(WX.STATES.clear, WX.STATES.rain, -1).drops == 0)
+
+  -- #40: where the spectators stand
+  local SPC = require('sl/core/spectators')
+  local spots = SPC.stand({ x = 0, y = 0, z = 10 }, { x = 0, y = 20, z = 10 }, 4, 3)
+  local left, right, nearest, facing = 0, 0, 1e9, true
+  for _, sp in ipairs(spots) do
+    if sp[1] < 0 then left = left + 1 else right = right + 1 end
+    nearest = math.min(nearest, math.abs(sp[1]))
+    if (sp[1] < 0 and sp[4] <= 0) or (sp[1] > 0 and sp[4] >= 0) then facing = false end          -- facing the track
+  end
+  check('spectators: spots on both sides of a stretch, in rows, none nearer the track than the half-width plus the gap, all facing it', #spots > 20 and left == right and math.abs(nearest - 7) < 1e-9 and facing and #SPC.stand({ x = 1, y = 1, z = 0 }, { x = 1, y = 1, z = 0 }, 4, 3) == 0)
+  local capped = SPC.stand({ x = 0, y = 0, z = 0 }, { x = 0, y = 500, z = 0 }, 4, 3)
+  check('spectators: a zone never has more than its cap of spots', #capped == SPC.MAX_SPOTS)
+  local ring = SPC.ring({ x = 10, y = 10, z = 5 }, 9, 13, 24)
+  local rok = #ring == 24
+  for _, sp in ipairs(ring) do
+    local d = math.sqrt((sp[1] - 10) ^ 2 + (sp[2] - 10) ^ 2)
+    if not (math.abs(d - 9) < 1e-6 or math.abs(d - 13) < 1e-6) or sp[3] ~= 5 or (sp[4] * (10 - sp[1]) + sp[5] * (10 - sp[2])) <= 0 then rok = false end
+  end
+  check('spectators: a meet ring is two radii, facing the middle, at the spot height', rok)
+  local z = SPC.zone('z', 'race', spots)
+  check('spectators: a zone has its middle, a radius that holds every spot, and finds the ground itself', z.ground and z.id == 'z' and z.r > 10 and math.abs(z.c[2] - 10) < 2 and SPC.zone('e', 'race', {}) == nil)
+  local strip = SPC.dragStrip({ { from = { x = 0, y = 0, z = 1 }, to = { x = 0, y = 400, z = 1 } }, { from = { x = 5, y = 0, z = 1 }, to = { x = 5, y = 400, z = 1 } } })
+  local minx, maxx = 1e9, -1e9
+  for _, sp in ipairs(strip) do minx, maxx = math.min(minx, sp[1]), math.max(maxx, sp[1]) end
+  check('spectators: the drag strip crowd stands outside both lanes', #strip > 0 and minx < -4 and maxx > 9)
+  local nodes = {}
+  for i = 1, 12 do nodes[i] = { pos = { math.cos(i / 12 * 6.283) * 300, math.sin(i / 12 * 6.283) * 300, 20 }, radius = 8 } end
+  local stands = SPC.circuitStands(nodes)
+  check('spectators: a circuit gets four stands, none with fewer than 4 nodes', #stands == 4 and #stands[1] > 10 and #SPC.circuitStands({ nodes[1], nodes[2], nodes[3] }) == 0)
 end

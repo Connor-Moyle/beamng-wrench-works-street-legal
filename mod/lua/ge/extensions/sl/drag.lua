@@ -189,6 +189,7 @@ function M.onWinnerLightOn(lane)
       pay.money > 0 and string.format('$%d and %+d reputation.', pay.money, pay.rep) or 'Nothing paid.'))
     extensions.hook('onStreetLegalChanged')
   end
+  if won and slrrPedestrians and slrrPedestrians.cheer then slrrPedestrians.cheer(6) end          -- the crowd at the strip (#40)
   removeOpponent()
 end
 

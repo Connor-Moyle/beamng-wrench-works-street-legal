@@ -145,6 +145,7 @@ function M.onMissionAttemptAggregated(attempt, mission)
     return
   end
   if not passed then return end
+  if slrrPedestrians and slrrPedestrians.cheer then slrrPedestrians.cheer(6) end          -- the crowd at a track event (#40)
   s.activitiesDone = s.activitiesDone or {}
   local first = not s.activitiesDone[mission.id]
   s.activitiesDone[mission.id] = (s.activitiesDone[mission.id] or 0) + 1
