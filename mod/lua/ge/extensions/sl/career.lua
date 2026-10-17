@@ -76,6 +76,30 @@ local function sunElevation()
 end
 M.sunElevation = sunElevation
 
+-- The sky is positioned by the game's core_celestial from the level's time and date. Some ways of launching the game do not load that extension
+-- (seen: a level loaded through the MCP tools: core_celestial nil, the sun stuck at the level's authored hour). The career must not depend on it:
+-- it loads the extension when it is missing, and if there is still none it puts the sun where the clock says itself (sl/core/sun).
+local sunLib = require('sl/core/sun')
+local function ensureCelestial()
+  if not core_celestial and extensions and extensions.load then pcall(extensions.load, 'core_celestial') end
+  if core_celestial and core_celestial.setEnabled then pcall(core_celestial.setEnabled, true) end
+  return core_celestial ~= nil
+end
+local function skyFollow()
+  if core_celestial then return end
+  local tod = core_environment and core_environment.getTimeOfDay and core_environment.getTimeOfDay()
+  local names = scenetree.findClassObjects and scenetree.findClassObjects('ScatterSky') or {}
+  local sky = names[1] and scenetree.findObject(names[1])
+  if type(tod) ~= 'table' or not tod.time or not sky then return end
+  local lat, lon = tonumber(tod.latitude) or 47, tonumber(tod.longitude) or 8
+  local y, mo, d = tod.year or 2026, tod.month or 6, tod.day or 20
+  local utc = tonumber(tod.utcOffset) or sunLib.utcOffsetFor(lat, lon, tod.dstRule, y, mo, d)
+  local el, az = sunLib.position(lat, lon, utc, mo, d, (tod.time * 24 + 12) % 24, y)
+  sky.elevation = el
+  sky.azimuth = az
+  if sky.postApply then pcall(sky.postApply, sky) end
+end
+
 -- frames the game has drawn (onPreRender): the sky is positioned there (core_celestial), so a clock set while nothing is drawn leaves the sun where it was
 local framesDrawn = 0
 function M.onPreRender() framesDrawn = framesDrawn + 1 end
@@ -116,6 +140,7 @@ local function setHour(h)
     obj:setField('animate', 0, run and '1' or '0')
     obj:setField('dayLength', 0, tostring(length))
   end
+  skyFollow()
 end
 
 local function v3(t) return type(t) == 'table' and vec3(tonumber(t[1] or t.x) or 0, tonumber(t[2] or t.y) or 0, tonumber(t[3] or t.z) or 0) or nil end
@@ -627,6 +652,7 @@ local function begin()
   connectWallet(true)
   places = nil
   loadPlaces()
+  ensureCelestial()
   local fresh = not s.begun
   if fresh then
     s.begun = true
@@ -1285,6 +1311,7 @@ end
 ----------------------------------------------------------------------------------------------
 -- game hooks
 
+local skyTimer = 0
 local function onUpdate(dtReal)
   if pending == 'start' and getCurrentLevelIdentifier and getCurrentLevelIdentifier() == M.LEVEL and worldReadyState == 2 then
     begin()
@@ -1292,6 +1319,8 @@ local function onUpdate(dtReal)
   if not active then return end
   deliverTexts()
   updateClock()
+  skyTimer = skyTimer + dtReal
+  if skyTimer > 1 then skyTimer = 0 skyFollow() end        -- (no core_celestial: the sun follows the running clock)
   checkChallengeArrival()
   syncTimer = syncTimer + dtReal
   if syncTimer > 2 then syncTimer = 0 syncChallenge() dueRematches() end
@@ -1355,6 +1384,7 @@ end
 -- so the clock goes by way of the opposite hour first, as the start of a career does. Then the sun is read back: at a night hour it should be below
 -- the horizon; if not, one wider detour, and the elevations go to the log (sl_career) either way. Runs inside a job (it sleeps).
 local function moveClock(h, job)
+  ensureCelestial()
   skyReport('before the jump to ' .. string.format('%.2f', h))
   setHour((h + 12) % 24)
   job.sleep(0.35)

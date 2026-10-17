@@ -1056,6 +1056,19 @@ do
   check('heat is raised up to 1 and cools while nobody is after you, down to 0', heat.raised(0.95, 0.12) == 1 and math.abs(heat.raised(0.2, heat.NEAR_MISS) - 0.24) < 1e-9 and math.abs(heat.cooled(0.5, 10) - 0.4) < 1e-9 and heat.cooled(0.05, 100) == 0)
   check('a save without banked reputation has none at risk; a new career starts at 0', state.migrate({ seed = 3, rep = 700, hour = 11 }).bankedRep == 700 and state.new(5, 0).bankedRep == 0)
 
+  -- the sun, for a sky without core_celestial
+  local sun = require('sl/core/sun')
+  local function el(lat, lon, utc, m, d, h) return (sun.position(lat, lon, utc, m, d, h, 2026)) end
+  local function near(a, b) return math.abs(a - b) < 2 end
+  check('Valo (47 N, 8 E) at the spring equinox: up at noon, a low sun at 07:00 and 19:00, dark at 21:00 and 04:00', near(el(47, 8, 1, 3, 20, 12), 42) and near(el(47, 8, 1, 3, 20, 7), 4) and near(el(47, 8, 1, 3, 20, 19), -4) and el(47, 8, 1, 3, 20, 21) < -20 and el(47, 8, 1, 3, 20, 4) < -20)
+  check('West Coast (37.8 N, 122.4 W, UTC-7)', near(el(37.77, -122.42, -7, 3, 20, 12), 48) and near(el(37.77, -122.42, -7, 3, 20, 7), -4) and near(el(37.77, -122.42, -7, 3, 20, 19), 3) and el(37.77, -122.42, -7, 3, 20, 21) < -15)
+  check('the old summer dates: the sun is still up at 21:00 in Valo (why the date moved)', el(47, 8, 2, 6, 20, 21) > 0 and el(47, 8, 2, 6, 20, 21) < 6)
+  local _, azMorning = sun.position(47, 8, 1, 3, 20, 8, 2026)
+  local _, azEvening = sun.position(47, 8, 1, 3, 20, 17, 2026)
+  local _, azNoon = sun.position(47, 8, 1, 3, 20, 12.5, 2026)
+  check('the sun is in the east in the morning, south at noon, west in the evening (compass degrees)', azMorning > 70 and azMorning < 130 and azNoon > 160 and azNoon < 200 and azEvening > 230 and azEvening < 290)
+  check('the time zone: US rule on 20 March is summer time (-7 on the West Coast), EU is not; November is not', sun.utcOffsetFor(37.77, -122.42, 'us', 2026, 3, 20) == -7 and sun.utcOffsetFor(47, 8, 'eu', 2026, 3, 20) == 1 and sun.utcOffsetFor(47, 8, 'eu', 2026, 7, 1) == 2 and sun.utcOffsetFor(37.77, -122.42, 'us', 2026, 11, 20) == -8 and sun.utcOffsetFor(47, 8, nil, 2026, 6, 20) == 2 and sun.utcOffsetFor(37.77, -122.42, nil, 2026, 6, 22) == -7)
+
   check('D4: heat as a level 0 to 5', phase.heatLevel(0) == 0 and phase.heatLevel(0.01) == 0 and phase.heatLevel(0.05) == 1 and phase.heatLevel(0.5) == 3 and phase.heatLevel(1) == 5 and phase.heatLevel(9) == 5 and phase.heatLevel(nil) == 0)
   check('the buttons say what they do', phase.switchLabel('day') == 'Start the night' and phase.switchLabel('night') == 'Start the day')
   check('the clock speed: slow is 2.5 real minutes an hour, a bad value is slow', phase.dayLength('slow') == 3600 and phase.dayLength('normal') == 1800 and phase.dayLength('fast') == 900 and phase.dayLength('zzz') == 3600 and phase.dayLength(nil) == 3600)
