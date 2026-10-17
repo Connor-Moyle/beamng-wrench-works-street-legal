@@ -43,8 +43,9 @@ M.MOD_PARTS = { 'running/rims_f', 'running/rims_r', 'engine/exhaust', 'engine/in
   'running/shocks_r', 'running/suspension_f', 'running/suspension_r', 'body/wings', 'body/aero', 'engine/management',
   'running/brakes_f', 'running/brakes_r', 'running/differentials', 'body/hoods' }
 
--- panels that take the dents of a damaged car
-M.DENT_PARTS = { 'body/bumpers_f', 'body/bumpers_r', 'body/fenders', 'body/doors', 'body/hoods', 'body/trunk', 'body/roof' }
+-- panels that take the dents of a damaged car. Not the doors: a dent bends the hinge nodes and a LeGran's driver door hung open on the lot (the
+-- latches are kept, but a bent hinge lets go anyway); the fenders and bumpers carry the damage
+M.DENT_PARTS = { 'body/bumpers_f', 'body/bumpers_r', 'body/fenders', 'body/hoods', 'body/trunk', 'body/roof' }
 
 local function set(list)
   local s = {}

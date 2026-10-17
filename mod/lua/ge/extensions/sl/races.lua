@@ -212,23 +212,26 @@ local function go()
     local a = tonumber(c.offer.aggression) or 0.6
     opp:queueLuaCommand(string.format("controller.setFreeze(0) input.event('parkingbrake', 0, FILTER_DIRECT) ai.setSpeedMode('off') ai.setRecoverOnCrash(true) ai.setAvoidCars('on') ai.driveInLane('off') ai.setAggression(%f) ai.driveUsingPath({wpTargetList = %s, aggression = %f})", a, serialize(c.race.wps), a))
   end
+  local function fwd(v) local f = v and v:getDirectionVector() return f and string.format('(%.2f, %.2f)', f.x, f.y) or 'none' end
+  log('I', 'sl_races', string.format('GO %s: player faces %s, opponent faces %s, route %s', c.race.id, fwd(pv), fwd(opp), string.format('(%.2f, %.2f)', c.race.dir.x, c.race.dir.y)))
   extensions.hook('onSlrrRaceStarted', c.race.missionId, c.race.id)
   tell('GO!', 2)
 end
 
 -- racing: two positions against the goal, once a frame, and nothing else (sl/core/races.step)
 -- the finish: a tall red line and its name over it, from wherever you are, for the whole race (#18)
-local finishColor, finishBg = ColorF(1, 0.25, 0.2, 1), ColorI(0, 0, 0, 170)
+local finishColor, finishBg, finishRing = ColorF(1, 0.25, 0.2, 1), ColorI(0, 0, 0, 170), ColorF(1, 0.25, 0.2, 0.5)
 local function drawFinish(c)
   local f = c.race.finish
-  debugDrawer:drawLine(vec3(f.x, f.y, f.z), vec3(f.x, f.y, f.z + 60), finishColor)
-  debugDrawer:drawLine(vec3(f.x + 3, f.y, f.z), vec3(f.x + 3, f.y, f.z + 60), finishColor)
-  debugDrawer:drawTextAdvanced(vec3(f.x, f.y, f.z + 62), String('FINISH'), finishColor, true, false, finishBg)
+  local base = vec3(f.x, f.y, f.z)
+  debugDrawer:drawCylinder(base, base + vec3(0, 0, 0.1), 7, finishRing)              -- (a ring on the road and a tall pillar: seen from the start, not a thin line)
+  debugDrawer:drawCylinder(base, base + vec3(0, 0, 90), 0.6, finishColor)
+  debugDrawer:drawTextAdvanced(vec3(f.x, f.y, f.z + 93), String('FINISH'), finishColor, true, false, finishBg)
 end
 
 function M.onUpdate(dtReal)
+  if cur and debugDrawer then pcall(drawFinish, cur) end        -- (from the launch: the opponent may take a while to be built)
   if not cur or not cur.ready then return end
-  if debugDrawer then pcall(drawFinish, cur) end
   local t0 = os.clock()
   cur.t = cur.t + dtReal
   local pv = getObjectByID(cur.playerVid)
@@ -237,6 +240,8 @@ function M.onUpdate(dtReal)
     -- both cars face the route (B66: they sat facing the wrong way): checked once the teleport has settled, turned if not
     if not cur.faced and cur.t > 0.6 then
       cur.faced = true
+      -- the ground route from where the car stands now: set at the launch it began at the old spot, the teleport not yet applied
+      if core_groundMarkers then core_groundMarkers.setPath(cur.race.wps) end
       local race = cur.race
       local opp0 = cur.oppVid and getObjectByID(cur.oppVid)
       local line = races.lineUp(race.start, race.dir)
