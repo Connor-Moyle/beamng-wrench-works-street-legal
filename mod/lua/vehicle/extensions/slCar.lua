@@ -251,6 +251,7 @@ end
 -- a wheel inside one gets drag, and above about 80 km/h aquaplanes (little grip); the spray and the wet road's mist are asked of the game side as particles
 local puddleList, puddleWet, puddleFlags = {}, 0, {}
 local puddleTimer, fxTimer, fxSentEmpty = 0, 0, true
+local wheelInAt = {}
 local lastDt = 0.016
 
 function M.setPuddles(list, wet, flags)
@@ -283,6 +284,10 @@ updatePuddles = function(dt)
         end
         local drag = puddleRules.drag(speed, depth)
         if drag > 0 then pcall(function() obj:applyForceVectorTime(wheel.node1, vec3(-dirx * drag, -diry * drag, 0), step * 1.5) end) end
+      end
+      if depth > 0 and os.clock() - (wheelInAt[wid] or 0) > 2 then
+        wheelInAt[wid] = os.clock()
+        obj:queueGameEngineLua(string.format('if sl_puddlefx and sl_puddlefx.wheelIn then sl_puddlefx.wheelIn(%d, %q, %.2f, %.0f) end', obj:getId(), tostring(wid), depth, speed * 3.6))
       end
       local splash = puddleFlags.splash and puddleRules.splash(speed, depth) or 0
       local mist = puddleFlags.mist and puddleRules.mist(puddleWet, speed) or 0

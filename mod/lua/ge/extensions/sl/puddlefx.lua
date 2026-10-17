@@ -30,7 +30,7 @@ local counter = 0
 local placeTimer, meshTimer, feedTimer, trailTimer = 0, 0, 0, 0
 local debugPuddle
 local sentEmpty = true
-local stats = { tries = 0, noSurface = 0, notFlat = 0, noRoad = 0, placed = 0, shown = 0, fxCalls = 0, splashOn = 0, mistOn = 0, trails = 0 }
+local stats = { tries = 0, noSurface = 0, notFlat = 0, noRoad = 0, placed = 0, shown = 0, fxCalls = 0, splashOn = 0, mistOn = 0, trails = 0, wheelsIn = 0 }
 local lastStatsLog = 0
 local logged = {}
 
@@ -263,7 +263,10 @@ local function feedVehicle(dt, wet)
   local pos, v = playerPos()
   if not pos or v:getJBeamFilename() == 'unicycle' then return end
   local list = {}
-  for _, p in ipairs(puddles) do
+  local candidates = {}
+  for _, p in ipairs(puddles) do candidates[#candidates + 1] = p end
+  if debugPuddle and debugPuddle.obj then candidates[#candidates + 1] = debugPuddle end      -- (the test puddle counts like a real one)
+  for _, p in ipairs(candidates) do
     if p.obj and not p.damp and #list < 8 then
       local dx, dy = p.x - pos.x, p.y - pos.y
       if dx * dx + dy * dy < 45 * 45 then
@@ -344,6 +347,12 @@ local function updateTrails(dt)
 end
 
 -- called from the car's Lua about ten times a second while a wheel throws anything: list = { { x, y, z, splash, mist }, ... } (ground under each wheel, a little behind it)
+-- the car's Lua says a wheel is in a puddle (at most every two seconds): counted, and logged the first time
+function M.wheelIn(vid, wheel, depth, speedKmh)
+  stats.wheelsIn = (stats.wheelsIn or 0) + 1
+  once('wheelIn', string.format('wheel in puddle: wheel %s depth %.2f speed %.0f km/h', tostring(wheel), depth or 0, speedKmh or 0))
+end
+
 function M.wheelFx(vid, list, dx, dy)
   local pv = getPlayerVehicle(0)
   if not pv or pv:getID() ~= vid then return end
@@ -379,8 +388,8 @@ function M.update(dt, wet)
   updateTrails(dt)
   if wet >= 0.15 and os.clock() - lastStatsLog > 15 then
     lastStatsLog = os.clock()
-    log('I', TAG, string.format('puddles: %d standing, %d shown (wet %.2f); tries %d, no surface %d, not flat %d, no road %d, placed %d; wheel calls %d (splash %d, mist %d), trails %d',
-      #puddles, stats.shown, wet, stats.tries, stats.noSurface, stats.notFlat, stats.noRoad, stats.placed, stats.fxCalls, stats.splashOn, stats.mistOn, stats.trails))
+    log('I', TAG, string.format('puddles: %d standing, %d shown (wet %.2f); tries %d, no surface %d, not flat %d, no road %d, placed %d; wheel calls %d (splash %d, mist %d), wheels in puddles %d, trails %d',
+      #puddles, stats.shown, wet, stats.tries, stats.noSurface, stats.notFlat, stats.noRoad, stats.placed, stats.fxCalls, stats.splashOn, stats.mistOn, stats.wheelsIn, stats.trails))
   end
 end
 
