@@ -38,6 +38,21 @@ local function racerOf(s, id) return stateLib.racer(s, id) end
 local function nameOf(s, rival) local r = racerOf(s, rival.id) return r and roster.displayName(r) or rival.id end
 local function crewName(id) for _, c in ipairs(crewsLib.CREWS) do if c.id == id then return c.name end end end
 
+-- where you are: the career place nearest to the player (a rival is 'met' where their first text or first race found you)
+local function nearestPlace()
+  local v = getPlayerVehicle and getPlayerVehicle(0)
+  if not v then return nil end
+  local here, best, bd = v:getPosition(), nil, 1e12
+  for id, p in pairs(sl_career.getPlaces and sl_career.getPlaces() or {}) do
+    if p.pos then
+      local d = (vec3(p.pos.x, p.pos.y, p.pos.z) - here):squaredLength()
+      if d < bd then best, bd = id, d end
+    end
+  end
+  return best
+end
+local function markMet(rival) if not rival.metAt then rival.metAt = nearestPlace() end end
+
 -- a text from a rival in their voice, a little after the event
 local function say(s, rival, kind, delay, ...)
   local rng = rngLib.new(rngLib.hash(rival.id .. ':' .. kind .. ':' .. tostring(s.day) .. ':' .. tostring(rival.races or 0)))
@@ -89,6 +104,7 @@ function M.onStreetLegalRaceResult(won, opponent, racerId, stake)
   if won then m.tierWins[racer.tier] = (m.tierWins[racer.tier] or 0) + 1 end
   local rival = rules.byId(m.list, racerId)
   if not rival then return end
+  markMet(rival)
   local margin = pending and os.clock() - pending.t < 5 and pending.margin or nil
   pending = nil
   rules.recordRace(rival, won, margin, stake, s.day)
@@ -145,6 +161,7 @@ local function proactive(s, m)
   for _, rival in ipairs(m.list) do
     if rules.allowed(m.list, rival.tier) and rules.firstTime(rival, 'intro') then
       s.known[rival.id] = true
+      markMet(rival)
       say(s, rival, 'intro', 3)
       return true
     end
@@ -209,6 +226,22 @@ function M.list()
   local result = { rivals = out, rank = rules.rank(m.list) }
   guihooks.trigger('slRivals', result)
   return result
+end
+
+-- for the phone's Contacts (connor-9e): the rivals you have met, { id, name, kind = 'rival', line, placeId }
+function M.met()
+  local s = career()
+  local out = {}
+  if not s then return out end
+  for _, rival in ipairs(state(s).list) do
+    if s.known[rival.id] then
+      local racer = racerOf(s, rival.id)
+      local role = rival.boss and (strings.t('rivals.boss_star') .. ' ' .. rival.tier) or strings.t('rivals.nemesis')
+      out[#out + 1] = { id = rival.id, name = racer and roster.displayName(racer) or rival.id, kind = 'rival', placeId = rival.metAt,
+        line = role .. ((crewName(rival.crew)) and (' - ' .. crewName(rival.crew)) or '') }
+    end
+  end
+  return out
 end
 
 function M.rank() local s = career() return s and rules.rank(state(s).list) or 1 end

@@ -2172,6 +2172,8 @@ do -- the rivals extension (sl_rivals) against a mocked game: the tier gate, a r
   check('beating the boss raises the rank and clears the showdown', boss1.bossBeaten == true and s.rivals.bossActive == nil and RVE.rank() == 2)
   local g3 = ROS.respond(tier3, 'race', { rep = 99999, money = 99999, hasCar = true }, require('sl/core/rng').new(1))
   check('the next tier is open now (the gate has moved up one boss)', g3.accept == true or g3.text ~= nil)
+  local metList = RVE.met()
+  check('the rivals you know are listed as contacts with a line', #metList >= 1 and metList[1].kind == 'rival' and #metList[1].line > 3 and metList[1].name ~= nil)
   local r1 = RVE.list()
   check('the rivals list for the screens has six with a record and a word', #r1.rivals == 6 and r1.rank == 2 and r1.rivals[1].word and r1.rivals[1].beaten ~= nil)
   RVE.onStreetLegalStopped()
