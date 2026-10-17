@@ -42,6 +42,7 @@ local meet                -- { place, cars = { racer id -> vehicle id }, until (
 local race                -- the race running: { racer, vid, stake, bet, dest = vec3, destName, t, countdown, started }
 local beam = { on = false, onAt = 0 }
 local pollTimer, spawnTimer, meetTimer = 0, 0, 0
+local meetsTonight = 0   -- meets started since dusk (the first of a night is tried after 30 s, spawnplan.meetDue)
 local tryTimer = 0
 local busy = false        -- a job is spawning something
 local circuitPath, updateCircuit   -- (further down, with the ROC)
@@ -470,6 +471,7 @@ end
 M.PRESPAWN = true
 local preCruisers, fadeUntil = 0, 0
 function M.onStreetLegalPhase(phase)
+  if phase == 'night' then meetsTonight, meetTimer = 0, 0 end
   if phase == 'night' and M.PRESPAWN and career() then preCruisers, fadeUntil = 2, os.clock() + 4 end
 end
 -- the career start and a fast travel are black fades too (the hook comes after the player has been moved)
@@ -788,9 +790,10 @@ local function updateMeet(s, dt)
   local v = getPlayerVehicle(0)
   if not meet then
     meetTimer = meetTimer + dt
-    if night() and meetTimer > 90 and not race then
-      meetTimer = 0
-      if rngLib.new(rngLib.hash('m' .. os.clock())):chance(0.35) then startMeet(s) end
+    if night() and not race and not busy and spawnplan.meetDue(meetTimer, meetsTonight, math.random()) then
+      local started = startMeet(s) and true or false
+      meetTimer = spawnplan.meetTimerAfter(started, meetsTonight)
+      if started then meetsTonight = meetsTonight + 1 end
     end
     return
   end
