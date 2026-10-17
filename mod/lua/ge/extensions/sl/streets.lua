@@ -468,7 +468,9 @@ local function spawnCruiser(s, reuseOnly)
   -- a racer whose car waits in the pool comes back first: putting it on a road costs a teleport, a build costs a freeze
   local back = spawnplan.reusable(list, pool, getObjectByID)
   if #back > 0 then list = back elseif reuseOnly then return false end
-  local racer = list[rng:int(#list)]
+  -- the nemesis (sl_rivals) now and then: it picks from this list only, so one already out, at a meet or racing is never chosen
+  local nem = sl_rivals and sl_rivals.nemesisToCruise and sl_rivals.nemesisToCruise(list, rng)
+  local racer = nem or list[rng:int(#list)]
   -- out of his sight and off his way (#19): not in the camera's view, not ahead of where he is going
   local pp, pv = v:getPosition(), v:getVelocity()
   local player = { x = pp.x, y = pp.y, vx = pv.x, vy = pv.y }
