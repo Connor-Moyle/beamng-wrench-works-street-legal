@@ -60,27 +60,149 @@ local function applyVars()
   gameplay_police.setPoliceVars(chaseLib.vars(sl_career.phase(), level))
 end
 
+local nodeAround              -- (defined below)
 -- the chase, once a second: out of sight or under a roof the game's evade timer runs faster (core/chase), and the HUD gets the meters.
 -- chaseState is nil outside a chase; stripsHit counts the strips this chase has put under you (the escape pays for them)
 local chaseState, lastEvade, stripsHit = nil, 0, 0
 local function chaseTick(dt)
   local v = getPlayerVehicle(0)
   local pur = v and night() and gameplay_police and gameplay_police.getPursuitData and gameplay_police.getPursuitData(v:getID())
-  if not (pur and (pur.mode or 0) >= 1 and pur.timers) then chaseState, lastEvade, stripsHit = nil, 0, 0 return end
+  if not (pur and (pur.mode or 0) >= 1 and pur.timers) then
+    if chaseState and M.stripReset then M.stripReset() end
+    chaseState, lastEvade, stripsHit = nil, 0, 0
+    return
+  end
   local up = castRayStatic and castRayStatic(v:getPosition() + vec3(0, 0, 1), vec3(0, 0, 1), 30) or 30
   local covered, hidden = chaseLib.covered(up), pur.policeVisible == false
   local rate = chaseLib.evadeRate(hidden, covered)
   local tm = pur.timers
   if rate > 1 and (tm.evade or 0) > lastEvade then tm.evade = tm.evade + (rate - 1) * dt end      -- (only while the game is counting: patrols far enough off)
   lastEvade = tm.evade or 0
-  chaseState = { evade = tm.evadeValue or 0, arrest = tm.arrestValue or 0, hidden = hidden, covered = covered, rate = rate }
+  chaseState = { evade = tm.evadeValue or 0, arrest = tm.arrestValue or 0, hidden = hidden, covered = covered, rate = rate, strip = M.stripWarning and M.stripWarning() or false }
+  if M.stripTick then M.stripTick(v) end
   if rate > 1 then log('D', 'street_legal', string.format('chase: hidden=%s covered=%s rate=%.2f evade=%.2f', tostring(hidden), tostring(covered), rate, lastEvade)) end
 end
 function M.chaseHud() return chaseState end
 function M.stripsSurvived() return stripsHit end
 
+-- the spike strip (heat 3+, in a chase): the game's own 'spikestrip' prop (ground material 32: its tyre code deflates what rolls over it).
+-- One strip is built at night from heat 3 (the patrol build rule), parked out of play and switched off, and moved onto the road ahead of you
+-- 150-250 m down your route (core/chase stripSpot: on a straight, not under a roof, not on a bridge), with a warning on the HUD and a message.
+-- It is parked again 8 s after you pass it or after 30 s.
+M.STRIP = true                        -- false: no strips
+M.STRIP_CONFIG = 'vehicles/spikestrip/flexr_dual.pc'
+M.STRIP_YAW = 0                       -- degrees, to turn the prop across the road (its long side is not known offline: checked in game)
+local stripId, stripBusy, stripPark, stripPos, stripAt, stripPassed = nil, false, nil, nil, -1e9, false
+local lastStrip = -1e9
+local function stripVeh()
+  local v = stripId and getObjectByID(stripId)
+  if not v then stripId = nil end
+  return v
+end
+local function parkStrip()
+  local sv = stripVeh()
+  if sv and stripPark then
+    spawn.safeTeleport(sv, stripPark, quat(0, 0, 0, 1), true, nil, nil, nil, false)
+    sv:setActive(0)
+  end
+  stripPos = nil
+end
+local function stripOk(pt)
+  local up, dn = vec3(0, 0, 1), vec3(0, 0, -1)
+  local p = vec3(pt.x, pt.y, pt.z)
+  return castRayStatic(p + vec3(0, 0, 1), up, 30) >= 30 and castRayStatic(p + vec3(0, 0, 2), dn, 12) < 5      -- no roof; ground close below (not a bridge)
+end
+-- the road ahead as points: the road graph from here to a node 250-400 m off in the direction of travel
+local function routeAhead(v)
+  local ok, nodes = pcall(function() return map.getMap().nodes end)
+  if not ok or type(nodes) ~= 'table' then return nil end
+  local p = v:getPosition()
+  local dir = v:getVelocity()
+  if dir:length() < 3 then dir = v:getDirectionVector() end
+  dir = dir:normalized()
+  local okc, a = pcall(function() return (map.findClosestRoad(p)) end)
+  if not (okc and a) then return nil end
+  local goal, best, tries = nil, 0.8, 0
+  for name, n in pairs(nodes) do
+    tries = tries + 1
+    local off = n.pos - p
+    local d = off:length()
+    if d > 250 and d < 400 then
+      local dot = off:dot(dir) / d
+      if dot > best then goal, best = name, dot end
+    end
+    if tries > 20000 then break end
+  end
+  if not goal then return nil end
+  local okp, path = pcall(map.getPath, a, goal)
+  if not okp or type(path) ~= 'table' then return nil end
+  local pts = { p }
+  for _, name in ipairs(path) do
+    local n = nodes[name]
+    if n and (#pts > 1 or (n.pos - p):dot(dir) > 0) then pts[#pts + 1] = n.pos end      -- (nodes behind you are dropped from the start)
+  end
+  return pts
+end
+local function placeStrip(v)
+  local sv = stripVeh()
+  if not sv then return end
+  local pts = routeAhead(v)
+  local spot, d = pts and chaseLib.stripSpot(pts, stripOk)
+  if not spot then return end
+  local pos = vec3(spot.x, spot.y, spot.z + 0.3)
+  local across = vec3(-d.y, d.x, 0):normalized()
+  local rot = quatFromDir(across, vec3(0, 0, 1))
+  if M.STRIP_YAW ~= 0 then rot = rot * quatFromAxisAngle(vec3(0, 0, 1), math.rad(M.STRIP_YAW)) end
+  sv:setActive(1)
+  spawn.safeTeleport(sv, pos, rot, true, nil, nil, nil, false)
+  stripPos, stripAt, stripPassed, lastStrip = pos, os.clock(), false, os.clock()
+  if ui_message then ui_message(strings.t('police.strip_ahead'), 4, 'streetLegal') end
+  log('I', 'street_legal', string.format('chase: strip placed %.0f m ahead at %.0f,%.0f', (pos - v:getPosition()):length(), pos.x, pos.y))
+end
+-- every frame while a strip is out: counts the pass (the tyres are the game's), parks it afterwards
+local function stripWatch()
+  if not stripPos then return end
+  local v = getPlayerVehicle(0)
+  if not v then return end
+  local now = os.clock()
+  if not stripPassed and (stripPos - v:getPosition()):length() < 8 then
+    stripPassed, stripAt = true, now
+    stripsHit = stripsHit + 1
+    log('I', 'street_legal', 'chase: strip passed, strips this chase ' .. stripsHit)
+  end
+  if (stripPassed and now - stripAt > 8) or now - stripAt > 30 then parkStrip() end
+end
+function M.stripWarning() return stripPos ~= nil and not stripPassed end
+function M.stripReset() parkStrip() end
+function M.stripTick(v)       -- (from the chase tick)
+  if M.STRIP and not stripPos and stripVeh() and chaseLib.stripDue(sl_career.phase(), M.level(), true, os.clock() - lastStrip) then placeStrip(v) end
+end
+-- the strip itself, built once at night from heat 3 while nobody is after you (a spawn is a hitch)
+local function updateStrip(v)
+  if not M.STRIP or stripId or stripBusy or not night() or M.level() < 3 or M.inPursuit() or not gameplay_traffic then return end
+  local node = nodeAround(v:getPosition(), 500, 900)
+  if not node then return end
+  local sBusy, sSince = false, 1e9
+  if sl_streets and sl_streets.buildGate then sBusy, sSince = sl_streets.buildGate() end
+  if not spawnplan.patrolOk(v:getVelocity():length(), math.min(sSince or 1e9, os.clock() - lastBuild), sBusy, false) then return end
+  stripBusy, lastBuild = true, os.clock()
+  if sl_streets and sl_streets.noteBuild then sl_streets.noteBuild() end
+  core_jobsystem.create(function(job)
+    local ok, sv = pcall(core_vehicles.spawnNewVehicle, 'spikestrip', { config = M.STRIP_CONFIG, pos = node.pos + vec3(0, 0, 0.5), autoEnterVehicle = false, canSpawnAnotherVehicleCheck = false })
+    if ok and sv then
+      job.sleep(1)
+      stripId, stripPark = sv:getID(), node.pos + vec3(0, 0, 0.5)
+      sv:setActive(0)
+      log('I', 'street_legal', 'chase: strip built, parked out of play')
+    else
+      log('W', 'street_legal', 'chase: strip could not be built: ' .. tostring(sv))
+    end
+    stripBusy = false
+  end)
+end
+
 -- a road node some way off, to start a patrol where you will not see it appear
-local function nodeAround(from, minD, maxD)
+function nodeAround(from, minD, maxD)
   local ok, nodes = pcall(function() return map.getMap().nodes end)
   if not ok or type(nodes) ~= 'table' then return nil end
   local pick, tries = nil, 0
@@ -177,7 +299,10 @@ function M.onStreetLegalNewDay() local s = career() if s then s.heat = (s.heat o
 -- a phase switch: the day clears the heat (the career did), the police's rules and our extra patrols follow
 function M.onStreetLegalPhase(phase)
   appliedVars = nil
-  if phase ~= 'night' then for i = #units, 1, -1 do despawn(units[i]) units[i] = nil end end
+  if phase ~= 'night' then
+    for i = #units, 1, -1 do despawn(units[i]) units[i] = nil end
+    if stripId then despawn(stripId) stripId, stripPos = nil, nil end
+  end
 end
 
 -- flashing past a patrol at speed: a little heat (once in a while)
@@ -215,14 +340,18 @@ end
 function M.onUpdate(dtReal)
   if not career() then
     if #units > 0 then for _, id in ipairs(units) do despawn(id) end units = {} end
+    if stripId then despawn(stripId) stripId, stripPos = nil, nil end
     return
   end
   timer = timer + dtReal
   nearTimer = nearTimer + dtReal
+  stripWatch()
   if nearTimer > 1 then chaseTick(nearTimer) nearTimer = 0 nearMiss(os.clock()) end
   if timer > 5 then
     timer = 0
     updatePatrols()
+    local pv = getPlayerVehicle(0)
+    if pv then updateStrip(pv) end
     local s = career()
     if night() then
       if not M.inPursuit() then s.heat = heatLib.cooled(s.heat, 5 / 60) end      -- heat cools as time passes while nobody is after you
@@ -232,7 +361,7 @@ function M.onUpdate(dtReal)
   end
 end
 
-function M.onStreetLegalStopped() for _, id in ipairs(units) do despawn(id) end units = {} end
-function M.onClientEndMission() units = {} busy = false end
+function M.onStreetLegalStopped() for _, id in ipairs(units) do despawn(id) end units = {} if stripId then despawn(stripId) stripId, stripPos = nil, nil end end
+function M.onClientEndMission() units = {} busy = false stripId, stripPos, stripBusy = nil, nil, false end
 
 return M
