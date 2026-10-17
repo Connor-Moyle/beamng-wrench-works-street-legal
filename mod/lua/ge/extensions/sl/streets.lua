@@ -33,6 +33,9 @@ local CITY_RACE = 1800        -- street races stay in town (tunnels run on to th
 local RACE_TIMEOUT = 600
 
 local cruisers = {}       -- racer id -> vehicle id: racers out driving
+local pool = {}           -- racer id -> vehicle id: cruisers sent away, kept inactive to be put back on a road (A12: a spawn costs the frame; a pooled car does not)
+M.POOL = true             -- false: a cruiser that leaves is deleted and built again, as before
+local POOL_MAX = 6
 local meet                -- { place, cars = { racer id -> vehicle id }, until (day hour), shown }
 local race                -- the race running: { racer, vid, stake, bet, dest = vec3, destName, t, countdown, started }
 local beam = { on = false, onAt = 0 }
@@ -152,6 +155,22 @@ end
 local function despawn(vid)
   local v = vid and getObjectByID(vid)
   if v then v:delete() end
+end
+
+-- a cruiser that is no longer wanted on the road: kept inactive in the pool (setActive 0, as the game pools its own traffic), the oldest of a full pool deleted
+local function retireCruiser(id, vid)
+  local c = vid and getObjectByID(vid)
+  if not (M.POOL and c) then despawn(vid) return end
+  c:queueLuaCommand('ai.setMode("disabled") controller.setFreeze(1)')
+  c:setActive(0)
+  pool[id] = vid
+  local n, oldest = 0, nil
+  for k, v in pairs(pool) do n = n + 1 if not oldest or v < pool[oldest] then oldest = k end end        -- (vehicle ids grow: the lowest is the oldest)
+  if n > POOL_MAX and oldest then despawn(pool[oldest]) pool[oldest] = nil end
+end
+
+local function emptyPool()
+  for id, vid in pairs(pool) do despawn(vid) pool[id] = nil end
 end
 
 ----------------------------------------------------------------------------------------------
@@ -423,6 +442,17 @@ local function spawnCruiser(s)
   -- the main strips first (the wider roads), any road if none is in reach
   local node = nodeAround(pp, 180, 450, rng, function(n) return nightlife.mainStrip(n.radius) and hidden(n) end) or nodeAround(pp, 180, 450, rng, hidden)
   if not node then return false end
+  -- this racer's car is in the pool: put it on the road again instead of building it (it is repaired by the teleport)
+  local pooled = pool[racer.id] and getObjectByID(pool[racer.id])
+  pool[racer.id] = nil
+  if pooled then
+    pooled:setActive(1)
+    spawn.safeTeleport(pooled, node.pos + vec3(0, 0, 0.5), quat(pooled:getRotation()), true, nil, false, true, true)
+    pooled:queueLuaCommand('controller.setFreeze(0) input.event("parkingbrake", 0, FILTER_DIRECT) ai.setMode("traffic") ai.setAggression(0.5)')
+    cruisers[racer.id] = pooled:getID()
+    racelog.add('spawn', 'pooled cruiser reused', { racer = racer.id, model = pooled:getJBeamFilename() })
+    return true
+  end
   busy = true
   core_jobsystem.create(function(job)
     local veh = spawnRacer(job, s, racer, node.pos + vec3(0, 0, 0.5), nil)
@@ -440,7 +470,7 @@ local function updateCruisers(s, dt)
   for id, vid in pairs(cruisers) do
     local c = getObjectByID(vid)
     if not c or not v or (c:getPosition() - v:getPosition()):length() > 700 or not night() then
-      despawn(vid)
+      retireCruiser(id, vid)
       cruisers[id] = nil
     else
       count = count + 1
@@ -1078,12 +1108,13 @@ end
 function M.onStreetLegalStopped()
   for _, vid in pairs(cruisers) do despawn(vid) end
   cruisers = {}
+  emptyPool()
   endMeet()
   race = nil
   sendRace()
 end
 
-function M.onClientEndMission() cruisers, meet, race = {}, nil, nil end
+function M.onClientEndMission() cruisers, meet, race, pool = {}, nil, nil, {} end
 
 -- a racer's own car, built and parked (frozen) for a race somebody else runs: the career hands it to
 -- the map's race for an arranged race. done(veh or nil) is called when it is ready.

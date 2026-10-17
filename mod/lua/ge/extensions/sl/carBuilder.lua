@@ -102,9 +102,11 @@ end
 -- or one of the player's own (the player's driver is a full one): Drivers & Pedestrians gives it no driver props
 function M.spawn(job, model, config, pos, rot, nobodyDrives)
   if nobodyDrives and slrrDriverMount and slrrDriverMount.noPropsNext then slrrDriverMount.noPropsNext() end
+  local t0 = os.clock()
   local ok, veh = pcall(core_vehicles.spawnNewVehicle, model, {
     config = config, pos = pos, rot = rot, autoEnterVehicle = false, canSpawnAnotherVehicleCheck = false,
   })
+  local callMs = (os.clock() - t0) * 1000
   if nobodyDrives and slrrDriverMount and slrrDriverMount.noPropsDone then slrrDriverMount.noPropsDone() end   -- (the hook has run inside the call)
   if not ok or not veh then
     log('W', 'street_legal', 'could not spawn ' .. tostring(model) .. ': ' .. tostring(veh))
@@ -113,6 +115,9 @@ function M.spawn(job, model, config, pos, rot, nobodyDrives)
   local id = veh:getID()
   if not waitData(job, id) then return nil end
   job.sleep(0.2)
+  -- A12: what a spawn costs. callMs is the game standing still inside spawnNewVehicle (the lag the player feels); the rest is waiting between frames
+  M.lastSpawn = { model = model, callMs = callMs, totalMs = (os.clock() - t0) * 1000 }
+  log('I', 'street_legal', string.format('spawn %s: %.0f ms inside the game call, %.0f ms until built', tostring(model), callMs, M.lastSpawn.totalMs))
   return getObjectByID(id)
 end
 
