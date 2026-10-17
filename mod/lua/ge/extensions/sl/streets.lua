@@ -494,12 +494,27 @@ end
 ----------------------------------------------------------------------------------------------
 -- meets: a few racers in a car park after dark
 
+-- is this spot out of the player's sight and off his way, and far enough (the #19 rule for the meets: nobody sees a car pop in)
+local MEET_MIN_DIST = 130
+local function meetHidden(pos)
+  local v = getPlayerVehicle(0)
+  if not v then return true end
+  local pp, pv = v:getPosition(), v:getVelocity()
+  if (pp - pos):length() < MEET_MIN_DIST then return false end
+  local cam
+  local okc, cp = pcall(core_camera.getPosition)
+  local okf, cf = pcall(core_camera.getForward)
+  if okc and cp and okf and cf then cam = { x = cp.x, y = cp.y, fx = cf.x, fy = cf.y } end
+  return spawnplan.hidden({ x = pos.x, y = pos.y }, { x = pp.x, y = pp.y, vx = pv.x, vy = pv.y }, cam)
+end
+
 local function startMeet(s)
   local list = {}
   for _, p in pairs(sl_career.getPlaces() or {}) do if p.kind == 'meet' then list[#list + 1] = p end end
   if #list == 0 or busy then return end
   local rng = rngLib.new(rngLib.hash('meet' .. s.day .. math.floor(sl_career.hour())))
   local place = list[rng:int(#list)]
+  if not meetHidden(place.pos) then return false end         -- tried again at the next chance
   local racers = {}
   for _, r in ipairs(s.racers) do
     if math.abs(r.rep - s.rep) < 1500 + s.rep * 0.5 and not cruisers[r.id] then racers[#racers + 1] = r end
@@ -511,6 +526,7 @@ local function startMeet(s)
   local count = math.min(#racers, rng:int(3, 6))
   core_jobsystem.create(function(job)
     for i = 1, count do
+      if not meetHidden(place.pos) then break end                -- he is coming: no more cars appear in front of him
       local r = table.remove(racers, rng:int(#racers))
       local a = (i / count) * math.pi * 2
       local pos = place.pos + vec3(math.cos(a) * 9, math.sin(a) * 9, 0.5)
@@ -531,7 +547,7 @@ local function startMeet(s)
     end
     local cars = nightlife.pickCars(theme.id, builder.aiPool(), rng:int(3, 5), rng)
     for i, c in ipairs(cars) do
-      if not meet then break end
+      if not meet or not meetHidden(place.pos) then break end
       local a = ((i - 0.5) / #cars) * math.pi * 2 + math.pi / #cars
       local pos = place.pos + vec3(math.cos(a) * 14, math.sin(a) * 14, 0.5)
       local rot = quatFromDir((place.pos - pos):normalized(), vec3(0, 0, 1))
@@ -552,6 +568,7 @@ local function startMeet(s)
   end)
   local who = racers[1] or s.racers[1]
   sl_career.sendText(s.known[who.id] and who.id or 'benny', theme.name .. ' at ' .. place.name .. ': ' .. theme.blurb .. ' Bring something fast.', 2)
+  return true
 end
 
 local function endMeet()
