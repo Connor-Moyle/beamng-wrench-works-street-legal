@@ -216,7 +216,7 @@ end
 -- Both cars on the route's first edge facing along it (A7: in play neither faced the way of the route). The route is the navgraph's from where the
 -- player stands to dest; a car that does not face it within 60 degrees is turned where it stands, and for a standing start the opponent is put
 -- beside the player. Returns the route's points { { x, y } } and its first direction, or nil without a route.
-local function lineUp(v, opp, dest, standing)
+local function lineUp(v, opp, dest, standing, keepOpp)
   local nodes = map.getMap().nodes
   local path = map.getPointToPointPath and map.getPointToPointPath(v:getPosition(), dest) or {}
   local dir = racesLib.routeDir(nodes, path, 25)
@@ -232,7 +232,7 @@ local function lineUp(v, opp, dest, standing)
   if opp then
     local right = vec3(dir.y, -dir.x, 0)
     local g = opp:getDirectionVector()
-    if standing then turn(opp, v:getPosition() + right * 3.6)
+    if standing and not keepOpp then turn(opp, v:getPosition() + right * 3.6)
     elseif not racesLib.facingOk({ x = g.x, y = g.y }, dir) then turn(opp, opp:getPosition()) end
   end
   return route, dir
@@ -254,14 +254,14 @@ local function cancelRace(why)
 end
 
 -- start a race against a racer whose car is out in the world (rolling: no countdown; standing: 3, 2, 1)
-local function startRace(racer, vid, stake, bet, standing, maxD)
+local function startRace(racer, vid, stake, bet, standing, maxD, keepOpp)
   local v = playerCar()
   if not v or race then return false end
   local dest, destNode, distance = farSide(v:getPosition(), maxD or CITY_RACE)
   if not dest then return false end
   race = { racer = racer.id, name = roster.displayName(racer), vid = vid, stake = stake, bet = bet, dest = dest, destNode = destNode,
     destName = placeNear(dest), distance = distance, t = 0, countdown = standing and 3.5 or nil, skill = racer.skill }
-  race.route, race.dir = lineUp(v, getObjectByID(vid), dest, standing)
+  race.route, race.dir = lineUp(v, getObjectByID(vid), dest, standing, keepOpp)
   race.limit = cancel.timeLimit(distance)
   racelog.add('race', 'setup', { racer = racer.id, name = race.name, stake = stake, bet = bet, standing = standing and 'yes' or 'no', dest = dest, destName = race.destName,
     metres = distance, dir = race.dir and string.format('(%.2f,%.2f)', race.dir.x, race.dir.y) or 'none', player = racelog.car(v), opponent = racelog.car(getObjectByID(vid)),
@@ -517,9 +517,11 @@ local function racerAhead()
   end
 end
 
+local pulling                  -- a racer who was flashed and is pulling over: { id, vid, racer, bet, t }
+M.PULL_OVER = true            -- false: the race starts at once, rolling
 local function challenge(id, vid)
   local s = career()
-  if not s or race or not id then return end
+  if not s or race or pulling or not id then return end
   local racer = stateLib.racer(s, id)
   if not night() then return end
   local answer = roster.respond(racer, 'race', { rep = s.rep, money = s.money, hasCar = sl_fleet.currentCar() ~= nil }, rngLib.new(rngLib.hash(id .. s.day)))
@@ -528,8 +530,33 @@ local function challenge(id, vid)
     return
   end
   s.known[id] = true                            -- after a race you have their number
+  -- they pull over to the kerb, parallel to it, and the race is a standing start from there (the game's own pull-over: the AI moves to the road's edge and stops)
+  local c = getObjectByID(vid)
+  if c and M.PULL_OVER then
+    c:queueLuaCommand('ai.setPullOver(true)')
+    pulling = { id = id, vid = vid, racer = racer, bet = answer.bet, t = 0 }
+    racelog.add('race', 'pull over', { racer = id, opponent = racelog.car(c) })
+    if ui_message then ui_message(string.format('%s pulls over.', roster.displayName(racer)), 4, 'streetLegal') end
+    return
+  end
   if startRace(racer, vid, 'money', answer.bet, false) and ui_message then
     ui_message(string.format(strings.t('streets.s_takes_you_on_d'), roster.displayName(racer), answer.bet, race.destName), 6, 'streetLegal')
+  end
+end
+
+-- the racer has stopped at the kerb (or took too long): the race starts, standing
+local function updatePulling(dt)
+  local p = pulling
+  if not p then return end
+  p.t = p.t + dt
+  local c = getObjectByID(p.vid)
+  if not c or race then pulling = nil return end
+  if c:getVelocity():length() < 1.2 or p.t > 14 then
+    pulling = nil
+    c:queueLuaCommand('ai.setPullOver(false)')
+    if startRace(p.racer, p.vid, 'money', p.bet, true, nil, true) and ui_message then
+      ui_message(string.format(strings.t('streets.s_takes_you_on_d'), roster.displayName(p.racer), p.bet, race.destName), 6, 'streetLegal')
+    end
   end
 end
 
@@ -1099,6 +1126,7 @@ function M.onUpdate(dtReal)
     end
   end
   pollBeams(dtReal)
+  updatePulling(dtReal)
   checkBeside(dtReal)
   updateCruisers(s, dtReal)
   updateMeet(s, dtReal)
@@ -1108,13 +1136,14 @@ end
 function M.onStreetLegalStopped()
   for _, vid in pairs(cruisers) do despawn(vid) end
   cruisers = {}
+  pulling = nil
   emptyPool()
   endMeet()
   race = nil
   sendRace()
 end
 
-function M.onClientEndMission() cruisers, meet, race, pool = {}, nil, nil, {} end
+function M.onClientEndMission() cruisers, meet, race, pool, pulling = {}, nil, nil, {}, nil end
 
 -- a racer's own car, built and parked (frozen) for a race somebody else runs: the career hands it to
 -- the map's race for an arranged race. done(veh or nil) is called when it is ready.
