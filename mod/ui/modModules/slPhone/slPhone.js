@@ -332,7 +332,7 @@
     doc.body.appendChild(root);
 
     var st = {
-      rep: {}, tab: { cars: 'dealers', parts: 'revline' }, cmView: 'dealers', cmOffer: null, dealers: null, offers: null,
+      rep: {}, tab: { cars: 'dealers', parts: 'revline', cab: 'all', cabtier: 'all' }, cmView: 'dealers', cmOffer: null, dealers: null, offers: null,
       open: false, data: { active: false }, app: 'home', stack: [], contact: null, thread: null,
       call: null, dial: '', hu: null, toast: null, fade: false,
     };
@@ -815,13 +815,24 @@
         '<div class="slp-acts">' + h + '</div></div></div>';
     }
 
+    // the cab's places by category (#21): garages, shops, dealers (by the price tier of their cars), junkyards
+    var CAB_KINDS = { all: null, garage: ['garage'], shop: ['shop', 'parts'], dealer: ['dealer'], junk: ['junkyard', 'scrapyard'] };
+    var CAB_TIERS = [['all', 'Any'], ['high', 'High'], ['mid', 'Mid'], ['low', 'Low'], ['junk', 'Junk']];
+    function cabShown(p) {
+      var kinds = CAB_KINDS[st.tab.cab];
+      if (kinds && kinds.indexOf(p.kind) < 0) return false;
+      if (st.tab.cab === 'dealer' && st.tab.cabtier !== 'all' && p.tier !== st.tab.cabtier) return false;
+      return true;
+    }
     function cabPage() {
-      var rows = arr(st.data.places).map(function (p) {
+      var rows = arr(st.data.places).filter(cabShown).map(function (p) {
         return '<div class="slp-row" data-a="taxi" data-v="' + esc(p.id) + '"><div class="slp-av" style="background:#ffd8a8">' + I.cab.replace('<svg', '<svg style="width:22px;height:22px;fill:#5b3d00"') + '</div>' +
-          '<div class="slp-rt"><b>' + esc(p.name) + '</b><span>' + esc(p.kind) + '</span></div><div class="slp-ib" data-a="gps" data-v="' + esc(p.id) + '">' + I.gps + '</div></div>';
+          '<div class="slp-rt"><b>' + esc(p.name) + '</b><span>' + esc(p.kind) + (p.tierLabel ? ' &middot; ' + esc(p.tierLabel) : '') + '</span></div><div class="slp-ib" data-a="gps" data-v="' + esc(p.id) + '">' + I.gps + '</div></div>';
       });
-      return bar('Cab') + '<div class="slp-body"><div class="slp-card"><p>On foot, a cab takes you anywhere in town. In a car, the pin shows you the way.</p></div>' +
-        (rows.join('') || '<div class="slp-empty">The cab company does not know any places on this map yet.</div>') + '</div>';
+      return bar('Cab') + tabsHtml('cab', [['all', 'All'], ['garage', 'Garages'], ['shop', 'Shops'], ['dealer', 'Dealers'], ['junk', 'Junkyards']]) +
+        (st.tab.cab === 'dealer' ? tabsHtml('cabtier', CAB_TIERS) : '') +
+        '<div class="slp-body"><div class="slp-card"><p>On foot, a cab takes you anywhere in town. In a car, the pin shows you the way.</p></div>' +
+        (rows.join('') || '<div class="slp-empty">' + (st.tab.cab === 'all' ? 'The cab company does not know any places on this map yet.' : 'No such place here.') + '</div>') + '</div>';
     }
 
     // a car's health, its trunk (use what is in it) and its history

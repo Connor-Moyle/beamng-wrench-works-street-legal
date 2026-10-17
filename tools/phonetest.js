@@ -218,6 +218,21 @@ click('home');
 click('open', 'cab');
 click('taxi', 'junkyard');
 assert.ok(calls.includes('taxi("junkyard")'), 'cab ordered');
+// #21: the cab's places by category; dealers by the price tier of their cars
+phone.handle('slPhoneData', Object.assign({}, data, { places: [{ id: 'junkyard', name: 'Junkyard', kind: 'junkyard' }, { id: 'g1', name: 'Alder Garage', kind: 'garage' }, { id: 'sh', name: 'Corner Shop', kind: 'shop' },
+  { id: 'd1', name: 'Posh Motors', kind: 'dealer', tier: 'high', tierLabel: 'Premium' }, { id: 'd2', name: 'Cheap Cars', kind: 'dealer', tier: 'low', tierLabel: 'Budget' }] }));
+const cabNames = () => Array.from(phone.root.querySelectorAll('.slp-row b')).map((b) => b.textContent);
+assert.strictEqual(cabNames().length, 5, 'All: every place');
+click('mtab', 'cab|garage');
+assert.deepStrictEqual(cabNames(), ['Alder Garage'], 'Garages');
+click('mtab', 'cab|dealer');
+assert.deepStrictEqual(cabNames().sort(), ['Cheap Cars', 'Posh Motors'], 'Dealers, with the tier chips');
+assert.ok(text().includes('Premium') && text().includes('High') && text().includes('Junk'), 'the tier label shows and the tier chips are there');
+click('mtab', 'cabtier|high');
+assert.deepStrictEqual(cabNames(), ['Posh Motors'], 'Dealers, high tier');
+click('mtab', 'cab|junk');
+assert.deepStrictEqual(cabNames(), ['Junkyard'], 'Junkyards (no tier chips)');
+click('mtab', 'cab|dealer'); click('mtab', 'cabtier|all'); click('mtab', 'cab|all');
 click('home');
 click('open', 'me');
 assert.ok(text().includes('Street kid') && text().includes('needs 1500 reputation'), 'street cred page');

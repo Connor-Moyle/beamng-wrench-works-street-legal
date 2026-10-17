@@ -46,7 +46,11 @@ local function snapshot()
       preview = c.race and sl_races and sl_races.preview and sl_races.preview(c.race) or nil }       -- (the route as a small map: #18)
   end
   local placesOut = {}
-  for id, p in pairs(sl_career.getPlaces() or {}) do placesOut[#placesOut + 1] = { id = id, name = p.name, kind = p.kind } end
+  for id, p in pairs(sl_career.getPlaces() or {}) do
+    local tier, tierLabel = nil, nil
+    if sl_career.placeTier then tier, tierLabel = sl_career.placeTier(id) end        -- (a lot's price tier: high | mid | low | junk; nil is asked again next time)
+    placesOut[#placesOut + 1] = { id = id, name = p.name, kind = p.kind, tier = tier, tierLabel = tierLabel }
+  end
   table.sort(placesOut, function(a, b) return a.name < b.name end)
   local ledger = {}
   for i = 1, math.min(30, #s.ledger) do ledger[i] = s.ledger[i] end
