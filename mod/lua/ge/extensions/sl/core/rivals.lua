@@ -62,6 +62,15 @@ function M.rank(list)
   return n
 end
 
+-- a save from before the rivals (or any career whose rep is already high): the tiers its rep reaches are open, their bosses count as beaten, so nobody is locked
+-- out of races they could already do. Returns the rank.
+function M.grandfather(list, rep)
+  local mine = 1
+  for t, def in ipairs(roster.TIERS) do if (rep or 0) >= def.rep[1] then mine = t end end
+  for _, r in ipairs(list or {}) do if r.boss and r.tier < mine then r.bossBeaten, r.grandfathered = true, true end end
+  return M.rank(list)
+end
+
 -- may you race a racer of this tier: not more than one above your rank
 function M.allowed(list, tier) return (tier or 1) <= M.rank(list) + 1 end
 

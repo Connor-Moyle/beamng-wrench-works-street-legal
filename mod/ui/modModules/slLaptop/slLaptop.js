@@ -500,7 +500,12 @@
         return '<div class="sll-card"' + (r.locked ? ' style="opacity:.55"' : '') + '><h4>' + (r.boss ? '&#9733; ' : '') + esc(r.name) + tag + '</h4>' +
           '<p>' + esc(r.crew || '') + (r.car ? ' &middot; ' + esc(r.car) : '') + '</p>' +
           '<div class="sll-meter"><i style="width:' + Math.round(((r.meter || 0) + 100) / 2) + '%"></i></div>' +
-          '<p>' + words[r.word] + ' &middot; ' + T('ui.rival_record', 'You {1} - {2} them', r.beaten || 0, r.youLost || 0) + (r.locked ? ' &middot; ' + T('ui.rival_locked', 'Locked: beat the tier {1} boss first', Math.max(1, (r.tier || 2) - 1)) : '') + '</p></div>';
+          '<p>' + words[r.word] + ' &middot; ' + T('ui.rival_record', 'You {1} - {2} them', r.beaten || 0, r.youLost || 0) + (r.locked ? ' &middot; ' + T('ui.rival_locked', 'Locked: beat the tier {1} boss first', Math.max(1, (r.tier || 2) - 1)) : '') + '</p>' +
+        (r.offer ? '<p class="sll-warn">' + T('ui.rival_offer', 'Pink slip offer: your {1} against their {2}', esc(r.offer.myCar || '?'), esc(r.offer.theirCar || '?')) + '</p><div class="sll-acts">' +
+          '<div class="sll-btn sll-pinkbtn" data-a="rvyes" data-v="' + esc(r.id) + '">' + T('ui.rival_accept', 'Accept the pink slips') + '</div>' +
+          '<div class="sll-btn sll-tonal" data-a="rvmoney" data-v="' + esc(r.id) + '">' + T('ui.rival_money', 'Race for money instead') + '</div>' +
+          '<div class="sll-btn sll-text" data-a="rvno" data-v="' + esc(r.id) + '">' + T('ui.rival_walk', 'Walk away') + '</div></div>' : '') +
+          '</div>';
       }).join('');
     }
 
@@ -762,6 +767,9 @@
         case 'mtab': var tp = String(v).split('|'); st.tab[tp[0]] = tp[1]; st.note = ''; focusKey = null; if (tp[0] === 'dealers' && tp[1] === 'dealers') { st.dview = 'dealers'; lua('@sl_dealers.list()'); }
           if (tp[0] === 'dealers') lua('@sl_carauctions.view(' + (tp[1] === 'auction' ? 'true' : 'false') + ')');
           render(); break;
+        case 'rvyes': lua('@sl_rivals.accept(' + JSON.stringify(String(v)) + ')'); break;
+        case 'rvmoney': lua('@sl_rivals.decline(' + JSON.stringify(String(v)) + ',true)'); break;
+        case 'rvno': lua('@sl_rivals.decline(' + JSON.stringify(String(v)) + ',false)'); break;
         case 'abid': var ab = String(v).split('|'); lua('@sl_carauctions.bid(' + JSON.stringify(ab[0]) + ',' + Number(ab[1]) + ')'); break;
         case 'awatch': var aw = String(v).split('|'); lua('@sl_carauctions.watch(' + JSON.stringify(aw[0]) + ',' + (aw[1] === '1' ? 'true' : 'false') + ')'); break;
         case 'asell': var as = String(v).split('|'); lua('@sl_carauctions.sell(' + Number(as[0]) + ',' + Number(as[1]) + ')'); break;

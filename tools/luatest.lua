@@ -2141,7 +2141,7 @@ do -- the rivals extension (sl_rivals) against a mocked game: the tier gate, a r
   local function setg(name, value) saved[name] = { _G[name] } _G[name] = value end
   local function setp(name, value) savedLoaded[name] = { package.loaded[name] } package.loaded[name] = value end
   local ROS = require('sl/core/roster')
-  local s = { seed = 11, day = 4, rep = 99999, money = 99999, racers = ROS.generate(11, 36), known = {}, challenges = {}, cars = { { id = 1 } } }
+  local s = { seed = 11, day = 4, rep = 0, money = 99999, racers = ROS.generate(11, 36), known = {}, challenges = {}, cars = { { id = 1 } } }
   local texts, asked, isNight = {}, {}, true
   setp('sl/carInfo', { of = function() return {} end })
   setg('log', function() end)
@@ -2167,6 +2167,7 @@ do -- the rivals extension (sl_rivals) against a mocked game: the tier gate, a r
   RVE.onStreetLegalRaceResult(true, 'x', tier1.id, 'money')
   RVE.onStreetLegalRaceResult(true, 'x', tier1.id, 'money')
   check('wins over the tier count toward its boss', s.rivals.tierWins[1] == 3)
+  s.rep = 99999
   RVE.onUpdate(9)
   check('at night the boss calls you out with a showdown challenge', s.rivals.bossActive == boss1.id and #asked >= 1 and asked[#asked].id == boss1.id and s.challenges[#s.challenges].boss == true and #texts >= 1)
   -- the result of the showdown: a win raises the rank and opens the next tier
@@ -2178,6 +2179,52 @@ do -- the rivals extension (sl_rivals) against a mocked game: the tier gate, a r
   check('the rivals you know are listed as contacts with a line', #metList >= 1 and metList[1].kind == 'rival' and #metList[1].line > 3 and metList[1].name ~= nil)
   local r1 = RVE.list()
   check('the rivals list for the screens has six with a record and a word', #r1.rivals == 6 and r1.rank == 2 and r1.rivals[1].word and r1.rivals[1].beaten ~= nil)
+  -- pink slips are never arranged by a rival himself: an offer, accepted with a named car, or declined with only the meter paying
+  local mine = { name = 'Covet 1.5' }
+  _G.sl_fleet = { currentCar = function() return mine end }
+  local pinkRival
+  for _, r in ipairs(s.rivals.list) do if r.nemesis then pinkRival = r end end
+  for _, r in ipairs(s.rivals.list) do if r.boss and r.tier < 4 then r.bossBeaten = true end end
+  pinkRival.races, pinkRival.meter = 30, -80
+  for k = #asked, 1, -1 do asked[k] = nil end
+  local offered
+  for day = 20, 90 do
+    s.day, s.rivals.lastTextDay = day, -1
+    s.challenges = {}
+    RVE.onUpdate(9)
+    if s.rivals.offers and s.rivals.offers[pinkRival.id] then offered = true break end
+  end
+  local anyPink = false
+  for _, a in ipairs(asked) do if a.kind == 'pink' then anyPink = true end end
+  check('a rival offers pink slips but never arranges the race by himself', offered == true and anyPink == false)
+  local offerShown = RVE.list()
+  local card
+  for _, r in ipairs(offerShown.rivals) do if r.id == pinkRival.id then card = r end end
+  check('the offer on the card names your car and his', card and card.offer and card.offer.myCar == 'Covet 1.5' and card.offer.stake == 'pink')
+  local meterBefore = pinkRival.meter
+  check('walking away costs only a little meter: no challenge, no race', RVE.decline(pinkRival.id, false) == true and pinkRival.meter == meterBefore - 5 + 0 and #s.challenges == 0 and s.rivals.offers[pinkRival.id] == nil)
+  s.rivals.offers[pinkRival.id] = { stake = 'pink', day = s.day }
+  local nAsked = #asked
+  check('racing for money instead is a normal race at their top bet', RVE.decline(pinkRival.id, true) == true and asked[#asked].kind == 'high' and #asked == nAsked + 1)
+  s.rivals.offers[pinkRival.id] = { stake = 'pink', day = s.day }
+  mine = nil
+  check('with no car out, the pink offer cannot be accepted', RVE.accept(pinkRival.id) == false)
+  mine = { name = 'Covet 1.5' }
+  nAsked = #asked
+  check('accepting asks for the pink slip race for the car that is out', RVE.accept(pinkRival.id) == true and asked[#asked].kind == 'pink' and #asked == nAsked + 1 and s.rivals.offers[pinkRival.id] == nil)
+  s.rivals.offers[pinkRival.id] = { stake = 'pink', day = 1 }
+  s.day = 99
+  RVE.onUpdate(9)
+  check('an offer that is not answered lapses', s.rivals.offers[pinkRival.id] == nil)
+  -- a save from before the rivals: the tiers its rep has reached stay open
+  s.rivals, s.rep = nil, 2000
+  RVE.onStreetLegalStarted()
+  local tier5
+  for _, r in ipairs(s.racers) do if r.tier == 5 then tier5 = r end end
+  check('an old save with the rep for tier 4 starts at rank 4 and is not locked out of tier 5', RVE.rank() == 4 and ROS.gateHook(tier5) == nil and ROS.gateHook(s.racers[1]) == nil)
+  s.rivals, s.rep = nil, 0
+  RVE.onStreetLegalStarted()
+  check('a new career starts at rank 1', RVE.rank() == 1 and ROS.gateHook(tier3) ~= nil)
   RVE.onStreetLegalStopped()
   check('stopping the career takes the gate away', ROS.gateHook == nil)
   for name, v in pairs(saved) do _G[name] = v[1] end

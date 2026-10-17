@@ -147,6 +147,10 @@ click('tile', 'playerAbstract');
 assert.ok(text().includes('Street kid') && text().includes('140 reputation') && text().includes('Achievements 1 / 2') && text().includes('First win'), 'street cred');
 laptop.handle('slRivals', { rank: 2, rivals: [ { id: 'r05', name: 'Viktor "Nitro" Halasz', tier: 1, boss: true, crew: 'Ring Road Ghosts', car: 'Covet "Dodger"', meter: -80, word: 'blood', beaten: 3, youLost: 1 }, { id: 'r20', name: 'Dora Kovacs', tier: 3, crew: 'Riverbed Runners', car: 'Pickup', meter: 40, word: 'respect', beaten: 0, youLost: 2, locked: true } ] });
 assert.ok(text().includes('Rivals') && text().includes('Boss 1') && text().includes('Bad blood') && text().includes('You 3 - 1 them') && text().includes('Respect') && text().includes('Locked: beat the tier 2 boss first') && text().includes('Ring Road Ghosts'), 'the rivals show with crew, car, the meter word, the record and the lock');
+laptop.handle('slRivals', { rank: 2, rivals: [ { id: 'r05', name: 'Viktor Halasz', tier: 4, boss: true, crew: 'Ring Road Ghosts', meter: -80, word: 'blood', beaten: 3, youLost: 1, offer: { stake: 'pink', myCar: 'Covet 1.5', theirCar: 'Scintilla' } } ] });
+assert.ok(text().includes('Pink slip offer: your Covet 1.5 against their Scintilla') && text().includes('Accept the pink slips') && text().includes('Race for money instead') && text().includes('Walk away'), 'a pink slip offer names both cars and has three answers');
+click('rvyes', 'r05'); click('rvmoney', 'r05'); click('rvno', 'r05');
+assert.ok(calls.includes('@sl_rivals.accept("r05")') && calls.includes('@sl_rivals.decline("r05",true)') && calls.includes('@sl_rivals.decline("r05",false)'), 'the three answers go to the game');
 
 let leaked = 0;
 win.document.addEventListener('ui_nav', () => { leaked++; });

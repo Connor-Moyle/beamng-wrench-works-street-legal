@@ -30,6 +30,7 @@ local function state(s)
       r.baseSkill = racer and racer.skill or 0.5
     end
     s.rivals = m
+    rules.grandfather(m.list, s.rep)      -- (a save from before the rivals keeps the tiers its rep has reached)
   end
   return m
 end
@@ -139,6 +140,23 @@ local function challenge(s, rival, kind)
   return answer and answer.accept and answer.challenge or nil, answer
 end
 
+-- A pink slip race is never arranged by a rival on his own: it is an OFFER on the Rivals card, naming your car and his; you accept it, race for money instead, or walk away
+-- (the meter drops a little, nothing else). The offer lapses after OFFER_DAYS.
+local OFFER_DAYS = 3
+local function makeOffer(s, m, rival, isBoss)
+  m.offers = m.offers or {}
+  m.offers[rival.id] = { stake = 'pink', boss = isBoss or nil, day = s.day }
+  say(s, rival, isBoss and 'bosscall' or 'escalate', 3)
+end
+
+local function offerView(s, m, rival)
+  local o = m.offers and m.offers[rival.id]
+  if not o then return nil end
+  local mine = sl_fleet and sl_fleet.currentCar and sl_fleet.currentCar()
+  local racer = racerOf(s, rival.id)
+  return { stake = o.stake, boss = o.boss, myCar = mine and mine.name or nil, theirCar = racer and racer.car and racer.car.name or nil }
+end
+
 local function proactive(s, m)
   local rng = rngLib.new(rngLib.hash('rivalnight:' .. tostring(s.day) .. ':' .. tostring(s.seed)))
   -- 1. a boss asks for you
@@ -146,8 +164,10 @@ local function proactive(s, m)
   if boss and not activeChallenge(s, boss.id) then
     local racer = racerOf(s, boss.id)
     local sd = rules.showdown(boss, racer)
-    if sd.stake == 'pink' or (s.money or 0) >= sd.bet then
-      local c = challenge(s, boss, sd.stake == 'pink' and 'pink' or 'high')
+    if sd.stake == 'pink' then
+      if not (m.offers and m.offers[boss.id]) then makeOffer(s, m, boss, true) return true end
+    elseif (s.money or 0) >= sd.bet then
+      local c = challenge(s, boss, 'high')
       if c then
         if sd.stake == 'money' then c.bet = sd.bet end
         c.boss = true
@@ -179,8 +199,12 @@ local function proactive(s, m)
     if rules.allowed(m.list, rival.tier) and (not rival.boss or rival.bossBeaten) then      -- (a boss has his showdown first)
       local step = rules.step(rival)
       if step >= 2 and not activeChallenge(s, rival.id) and rng:float() < ESCALATE_CHANCE then
-        local c = challenge(s, rival, STEP_KIND[step])
-        if c then say(s, rival, 'escalate', 3) return true end
+        if STEP_KIND[step] == 'pink' then
+          if not (m.offers and m.offers[rival.id]) and sl_fleet and sl_fleet.currentCar and sl_fleet.currentCar() then makeOffer(s, m, rival, false) return true end
+        else
+          local c = challenge(s, rival, STEP_KIND[step])
+          if c then say(s, rival, 'escalate', 3) return true end
+        end
       end
     end
   end
@@ -203,10 +227,56 @@ function M.onUpdate(dtReal)
   if not s then return end
   local m = state(s)
   applyStages(s, m)
+  for id, o in pairs(m.offers or {}) do if (s.day or 0) - (o.day or 0) > OFFER_DAYS then m.offers[id] = nil end end
   if night() and m.lastTextDay ~= s.day and #(s.cars or {}) > 0 and not (sl_streets and sl_streets.raceActive and sl_streets.raceActive()) then
     m.lastTextDay = s.day
     pcall(proactive, s, m)
   end
+end
+
+-- ---- the player's answer to a pink slip offer
+function M.accept(id)
+  local s = career()
+  local m = s and state(s)
+  local rival = m and rules.byId(m.list, tostring(id))
+  local offer = rival and m.offers and m.offers[rival.id]
+  if not offer then toast(strings.t('rivals.no_offer')) return false end
+  local mine = sl_fleet and sl_fleet.currentCar and sl_fleet.currentCar()
+  if not mine then toast(strings.t('career.pink_slips_for_which_car')) return false end
+  local c, answer = challenge(s, rival, 'pink')
+  if not c then toast(answer and answer.text or strings.t('rivals.no_offer')) return false end
+  c.boss = offer.boss
+  if offer.boss then m.bossActive = rival.id end
+  m.offers[rival.id] = nil
+  toast(string.format(strings.t('rivals.pink_on'), mine.name or '?'))
+  extensions.hook('onStreetLegalChanged')
+  return true
+end
+
+-- decline: for money instead (a race at the top bet, which is also the showdown for a boss) or just walk away; either way only the meter pays
+function M.decline(id, forMoney)
+  local s = career()
+  local m = s and state(s)
+  local rival = m and rules.byId(m.list, tostring(id))
+  local offer = rival and m.offers and m.offers[rival.id]
+  if not offer then return false end
+  m.offers[rival.id] = nil
+  rival.meter = math.max(rules.METER[1], (rival.meter or 0) - 5)
+  if forMoney then
+    local racer = racerOf(s, rival.id)
+    local bet = offer.boss and rules.showdown({ tier = 2 }, racer).bet or rules.stake(rival, racer, 2).bet
+    if (s.money or 0) >= bet then
+      local c = challenge(s, rival, 'high')
+      if c then
+        c.bet = bet
+        if offer.boss then c.boss = true m.bossActive = rival.id end
+      end
+    else
+      toast(string.format(strings.t('rivals.need_money'), bet))
+    end
+  end
+  extensions.hook('onStreetLegalChanged')
+  return true
 end
 
 -- ---- what the screens see
@@ -221,7 +291,7 @@ function M.list()
     out[#out + 1] = { id = rival.id, name = racer and roster.displayName(racer) or rival.id, tier = rival.tier, boss = rival.boss or nil, nemesis = rival.nemesis or nil,
       beatenBoss = rival.bossBeaten or nil, crew = crewName(rival.crew), meter = rival.meter, word = rules.meterWord(rival.meter), beaten = rival.beaten, youLost = rival.youLost,
       stage = rival.stage, car = racer and racer.car and racer.car.name or nil, preview = info.preview, step = rules.step(rival), locked = not rules.allowed(m.list, rival.tier) or nil,
-      known = s.known[rival.id] or nil }
+      known = s.known[rival.id] or nil, offer = offerView(s, m, rival) }
   end
   local result = { rivals = out, rank = rules.rank(m.list) }
   guihooks.trigger('slRivals', result)
