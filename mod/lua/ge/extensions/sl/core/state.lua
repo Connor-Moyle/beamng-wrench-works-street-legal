@@ -21,6 +21,7 @@ function M.new(seed, now)
     phase = 'day',          -- 'day' | 'night' (sl/core/phase)
     money = progression.START_MONEY,
     rep = 0,
+    bankedRep = 0,          -- the reputation that is safe (D3): what the night earned since is lost in a bust
     garageLevel = 1,
     cars = {},              -- { id, model, config (parts tree as saved by the game), name, condition, faults, where = { kind, pos } }
     activeCar = nil,        -- id of the car the player drives
@@ -39,6 +40,7 @@ end
 -- an older save brought up to date (and anything missing put back)
 function M.migrate(s)
   if type(s) ~= 'table' or not s.seed then return nil end
+  if s.bankedRep == nil then s.bankedRep = s.rep or 0 end      -- (D3: an older save has nothing at risk)
   if s.phase == nil then s.phase = require('sl/core/phase').infer(s.hour) end      -- (D1: an older save is in the half its clock is in)
   local fresh = M.new(s.seed, s.started)
   for k, v in pairs(fresh) do

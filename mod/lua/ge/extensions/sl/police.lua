@@ -2,10 +2,15 @@
 -- As in SLRR, the city is patrolled after dark and street racing draws them. Two patrol cars stay
 -- around you at night (the game's own police: they patrol, chase and arrest); every street race
 -- raises your "heat", and the hotter you are the likelier a patrol joins in when a race starts.
--- Heat cools off day by day. Busted: a fine (the career's), and a car you cannot pay for goes to
--- the impound until you can.
+-- D3: heat exists only at night (the day starts at zero), a level 0-5 (sl/core/heat has the rules): it is raised by street races, by flashing past
+-- a patrol and by a chase you escape; the higher it is the more patrols (one more a level), the stricter and the harder to shake the game's police
+-- (its pursuit variables), roadblocks from level 4 (the game's own, during a chase), a bigger reputation multiplier and fine; the reputation the
+-- night earned is banked when you reach a garage. Busted: a fine (the career's), the unbanked reputation, and a car you cannot pay for (or at
+-- level 4-5 any car) goes to the impound until you can.
 
 local M = {}
+
+local heatLib = require('sl/core/heat')
 
 local PATROLS = 2
 local CONFIGS = {
@@ -16,19 +21,38 @@ local CONFIGS = {
 
 local units = {}          -- vehicle ids of our patrol cars
 local timer, busy = 0, false
+local nearTimer = 0
 
-local HEAT_COOLING = 0.01   -- per real minute (balance pass, tools/economy_sim.py)
 local function career() return sl_career and sl_career.isActive() and sl_career.getState() or nil end
 local function night() return sl_career and sl_career.isNight and sl_career.isNight() end
 
+-- heat is the night's: by day it is nothing
 function M.heat()
   local s = career()
-  return s and (s.heat or 0) or 0
+  return s and night() and (s.heat or 0) or 0
 end
+function M.level() return heatLib.level(M.heat()) end
 
 local function addHeat(x)
   local s = career()
-  if s then s.heat = math.max(0, math.min(1, (s.heat or 0) + x)) end
+  if s and night() then s.heat = heatLib.raised(s.heat, x) end
+end
+
+-- the game's police has a chase on the player now
+function M.inPursuit()
+  local v = getPlayerVehicle(0)
+  return v ~= nil and gameplay_police ~= nil and gameplay_police.isVehicleInPursuit ~= nil and gameplay_police.isVehicleInPursuit(v:getID()) == true
+end
+
+-- the game's police variables follow the phase and the heat (strictness, roadblocks, how long it takes to lose them)
+local appliedVars
+local function applyVars()
+  if not (gameplay_police and gameplay_police.setPoliceVars) then return end
+  local level = M.level()
+  local key = tostring(sl_career.phase()) .. level
+  if key == appliedVars then return end
+  appliedVars = key
+  gameplay_police.setPoliceVars(heatLib.policeVars(sl_career.phase(), level))
 end
 
 -- a road node some way off, to start a patrol where you will not see it appear
@@ -67,10 +91,11 @@ local function updatePatrols()
   if not v then return end
   -- the map turns traffic cars into night patrols itself (slrrValoNight): then no extra cars of ours on the road
   if slrrValoNight and slrrValoNight.setPolice then
-    local want = policeOn()
+    local want = policeOn() and night()      -- (D3: the phase decides the night, not the clock)
     if (slrrValoNight.getState and slrrValoNight.getState() or {}).police ~= want then slrrValoNight.setPolice(want) end
   end
   local target = (policeOn() and not (slrrValoNight and slrrValoNight.setPolice)) and math.floor(PATROLS * level() + 0.5) or 0
+  if policeOn() then target = target + math.floor(heatLib.extraPatrols(sl_career.phase(), M.level()) * level() + 0.5) end      -- (D3) one more a heat level, on top of the map's own
   for i = #units, 1, -1 do
     local u = getObjectByID(units[i])
     if not u or (u:getPosition() - v:getPosition()):length() > 1600 or not night() or i > target then
@@ -100,8 +125,8 @@ end
 function M.onRaceStart()
   local s = career()
   if not s or not policeOn() then return end
-  addHeat(0.12 * (sl_crews and sl_crews.perksHere().heat or 1))       -- (half in your own districts: people look away)
-  local chance = math.min(0.95, (0.15 + 0.55 * (s.heat or 0)) * level())
+  addHeat(heatLib.RACE * (sl_crews and sl_crews.perksHere().heat or 1))       -- (half in your own districts: people look away)
+  local chance = math.min(0.95, (0.15 + 0.55 * M.heat()) * level())
   if math.random() > chance or not gameplay_police then return end
   local v = getPlayerVehicle(0)
   if not v then return end
@@ -118,17 +143,61 @@ M.onSlrrRaceStarted = M.onRaceStart
 
 function M.onStreetLegalNewDay() local s = career() if s then s.heat = (s.heat or 0) * 0.7 end end
 
+-- a phase switch: the day clears the heat (the career did), the police's rules and our extra patrols follow
+function M.onStreetLegalPhase(phase)
+  appliedVars = nil
+  if phase ~= 'night' then for i = #units, 1, -1 do despawn(units[i]) units[i] = nil end end
+end
+
+-- flashing past a patrol at speed: a little heat (once in a while)
+local nearMissAt = 0
+local function nearMiss(now)
+  if not (night() and policeOn() and gameplay_police and gameplay_police.getPoliceVehicles) or now - nearMissAt < 20 then return end
+  local v = getPlayerVehicle(0)
+  if not v or v:getVelocity():length() < 22 then return end      -- about 80 km/h
+  local p = v:getPosition()
+  for id in pairs(gameplay_police.getPoliceVehicles() or {}) do
+    local c = getObjectByID(id)
+    if c and id ~= v:getID() and (c:getPosition() - p):length() < 12 then
+      nearMissAt = now
+      addHeat(heatLib.NEAR_MISS)
+      return
+    end
+  end
+end
+
+-- the reputation the night earned is banked when you get back to a garage
+local function bankAtGarage()
+  if not (night() and sl_career.atRisk and sl_career.atRisk() > 0 and sl_career.getPlaces) or M.inPursuit() then return end
+  local v = getPlayerVehicle(0)
+  if not v then return end
+  local p = v:getPosition()
+  for _, place in pairs(sl_career.getPlaces() or {}) do
+    if place.kind == 'garage' and place.pos and (place.pos - p):length() < 35 then
+      local n = sl_career.bankRep()
+      if n > 0 and ui_message then ui_message(string.format('Back at the garage: %d reputation banked.', n), 5, 'streetLegal') end
+      return
+    end
+  end
+end
+
 function M.onUpdate(dtReal)
   if not career() then
     if #units > 0 then for _, id in ipairs(units) do despawn(id) end units = {} end
     return
   end
   timer = timer + dtReal
+  nearTimer = nearTimer + dtReal
+  if nearTimer > 1 then nearTimer = 0 nearMiss(os.clock()) end
   if timer > 5 then
     timer = 0
     updatePatrols()
     local s = career()
-    s.heat = math.max(0, (s.heat or 0) - HEAT_COOLING * 5 / 60)      -- heat cools as time passes, not only overnight
+    if night() then
+      if not M.inPursuit() then s.heat = heatLib.cooled(s.heat, 5 / 60) end      -- heat cools as time passes while nobody is after you
+      bankAtGarage()
+    end
+    applyVars()
   end
 end
 

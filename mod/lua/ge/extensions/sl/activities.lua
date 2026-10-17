@@ -65,6 +65,7 @@ function M.onMissionAttemptAggregated(attempt, mission)
   local rep = 0
   if not r.firstOnly or first then rep = (r.rep or 0) + math.floor((r.heatRep or 0) * (s.heat or 0)) end
   if money > 0 then sl_career.payOut(money, r.title) end
+  if rep > 0 and sl_career.isNight and sl_career.isNight() then rep = math.floor(rep * require('sl/core/heat').repBoost('night', sl_police and sl_police.level and sl_police.level() or 0) + 0.5) end      -- (D3)
   if rep ~= 0 then stateLib.addRep(s, rep) end
   if r.heat then s.heat = math.max(0, math.min(1, (s.heat or 0) + r.heat)) end
   if money > 0 or rep ~= 0 then

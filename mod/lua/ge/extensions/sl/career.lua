@@ -17,6 +17,7 @@ local roster = require('sl/core/roster')
 local rngLib = require('sl/core/rng')
 local stockLib = require('sl/core/stockdealers')
 local phaseLib = require('sl/core/phase')
+local heatLib = require('sl/core/heat')
 
 local logTag = 'street_legal'
 M.MAPS = progression.MAPS         -- the maps a career is played on (W1)
@@ -991,6 +992,7 @@ function M.onSlrrRaceFinished(r)
   local h = hour()
   local repDelta = progression.raceResult({ won = r.won, stake = r.stake, bet = r.bet, night = M.isNight(),
     opponentRep = racer and stateLib.racer(s, racer).rep or 300, playerRep = s.rep })
+  if repDelta > 0 then repDelta = math.floor(repDelta * heatLib.repBoost(s.phase, sl_police and sl_police.level and sl_police.level() or 0) + 0.5) end     -- (D3) the hotter, the more it counts
   stateLib.addRep(s, repDelta)
   s.stats.races = s.stats.races + 1
   if r.won then s.stats.wins = s.stats.wins + 1 end
@@ -1172,26 +1174,36 @@ function M.onPursuitAction(id, action, pursuit)
     local offences = type(pursuit) == 'table' and type(pursuit.offensesList) == 'table' and #pursuit.offensesList or 1
     local racing = sl_streets and sl_streets.isRacing()
     if racing then sl_streets.forfeit() end
-    local owed = progression.policeFine(offences, racing)
+    local ph = M.phase()
+    local level = sl_police and sl_police.level and sl_police.level() or 0
+    local owed = heatLib.fine(progression.policeFine(offences, racing), ph, level)
     local fine = math.min(s.money, owed)
     if fine > 0 then M.addMoney(-fine, 'Police fine') end
-    stateLib.addRep(s, progression.ARREST_REP)
-    s.heat = math.min(1, (s.heat or 0) + 0.2)
-    -- could not pay it all: the car goes to the impound until the rest is paid (as in SLRR)
-    local car = owed > fine and sl_fleet and sl_fleet.currentCar()
+    local lost = 0
+    M.atRisk()                            -- (settles bankedRep first)
+    if ph == 'night' then                 -- (D3) a bust at night: the unbanked reputation goes, and the heat goes up
+      s.rep, lost = heatLib.afterBust(ph, s.rep, s.bankedRep)
+      stateLib.addRep(s, progression.ARREST_REP)
+      s.bankedRep = math.min(s.bankedRep or 0, s.rep)
+      s.heat = heatLib.raised(s.heat, heatLib.BUST)
+    end
+    -- could not pay it all, or the heat is 4 or 5: the car goes to the impound until the rest is paid (as in SLRR)
+    local impound = heatLib.impounds(ph, level)
+    local car = (owed > fine or impound) and sl_fleet and sl_fleet.currentCar()
     if car then
-      car.impounded = (owed - fine) + 500
+      car.impounded = math.max(0, owed - fine) + (impound and heatLib.impoundFee(level) or 500)
       car.out = false
       local veh = sl_fleet.vehicleOf(car.id)
       if gameplay_walk then gameplay_walk.setWalkingMode(true, nil, nil, true) end
       if veh then core_jobsystem.create(function(job) job.sleep(1) if veh then veh:delete() end end) end
       tell(string.format('Busted, and you cannot pay. The %s is impounded: $%d to get it back (phone, My cars).', car.name, car.impounded), 9)
     else
-      tell(string.format('Busted. $%d in fines%s.', fine, racing and ', and the race is lost' or ''), 7)
+      tell(string.format('Busted. $%d in fines%s%s.', fine, racing and ', and the race is lost' or '', lost > 0 and string.format(', and the %d reputation you had not banked', lost) or ''), 7)
     end
     changed()
   elseif action == 'evade' then
     stateLib.addRep(s, progression.EVADE_REP)
+    if M.phase() == 'night' then s.heat = heatLib.raised(s.heat, heatLib.ESCAPE) end        -- (D3) a chase is heat, even one you got out of
     tell(string.format('You lost them. +%d reputation.', progression.EVADE_REP), 5)
     changed()
   end
@@ -1276,7 +1288,7 @@ end
 
 local function busyState()
   return { racing = sl_streets and sl_streets.isRacing and sl_streets.isRacing(), job = s.jobs and s.jobs.active ~= nil,
-    heat = sl_police and sl_police.heat and sl_police.heat() or 0 }
+    heat = (sl_police and sl_police.inPursuit and sl_police.inPursuit()) and 1 or 0 }      -- (D3: heat is a level that fades; only a chase on you stops the clock)
 end
 
 -- (D1) the phase API, for every module that depends on the time of the game:
@@ -1285,6 +1297,20 @@ end
 function M.phase() return s and (s.phase or 'day') or nil end
 -- the night is a phase now, not a clock range (D2): everything that was 'after dark' asks this
 function M.isNight() return M.phase() == 'night' end
+
+-- (D3) the night's reputation is at risk until it is banked: at a garage, or by switching phase
+function M.atRisk()
+  if not s then return 0 end
+  s.bankedRep = math.min(s.bankedRep or 0, s.rep)          -- (reputation lost since the bank is not there to lose again)
+  return heatLib.atRisk(M.phase(), s.rep, s.bankedRep)
+end
+function M.bankRep()
+  if not s then return 0 end
+  local n = M.atRisk()
+  s.bankedRep = s.rep
+  if n > 0 then changed() end
+  return n
+end
 
 -- "Start the night" / "Start the day" (a garage computer, the phone's Wait app): the phase turns over, the clock jumps to its first hour behind a
 -- short fade (the day counter goes up with a new day) and runs on. false and the reason when it cannot be done now.
@@ -1296,6 +1322,8 @@ function M.switchPhase()
   if not plan then return false, why end
   s.phase = plan.phase
   clockHeld = false
+  s.bankedRep = s.rep                    -- (D3) switching banks what the night earned
+  if plan.phase == 'day' then s.heat = 0 end        -- heat only exists at night
   if plan.day then
     s.day = s.day + 1
     extensions.hook('onStreetLegalNewDay', s.day)
