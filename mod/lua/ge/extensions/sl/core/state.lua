@@ -4,6 +4,8 @@
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 local progression = require('sl/core/progression')
 local roster = require('sl/core/roster')
 
@@ -129,7 +131,7 @@ function M.recordRace(s, r)
   M.addRep(s, repDelta)
   if moneyDelta ~= 0 then
     if moneyDelta < 0 and s.money + moneyDelta < 0 then moneyDelta = -s.money end      -- you pay what you have
-    M.addMoney(s, moneyDelta, (r.won and 'Won' or 'Lost') .. ' a race' .. (racer and (' against ' .. racer.name) or ''), r.at)
+    M.addMoney(s, moneyDelta, strings.t('state.1_a_race_2', (r.won and 'Won' or 'Lost'), (racer and (' against ' .. racer.name) or '')), r.at)
   end
   s.stats.races = s.stats.races + 1
   if r.won then s.stats.wins = s.stats.wins + 1 end

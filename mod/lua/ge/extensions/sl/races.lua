@@ -63,11 +63,11 @@ local function build()
     local dir = goal and races.routeDir(nodes, path, 25)
     if dir then
       list[#list + 1] = { id = 'sr' .. i, missionId = lvl .. '/slRace/sr' .. i, kind = 'night',
-        name = s.name and (s.name .. ' sprint') or string.format(strings.t('races.sprint_d_1f_km'), #list + 1, len / 1000),
+        name = s.name and (strings.t('races.1_sprint', (s.name))) or string.format(strings.t('races.sprint_d_1f_km'), #list + 1, len / 1000),
         start = s.pos, finish = nodes[goal].pos, path = path, dir = dir, metres = math.floor(len), wps = races.waypoints(path, 12) }
     end
   end
-  log('I', 'sl_races', string.format(strings.t('races.s_d_sprints_from_d'), lvl, #list, #starts))
+  log('I', 'sl_races', string.format('%s: %d sprints from %d start lines', lvl, #list, #starts))
   return list
 end
 
@@ -122,7 +122,7 @@ local function finish(won, abandoned)
   if pv then pv:queueLuaCommand('controller.setFreeze(0)') end
   if core_groundMarkers then core_groundMarkers.setPath(nil) end
   if o.stake == 'money' and tonumber(o.bet) and o.bet > 0 then
-    changeMoney(won and o.bet or -o.bet, (won and 'Won' or (abandoned and strings.t('races.called_off') or 'Lost')) .. ' a street race against ' .. tostring(o.name))
+    changeMoney(won and o.bet or -o.bet, strings.t('races.1_a_street_race_against', (won and 'Won' or (abandoned and strings.t('races.called_off') or 'Lost')), (tostring(o.name))))
   end
   -- pink slips (not when called off): won, their car is handed over (the career parks it at your garage); lost, you
   -- walk and your car goes with them (sl_fleet notes the car gone, the career takes it off My cars)
@@ -152,7 +152,7 @@ end
 -- the career calls this at the start line with its arranged race (offer: name, racerId, class, skill, aggression,
 -- stake, bet, car, vehicleId, laps); nil offer: a race for nothing against nobody is not run here
 local function refuse(missionId, why)
-  log('W', 'sl_races', 'launch ' .. tostring(missionId) .. strings.t('races.refused') .. why)
+  log('W', 'sl_races', 'launch ' .. tostring(missionId) .. ' refused: ' .. why)
   return false
 end
 
@@ -161,9 +161,9 @@ function M.launch(missionId, offer)
   if type(offer) ~= 'table' then return refuse(missionId, strings.t('races.no_offer_name_racerid_stake')) end
   local race
   for _, r in ipairs(build()) do if r.missionId == missionId then race = r end end
-  if not race then return refuse(missionId, 'not one of this level\'s ' .. #build() .. ' sprints (listRaces)') end
+  if not race then return refuse(missionId, strings.t('races.not_one_of_this_level') .. #build() .. ' sprints (listRaces)') end
   local veh = getPlayerVehicle(0)
-  if not veh or veh:getJBeamFilename() == 'unicycle' then return refuse(missionId, 'the player is not in a car') end
+  if not veh or veh:getJBeamFilename() == 'unicycle' then return refuse(missionId, strings.t('races.the_player_is_not_in')) end
   -- the opponent: the car the offer brings, else the racer's own car built by the career (sl_streets, career only)
   local own = offer.vehicleId and getObjectByID(offer.vehicleId)
   local canBuild = offer.racerId and sl_streets and sl_streets.buildRacerCar and sl_career and sl_career.isActive and sl_career.isActive()
@@ -184,7 +184,7 @@ function M.launch(missionId, offer)
       cur, state = nil, 'idle'
       veh:queueLuaCommand('controller.setFreeze(0)')
       if core_groundMarkers then core_groundMarkers.setPath(nil) end
-      log('W', 'sl_races', 'launch ' .. race.missionId .. strings.t('races.the_opponent_s_car_was'))
+      log('W', 'sl_races', 'launch ' .. race.missionId .. ': the opponent\'s car was not built')
       tell(strings.t('races.nobody_showed_up'), 5)
       return
     end
@@ -196,7 +196,7 @@ function M.launch(missionId, offer)
   if own then
     withOpponent(own)
   elseif not sl_streets.buildRacerCar(offer.racerId, v3(line.opponent.pos) + vec3(0, 0, 0.5), rot, withOpponent) then
-    log('W', 'sl_races', 'launch ' .. missionId .. strings.t('races.the_career_has_no_racer') .. tostring(offer.racerId) .. ' (nobody came)')
+    log('W', 'sl_races', 'launch ' .. missionId .. ': the career has no racer ' .. tostring(offer.racerId) .. ' (nobody came)')
     withOpponent(nil)
   end
   tell(string.format(strings.t('races.s_s_1f_km_to'), race.name, tostring(offer.name), race.metres / 1000), 6)
@@ -215,7 +215,7 @@ local function go()
     opp:queueLuaCommand(string.format("controller.setFreeze(0) input.event('parkingbrake', 0, FILTER_DIRECT) ai.setSpeedMode('off') ai.setRecoverOnCrash(true) ai.setAvoidCars('on') ai.driveInLane('off') ai.setAggression(%f) ai.driveUsingPath({wpTargetList = %s, aggression = %f})", a, serialize(c.race.wps), a))
   end
   local function fwd(v) local f = v and v:getDirectionVector() return f and string.format('(%.2f, %.2f)', f.x, f.y) or 'none' end
-  log('I', 'sl_races', string.format(strings.t('races.go_s_player_faces_s'), c.race.id, fwd(pv), fwd(opp), string.format('(%.2f, %.2f)', c.race.dir.x, c.race.dir.y)))
+  log('I', 'sl_races', string.format('GO %s: player faces %s, opponent faces %s, route %s', c.race.id, fwd(pv), fwd(opp), string.format('(%.2f, %.2f)', c.race.dir.x, c.race.dir.y)))
   extensions.hook('onSlrrRaceStarted', c.race.missionId, c.race.id)
   tell('GO!', 2)
 end

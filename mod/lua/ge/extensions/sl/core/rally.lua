@@ -91,7 +91,7 @@ function M.pacenotes(points)
     local j = i
     while cs[j + 1] and cs[j + 1].at - (cs[j].at + cs[j].len) < 30 and j - i < 2 do
       j = j + 1
-      text = text .. ' into ' .. M.callText(cs[j])
+      text = strings.t('rally.1_into_2', (text), (M.callText(cs[j])))
     end
     notes[#notes + 1] = { at = c.at, text = text, sev = c.sev }
     i = j + 1

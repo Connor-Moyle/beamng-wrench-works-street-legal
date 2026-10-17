@@ -3,6 +3,8 @@
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 M.SPEED = 14            -- metres per second assumed for the time limit
 M.SLACK = 1.35          -- time limit multiplier
 M.MIN_SECONDS = 120
@@ -10,8 +12,8 @@ M.MIN_METRES = 400
 M.PAY_PER_KM = 140
 M.MIN_PAY = 120
 M.FRAGILE_BONUS = 1.5
-M.PART_ITEMS = { 'turbocharger', 'gearbox', 'set of wheels', 'exhaust manifold', 'radiator', 'bonnet', 'set of coilovers', 'ECU' }
-M.PARCELS = { 'parcel', 'box of spark plugs', 'envelope', 'case of oil', 'tool box', 'crate of brake pads' }
+M.PART_ITEMS = { 'turbocharger', 'gearbox', strings.t('jobs.set_of_wheels'), strings.t('jobs.exhaust_manifold'), 'radiator', 'bonnet', strings.t('jobs.set_of_coilovers'), 'ECU' }
+M.PARCELS = { 'parcel', strings.t('jobs.box_of_spark_plugs'), 'envelope', strings.t('jobs.case_of_oil'), strings.t('jobs.tool_box'), strings.t('jobs.crate_of_brake_pads') }
 
 local function round10(x) return math.floor(x / 10 + 0.5) * 10 end
 
@@ -59,7 +61,7 @@ end
 function M.settle(job, elapsedSeconds, damage)
   damage = damage or 0
   if job.fragile and damage > 0.05 then return 0, 'broken' end
-  local pay, verdict = job.pay, 'on time'
+  local pay, verdict = job.pay, strings.t('jobs.on_time')
   if elapsedSeconds > job.seconds then pay, verdict = pay * 0.5, 'late' end
   pay = pay * (1 - math.min(0.8, damage * 2))
   return math.max(0, round10(pay)), verdict

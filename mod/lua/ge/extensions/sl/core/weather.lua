@@ -56,7 +56,7 @@ function M.text(phase, nowId, nextId)
   local line = string.format('%s %s', WORDS[now.id], phase == 'night' and 'tonight' or 'today')
   if now.id == 'rain' then line = strings.t('weather.1_wet_roads_less_grip', (line))
   elseif now.id == 'fog' then line = strings.t('weather.1_visibility_is_poor_by', (line)) end
-  if nextId then line = line .. string.format('. %s %s', WORDS[M.state(nextId).id], nextPhase == 'night' and 'tonight' or 'by day') end
+  if nextId then line = line .. string.format('. %s %s', WORDS[M.state(nextId).id], nextPhase == 'night' and 'tonight' or strings.t('weather.by_day')) end
   return line .. '.'
 end
 

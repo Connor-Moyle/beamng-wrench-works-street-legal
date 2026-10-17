@@ -121,7 +121,7 @@ function M.onAnyMissionChanged(change, mission)
   if not r.fee then return end
   if r.nightOnly and not night() then return end                    -- by day: a practice run, nothing on it
   if r.prizeOnce and (s.activitiesDone or {})[mission.id] then return end      -- done before: a practice run
-  if sl_career.addMoney(-r.fee, r.title .. ' entry') then paidFee[mission.id] = true end
+  if sl_career.addMoney(-r.fee, strings.t('activities.1_entry', (r.title))) then paidFee[mission.id] = true end
 end
 
 function M.onMissionAttemptAggregated(attempt, mission)
@@ -136,7 +136,7 @@ function M.onMissionAttemptAggregated(attempt, mission)
     s.roc = s.roc or { round = 0 }
     if passed and rules.rocWon(attempt.unlockedStars) then
       s.roc.champion = true
-      sl_career.payOut(r.prize, strings.t('activityrules.race_of_champions'))
+      sl_career.payOut(r.prize, strings.t('activities.race_of_champions'))
       stateLib.addRep(s, r.rep)
       tell(string.format(strings.t('activities.champion_the_race_of_champions'), r.prize, r.rep))
       sl_career.sendText('benny', sl_career.mapText(strings.t('activities.you_won_the_race_of')), 3)

@@ -115,7 +115,7 @@ function M.enterGarage(mode, carId)
   if not s then return end
   local veh = sl_fleet.vehicleOf(tonumber(carId))
   local here = veh ~= nil and laptop.carHere(garageOf(at.pos), garageOf(veh:getPosition()))
-  if not here then return guihooks.trigger('slPhoneToast', { text = strings.t('laptop.bring_the_car_into_the') }) end
+  if not here then return guihooks.trigger('slPhoneToast', { text = strings.t('computer.bring_the_car_into_the') }) end
   local ok, why = slrr_garage.enterWith(veh:getID(), tostring(mode))
   if ok then M.close() else guihooks.trigger('slPhoneToast', { text = why or strings.t('career.not_now') }) end
 end

@@ -91,7 +91,7 @@ local function diners()
     local c, r = nil, 0
     if freeroam_gasStations and freeroam_gasStations.gasStationCenterRadius then c, r = freeroam_gasStations.gasStationCenterRadius(g) end
     -- the stop is the middle of the pumps; a car at the far pump is as far as the pumps spread, and a car's length more
-    if c then out[#out + 1] = { id = 'diner:' .. tostring(g.id or g.name), name = (g.name or strings.t('jobs.gas_station')) .. ' diner', x = c.x, y = c.y, z = c.z,
+    if c then out[#out + 1] = { id = 'diner:' .. tostring(g.id or g.name), name = strings.t('jobs.1_diner', (g.name or strings.t('jobs.gas_station'))), x = c.x, y = c.y, z = c.z,
       radius = math.min(30, math.max(STOP_RADIUS, (tonumber(r) or 0) + 6)) } end
   end
   return out
@@ -110,7 +110,7 @@ local function valetStands()
   return out
 end
 
-local STREETS = { 'a side street', 'an apartment block', 'a house on the corner', 'an office', 'a back street', 'a corner shop' }
+local STREETS = { strings.t('jobs.a_side_street'), strings.t('jobs.an_apartment_block'), strings.t('jobs.a_house_on_the_corner'), strings.t('jobs.an_office'), strings.t('jobs.a_back_street'), strings.t('jobs.a_corner_shop') }
 
 -- the kinds of job: { kind, title, unlock = rep, night = true (only after dark), offer = function(ctx, rng) -> job }
 -- a job is { item, legs = { stop, stop... }, pay, seconds, fragile }
@@ -143,7 +143,7 @@ local TYPES = {
         metres = metres + math.sqrt((k.x - last.x) ^ 2 + (k.y - last.y) ^ 2)
         last = k
       end
-      return { item = 'three orders', legs = legs, metres = math.floor(metres), fragile = false,
+      return { item = strings.t('jobs.three_orders'), legs = legs, metres = math.floor(metres), fragile = false,
         seconds = math.max(180, math.floor(metres * 1.4 / jobsLib.SPEED * 1.2)), pay = 120 + math.floor(metres / 1000 * 60 / 10) * 10 }
     end },
   -- taxi fares: a fare at the kerb, to one of the city's places
@@ -153,7 +153,7 @@ local TYPES = {
       local to = ctx.places[rng:int(#ctx.places)]
       local metres = math.sqrt((to.x - k.x) ^ 2 + (to.y - k.y) ^ 2)
       if metres < 600 then return nil end
-      return { item = 'a fare', legs = { { id = 'kerb', name = STREETS[rng:int(#STREETS)], x = k.x, y = k.y, z = k.z }, leg(to) }, metres = math.floor(metres),
+      return { item = strings.t('jobs.a_fare'), legs = { { id = 'kerb', name = STREETS[rng:int(#STREETS)], x = k.x, y = k.y, z = k.z }, leg(to) }, metres = math.floor(metres),
         fragile = false, seconds = math.max(120, math.floor(metres * 1.4 / jobsLib.SPEED * 1.3)), pay = math.max(60, math.floor((40 + metres / 1000 * 90) / 10) * 10) }
     end },
   -- the junkyard's crushing run: a wreck that barely goes, to the crusher at the scrapyard
@@ -172,7 +172,7 @@ local TYPES = {
       if not a or not b or a.id == b.id then return nil end
       local metres = jobsLib.distance(a, b)
       local model = ({ 'vivace', 'sunburst2', 'etk800', 'bastion', 'scintilla' })[rng:int(5)]
-      return { item = model .. ' for the ' .. b.name, legs = { leg(a), leg(b) }, metres = math.floor(metres), fragile = true,
+      return { item = strings.t('jobs.1_for_the_2', (model), (b.name)), legs = { leg(a), leg(b) }, metres = math.floor(metres), fragile = true,
         car = { model = model, wear = 0.05 },
         seconds = math.max(180, math.floor(metres * 1.4 / jobsLib.SPEED * 1.4)), pay = 300 + math.floor(metres / 1000 * 120 / 10) * 10 }
     end },
@@ -183,7 +183,7 @@ local TYPES = {
       if not k or not to then return nil end
       local metres = math.sqrt((to.x - k.x) ^ 2 + (to.y - k.y) ^ 2)
       if metres < 1000 then return nil end
-      return { item = 'hot car', legs = { { id = 'kerb', name = 'a back street', x = k.x, y = k.y, z = k.z }, leg(to) }, metres = math.floor(metres),
+      return { item = strings.t('jobs.hot_car_2'), legs = { { id = 'kerb', name = strings.t('jobs.a_back_street'), x = k.x, y = k.y, z = k.z }, leg(to) }, metres = math.floor(metres),
         fragile = false, heat = 0.4, car = { model = ({ 'scintilla', 'sbr', 'bolide', 'etkc' })[rng:int(4)], wear = 0.1 },
         seconds = math.max(240, math.floor(metres * 1.4 / jobsLib.SPEED * 1.3)), pay = 400 + math.floor(metres / 1000 * 220 / 100) * 100 }   -- keep in step with economy_sim's hot_base/hot_per_km (H5: ≤ 2x median $/min)
     end },
@@ -194,10 +194,10 @@ local TYPES = {
       local pts = type(rl) == 'table' and rl.points or {}
       if #pts < 8 then return nil end
       local n = #pts
-      local function at(i) local q = pts[i] return { id = 'oval', name = 'the oval', x = q[1], y = q[2], z = q[3] } end
+      local function at(i) local q = pts[i] return { id = 'oval', name = strings.t('jobs.the_oval'), x = q[1], y = q[2], z = q[3] } end
       local legs = { at(1) }
       for k = 1, 4 do local stop = at(math.floor(n * k / 4) % n + 1) stop.through = true legs[#legs + 1] = stop end
-      legs[#legs].name = 'the line'
+      legs[#legs].name = strings.t('jobs.the_line')
       local metres, t = 0, 0
       for i = 2, n do
         local a, b = pts[i - 1], pts[i]
@@ -220,7 +220,7 @@ local TYPES = {
         end
       end
       if not best or bd < 500 then return nil end
-      return { item = 'broken-down car', legs = { { id = 'kerb', name = STREETS[rng:int(#STREETS)], x = k.x, y = k.y, z = k.z }, leg(best) }, metres = math.floor(bd),
+      return { item = strings.t('jobs.broken_down_car'), legs = { { id = 'kerb', name = STREETS[rng:int(#STREETS)], x = k.x, y = k.y, z = k.z }, leg(best) }, metres = math.floor(bd),
         fragile = false, car = { model = ({ 'pessima', 'legran', 'midsize', 'fullsize', 'van' })[rng:int(5)], wear = 0.7, limp = 0.35 },
         seconds = math.max(300, math.floor(bd * 1.4 / 8 * 1.5)), pay = math.floor((200 + bd / 1000 * 150) / 10) * 10 }
     end },
@@ -230,8 +230,8 @@ local TYPES = {
       if #list == 0 then return nil end
       local v = list[rng:int(#list)]
       local bay = v.bays[rng:int(#v.bays)]
-      return { item = 'guest car', legs = { { id = v.id, name = v.name, x = v.pos[1], y = v.pos[2], z = v.pos[3] },
-          { id = v.id .. ':bay', name = 'a parking bay', x = bay[1], y = bay[2], z = bay[3], radius = 3 } },
+      return { item = strings.t('jobs.guest_car'), legs = { { id = v.id, name = v.name, x = v.pos[1], y = v.pos[2], z = v.pos[3] },
+          { id = v.id .. ':bay', name = strings.t('jobs.a_parking_bay'), x = bay[1], y = bay[2], z = bay[3], radius = 3 } },
         metres = 60, fragile = true, car = { model = ({ 'etk800', 'bastion', 'sunburst2', 'vivace', 'scintilla' })[rng:int(5)], wear = 0.02 },
         seconds = 90, pay = 40 + rng:int(4) * 10 }
     end },
@@ -301,15 +301,15 @@ local function spawnJobCar(j, stop)
   local ok, veh = pcall(core_vehicles.spawnNewVehicle, j.car.model, { config = j.car.config, pos = vec3(stop.x, stop.y, (stop.z or 0) + 0.5),
     autoEnterVehicle = false, canSpawnAnotherVehicleCheck = false })
   if not ok or not veh then
-    j.spawnError = tostring(ok and 'no vehicle' or veh)                 -- (kept on the job: the smoke test reports it; B34)
-    log('W', 'sl_jobs', 'the job car (' .. tostring(j.car.model) .. strings.t('jobs.did_not_spawn') .. j.spawnError)
+    j.spawnError = tostring(ok and strings.t('jobs.no_vehicle') or veh)                 -- (kept on the job: the smoke test reports it; B34)
+    log('W', 'sl_jobs', 'the job car (' .. tostring(j.car.model) .. ') did not spawn: ' .. j.spawnError)
     return nil
   end
-  if j.car.wear then veh:queueLuaCommand(string.format(strings.t('jobs.partcondition_initconditions_nil_d_f'), math.floor(j.car.wear * 300000000), 1 - j.car.wear * 0.5, 1 - j.car.wear)) end
+  if j.car.wear then veh:queueLuaCommand(string.format('partCondition.initConditions(nil, %d, %f, %f)', math.floor(j.car.wear * 300000000), 1 - j.car.wear * 0.5, 1 - j.car.wear)) end
   if slrrDrivers and slrrDrivers.setDriver then slrrDrivers.setDriver(veh:getID(), nil) end
   -- a breakdown: the engine down to limp power, a tyre going down
   if j.car.limp then
-    veh:queueLuaCommand(string.format(strings.t('jobs.local_e_powertrain_getdevice_mainengine') ..
+    veh:queueLuaCommand(string.format('local e = powertrain.getDevice("mainEngine") if e then e.outputTorqueState = %f end ' ..
       'for id, w in pairs(v.data.wheels or {}) do if w.name == "FR" and beamstate.deflateTire then beamstate.deflateTire(id) end end', j.car.limp))
   end
   return veh
@@ -329,7 +329,7 @@ function M.take(jobId)
   for i, j in ipairs(js.offers) do
     if j.id == jobId then
       if not j.car and not playerCarId() then return false, strings.t('jobs.you_need_to_be_in') end
-      if j.needCar and sl_fleet.carOfVehicle(playerCarId():getID()) ~= j.needCar then return false, strings.t('jobs.that_job_is_for_your', (j.item or 'other car')) end
+      if j.needCar and sl_fleet.carOfVehicle(playerCarId():getID()) ~= j.needCar then return false, strings.t('jobs.that_job_is_for_your', (j.item or strings.t('wwjobs.other_car'))) end
       table.remove(js.offers, i)
       j.leg = 1
       js.active = j
@@ -505,7 +505,7 @@ local function challenge(s, key, list, value, better, unit, what)
   local paid = 0
   while list[js[key]] and better(value, list[js[key]][1]) do
     local t = list[js[key]]
-    sl_career.payOut(t[2], what .. ' target ' .. t[1] .. unit)
+    sl_career.payOut(t[2], strings.t('jobs.1_target_2_3', (what), (t[1]), (unit)))
     stateLib.addRep(s, 15)
     paid = paid + t[2]
     js[key] = js[key] + 1
@@ -537,7 +537,7 @@ end
 
 local SPONSORS = { { rep = 1500, name = strings.t('jobs.valo_tyre_wheel'), weekly = 500 }, { rep = 3000, name = strings.t('jobs.redline_speed_shop'), weekly = 1500 },
   { rep = 6000, name = strings.t('jobs.nightrun_energy'), weekly = 5000 } }
-local CREW = { 'the Southside Kings', strings.t('crews.riverbed_runners'), 'the North End crew', strings.t('crews.ring_road_ghosts') }
+local CREW = { strings.t('crews.the_southside_kings'), strings.t('crews.riverbed_runners'), strings.t('crews.the_north_end_crew'), strings.t('crews.ring_road_ghosts') }
 
 local function newContract(s, js)
   local rng = rngLib.new(rngLib.hash('crew:' .. s.day .. ':' .. tostring(s.seed)))
@@ -578,7 +578,7 @@ function M.onStreetLegalRaceResult(won, opponent, racerId)
   if #ctx.shops == 0 or #meets == 0 then return end
   local shop, meet = ctx.shops[rng:int(#ctx.shops)], meets[rng:int(#meets)]
   local j = jobsLib.make('part', shop, meet, rng)
-  j.legs, j.title, j.kind, j.id = { leg(shop), leg(meet) }, strings.t('jobs.favour_for_1', (r.name or 'a racer')), 'errand', 'errand:' .. racerId .. ':' .. s.day
+  j.legs, j.title, j.kind, j.id = { leg(shop), leg(meet) }, strings.t('jobs.favour_for_1', (r.name or strings.t('carcare.a_racer'))), 'errand', 'errand:' .. racerId .. ':' .. s.day
   j.pay = math.floor(j.pay * 0.5 / 10) * 10
   local js = jobsState(s)
   js.offers[#js.offers + 1] = j

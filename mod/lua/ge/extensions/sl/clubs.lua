@@ -105,8 +105,8 @@ function M.morningText(s)
   local ev, n = today(s)
   if not ev then return end
   local parts = {}
-  if ev.night then parts[#parts + 1] = 'tonight ' .. ev.night.name end
-  if ev.day then parts[#parts + 1] = 'today ' .. ev.day.name end
+  if ev.night then parts[#parts + 1] = strings.t('clubs.tonight_1', (ev.night.name)) end
+  if ev.day then parts[#parts + 1] = strings.t('clubs.today_1', (ev.day.name)) end
   sl_career.sendText('benny', string.format(strings.t('clubs.s_season_d_day_d'),
     clubs.CLUBS[s.club.club].name, s.club.season, n, ev.finale and strings.t('clubs.the_finale_double_points') or '', table.concat(parts, ', '), s.club.class or '?'), 2)
 end
@@ -133,7 +133,7 @@ function M.endSeason(s)
   local c = s.club
   local place = clubs.placeOf(c.standings, 'player')
   local money, rep, invited = clubs.seasonReward(c.club, place)
-  if money > 0 then sl_career.payOut(money, clubs.CLUBS[c.club].name .. ' season ' .. c.season) end
+  if money > 0 then sl_career.payOut(money, strings.t('clubs.1_season_2', (clubs.CLUBS[c.club].name), (c.season))) end
   if rep > 0 then stateLib.addRep(s, rep) end
   local text = string.format(strings.t('clubs.s_season_d_is_over'), clubs.CLUBS[c.club].name, c.season, place and ('#' .. place) or 'unplaced')
   if invited and clubs.CLUBS[c.club + 1] then text = strings.t('clubs.1_2_has_sent_you', (text), (clubs.CLUBS[c.club + 1].name)) end

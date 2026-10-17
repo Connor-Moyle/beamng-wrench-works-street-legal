@@ -278,7 +278,7 @@ local function buildRow()
         mine.cars[i] = veh:getID()
         if dents and #dents > 0 then pending[i] = dents end
       else
-        log('W', 'street_legal', 'lot car ' .. tostring(offer.id) .. strings.t('lot.could_not_be_built_left'))
+        log('W', 'street_legal', 'lot car ' .. tostring(offer.id) .. ' could not be built: left out of the row')
       end
       mine.progress.done = i
       send()
@@ -460,7 +460,7 @@ function M.buy()
   if not s or not lot or lot.mode ~= 'browse' or not lot.veh then return end
   local offer = lot.offers[lot.index]
   if s.money < offer.price then
-    guihooks.trigger('slPhoneToast', { text = string.format(strings.t('dealers.it_is_d_you_have'), offer.price, s.money) })
+    guihooks.trigger('slPhoneToast', { text = string.format(strings.t('carcare.it_is_d_you_have'), offer.price, s.money) })
     return
   end
   sl_career.addMoney(-offer.price, strings.t('carcare.bought_1', (offer.name)))
@@ -610,7 +610,7 @@ local sendTimer = 0
 function M.onUpdate(dtReal)
   update(dtReal)
   if lot and lot.building and lot.buildAlive and os.clock() - lot.buildAlive > BUILD_STUCK then
-    log('W', 'street_legal', 'the lot build made no progress for ' .. BUILD_STUCK .. strings.t('lot.s_the_row_stays_as'))
+    log('W', 'street_legal', 'the lot build made no progress for ' .. BUILD_STUCK .. ' s: the row stays as it is')
     lot.building, lot.abandoned = false, true
     buildingNow = nil
     unmuteCars()

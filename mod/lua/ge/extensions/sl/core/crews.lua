@@ -9,9 +9,9 @@ local M = {}
 local strings = require('sl/core/strings')
 
 M.CREWS = {
-  { id = 'southside', name = 'the Southside Kings' },
+  { id = 'southside', name = strings.t('crews.the_southside_kings') },
   { id = 'riverbed', name = strings.t('crews.riverbed_runners') },
-  { id = 'northend', name = 'the North End crew' },
+  { id = 'northend', name = strings.t('crews.the_north_end_crew') },
   { id = 'ringroad', name = strings.t('crews.ring_road_ghosts') },
 }
 M.START_CONTROL = 60

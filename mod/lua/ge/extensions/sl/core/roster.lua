@@ -230,7 +230,7 @@ end
 --   rng: an rng from sl/core/rng (decides the stake within their range)
 -- Returns { accept, stake = 'money'|'pink', bet, text, when }
 function M.respond(racer, kind, player, rng)
-  local when = racer.nightOnly and 'tonight' or 'any time'
+  local when = racer.nightOnly and 'tonight' or strings.t('roster.any_time')
   local floor = TIERS[racer.tier].rep[1] * 0.5           -- below this they will not take you seriously
   if (player.rep or 0) < floor then return { accept = false, text = line('nobody', racer.style) } end
   if not player.hasCar then return { accept = false, text = line('noCar', racer.style) } end

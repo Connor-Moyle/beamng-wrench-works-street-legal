@@ -93,7 +93,7 @@ local function placeNear(pos)
     local d = (p.pos - pos):length()
     if not bestD or d < bestD then best, bestD = p, d end
   end
-  return best and bestD < 400 and ('near ' .. best.name) or 'across town'
+  return best and bestD < 400 and (strings.t('streets.near_1', (best.name))) or strings.t('streets.across_town')
 end
 
 ----------------------------------------------------------------------------------------------
@@ -226,7 +226,7 @@ local function finish(playerWon)
     if playerWon and opp then
       -- their car is yours: it goes on a truck to your garage
       opp:queueLuaCommand('ai.setMode("disabled") controller.setFreeze(1)')
-      local car = sl_fleet.registerVehicle(r.vid, { name = racer.car and racer.car.name or 'their car', value = racer.car and racer.car.value or 0, condition = 0.85 })
+      local car = sl_fleet.registerVehicle(r.vid, { name = racer.car and racer.car.name or strings.t('streets.their_car'), value = racer.car and racer.car.value or 0, condition = 0.85 })
       local mine = sl_fleet.currentCar()
       if car then
         car.out = false
@@ -292,14 +292,14 @@ local function updateRace(dt)
               last = q
             end
           end
-          opp:queueLuaCommand(strings.t('streets.controller_setfreeze_0_input_event') ..
-            serialize({ path = path }) .. strings.t('streets.0_1_neverreset'))
+          opp:queueLuaCommand('controller.setFreeze(0) input.event("parkingbrake", 0, FILTER_DIRECT) ai.startFollowing(' ..
+            serialize({ path = path }) .. ', 0, 1, "neverReset")')
         elseif #wps >= #race.circuit.cps * 0.8 and not race.circuit.sprint then
-          opp:queueLuaCommand(string.format(strings.t('streets.controller_setfreeze_0_input_event_2'),
+          opp:queueLuaCommand(string.format("controller.setFreeze(0) input.event('parkingbrake', 0, FILTER_DIRECT) ai.setSpeedMode('off') ai.setRecoverOnCrash(true) ai.setAvoidCars('on') ai.driveInLane('off') ai.setAggression(%f) ai.driveUsingPath(%s)",
             aggression, serialize({ wpTargetList = wps, noOfLaps = race.circuit.laps, aggression = aggression })))
         else
-          opp:queueLuaCommand(strings.t('streets.controller_setfreeze_0_input_event') ..
-            serialize({ path = circuitPath(race.circuit.route or race.circuit.cps, race.circuit.sprint and 1 or race.circuit.laps, race.skill or 0.5, race.circuit.sprint) }) .. strings.t('streets.0_1_neverreset'))
+          opp:queueLuaCommand('controller.setFreeze(0) input.event("parkingbrake", 0, FILTER_DIRECT) ai.startFollowing(' ..
+            serialize({ path = circuitPath(race.circuit.route or race.circuit.cps, race.circuit.sprint and 1 or race.circuit.laps, race.skill or 0.5, race.circuit.sprint) }) .. ', 0, 1, "neverReset")')
         end
       else
         aiGo(race.vid, race.destNode, race.skill)

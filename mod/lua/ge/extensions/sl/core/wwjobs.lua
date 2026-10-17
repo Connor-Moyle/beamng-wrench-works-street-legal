@@ -51,18 +51,18 @@ function M.tuneMeasure(job, value, car)
     job.baseline, job.carKey = value, car
     return M.tuneMet(job, value) and 'already' or 'baseline'
   end
-  if car ~= job.carKey then return 'other car' end
+  if car ~= job.carKey then return strings.t('wwjobs.other_car') end
   if not M.tuneMet(job, value) then return 'below' end
-  if (job.spent or 0) < M.MIN_SPEND * (job.budget or 0) then return 'no parts' end
+  if (job.spent or 0) < M.MIN_SPEND * (job.budget or 0) then return strings.t('wwjobs.no_parts') end
   return 'met'
 end
 
 -- pay for a spec that was met, by what the parts cost: over budget pays half, well under it a bonus
 function M.tuneSettle(spec, spent)
   spent = spent or 0
-  if spent > spec.budget then return round10(spec.pay * 0.5), 'over budget' end
-  if spent <= spec.budget * M.UNDER then return round10(spec.pay * (1 + M.BONUS)), 'under budget' end
-  return round10(spec.pay), 'on budget'
+  if spent > spec.budget then return round10(spec.pay * 0.5), strings.t('wwjobs.over_budget_2') end
+  if spent <= spec.budget * M.UNDER then return round10(spec.pay * (1 + M.BONUS)), strings.t('wwjobs.under_budget') end
+  return round10(spec.pay), strings.t('wwjobs.on_budget')
 end
 
 ----------------------------------------------------------------------------------------------
@@ -72,13 +72,13 @@ end
 -- faults a ticket can list: the slot to empty on the customer's car (matched in the slot path), what the
 -- ticket says, labour, parts allowance. Fixed when that slot holds a part again at drive-out
 M.FAULTS = {
-  { slot = 'exhaust', text = 'fit an exhaust', labour = 120, parts = 300 },
-  { slot = 'radiator', text = 'fit a radiator', labour = 150, parts = 250 },
-  { slot = 'headlight', text = 'replace the headlights', labour = 80, parts = 200 },
-  { slot = 'bumper_r', text = 'replace the rear bumper', labour = 140, parts = 250 },
-  { slot = 'bumper_f', text = 'replace the front bumper', labour = 160, parts = 300 },
-  { slot = 'taillight', text = 'replace the tail lights', labour = 60, parts = 150 },
-  { slot = 'mirror', text = 'fit new mirrors', labour = 50, parts = 100 },
+  { slot = 'exhaust', text = strings.t('wwjobs.fit_an_exhaust'), labour = 120, parts = 300 },
+  { slot = 'radiator', text = strings.t('wwjobs.fit_a_radiator'), labour = 150, parts = 250 },
+  { slot = 'headlight', text = strings.t('wwjobs.replace_the_headlights'), labour = 80, parts = 200 },
+  { slot = 'bumper_r', text = strings.t('wwjobs.replace_the_rear_bumper'), labour = 140, parts = 250 },
+  { slot = 'bumper_f', text = strings.t('wwjobs.replace_the_front_bumper'), labour = 160, parts = 300 },
+  { slot = 'taillight', text = strings.t('wwjobs.replace_the_tail_lights'), labour = 60, parts = 150 },
+  { slot = 'mirror', text = strings.t('wwjobs.fit_new_mirrors'), labour = 50, parts = 100 },
 }
 M.MODELS = { 'covet', 'pessima', 'legran', 'midsize', 'fullsize', 'vivace' }
 
@@ -144,16 +144,16 @@ function M.repairSettle(ticket, fixed, spent)
   spent = spent or 0
   if (fixed or 0) < #ticket.faults then return 0, 'unfinished' end
   local left = math.max(0, ticket.budget - spent)
-  return math.max(0, round10(ticket.labour + left * 0.5 - math.max(0, spent - ticket.budget))), spent <= ticket.budget and 'done' or 'over budget'
+  return math.max(0, round10(ticket.labour + left * 0.5 - math.max(0, spent - ticket.budget))), spent <= ticket.budget and 'done' or strings.t('wwjobs.over_budget_2')
 end
 
 ----------------------------------------------------------------------------------------------
 -- #9 scrapyard scavenging: pull the named parts off the yard's wrecks and sell them at the pawn shop; the
 -- shop pays their resale (Wrench Works), the job a finder's fee per part once all of them are sold
 
-M.SALVAGE = { { slot = 'radiator', text = 'a radiator' }, { slot = 'seat', text = 'a seat' }, { slot = 'headlight', text = 'a headlight' },
-  { slot = 'exhaust', text = 'an exhaust' }, { slot = 'taillight', text = 'a tail light' }, { slot = 'mirror', text = 'a mirror' },
-  { slot = 'door', text = 'a door' }, { slot = 'hood', text = 'a bonnet' } }
+M.SALVAGE = { { slot = 'radiator', text = strings.t('wwjobs.a_radiator') }, { slot = 'seat', text = strings.t('wwjobs.a_seat') }, { slot = 'headlight', text = strings.t('wwjobs.a_headlight') },
+  { slot = 'exhaust', text = strings.t('wwjobs.an_exhaust') }, { slot = 'taillight', text = strings.t('wwjobs.a_tail_light') }, { slot = 'mirror', text = strings.t('wwjobs.a_mirror') },
+  { slot = 'door', text = strings.t('wwjobs.a_door') }, { slot = 'hood', text = strings.t('wwjobs.a_bonnet') } }
 M.FINDER_FEE = 90       -- per part (the only pay: Wrench Works pays nothing for parts off a job car)
 M.SCAVENGE_SECONDS = 1800
 

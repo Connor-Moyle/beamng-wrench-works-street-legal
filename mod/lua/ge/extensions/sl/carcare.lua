@@ -77,9 +77,9 @@ local function attach(vid, car)
   if car.conditions then
     veh:queueLuaCommand('partCondition.initConditions(' .. serialize(car.conditions) .. ')')
   else
-    veh:queueLuaCommand(string.format(strings.t('carcare.partcondition_initconditions_nil_d_1'), math.floor((c.engineKm or 0) * 1000)))
+    veh:queueLuaCommand(string.format('partCondition.initConditions(nil, %d, 1, 1)', math.floor((c.engineKm or 0) * 1000)))
   end
-  veh:queueLuaCommand(strings.t('carcare.if_slcar_then_slcar_setstate') .. serialize({ battery = c.battery, engineKm = c.engineKm, oilKm = c.oilKm, fuel = c.fuel,
+  veh:queueLuaCommand('if slCar then slCar.setState(' .. serialize({ battery = c.battery, engineKm = c.engineKm, oilKm = c.oilKm, fuel = c.fuel,
     oilLevel = c.oilLevel, coolantLevel = c.coolantLevel, fuelLevel = c.fuelLevel, n2o = c.n2o, abuse = c.abuse }) .. ') end')
   -- the driver chosen for this car in the garage (SLRR Drivers mod), back in the seat
   -- (none chosen yet: the mod's default, also for a car bought straight off a lot, where the seats are empty)
@@ -183,7 +183,7 @@ function M.refill(carId, kind, amount, fuelId)
   local c = M.careOf(car)
   if kind == 'battery' then c.battery = 1 end
   if kind == 'fuel' and fuelId then c.fuel = fuelId end
-  veh:queueLuaCommand(string.format(strings.t('carcare.if_slcar_then_slcar_refill'), kind, tostring(amount or 0), fuelId and string.format('%q', fuelId) or 'nil'))
+  veh:queueLuaCommand(string.format('if slCar then slCar.refill(%q, %s, %s) end', kind, tostring(amount or 0), fuelId and string.format('%q', fuelId) or 'nil'))
   return true
 end
 
@@ -213,7 +213,7 @@ function M.buyItem(carId, itemId)
   if not car or not item then return false, strings.t('carcare.nothing_to_buy') end
   local c = M.careOf(car)
   if #c.trunk >= rules.TRUNK_SLOTS then return false, strings.t('carcare.the_trunk_is_full') end
-  if not sl_career.addMoney(-item.price, strings.t('carcare.bought_1', (item.name))) then return false, string.format(strings.t('dealers.it_is_d_you_have'), item.price, s.money) end
+  if not sl_career.addMoney(-item.price, strings.t('carcare.bought_1', (item.name))) then return false, string.format(strings.t('carcare.it_is_d_you_have'), item.price, s.money) end
   rules.trunkAdd(c.trunk, itemId)
   extensions.hook('onStreetLegalChanged')
   return true, strings.t('carcare.1_in_the_trunk', (item.name))
@@ -237,7 +237,7 @@ function M.onStreetLegalRaceResult(won, opponent)
   local h = M.historyOf(car)
   h.races = (h.races or 0) + 1
   if won then h.wins = (h.wins or 0) + 1 end
-  M.note(car, (won and 'Beat ' or strings.t('carcare.lost_to')) .. tostring(opponent or 'a racer'))
+  M.note(car, (won and strings.t('ui.beat') or strings.t('carcare.lost_to')) .. tostring(opponent or strings.t('carcare.a_racer')))
 end
 
 -- a big hit (the garage's damage report says how bad the body is): a wreck in its history

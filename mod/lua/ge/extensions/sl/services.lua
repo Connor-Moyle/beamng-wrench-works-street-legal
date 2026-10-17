@@ -40,22 +40,22 @@ function M.onWrenchWorksServices(list, vid)
   for _, other in ipairs(s.cars) do
     if not car or other.id ~= car.id then
       list[#list + 1] = { id = 'swap:' .. other.id, group = strings.t('services.your_other_cars'), label = other.name,
-        desc = other.impounded and 'in the police impound' or 'put this one away and bring that one in', disabled = other.impounded ~= nil }
+        desc = other.impounded and strings.t('services.in_the_police_impound') or strings.t('services.put_this_one_away_and'), disabled = other.impounded ~= nil }
     end
   end
   if car then
     for _, r in ipairs(sl_career.racesList() or {}) do
-      list[#list + 1] = { id = 'race:' .. r.id, tab = 'races', group = 'Races', label = r.name, desc = r.drag and strings.t('services.drag_strip_test_track_a') or 'a racer of your level waits at the start' }
+      list[#list + 1] = { id = 'race:' .. r.id, tab = 'races', group = 'Races', label = r.name, desc = r.drag and strings.t('services.drag_strip_test_track_a') or strings.t('services.a_racer_of_your_level') }
     end
     -- the race tracks: the map's own missions when it lists them, else its venue file
     local missionTracks = sl_career.tracksList and sl_career.tracksList()
     for _, t in ipairs(missionTracks or {}) do
       list[#list + 1] = { id = 'mtrack:' .. t.missionId, tab = 'races', group = 'Tracks', label = t.name,
-        desc = strings.t('services.1_a_racer_of_your', (t.laps and t.laps > 1 and t.laps .. ' laps' or 'start to finish')) }
+        desc = strings.t('services.1_a_racer_of_your', (t.laps and t.laps > 1 and strings.t('services.1_laps', (t.laps)) or strings.t('services.start_to_finish'))) }
     end
     for _, t in ipairs(not missionTracks and sl_streets and sl_streets.tracks and sl_streets.tracks() or {}) do
       list[#list + 1] = { id = 'track:' .. t.id, tab = 'races', group = 'Tracks', label = t.name,
-        desc = strings.t('services.1_2_a_racer_of', (t.sprint and strings.t('services.a_stage_start_to_finish') or t.laps .. ' laps'), (t.kind == 'offroad' and strings.t('services.off_road') or '')) }
+        desc = strings.t('services.1_2_a_racer_of', (t.sprint and strings.t('services.a_stage_start_to_finish') or strings.t('services.1_laps', (t.laps))), (t.kind == 'offroad' and strings.t('services.off_road') or '')) }
     end
   end
 end

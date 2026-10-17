@@ -5,6 +5,8 @@
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 M.CLASSES = { 'beater', 'compact', 'muscle', 'tuner', 'sport', 'super' }
 
 function M.classIndex(name)
@@ -194,9 +196,9 @@ function M.tweakTree(tree, opts)
         if refusedNode(n) or refusedBelow(n) then
           result.refused[#result.refused + 1] = { path = partPath(n), why = 'never changed (spare wheel)' }
         elseif slot and slot.coreSlot then
-          result.refused[#result.refused + 1] = { path = partPath(n), why = 'core slot' }
+          result.refused[#result.refused + 1] = { path = partPath(n), why = strings.t('cars.core_slot') }
         elseif slotOf and coreBelow(n) then
-          result.refused[#result.refused + 1] = { path = partPath(n), why = 'core slot below' }
+          result.refused[#result.refused + 1] = { path = partPath(n), why = strings.t('cars.core_slot_below') }
         else
           result.removed[#result.removed + 1] = partPath(n)
           n.chosenPartName, n.partPath, n.children, n.decisionMethod = '', nil, nil, 'user-empty'
@@ -237,7 +239,7 @@ function M.tweakTree(tree, opts)
             other[#other + 1] = name
             if valueOf(name) > valueOf(current) then better[#better + 1] = name end
           elseif name ~= current then
-            result.refused[#result.refused + 1] = { path = (n.path or '/') .. name, why = 'does not fit the slot' }
+            result.refused[#result.refused + 1] = { path = (n.path or '/') .. name, why = strings.t('cars.does_not_fit_the_slot') }
           end
         end
         local pick = #better > 0 and better[rng:int(#better)] or (#other > 0 and other[rng:int(#other)] or nil)

@@ -21,7 +21,10 @@ const SKIP_CALLS = new Set(['require', 'log', 'error', 'print', 'dump', 'dumps',
   'getCurrentLevelIdentifier', 'getModel', 'getConfigList', 'spawnNewVehicle', 'setGameState', 'setByName', 'createObject', 'registerObject', 'sendCmd', 'executeJS']);
 const SKIP_FIRST = new Set(['trigger']);       // guihooks.trigger('event', { text = '...' }): the event name is skipped, the table is not
 
+const loose = args.includes('--loose');      // for the audit only: what the strict rule leaves (lowercase fragments, short labels)
 function textLike(v) {
+  if (loose) return /[A-Za-z]{3}/.test(v) && v.includes(' ') && !/^[a-z0-9_\/.:-]+$/.test(v) && !/\.(lua|json|png|jpg|dae|jbeam)/.test(v) && !/^Street Legal - /.test(v) && v.length >= 5
+    && !/[\n<>()=\[\]]|\w\.\w+\(|^[ )\]]/.test(v) && !/^(status|laptop|launch|lot car|could not|stock facility|the lot build|no atlas|did not|not loaded|no sky) /.test(v);
   if (v.length < 6 || !/[A-Za-z]{3}/.test(v) || !v.includes(' ')) return false;
   if (/^[a-z0-9_\/.:-]+$/.test(v) || /\.(lua|json|png|jpg|dae|jbeam)\b/.test(v) || v.includes('{')) return false;
   if (/^Street Legal - /.test(v)) return false;            // (a file name, not a text)
@@ -98,6 +101,8 @@ function processFile(file, st) {
       if (name && SKIP_FIRST.has(name) && n.arguments && n.arguments[0]) skipNode.add(n.arguments[0]);
     }
   });
+  // everything inside a skipped argument is skipped (log('W', tag, string.format('...', x)): the debug text stays where it is)
+  for (const root of [...skipNode]) visit(root, null, null, (d) => { if (d.type === 'StringLiteral' || (d.type === 'BinaryExpression' && d.operator === '..')) skipNode.add(d); });
   function flatten(n, out) { if (n.type === 'BinaryExpression' && n.operator === '..') { flatten(n.left, out); flatten(n.right, out); } else out.push(n); return out; }
   let count = 0;
   visit(ast, null, null, (n, p, k) => {
@@ -143,7 +148,7 @@ for (const file of files()) {
   const reps = r.rep.sort((a, b) => a.start - b.start || b.end - a.end).filter((x, i, arr) => !arr.slice(0, i).some((y) => y.start <= x.start && y.end >= x.end && y !== x));
   if (!reps.length) continue;
   total += reps.length;
-  if (audit || dry) { console.log(path.basename(file).padEnd(22), String(reps.length).padStart(4), 'texts left in code'); continue; }
+  if (audit || dry) { console.log(path.basename(file).padEnd(22), String(reps.length).padStart(4), 'texts left in code'); if (loose) console.log('    ' + reps.slice(0, 6).map((x) => JSON.stringify(x.template.slice(0, 50))).join(' | ')); continue; }
   let out = r.src;
   for (const x of reps.sort((a, b) => b.start - a.start)) {
     let key = st.byText.get(x.template);

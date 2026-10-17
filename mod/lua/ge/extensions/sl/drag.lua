@@ -129,7 +129,7 @@ local function addOpponent(data, myLane, racer)
     local et = rules.etEstimate(cfg and cfg.Power, cfg and cfg.Weight)
     local dial = rules.aiDial(et, racer.skill, rngLib.new(vid):range(-1, 1))
     c.setRacerDial(vid, dial)
-    log('I', 'sl_drag', string.format(strings.t('drag.opponent_s_s_dial_2f'), racer.name, tostring(details and details.configs and details.configs.Name), dial, et and string.format('%.2f', et) or 'none'))
+    log('I', 'sl_drag', string.format('opponent %s: %s, dial %.2f (estimate %s)', racer.name, tostring(details and details.configs and details.configs.Name), dial, et and string.format('%.2f', et) or 'none'))
   end)
   if not started then run.practice = true end
 end
@@ -187,7 +187,7 @@ function M.onWinnerLightOn(lane)
     s = s or {}
     s.dragRuns = (s.dragRuns or 0) + 1
     if won then s.dragWins = (s.dragWins or 0) + 1 end
-    toast(string.format('%s: %s. %s', won and strings.t('drag.you_won') or (strings.t('drag.you_lost_to_1', (tostring(r.racerName or 'the other lane')))), text,
+    toast(string.format('%s: %s. %s', won and strings.t('drag.you_won') or (strings.t('drag.you_lost_to_1', (tostring(r.racerName or strings.t('drag.the_other_lane'))))), text,
       pay.money > 0 and string.format(strings.t('drag.d_and_d_reputation'), pay.money, pay.rep) or strings.t('drag.nothing_paid')))
     extensions.hook('onStreetLegalChanged')
   end

@@ -114,7 +114,7 @@ local function skyReport(tag)
   local cel = core_celestial and core_celestial.getState and core_celestial.getState() or {}
   local paused = false
   pcall(function() paused = bullettime and bullettime.getPause and bullettime.getPause() or false end)
-  log('I', 'sl_career', string.format(strings.t('career.sky_s_tod_time_s'),
+  log('I', 'sl_career', string.format('sky %s: tod.time %s play %s, celestial %s (sees time %s, %s-%s-%s), sun elevation %s azimuth %s, %d frames drawn since the last report, paused %s',
     tag, tostring(tod.time), tostring(tod.play), core_celestial and tostring(cel.enabled) or 'not loaded', tostring(cel.time), tostring(cel.year), tostring(cel.month), tostring(cel.day),
     sky and tostring(sky.elevation) or 'no sky', sky and tostring(sky.azimuth) or '-', framesDrawn - lastFrames, tostring(paused)))
   lastFrames = framesDrawn
@@ -368,7 +368,7 @@ local function addPlace(p, file)
     place.at = place.pos          -- (where the place is: its markers stand here, whatever the lane nudge does to .pos)
     places[p.id] = place
   else
-    log('W', logTag, file .. strings.t('career.a_place_without_id_or'))
+    log('W', logTag, file .. ': a place without "id" or "pos" was left out')
   end
 end
 
@@ -452,7 +452,7 @@ local function stockApi(level)
           end
         end
       end
-      if #out == 0 and ok then tell1(f, 'no parking spots') end
+      if #out == 0 and ok then tell1(f, strings.t('career.no_parking_spots')) end
       return out
     end,
     door = function(f)
@@ -1055,7 +1055,7 @@ function M.onSlrrRaceFinished(r)
   -- the money has moved already: the map's races pay through the shared wallet. Without Wrench Works there is no
   -- shared wallet (the map keeps its own) so the bet is settled here (gate M1, B28)
   if r.stake == 'money' and tonumber(r.bet) and r.bet > 0 and not garageModule('slrr/garageParts') then
-    wallet.add(r.won and r.bet or -r.bet, (r.won and 'Won' or 'Lost') .. ' a street race' .. (r.opponent and (' against ' .. tostring(r.opponent)) or ''))
+    wallet.add(r.won and r.bet or -r.bet, strings.t('career.1_a_street_race_2', (r.won and 'Won' or 'Lost'), (r.opponent and (' against ' .. tostring(r.opponent)) or '')))
   end
   local racer = (challenge and challenge.racer) or (type(r.racerId) == 'string' and stateLib.racer(s, r.racerId) and r.racerId) or nil
   local repBefore = s.rep
@@ -1208,7 +1208,7 @@ function M.releaseCar(carId)
   if not active then return false, strings.t('bank.no_career_running') end
   for _, car in ipairs(s.cars) do
     if car.id == carId and car.impounded then
-      if not M.addMoney(-car.impounded, strings.t('career.impound_1', (car.name))) then return false, string.format(strings.t('dealers.it_is_d_you_have'), car.impounded, s.money) end
+      if not M.addMoney(-car.impounded, strings.t('career.impound_1', (car.name))) then return false, string.format(strings.t('carcare.it_is_d_you_have'), car.impounded, s.money) end
       car.impounded = nil
       car.out, car.where = false, nil
       changed()
@@ -1400,22 +1400,22 @@ end
 -- the horizon; if not, one wider detour, and the elevations go to the log (sl_career) either way. Runs inside a job (it sleeps).
 local function moveClock(h, job)
   ensureCelestial()
-  skyReport('before the jump to ' .. string.format('%.2f', h))
+  skyReport(strings.t('career.before_the_jump_to_1', (string.format('%.2f', h))))
   setHour((h + 12) % 24)
   job.sleep(0.35)
-  skyReport('on the opposite hour')
+  skyReport(strings.t('career.on_the_opposite_hour'))
   setHour(h)
   job.sleep(0.35)
-  skyReport('on the hour')
+  skyReport(strings.t('career.on_the_hour'))
   local el = sunElevation()
-  log('I', 'sl_career', string.format(strings.t('career.clock_set_to_2f_sun'), h, el and string.format(strings.t('career.1f_deg'), el) or 'unknown'))
+  log('I', 'sl_career', string.format('clock set to %.2f: sun elevation %s', h, el and string.format('%.1f deg', el) or 'unknown'))
   if el and phaseLib.isDarkHour(h) and el > 0 then
     setHour((h + 6) % 24)
     job.sleep(0.5)
     setHour(h)
     job.sleep(0.5)
     el = sunElevation()
-    log('W', 'sl_career', string.format(strings.t('career.the_sun_was_up_at'), h, el and string.format(strings.t('career.1f_deg'), el) or 'unknown'))
+    log('W', 'sl_career', string.format('the sun was up at night hour %.2f; after a wider detour: %s', h, el and string.format('%.1f deg', el) or 'unknown'))
   end
 end
 

@@ -540,7 +540,7 @@ function M.acceptOffer(id, index)
   sl_career.addMoney(got, strings.t('classifieds.revline_sale_1', (y.name)))
   if sold then extensions.hook('onStreetLegalCarSold', sold, got, 'revline') end     -- (the flip challenge counts it)
   extensions.hook('onStreetLegalChanged')
-  return true, string.format(strings.t('classifieds.sold_the_s_to_s'), y.name, o.buyer or 'a buyer', got)
+  return true, string.format(strings.t('classifieds.sold_the_s_to_s'), y.name, o.buyer or strings.t('ui.a_buyer'), got)
 end
 
 -- a career slot about to be deleted (sl_career): its listed parts go back on the Wrench Works shelf, which every

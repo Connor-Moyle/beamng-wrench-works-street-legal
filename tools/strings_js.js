@@ -152,6 +152,26 @@ function run(file) {
   return { src, rep, count };
 }
 
+// --sync: the table gets every T('key', 'text') of the files that it does not have yet (after the Lua side was redone, say)
+if (args.includes('--sync')) {
+  let added = 0;
+  for (const file of FILES) {
+    const code = fs.readFileSync(file, 'utf8');
+    (function walk(n) {
+      if (!n || typeof n.type !== 'string') return;
+      if (n.type === 'CallExpression' && n.callee.type === 'Identifier' && n.callee.name === 'T' && n.arguments[1] && n.arguments[0].type === 'Literal' && n.arguments[1].type === 'Literal' &&
+          !table.taken.has(n.arguments[0].value) && !newEntries.has(n.arguments[0].value)) { newEntries.set(n.arguments[0].value, n.arguments[1].value); table.taken.add(n.arguments[0].value); added++; }
+      for (const k of Object.keys(n)) { const v = n[k]; if (Array.isArray(v)) v.forEach(walk); else if (v && typeof v === 'object') walk(v); }
+    })(acorn.parse(code, { ecmaVersion: 2018, sourceType: 'script' }));
+  }
+  let s = fs.readFileSync(STRINGS, 'utf8');
+  const nl = s.includes('\r\n') ? '\r\n' : '\n';
+  const ei = s.indexOf(END);
+  s = s.slice(0, ei) + [...newEntries].sort().map(([k, v]) => '  [' + luaQuote(k) + '] = ' + luaQuote(v) + ',' + nl).join('') + s.slice(ei);
+  fs.writeFileSync(STRINGS, s);
+  console.log(added + ' keys added to the table');
+  process.exit(0);
+}
 let total = 0;
 for (const file of FILES) {
   const r = run(file);

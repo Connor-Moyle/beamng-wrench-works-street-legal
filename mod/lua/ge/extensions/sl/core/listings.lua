@@ -8,6 +8,8 @@
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 local function round(x, step) step = step or 10 return math.floor(x / step + 0.5) * step end
 local function up(x) return math.ceil(x / 10 - 1e-9) * 10 end      -- sellers round their prices up
 
@@ -71,7 +73,7 @@ function M.listing(rng, item, channel, demand, hour)
   local l = { kind = item.kind, item = item, channel = channel, condition = condition, wear = 1 - condition, rare = rare,
     mood = mood, posted = hour or 0, expires = (hour or 0) + c.life, rating = rng:int(3, 5), newAccount = rng:float() < M.NEW_ACCOUNT }
   if channel == 'app' and rng:float() < M.SCAM then
-    l.scam, l.newAccount, l.payNote, l.rating = true, true, 'deposit by transfer only', rng:int(1, 2)
+    l.scam, l.newAccount, l.payNote, l.rating = true, true, strings.t('listings.deposit_by_transfer_only'), rng:int(1, 2)
     ask = fair * 0.4
   elseif rng:float() < M.SHADY then
     l.rating = rng:int(1, 2)
@@ -85,10 +87,10 @@ end
 -- the tells a careful buyer can read off a listing (for the UI: "too cheap", "new account", "transfer only")
 function M.tells(l)
   local t = {}
-  if l.ask < M.fair(l.item.value, l.condition) * M.MIN_BUY then t[#t + 1] = 'price far below what it is worth' end
-  if l.newAccount then t[#t + 1] = 'new account' end
+  if l.ask < M.fair(l.item.value, l.condition) * M.MIN_BUY then t[#t + 1] = strings.t('listings.price_far_below_what_it') end
+  if l.newAccount then t[#t + 1] = strings.t('listings.new_account') end
   if l.payNote then t[#t + 1] = l.payNote end
-  if (l.rating or 5) <= 2 then t[#t + 1] = 'poor seller rating' end
+  if (l.rating or 5) <= 2 then t[#t + 1] = strings.t('listings.poor_seller_rating') end
   return t
 end
 

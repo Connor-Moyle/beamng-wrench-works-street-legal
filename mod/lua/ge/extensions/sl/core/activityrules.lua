@@ -21,7 +21,7 @@ M.RULES = {
   { match = '/dragStripRace/', generic = true, kind = 'drag', title = strings.t('activityrules.drag_strip'), fee = 50, prize = 300, perStar = 0.25, rep = 10, firstOnly = true, prizeOnce = true },
   { match = '/dragStripAPM/', generic = true, kind = 'drag', title = strings.t('activityrules.drag_strip'), fee = 50, prize = 200, perStar = 0.25, rep = 10, firstOnly = true, prizeOnce = true },
   -- the season finale (#25): the Race of Champions on the race track's first circuit, behind the top garage and the top names (progression.ROC)
-  { match = '/aiRace/001-circuit', generic = true, kind = 'circuit', roc = true, title = strings.t('activityrules.race_of_champions'), fee = 50000, prize = 250000, rep = 2000 },
+  { match = '/aiRace/001-circuit', generic = true, kind = 'circuit', roc = true, title = strings.t('activities.race_of_champions'), fee = 50000, prize = 250000, rep = 2000 },
   { match = '/aiRace/', generic = true, kind = 'circuit', title = strings.t('activityrules.circuit_race'), fee = 100, prize = 500, perStar = 0.25, rep = 15, firstOnly = true, prizeOnce = true },
   { match = '/evade/', generic = true, title = 'Evade', rep = 20, heatRep = 60, heat = -0.3 },
   { match = '/drift/', title = strings.t('activityrules.drift_contest'), fee = 50, prize = 300, perStar = 0.3, rep = 12 },

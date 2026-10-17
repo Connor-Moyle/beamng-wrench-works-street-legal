@@ -26,7 +26,7 @@ local TUNE = { kind = 'tune', title = strings.t('wwjobs.tune_to_spec'), unlock =
     local spec = s and ctx.garage and ww.tuneSpec(rng, s.rep)
     if not spec then return nil end
     spec.settle, spec.spent, spec.seconds, spec.fragile = 'ww', 0, 0, false
-    spec.legs = { stop(ctx.garage), stop(ctx.garage, spec.metric == 'power' and 'the dyno' or 'the test track quarter mile') }
+    spec.legs = { stop(ctx.garage), stop(ctx.garage, spec.metric == 'power' and strings.t('wwjobs.the_dyno') or strings.t('wwjobs.the_test_track_quarter_mile')) }
     return spec
   end }
 
@@ -37,7 +37,7 @@ local REPAIR = { kind = 'repair', title = strings.t('wwjobs.repair_ticket'), unl
     local t = ww.repairTicket(rng)
     t.settle, t.spent, t.seconds, t.fragile = 'ww', 0, 1800, false
     t.car = { model = t.model, wear = 0.3 }
-    t.legs = { stop(ctx.garage, 'the customer outside your garage'), stop(ctx.garage, 'your lift') }
+    t.legs = { stop(ctx.garage, strings.t('wwjobs.the_customer_outside_your_garage')), stop(ctx.garage, strings.t('wwjobs.your_lift')) }
     return t
   end }
 
@@ -49,7 +49,7 @@ local SCAVENGE = { kind = 'scavenge', title = 'Scavenging', unlock = 0, settle =
     local j = ww.scavengeList(rng)
     j.settle, j.fragile = 'ww', false
     j.car = { model = ww.MODELS[rng:int(#ww.MODELS)], wear = 0.9 }
-    j.legs = { stop(yard, 'the wreck at the scrapyard'), stop(ctx.garage, 'your garage') }
+    j.legs = { stop(yard, strings.t('wwjobs.the_wreck_at_the_scrapyard')), stop(ctx.garage, strings.t('wwjobs.your_garage')) }
     return j
   end }
 

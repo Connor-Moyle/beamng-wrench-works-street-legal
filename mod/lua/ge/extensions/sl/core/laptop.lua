@@ -47,7 +47,7 @@ function M.build(functions, state, defs)
       elseif (onCar or def.shop) and state.busy then tile.enabled, tile.reason = false, strings.t('laptop.not_during_a_race_or')
       elseif onCar and not state.hasCar then tile.enabled, tile.reason = false, strings.t('laptop.you_have_no_car_yet')
       elseif def.soon then tile.enabled, tile.reason = false, strings.t('laptop.coming_soon')
-      elseif onCar and state.carHere == false then tile.enabled, tile.reason = false, strings.t('laptop.bring_the_car_into_the') end
+      elseif onCar and state.carHere == false then tile.enabled, tile.reason = false, strings.t('computer.bring_the_car_into_the') end
       local list = onCar and car or general
       list[#list + 1] = tile
     end
