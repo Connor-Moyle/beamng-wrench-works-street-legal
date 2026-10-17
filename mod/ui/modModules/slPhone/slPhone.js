@@ -171,6 +171,8 @@
     '  background:rgba(20,18,24,.9);pointer-events:auto;box-shadow:0 20px 60px rgba(0,0,0,.5)}',
     '.slp-lothead{display:flex;justify-content:space-between;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#cac4d0}',
     '.slp-lotname{margin-top:6px;font-size:15px;color:#cac4d0}',
+    '.slp-rmap{display:block;width:100%;height:auto;margin:-4px 0 6px 0;border-radius:12px;background:#0d0b12}',
+    '.slp-rmeta{font-size:12px;color:#cac4d0}.slp-rs{color:#7bd88f}.slp-rf{color:#f2b8b5}',
     '.slp-lotload{position:fixed;left:0;top:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;background:rgba(10,9,14,.94);z-index:60;pointer-events:auto}',
     '.slp-lotload .slp-lcard{min-width:300px;max-width:80vw;padding:26px 34px;border-radius:24px;background:#211f26;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.6)}',
     '.slp-lotload b{display:block;font-size:20px;font-weight:400;margin:14px 0 4px 0}',
@@ -453,7 +455,12 @@
       var list = arr(st.data.challenges);
       var cards = list.map(function (c) {
         var stake = c.stake === 'pink' ? 'Pink slips' : money(c.bet);
-        return '<div class="slp-card"><h4>' + esc(c.name) + '</h4><p>' + esc(c.raceName) + ' &middot; ' + stake + (c.nightOnly ? ' &middot; after dark' : '') + '</p>' +
+        var pv = obj(c.preview);
+        // the route as a small map (#18): the road it takes, the start (green) and the finish (red)
+        var map = pv.points ? '<svg class="slp-rmap" viewBox="0 0 ' + (pv.w || 240) + ' ' + (pv.h || 140) + '"><polyline points="' + esc(pv.points) + '" fill="none" stroke="#a8c7fa" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>' +
+          '<circle cx="' + obj(pv.start).x + '" cy="' + obj(pv.start).y + '" r="5" fill="#7bd88f"/><circle cx="' + obj(pv.finish).x + '" cy="' + obj(pv.finish).y + '" r="5" fill="#f2b8b5"/></svg>' +
+          '<p class="slp-rmeta"><span class="slp-rs">&#9679; start</span> <span class="slp-rf">&#9679; finish</span> &middot; ' + ((pv.metres || 0) / 1000).toFixed(1) + ' km</p>' : '';
+        return '<div class="slp-card">' + map + '<h4>' + esc(c.name) + '</h4><p>' + esc(c.raceName) + ' &middot; ' + stake + (c.nightOnly ? ' &middot; after dark' : '') + '</p>' +
           '<div class="slp-acts"><div class="slp-btn" data-a="gps" data-v="' + esc(c.id) + '">Show the way</div>' + (c.stake === 'money' ? '<div class="slp-btn slp-tonal" data-a="raise" data-v="' + esc(c.id) + '">Raise the stake</div>' : '') + '<div class="slp-btn slp-text" data-a="cancel" data-v="' + esc(c.id) + '">Call it off</div></div></div>';
       });
       return bar('Races') + '<div class="slp-body">' + (cards.join('') ||
@@ -1146,7 +1153,8 @@
       var huHtml = '<div class="slp-hu' + (hu && !st.open ? '' : ' slp-gone') + '" data-a="openthread" data-v="' + esc(hu ? hu.thread : '') + '">' +
         (hu ? avatar({ id: hu.thread, name: hu.name }) + '<div><small>Messages &middot; now</small><b>' + esc(hu.name) + '</b><span>' + esc(hu.text) + '</span></div>' : '') + '</div>';
       layer.innerHTML =
-        '<div class="slp-pill"' + (st.open ? ' style="display:none"' : '') + '><b>' + money(d.money) + '</b><span>' + esc(d.title) + '</span><span>' + two(d.hour || 0) + ':' + two(d.minute || 0) + '</span></div>' +
+        '<div class="slp-pill"' + (st.open ? ' style="display:none"' : '') + '><b>' + money(d.money) + '</b><span>' + esc(d.title) + '</span>' +
+          (d.phase ? '<span>' + (d.phase === 'night' ? '&#9790;' : '&#9728;') + '</span>' : '') + (d.heat > 0 ? '<span style="color:#ff6a4a">' + '&#9650;'.repeat(d.heat) + '</span>' : '') + '<span>' + two(d.hour || 0) + ':' + two(d.minute || 0) + '</span></div>' +
         '<div class="slp-device' + (st.open ? '' : ' slp-away') + '" style="transform:' + (st.open ? '' : 'translateY(70%) ') + 'scale(' + scale() + ')">' + screen + '</div>' +
         lotView() + garageView() + stationView() + meetView() + raceView() +
         huHtml +

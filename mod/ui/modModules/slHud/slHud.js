@@ -16,6 +16,8 @@
     '.slh-left{position:absolute;left:1.6vw;bottom:2vh;display:flex;gap:10px;align-items:flex-end}',
     '.slh-left canvas.slh-map{width:200px;height:200px}',
     '.slh-left canvas.slh-dmg{width:86px;height:150px}',
+    '.slh-status{position:absolute;left:50%;top:1.4vh;transform:translateX(-50%);padding:5px 16px;border-radius:16px;background:rgba(20,18,24,.72);color:#eee;font-size:15px;display:flex;gap:12px;align-items:center}',
+    '.slh-heat{color:#ff4a2a;letter-spacing:2px}.slh-heat i{font-style:normal;color:#55505a}',
   ].join('\n');
 
   var ZONES = ['FL', 'FR', 'ML', 'MR', 'RL', 'RR'];
@@ -52,7 +54,8 @@
     gearC.classList.add('slh-gone');
     left.appendChild(mapC); left.appendChild(dmgC);
     dials.appendChild(tachoC); dials.appendChild(gearC); dials.appendChild(speedoC);
-    root.appendChild(left); root.appendChild(dials);
+    var status = doc.createElement('div'); status.className = 'slh-status slh-gone';       // D4: day or night, and the heat
+    root.appendChild(left); root.appendChild(dials); root.appendChild(status);
     doc.body.appendChild(root);
 
     var settings = { enabled: true, speedo: true, tacho: true, map: true, damage: true, units: 'kmh' };
@@ -312,6 +315,16 @@
       }
       if (settings.map) drawMap(data);
       if (settings.damage) drawDamage(data);
+      drawStatus(data);
+    }
+
+    // the phase (a sun or a moon) and the heat as five flames, lit as many as the heat level; nothing without a career
+    function drawStatus(d) {
+      if (!d.phase) { status.classList.add('slh-gone'); return; }
+      var night = d.phase === 'night', heat = Math.max(0, Math.min(5, d.heat | 0)), flames = '';
+      for (var i = 1; i <= 5; i++) flames += i <= heat ? '&#9650;' : '<i>&#9650;</i>';
+      status.innerHTML = '<span>' + (night ? '&#9790; Night' : '&#9728; Day') + '</span>' + (heat > 0 || night ? '<span class="slh-heat" title="Heat ' + heat + '">' + flames + '</span>' : '');
+      status.classList.remove('slh-gone');
     }
 
     return { handle: handle, root: root, settings: settings };

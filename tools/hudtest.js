@@ -23,6 +23,12 @@ assert.ok(!hud.root.classList.contains('slh-gone'), 'shown while driving');
 assert.ok(!gone('.slh-map') && !gone('.slh-dmg') && !gone('.slh-tacho') && !gone('.slh-speedo'), 'all four parts');
 hud.handle('slHud', Object.assign({}, frame, { gear: 'R', settings: Object.assign({}, frame.settings, { map: false, damage: false, units: 'mph' }) }));
 assert.ok(gone('.slh-map') && gone('.slh-dmg') && !gone('.slh-speedo'), 'switched-off parts are left out');
+// D4: the day or night and the heat
+assert.ok(gone('.slh-status'), 'no career, no status');
+hud.handle('slHud', Object.assign({}, frame, { phase: 'night', heat: 3 }));
+assert.ok(!gone('.slh-status') && hud.root.querySelector('.slh-status').textContent.includes('Night') && hud.root.querySelectorAll('.slh-heat i').length === 2, 'night, heat 3: three of five lit');
+hud.handle('slHud', Object.assign({}, frame, { phase: 'day', heat: 0 }));
+assert.ok(hud.root.querySelector('.slh-status').textContent.includes('Day') && !hud.root.querySelector('.slh-heat'), 'day without heat: no heat meter');
 hud.handle('slHud', { show: false });
 assert.ok(hud.root.classList.contains('slh-gone'), 'hidden on foot, in the garage and so on');
 

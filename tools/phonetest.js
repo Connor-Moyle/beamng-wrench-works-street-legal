@@ -116,6 +116,9 @@ assert.ok(!$('.slp-device'), 'no phone without a career');
 phone.handle('slPhoneData', data);
 assert.ok($('.slp-device.slp-away'), 'the phone starts in the pocket');
 assert.ok($('.slp-pill') && text().includes('$3,500'), 'money shows in the corner');
+phone.handle('slPhoneData', Object.assign({}, data, { phase: 'night', heat: 2 }));
+assert.ok($('.slp-pill').textContent.includes('☾') && $('.slp-pill').textContent.includes('▲▲') && !$('.slp-pill').textContent.includes('▲▲▲'), 'D4: the corner shows night and two heat marks');
+phone.handle('slPhoneData', data);
 
 // K takes it out: home screen with the time, the day and badges
 phone.handle('slPhoneToggle');

@@ -42,7 +42,8 @@ local function snapshot()
     local r
     for _, x in ipairs(s.racers) do if x.id == c.racer then r = x end end
     challenges[#challenges + 1] = { id = c.id, racer = c.racer, name = r and roster.displayName(r) or '?', stake = c.stake, bet = c.bet,
-      raceName = c.raceName, nightOnly = c.nightOnly }
+      raceName = c.raceName, nightOnly = c.nightOnly,
+      preview = c.race and sl_races and sl_races.preview and sl_races.preview(c.race) or nil }       -- (the route as a small map: #18)
   end
   local placesOut = {}
   for id, p in pairs(sl_career.getPlaces() or {}) do placesOut[#placesOut + 1] = { id = id, name = p.name, kind = p.kind } end
@@ -54,6 +55,7 @@ local function snapshot()
     active = true,
     money = s.money, rep = s.rep, title = title, nextRep = nextRep, titleRep = titleRep,
     day = s.day, hour = math.floor(h), minute = math.floor((h % 1) * 60), night = progression.isNight(h),
+    heat = phaseLib.heatLevel(sl_police and sl_police.heat and sl_police.heat() or 0),
     phase = sl_career.phase and sl_career.phase() or nil, phaseSwitch = phaseLib.switchLabel(sl_career.phase and sl_career.phase() or nil),
     garage = (progression.garages[s.garageLevel] or {}).name,
     nextGarage = nextGarage and { name = nextGarage.garage.name, canMove = nextGarage.canMove, why = nextGarage.why } or nil,

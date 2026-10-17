@@ -20,6 +20,13 @@ function M.switchLabel(phase) return phase == 'night' and 'Start the day' or 'St
 function M.startHour(phase) return phase == 'night' and M.NIGHT.from or M.DAY.from end
 function M.endHour(phase) return phase == 'night' and M.NIGHT.to or M.DAY.to end
 
+-- heat as the player sees it, 0 (none) to 5: the police's attention (sl_police keeps it 0..1)
+function M.heatLevel(heat)
+  heat = tonumber(heat) or 0
+  if heat < 0.02 then return 0 end
+  return math.min(5, math.ceil(heat * 5))
+end
+
 -- is the clock inside the phase's running hours?
 local function running(phase, h)
   if phase == 'night' then return h >= M.NIGHT.from or h < M.NIGHT.to end

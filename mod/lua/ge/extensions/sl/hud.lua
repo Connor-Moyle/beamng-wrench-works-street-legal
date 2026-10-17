@@ -183,6 +183,7 @@ function M.onUpdate(dtReal)
   shown = true
   guihooks.trigger('slHud', {
     show = true, settings = M.getSettings(),
+    phase = sl_career and sl_career.phase and sl_career.phase() or nil, heat = require('sl/core/phase').heatLevel(sl_police and sl_police.heat and sl_police.heat() or 0),
     speed = car.speed or v:getVelocity():length(), rpm = car.rpm or 0, maxRpm = car.maxRpm or 0, gear = car.gear,
     x = pos.x, y = pos.y, heading = math.atan2(dir.x, dir.y),
     body = car.body, engine = car.engine, tyres = car.tyres,

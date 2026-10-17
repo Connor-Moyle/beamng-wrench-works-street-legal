@@ -1039,6 +1039,7 @@ do
   local sw2 = phase.switchPlan('night', {})
   check('Start the day: 07:00 and the day counter goes up', sw2.phase == 'day' and sw2.to == 7 and sw2.day == true)
   check('no switching in a race, on a job or with the police on you', phase.switchPlan('day', { racing = true }) == nil and phase.switchPlan('day', { job = true }) == nil and phase.switchPlan('night', { heat = 2 }) == nil)
+  check('D4: heat as a level 0 to 5', phase.heatLevel(0) == 0 and phase.heatLevel(0.01) == 0 and phase.heatLevel(0.05) == 1 and phase.heatLevel(0.5) == 3 and phase.heatLevel(1) == 5 and phase.heatLevel(9) == 5 and phase.heatLevel(nil) == 0)
   check('the buttons say what they do', phase.switchLabel('day') == 'Start the night' and phase.switchLabel('night') == 'Start the day')
   check('the clock speed: slow is 2.5 real minutes an hour, a bad value is slow', phase.dayLength('slow') == 3600 and phase.dayLength('normal') == 1800 and phase.dayLength('fast') == 900 and phase.dayLength('zzz') == 3600 and phase.dayLength(nil) == 3600)
   local migrated = state.migrate({ seed = 3, hour = 22.5 })
