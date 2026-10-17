@@ -497,6 +497,13 @@ local function loadPlaces()
   end
 end
 
+-- the tier of a lot (high / mid / low / junk) and its label, for the cab filter and the big-map card; nil for a place that is not a lot
+function M.placeTier(placeId)
+  local p = M.getPlaces()[placeId]
+  if p and sl_lot and sl_lot.tier then return sl_lot.tier(p) end
+  return nil
+end
+
 function M.getPlaces()
   -- the stock facilities were not there yet at the first load: ask again, every 3 s, a few times
   if not places or ((stockState.retry or (lanesPending and (stockState.tries or 0) < stockLib.MAX_TRIES)) and os.clock() - stockTriedAt > 3) then loadPlaces() end

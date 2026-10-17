@@ -208,4 +208,28 @@ return function(check, rngLib)
   check('report: a repaired car shows no open faults and costs less to finish', #fixed.faults == 0 and fixed.total < rp.total and fixed.condition > rp.condition)
   local mint = CR.build({ name = 'Mint', value = 9000, condition = 0.97, damage = 0, mileage = 20, faults = {} })
   check('report: a mint car has nothing to repair', mint.total == 0 and mint.damage.label == 'None' and mint.label == 'Excellent')
+
+  -- #22 tiers and #20 fast travel
+  local TI = require('sl/core/tiers')
+  check('tier: median of odd and even lists, nil for none', TI.median({ 5, 1, 3 }) == 3 and TI.median({ 1, 2, 3, 10 }) == 2.5 and TI.median({}) == nil)
+  local t1 = TI.forPool({ 60000, 40000, 20000 }, 'dealer')
+  local t2 = TI.forPool({ 30000, 20000, 10000 }, 'dealer')
+  local t3 = TI.forPool({ 30000, 20000, 10000 }, 'used')
+  local t4 = TI.forPool({ 9000, 12000, 15000 }, 'used')
+  local t5 = TI.forPool({ 30000, 20000, 10000 }, 'scrap')
+  check('tier: dealer pool 40000 is high-end, 20000 mid, the same cars at a used lot low-end (11000), a scrap yard junk', t1 == 'high' and t2 == 'mid' and t3 == 'low' and t4 == 'low' and t5 == 'junk' and TI.forPool({}, 'used') == nil)
+  local FT = require('sl/core/fasttravel')
+  check('travel: refused during a race, a chase, a cab ride or a job, free otherwise', FT.refusal({ racing = true }) ~= nil and FT.refusal({ chase = true }) ~= nil and FT.refusal({ cab = true }) ~= nil
+    and FT.refusal({ job = true }) ~= nil and FT.refusal({}) == nil and FT.refusal(nil) == nil)
+  local lotPlace = { id = 'jeff', kind = 'dealer', name = 'Jefferson Motors', pos = { x = 1, y = 2, z = 3 }, at = { x = 10, y = 20, z = 3 }, dir = { x = 0, y = -1 } }
+  local a = FT.arrival(lotPlace)
+  check('travel: a lot arrives at its car park (the cab drop-off), facing its cars; a place without one at its own spot', a.x == 10 and a.y == 20 and a.dy == -1
+    and FT.arrival({ kind = 'garage', pos = { x = 5, y = 6, z = 0 }, dir = { x = 1, y = 0 } }).dx == 1 and FT.arrival({}) == nil)
+  local places = { slrrGarage1 = { id = 'slrrGarage1', kind = 'garage', name = 'Club Garage 1', pos = { x = 1, y = 1, z = 0 }, dir = { x = 0, y = 1 } },
+    slrrGarage2 = { id = 'slrrGarage2', kind = 'garage', name = 'Club Garage 2', pos = { x = 9, y = 9, z = 0 }, dir = { x = 0, y = 1 } }, jeff = lotPlace }
+  local ex = FT.extras(places, { { id = 'torres', name = 'Torres Tires', trade = 'Wheels', pos = { x = 7, y = 8, z = 9 } }, { id = 'nopos' } }, { rep = 100, garageLevel = 1 })
+  check('travel: garages and shops get an entry, lots do not; shops need a position', #ex == 3 and ex[1].kind == 'garage' and ex[3].kind == 'shop' and ex[3].placeId == 'torres' and ex[3].arrive.x == 7)
+  check('travel: your garage is open, the next one locked with the reputation it needs; a shop is never locked', not ex[1].locked and ex[2].locked and ex[2].why:find('1500') ~= nil and ex[2].what:find('1500') ~= nil and not ex[3].locked)
+  local up = FT.extras(places, {}, { rep = 2000, garageLevel = 2 })
+  check('travel: after moving up, the garage opens', not up[2].locked)
 end

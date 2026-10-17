@@ -14,6 +14,7 @@ local builder = require('sl/carBuilder')
 local hours = require('sl/core/hours')
 local splitphase = require('sl/core/splitphase')
 local carreport = require('sl/core/carreport')
+local tiers = require('sl/core/tiers')
 local stockLib = require('sl/core/stockdealers')
 local lotcam = require('sl/core/lotcam')
 local lotbuild = require('sl/core/lotbuild')
@@ -342,6 +343,32 @@ end
 ----------------------------------------------------------------------------------------------
 -- opening and closing
 
+-- the cars a lot can offer: every car for sale, or a stock dealer's by its filter
+function M.poolOf(place, given)
+  local stock = place.stock
+  local pool = builder.forSale()
+  if stock and not given then
+    if extensions and extensions.load then pcall(extensions.load, 'util_configListGenerator') end      -- (only its filter test; no career module)
+    pool = stockLib.pool(pool, stock.filter, util_configListGenerator and function(c, f) return util_configListGenerator.doesVehiclePassFilter(c.raw, f) end)
+  end
+  return pool
+end
+
+-- the tier of a lot (#22): id ('high' | 'mid' | 'low' | 'junk'), label, from the median price of its pool; nil for a place that is not a lot
+-- or while its pool is not there yet (not kept then). Kept per place: the pool does not change in a session.
+local tierOfPlace = {}
+function M.tier(place)
+  if type(place) ~= 'table' or not (place.stock or KIND[place.kind]) then return nil end
+  local hit = tierOfPlace[place.id]
+  if hit then return hit[1], hit[2] end
+  local kind = place.stock and place.stock.kind or KIND[place.kind] or 'used'
+  local values = {}
+  for _, c in ipairs(M.poolOf(place) or {}) do values[#values + 1] = c.value end
+  local id, label = tiers.forPool(values, kind)
+  if id then tierOfPlace[place.id] = { id, label } end
+  return id, label
+end
+
 -- what stands on a lot today (the lot and the laptop's Dealers list the same cars): its offers, in order, and their kind.
 -- `given`: a private seller's own offers. An offer already bought (at the lot or on the laptop) is not offered again.
 function M.offersFor(place, s, given)
@@ -351,11 +378,7 @@ function M.offersFor(place, s, given)
   local count = rngLib.new(rngLib.hash(place.id .. ':' .. s.day .. ':' .. s.seed)):int(M.MIN_CARS, M.MAX_CARS)
   if stock and place.displays then count = math.min(math.max(count, 4), #place.displays) end      -- (a stock dealer's cars stand on its parking spots and the slots beside them (sl/core/stockdealers): 4 to 6 where there is room)
   local offers = given or {}
-  local pool = builder.forSale()
-  if stock and not given then
-    if extensions and extensions.load then pcall(extensions.load, 'util_configListGenerator') end      -- (only its filter test; no career module)
-    pool = stockLib.pool(pool, stock.filter, util_configListGenerator and function(c, f) return util_configListGenerator.doesVehiclePassFilter(c.raw, f) end)
-  end
+  local pool = M.poolOf(place, given)
   for _, o in ipairs(given and {} or market.offers(pool, kind, stock and (s.seed .. ':' .. place.id) or s.seed, s.day, count + 4)) do
     if stock then o.id = place.id .. ':' .. o.id end      -- (an offer is bought once: a stock dealer's ids are its own)
     if not (s.bought or {})[o.id] and #offers < count then offers[#offers + 1] = o end

@@ -9,6 +9,7 @@
 local M = {}
 
 local pois = require('sl/core/pois')
+local fasttravel = require('sl/core/fasttravel')
 
 local ICON = 'mission_arrival_triangle'
 
@@ -19,6 +20,28 @@ local function stockFacility(id, level)
   if not (id and freeroam_facilities and freeroam_facilities.getFacilitiesByType) then return nil end
   for _, f in ipairs(freeroam_facilities.getFacilitiesByType('dealership', level) or {}) do
     if f.id == id then return f end
+  end
+end
+
+-- Fast travel (#20): the big map's trip to a place, with our no-repair teleport (B67). Refused while a race, a job, a chase or a cab ride is on.
+local function busyContext()
+  local s = sl_career.getState()
+  local rs = sl_races and sl_races.getState and sl_races.getState()
+  local phase = type(rs) == 'table' and rs.phase or rs
+  return {
+    racing = (phase ~= nil and phase ~= 'idle') or (sl_streets and sl_streets.isRacing and sl_streets.isRacing() == true),
+    job = s ~= nil and s.jobs ~= nil and s.jobs.active ~= nil,
+    chase = sl_police ~= nil and sl_police.inPursuit ~= nil and sl_police.inPursuit() == true,
+    cab = sl_cab ~= nil and sl_cab.busy ~= nil and sl_cab.busy() == true,
+  }
+end
+
+-- the game's own bigmap marker field: where the car is put, and facing which way
+local function travelFunction(a)
+  return function()
+    local why = fasttravel.refusal(busyContext())
+    if why then guihooks.trigger('slPhoneToast', { text = why }) return nil, nil end
+    return vec3(a.x, a.y, a.z + 0.4), quatFromDir(vec3(a.dx or 0, a.dy or 1, 0), vec3(0, 0, 1))
   end
 end
 
@@ -45,7 +68,31 @@ function M.onGetRawPoiListForLevel(level, elements)
         },
       }
     end
+    -- the big map's card: kind and tier, and the trip there (to the lot's car park)
+    local bm = el.markerInfo and el.markerInfo.bigmapMarker
+    if bm then
+      local _, tierLabel = sl_career.placeTier(r.placeId)
+      bm.description = fasttravel.lotDescription(r.what, tierLabel)
+      local place = sl_career.getPlaces()[r.placeId]
+      local a = place and fasttravel.arrival(place)
+      if a then bm.quickTravelPosRotFunction = travelFunction(a) end
+    end
     elements[#elements + 1] = el
+  end
+  -- the garages and the Wrench Works shops: on the big map only (their own markers stand at their doors); a locked garage greyed, with what it needs
+  local sites = pcall(require, 'slrr/garageSites') and require('slrr/garageSites') or nil
+  local state = sl_career.getState()
+  for _, r in ipairs(fasttravel.extras(sl_career.getPlaces(), sites and sites.getShops and sites.getShops() or {}, state)) do
+    local pos = vec3(r.pos.x, r.pos.y, r.pos.z)
+    elements[#elements + 1] = {
+      id = r.poiId, data = { type = 'other', name = r.name }, clusterType = 'missionMarker', clusterInBigMap = true, clusterInPlayMode = false,
+      interactableInPlayMode = false, quickTravelAvailable = false,
+      markerInfo = {
+        missionMarker = { pos = pos, rot = quat(0, 0, 0, 1), icon = ICON },
+        bigmapMarker = { pos = pos, icon = ICON, cardIcon = r.cardIcon, name = r.locked and (r.name .. ' (locked)') or r.name, description = r.what,
+          quickTravelPosRotFunction = (not r.locked) and travelFunction(r.arrive) or nil },
+      },
+    }
   end
 end
 
@@ -122,6 +169,7 @@ M.onStreetLegalStopped = function() refresh() removeTeleport() end
 M.onBigMapActivated = installTeleport            -- (the big map is opening: ours is in place, also after the game reloaded its module)
 M.onExtensionUnloaded = removeTeleport
 M.onStreetLegalPlacesChanged = refresh
+M.onStreetLegalGarageMoved = refresh       -- (the garages above your level are locked, then not)
 M.onStreetLegalPhase = refresh            -- (the day events come back in the morning, go at night)
 
 return M
