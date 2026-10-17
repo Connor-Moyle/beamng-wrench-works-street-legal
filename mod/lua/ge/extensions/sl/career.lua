@@ -18,6 +18,7 @@ local rngLib = require('sl/core/rng')
 local stockLib = require('sl/core/stockdealers')
 local phaseLib = require('sl/core/phase')
 local heatLib = require('sl/core/heat')
+local strings = require('sl/core/strings')
 
 local logTag = 'street_legal'
 M.MAPS = progression.MAPS         -- the maps a career is played on (W1)
@@ -700,7 +701,12 @@ end
 -- `level`: one of MAPS) or a saved one (n, or the one played last; its map is in the save)
 local stop                                 -- (defined below)
 
+-- BeamMP: the career is single-player (sl/core/multiplayer)
+local mpLib = require('sl/core/multiplayer')
+function M.inMultiplayer() return mpLib.inSession(rawget(_G, 'MPCoreNetwork'), rawget(_G, 'MPGameNetwork')) end
+
 function M.start(fresh, n, level)
+  if M.inMultiplayer() then tell(mpLib.NOTE, 9) return false end
   if active then stop() end              -- (B26: the career being played is saved and stopped first, so nothing of it carries over)
   local m = slotsMeta()
   n = tonumber(n)
@@ -1300,7 +1306,7 @@ local function updateClock()
     if not clockHeld then
       clockHeld = true
       setHour(phaseLib.fit(s.phase, h))
-      tell(s.phase == 'night' and 'The night is over. Start the day at a garage or in the Wait app.' or 'The day is over. Start the night at a garage or in the Wait app.', 8)
+      tell(strings.t(s.phase == 'night' and 'phase.nightOver' or 'phase.dayOver'), 8)
       extensions.hook('onStreetLegalPhaseEnded', s.phase)
     end
   else
@@ -1313,7 +1319,16 @@ end
 -- game hooks
 
 local skyTimer = 0
+local mpTimer = 0
 local function onUpdate(dtReal)
+  mpTimer = mpTimer + dtReal
+  if mpTimer > 3 then
+    mpTimer = 0
+    if M.inMultiplayer() then
+      if pending == 'start' then pending = nil tell(mpLib.NOTE, 9) end
+      if active then stop() tell(mpLib.NOTE, 9) end                 -- (joined a server with a career running: saved and stopped)
+    end
+  end
   if pending == 'start' and getCurrentLevelIdentifier and getCurrentLevelIdentifier() == M.LEVEL and worldReadyState == 2 then
     begin()
   end
@@ -1439,7 +1454,7 @@ function M.switchPhase()
   end
   changed()
   extensions.hook('onStreetLegalPhase', s.phase, s.day)
-  return true, plan.day and string.format('A new day: day %d.', s.day) or 'The night begins.'
+  return true, plan.day and strings.t('phase.newDay', s.day) or strings.t('phase.nightBegins')
 end
 
 function M.skipTime(what)
@@ -1466,8 +1481,8 @@ function M.skipTime(what)
     setHour(plan.to)
   end
   changed()
-  local text = string.format('You wait until %02d:%02d.', math.floor(plan.to), math.floor((plan.to % 1) * 60))
-  if plan.ends then text = text .. (s.phase == 'night' and ' The night is over.' or ' The day is over.') end
+  local text = strings.t('wait.until', string.format('%02d:%02d', math.floor(plan.to), math.floor((plan.to % 1) * 60)))
+  if plan.ends then text = text .. strings.t(s.phase == 'night' and 'wait.nightEnds' or 'wait.dayEnds') end
   return true, text
 end
 

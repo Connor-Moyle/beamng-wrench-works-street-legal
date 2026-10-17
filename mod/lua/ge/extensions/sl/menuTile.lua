@@ -38,6 +38,9 @@ function M.onGameplaySelectorGetDetails(itemDetails, details, buttonInstance, ba
     { icon = 'flag', label = 'Maps', value = table.concat(names, ', ') },
     { icon = 'personSolid', label = 'Career', value = summary or 'No career yet' },
   }
+  if sl_career and sl_career.inMultiplayer and sl_career.inMultiplayer() then
+    specs[#specs + 1] = { icon = 'info', label = 'Multiplayer', value = 'The career is single-player: leave the BeamMP server to play it' }
+  end
   local buttons = {}
   local function start(fresh, n, level)
     return function()
@@ -46,7 +49,7 @@ function M.onGameplaySelectorGetDetails(itemDetails, details, buttonInstance, ba
       sl_career.start(fresh, n, level)
     end
   end
-  if installed and sl_career then
+  if installed and sl_career and not (sl_career.inMultiplayer and sl_career.inMultiplayer()) then
     if summary then
       buttons[#buttons + 1] = buttonInstance.addButton(start(false), { label = 'Continue', icon = 'clapperboard', primary = true, isDoubleClickAction = true, waitForLoadingScreen = true })
     end
@@ -103,7 +106,7 @@ function M.request() send(true) end
 M.onUiReady = function() send(true) end
 
 function M.startFromMenu(fresh, n, level)
-  if not sl_career or not levelInstalled() then return end
+  if not sl_career or not levelInstalled() or (sl_career.inMultiplayer and sl_career.inMultiplayer()) then return end
   guihooks.trigger('slMenu', { show = false })
   shown = false
   sl_career.start(fresh == true, n, level)

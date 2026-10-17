@@ -49,6 +49,16 @@ The phone (K) has Races, My cars, Bank, Street cred, Jobs, Wait, Settings, Club,
 
 The phone's **Settings** app: police and how hard they are, pay, hardcore mode (no pull-outs, no insurance, no free cab), the clock's speed, traffic in street races, the laptop wallpaper, the **SLRR dashboard** (off: BeamNG's own HUD is used), a **performance overlay** for reporting stutters and **Record street races** (watch a race again from the Races app and keep a clip).
 
+## Multiplayer (BeamMP)
+
+The career is single-player: it spawns and removes cars, moves you around and keeps its own clock, none of which fits a shared server. With BeamMP installed nothing in the mod errors, and:
+
+- the main menu tile says the career is single-player while you are in a BeamMP session, and its start buttons are not offered; `sl_career.start` refuses with the same note;
+- if you join a server while a career is running, the career is saved and stopped (a note says so); it waits for you where you left it;
+- everything else the mod adds (the markers, the phone, the ambience, the weather, the drag strip, the rally stages) only runs inside a career, so on a server it is idle.
+
+Detection is BeamMP's own: `MPCoreNetwork.isMPSession()` or `MPGameNetwork.connectionStatus() == 1`. Wrench Works (the garage and the shops) and SLRR Drivers are separate mods; the garage respawns your car and is best left alone on a server.
+
 ## Also in the repository
 
 The career can also run on the Wrench Works: Valo City map (`slrr_valo_city`); that map is on hold and not part of this release. The SLRR dashboard's own art (dials and icons) is not shipped; see `tools/slrr_ui.py`. `docs/integration.md` has the contract with the map and Wrench Works.

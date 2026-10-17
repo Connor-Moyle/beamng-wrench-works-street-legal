@@ -418,4 +418,10 @@ return function(check, rngLib)
   check('rally progress: the nearest point only a little ahead of where it was (a loop does not jump)', at >= 19 and at <= 22 and dist < 6 and at2 == 6)
   check('rally class and prize: 300 PS and 900 kg, the prize best at par, the least at 1.35 x par, none for no time', RL.classOk({ power = 250, weight = 1300 }) and not RL.classOk({ power = 400, weight = 1300 }) and not RL.classOk({ power = 200, weight = 700 })
     and not RL.classOk(nil) and RL.prize(100, 90) == 600 and RL.prize(100, 135) == 100 and RL.prize(100, 200) == 100 and RL.prize(100, 117.5) == 350 and RL.prize(100, nil) == 0 and math.abs(RL.parTime(800) - 40) < 1e-9)
+
+  -- #52: BeamMP awareness
+  local MPL = require('sl/core/multiplayer')
+  check('multiplayer: no network tables, a client that is not in a session, a session either way, and broken tables never raise', not MPL.inSession(nil, nil) and not MPL.inSession({ isMPSession = function() return false end }, { connectionStatus = function() return 0 end })
+    and MPL.inSession({ isMPSession = function() return true end }, nil) and MPL.inSession(nil, { connectionStatus = function() return 1 end }) and not MPL.inSession({ isMPSession = function() error('boom') end }, nil)
+    and not MPL.inSession({ isMPSession = 'x' }, 5) and MPL.NOTE:find('single%-player') ~= nil)
 end
