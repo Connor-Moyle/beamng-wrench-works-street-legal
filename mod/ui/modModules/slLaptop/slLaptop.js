@@ -126,6 +126,7 @@
     partShop: ['#c2412d', '<path d="M7 11h6l4 19h19l4-14H14"/><circle cx="19" cy="37" r="2.500"/><circle cx="33" cy="37" r="2.500"/>'],
     tuning: ['#4a8a2f', '<path d="M10 14h28M10 24h28M10 34h28"/><circle cx="18" cy="14" r="3.500" fill="#4a8a2f"/><circle cx="31" cy="24" r="3.500" fill="#4a8a2f"/><circle cx="22" cy="34" r="3.500" fill="#4a8a2f"/>'],
     painting: ['#b04a8f', '<rect x="9" y="9" width="26" height="10" rx="2"/><path d="M35 14h4v11H22v6"/><rect x="19" y="31" width="6" height="9" rx="1"/>'],
+    phaseSwitch: ['#3b4a78', '<path d="M30 8a16 16 0 1 0 10 28A13 13 0 0 1 30 8z"/>'],
     partsMarket: ['#a3322c', '<path d="M8 21h32l-3 17H11z"/><path d="M16 21l6-11M32 21l-6-11"/><path d="M19 28v6M24 28v6M29 28v6"/>'],
     repair: ['#5a6a7a', '<path d="M34 10a8 8 0 0 0-8 10L10 36a3.500 3.500 0 0 0 5 5l16-16a8 8 0 0 0 10-8l-5 5-4-1-1-4z"/>'],
   };
@@ -394,9 +395,10 @@
       return out;
     }
 
+    function tileLabel(t) { return t.id === 'phaseSwitch' && st.data.phaseSwitch ? st.data.phaseSwitch : t.label; }
     function iconsHtml() {
       return '<div class="sll-icons">' + allTiles().map(function (t) {
-        return '<div class="sll-icon' + (t.enabled ? '' : ' sll-off') + (st.sel === t.id ? ' sll-sel' : '') + '" data-a="tile" data-v="' + esc(t.id) + '">' + icon(t.id) + '<span>' + esc(t.label) + '</span></div>';
+        return '<div class="sll-icon' + (t.enabled ? '' : ' sll-off') + (st.sel === t.id ? ' sll-sel' : '') + '" data-a="tile" data-v="' + esc(t.id) + '">' + icon(t.id) + '<span>' + esc(tileLabel(t)) + '</span></div>';
       }).join('') + '</div>';
     }
 
@@ -434,7 +436,7 @@
       var groups = groupsFor(arr(d.fleet)[st.car]);
       return '<div class="sll-menu"><div class="sll-user">' + (d.active ? esc(d.title || '') + ' &middot; ' + (d.rep || 0) + ' reputation' : 'Street Legal') + '</div><div class="sll-mlist">' + groups.map(function (g) {
         return '<div class="sll-band">' + esc(g.title) + '</div>' + g.tiles.map(function (t) {
-          return '<div class="sll-mi' + (t.enabled ? '' : ' sll-off') + '" data-a="tile" data-v="' + esc(t.id) + '">' + icon(t.id, 24) + '<span>' + esc(t.label) + '</span></div>';
+          return '<div class="sll-mi' + (t.enabled ? '' : ' sll-off') + '" data-a="tile" data-v="' + esc(t.id) + '">' + icon(t.id, 24) + '<span>' + esc(tileLabel(t)) + '</span></div>';
         }).join('');
       }).join('') + '</div><div class="sll-mfoot"><div class="sll-btn sll-tonal" data-a="close">Shut down</div></div></div>';
     }
@@ -548,6 +550,8 @@
             if (t.page === 'dealers') lua('@sl_dealers.list()');
             lua('@sl_phone.request()');
             render();
+          } else if (t.run === 'phase') {
+            lua('@sl_phone.wait("switch")');
           } else if (t.mode) {
             // the garage tiles: the Wrench Works garage opens on the chosen car (the game closes this screen when it has)
             var car = arr(st.data.fleet)[st.car];

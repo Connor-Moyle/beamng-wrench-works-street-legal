@@ -6,6 +6,7 @@
 local M = {}
 
 local progression = require('sl/core/progression')
+local phaseLib = require('sl/core/phase')
 local roster = require('sl/core/roster')
 local rngLib = require('sl/core/rng')
 
@@ -53,6 +54,7 @@ local function snapshot()
     active = true,
     money = s.money, rep = s.rep, title = title, nextRep = nextRep, titleRep = titleRep,
     day = s.day, hour = math.floor(h), minute = math.floor((h % 1) * 60), night = progression.isNight(h),
+    phase = sl_career.phase and sl_career.phase() or nil, phaseSwitch = phaseLib.switchLabel(sl_career.phase and sl_career.phase() or nil),
     garage = (progression.garages[s.garageLevel] or {}).name,
     nextGarage = nextGarage and { name = nextGarage.garage.name, canMove = nextGarage.canMove, why = nextGarage.why } or nil,
     roc = progression.rocOpen(s) and sl_career.has('roc'), hasRoc = sl_career.has('roc'), mapName = sl_career.mapName(),

@@ -125,10 +125,10 @@ assert.ok(text().includes('21:05') && text().includes('Day 2'), 'clock and day o
 assert.ok(text().includes('Wait'), 'the Wait app is on the home screen');
 calls.length = 0;
 phone.act('open', 'wait');
-assert.ok(text().includes('Until the next morning') && text().includes('Six hours'), 'the Wait page offers the morning and a few hours');
-click('wait', 'morning');
+assert.ok(text().includes('Start the night') && text().includes('Six hours') && !text().includes('next morning'), 'the Wait page offers to start the night and a few hours');
+click('wait', 'switch');
 click('wait', '3');
-assert.ok(calls.includes('wait("morning")') && calls.includes('wait("3")'), 'the buttons ask for the wait');
+assert.ok(calls.includes('wait("switch")') && calls.includes('wait("3")'), 'the buttons ask for the wait');
 click('back');
 const homeApps = () => ['Club', 'Turf', 'Car market', 'Part market'].filter((n) => text().includes(n));
 assert.ok(homeApps().length === 4, 'Valo City (no "has" sent): every app is on the home screen');

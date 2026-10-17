@@ -16,6 +16,7 @@ local stateLib = require('sl/core/state')
 local roster = require('sl/core/roster')
 local rngLib = require('sl/core/rng')
 local stockLib = require('sl/core/stockdealers')
+local phaseLib = require('sl/core/phase')
 
 local logTag = 'street_legal'
 M.MAPS = progression.MAPS         -- the maps a career is played on (W1)
@@ -66,19 +67,25 @@ local function hour()
   return (tod.time * 24 + 12) % 24
 end
 
+-- (D1) the clock runs inside the phase and stands still when the phase has run out (the phase's end hour), at the speed of the Clock setting
+local function clockRuns(h) return not (s and s.phase and phaseLib.ended(s.phase, h)) end
 local function setHour(h)
   local tod = core_environment and core_environment.getTimeOfDay and core_environment.getTimeOfDay()
   if type(tod) ~= 'table' then return end
+  local run = clockRuns(h)
+  local length = phaseLib.dayLength(sl_options and sl_options.get and sl_options.get('slClock'))
   tod.time = ((h - 12) % 24) / 24
-  tod.play = true                 -- the clock runs: races are at night
+  tod.play = run
+  tod.dayLength = length
   core_environment.setTimeOfDay(tod)
   -- the setter leaves "play" off on this level (seen in game: the clock stood at 20:30 all night),
   -- so start it on the TimeOfDay object itself
   local names = scenetree.findClassObjects and scenetree.findClassObjects('TimeOfDay') or {}
   local obj = names[1] and scenetree.findObject(names[1])
   if obj then
-    obj:setField('play', 0, '1')
-    obj:setField('animate', 0, '1')
+    obj:setField('play', 0, run and '1' or '0')
+    obj:setField('animate', 0, run and '1' or '0')
+    obj:setField('dayLength', 0, tostring(length))
   end
 end
 
@@ -593,6 +600,9 @@ local function begin()
   else
     setHour(s.hour or progression.START_HOUR)
   end
+  -- (D1) an old save has no phase (state.migrate guesses it from the hour); the clock is put inside it
+  local fitted = phaseLib.fit(s.phase or 'day', hour())
+  setHour(fitted)
   lastHour = hour()
   -- Night set while the level is still loading leaves the picture all white (seen in game: only a
   -- big jump of the clock brings it back, setting the same hour again does not). So once the
@@ -1204,13 +1214,19 @@ local function pinkTipOff()
   end
 end
 
+-- (D1) the phase runs out: the clock stops at its end hour and stays there until the player switches (a new day starts only when the day is started)
+local clockHeld = false
 local function updateClock()
   local h = hour()
-  if lastHour and lastHour < 20 and h >= 20 then pinkTipOff() end
-  if lastHour and lastHour < 6 and h >= 6 then
-    s.day = s.day + 1
-    changed()
-    extensions.hook('onStreetLegalNewDay', s.day)
+  if s.phase and phaseLib.ended(s.phase, h) then
+    if not clockHeld then
+      clockHeld = true
+      setHour(phaseLib.fit(s.phase, h))
+      tell(s.phase == 'night' and 'The night is over. Start the day at a garage or in the Wait app.' or 'The day is over. Start the night at a garage or in the Wait app.', 8)
+      extensions.hook('onStreetLegalPhaseEnded', s.phase)
+    end
+  else
+    clockHeld = false
   end
   lastHour = h
 end
@@ -1258,22 +1274,73 @@ function M.devMoney()
   return true, 'Money: $99,999,999.'
 end
 
-function M.skipTime(what)
+local function busyState()
+  return { racing = sl_streets and sl_streets.isRacing and sl_streets.isRacing(), job = s.jobs and s.jobs.active ~= nil,
+    heat = sl_police and sl_police.heat and sl_police.heat() or 0 }
+end
+
+-- (D1) the phase API, for every module that depends on the time of the game:
+--   sl_career.phase() -> 'day' | 'night' (nil with no career)      the hook onStreetLegalPhase(phase, day) when it is switched
+--   onStreetLegalPhaseEnded(phase) when the clock has run out and stood still
+function M.phase() return s and (s.phase or 'day') or nil end
+
+-- "Start the night" / "Start the day" (a garage computer, the phone's Wait app): the phase turns over, the clock jumps to its first hour behind a
+-- short fade (the day counter goes up with a new day) and runs on. false and the reason when it cannot be done now.
+local switching = false
+function M.switchPhase()
   if not s then return false, 'No career running.' end
-  local why = progression.skipRefusal({ racing = sl_streets and sl_streets.isRacing and sl_streets.isRacing(), job = s.jobs and s.jobs.active ~= nil,
-    heat = sl_police and sl_police.heat and sl_police.heat() or 0 })
-  if why then return false, why end
-  local plan = progression.skipPlan(hour(), what)
-  if not plan then return false, 'Wait how long?' end
-  setHour(plan.to)
-  lastHour = plan.to                       -- (updateClock must not count this jump as a day change again)
-  for _ = 1, plan.days do
+  if switching then return false, 'One moment.' end
+  local plan, why = phaseLib.switchPlan(s.phase or 'day', busyState())
+  if not plan then return false, why end
+  s.phase = plan.phase
+  clockHeld = false
+  if plan.day then
     s.day = s.day + 1
     extensions.hook('onStreetLegalNewDay', s.day)
+  else
+    pinkTipOff()
+  end
+  local function jump()
+    setHour(plan.to)
+    lastHour = hour()
+    switching = false
+  end
+  if core_jobsystem and core_jobsystem.create and guihooks then
+    switching = true
+    guihooks.trigger('slFade', { on = true })
+    core_jobsystem.create(function(job)
+      job.sleep(0.6)
+      jump()
+      job.sleep(0.5)
+      guihooks.trigger('slFade', { on = false })
+    end)
+  else
+    jump()
   end
   changed()
-  return true, plan.days > 0 and string.format('You wait until %02d:%02d. A new day.', math.floor(plan.to), math.floor((plan.to % 1) * 60)) or string.format('You wait until %02d:%02d.', math.floor(plan.to), math.floor((plan.to % 1) * 60))
+  extensions.hook('onStreetLegalPhase', s.phase, s.day)
+  return true, plan.day and string.format('A new day: day %d.', s.day) or 'The night begins.'
 end
+
+function M.skipTime(what)
+  if not s then return false, 'No career running.' end
+  what = tostring(what)
+  if what == 'switch' then return M.switchPhase() end
+  local why = progression.skipRefusal(busyState())
+  if why then return false, why end
+  local plan, reason = phaseLib.waitPlan(s.phase or 'day', hour(), what)
+  if not plan then return false, reason end
+  setHour(plan.to)
+  lastHour = plan.to
+  clockHeld = plan.ends or false
+  changed()
+  local text = string.format('You wait until %02d:%02d.', math.floor(plan.to), math.floor((plan.to % 1) * 60))
+  if plan.ends then text = text .. (s.phase == 'night' and ' The night is over.' or ' The day is over.') end
+  return true, text
+end
+
+-- the Clock setting changed: the clock runs at the new speed at once
+M.onStreetLegalOption = function(key) if s and key == 'slClock' then setHour(hour()) end end
 M.racesList = races
 M.markRead = function(thread) if s then stateLib.markRead(s, thread) changed() end end
 M.logMessage = function(thread, text) if s then stateLib.addMessage(s, thread, 'me', text, now()) changed() end end

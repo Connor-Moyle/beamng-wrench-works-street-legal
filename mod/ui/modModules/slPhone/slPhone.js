@@ -779,10 +779,11 @@
 
     // waiting: to the next morning or a few hours on (the clock, deliveries and shop hours follow); refused in a race, on a job or with the police after you
     function waitPage() {
-      var h = [['morning', 'Until the next morning'], ['1', 'One hour'], ['3', 'Three hours'], ['6', 'Six hours']].map(function (x) {
-        return '<div class="slp-btn' + (x[0] === 'morning' ? '' : ' slp-tonal') + '" data-a="wait" data-v="' + x[0] + '">' + x[1] + '</div>';
+      var h = [['switch', st.data.phaseSwitch || 'Start the night'], ['1', 'One hour'], ['3', 'Three hours'], ['6', 'Six hours']].map(function (x) {
+        return '<div class="slp-btn' + (x[0] === 'switch' ? '' : ' slp-tonal') + '" data-a="wait" data-v="' + x[0] + '">' + x[1] + '</div>';
       }).join('');
-      return bar('Wait') + '<div class="slp-body"><div class="slp-card"><h4>It is ' + two(st.data.hour || 0) + ':' + two(st.data.minute || 0) + '</h4><p>Skip ahead. Not in a race, on a job or with the police after you.</p>' +
+      return bar('Wait') + '<div class="slp-body"><div class="slp-card"><h4>' + (st.data.phase === 'night' ? 'Night' : 'Day') + ' ' + (st.data.day || 1) + ', ' + two(st.data.hour || 0) + ':' + two(st.data.minute || 0) + '</h4>' +
+        '<p>The clock stops at the end of the ' + (st.data.phase === 'night' ? 'night (04:00)' : 'day (19:00)') + '. Waiting never goes past it; ' + esc(st.data.phaseSwitch || 'Start the night').toLowerCase() + ' to go on. Not in a race, on a job or with the police after you.</p>' +
         '<div class="slp-acts">' + h + '</div></div></div>';
     }
 

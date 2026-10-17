@@ -66,6 +66,7 @@ local function garageOf(pos) return pos and slrr_garage and slrr_garage.garageAt
 -- the tiles for a car (carHere is per car), and for the no-car case; byCar is keyed by the car's id
 local function buildViews(s)
   local base = { busy = (s.jobs and s.jobs.active ~= nil) or (sl_streets and sl_streets.isRacing and sl_streets.isRacing()) or false,
+    phase = sl_career.phase and sl_career.phase() or nil,
     has = { clubs = sl_career.has('clubs'), crews = sl_career.has('crews'), classifieds = sl_career.has('classifieds') } }
   local function state(extra) local t = {} for k, v in pairs(base) do t[k] = v end for k, v in pairs(extra) do t[k] = v end return t end
   local computerGarage = garageOf(at.pos)

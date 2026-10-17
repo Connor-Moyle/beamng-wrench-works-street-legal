@@ -26,6 +26,7 @@ function M.carHere(computerGarage, carGarage) return computerGarage ~= nil and c
 
 -- functions: the facility's table; state = { hasCar, busy (a race or a job), has = capabilities, carHere (the chosen car stands in this garage) };
 -- defs: the tile list (the default one, replaceable for tests)
+local phase = require('sl/core/phase')
 function M.build(functions, state, defs)
   functions, state = functions or {}, state or {}
   local has = state.has or {}
@@ -45,6 +46,12 @@ function M.build(functions, state, defs)
       local list = onCar and car or general
       list[#list + 1] = tile
     end
+  end
+  -- (D1) a garage computer starts the night or the day
+  if lists and state.phase then
+    local tile = { id = 'phaseSwitch', label = phase.switchLabel(state.phase), run = 'phase', enabled = true }
+    if state.busy then tile.enabled, tile.reason = false, 'Not during a race or a job.' end
+    general[#general + 1] = tile
   end
   local groups = {}
   if #car > 0 then groups[#groups + 1] = { id = 'car', title = 'Vehicle management', tiles = car } end
