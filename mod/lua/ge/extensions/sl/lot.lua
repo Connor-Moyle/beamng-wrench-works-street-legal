@@ -1052,6 +1052,15 @@ function M.onActivityAcceptGatherData(elemData, activityData)
       local onFoot = not v or v:getJBeamFilename() == 'unicycle'
       local tod = core_environment and core_environment.getTimeOfDay and core_environment.getTimeOfDay()
       local closed = splitphase.closedText('places', place.kind, sl_career.phase(), hours.opensAt(place.kind)) or (type(tod) == 'table' and tod.time and hours.closedText(place.kind, tod.time))      -- 'Closed. Opens at 09:00'
+      if place.kind == 'junkyard' and not closed and sl_carauctions and sl_carauctions.yardOpen and sl_carauctions.yardOpen() then      -- the weekly car auction at the yard (sl_carauctions)
+        table.insert(activityData, {
+          icon = 'poi_arrival_round', heading = place.name, preheadings = { HEADINGS[kind] },
+          sorting = { type = 'slrrPlace', id = place.id },
+          buttonLabel = strings.t('carauction.join_the_auction'),
+          buttonFun = function() pcall(function() sl_carauctions.join() end) end,
+          buttonSoundClass = 'bng_hover_generic',
+        })
+      end
       for _, mode in ipairs(lotprompt.modes(kind, onFoot, sl_fleet.currentCar() ~= nil)) do      -- (a lot that shows cars always lets a driver look: Connor drove to Jefferson Motors and had nothing to press, T33)
         local selling = mode == 'sell'
         table.insert(activityData, {

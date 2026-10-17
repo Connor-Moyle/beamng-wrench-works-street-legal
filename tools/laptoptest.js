@@ -276,6 +276,10 @@ assert.ok(calls.includes('@sl_carauctions.sell(7,1600)'), 'Sell at auction sends
 click('report', 'auction:a1');
 assert.ok($('.sll-repmodal') && $('.sll-repmodal').textContent.includes('Brakes'), 'a lot opens the same full car report');
 click('reportclose');
+laptop.handle('slAuctions', { money: 5000, lots: [], mine: [], sellable: [], live: { index: 2, total: 6, waiting: false, lot: { id: 'y12_2', name: 'Live Hopper', grade: 'B', condition: 75, faults: [], bid: 1200, next: 1260, high: 'ai', reserveMet: true, live: true, secondsLeft: 40, delivery: 0 } } });
+assert.ok(text().includes('Live at the yard: lot 2 of 6') && text().includes('Live Hopper') && text().includes('Going in 40 s'), 'the live lot of the yard auction shows with its seconds left');
+click('abid', 'y12_2|1260');
+assert.ok(calls.includes('@sl_carauctions.bid("y12_2",1260)'), 'a live lot is bid on the same way');
 click('mtab', 'dealers|dealers');
 assert.ok(calls.includes('@sl_carauctions.view(false)'), 'leaving the tab stops the live view');
 click('mtab', 'dealers|ads');

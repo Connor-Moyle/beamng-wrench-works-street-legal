@@ -360,7 +360,7 @@
       return '<div class="sll-card sll-listing">' + pic(l) + '<div class="sll-li"><h4>' + (l.year ? l.year + ' ' : '') + esc(l.name) + ' <b class="sll-grade">' + T('ui.auction_grade', 'Grade {1}', esc(l.grade)) + '</b></h4>' +
         '<div class="sll-props">' + facts(l) + '</div><div class="sll-props">' + T('ui.auction_condition', 'Condition {1}%', l.condition) + (faults.length ? ' &middot; ' + T('ui.needs_2', 'Needs: ') + esc(faults.join(', ')) : '') + '</div>' +
         '<p><b>' + money(l.bid) + '</b> &middot; ' + state + ' &middot; ' + (l.reserveMet ? T('ui.auction_reserve_met', 'Reserve met') : T('ui.auction_reserve_not_met', 'Reserve not met')) +
-        ' &middot; ' + T('ui.auction_closes_in', 'Closes in {1}', leftText(l.minutesLeft)) + (l.mine ? '' : ' &middot; ' + T('ui.auction_delivery', 'Delivery {1}', money(l.delivery))) + '</p>' +
+        ' &middot; ' + (l.live ? T('ui.auction_going_in', 'Going in {1} s', l.secondsLeft) : T('ui.auction_closes_in', 'Closes in {1}', leftText(l.minutesLeft))) + (l.mine ? '' : ' &middot; ' + T('ui.auction_delivery', 'Delivery {1}', money(l.delivery))) + '</p>' +
         reportBlock('auction:' + l.id, l.report) + acts + '</div></div>';
     }
     function auctionBody() {
@@ -371,7 +371,8 @@
         return '<div class="sll-card"><h4>' + esc(c.name) + ' <b class="sll-grade">' + T('ui.auction_grade', 'Grade {1}', esc(c.grade)) + '</b></h4><p>' + T('ui.auction_fair', 'Worth about {1}', money(c.fair)) + '</p><div class="sll-acts">' +
           [70, 80, 90].map(function (pc) { return '<div class="sll-btn sll-tonal" data-a="asell" data-v="' + esc(c.id) + '|' + Math.round(c.fair * pc / 100 / 10) * 10 + '">' + T('ui.auction_reserve_pct', 'Reserve {1}%', pc) + '</div>'; }).join('') + '</div></div>';
       }).join('');
-      return body((lots || ('<div class="sll-empty">' + T('ui.auction_none', 'No lots right now.') + '</div>')) +
+      var lv = a.live ? ('<h4>' + T('ui.auction_live', 'Live at the yard: lot {1} of {2}', a.live.index, a.live.total) + '</h4>' + (a.live.waiting ? '<div class="sll-empty">' + T('ui.auction_next_lot', 'The next lot is coming up.') + '</div>' : '') + auctionCard(a.live.lot)) : '';
+      return body(lv + (lots || ('<div class="sll-empty">' + T('ui.auction_none', 'No lots right now.') + '</div>')) +
         '<div class="sll-empty">' + T('ui.auction_hint', 'A car can hide a fault the report does not show. The reserve stays secret until it is met.') + '</div>' +
         (mine ? '<h4>' + T('ui.auction_your_lots', 'Your cars at auction') + '</h4>' + mine : '') +
         '<h4>' + T('ui.auction_sell_title', 'Sell one of your cars at auction') + '</h4>' + (sell || ('<div class="sll-empty">' + T('ui.auction_no_cars', 'No other car to put up.') + '</div>')));

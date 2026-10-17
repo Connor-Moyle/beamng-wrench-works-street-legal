@@ -2033,6 +2033,25 @@ do -- the car auction extension (sl_carauctions) against a mocked game: six lots
   local gone = true
   for _, c in ipairs(s.cars) do if c.id == 1 then gone = false end end
   check('the sale ends: sold (the car gone, money in) or back with a toast, never both', (gone and #s.auction.mine == 0 and s.money > before - 10 ^ 6) or (not gone and s.cars[1].atAuction == nil and #s.auction.mine == 0))
+  -- the weekly auction at the yard: open on every 7th day from 10 to 13, six live lots one after the other, over when the last has gone
+  s.day, hour = 14, 15
+  check('the yard auction is shut outside its hours', CAE.yardOpen() == false and CAE.join() == false)
+  s.day, hour = 12, 11
+  check('the yard auction is open on its day at 11:00', CAE.yardOpen() == true)
+  check('walking up joins it: six lots, the first one live', CAE.join() == true and CAE.list().live and CAE.list().live.total == 6 and CAE.list().live.lot.live == true)
+  local seenIndex = {}
+  local won = false
+  for second = 1, 900 do
+    local live = CAE.list().live
+    if live then
+      seenIndex[live.index] = true
+      if second % 7 == 0 and live.lot.high ~= 'you' and not live.waiting then CAE.bid(live.lot.id, live.lot.next) end
+    end
+    CAE.onUpdate(1)
+  end
+  local nSeen = 0
+  for _ in pairs(seenIndex) do nSeen = nSeen + 1 end
+  check('the live lots run in turn and the session ends after the last', nSeen >= 5 and CAE.list().live == nil and CAE.yardOpen() == false)
   for name, v in pairs(saved) do _G[name] = v[1] end
   for name, v in pairs(savedLoaded) do package.loaded[name] = v[1] end
   package.loaded['sl/carauctions'] = nil

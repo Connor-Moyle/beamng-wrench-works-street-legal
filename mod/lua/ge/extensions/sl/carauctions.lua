@@ -19,6 +19,7 @@ local LOTS = 6                 -- on the screen at once
 local HOURS = { 12, 40 }       -- a lot closes this many game hours after it opens
 local MAX_CATCHUP = 3000       -- lot-clock steps in one call (a long Wait)
 
+local yard, liveLot      -- the live yard session and its current lot (below)
 local function career() return sl_career and sl_career.isActive() and sl_career.getState() or nil end
 local function now(s) return dealerRules.clock(s.day, sl_career.hour()) end
 local function toast(text) guihooks.trigger('slPhoneToast', { text = text }) end
@@ -149,7 +150,8 @@ local function card(lot, t)
     mileage = o.mileage, grade = lot.grade, condition = math.floor(lot.condition * 100 + 0.5), faults = o.faults or {},
     report = carreport.build(o), bid = lot.bid, next = rules.nextMin(lot), high = lot.high == 'you' and 'you' or (lot.high and 'ai' or nil),
     reserveMet = rules.reserveMet(lot), bids = lot.bids, minutesLeft = math.ceil(left), watched = lot.watched or nil, mine = lot.mine or nil,
-    reserve = lot.mine and lot.reserve or nil, delivery = rules.delivery(math.max(lot.bid, lot.opening)) }
+    reserve = lot.mine and lot.reserve or nil, delivery = lot.live and 0 or rules.delivery(math.max(lot.bid, lot.opening)),
+    live = lot.live or nil, secondsLeft = lot.live and math.ceil(math.max(0, lot.closesAt - lot.t)) or nil }
 end
 
 local viewing = false      -- a screen shows the lots: the ticks push them (the lots move while you look)
@@ -164,11 +166,31 @@ function M.list()
   local out = { lots = {}, mine = {}, money = s.money, sellable = M.sellable() }
   for _, l in ipairs(m.lots) do out.lots[#out.lots + 1] = card(l, t) end
   for _, l in ipairs(m.mine) do out.mine[#out.mine + 1] = card(l, t) end
+  local y = liveLot()
+  if y then out.live = { index = yard.idx, total = #yard.lots, lot = card(y, t), waiting = not y.open or yard.gap > 0 } end
   guihooks.trigger('slAuctions', out)
   return out
 end
 
-local function find(m, id) for _, l in ipairs(m.lots) do if l.id == id then return l end end end
+-- ---- the weekly auction at the junkyard: six lots one after the other, each open for rules.DURATION real seconds
+local YARD = { weekday = 5, from = 10, to = 13, lots = 6, gap = 4 }      -- every 7th day, 10:00-13:00
+-- (yard: the session { day, lots, idx, gap, rng, pushT })
+
+function M.yardOpen()
+  local s = career()
+  if not s or (sl_career.isNight and sl_career.isNight()) then return false end
+  local h = sl_career.hour()
+  if (s.day or 0) % 7 ~= YARD.weekday or h < YARD.from or h >= YARD.to then return false end
+  return not (state(s).yardDone == s.day)
+end
+
+liveLot = function() return yard and yard.lots[yard.idx] end
+
+local function find(m, id)
+  for _, l in ipairs(m.lots) do if l.id == id then return l end end
+  local y = liveLot()
+  if y and y.id == id and y.open then return y end
+end
 
 -- you bid (amount: the most you will pay now; at least the minimum bid)
 function M.bid(id, amount)
@@ -231,6 +253,80 @@ function M.sell(carId, reserve)
   return true
 end
 
+-- you walk up to the yard on auction day: the session starts (or goes on), the phone shows the live lots
+function M.join()
+  local s = career()
+  if not s or not M.yardOpen() then return false end
+  if not yard or yard.day ~= s.day then
+    local rng = rngLib.new(rngLib.hash('yard:' .. tostring(s.day) .. ':' .. tostring(s.seed)))
+    local offers = market.offers(pool(), 'used', tostring(s.seed) .. ':yard', s.day, YARD.lots + 4)
+    yard = { day = s.day, lots = {}, idx = 1, gap = 2, rng = rng, pushT = 0 }
+    for i, offer in ipairs(offers) do
+      if #yard.lots >= YARD.lots then break end
+      offer.id = 'yard:' .. s.day .. ':' .. i
+      local lot = rules.newLot(rng, offer, now(s))
+      lot.id, lot.live = 'y' .. s.day .. '_' .. i, true
+      yard.lots[#yard.lots + 1] = lot
+    end
+    toast(strings.t('carauction.the_auction_starts'))
+  end
+  guihooks.trigger('slPhoneGo', { app = 'carmarket', tabs = { cars = 'auction' } })
+  viewing = true
+  M.list()
+  return true
+end
+
+function M.leaveYard() yard = nil end
+
+-- a live lot closed: the hammer (the car is handed over at the yard: no delivery fee, it is at your garage soon)
+local function settleLive(s, lot)
+  local r = rules.result(lot)
+  local name = carName(lot.offer)
+  if r.sold == 'you' then
+    if sl_career.addMoney(-r.price, string.format(strings.t('carauction.paid_1'), name)) then
+      local offer = {}
+      for k, v in pairs(lot.offer) do offer[k] = v end
+      offer.price = r.price
+      if r.hidden then
+        offer.faults = { table.unpack(offer.faults or {}) }
+        offer.faults[#offer.faults + 1] = r.hidden.fault
+        offer.foundFault = { key = r.hidden.key, cost = r.hidden.cost }
+      end
+      dealerRules.place(s, offer, 'auction', 0, now(s))
+      toast(string.format(strings.t('carauction.sold_to_you'), name, r.price))
+      extensions.hook('onStreetLegalChanged')
+    else
+      require('sl/core/state').addRep(s, -5)
+      toast(string.format(strings.t('carauction.you_won_the_s_but'), name))
+    end
+  elseif r.sold == 'reserve' then
+    toast(string.format(strings.t('carauction.the_reserve_on_the_s'), name))
+  elseif r.sold == 'ai' then
+    toast(string.format(strings.t('carauction.the_s_went_to_another'), name, r.price))
+  end
+end
+
+local function tickYard(dt)
+  local s = career()
+  if not (s and yard) then return end
+  yard.pushT = yard.pushT + dt
+  local y = liveLot()
+  if y then
+    if yard.gap > 0 then
+      yard.gap = yard.gap - dt
+    elseif y.open then
+      rules.step(y, dt, yard.rng)
+      if not y.open then settleLive(s, y) yard.gap = YARD.gap yard.idx = yard.idx + 1 end
+    end
+  else
+    state(s).yardDone = yard.day      -- the last lot has gone
+    yard = nil
+    M.list()
+    return
+  end
+  if yard and yard.pushT >= 0.5 then yard.pushT = 0 M.list() end
+end
+
 -- a won car arrives (sl/dealers builds it from the order): the mechanic's finding comes in a text
 function M.onStreetLegalCarDelivered(offer)
   if offer and offer.foundFault then
@@ -240,6 +336,7 @@ end
 
 local timer, failed = 0, false
 function M.onUpdate(dtReal)
+  if yard then local okY, errY = pcall(tickYard, dtReal or 0) if not okY and not failed then failed = true log('E', 'sl_carauctions', 'yard tick failed: ' .. tostring(errY)) yard = nil end end
   timer = timer + (dtReal or 0)
   if timer < 5 then return end
   timer = 0
