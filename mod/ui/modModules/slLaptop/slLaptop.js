@@ -102,6 +102,9 @@
     '.sll-lbuy{flex:none;display:flex;flex-direction:column;align-items:flex-end;justify-content:space-between}',
     '.sll-lbuy b{font-size:18px;font-weight:500}',
     '.sll-detail{display:flex;gap:18px;flex-wrap:wrap}',
+    '.sll-tabs{flex:none;display:flex;gap:6px;padding:10px 18px 0 18px}',
+    '.sll-tab{padding:6px 16px;border-radius:15px;background:#2b2930;color:#cac4d0;font-size:12px;cursor:pointer;border:2px solid transparent}',
+    '.sll-tab.sll-tabon{background:#a8c7fa;color:#062e6f;font-weight:500}.sll-tab:focus{outline:none;border-color:#e6e1e5}',
     '.sll-detail .sll-pic{width:min(480px,100%)}',
   ].join('');
 
@@ -123,6 +126,7 @@
     partShop: ['#c2412d', '<path d="M7 11h6l4 19h19l4-14H14"/><circle cx="19" cy="37" r="2.500"/><circle cx="33" cy="37" r="2.500"/>'],
     tuning: ['#4a8a2f', '<path d="M10 14h28M10 24h28M10 34h28"/><circle cx="18" cy="14" r="3.500" fill="#4a8a2f"/><circle cx="31" cy="24" r="3.500" fill="#4a8a2f"/><circle cx="22" cy="34" r="3.500" fill="#4a8a2f"/>'],
     painting: ['#b04a8f', '<rect x="9" y="9" width="26" height="10" rx="2"/><path d="M35 14h4v11H22v6"/><rect x="19" y="31" width="6" height="9" rx="1"/>'],
+    partsMarket: ['#a3322c', '<path d="M8 21h32l-3 17H11z"/><path d="M16 21l6-11M32 21l-6-11"/><path d="M19 28v6M24 28v6M29 28v6"/>'],
     repair: ['#5a6a7a', '<path d="M34 10a8 8 0 0 0-8 10L10 36a3.500 3.500 0 0 0 5 5l16-16a8 8 0 0 0 10-8l-5 5-4-1-1-4z"/>'],
   };
   function icon(id, size) {
@@ -130,7 +134,7 @@
     return '<svg viewBox="0 0 48 48"' + (size ? ' width="' + size + '" height="' + size + '"' : '') + '><rect width="48" height="48" rx="10" fill="' + g[0] + '"/>' +
       '<g fill="none" stroke="#fff" stroke-width="2.600" stroke-linecap="round" stroke-linejoin="round">' + g[1] + '</g></svg>';
   }
-  var WINDOWS = { cars: ['vehicleInventory', 'My cars'], parts: ['partInventory', 'My parts'], bank: ['insurances', 'Bank / insurance'], cred: ['playerAbstract', 'Street cred'], dealers: ['vehicleShop', 'Dealers'] };
+  var WINDOWS = { cars: ['vehicleInventory', 'My cars'], parts: ['partInventory', 'My parts'], bank: ['insurances', 'Bank / insurance'], cred: ['playerAbstract', 'Street cred'], dealers: ['vehicleShop', 'Car market'], partmarket: ['partsMarket', 'Part market'] };
 
   function createLaptop(doc, lua) {
     var root = doc.createElement('div');
@@ -144,7 +148,7 @@
 
     // wins: the open windows, the last one on top; each { id, min, max }. dview: what the dealers window shows (dealers | offers | offer)
     var st = { open: false, view: null, data: { active: false }, parts: [], wins: [], menu: false, sel: null, car: 0, note: '', padAt: 0,
-      dealers: null, offers: null, dview: 'dealers', offerId: null, wallpaper: null };
+      dealers: null, offers: null, dview: 'dealers', offerId: null, wallpaper: null, tab: { dealers: 'dealers', partmarket: 'revline' } };
 
     // ---------------------------------------------------------------- what the windows hold
     function dist(m) { m = Number(m) || 0; return m >= 1000 ? (m / 1000).toFixed(1) + ' km' : Math.round(m) + ' m'; }
@@ -224,6 +228,86 @@
         '<div class="sll-acts"><div class="sll-btn' + ((o.money || 0) < c.price ? ' sll-off' : '') + '" data-a="buy" data-v="' + esc(o.dealer) + '|' + esc(c.id) + '">Buy &middot; ' + money(c.price) + '</div></div></div></div></div>');
     }
 
+    // ---- the marketplaces: the car market (dealers + private ads) and the part market (Revline, Swap & Bid, the paper, the catalog): the phone's data
+    function tabsHtml(kind, list) {
+      var cur = st.tab[kind];
+      return '<div class="sll-tabs">' + list.map(function (t) {
+        return '<div class="sll-tab' + (t[0] === cur ? ' sll-tabon' : '') + '" data-a="mtab" data-v="' + kind + '|' + t[0] + '">' + t[1] + '</div>';
+      }).join('') + '</div>';
+    }
+    function mkButtons(l) {
+      var offers = l.agreed ? '' : [0.9, 0.8, 0.7].map(function (f) {
+        var amt = Math.round(l.ask * f / 10) * 10;
+        return '<div class="sll-btn sll-text" data-a="mkoffer" data-v="' + esc(l.id) + '|' + amt + '">Offer ' + money(amt) + '</div>';
+      }).join('');
+      return '<div class="sll-acts">' + offers + '<div class="sll-btn" data-a="mkbuy" data-v="' + esc(l.id) + '|pickup">Pick up</div>' +
+        (l.delivery != null ? '<div class="sll-btn sll-tonal" data-a="mkbuy" data-v="' + esc(l.id) + '|delivery">Deliver &middot; +' + money(l.delivery) + '</div>' : '') + '</div>';
+    }
+    function adCardL(l) {
+      var tells = arr(l.tells).length ? '<div class="sll-props" style="color:#f2b8b5">&#9888; ' + arr(l.tells).map(esc).join(' &middot; ') + '</div>' : '';
+      if (l.car) {
+        return '<div class="sll-card sll-listing">' + pic(l) + '<div class="sll-li"><h4>' + (l.year ? l.year + ' ' : '') + esc(l.name) + '</h4><div class="sll-brand">' + esc(l.brand || '') + '</div>' +
+          '<div class="sll-props">' + facts(l) + '</div><div class="sll-props">' + esc(l.seller) + ' ' + '&#9733;'.repeat(l.rating || 0) + (l.metres != null ? ' &middot; ' + dist(l.metres) + ' away' : '') +
+          (l.hours ? ' &middot; delivered in about ' + l.hours + ' h' : '') + ' &middot; condition ' + l.condition + '%' + (l.faults ? ' &middot; ' + l.faults + ' fault' + (l.faults > 1 ? 's' : '') : '') + '</div>' + tells +
+          '<div class="sll-props"><b>' + money(l.ask) + '</b>' + (l.agreed ? ' (agreed)' : '') + ' &middot; deposit ' + money(l.deposit) + '</div>' + mkButtons(l) + '</div></div>';
+      }
+      return '<div class="sll-card"><h4>' + (l.rare ? '&#9733; ' : '') + esc(l.name) + '</h4><p>For the ' + esc(l.model) + ' &middot; ' + l.condition + '% condition &middot; ' + esc(l.seller) + ' ' + '&#9733;'.repeat(l.rating || 0) +
+        ' &middot; ' + Math.max(0, l.hoursLeft | 0) + ' h left</p>' + tells + '<p><b>' + money(l.ask) + '</b>' + (l.agreed ? ' (agreed)' : '') + ' &middot; deposit ' + money(l.deposit) + '</p>' + mkButtons(l) + '</div>';
+    }
+    function sellL(m, kind) {
+      var mine = arr(m.mine).filter(function (y) { return (kind === 'cars') === (y.carId != null); }).map(function (y) {
+        var inner = y.channel === 'auction' ? '<p>At auction &middot; ' + (y.bid ? 'top bid ' + money(y.bid) : 'no bids yet') + ' &middot; ' + Math.max(0, y.hoursLeft | 0) + ' h left</p>'
+          : (arr(y.offers).length ? arr(y.offers).map(function (o) {
+              return '<div class="sll-acts"><div class="sll-btn" data-a="mkaccept" data-v="' + esc(y.id) + '|' + o.index + '">Accept ' + money(o.amount) + ' from ' + esc(o.buyer || 'a buyer') + '</div></div>';
+            }).join('') : '<p>No offers yet.</p>');
+        return '<div class="sll-card"><h4>Your ' + esc(y.name) + '</h4>' + inner + '<div class="sll-acts"><div class="sll-btn sll-text" data-a="mkwithdraw" data-v="' + esc(y.id) + '">Withdraw</div></div></div>';
+      }).join('');
+      var lists = kind === 'cars' ? arr(m.cars).map(function (c) {
+        return '<div class="sll-card"><h4>' + esc(c.name) + '</h4><p>Your car &middot; buyers pay up to about ' + money(c.estimate || 0) + '</p><div class="sll-acts"><div class="sll-btn" data-a="mkcar" data-v="' + esc(c.id) + '">List car</div></div></div>';
+      }).join('') : arr(m.shelf).map(function (it) {
+        return '<div class="sll-card"><h4>' + esc(it.name) + '</h4><p>On your shelf &middot; buyers pay up to about ' + money(it.estimate) + '</p><div class="sll-acts">' +
+          '<div class="sll-btn" data-a="mklist" data-v="' + esc(it.model) + '|' + it.id + '|app">List it</div><div class="sll-btn sll-tonal" data-a="mklist" data-v="' + esc(it.model) + '|' + it.id + '|auction">Auction it</div></div></div>';
+      }).join('');
+      return (mine ? '<div class="sll-band" style="margin:8px 0">Your listings</div>' + mine : '') + (lists ? '<div class="sll-band" style="margin:8px 0">' + (kind === 'cars' ? 'Sell a car' : 'Sell from your shelf') + '</div>' + lists : '');
+    }
+    function carAdsBody() {
+      var m = obj(st.data.market);
+      var cards = arr(m.listings).filter(function (l) { return l.car; }).map(adCardL).join('');
+      return body((cards || '<div class="sll-empty">No private cars for sale right now. New ads come in through the day.</div>') + sellL(m, 'cars'));
+    }
+    function partMarketBody() {
+      var m = obj(st.data.market), tab = st.tab.partmarket;
+      if (tab === 'auctions') {
+        var lots = arr(m.auctions).map(function (l) {
+          var mine = l.high === 'you';
+          return '<div class="sll-card"><h4>' + (l.rare ? '&#9733; ' : '') + esc(l.name) + '</h4><p>For the ' + esc(l.model) + ' &middot; ' + l.condition + '% condition &middot; ' + Math.max(0, l.hoursLeft | 0) + ' h left</p>' +
+            '<p><b>' + money(l.bid) + '</b> ' + (mine ? '(your bid)' : (l.high === 'ai' ? '(outbid)' : '(opening bid)')) + ' &middot; delivery +' + money(l.delivery || 0) + '</p>' +
+            (mine ? '' : '<div class="sll-acts"><div class="sll-btn" data-a="mkbid" data-v="' + esc(l.id) + '">Bid ' + money(l.next) + '</div></div>') + '</div>';
+        }).join('');
+        var meet = obj(m.meet), stalls = '';
+        if (meet.open) {
+          stalls = '<div class="sll-empty">Swap meet today at the ' + esc(meet.place || 'Tuning shop lot') + (meet.here ? '. You are here.' : ': go and buy in person.') + '</div>' + arr(meet.listings).map(function (l) {
+            return '<div class="sll-card"><h4>' + esc(l.name) + '</h4><p>' + esc(l.seller) + '\'s stall &middot; ' + l.condition + '% condition</p><p><b>' + money(l.ask) + '</b></p>' +
+              (meet.here ? '<div class="sll-acts"><div class="sll-btn" data-a="mkmeet" data-v="' + esc(l.id) + '">Buy it</div></div>' : '') + '</div>';
+          }).join('');
+        }
+        return body(stalls + (lots || '<div class="sll-empty">No lots right now.</div>'));
+      }
+      if (tab === 'paper') {
+        var p = obj(m.paper);
+        var ads = arr(p.listings).map(function (l) { return adCardL(l).replace('<h4>', '<h4>' + (l.printOnly ? '[print only] ' : '')); }).join('');
+        return body('<div class="sll-empty">Edition ' + (p.edition || 1) + '. Small ads go fast.' + (p.bought ? ' You have the printed copy.' : (p.hidden ? ' ' + p.hidden + ' more in the printed copy.' : '')) + '</div>' +
+          (p.bought ? '' : '<div class="sll-acts"><div class="sll-btn" data-a="buypaper" data-v="1">Buy the paper (' + money(p.price || 2) + ', at a gas station)</div></div>') +
+          (ads || '<div class="sll-empty">No ads right now. New ones come out through the week.</div>'));
+      }
+      if (tab === 'catalog') {
+        return body('<div class="sll-card"><h4>The Wrench Works catalog</h4><p>Every part that fits your car, new, with its price. The car goes into the garage it stands at and the catalog opens; what you order is delivered to your shelf.</p>' +
+          '<div class="sll-acts"><div class="sll-btn" data-a="pcatalog" data-v="1">Open the catalog</div></div></div>');
+      }
+      var cards = arr(m.listings).filter(function (l) { return !l.car; }).map(adCardL).join('');
+      return body((m.deliveries ? '<div class="sll-empty">' + m.deliveries + ' on the way to your garage.</div>' : '') + (cards || '<div class="sll-empty">Nothing listed right now. New ads come in through the day.</div>') + sellL(m, 'parts'));
+    }
+
     function partsBody() {
       var by = {}, order = [];
       st.parts.forEach(function (p) { if (!by[p.car]) { by[p.car] = []; order.push(p.car); } by[p.car].push(p); });
@@ -277,7 +361,7 @@
     }
 
     function winTitle(w) {
-      if (w.id === 'dealers') {
+      if (w.id === 'dealers' && st.tab.dealers === 'dealers') {
         if (st.dview === 'offers') return (st.offers && st.offers.name) || WINDOWS.dealers[1];
         if (st.dview === 'offer') { var c = currentOffer(); return c ? (c.year ? c.year + ' ' : '') + c.name : 'Sold'; }
       }
@@ -289,11 +373,14 @@
         case 'parts': return partsBody();
         case 'bank': return bankBody();
         case 'cred': return credBody();
-        default: return st.dview === 'offers' ? offersBody() : (st.dview === 'offer' ? offerBody() : dealersBody());
+        case 'partmarket': return tabsHtml('partmarket', [['revline', 'Revline'], ['auctions', 'Swap & Bid'], ['paper', 'Classifieds'], ['catalog', 'Catalog']]) + partMarketBody();
+        default:
+          return tabsHtml('dealers', [['dealers', 'Dealers'], ['ads', 'Private ads']]) +
+            (st.tab.dealers === 'ads' ? carAdsBody() : st.dview === 'offers' ? offersBody() : (st.dview === 'offer' ? offerBody() : dealersBody()));
       }
     }
     // the dealers window goes back from a car to the list, from the list to the dealers
-    function canGoBack(w) { return w.id === 'dealers' && st.dview !== 'dealers'; }
+    function canGoBack(w) { return w.id === 'dealers' && st.tab.dealers === 'dealers' && st.dview !== 'dealers'; }
 
     // ---------------------------------------------------------------- the desktop, the windows, the taskbar
     // the tiles for the chosen car (whether it stands at this garage differs per car); without cars, the general ones
@@ -480,6 +567,17 @@
         case 'winmin': var mw = winById(v); if (mw) { mw.min = true; focusKey = null; render(); } break;
         case 'winmax': var xw = winById(v); if (xw) { xw.max = !xw.max; focusWin(xw); render(); } break;
         case 'winclose': var cw = winById(v); if (cw) { closeWin(cw); render(); } break;
+        case 'mtab': var tp = String(v).split('|'); st.tab[tp[0]] = tp[1]; st.note = ''; focusKey = null; if (tp[0] === 'dealers' && tp[1] === 'dealers') { st.dview = 'dealers'; lua('@sl_dealers.list()'); } render(); break;
+        case 'mkoffer': var op = String(v).split('|'); lua('@sl_phone.marketOffer(' + JSON.stringify(op[0]) + ',' + Number(op[1]) + ')'); break;
+        case 'mkbuy': var bp = String(v).split('|'); lua('@sl_phone.marketBuy(' + JSON.stringify(bp[0]) + ',' + JSON.stringify(bp[1]) + ')'); break;
+        case 'mkbid': lua('@sl_phone.marketBid(' + JSON.stringify(String(v)) + ')'); break;
+        case 'mkmeet': lua('@sl_phone.buyAtMeet(' + JSON.stringify(String(v)) + ')'); break;
+        case 'buypaper': lua('@sl_phone.buyPaper()'); break;
+        case 'mkcar': lua('@sl_phone.listCar(' + JSON.stringify(String(v)) + ')'); break;
+        case 'mklist': var lp = String(v).split('|'); lua('@sl_phone.listPart(' + JSON.stringify(lp[0]) + ',' + Number(lp[1]) + ',' + JSON.stringify(lp[2]) + ')'); break;
+        case 'mkaccept': var ap = String(v).split('|'); lua('@sl_phone.acceptOffer(' + JSON.stringify(ap[0]) + ',' + Number(ap[1]) + ')'); break;
+        case 'mkwithdraw': lua('@sl_phone.withdrawListing(' + JSON.stringify(String(v)) + ')'); break;
+        case 'pcatalog': lua('@sl_phone.catalog()'); break;
         case 'dealer': st.dview = 'offers'; st.offers = { name: 'Dealer', offers: [], dealer: v }; st.note = ''; focusKey = null; lua('@sl_dealers.offers(' + JSON.stringify(v) + ')'); render(); break;
         case 'offer': st.dview = 'offer'; st.offerId = v; st.note = ''; focusKey = null; render(); break;
         case 'buy':

@@ -27,7 +27,7 @@ const taskbtns = () => $$('.sll-taskwin').map((t) => t.textContent);
 const tile = (id, label, enabled, reason, page, mode) => ({ id, label, enabled, reason, page, mode });
 const general = { id: 'general', title: 'General', tiles: [
   tile('vehicleInventory', 'My cars', true, null, 'cars'), tile('partInventory', 'My parts', true, null, 'parts'),
-  tile('vehicleShop', 'Dealers', true, null, 'dealers'), tile('insurances', 'Bank / insurance', true, null, 'bank'), tile('playerAbstract', 'Street cred', true, null, 'cred')] };
+  tile('vehicleShop', 'Car market', true, null, 'dealers'), tile('partsMarket', 'Part market', true, null, 'partmarket'), tile('insurances', 'Bank / insurance', true, null, 'bank'), tile('playerAbstract', 'Street cred', true, null, 'cred')] };
 // car 1 stands at this garage (its tiles work), car 2 does not (the reason is shown)
 const view = {
   name: 'Commercial Garage', lists: true,
@@ -60,7 +60,7 @@ assert.ok(!$('.sll-screen.sll-gone'), 'it opens');
 assert.ok($('.sll-wall') && !wins().length && !$('.sll-menu'), 'a wallpaper, no window and no Start menu yet');
 assert.ok(!/url\(/.test($('.sll-wall').getAttribute('style') || ''), 'no Windows wallpaper copied: the built-in gradient');
 const icons = $$('.sll-icon');
-assert.deepStrictEqual(icons.map((i) => i.textContent), ['Part customization', 'Tuning', 'My cars', 'My parts', 'Dealers', 'Bank / insurance', 'Street cred'], 'one desktop icon per function, labelled');
+assert.deepStrictEqual(icons.map((i) => i.textContent), ['Part customization', 'Tuning', 'My cars', 'My parts', 'Car market', 'Part market', 'Bank / insurance', 'Street cred'], 'one desktop icon per function, labelled');
 assert.ok(icons.every((i) => i.querySelector('svg') && i.hasAttribute('bng-nav-item') && i.getAttribute('tabindex') === '0'), 'each icon has a picture and is a gamepad nav item');
 assert.ok($('.sll-icons').hasAttribute('bng-nav-scroll'), 'the icon column scrolls on the right stick');
 assert.ok(text().includes('My garage') && text().includes('Sunburst 2.0 Sport S AWD'), 'the car widget, a small window of its own');
@@ -142,7 +142,7 @@ assert.ok($('.sll-screen.sll-gone'), 'a closed laptop leaves B alone');
 open();
 click('start');
 const items = $$('.sll-mi');
-assert.ok($('.sll-menu') && items.length === 7 && items.every((i) => i.querySelector('svg') && i.hasAttribute('bng-nav-item')), 'Start lists every app with its icon');
+assert.ok($('.sll-menu') && items.length === 8 && items.every((i) => i.querySelector('svg') && i.hasAttribute('bng-nav-item')), 'Start lists every app with its icon');
 assert.ok($('.sll-menu').textContent.includes('Vehicle management') && $('.sll-menu').textContent.includes('Street cred') && $('.sll-menu').textContent.includes('Shut down'), 'by group, with Shut down');
 assert.ok($$('.sll-icon').every((e) => !e.hasAttribute('bng-nav-item')), 'with the menu up the pad moves in the menu');
 nav('back');
@@ -185,7 +185,7 @@ click('winclose', 'parts');
 // ---- the Dealers window and its steps
 calls.length = 0;
 click('tile', 'vehicleShop');
-assert.ok(calls.includes('@sl_dealers.list()') && titles()[0] === 'Dealers', 'Dealers asks for the dealer list');
+assert.ok(calls.includes('@sl_dealers.list()') && titles()[0] === 'Car market', 'The Car market asks for the dealer list');
 laptop.handle('slLaptopDealers', { dealers: [{ id: 'jeff', name: 'Jefferson Motors', metres: 4200, count: 5 }, { id: 'quarry', name: 'Quarryside', metres: 800, count: 1 }], coming: [{ name: 'Covet', hours: 3 }] });
 assert.ok(text().includes('Jefferson Motors') && text().includes('4.2 km away') && text().includes('5 cars today') && text().includes('800 m away') && text().includes('1 car today'), 'dealers: name, distance, number of cars');
 assert.ok(text().includes('On the way to your garage') && text().includes('in about 3 h'), 'and what is on its way');
@@ -216,9 +216,28 @@ const names = $$('.sll-card h4').map((h) => h.textContent);
 assert.ok(!names.some((n) => n.includes('Bolide')) && names.some((n) => n.includes('Pessima')), 'back to the list: a bought car is gone from it');
 calls.length = 0;
 nav('back');
-assert.ok(text().includes('Quarryside') && calls.includes('@sl_dealers.list()') && titles()[0] === 'Dealers', 'B goes back to the dealers');
+assert.ok(text().includes('Quarryside') && calls.includes('@sl_dealers.list()') && titles()[0] === 'Car market', 'B goes back to the dealers');
 nav('back');
 assert.ok(!wins().length, 'and then closes the window');
+
+// ---- the two marketplaces share the phone's data
+laptop.handle('slPhoneData', Object.assign({}, laptop.state.data || {}, { market: { deliveries: 1, auctions: [{ id: 'a1', name: 'Coilovers', model: 'covet', bid: 100, next: 110, condition: 80, hoursLeft: 5, high: 'ai', delivery: 30 }], paper: { listings: [], edition: 2, price: 2 }, mine: [], shelf: [], cars: [],
+  listings: [{ id: 'p1', name: 'Sport exhaust', model: 'covet', ask: 300, condition: 70, seller: 'Gabor', rating: 3, tells: [], deposit: 30, hoursLeft: 12, delivery: 20 },
+    { id: 'c1', name: 'Covet 1.5', model: 'covet', car: true, faults: 0, ask: 2400, condition: 55, seller: 'Big Tony', rating: 4, tells: [], deposit: 240, hoursLeft: 30, delivery: 180, year: 2009, specs: {} }] } }));
+click('tile', 'vehicleShop');
+click('mtab', 'dealers|ads');
+assert.ok(text().includes('Covet 1.5') && !text().includes('Sport exhaust'), 'Car market, Private ads: the car ads only');
+click('winclose', 'dealers');
+click('tile', 'partsMarket');
+assert.ok(titles()[0] === 'Part market' && text().includes('Sport exhaust') && !text().includes('Covet 1.5') && text().includes('Swap & Bid'), 'Part market: Revline parts, no car ads');
+click('mtab', 'partmarket|auctions');
+assert.ok(text().includes('Coilovers') && text().includes('Bid $110'), 'Swap & Bid lots');
+calls.length = 0;
+click('mtab', 'partmarket|catalog');
+click('pcatalog', '1');
+assert.ok(calls.includes('@sl_phone.catalog()'), 'the catalog button opens the Wrench Works catalog');
+click('winclose', 'partmarket');
+
 
 // ---- the wallpaper
 open({ wallpaper: '/settings/street_legal/wallpaper.jpg' });
@@ -232,8 +251,8 @@ assert.ok($('.sll-screen.sll-gone'), 'the game can close it');
 
 // ---- no car yet / an office computer without a car band
 laptop.handle('slPhoneData', Object.assign({}, data, { fleet: [], cars: 0 }));
-laptop.handle('slLaptopOpen', { name: 'Office', lists: false, groups: [{ id: 'general', title: 'General', tiles: [tile('vehicleShop', 'Dealers', true, null, 'dealers'), tile('partShop', 'Part customization', false, 'Use a computer in a garage for this.')] }], parts: [] });
-assert.ok(!text().includes('My garage') && text().includes('Dealers'), 'an office computer has no garage widget');
+laptop.handle('slLaptopOpen', { name: 'Office', lists: false, groups: [{ id: 'general', title: 'General', tiles: [tile('vehicleShop', 'Car market', true, null, 'dealers'), tile('partsMarket', 'Part market', true, null, 'partmarket'), tile('partShop', 'Part customization', false, 'Use a computer in a garage for this.')] }], parts: [] });
+assert.ok(!text().includes('My garage') && text().includes('Car market'), 'an office computer has no garage widget');
 click('tile', 'partShop');
 assert.ok(text().includes('Part customization: Use a computer in a garage for this.'), 'and says where the parts shop is');
 laptop.handle('slLaptopOpen', { name: 'Garage', lists: true, groups: [{ id: 'car', title: 'Vehicle management', tiles: [tile('tuning', 'Tuning', false, 'You have no car yet.')] }], parts: [] });
