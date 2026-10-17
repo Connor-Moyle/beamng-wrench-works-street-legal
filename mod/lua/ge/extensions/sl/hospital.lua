@@ -66,6 +66,11 @@ function M.toHospital(vehId, severity, died)
   end)
 end
 
+-- death counts in a Hardcore career whatever the injuries setting says (otherwise only the setting 'Injuries and death' allows it)
+local function setDeath(on) if slrrInjury and slrrInjury.setDeathOverride then slrrInjury.setDeathOverride(on) end end
+function M.onStreetLegalStarted() setDeath(sl_options ~= nil and sl_options.get('slHardcore') == true) end
+function M.onStreetLegalStopped() setDeath(false) end
+
 -- what the career came to, for the game-over screen
 function M.gameOverData(s, cause)
   local a = sl_achievements and sl_achievements.summary and sl_achievements.summary() or {}
