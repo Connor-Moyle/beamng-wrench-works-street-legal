@@ -166,6 +166,19 @@ function M.release(carId) if career() then answer(sl_career.releaseCar(tonumber(
 function M.useItem(carId, itemId) if career() and sl_carcare then answer(sl_carcare.useItem(tonumber(carId), tostring(itemId))) end end
 function M.useCar(carId) if career() then answer(sl_fleet.setActive(tonumber(carId))) end end
 function M.moveGarage() if career() then answer(sl_career.moveGarage()) end end
+function M.despawn(carId) if career() then answer(sl_fleet.despawn(tonumber(carId))) end end
+function M.workOn(carId) if career() then answer(sl_fleet.workOn(tonumber(carId))) end end
+-- on foot in a garage's doorway: the cars panel (take out, work on, put away); true when it opened. The cars come in the phone's own data.
+function M.openGarage(siteId)
+  local s = career()
+  if not s or #s.cars == 0 then return false end
+  local name = siteId
+  for _, g in ipairs(progression.garages) do if g.site == siteId then name = g.name end end
+  guihooks.trigger('slGarage', { open = true, name = name })
+  wantSend = true
+  return true
+end
+function M.closeGarage() guihooks.trigger('slGarage', { open = false }) end
 function M.wait(what) if career() then answer(sl_career.skipTime(tostring(what))) end end
 function M.enterRoc() if career() then answer(sl_streets.enterRoc()) end end
 function M.enterLeague(kind) if career() and sl_clubs then answer(sl_clubs.enter(tostring(kind))) end end

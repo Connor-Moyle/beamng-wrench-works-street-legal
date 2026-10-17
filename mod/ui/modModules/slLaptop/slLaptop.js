@@ -169,6 +169,7 @@
         if (c.impounded) acts.push('<div class="sll-btn" data-a="release" data-v="' + c.id + '">Get it out of the impound &middot; ' + money(c.impounded) + '</div>');
         else if (!c.active) acts.push('<div class="sll-btn" data-a="usecar" data-v="' + c.id + '">Drive this one</div>');
         if (c.out && c.towFee && c.where === 'Out on the street') acts.push('<div class="sll-btn sll-tonal" data-a="tow" data-v="' + c.id + '">Tow it home &middot; ' + money(c.towFee) + '</div>');
+        if (c.out && !c.impounded) acts.push('<div class="sll-btn sll-text" data-a="despawn" data-v="' + c.id + '">Put it away</div>');
         var faults = arr(c.faults);
         return '<div class="sll-card"><h4>' + esc(c.name) + (c.active ? ' &#9733;' : '') + '</h4><p>' + esc(c.where) + ' &middot; condition ' + Math.round((c.condition || 0) * 100) + '% &middot; value ' + money(c.value) +
           (faults.length ? '<br>Needs: ' + esc(faults.join(', ')) : '') + '</p>' + (acts.length ? '<div class="sll-acts">' + acts.join('') + '</div>' : '') + '</div>';
@@ -490,6 +491,7 @@
         case 'car': st.car += Number(v) || 0; render(); break;
         case 'usecar': lua('@sl_phone.useCar(' + Number(v) + ')'); break;
         case 'tow': lua('@sl_phone.tow(' + Number(v) + ')'); break;
+        case 'despawn': lua('@sl_phone.despawn(' + Number(v) + ')'); break;
         case 'release': lua('@sl_phone.release(' + Number(v) + ')'); break;
         case 'borrow': lua('@sl_phone.borrow(' + Number(v) + ')'); break;
         case 'repay': lua('@sl_phone.repay(' + Number(v) + ')'); break;

@@ -230,6 +230,53 @@ function M.deliver(carId)
   end)
 end
 
+-- put a car away: its dents are kept, the car leaves the world and waits in the garage (the record stays; nothing is sold). Also for a car
+-- left on the street. If you sit in it you get out first.
+function M.despawn(carId)
+  local s = career()
+  local car = s and carById(s, carId)
+  if not car then return false, 'No such car.' end
+  local veh = M.vehicleOf(carId)
+  if not veh then return false, 'The ' .. car.name .. ' is in the garage already.' end
+  core_jobsystem.create(function(job)
+    local player = getPlayerVehicle(0)
+    if player and player:getID() == veh:getID() and gameplay_walk then gameplay_walk.setWalkingMode(true, nil, nil, true) job.sleep(0.6) end
+    M.snapshot(true)                                              -- its dents too: the car is about to go
+    if sl_carcare and sl_carcare.askConditions then sl_carcare.askConditions(veh:getID()) end
+    job.sleep(0.5)
+    car.out, car.where = false, nil
+    veh:delete()
+    spawned[carId] = nil
+    extensions.hook('onStreetLegalChanged')
+  end)
+  return true, 'The ' .. car.name .. ' is put away in your garage.'
+end
+
+-- go into the garage with a car of yours (bringing it out front first when it is stored): the Wrench Works garage opens on it
+function M.workOn(carId)
+  local s = career()
+  local car = s and carById(s, carId)
+  if not car then return false, 'No such car.' end
+  if car.impounded then return false, 'It is in the police impound.' end
+  if not (slrr_garage and slrr_garage.enterWith) then return false, 'Wrench Works is not running.' end
+  core_jobsystem.create(function(job)
+    if not M.vehicleOf(carId) then
+      local ok = M.setActive(carId)
+      if not ok then return end
+      local t = 0
+      while not M.vehicleOf(carId) and t < 20 do job.sleep(0.25) t = t + 0.25 end
+      job.sleep(0.5)
+    end
+    local veh = M.vehicleOf(carId)
+    if veh then
+      s.activeCar = carId
+      local ok, why = slrr_garage.enterWith(veh:getID(), 'work')
+      if not ok then guihooks.trigger('slPhoneToast', { text = why or 'Not now.' }) end
+    end
+  end)
+  return true, 'The ' .. car.name .. ' goes in.'
+end
+
 -- drive another of your cars: it comes out of the garage, the one you had goes in
 function M.setActive(carId)
   local s = career()

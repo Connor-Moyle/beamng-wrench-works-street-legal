@@ -234,6 +234,8 @@ local wallet = {
   car = function() return s and s.activeCar and sl_fleet and sl_fleet.vehicleOf(s.activeCar) or nil end,
   -- the garage ladder: the garages above your level are not available (Wrench Works shows no marker and says why at the door)
   garageAccess = function(siteId) return progression.garageAccess(s or {}, siteId) end,
+  -- on foot in a garage's doorway: the cars panel on the phone's screen (take another car out, work on one, put one away)
+  panel = function(siteId) return sl_phone ~= nil and sl_phone.openGarage ~= nil and sl_phone.openGarage(siteId) == true end,
   -- on foot at the doorway with your car stored in the garage: it is brought out front (My cars' "Drive this one"), then Wrench Works goes in with it
   fetch = function()
     if not (s and sl_fleet) then return false end

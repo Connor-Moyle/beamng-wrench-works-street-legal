@@ -88,7 +88,9 @@ assert.ok(text().includes('Drive this one') && text().includes('Tow it home') &&
 calls.length = 0;
 click('usecar', '2');
 click('tow', '2');
-assert.ok(calls.includes('@sl_phone.useCar(2)') && calls.includes('@sl_phone.tow(2)'), 'drive this one, tow it home');
+click('despawn', '2');
+assert.ok(calls.includes('@sl_phone.useCar(2)') && calls.includes('@sl_phone.tow(2)') && calls.includes('@sl_phone.despawn(2)'), 'drive this one, tow it home, put it away (a car that is out)');
+assert.ok(!$('[data-a="despawn"][data-v="1"]') || data.fleet[0].out, 'a stored car has no Put it away');
 laptop.handle('slPhoneToast', { text: 'A tow truck is on its way.' });
 assert.ok(text().includes('A tow truck is on its way.'), 'the answer shows in the window');
 assert.deepStrictEqual(taskbtns(), ['My cars'], 'a taskbar button for the open window');
