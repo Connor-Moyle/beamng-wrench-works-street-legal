@@ -1,15 +1,17 @@
 -- Wrench Works: Street Legal: a real cab (extension name: sl_cab; playtest #5)
--- Booked on the phone (sl_career.taxi charges the fare): a taxi pulls up on the nearest city lane, hazards on,
--- with the way to it on the road. Walk up to it and you get in: the screen fades, and you step out beside it at
--- the place you asked for, while it drives off into town. Not reached in five minutes, it leaves and the fare
+-- Booked on the phone (sl_career.taxi charges the fare): a taxi starts on a road out of your sight and drives up to you (the game's AI),
+-- stops beside you and puts its hazards on. Walk up to it and you get in: the screen fades, and you step out at the place you asked for
+-- (a lot: in its car park in front of the cars; else beside the cab on a road), while it drives off into town. Not reached in five minutes, it leaves and the fare
 -- comes back.
 
 local M = {}
 
 local roadspot = require('sl/core/roadspot')
+local cabplan = require('sl/core/cabplan')
 
 local MODEL, CONFIG = 'fullsize', 'vehicles/fullsize/taxi.pc'
-local BOARD_RADIUS = 4.5       -- m from the cab's middle
+local BOARD_RADIUS = 6         -- m from the cab's middle
+local ARRIVED = 9              -- m from where it was sent: it has come
 local WAIT_SECONDS = 300
 local DRIVE_OFF_SECONDS = 25
 
@@ -42,15 +44,33 @@ end
 function M.call(destination, fee)
   local me = onFoot()
   if ride or not me then return false end
-  local c = spot(me:getPosition(), 12)
+  local mine = me:getPosition()
+  -- starts out of sight, 90 m or more along the road; the old nearest lane when no road gives that
+  local cam = { x = mine.x, y = mine.y, fx = 0, fy = 0 }
+  local okc, cp = pcall(core_camera.getPosition)
+  local okf, cf = pcall(core_camera.getForward)
+  if okc and cp and okf and cf then cam = { x = cp.x, y = cp.y, fx = cf.x, fy = cf.y } end
+  local cands = roadspot.candidates(map.getMap().nodes, mine, rightHand(), 400)
+  local c = cabplan.approach(cands, cam)
+  local coming = c ~= nil
+  if not c then c = spot(mine, 12) end
   if not c then return false end
   local ok, veh = pcall(core_vehicles.spawnNewVehicle, MODEL, { config = CONFIG, pos = vec3(c.x, c.y, c.z + 0.5), autoEnterVehicle = false, canSpawnAnotherVehicleCheck = false })
   if not ok or not veh then return false end
   place(veh, c)
-  veh:queueLuaCommand('electrics.set_warn_signal(1) input.event("parkingbrake", 1, FILTER_DIRECT)')
   ride = { vid = veh:getID(), place = destination, fee = fee, waited = 0 }
-  if core_groundMarkers then core_groundMarkers.setPath(vec3(c.x, c.y, c.z)) end
-  toast(string.format('Your cab is waiting %d m away, hazards on. Walk up to it.', math.floor(c.dist + 0.5)))
+  local n1 = coming and map.findClosestRoad(mine)
+  local node = n1 and map.getMap().nodes[n1]
+  if node then
+    -- drives up by itself and stops at the road node nearest to you
+    veh:queueLuaCommand('input.event("parkingbrake", 0, FILTER_DIRECT) ai.setState({mode = "manual"}) ai.setTarget("' .. n1 .. '")')
+    ride.target = node.pos
+    toast(string.format('Your cab is on its way, about %d m of road. It will stop near you.', math.floor(c.dist + 0.5)))
+  else
+    veh:queueLuaCommand('electrics.set_warn_signal(1) input.event("parkingbrake", 1, FILTER_DIRECT)')
+    if core_groundMarkers then core_groundMarkers.setPath(vec3(c.x, c.y, c.z)) end
+    toast(string.format('Your cab is waiting %d m away, hazards on. Walk up to it.', math.floor(c.dist + 0.5)))
+  end
   return true
 end
 
@@ -70,7 +90,9 @@ local function board()
       place(cab, c)
       local side = rightHand() and 1 or -1        -- the kerb side
       local out = vec3(c.x, c.y, c.z) + vec3(c.dy, -c.dx, 0) * (2.6 * side)
-      if me then spawn.safeTeleport(me, out + vec3(0, 0, 0.3), quatFromDir(vec3(-c.dy, c.dx, 0) * side, vec3(0, 0, 1)), true) end
+      local drop = cabplan.dropAt(r.place)            -- a lot: out in its car park, in front of the cars, not on a road
+      if me and drop then spawn.safeTeleport(me, vec3(drop.x, drop.y, drop.z + 0.3), quatFromDir(vec3(drop.dx, drop.dy, 0), vec3(0, 0, 1)), true)
+      elseif me then spawn.safeTeleport(me, out + vec3(0, 0, 0.3), quatFromDir(vec3(-c.dy, c.dx, 0) * side, vec3(0, 0, 1)), true) end
     elseif me then
       spawn.safeTeleport(me, r.place.pos + vec3(0, 0, 0.3), quatFromDir(r.place.dir, vec3(0, 0, 1)), true)
     end
@@ -103,8 +125,14 @@ function M.onUpdate(dtReal)
     ride = nil
     return
   end
+  -- the cab has driven up: it stops, hazards on
+  if ride.target and not ride.arrived and (cab:getPosition() - ride.target):length() < ARRIVED and cab:getVelocity():length() < 2 then
+    ride.arrived = true
+    cab:queueLuaCommand('ai.setState({mode = "disabled"}) electrics.set_warn_signal(1) input.event("parkingbrake", 1, FILTER_DIRECT)')
+    toast('Your cab is here, hazards on. Walk up to it.')
+  end
   local me = onFoot()
-  if me and (me:getPosition() - cab:getPosition()):length() < BOARD_RADIUS then board() end
+  if me and (me:getPosition() - cab:getPosition()):length() < BOARD_RADIUS and (not ride.target or ride.arrived) then board() end
 end
 
 function M.busy() return ride ~= nil end
