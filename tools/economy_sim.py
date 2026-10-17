@@ -252,10 +252,13 @@ class Player:
         if self.rep >= 300 and self.crew is None and not getattr(self, 'crew_done', False):
             self.crew = [max(1, min(5, 1 + int(self.rep / 800))), 3, round(2000 * max(1, min(5, 1 + int(self.rep / 800))) ** 1.3, -2)]
             self.crew_done = True
-        if self.car is not None and self.perf < 1.5 and self.r.random() < 0.15 and self.part(): return
+        # a player with the reputation for the next garage saves for it: no new parts, car or kit until it is bought
+        # (the first week's curve is read off these players; an owner of a garage 2 who never saved would never see it)
+        saving = self.garage < len(GARAGES) + 1 and self.car is not None and self.rep >= GARAGES[self.garage - 1][0]
+        if not saving and self.car is not None and self.perf < 1.5 and self.r.random() < 0.15 and self.part(): return
         nxt = min(5, (self.car or 0) + 1)
         trade = CARS[self.car][0] * 0.4 if self.car is not None else 0
-        if self.car is None or (self.money + trade > CARS[nxt][0] * 0.5 + 800 and self.r.random() < 0.5):
+        if self.car is None or (not saving and self.money + trade > CARS[nxt][0] * 0.5 + 800 and self.r.random() < 0.5):
             if self.buy_car(): return
             if self.car is None:
                 self.job() if self.rep >= 0 and any(not j[2] for j in JOBS) else self.spend(5)
@@ -267,7 +270,7 @@ class Player:
         if self.garage == 3 and self.rep >= ROC['rep'] and self.money >= ROC['entry'] + 5000: self.mark('ROC open')
         # garage kit (X58, core/progression UPGRADES): bought once the first bolt-ons are on, with a cushion left over;
         # the club garages (2, 3) come with the lift and the bench
-        if 'first upgrade' in self.log:
+        if 'first upgrade' in self.log and not saving:
             for name, price in (('lift', 2000), ('workbench', 1500), ('shelves', 1000), ('dyno', 6000), ('paint', 5000)):
                 if name in self.kit or (self.garage >= 2 and name in ('lift', 'workbench')): continue
                 if self.money >= price + 1500:
