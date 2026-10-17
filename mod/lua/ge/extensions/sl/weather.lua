@@ -31,6 +31,12 @@ local PUDDLE_RADIUS = { 8, 70 }  -- puddles stand between these distances from t
 local FORGET_AT = 95
 local DEPTH = 1.5
 
+local TAG = 'sl_weather'
+local stats = { tries = 0, noSurface = 0, notFlat = 0, noRoad = 0, placed = 0, drawn = 0 }
+local lastStatsLog = 0
+local tintBase = {}              -- the sky colours the game's own gradients set, last seen; the tint pulls them to grey
+local tintTimer = 0
+
 local function career() return sl_career and sl_career.isActive() and sl_career.getState() or nil end
 
 local function objects(className)
@@ -40,8 +46,27 @@ end
 
 local function first(className) for _, o in pairs(objects(className)) do return o end end
 
+-- the level's rain: WCUSA has one (WCA_rain, numDrops 0); a level without one gets one made, as the editor makes it (datablock rain_drop)
+local function ensureRain()
+  if first('Precipitation') then return end
+  local ok, err = pcall(function()
+    local o = createObject('Precipitation')
+    o:setField('dataBlock', 0, 'rain_drop')
+    o:setField('boxWidth', 0, '50') o:setField('boxHeight', 0, '50')
+    o:setField('dropSize', 0, '0.2') o:setField('splashSize', 0, '0.2')
+    o:setField('minSpeed', 0, '0.35') o:setField('maxSpeed', 0, '0.4')
+    o:setField('hitVehicles', 0, 'true') o:setField('useTurbulence', 0, 'true')
+    o:setField('numDrops', 0, '0')
+    o:registerObject('sl_weather_rain')
+    local group = scenetree.findObject('MissionGroup')
+    if group and group.addObject then group:addObject(o) end
+  end)
+  log(ok and 'I' or 'W', TAG, ok and 'the level had no Precipitation: one was made (datablock rain_drop)' or ('could not make a Precipitation: ' .. tostring(err)))
+end
+
 local function readBaseline()
   if baseline then return end
+  ensureRain()
   baseline = { drops = 0, cloud = 1, fog = 0.00035, grip = 1, wet = 0 }
   local rain, cloud, info = first('Precipitation'), first('CloudLayer'), first('LevelInfo')
   if rain then
@@ -54,7 +79,10 @@ local function readBaseline()
   end
   if info then baseline.fog = tonumber(info.fogDensity) or baseline.fog end
   baseline.speed = 1
-  current = current or { drops = baseline.drops, cloud = baseline.cloud, cirrus = baseline.cirrus, density = baseline.density, fog = baseline.fog, grip = 1, wet = 0, speed = 1 }
+  current = current or { drops = baseline.drops, cloud = baseline.cloud, cirrus = baseline.cirrus, density = baseline.density, fog = baseline.fog, grip = 1, wet = 0, speed = 1, tint = 0 }
+  pcall(function() log('I', TAG, string.format('level sky: Precipitation %s (numOfDrops %s, numDrops %s, dataBlock %s), CloudLayer %s (coverage %s), LevelInfo fog %s, ScatterSky %s, core_environment %s, decal manager %s',
+    tostring(rain ~= nil), tostring(rain and rain.numOfDrops), tostring(rain and rain.numDrops), tostring(rain and rain:getField('dataBlock', 0)), tostring(cloud ~= nil), tostring(cloud and cloud.coverage),
+    tostring(info and info.fogDensity), tostring(first('ScatterSky') ~= nil), tostring(core_environment ~= nil), tostring(Engine and Engine.Render and Engine.Render.DynamicDecalMgr ~= nil))) end)
 end
 
 -- the game's own environment calls (they apply the change to the object: a plain field write on a CloudLayer or the fog is not seen until the object is
@@ -78,6 +106,34 @@ local function applySky(v)
   if rain and baseline and baseline.minSpeed and v.speed then
     pcall(function() rain.minSpeed, rain.maxSpeed = baseline.minSpeed * v.speed, baseline.maxSpeed * v.speed end)
   end
+  -- every drop count change is logged once (what the object says before and after): the rain that is not seen is found here
+  local want = math.floor(v.drops + 0.5)
+  if rain and want ~= M.lastLoggedDrops then
+    M.lastLoggedDrops = want
+    local after = tonumber(rain.numOfDrops) or tonumber(rain.numDrops)
+    local hidden
+    pcall(function() hidden = rain.isHidden and rain:isHidden() or rain.hidden end)
+    log('I', TAG, string.format('rain drops set to %d: the object now says %s (hidden %s, enabled %s)', want, tostring(after), tostring(hidden), tostring(rain.isEnabled)))
+    pcall(function() if rain.setHidden then rain:setHidden(false) end end)
+  end
+end
+
+-- the sky's sun, fog and ambient colours come from gradients that follow the time of day (at dawn they are orange, and a fog in them is an orange dust storm).
+-- In rain they are pulled towards grey of the same brightness; the game rewrites them with the time of day, so this is repeated twice a second while it is on.
+local TINT_FIELDS = { 'sunScale', 'fogScale', 'ambientScale' }
+local function applyTint(amount)
+  local sky = first('ScatterSky')
+  if not sky then return end
+  for _, k in ipairs(TINT_FIELDS) do
+    pcall(function()
+      local text = sky:getField(k, 0)
+      local r, g, b, a = tostring(text):match('([%-%d%.e]+)%s+([%-%d%.e]+)%s+([%-%d%.e]+)%s*([%-%d%.e]*)')
+      if not r then return end
+      local c = rules.greyer({ tonumber(r), tonumber(g), tonumber(b) }, amount)
+      sky:setField(k, 0, string.format('%f %f %f %s', c[1], c[2], c[3], a ~= '' and a or '1'))
+    end)
+  end
+  pcall(function() if sky.postApply then sky:postApply() end end)
 end
 
 -- the state of this phase of this day; a new one is blended in
@@ -97,7 +153,7 @@ local function sync()
   -- clear skies are the level's own fog, high cloud and speeds, and a lighter cloud cover than its default
   if st.id == 'rain' then lastRain = st end
   -- (rain's grip comes from the wetness, not from the state: a road stays slippery after the rain has stopped)
-  target = { drops = st.drops, cloud = st.cloud, fog = st.id == 'clear' and baseline.fog or st.fog, grip = st.id == 'rain' and 1 or st.grip, wet = st.wet or 0,
+  target = { drops = st.drops, cloud = st.cloud, fog = st.id == 'clear' and baseline.fog or st.fog, grip = st.id == 'rain' and 1 or st.grip, wet = st.wet or 0, tint = st.tint or 0,
     cirrus = st.cirrus or baseline.cirrus, density = st.density or baseline.density, speed = st.speed or 1 }
   blendFrom, blendT = current, 0
   extensions.hook('onStreetLegalWeather', stateId)
@@ -131,17 +187,18 @@ end
 
 -- a flat spot on a road: the ground under four points round it is level, and a road runs through it
 local function roadSpot(x, y, zTop)
+  stats.tries = stats.tries + 1
   local z = surfaceZ(x, y, zTop)
-  if not z then return nil end
+  if not z then stats.noSurface = stats.noSurface + 1 return nil end
   for _, d in ipairs({ { 0.9, 0 }, { -0.9, 0 }, { 0, 0.9 }, { 0, -0.9 } }) do
     local zz = surfaceZ(x + d[1], y + d[2], zTop)
-    if not zz or math.abs(zz - z) > 0.05 then return nil end
+    if not zz or math.abs(zz - z) > 0.12 then stats.notFlat = stats.notFlat + 1 return nil end
   end
-  local ok, n1, _, dist = pcall(function() return map.findClosestRoad(vec3(x, y, z), 12) end)
-  if not (ok and n1) then return nil end
+  local ok, n1, _, dist = pcall(function() return map.findClosestRoad(vec3(x, y, z), 25) end)
+  if not (ok and n1) then stats.noRoad = stats.noRoad + 1 return nil end
   local radius = 3
   pcall(function() radius = map.getMap().nodes[n1].radius or 3 end)
-  if dist > math.max(1.2, radius * 0.7) then return nil end
+  if dist > math.max(2, radius * 0.8) then stats.noRoad = stats.noRoad + 1 return nil end
   return z
 end
 
@@ -172,6 +229,8 @@ local function updatePuddles(dtReal)
       local rot = math.random() * 6.28
       local size = 0.9 + math.random() * 1.7
       puddles[#puddles + 1] = { x = x, y = y, z = z + 0.02, sx = size, sy = size * (0.6 + math.random() * 0.5), dx = math.cos(rot), dy = math.sin(rot), born = os.clock() }
+      stats.placed = stats.placed + 1
+      log('I', TAG, string.format('puddle placed at %.0f, %.0f, %.2f (%d of %d, wet %.2f)', x, y, z, #puddles, want, wet))
       break
     end
   end
@@ -198,7 +257,11 @@ function M.onPreRender()
       e.color = colors[q] or (function() colors[q] = ColorF(0.8, 0.88, 0.95, q / 20) return colors[q] end)()      -- (a handful of cached colours, nothing allocated per frame)
     end
   end
-  if idx > 0 then Engine.Render.DynamicDecalMgr.addDecals(pool, idx) end
+  if idx > 0 then
+    Engine.Render.DynamicDecalMgr.addDecals(pool, idx)
+    if stats.drawn == 0 then log('I', TAG, 'the decal manager is drawing puddles: ' .. idx .. ' this frame (texture ' .. PUDDLE_TEX .. ')') end
+    stats.drawn = stats.drawn + 1
+  end
 end
 
 ----------------------------------------------------------------------------------------------
@@ -219,8 +282,44 @@ function M.onUpdate(dtReal)
   end
   wet = rules.wetStep(wet, target and target.wet or 0, dtReal)
   updatePuddles(dtReal)
+  tintTimer = tintTimer + dtReal
+  if tintTimer > 0.5 then
+    tintTimer = 0
+    local amount = current and current.tint or 0
+    if amount > 0.02 then applyTint(amount) end
+    if wet >= 0.15 and os.clock() - lastStatsLog > 15 then
+      lastStatsLog = os.clock()
+      log('I', TAG, string.format('puddles: %d standing (wet %.2f); tries %d, no surface %d, not flat %d, no road %d, placed %d, frames drawn %d', #puddles, wet, stats.tries, stats.noSurface, stats.notFlat, stats.noRoad, stats.placed, stats.drawn))
+    end
+  end
   gripTimer = gripTimer + dtReal
   if gripTimer > 2 then gripTimer = 0 pushGrip() end
+end
+
+-- for a game test: put the weather in this state at once (no blend), e.g. sl_weather.debugForce('rain', 'heavy')
+function M.debugForce(id, level)
+  readBaseline()
+  stateId, levelId = id or 'rain', level or 'medium'
+  local st = rules.resolve(stateId, levelId)
+  if st.id == 'rain' then lastRain = st end
+  target = { drops = st.drops, cloud = st.cloud, fog = st.id == 'clear' and baseline.fog or st.fog, grip = st.id == 'rain' and 1 or st.grip, wet = st.wet or 0, tint = st.tint or 0,
+    cirrus = st.cirrus or baseline.cirrus, density = st.density or baseline.density, speed = st.speed or 1 }
+  current, blendT = rules.blend(current, target, 1), 1
+  wet = target.wet
+  M.lastLoggedDrops = nil
+  applySky(current)
+  return stateId, levelId
+end
+
+-- the numbers a game test looks at: what the objects say now
+function M.diagnose()
+  local rain, cloud, info, sky = first('Precipitation'), first('CloudLayer'), first('LevelInfo'), first('ScatterSky')
+  local out = { state = stateId, level = levelId, wet = wet, puddles = #puddles, stats = stats,
+    rain = rain and { numOfDrops = rain.numOfDrops, numDrops = rain.numDrops, minSpeed = rain.minSpeed, maxSpeed = rain.maxSpeed } or false,
+    cloud = cloud and { coverage = cloud.coverage, cirrusCoverage = cloud.cirrusCoverage, cirrusDensity = cloud.cirrusDensity } or false,
+    fog = info and info.fogDensity or false, tint = current and current.tint, sunScale = sky and sky:getField('sunScale', 0) or false, fogScale = sky and sky:getField('fogScale', 0) or false }
+  log('I', TAG, 'diagnose: ' .. (dumps and dumps(out) or tostring(out)))
+  return out
 end
 
 local function reset()

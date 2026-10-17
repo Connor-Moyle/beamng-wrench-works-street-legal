@@ -1482,6 +1482,11 @@ do
   local wetNow = gm.wet
   for _ = 1, 210 do wetNow = wx.wetStep(wetNow, 0, 1) end      -- 3.5 min after the rain stopped
   check('and the road is still slippery after the rain stops, and the grip comes back with the drying', wx.wetGrip(wetNow, gm) < 1 and wx.wetGrip(wetNow, gm) > gm.grip and wx.wetGrip(wx.wetStep(wetNow, 0, 400), gm) == 1)
+  check('rain fog stays thin (a thick one takes the dawn light: an orange dust storm), and the sky is pulled to grey harder the harder it rains', h.fog < 0.001 and l.fog < 0.001
+    and l.tint < m.tint and m.tint < h.tint and h.tint > 0.9 and wx.resolve('clear').tint == nil)
+  local g = wx.greyer({ 1, 0.5, 0.2 }, 1)
+  check('a colour pulled all the way to grey keeps its brightness; none leaves it alone', math.abs(g[1] - g[2]) < 1e-9 and math.abs(g[2] - g[3]) < 1e-9 and math.abs(g[1] - (0.3 + 0.295 + 0.022)) < 1e-9
+    and wx.greyer({ 1, 0.5, 0.2 }, 0)[2] == 0.5)
   check('the forecast names the rain strength', wx.text('day', 'rain', nil, 'heavy'):find('Heavy rain') and wx.text('day', 'rain', nil, 'light'):find('Light rain') and wx.text('day', 'rain'):find('Rain'))
 end
 
