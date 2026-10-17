@@ -1918,6 +1918,70 @@ do
   package.loaded['sl/surfacefx'] = nil
 end
 
+do -- car auctions (sl/core/carauction)
+  local CA, RNG, LST = require('sl/core/carauction'), require('sl/core/rng'), require('sl/core/listings')
+  check('grades by condition', CA.grade(0.9) == 'A' and CA.grade(0.7) == 'B' and CA.grade(0.5) == 'C' and CA.grade(0.3) == 'D' and CA.grade(0.1) == 'E')
+  local offer = { name = 'Covet', model = 'covet', value = 20000, condition = 0.6, faults = { 'tyres' } }
+  local a, b = CA.newLot(RNG.new(5), offer, 100), CA.newLot(RNG.new(5), offer, 100)
+  check('a lot is the same for the same seed', a.reserve == b.reserve and a.opening == b.opening and #a.bidders == #b.bidders and a.bidders[1].budget == b.bidders[1].budget)
+  check('the reserve is 65-95 % of the fair worth and the opening bid 40 %', a.reserve >= a.fair * 0.64 and a.reserve <= a.fair * 0.96 and math.abs(a.opening - a.fair * 0.4) <= 10)
+  local lot = CA.newLot(RNG.new(9), offer, 100)
+  check('a bid under the minimum, over your cash, or on a closed lot is refused', select(2, CA.youBid(lot, 10, 99999)) == 'low' and select(2, CA.youBid(lot, lot.opening, 5)) == 'cash')
+  check('your bid stands, and you cannot outbid yourself', CA.youBid(lot, lot.opening, 99999) and lot.high == 'you' and lot.bid == lot.opening and select(2, CA.youBid(lot, lot.bid + 500, 99999)) == 'yours')
+  lot.t = lot.closesAt - 2
+  local before = lot.closesAt
+  lot.high = 1
+  CA.youBid(lot, CA.nextMin(lot), 99999)
+  check('a bid in the last seconds adds time, at most three times', lot.closesAt == before + CA.SOFT_CLOSE)
+  for _ = 1, 6 do lot.t = lot.closesAt - 1 lot.high = 1 CA.youBid(lot, CA.nextMin(lot), 99999) end
+  check('the soft close stops after SOFT_MAX extensions', lot.extended == CA.SOFT_MAX)
+  local over, ok = 0, true
+  for seed = 1, 60 do
+    local l = CA.newLot(RNG.new(seed), offer, 100)
+    local top = 0
+    for _, bd in ipairs(l.bidders) do top = math.max(top, bd.budget) end
+    local rng = RNG.new(seed + 1000)
+    CA.finish(l, rng, 1)
+    if l.bid > top then ok = false end
+    if CA.result(l).sold == 'reserve' and l.bid >= l.reserve then ok = false end
+    if not l.open and CA.result(l).sold == 'ai' and l.bid < l.reserve then ok = false end
+    if l.bid > 0 then over = over + 1 end
+  end
+  check('AI bidders never go over the best budget, and a lot under its reserve does not sell', ok and over > 40)
+  local late = CA.newLot(RNG.new(3), offer, 100)
+  late.bidders = { { id = 1, style = 'sniper', budget = 99999, moved = 0, nextAt = 0 } }
+  local early = {}
+  for _ = 1, 90 do for _, m in ipairs(CA.step(late, 1, RNG.new(1))) do early[#early + 1] = m end end
+  check('a sniper bids only in the last seconds, once', #early == 1 and early[1].t >= late.duration - CA.SNIPE_AT)
+  local hidden = { A = 0, E = 0 }
+  for seed = 1, 1500 do
+    for _, c in ipairs({ { 0.95, 'A' }, { 0.1, 'E' } }) do
+      if CA.newLot(RNG.new(seed), { value = 10000, condition = c[1] }, 0).hidden then hidden[c[2]] = hidden[c[2]] + 1 end
+    end
+  end
+  check('a hidden fault is rare in A and likelier in E (3 % and 12 %)', hidden.A > 15 and hidden.A < 90 and hidden.E > 130 and hidden.E < 240, hidden.A .. ' ' .. hidden.E)
+  local lotH
+  for seed = 1, 400 do local l = CA.newLot(RNG.new(seed), { value = 20000, condition = 0.1 }, 0) if l.hidden then lotH = l break end end
+  check('a hidden fault names a known fault and a repair cost, and is not on the report', lotH and ({ gearbox = 1, engine = 1, brakes = 1 })[lotH.hidden.fault] and lotH.hidden.cost >= 60 and #CA.reportFaults(lotH) == 0)
+  local capOk = true
+  for seed = 1, 80 do
+    local car = { value = 25000, condition = 0.3 + (seed % 7) / 10 }
+    local l = CA.sellLot(RNG.new(seed), car, nil, 0)
+    CA.finish(l, RNG.new(seed * 3), 1)
+    if l.bid > LST.resaleCap(car.value, car.condition) + 10 then capOk = false end
+  end
+  check('what the AI pays for your car stays under the least it could be bought for (buy and sell again never wins)', capOk)
+  local sold = CA.sellLot(RNG.new(11), { value = 25000, condition = 0.9 }, 100, 0)
+  CA.finish(sold, RNG.new(12), 1)
+  check('your car sells at the last bid when the reserve is met; proceeds are after the fee', sold.bid > 0 and CA.sellProceeds(sold) == LST.proceeds(sold.bid))
+  local noSale = CA.sellLot(RNG.new(11), { value = 25000, condition = 0.9 }, 10 ^ 7, 0)
+  CA.finish(noSale, RNG.new(12), 1)
+  check('your car does not sell under your reserve', CA.result(noSale).sold == 'reserve' or CA.result(noSale).sold == 'none')
+  local online = CA.newLot(RNG.new(2), offer, 100, 148)
+  check('an online lot runs on game minutes', online.duration == 48 * 60 and online.pace > 10)
+  local ow = CA.watchDue({ { watched = true, closes = 100.1 }, { watched = true, closes = 105 }, { closes = 100.1 }, { watched = true, told = true, closes = 100.1 } }, 100)
+  check('the watch list warns 10 game minutes before a watched lot closes, once', #ow == 1 and ow[1].closes == 100.1)
+end
 do -- ambient police patrols share the racers' build rule; a chase's patrol is never held back
   local SPP = require('sl/core/spawnplan')
   check('an ambient patrol waits for the gap, the speed rule and any other build', not SPP.patrolOk(5, 3, false, false) and not SPP.patrolOk(30, 30, false, false) and not SPP.patrolOk(5, 99, true, false) and SPP.patrolOk(5, 99, false, false))
