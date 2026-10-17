@@ -263,6 +263,7 @@ local function updateCamera(dt)
   local vid = lot.veh
   local function pick()
     cam.bag = cam.bag or { bag = {} }
+    if cam.force and #cam.force > 0 then return table.remove(cam.force, 1) end      -- (sl_lot.debugShot)
     return lotcam.draw(cam.bag, math.random, function(kind)
       if kind == 'engine' and lidOf(vid) ~= 'front' then return false end
       if kind == 'engine_rear' and lidOf(vid) ~= 'rear' then return false end
@@ -281,7 +282,7 @@ local function updateCamera(dt)
   local pos, look = cam.pos, cam.look
   if sp2 then pos, look = vec3(sp2.x, sp2.y, sp2.z), vec3(sl2.x, sl2.y, sl2.z) end
   e = e or 0
-  local fl = lotcam.framed(pos, look, lotcam.DROP * e, lotcam.SIDE)       -- (the car stands upper left, clear of the card at the bottom centre)
+  local fl = lotcam.framed(pos, look, lotcam.frameDrop(cam.chain) * e, lotcam.SIDE)       -- (the car stands upper left, clear of the card at the bottom centre)
   look = vec3(fl.x, fl.y, fl.z)
   cam.shown = { pos = pos, look = look }
   -- the script-driven camera takes yaw and pitch (pitch positive = looking down): given in its own terms
@@ -300,6 +301,15 @@ function M.cameraDrag(dx, dy)
   cam.idle = 0
   cam.yaw = cam.yaw - (tonumber(dx) or 0) * 0.008
   cam.pitch = math.max(math.rad(2), math.min(math.rad(60), cam.pitch + (tonumber(dy) or 0) * 0.006))
+end
+
+-- for testing: runs this shot now (run_lua: sl_lot.debugShot('engine')) with the lot open on a car; the shots of M.BROWSE_SHOTS (see lotcam)
+-- a cabin shot is reached through a side shot first (the chain never starts inside the car)
+function M.debugShot(kind)
+  if not cam then return false end
+  local isCabin = kind == 'cabin' or kind == 'cabin_pass'
+  cam.force, cam.chain, cam.idle = isCabin and { 'side', kind } or { kind }, nil, lotcam.IDLE + 1
+  return true
 end
 
 function M.cameraZoom(steps)

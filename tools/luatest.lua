@@ -1347,6 +1347,8 @@ do
     end
     check('no transition between any two shots (16x15 pairs, four sizes) crosses the car box, and none jumps', ok, bad)
   end
+  check('close shots drop the look-at point more, the default is the orbit one, a transition interpolates', lotcam.frameDrop(nil) == lotcam.DROP and lotcam.frameDrop({ phase = 'shot', kind = 'rear' }) > lotcam.DROP
+    and lotcam.frameDrop({ phase = 'shot', kind = 'side' }) == lotcam.DROP and math.abs(lotcam.frameDrop({ phase = 'trans', kind = 'side', nextKind = 'rear', u = 0.5 }) - (lotcam.DROP + lotcam.FRAME_DROP.rear) / 2) < 1e-9)
   -- the shuffle bag: every kind once per round, never the same kind twice in a row, unusable kinds dropped
   do
     local state, rnd = { bag = {} }, function(n) return math.random(n) end

@@ -282,6 +282,20 @@ function M.chain(st, dt, auto, orbit, ctx, pick)
   return st, pos, look, w
 end
 
+-- How far the look-at point is dropped (of the distance) in a shot so the car clears the lot's card at the bottom centre: the close shots show
+-- the car bigger and need more. Interpolated along a transition; `w` (the shot weight) scales it back to nothing on the orbit.
+M.FRAME_DROP = { rear = 0.34, rear_rise = 0.3, taillight = 0.3, exhaust = 0.3, badge = 0.3, front_sweep = 0.3, engine = 0.3, engine_rear = 0.3, wheel = 0.26, wheel_rear = 0.26 }
+function M.frameDrop(st)
+  if not st then return M.DROP end
+  local function of(kind) return M.FRAME_DROP[kind] or M.DROP end
+  if st.phase == 'trans' then
+    local u = math.max(0, math.min(1, st.u or 0))
+    local e = u * u * (3 - 2 * u)
+    return of(st.kind) + (of(st.nextKind) - of(st.kind)) * e
+  end
+  return of(st.kind)
+end
+
 M.SHOT_TRANS = 1.4                    -- s a move from the end of one shot to the start of the next takes
 M.SIDE = 0.16                         -- of the distance the look-at point is moved right: the car stands left of the middle
 M.SHOT_TIME = 5                       -- s a browsing shot lasts

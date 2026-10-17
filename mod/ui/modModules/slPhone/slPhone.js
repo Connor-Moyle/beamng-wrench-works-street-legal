@@ -213,7 +213,7 @@
     '.slp-lotbtns .slp-btn{flex:1}',
     '.slp-arrow{width:48px;height:48px;border-radius:50%;background:#2b2930;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:18px;flex:none}',
     '.slp-arrow:hover{background:#49454f}',
-    '.slp-lotleave{text-align:center;margin-top:8px}',
+    '.slp-lotleave,.slp-lotfactory{text-align:center;margin-top:8px}',
     /* race HUD */
     '.slp-race{position:absolute;left:50%;top:2vh;transform:translateX(-50%);min-width:340px;padding:10px 20px;border-radius:20px;background:rgba(20,18,24,.85);text-align:center}',
     '.slp-race b{display:block;font-size:16px;font-weight:500}',
@@ -1077,7 +1077,7 @@
         (l.kind !== 'scrap' ? '<div class="slp-btn slp-tonal' + (l.building ? ' slp-off' : '') + ('" data-a="lot" data-v="testDrive()">' + T('ui.test_drive_2', 'Test drive') + '</div>') : '') +
         '<div class="slp-btn' + (l.building || (o.price > l.money) ? ' slp-off' : '') + ('" data-a="lot" data-v="buy()">' + T('ui.buy_2', 'Buy ') + '&middot;' + ' ') + money(o.price) + '</div>' +
         '<div class="slp-arrow" data-a="lot" data-v="next()">' + (st.slrrArt ? slrrIcon('right.png') : '&#9654;') + '</div></div>' +
-        (l.canFactory ? '<div class="slp-lotleave"><div class="slp-btn slp-tonal" data-a="lot" data-v="factoryOpen()">' + T('ui.order_from_the_factory', 'Order from the factory') + '</div></div>' : '') +
+        (l.canFactory ? '<div class="slp-lotfactory"><div class="slp-btn slp-tonal" data-a="lot" data-v="factoryOpen()">' + T('ui.order_from_the_factory', 'Order from the factory') + '</div></div>' : '') +
         ('<div class="slp-lotleave"><div class="slp-btn slp-text" data-a="lot" data-v="close()">' + T('ui.leave', 'Leave') + '</div></div></div>');
     }
 
