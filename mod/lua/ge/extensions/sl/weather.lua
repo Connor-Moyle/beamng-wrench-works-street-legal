@@ -27,6 +27,8 @@ local puddles = {}               -- { x, y, z, sx, sy, dx, dy, born }
 local puddleTimer = 0
 local pool, poolSize, colors = {}, 0, {}
 local PUDDLE_TEX = 'art/street_legal/decals/puddle.png'
+local puddleMode = 'decal'       -- 'decal' (DynamicDecalMgr + the texture) or 'prism' (flat dark shapes drawn with the debug drawer: always visible, plainer);
+                                 -- the texture is looked for once and 'prism' is used when it is not there. sl_weather.puddleMode('prism') forces it for a test.
 local PUDDLE_RADIUS = { 8, 70 }  -- puddles stand between these distances from the player; further than FORGET_AT they are dropped
 local FORGET_AT = 95
 local DEPTH = 1.5
@@ -227,8 +229,10 @@ local function updatePuddles(dtReal)
     local z = roadSpot(x, y, pos.z + 12)
     if z then
       local rot = math.random() * 6.28
-      local size = 0.9 + math.random() * 1.7
-      puddles[#puddles + 1] = { x = x, y = y, z = z + 0.02, sx = size, sy = size * (0.6 + math.random() * 0.5), dx = math.cos(rot), dy = math.sin(rot), born = os.clock() }
+      -- every third one is a big faint damp patch (the road looks wet round the puddles: there is no wet material to reach); the others are puddles 2-4 m across
+      local damp = stats.placed % 3 == 2
+      local size = damp and (7 + math.random() * 5) or (2 + math.random() * 2)
+      puddles[#puddles + 1] = { x = x, y = y, z = z + 0.02, sx = size, sy = size * (0.6 + math.random() * 0.5), dx = math.cos(rot), dy = math.sin(rot), born = os.clock(), damp = damp }
       stats.placed = stats.placed + 1
       log('I', TAG, string.format('puddle placed at %.0f, %.0f, %.2f (%d of %d, wet %.2f)', x, y, z, #puddles, want, wet))
       break
@@ -236,17 +240,55 @@ local function updatePuddles(dtReal)
   end
 end
 
+local textureChecked = false
+local function checkTexture()
+  textureChecked = true
+  local found = {}
+  for _, path in ipairs({ '/' .. PUDDLE_TEX, PUDDLE_TEX }) do
+    local ok, there = pcall(function() return FS:fileExists(path) end)
+    found[#found + 1] = path .. '=' .. tostring(ok and there)
+    if ok and there then textureChecked = 'found' end
+  end
+  if textureChecked ~= 'found' then puddleMode = 'prism' end
+  log(textureChecked == 'found' and 'I' or 'W', TAG, 'puddle texture: ' .. table.concat(found, ', ') .. (textureChecked == 'found' and '' or ': not found, drawing flat shapes instead'))
+end
+
+function M.puddleMode(m) if m == 'prism' or m == 'decal' then puddleMode = m textureChecked = true end return puddleMode end
+
+-- a puddle as three flat bars turned 60 degrees apart (a rough hexagon), drawn with the debug drawer
+local function drawPrisms(p, alpha)
+  local c = ColorF(0.10, 0.14, 0.20, math.min(0.75, alpha))
+  local half = p.sx * 0.5
+  for k = 0, 2 do
+    local a = math.atan2(p.dy, p.dx) + k * math.pi / 3
+    local ux, uy = math.cos(a) * half, math.sin(a) * half
+    pcall(function()
+      debugDrawer:drawSquarePrism(vec3(p.x - ux, p.y - uy, p.z), vec3(p.x + ux, p.y + uy, p.z), Point2F(0.01, p.sy * 0.55), Point2F(0.01, p.sy * 0.55), c)
+    end)
+  end
+end
+
 function M.onPreRender()
   if #puddles == 0 or wet < 0.15 then return end
+  if not textureChecked then checkTexture() end
+  if puddleMode == 'prism' then
+    local now = os.clock()
+    for i = 1, #puddles do
+      local p = puddles[i]
+      local alpha = rules.puddleAlpha(wet, now - p.born) * (p.damp and 0.35 or 1)
+      if alpha > 0.02 then drawPrisms(p, alpha) stats.drawn = stats.drawn + 1 end
+    end
+    return
+  end
   if not (Engine and Engine.Render and Engine.Render.DynamicDecalMgr) then return end
   local now, idx = os.clock(), 0
   for i = 1, #puddles do
     local p = puddles[i]
-    local alpha = rules.puddleAlpha(wet, now - p.born)
+    local alpha = rules.puddleAlpha(wet, now - p.born) * (p.damp and 0.35 or 1)
     if alpha > 0.02 then
       idx = idx + 1
       if idx > poolSize then
-        pool[idx] = { texture = PUDDLE_TEX, position = vec3(0, 0, 0), forwardVec = vec3(1, 0, 0), color = ColorF(0.8, 0.88, 0.95, 1), scale = vec3(1, 1, DEPTH), fadeStart = 55, fadeEnd = 75 }
+        pool[idx] = { texture = PUDDLE_TEX, position = vec3(0, 0, 0), forwardVec = vec3(1, 0, 0), color = ColorF(1, 1, 1, 1), scale = vec3(1, 1, DEPTH), fadeStart = 80, fadeEnd = 100 }
         poolSize = idx
       end
       local e = pool[idx]
@@ -254,7 +296,7 @@ function M.onPreRender()
       e.forwardVec:set(p.dx, p.dy, 0)
       e.scale:set(p.sx, p.sy, DEPTH)
       local q = math.floor(alpha * 20 + 0.5)
-      e.color = colors[q] or (function() colors[q] = ColorF(0.8, 0.88, 0.95, q / 20) return colors[q] end)()      -- (a handful of cached colours, nothing allocated per frame)
+      e.color = colors[q] or (function() colors[q] = ColorF(1, 1, 1, q / 20) return colors[q] end)()      -- (a handful of cached colours, nothing allocated per frame)
     end
   end
   if idx > 0 then
@@ -265,6 +307,24 @@ function M.onPreRender()
 end
 
 ----------------------------------------------------------------------------------------------
+
+-- the level's rain is a box of drops at a fixed place (WCUSA's WCA_rain sits ~100 m from where you drive): it follows the camera (followCam where the object has it,
+-- and moved to the camera each frame as well)
+local followLogged = false
+local function followRain()
+  local rain = first('Precipitation')
+  if not rain then return end
+  local ok, cam = pcall(function() return core_camera and core_camera.getPosition and core_camera.getPosition() end)
+  if not (ok and cam) then return end
+  if not followLogged then
+    followLogged = true
+    local f, at = nil, nil
+    pcall(function() f = rain:getField('followCam', 0) at = rain:getPosition() end)
+    pcall(function() rain:setField('followCam', 0, 'true') rain:setField('boxWidth', 0, '70') rain:setField('boxHeight', 0, '70') end)
+    log('I', TAG, string.format('rain follows the camera: followCam was %s, the rain stood at %s, the camera is at %s', tostring(f), tostring(at), tostring(cam)))
+  end
+  pcall(function() rain:setPosition(vec3(cam.x, cam.y, cam.z)) end)
+end
 
 function M.onStreetLegalStarted() lastKey = nil sync() end
 function M.onStreetLegalPhase() sync() end
@@ -281,6 +341,7 @@ function M.onUpdate(dtReal)
     if applyTimer > 0.2 or blendT >= 1 then applyTimer = 0 applySky(current) end      -- (the objects are applied a few times a second, not every frame)
   end
   wet = rules.wetStep(wet, target and target.wet or 0, dtReal)
+  if current and (current.drops or 0) > 0 then followRain() end
   updatePuddles(dtReal)
   tintTimer = tintTimer + dtReal
   if tintTimer > 0.5 then
@@ -324,7 +385,7 @@ end
 
 local function reset()
   baseline, current, target, lastKey, blendFrom = nil, nil, nil, nil, nil
-  wet, puddles, lastRain = 0, {}, nil
+  wet, puddles, lastRain, followLogged = 0, {}, nil, false
 end
 
 function M.onStreetLegalStopped()
