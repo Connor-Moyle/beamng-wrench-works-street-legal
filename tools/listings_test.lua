@@ -422,9 +422,9 @@ return function(check, rngLib)
   check('a clear lot: the first rear quarter (145 degrees)', math.abs(yaw0 - math.rad(145)) < 1e-9 and f0 == 1)
   local fdist, fpitch = LC.frame(5.5)
   local eye0 = LC.eyeAt(car, facing, yaw0, fpitch, fdist)
-  check('the eye is behind the car and to its side, 2.2 m above its centre (about 3 m above the ground), 6.5 to 10 m out', eye0.y < car.y and math.abs(eye0.x - car.x) > 2.5 and math.abs(eye0.z - car.z - LC.EYE_UP) < 0.01
+  check('the eye is behind the car and to its side, 1.5 m above its centre (about 2.3 m above the ground), 6.5 to 10 m out', eye0.y < car.y and math.abs(eye0.x - car.x) > 2.5 and math.abs(eye0.z - car.z - LC.EYE_UP) < 0.01
     and fdist >= 6.5 and fdist <= 10 and math.abs(math.sqrt((eye0.x - car.x) ^ 2 + (eye0.y - car.y) ^ 2) - fdist * math.cos(fpitch)) < 1e-6)
-  check('a 15 to 20 degree look down for an ordinary car', math.deg(fpitch) > 13 and math.deg(fpitch) < 20)
+  check('the eye is raised 5 to 20 degrees above the car for an ordinary car', math.deg(fpitch) > 5 and math.deg(fpitch) < 20)
   local small, _ = LC.frame(2.5)
   local big, _ = LC.frame(30)
   check('the distance follows the car size: never under 6.5 m, never over 10 m, more for a bigger car', small == 6.5 and big == 10 and LC.frame(8) > LC.frame(5))
@@ -481,4 +481,20 @@ return function(check, rngLib)
   end
   check('the list is the caller own (the proof the rule is what protects it): with another list the spare wheel does get swapped', otherSwaps > 0)
   check('the default list names the spare wheel in its spellings', table.concat(C.REFUSE, ' '):find('sparewheel', 1, true) ~= nil and table.concat(C.REFUSE, ' '):find('spare_wheel', 1, true) ~= nil)
+
+  -- T37c: the camera looks DOWN at the car, not up into the sky
+  local aim = { x = car.x, y = car.y, z = car.z - LC.DROP * fdist }
+  local lookDz = aim.z - eye0.z
+  check('the eye is above the car and the point it looks at is below the eye: the look direction points down', eye0.z > car.z and aim.z < car.z and lookDz < 0)
+  local yawD, pitchD = LC.angles(aim.x - eye0.x, aim.y - eye0.y, lookDz)
+  check('...so the camera pitch is positive (scriptedFree: positive = down), 15 to 25 degrees for the standard framing', pitchD > 15 and pitchD < 25)
+  local fx, fy, fz = math.sin(math.rad(yawD)) * math.cos(math.rad(pitchD)), math.cos(math.rad(yawD)) * math.cos(math.rad(pitchD)), -math.sin(math.rad(pitchD))
+  local dl = math.sqrt((aim.x - eye0.x) ^ 2 + (aim.y - eye0.y) ^ 2 + lookDz ^ 2)
+  check('the camera forward from those angles (scriptedFree own formula) is the direction to the aim point, z negative', math.abs(fx - (aim.x - eye0.x) / dl) < 1e-9 and math.abs(fy - (aim.y - eye0.y) / dl) < 1e-9 and math.abs(fz - lookDz / dl) < 1e-9 and fz < 0)
+  local y1, p1 = LC.angles(0, 1, 0)
+  local y2, p2 = LC.angles(1, 0, 0)
+  local y3, p3 = LC.angles(0, -1, -1)
+  local _, p4 = LC.angles(0, 1, 1)
+  check('angles: +Y is yaw 0, +X is yaw 90, a descending look has positive pitch, a rising one negative, a zero vector is 0', math.abs(y1) < 1e-9 and math.abs(p1) < 1e-9 and math.abs(y2 - 90) < 1e-9
+    and math.abs(math.abs(y3) - 180) < 1e-9 and math.abs(p3 - 45) < 1e-9 and math.abs(p4 + 45) < 1e-9 and select(1, LC.angles(0, 0, 0)) == 0)
 end

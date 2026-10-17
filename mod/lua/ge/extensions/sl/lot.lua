@@ -118,7 +118,7 @@ local function cameraOn()
   if cam or M.NO_CAMERA then return end
   cam = { yaw = math.rad(lotcam.YAWS[1]), pitch = lotcam.PITCH, dist = lotcam.DIST, previous = lot and lot.previousCamera }
   -- the script-driven camera (it takes its pose from us every frame and shows no free-camera help); the free camera as a fallback
-  local ok = core_camera and core_camera.setByName and pcall(core_camera.setByName, 0, 'scriptedFree', false, { locked = true })
+  local ok = core_camera and core_camera.setByName and pcall(core_camera.setByName, 0, 'scriptedFree', false, { locked = true, driveRot = true })
   if not ok and commands and commands.setFreeCamera then commands.setFreeCamera() end
 end
 
@@ -165,8 +165,15 @@ local function updateCamera(dt)
   cam.pos = cam.pos and (cam.pos + (want - cam.pos) * k) or want
   local aim = target - vec3(0, 0, lotcam.DROP * cam.dist)       -- (aimed below the car: it stands in the upper part of the screen, above the info card)
   cam.look = cam.look and (cam.look + (aim - cam.look) * k) or aim
-  core_camera.setPosition(0, cam.pos)
-  core_camera.setRotation(0, quatFromDir((cam.look - cam.pos):normalized(), vec3(0, 0, 1)))
+  -- the script-driven camera takes yaw and pitch (pitch positive = looking down): given in its own terms
+  local sf = core_camera.getGlobalCameras and core_camera.getGlobalCameras().scriptedFree
+  if sf and sf.setPose and core_camera.getActiveCamName(0) == 'scriptedFree' then
+    local yawDeg, pitchDeg = lotcam.angles(cam.look.x - cam.pos.x, cam.look.y - cam.pos.y, cam.look.z - cam.pos.z)
+    sf:setPose(cam.pos, yawDeg, pitchDeg, 0)
+  else
+    core_camera.setPosition(0, cam.pos)
+    core_camera.setRotation(0, quatFromDir((cam.look - cam.pos):normalized(), vec3(0, 0, 1)))
+  end
 end
 
 function M.cameraDrag(dx, dy)

@@ -7,9 +7,9 @@ local M = {}
 
 M.DIST = 7.5                          -- m from the car's centre (before the car's own size sets it: frame)
 M.PITCH = math.rad(14)                -- (likewise)
-M.DROP = 0.22                         -- the look-at point is this much of the distance below the car's centre: the car sits in the upper
+M.DROP = 0.20                         -- the look-at point is this much of the distance below the car's centre: the car sits in the upper
                                       -- part of the screen, clear of the lot's info card over the bottom 40 %
-M.EYE_UP = 2.2                        -- m the eye stands above the car's centre (about 3 m above the ground)
+M.EYE_UP = 1.5                        -- m the eye stands above the car's centre (about 2.3 m above the ground)
 M.YAWS = { 145, -145, 120, -120, 90, -90, 35, -35, 180 }       -- degrees from the way the car faces: rear quarters first
 M.KEEP = 0.6                          -- m kept between the eye and a wall
 
@@ -52,6 +52,16 @@ function M.choose(target, dir, pitch, dist, ray)
     if frac > bestFrac + 1e-6 then best, bestFrac = yaw, frac end
   end
   return best, bestFrac
+end
+
+-- The camera's yaw and pitch (degrees) for a look along (dx, dy, dz), in scriptedFree's own convention (core/cameraModes/scriptedFree.lua:
+-- forward = (sin yaw * cos pitch, cos yaw * cos pitch, -sin pitch): yaw clockwise from +Y, pitch POSITIVE LOOKING DOWN). Giving the
+-- camera these instead of a rotation quaternion keeps its Euler conversion out of it (the view pointed into the sky).
+function M.angles(dx, dy, dz)
+  local flat = math.sqrt(dx * dx + dy * dy)
+  local len = math.sqrt(flat * flat + dz * dz)
+  if len < 1e-9 then return 0, 0 end
+  return math.deg((math.atan2 or math.atan)(dx, dy)), math.deg(math.asin(math.max(-1, math.min(1, -dz / len))))
 end
 
 return M
