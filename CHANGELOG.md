@@ -21,16 +21,28 @@ What is new since 0.4.0, for players.
 ### Car meets
 - On foot, walk up to an owner's parked car and press the game's prompt (**Talk to <name> (<car>)**): you get their story and their offer (a tip, a race word or the car for sale). Nothing pops up by itself while you walk through.
 - Owners stand in pairs and trios; the music plays from one car and the crowd murmur is at the centre.
-- A meet fills without freezes: one car is built at a time, and only while you are slow or far away.
+- A meet fills without freezes: one car is built at a time, the gap between cars follows how you drive (6 s when you are slow, longer when you are moving), and no car is built while you drive fast nearby.
+- Meets come more reliably: the first meet of a night is tried 30 seconds in and a miss is retried 20 seconds later. A meet that could not build any car (you kept driving fast nearby) is closed and does not count, so the next try comes.
+
+### Night races
+- **More variety:** a street race can now be a city run, a highway run, a hill climb or a rolling 60-130 run. The goal is picked from the road graph (length, share of fast road, tarmac, turns, height gained, no dead ends), and the challenge card says which kind it is.
 
 ### Economy
 - Day jobs pay 35% more.
 - Garage 2 needs **175 reputation and $6,000** (was 1,500 and $25,000); garage 3 needs 1,000 and $25,000 (was 3,000 and $75,000). The first garage upgrade is reached in a few hours of play.
 
 ### Smoother running
+- **Far fewer freezes at night.** Nearly every remaining stutter was a car being built (1.1-1.8 s). Builds are now one at a time anywhere in the game with a 20 s gap, not while you drive fast, and a racer's car that is waiting in the pool is chosen first and put back instead of built again. Ambient police patrols follow the same rule (a chase, a race start and heat 4-5 patrols still come at once), night cruisers are built behind the black fade where there is one, and custom cars are built in one spawn and remembered. In our test drive the frames over 50 ms went from 102 to 14.
+- **Weather costs almost nothing:** the rain box and the sky tint no longer cost a few milliseconds every frame (heavy rain went from 9.2 ms a frame to 0.8 ms; a clear night from 0.58 ms to 0.09 ms), and the puddles do nothing on a dry road.
+- The race route check is made four times a second instead of every frame.
 - The phone, laptop and dashboard are sent only what changed: a screen is not rebuilt when its data did not change (no more lost clicks, lost typing or jumping scroll), and the dashboard updates ten times a second with the needles easing between updates.
 - Night cruisers are built while the screen is black at the start of the night, a fast travel or the career start, so cars appear without a gap or a freeze.
 - Racers' car models are loaded one at a time at quiet moments. A hitch recorder (for reporting stutters) lists every frame over 50 ms and what ran just before it.
+
+### Accessibility
+- **Colour-blind friendly colours** (Settings): blue and orange instead of green and red on the phone, the laptop and the HUD, with a mark (a tick, a cross, an arrow) beside every good or bad figure.
+- The text size setting applies to the phone, the laptop, the HUD and the lot cards; on a pad the phone is never smaller than Large. Whatever has the pad's focus has a thick yellow ring. The text of our panels is checked for WCAG AA contrast.
+- **Show co-driver notes on screen** (Settings, on by default): a rally stage also writes what the co-driver calls.
 
 ### Names
 - The pieces are called by their player-facing names everywhere: the Street Legal dashboard, Wrench Works: Drivers & Pedestrians, Street Legal Racing Redline in the credits.
