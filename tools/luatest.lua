@@ -1257,4 +1257,14 @@ do
   check('and a wait until the morning across the day change delivers it too', #state.orders == 0 and #built == builtBefore + 2)
 end
 
+-- a lot's marker prompt (T33, junkyard/scrapyard): a lot that shows cars always has "look"; a driver in a fleet car also gets "sell" after it; a dealer never buys
+do
+  local lp = require('sl/core/lotprompt')
+  local function m(kind, foot, fleet) return table.concat(lp.modes(kind, foot, fleet), '+') end
+  check('on foot: look, at every lot', m('used', true, false) == 'browse' and m('dealer', true, false) == 'browse' and m('scrap', true, true) == 'browse')
+  check('a driver outside a fleet car at a junkyard or scrapyard can look', m('used', false, false) == 'browse' and m('scrap', false, false) == 'browse')
+  check('a driver in a fleet car at a junkyard or scrapyard: look, then sell', m('used', false, true) == 'browse+sell' and m('scrap', false, true) == 'browse+sell')
+  check('a dealer is unchanged: look for a driver, never sell', m('dealer', false, false) == 'browse' and m('dealer', false, true) == 'browse')
+end
+
 print(string.format('lua tests passed: %d checks', passed))

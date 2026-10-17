@@ -22,6 +22,7 @@ local lotcam = require('sl/core/lotcam')
 local lotbuild = require('sl/core/lotbuild')
 local lotaudio = require('sl/core/lotaudio')
 
+local lotprompt = require('sl/core/lotprompt')
 local KIND = { junkyard = 'used', dealer = 'dealer', scrapyard = 'scrap' }
 local TITLES = { used = strings.t('pois.used_cars'), dealer = strings.t('pois.new_cars'), scrap = strings.t('pois.scrap_yard') }
 local TEST_SECONDS = 150
@@ -589,16 +590,15 @@ function M.onActivityAcceptGatherData(elemData, activityData)
     if kind then
       local v = getPlayerVehicle(0)
       local onFoot = not v or v:getJBeamFilename() == 'unicycle'
-      local selling = not onFoot and sl_fleet.currentCar() and kind ~= 'dealer'
-      -- a dealer shows its cars to a driver too: Connor drove to Jefferson Motors and had nothing to press (T33)
-      if onFoot or selling or kind == 'dealer' then
-        local tod = core_environment and core_environment.getTimeOfDay and core_environment.getTimeOfDay()
-        local closed = splitphase.closedText('places', place.kind, sl_career.phase()) or (type(tod) == 'table' and tod.time and hours.closedText(place.kind, tod.time))      -- 'Closed. Opens at 09:00'
+      local tod = core_environment and core_environment.getTimeOfDay and core_environment.getTimeOfDay()
+      local closed = splitphase.closedText('places', place.kind, sl_career.phase()) or (type(tod) == 'table' and tod.time and hours.closedText(place.kind, tod.time))      -- 'Closed. Opens at 09:00'
+      for _, mode in ipairs(lotprompt.modes(kind, onFoot, sl_fleet.currentCar() ~= nil)) do      -- (a lot that shows cars always lets a driver look: Connor drove to Jefferson Motors and had nothing to press, T33)
+        local selling = mode == 'sell'
         table.insert(activityData, {
           icon = 'poi_arrival_round', heading = place.name, preheadings = { HEADINGS[kind] },
           sorting = { type = 'slrrPlace', id = place.id },
           buttonLabel = closed or (selling and (kind == 'scrap' and strings.t('lot.scrap_your_car') or strings.t('lot.sell_your_car')) or strings.t('lot.look_at_the_cars')),
-          buttonFun = function() open(place, selling and 'sell' or 'browse') end,      -- (shut: open() says so and closes the prompt)
+          buttonFun = function() open(place, mode) end,      -- (shut: open() says so and closes the prompt)
           buttonSoundClass = 'bng_hover_generic',
         })
       end
