@@ -85,14 +85,15 @@ M.garages = {
 -- garage upgrades (X58, Design 7): what a garage has is bought, and kept with that garage. The club garages (2, 3)
 -- come with the lift and the workbench. Off a career Wrench Works has everything.
 M.UPGRADES = {
-  { id = 'lift', name = strings.t('progression.two_post_lift'), price = 2000, desc = strings.t('progression.engine_gearbox_suspension_and_exhaust') },
+  { id = 'lift', name = strings.t('progression.two_post_lift'), price = 2000, desc = strings.t('progression.gearbox_suspension_driveline_and_exhaust') },
+  { id = 'crane', name = strings.t('progression.engine_crane'), price = 3500, desc = strings.t('progression.the_engine_comes_out_and') },
   { id = 'workbench', name = strings.t('progression.workbench_and_tools'), price = 1500, desc = strings.t('progression.repairs_at_the_normal_price') },
   { id = 'dyno', name = 'Dyno', price = 6000, desc = strings.t('progression.power_curves_before_and_after') },
   { id = 'paint', name = strings.t('progression.paint_booth'), price = 5000, desc = strings.t('progression.paint_liveries_and_tint_at') },
   { id = 'shelves', name = strings.t('progression.parts_shelves'), price = 1000, desc = strings.t('progression.three_times_the_shelf_space') },
   { id = 'photo', name = strings.t('progression.photo_corner'), price = 800, desc = strings.t('progression.photo_mode_in_the_garage') },
 }
-M.GARAGE_COMES_WITH = { [2] = { lift = true, workbench = true }, [3] = { lift = true, workbench = true } }
+M.GARAGE_COMES_WITH = { [2] = { lift = true, workbench = true, crane = true }, [3] = { lift = true, workbench = true, crane = true } }
 M.SHELF = { base = 12, shelves = 40 }       -- parts per model on the shelf
 M.MOBILE_MECHANIC = 1.5                    -- repairs without the workbench cost this much more
 
@@ -103,7 +104,7 @@ function M.garageFeatures(bought, level)
   local has = {}
   for k, v in pairs(M.GARAGE_COMES_WITH[level or 1] or {}) do has[k] = v end
   for k, v in pairs(bought or {}) do if v then has[k] = true end end
-  return { lift = has.lift == true, workbench = has.workbench == true, dyno = has.dyno == true, paint = has.paint == true, photo = has.photo == true,
+  return { lift = has.lift == true, crane = has.crane == true, workbench = has.workbench == true, dyno = has.dyno == true, paint = has.paint == true, photo = has.photo == true,
     shelfSize = has.shelves and M.SHELF.shelves or M.SHELF.base, repairFactor = has.workbench and 1 or M.MOBILE_MECHANIC }
 end
 

@@ -29,7 +29,7 @@ local sent
 local function push()
   if not (slrr_garage and slrr_garage.setFeatures) then return end
   local f = M.features()
-  local sig = f and string.format('%s%s%s%s%s%d', tostring(f.lift), tostring(f.workbench), tostring(f.dyno), tostring(f.paint), tostring(f.photo), f.shelfSize) or 'all'
+  local sig = f and string.format('%s%s%s%s%s%s%d', tostring(f.lift), tostring(f.crane), tostring(f.workbench), tostring(f.dyno), tostring(f.paint), tostring(f.photo), f.shelfSize) or 'all'
   if sig == sent then return end
   sent = sig
   slrr_garage.setFeatures(f)
