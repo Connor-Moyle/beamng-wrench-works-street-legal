@@ -1024,6 +1024,24 @@
           '<div class="slp-lbar"><i style="width:' + (tot ? Math.round(100 * dn / tot) : 5) + '%"></i></div>' +
           ('<div class="slp-btn slp-text" data-a="lot" data-v="close()" style="margin-top:10px">' + T('ui.cancel', 'Cancel') + '</div></div></div>');
       }
+      if (l.factory) {
+        var f = l.factory, rows = '', back = '<div class="slp-lotleave"><div class="slp-btn slp-text" data-a="lot" data-v="factoryBack()">' + T('ui.factory_back', 'Back') + '</div></div>';
+        if (f.step === 'models') arr(f.models).forEach(function (m) {
+          rows += '<div class="slp-btn slp-tonal" data-a="lot" data-v="factoryModel(' + m.i + ')">' + esc(m.name) + ' &middot; ' + T('ui.factory_from', 'from') + ' ' + money(m.from) + ' &middot; ' + T('ui.factory_trims_n', '{1} trims', m.trims) + '</div>';
+        });
+        else if (f.step === 'trims') arr(f.trims).forEach(function (t) {
+          rows += '<div class="slp-btn slp-tonal" data-a="lot" data-v="factoryTrim(' + t.i + ')">' + esc(t.name) + ' &middot; ' + money(t.price) + '</div>';
+        });
+        else {
+          rows = '<div class="slp-lottitle">' + T('ui.factory_spec', 'Factory options only') + '</div><div class="slp-lotfaults slp-ok">' + esc(arr(f.parts).join(', ')) + '</div>' +
+            '<div class="slp-lottitle">' + T('ui.factory_colour', 'Colour') + '</div><div class="slp-lotbtns">' +
+            arr(f.colours).map(function (c, i) { return '<div class="slp-btn ' + (c === f.paint ? '' : 'slp-tonal') + '" data-a="lot" data-v="factoryPaint(' + (i + 1) + ')">' + esc(c) + '</div>'; }).join('') + '</div>' +
+            '<div class="slp-lottitle">' + T('ui.factory_delivery_in', 'Delivered to your garage in about {1} hours', f.hours) + '</div>' +
+            '<div class="slp-lotbtns"><div class="slp-btn' + (f.price > l.money ? ' slp-off' : '') + '" data-a="lot" data-v="factoryBuy()">' + T('ui.factory_order_it', 'Order') + ' &middot; ' + money(f.price) + '</div></div>';
+        }
+        return '<div class="slp-catch" data-catch="lot"></div><div class="slp-lot"><div class="slp-lothead"><span>' + esc(l.kindTitle) + ' &middot; ' + esc(l.name) + '</span></div>' +
+          '<div class="slp-lotname"><b>' + esc(f.model || T('ui.factory_models', 'Factory models')) + (f.trim ? ' &middot; ' + esc(f.trim) : '') + '</b></div>' + rows + back + '</div>';
+      }
       var o = l.offer || {};
       var faults = arr(o.faults);
       var body = l.building ? ('<div class="slp-lotname"><b>' + T('ui.bringing_it_round', 'Bringing it round…') + '</b></div>') :
@@ -1037,6 +1055,7 @@
         (l.kind !== 'scrap' ? '<div class="slp-btn slp-tonal' + (l.building ? ' slp-off' : '') + ('" data-a="lot" data-v="testDrive()">' + T('ui.test_drive_2', 'Test drive') + '</div>') : '') +
         '<div class="slp-btn' + (l.building || (o.price > l.money) ? ' slp-off' : '') + ('" data-a="lot" data-v="buy()">' + T('ui.buy_2', 'Buy ') + '&middot;' + ' ') + money(o.price) + '</div>' +
         '<div class="slp-arrow" data-a="lot" data-v="next()">' + (st.slrrArt ? slrrIcon('right.png') : '&#9654;') + '</div></div>' +
+        (l.canFactory ? '<div class="slp-lotleave"><div class="slp-btn slp-tonal" data-a="lot" data-v="factoryOpen()">' + T('ui.order_from_the_factory', 'Order from the factory') + '</div></div>' : '') +
         ('<div class="slp-lotleave"><div class="slp-btn slp-text" data-a="lot" data-v="close()">' + T('ui.leave', 'Leave') + '</div></div></div>');
     }
 
@@ -1450,7 +1469,7 @@
         case 'usecar': lua('useCar(' + Number(v) + ')'); break;
         case 'move': lua('moveGarage()'); break;
         case 'roc': lua('enterRoc()'); setOpen(false); break;
-        case 'lot': if (/^[a-zA-Z]+\(\)$/.test(v)) lua('@sl_lot.' + v); break;
+        case 'lot': if (/^[a-zA-Z]+\(\d*\)$/.test(v)) lua('@sl_lot.' + v); break;
         case 'meet': var parts = String(v).split('|'); lua('@sl_streets.meetChallenge(' + JSON.stringify(parts[0]) + ',' + JSON.stringify(parts[1]) + ')'); break;
         case 'slotedit': st.slotEdit = true; render(); break;
         case 'gameover':

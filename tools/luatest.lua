@@ -1297,4 +1297,16 @@ do
   check('sway is bounded', worst <= lotcam.SWAY + 1e-9 and worst > lotcam.SWAY * 0.9)
 end
 
+-- factory orders (C3)
+do
+  local F = require('sl/core/factory')
+  local cat = F.catalogue({ { model = 'b', config = 'b/x.pc', name = 'B base', brand = 'Bb', value = 20000 }, { model = 'a', config = 'a/s.pc', name = 'A sport', value = 40000 },
+    { model = 'a', config = 'a/b.pc', name = 'A base', value = 30000 }, { model = 'a', config = 'a/c.pc', name = 'A cheap', value = 30000 }, { name = 'no model' } })
+  check('the catalogue groups trims by model, cheapest model first', #cat == 2 and cat[1].model == 'b' and cat[2].model == 'a' and #cat[2].trims == 3)
+  check('the trims run by price then file', cat[2].trims[1].config == 'a/b.pc' and cat[2].trims[2].config == 'a/c.pc' and cat[2].trims[3].value == 40000)
+  local o = F.order('a', cat[2].trims[3], 'Red', 100)
+  check('an order costs the config value and is due in DELIVERY_HOURS', o.price == 40000 and o.due == 100 + F.DELIVERY_HOURS and o.config == 'a/s.pc')
+  check('nothing is due early, the first arrived order is found', F.nextDue({ o }, 105) == nil and F.nextDue({ { due = 200 }, o }, 106) == 2 and F.nextDue(nil, 1) == nil)
+end
+
 print(string.format('lua tests passed: %d checks', passed))

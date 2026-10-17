@@ -23,6 +23,8 @@ local lotbuild = require('sl/core/lotbuild')
 local lotaudio = require('sl/core/lotaudio')
 
 local lotprompt = require('sl/core/lotprompt')
+local factoryLib = require('sl/core/factory')
+local partinfo = require('sl/core/partinfo')
 local KIND = { junkyard = 'used', dealer = 'dealer', scrapyard = 'scrap' }
 local TITLES = { used = strings.t('pois.used_cars'), dealer = strings.t('pois.new_cars'), scrap = strings.t('pois.scrap_yard') }
 local TEST_SECONDS = 150
@@ -110,6 +112,7 @@ local function send()
   guihooks.trigger('slLotData', {
     open = true, mode = lot.mode, name = lot.place.name, kindTitle = lot.private and strings.t('lot.private_sale') or TITLES[lot.kind], kind = lot.kind,
     index = lot.index, count = #lot.offers, offer = offerForUi(lot.offers[lot.index]), building = lot.mode == 'browse' and lot.building == true, progress = lot.progress,
+    canFactory = lot.mode == 'browse' and not lot.private and lot.kind == 'dealer' and M.tier(lot.place) == 'high' or nil, factory = lot.factory and M.factoryView() or nil,
     money = s.money, testLeft = test and math.ceil(test.timeLeft) or nil,
     sellCar = mine and { name = mine.name, price = lot.kind == 'scrap' and market.scrapValue(mine, parts) or market.resaleValue(mine, parts) } or nil,
   })
@@ -596,6 +599,126 @@ function M.sell()
 end
 
 ----------------------------------------------------------------------------------------------
+-- factory orders (docs/FACTORY_ORDER.md): a high-end dealer's catalogue of models and trims, the factory's own options only
+
+local function modelInfo(key)
+  local ok, m = pcall(core_vehicles.getModel, key)
+  return ok and m and m.model or {}
+end
+
+local function catalogue()
+  lot.catalogue = lot.catalogue or factoryLib.catalogue(M.poolOf(lot.place))
+  return lot.catalogue
+end
+
+-- the factory's parts for a trim (its .pc) by name, and the model's own colours
+local function specOf(model, trim)
+  local pc = jsonReadFile and jsonReadFile(trim.config) or nil
+  local names = {}
+  for slot, part in pairs(type(pc) == 'table' and pc.parts or {}) do
+    if type(part) == 'string' and part ~= '' then names[#names + 1] = partinfo.displayName(nil, part, model.model) end
+  end
+  table.sort(names)
+  local colours = {}
+  for name in pairs(modelInfo(model.model).paints or {}) do colours[#colours + 1] = name end
+  table.sort(colours)
+  return names, colours
+end
+
+-- what the card shows for the step the player is on
+function M.factoryView()
+  local f, cat = lot and lot.factory, lot and catalogue()
+  if not f then return nil end
+  local out = { step = f.step, money = career() and career().money }
+  if f.step == 'models' then
+    out.models = {}
+    for i, m in ipairs(cat) do out.models[i] = { i = i, name = (m.brand ~= '' and (m.brand .. ' ') or '') .. tostring(modelInfo(m.model).Name or m.model), from = m.trims[1].value, trims = #m.trims } end
+    return out
+  end
+  local m = cat[f.mi]
+  if not m then return out end
+  out.model = (m.brand ~= '' and (m.brand .. ' ') or '') .. tostring(modelInfo(m.model).Name or m.model)
+  if f.step == 'trims' then
+    out.trims = {}
+    for i, t in ipairs(m.trims) do out.trims[i] = { i = i, name = t.name, price = t.value } end
+  else
+    local t = m.trims[f.ti]
+    local parts, colours = specOf(m, t)
+    out.trim, out.price, out.parts, out.colours, out.paint = t.name, t.value, parts, colours, f.paint
+    out.hours = factoryLib.DELIVERY_HOURS
+  end
+  return out
+end
+
+local function factoryOk() return lot and lot.mode == 'browse' and lot.kind == 'dealer' and not lot.private and M.tier(lot.place) == 'high' end
+function M.factoryOpen() if factoryOk() then lot.factory = { step = 'models' } send() end end
+function M.factoryBack()
+  local f = lot and lot.factory
+  if not f then return end
+  lot.factory = ({ spec = { step = 'trims', mi = f.mi }, trims = { step = 'models' } })[f.step]
+  send()
+end
+function M.factoryModel(i) local f = lot and lot.factory if f and f.step == 'models' and catalogue()[i] then lot.factory = { step = 'trims', mi = i } send() end end
+function M.factoryTrim(i)
+  local f = lot and lot.factory
+  local m = f and f.step == 'trims' and catalogue()[f.mi]
+  if m and m.trims[i] then
+    local _, colours = specOf(m, m.trims[i])
+    lot.factory = { step = 'spec', mi = f.mi, ti = i, paint = colours[1] }
+    send()
+  end
+end
+function M.factoryPaint(i)
+  local f = lot and lot.factory
+  local m = f and f.step == 'spec' and catalogue()[f.mi]
+  if m then local _, colours = specOf(m, m.trims[f.ti]) f.paint = colours[i] or f.paint send() end
+end
+
+function M.factoryBuy()
+  local s, f = career(), lot and lot.factory
+  local m = f and f.step == 'spec' and catalogue()[f.mi]
+  if not s or not m then return end
+  local trim = m.trims[f.ti]
+  if s.money < trim.value then
+    guihooks.trigger('slPhoneToast', { text = string.format(strings.t('carcare.it_is_d_you_have'), trim.value, s.money) })
+    return
+  end
+  local hour = (s.day or 0) * 24 + math.floor(sl_career.hour and sl_career.hour() or 12)
+  if not sl_career.addMoney(-trim.value, strings.t('carcare.bought_1', trim.name)) then return end
+  local o = factoryLib.order(m.model, trim, f.paint, hour)
+  o.brand = m.brand
+  s.factoryOrders = s.factoryOrders or {}
+  s.factoryOrders[#s.factoryOrders + 1] = o
+  lot.factory = nil
+  send()
+  sl_career.sendText('benny', string.format(strings.t('lot.factory_ordered'), trim.name, factoryLib.DELIVERY_HOURS), 4)
+end
+
+-- an order that is due is built at the garage forecourt (beside the first place) and becomes one of the player's cars
+local delivering, deliverAfter = false, 0
+local function deliverOrders(s)
+  if delivering or os.clock() < deliverAfter or not s.factoryOrders or #s.factoryOrders == 0 then return end
+  deliverAfter = os.clock() + 5
+  local o = s.factoryOrders[factoryLib.nextDue(s.factoryOrders, (s.day or 0) * 24 + math.floor(sl_career.hour and sl_career.hour() or 12)) or 0]
+  local pos, rot = o and sl_fleet.forecourt(s, 1)
+  if not pos then return end
+  delivering = true
+  core_jobsystem.create(function(j)
+    local veh = builder.spawn(j, o.model, o.config, pos, rot, true)
+    if veh then
+      local paint = o.paint and modelInfo(o.model).paints and modelInfo(o.model).paints[o.paint]
+      if paint and core_vehicle_colors and core_vehicle_colors.setVehiclePaint then pcall(core_vehicle_colors.setVehiclePaint, 1, paint, veh:getID()) end
+      for i, x in ipairs(s.factoryOrders) do if x == o then table.remove(s.factoryOrders, i) break end end
+      local active = s.activeCar
+      sl_fleet.registerVehicle(veh:getID(), { name = o.name, brand = o.brand, value = o.price, condition = 1, faults = {}, mileage = 0, price = o.price })
+      s.activeCar = active            -- (the player keeps the car they are in)
+      guihooks.trigger('slPhoneToast', { text = string.format(strings.t('lot.factory_delivered'), o.name) })
+    end
+    delivering = false
+  end)
+end
+
+----------------------------------------------------------------------------------------------
 -- walking or driving up to a lot
 
 local function update(dt)
@@ -663,6 +786,8 @@ end
 local sendTimer = 0
 function M.onUpdate(dtReal)
   update(dtReal)
+  local cs = career()
+  if cs then deliverOrders(cs) end
   if lot and lot.building and lot.buildAlive and os.clock() - lot.buildAlive > BUILD_STUCK then
     log('W', 'street_legal', 'the lot build made no progress for ' .. BUILD_STUCK .. ' s: the row stays as it is')
     lot.building, lot.abandoned = false, true
