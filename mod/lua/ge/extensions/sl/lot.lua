@@ -386,7 +386,9 @@ function M.offersFor(place, s, given)
   if stock and place.displays then count = math.min(math.max(count, 4), #place.displays) end      -- (a stock dealer's cars stand on its parking spots and the slots beside them (sl/core/stockdealers): 4 to 6 where there is room)
   local offers = given or {}
   local pool = M.poolOf(place, given)
-  if not given then pool = tiers.within(pool, M.tier(place), kind) end       -- (A2: a lot shows cars of its own tier)
+  -- (A2: a dealer shows cars of its own tier. Not the used lots and the scrap yard: their tier is set by the median of a price scaled down, and
+  -- cutting their pools to it left the scrap yard with expensive cars that market.offers then refuses: one car on the lot)
+  if not given and kind == 'dealer' then pool = tiers.within(pool, M.tier(place), kind) end
   for _, o in ipairs(given and {} or market.offers(pool, kind, stock and (s.seed .. ':' .. place.id) or s.seed, s.day, count + 4)) do
     if stock then o.id = place.id .. ':' .. o.id end      -- (an offer is bought once: a stock dealer's ids are its own)
     if not (s.bought or {})[o.id] and #offers < count then offers[#offers + 1] = o end

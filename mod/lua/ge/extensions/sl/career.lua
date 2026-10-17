@@ -741,9 +741,8 @@ function M.start(fresh, n, level)
     -- the game starts a freeroam level with no traffic unless told (its default trafficMode "fromSetting" loads none): A3, the city was empty
     local sh = freeroam_freeroam.spawningOptionsHelper
     if sh then
-      local set = function(k) return settings and settings.getValue and tonumber(settings.getValue(k)) or 0 end
       sh.trafficMode, sh.trafficParked = 'enabled', 'enabled'
-      sh.trafficAmount, sh.trafficParkedAmount = math.max(set('trafficAmount'), M.CITY_TRAFFIC), math.max(set('trafficParkedAmount'), M.CITY_PARKED)
+      sh.trafficAmount, sh.trafficParkedAmount = M.CITY_TRAFFIC, M.CITY_PARKED
     end
     if not freeroam_freeroam.startFreeroamByName(M.LEVEL, nil, false, false) then
       pending = nil
@@ -753,7 +752,7 @@ function M.start(fresh, n, level)
 end
 
 -- the career is over (Hardcore: the driver died): saved as ended, and stopped
-M.CITY_TRAFFIC, M.CITY_PARKED = 14, 18        -- cars driving and parked in the city, at least (the player's own settings may ask for more)
+M.CITY_TRAFFIC, M.CITY_PARKED = 8, 10         -- cars driving and parked in the city (14 + 18 with 45 pedestrians cost about 13 ms a frame on the test machine: 27 ms against 14)
 function M.endCareer() if active then stop() end end
 
 stop = function()
