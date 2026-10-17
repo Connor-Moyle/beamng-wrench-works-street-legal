@@ -349,7 +349,18 @@ local function updateCamera(dt)
   if M.FX.dof and ch and e > 0.01 and not lotfx.isCabin(kind) then dofOn(pos, look, t, e) else dofRestore() end
   local sf0 = core_camera.getGlobalCameras and core_camera.getGlobalCameras().scriptedFree
   if M.FX.fov and sf0 and sf0.setFOV then
-    if not cam.baseFov and sf0.fov then cam.baseFov = sf0.fov lotcam.setView(sf0.fov) end
+    if not cam.baseFov and sf0.fov then
+      cam.baseFov = sf0.fov
+      -- the side shot sizes itself from the real field of view and window shape (logged once, to check them against the picture)
+      local okC, fovNow = pcall(function() return core_camera.getFovDeg(0) end)
+      local fovDeg = okC and tonumber(fovNow) or sf0.fov
+      local canvas = scenetree and scenetree.findObject('Canvas')
+      local okW, w, h = pcall(function() return canvas:getWindowClientSizeXY() end)
+      local aspect = okW and w and h and h > 0 and w / h or 16 / 9
+      lotcam.setView(fovDeg, aspect)
+      local L = cam.L or 4.5
+      log('I', 'street_legal', string.format('lot camera: scriptedFree fov %s, camera fov %s, window %sx%s (aspect %.2f), half-width tangent %.3f: the side shot stands %.2f m from the centre line of a %.2f m car', tostring(sf0.fov), tostring(fovNow), tostring(w), tostring(h), aspect, lotcam.viewTan, math.max((cam.W or 1.9) / 2 + 1.2, L / (2 * lotcam.SIDE_FILL * lotcam.viewTan)), L))
+    end
     local drift = lotfx.fovDrift(ch, lotcam.SHOT_TIME)
     if cam.baseFov and (drift ~= 0 or cam.fovDrifted) then pcall(sf0.setFOV, sf0, cam.baseFov - drift) end
     cam.fovDrifted = drift ~= 0

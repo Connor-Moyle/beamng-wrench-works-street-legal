@@ -23,6 +23,13 @@
   var CSS = [
     '.sll-root{position:fixed;left:0;top:0;right:0;bottom:0;pointer-events:none;z-index:60;font-family:"Segoe UI","Roboto","Noto Sans",Arial,sans-serif;color:#e6e1e5;-webkit-user-select:none;user-select:none}',
     '.sll-root *{box-sizing:border-box}',
+    /* the full car report: a panel that fits the screen, its body scrolls */
+    '.sll-repmodal{position:absolute;left:0;top:0;right:0;bottom:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:50}',
+    '.sll-reppanel{width:min(760px,92vw);max-height:80vh;display:flex;flex-direction:column;border-radius:16px;background:rgba(24,22,30,.99);box-shadow:0 20px 60px rgba(0,0,0,.6);overflow:hidden}',
+    '.sll-rephead{display:flex;align-items:center;gap:14px;padding:14px 18px;border-bottom:1px solid rgba(255,255,255,.12)}.sll-rephead b{flex:1;font-size:19px;font-weight:500}',
+    '.sll-repbody{flex:1 1 auto;min-height:0;overflow-y:auto;padding:10px 18px 18px;font-size:15px;line-height:1.5}',
+    '.sll-repsum{display:grid;grid-template-columns:1.3fr 1fr 1.4fr auto;gap:12px;align-items:center;margin-top:8px;padding:10px 12px;border-radius:10px;background:rgba(0,0,0,.3);cursor:pointer}',
+    '.sll-repsum:focus,.sll-repsum:hover{outline:2px solid #a8c7fa}.sll-repparts{margin:2px 0 6px 14px}',
     '.sll-screen{position:absolute;left:0;top:0;right:0;bottom:0;overflow:hidden;pointer-events:auto;transition:opacity .2s;',
     '  background-color:#0d0b12;background-size:cover;background-position:center}',
     '.sll-screen.sll-gone{opacity:0;pointer-events:none;visibility:hidden}',
@@ -163,7 +170,7 @@
     doc.body.appendChild(root);
 
     // wins: the open windows, the last one on top; each { id, min, max }. dview: what the dealers window shows (dealers | offers | offer)
-    var st = { rep: {}, open: false, view: null, data: { active: false }, parts: [], wins: [], menu: false, sel: null, car: 0, note: '', padAt: 0,
+    var st = { repOpen: null, repSec: {}, open: false, view: null, data: { active: false }, parts: [], wins: [], menu: false, sel: null, car: 0, note: '', padAt: 0,
       dealers: null, offers: null, dview: 'dealers', offerId: null, wallpaper: null, tab: { dealers: 'dealers', partmarket: 'revline' } };
 
     // ---------------------------------------------------------------- what the windows hold
@@ -269,24 +276,43 @@
       return '<div class="sll-acts">' + offers + '<div class="sll-btn" data-a="mkbuy" data-v="' + esc(l.id) + ('|pickup">' + T('classifieds.pick_up', 'Pick up') + '</div>') +
         (l.delivery != null ? '<div class="sll-btn sll-tonal" data-a="mkbuy" data-v="' + esc(l.id) + ('|delivery">' + T('ui.deliver_2', 'Deliver ') + '&middot;' + ' +') + money(l.delivery) + '</div>' : '') + '</div>';
     }
-    // the full car report (#58): every part by section with its condition, the dents, the faults and a repair estimate per section
+    // the full car report (#58): every part by section with its condition, the dents, the faults and a repair estimate per section. The button
+    // opens a panel of its own (reportModal) that fits the screen: a header with a close button and a body that scrolls, one collapsible row per
+    // section with its condition, worst fault and repair estimate.
+    var reports = {};                      // key -> the report, kept while the buttons are drawn so the panel can show it
     function reportBlock(key, rp) {
       if (!rp || !rp.sections) return '';
-      var on = !!st.rep[key];
-      var head = '<div class="sll-btn sll-tonal" data-a="report" data-v="' + esc(key) + '">' + (on ? T('ui.hide_car_report', 'Hide car report') : T('ui.show_full_car_report', 'Show full car report')) + '</div>';
-      if (!on) return '<div class="sll-acts">' + head + '</div>';
+      reports[key] = rp;
+      return '<div class="sll-acts"><div class="sll-btn sll-tonal" data-a="report" data-v="' + esc(key) + '">' + T('ui.show_full_car_report', 'Show full car report') + '</div></div>';
+    }
+    function repWorst(rp) {
+      var w = 0, secs = arr(rp.sections);
+      for (var i = 1; i < secs.length; i++) if (secs[i].condition < secs[w].condition) w = i;
+      return secs.length ? secs[w].id : null;
+    }
+    function repOpen(rp, id) { return st.repSec[id] !== undefined ? !!st.repSec[id] : id === repWorst(rp); }
+    function reportModal() {
+      var rp = st.repOpen && reports[st.repOpen];
+      if (!rp) return '';
       var secs = arr(rp.sections).map(function (sc) {
-        var parts = arr(sc.parts).map(function (p) {
+        var open = repOpen(rp, sc.id);
+        var worst = null;
+        arr(sc.parts).forEach(function (p) { if (p.fault && !worst) worst = p.fault; });
+        var cls = sc.condition < 30 ? 'bad' : sc.condition < 50 ? 'mid' : 'ok';
+        var head = '<div class="sll-repsum' + (open ? ' sll-open' : '') + '" data-a="repsec" data-v="' + esc(sc.id) + '"><b>' + (open ? '&#9662; ' : '&#9656; ') + esc(sc.title) + '</b><span class="sll-r' + cls + '">' + sc.condition + '% ' + esc(sc.label) + '</span>' +
+          '<span>' + (worst ? '<span class="sll-rbad">&#9888; ' + esc(worst) + '</span>' : T('ui.no_faults', 'no faults')) + '</span><span>' + (sc.estimate > 0 ? money(sc.estimate) : 'none') + '</span></div>';
+        if (!open) return head;
+        return head + '<div class="sll-repparts">' + arr(sc.parts).map(function (p) {
           return '<div class="sll-kv"><span>' + esc(p.name) + (p.fault ? ' <b class="sll-rbad">&#9888; ' + esc(p.fault) + '</b>' : '') + '</span><b class="sll-r' + (p.condition < 30 ? 'bad' : p.condition < 50 ? 'mid' : 'ok') + '">' + p.condition + '% ' + esc(p.label) + '</b></div>';
-        }).join('');
-        return '<div class="sll-rsec"><h5>' + esc(sc.title) + ' &middot; ' + sc.condition + '% ' + esc(sc.label) + '</h5>' + parts +
-          ('<div class="sll-kv"><span>' + T('ui.repair_estimate', 'Repair estimate') + '</span><b>') + (sc.estimate > 0 ? money(sc.estimate) : 'none') + '</b></div></div>';
+        }).join('') + '<div class="sll-kv"><span>' + T('ui.repair_estimate', 'Repair estimate') + '</span><b>' + (sc.estimate > 0 ? money(sc.estimate) : 'none') + '</b></div></div>';
       }).join('');
       var dm = obj(rp.damage);
-      return '<div class="sll-acts">' + head + ('</div><div class="sll-report"><div class="sll-kv"><span>' + T('ui.overall', 'Overall') + '</span><b>') + rp.condition + '% ' + esc(rp.label) + '</b></div>' +
-        ('<div class="sll-kv"><span>' + T('ui.mileage', 'Mileage') + '</span><b>') + Number(rp.mileage || 0).toLocaleString() + (' km' + '</b></div><div class="sll-kv"><span>' + T('ui.dents_and_damage', 'Dents and damage') + '</span><b>') + esc(dm.label) + ' (' + (dm.amount || 0) + '%)</b></div>' +
-        ('<div class="sll-kv"><span>' + T('ui.known_faults', 'Known faults') + '</span><b>') + (arr(rp.faults).length ? esc(arr(rp.faults).join(', ')) : 'none') + '</b></div>' + secs +
-        ('<div class="sll-kv"><span><b>' + T('ui.repair_estimate_to_95', 'Repair estimate, to 95 %') + '</b></span><b>') + money(rp.total) + '</b></div></div>';
+      return '<div class="sll-repmodal"><div class="sll-reppanel"><div class="sll-rephead"><b>' + T('ui.car_report', 'Car report') + '</b><span>' + rp.condition + '% ' + esc(rp.label) + '</span>' +
+        '<div class="sll-btn sll-tonal" data-a="reportclose">' + T('ui.close', 'Close') + '</div></div><div class="sll-repbody">' +
+        '<div class="sll-kv"><span>' + T('ui.overall', 'Overall') + '</span><b>' + rp.condition + '% ' + esc(rp.label) + '</b></div>' +
+        '<div class="sll-kv"><span>' + T('ui.mileage', 'Mileage') + '</span><b>' + Number(rp.mileage || 0).toLocaleString() + ' km</b></div><div class="sll-kv"><span>' + T('ui.dents_and_damage', 'Dents and damage') + '</span><b>' + esc(dm.label) + ' (' + (dm.amount || 0) + '%)</b></div>' +
+        '<div class="sll-kv"><span>' + T('ui.known_faults', 'Known faults') + '</span><b>' + (arr(rp.faults).length ? esc(arr(rp.faults).join(', ')) : 'none') + '</b></div>' + secs +
+        '<div class="sll-kv"><span><b>' + T('ui.repair_estimate_to_95', 'Repair estimate, to 95 %') + '</b></span><b>' + money(rp.total) + '</b></div></div></div></div>';
     }
     function adCardL(l) {
       var tells = arr(l.tells).length ? '<div class="sll-props" style="color:#f2b8b5">&#9888; ' + arr(l.tells).map(esc).join(' &middot; ') + '</div>' : '';
@@ -548,14 +574,18 @@
         var top = topWin();
         inner = '<div class="sll-wall"' + (st.wallpaper ? ' style="background-image:url(\'' + esc(st.wallpaper) + '\'),linear-gradient(#17121f,#0d0b12)"' : '') + '></div>' +
           '<div class="sll-desk">' + iconsHtml() + widgetHtml() + '</div>' + st.wins.map(function (w) { return winHtml(w, 0, top); }).join('') + menuHtml() +
-          (st.note && !top ? '<div class="sll-balloon">' + esc(st.note) + '</div>' : '') + taskbarHtml();
+          (st.note && !top ? '<div class="sll-balloon">' + esc(st.note) + '</div>' : '') + taskbarHtml() + reportModal();
       }
       var zoom = Math.max(Number(st.data.textScale) || 1, Date.now() - st.padAt < 60000 ? 1.25 : 1);
       layer.style.setProperty('--sl-zoom', zoom); layer.setAttribute('data-zoom', zoom);      // (#51 text size; at least Large on a pad)
       var html = '<div class="sll-screen' + (st.open ? '' : ' sll-gone') + '">' + inner + '</div>';
       if (html === lastHtml && layer.firstChild) return;
       lastHtml = html;
+      var rs0 = layer.querySelector('.sll-repbody');
+      var repKeep = rs0 ? rs0.scrollTop : 0;
       layer.innerHTML = html;
+      var rs1 = layer.querySelector('.sll-repbody');
+      if (rs1) rs1.scrollTop = repKeep;
       navify();
     }
     // the game moves the focus between [bng-nav-item] elements with the d-pad/stick and clicks the focused one on A
@@ -564,10 +594,11 @@
       var first = null, again = null;
       // the d-pad moves inside what is on top: the Start menu, else the top window, else the desktop (the taskbar is always reachable)
       var top = topWin();
-      var scope = !st.open ? null : st.menu ? layer.querySelector('.sll-menu') : top ? layer.querySelector('.sll-win.sll-top') : layer.querySelector('.sll-desk');
+      var modal = layer.querySelector('.sll-repmodal');
+      var scope = !st.open ? null : modal ? modal : st.menu ? layer.querySelector('.sll-menu') : top ? layer.querySelector('.sll-win.sll-top') : layer.querySelector('.sll-desk');
       for (var i = 0; i < items.length; i++) {
         var el = items[i];
-        var live = st.open && ((scope && scope.contains(el)) || (el.closest && el.closest('.sll-task')));
+        var live = st.open && ((scope && scope.contains(el)) || (!modal && el.closest && el.closest('.sll-task')));
         if (!live) { el.setAttribute('bng-no-nav', 'true'); el.removeAttribute('bng-nav-item'); el.removeAttribute('tabindex'); continue; }
         el.removeAttribute('bng-no-nav');
         el.setAttribute('bng-nav-item', '');
@@ -576,12 +607,12 @@
         if (!first && !el.closest('.sll-task') && a !== 'focus' && !el.classList.contains('sll-tb')) first = el;
         if (focusKey && !again && keyOf(el) === focusKey) again = el;
       }
-      var bodies = layer.querySelectorAll('.sll-body, .sll-icons, .sll-mlist');
+      var bodies = layer.querySelectorAll('.sll-body, .sll-icons, .sll-mlist, .sll-repbody');
       for (var j = 0; j < bodies.length; j++) bodies[j].setAttribute('bng-nav-scroll', '');
       if (!st.open) return;
       var active = doc.activeElement;
       var inside = active && layer.contains(active) && active.hasAttribute && active.hasAttribute('bng-nav-item');
-      var target = again || (!inside ? first : null);
+      var target = again || (!inside ? (modal ? modal.querySelector('[data-a="repsec"], [data-a="reportclose"]') : first) : null);
       if (target && target !== active && target.focus) target.focus();
     }
     doc.addEventListener('focusin', function (ev) { if (layer.contains(ev.target)) focusKey = keyOf(ev.target); }, true);
@@ -615,6 +646,7 @@
     }
     // B: the Start menu first, then one step back inside the top window, then the window, then (a bare desktop) the laptop
     function back() {
+      if (st.repOpen) { st.repOpen = null; render(); return; }       // the report panel first
       if (st.menu) { st.menu = false; render(); return; }
       var w = topWin();
       if (w) {
@@ -681,7 +713,9 @@
         case 'helpindex': st.helpId = null; render(); break;
         case 'league': lua('@sl_phone.enterLeague(' + JSON.stringify(String(v)) + ')'); break;
         case 'dealer': st.dview = 'offers'; st.offers = { name: T('ui.dealer', 'Dealer'), offers: [], dealer: v }; st.note = ''; focusKey = null; lua('@sl_dealers.offers(' + JSON.stringify(v) + ')'); render(); break;
-        case 'report': st.rep[v] = !st.rep[v]; render(); break;
+        case 'report': st.repOpen = v; st.repSec = {}; render(); break;
+        case 'reportclose': st.repOpen = null; render(); break;
+        case 'repsec': var rpOpen = st.repOpen && reports[st.repOpen]; if (rpOpen) { st.repSec[v] = !repOpen(rpOpen, v); render(); } break;
         case 'offer': st.dview = 'offer'; st.offerId = v; st.note = ''; focusKey = null; render(); break;
         case 'buy':
           var pair = String(v).split('|');
@@ -723,6 +757,10 @@
     (doc.defaultView || doc).addEventListener('ui_nav', function (ev) {
       var d = ev.detail || {};
       st.padAt = Date.now();
+      if (st.open && st.repOpen && d.name === 'rotate_v_cam' && Math.abs(Number(d.value) || 0) > 0.15) {      // the right stick scrolls the report
+        var rb = layer.querySelector('.sll-repbody');
+        if (rb) rb.scrollTop += (Number(d.value) || 0) * 40;
+      }
       if (!st.open || d.value !== 1) return;
       if (d.name === 'back') back();
       else if ((d.name === 'tab_l' || d.name === 'tab_r') && arr(st.data.fleet).length > 1) { st.car += d.name === 'tab_l' ? -1 : 1; render(); }

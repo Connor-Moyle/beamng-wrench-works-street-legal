@@ -311,9 +311,26 @@ var rep58 = { condition: 45, label: 'Worn', mileage: 180000, damage: { amount: 3
 phone.handle('slLotData', { open: true, mode: 'browse', name: 'Jefferson Motors', kindTitle: 'New cars', kind: 'dealer', index: 1, count: 4, money: 9000, building: false, offer: { name: 'Roamer', price: 5000, faults: ['brakes'], report: rep58 } });
 assert.ok(text().includes('Show full car report') && !text().includes('Repair estimate'), 'the lot card offers the report, closed');
 click('report', 'lot');
-assert.ok(text().includes('Hide car report') && text().includes('Brakes') && text().includes('Pads and discs') && text().includes('20% Poor') && text().includes('Moderate (30%)') && text().includes('$640') && text().includes('$1,900'), 'the report lists the parts by section, the damage and the repair estimates');
-click('report', 'lot');
-assert.ok(!text().includes('Pads and discs'), 'and closes again');
+assert.ok($('.slp-repmodal') && text().includes('Brakes') && text().includes('Pads and discs') && text().includes('20% Poor') && text().includes('Moderate (30%)') && text().includes('$640') && text().includes('$1,900'), 'the report opens in a panel of its own and lists the parts by section, the damage and the repair estimates');
+assert.ok($('.slp-repbody') && $('.slp-repbody').hasAttribute('bng-nav-scroll') && $('.slp-reppanel [data-a="reportclose"]'), 'the panel has a body that scrolls (also on the pad) and a close button');
+assert.ok($('.slp-repsum[data-a="repsec"]'), 'every section is a collapsible row with its summary');
+click('repsec', 'brakes');
+assert.ok(!text().includes('Pads and discs') && text().includes('$640'), 'a section closes to its summary row (condition, worst fault, estimate)');
+click('repsec', 'brakes');
+assert.ok(text().includes('Pads and discs'), 'and opens again');
+// the panel fits the screen: its CSS (width, max height, scrolling body) checked for 1280x720 and 1920x1080
+(function () {
+  const css = code.replace(/\\'/g, "'");
+  const panel = css.match(/\.slp-reppanel\{([^}]*)\}/)[1], body = css.match(/\.slp-repbody\{([^}]*)\}/)[1];
+  assert.ok(/max-height:80vh/.test(panel) && /width:min\((\d+)px,92vw\)/.test(panel) && /overflow-y:auto/.test(body) && /min-height:0/.test(body), 'panel: max-height 80vh, width min(Npx, 92vw), a scrolling body');
+  const wpx = +panel.match(/width:min\((\d+)px,92vw\)/)[1];
+  [[1280, 720], [1920, 1080]].forEach(function (vp) {
+    const w = Math.min(wpx, 0.92 * vp[0]), h = 0.8 * vp[1];
+    assert.ok(w <= vp[0] && h <= vp[1] && (vp[1] - h) / 2 >= 0, 'the panel (' + w + 'x' + h + ') is inside ' + vp.join('x'));
+  });
+})();
+click('reportclose');
+assert.ok(!$('.slp-repmodal') && !text().includes('Pads and discs'), 'and closes again');
 phone.handle('slLotData', { open: true, mode: 'sell', name: 'Scrap & Salvage', kindTitle: 'Scrap yard', kind: 'scrap', sellCar: { name: 'Covet', price: 410 } });
 assert.ok(text().includes('$410 for the Covet') && text().includes('Scrap it'), 'selling at the scrap yard');
 phone.handle('slLotData', { open: true, mode: 'test', name: 'Valo Junkyard', testLeft: 95 });

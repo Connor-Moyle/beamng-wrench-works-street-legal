@@ -129,7 +129,16 @@ click('winmax', 'cars');
 assert.ok(!$('.sll-win[data-win="cars"]').classList.contains('sll-max'), 'and restores it');
 assert.ok($('.sll-win[data-win="cars"]').textContent.includes('Show full car report'), 'my cars offer the report (with the wear since you bought it)');
 click('report', 'car:2');
-assert.ok($('.sll-win[data-win="cars"]').textContent.includes('Battery cell') && $('.sll-win[data-win="cars"]').textContent.includes('$420'), 'a car of mine reports its parts and the repair estimate');
+assert.ok($('.sll-repmodal') && $('.sll-repmodal').textContent.includes('Battery cell') && $('.sll-repmodal').textContent.includes('$420'), 'a car of mine reports its parts and the repair estimate in a panel');
+assert.ok($('.sll-repbody') && $('.sll-repbody').hasAttribute('bng-nav-scroll') && $('.sll-reppanel [data-a="reportclose"]') && $('.sll-repsum[data-a="repsec"]'), 'the laptop panel scrolls, has a close button and collapsible sections');
+(function () {
+  const panel = code.match(/\.sll-reppanel\{([^}]*)\}/)[1], body = code.match(/\.sll-repbody\{([^}]*)\}/)[1];
+  assert.ok(/max-height:80vh/.test(panel) && /width:min\((\d+)px,92vw\)/.test(panel) && /overflow-y:auto/.test(body), 'laptop panel: max-height 80vh, width capped, a scrolling body');
+  const wpx = +panel.match(/width:min\((\d+)px,92vw\)/)[1];
+  [[1280, 720], [1920, 1080]].forEach(function (vp) { assert.ok(Math.min(wpx, 0.92 * vp[0]) <= vp[0] && 0.8 * vp[1] <= vp[1], 'laptop panel inside ' + vp.join('x')); });
+})();
+click('reportclose');
+assert.ok(!$('.sll-repmodal'), 'the laptop report closes');
 click('winclose', 'bank');
 assert.deepStrictEqual(taskbtns(), ['My cars'], 'closing a window removes its taskbar button');
 
@@ -217,7 +226,8 @@ assert.ok(titles()[0] === '2012 Bolide' && $('.sll-detail .sll-pic img'), 'a car
 ['Bruckell', '2012', '20 km', '310 PS', '1,250 kg', 'Manual', 'RWD', 'Gasoline', 'Coupe', '270 km/h', 'Jefferson Motors', '4.2 km', 'to your garage in about 3 h', '$7,000'].forEach((x) => assert.ok($('.sll-win').textContent.includes(x), 'detail shows ' + x));
 assert.ok($('.sll-win').textContent.includes('Show full car report'), 'a detail view with a report offers it');
 click('report', 'offer:jeff:dealer-3-1');
-assert.ok($('.sll-win').textContent.includes('Pads and discs') && $('.sll-win').textContent.includes('$640') && $('.sll-win').textContent.includes('Moderate (30%)'), 'the laptop report lists the parts, the damage and the estimate');
+assert.ok($('.sll-repmodal').textContent.includes('Pads and discs') && $('.sll-repmodal').textContent.includes('$640') && $('.sll-repmodal').textContent.includes('Moderate (30%)'), 'the laptop report lists the parts, the damage and the estimate');
+click('reportclose');
 calls.length = 0;
 click('buy', 'jeff|jeff:dealer-3-1');
 assert.ok(calls.includes('@sl_dealers.buy("jeff","jeff:dealer-3-1")'), 'Buy in the detail view asks for that car');

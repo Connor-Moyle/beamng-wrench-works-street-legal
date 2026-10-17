@@ -183,6 +183,13 @@
     '.slp-barson .slp-lot:not(.slp-shop)>.slp-lothead,.slp-barson .slp-lot:not(.slp-shop)>.slp-lottitle,.slp-barson .slp-lot:not(.slp-shop)>.slp-lotstats,.slp-barson .slp-lot:not(.slp-shop)>.slp-lotfaults,',
     '.slp-barson .slp-lot:not(.slp-shop)>.slp-report,.slp-barson .slp-lot:not(.slp-shop)>.slp-acts,.slp-barson .slp-lot:not(.slp-shop)>.slp-lotleave,.slp-barson .slp-lot:not(.slp-shop)>.slp-lotfactory{display:none}',
     '.slp-barson .slp-lot:not(.slp-shop)>.slp-lotname{margin:0;flex:1}.slp-barson .slp-lot:not(.slp-shop)>.slp-lotprice{margin:0;font-size:22px}.slp-barson .slp-lot:not(.slp-shop)>.slp-lotbtns{margin:0;flex:2}',
+    /* the full car report: a panel that fits the screen, its body scrolls */
+    '.slp-repmodal{position:absolute;left:0;top:0;right:0;bottom:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;pointer-events:auto;z-index:5}',
+    '.slp-reppanel{width:min(760px,92vw);max-height:80vh;display:flex;flex-direction:column;border-radius:20px;background:rgba(20,18,24,.98);box-shadow:0 20px 60px rgba(0,0,0,.6);overflow:hidden}',
+    '.slp-rephead{display:flex;align-items:center;gap:14px;padding:14px 18px;border-bottom:1px solid rgba(255,255,255,.12)}.slp-rephead b{flex:1;font-size:19px;font-weight:500}',
+    '.slp-repbody{flex:1 1 auto;min-height:0;overflow-y:auto;padding:10px 18px 18px;font-size:15px;line-height:1.5}',
+    '.slp-repsum{display:grid;grid-template-columns:1.3fr 1fr 1.4fr auto;gap:12px;align-items:center;margin-top:8px;padding:10px 12px;border-radius:12px;background:#0d0b12;cursor:pointer}',
+    '.slp-repsum:focus,.slp-repsum:hover{outline:2px solid #a8c7fa}.slp-repparts{margin:2px 0 6px 14px}',
     '.slp-fade{position:absolute;left:0;top:0;right:0;bottom:0;background:#000;opacity:0;transition:opacity .5s}',
     /* the car lots: one car at a time, the SLRR way */
     '.slp-catch{position:absolute;left:0;top:0;right:0;bottom:0;pointer-events:auto;cursor:move;background:rgba(0,0,0,.01)}',
@@ -366,7 +373,7 @@
     doc.body.appendChild(root);
 
     var st = {
-      rep: {}, tab: { cars: 'dealers', parts: 'revline', cab: 'all', cabtier: 'all' }, cmView: 'dealers', cmOffer: null, dealers: null, offers: null,
+      repOpen: null, repSec: {}, tab: { cars: 'dealers', parts: 'revline', cab: 'all', cabtier: 'all' }, cmView: 'dealers', cmOffer: null, dealers: null, offers: null,
       open: false, data: { active: false }, app: 'home', stack: [], contact: null, thread: null,
       call: null, dial: '', hu: null, toast: null, fade: false,
     };
@@ -538,24 +545,43 @@
       return '<div class="slp-acts">' + offers + '<div class="slp-btn" data-a="mkbuy" data-v="' + esc(l.id) + ('|pickup">' + T('classifieds.pick_up', 'Pick up') + '</div>') +
         (l.delivery != null ? '<div class="slp-btn" data-a="mkbuy" data-v="' + esc(l.id) + ('|delivery">' + T('ui.deliver', 'Deliver') + '</div>') : '') + '</div>';
     }
-    // the full car report (#58): every part by section with its condition, the dents, the faults and a repair estimate per section
+    // the full car report (#58): every part by section with its condition, the dents, the faults and a repair estimate per section. The button
+    // (here) opens a panel of its own (reportModal) that fits the screen: a header with a close button and a body that scrolls, one collapsible
+    // row per section with its condition, worst fault and repair estimate.
+    var reports = {};                      // key -> the report, kept while the buttons are drawn so the panel can show it
     function reportBlock(key, rp) {
       if (!rp || !rp.sections) return '';
-      var on = !!st.rep[key];
-      var head = '<div class="slp-btn slp-tonal" data-a="report" data-v="' + esc(key) + '">' + (on ? T('ui.hide_car_report', 'Hide car report') : T('ui.show_full_car_report', 'Show full car report')) + '</div>';
-      if (!on) return '<div class="slp-acts">' + head + '</div>';
+      reports[key] = rp;
+      return '<div class="slp-acts"><div class="slp-btn slp-tonal" data-a="report" data-v="' + esc(key) + '">' + T('ui.show_full_car_report', 'Show full car report') + '</div></div>';
+    }
+    function repWorst(rp) {                // the section in the worst condition: open when the panel opens
+      var w = 0, secs = arr(rp.sections);
+      for (var i = 1; i < secs.length; i++) if (secs[i].condition < secs[w].condition) w = i;
+      return secs.length ? secs[w].id : null;
+    }
+    function repOpen(rp, id) { return st.repSec[id] !== undefined ? !!st.repSec[id] : id === repWorst(rp); }
+    function reportModal() {
+      var rp = st.repOpen && reports[st.repOpen];
+      if (!rp) return '';
       var secs = arr(rp.sections).map(function (sc) {
-        var parts = arr(sc.parts).map(function (p) {
+        var open = repOpen(rp, sc.id);
+        var worst = null;
+        arr(sc.parts).forEach(function (p) { if (p.fault && !worst) worst = p.fault; });
+        var cls = sc.condition < 30 ? 'bad' : sc.condition < 50 ? 'mid' : 'ok';
+        var head = '<div class="slp-repsum' + (open ? ' slp-open' : '') + '" data-a="repsec" data-v="' + esc(sc.id) + '"><b>' + (open ? '&#9662; ' : '&#9656; ') + esc(sc.title) + '</b><span class="slp-r' + cls + '">' + sc.condition + '% ' + esc(sc.label) + '</span>' +
+          '<span>' + (worst ? '<span class="slp-rbad">&#9888; ' + esc(worst) + '</span>' : T('ui.no_faults', 'no faults')) + '</span><span>' + (sc.estimate > 0 ? money(sc.estimate) : 'none') + '</span></div>';
+        if (!open) return head;
+        return head + '<div class="slp-repparts">' + arr(sc.parts).map(function (p) {
           return '<div class="slp-kv"><span>' + esc(p.name) + (p.fault ? ' <b class="slp-rbad">&#9888; ' + esc(p.fault) + '</b>' : '') + '</span><b class="slp-r' + (p.condition < 30 ? 'bad' : p.condition < 50 ? 'mid' : 'ok') + '">' + p.condition + '% ' + esc(p.label) + '</b></div>';
-        }).join('');
-        return '<div class="slp-rsec"><h5>' + esc(sc.title) + ' &middot; ' + sc.condition + '% ' + esc(sc.label) + '</h5>' + parts +
-          ('<div class="slp-kv"><span>' + T('ui.repair_estimate', 'Repair estimate') + '</span><b>') + (sc.estimate > 0 ? money(sc.estimate) : 'none') + '</b></div></div>';
+        }).join('') + '<div class="slp-kv"><span>' + T('ui.repair_estimate', 'Repair estimate') + '</span><b>' + (sc.estimate > 0 ? money(sc.estimate) : 'none') + '</b></div></div>';
       }).join('');
       var dm = obj(rp.damage);
-      return '<div class="slp-acts">' + head + ('</div><div class="slp-report"><div class="slp-kv"><span>' + T('ui.overall', 'Overall') + '</span><b>') + rp.condition + '% ' + esc(rp.label) + '</b></div>' +
-        ('<div class="slp-kv"><span>' + T('ui.mileage', 'Mileage') + '</span><b>') + Number(rp.mileage || 0).toLocaleString() + (' km' + '</b></div><div class="slp-kv"><span>' + T('ui.dents_and_damage', 'Dents and damage') + '</span><b>') + esc(dm.label) + ' (' + (dm.amount || 0) + '%)</b></div>' +
-        ('<div class="slp-kv"><span>' + T('ui.known_faults', 'Known faults') + '</span><b>') + (arr(rp.faults).length ? esc(arr(rp.faults).join(', ')) : 'none') + '</b></div>' + secs +
-        ('<div class="slp-kv"><span><b>' + T('ui.repair_estimate_to_95', 'Repair estimate, to 95 %') + '</b></span><b>') + money(rp.total) + '</b></div></div>';
+      return '<div class="slp-repmodal"><div class="slp-reppanel"><div class="slp-rephead"><b>' + T('ui.car_report', 'Car report') + '</b><span>' + rp.condition + '% ' + esc(rp.label) + '</span>' +
+        '<div class="slp-btn slp-tonal" data-a="reportclose">' + T('ui.close', 'Close') + '</div></div><div class="slp-repbody">' +
+        '<div class="slp-kv"><span>' + T('ui.overall', 'Overall') + '</span><b>' + rp.condition + '% ' + esc(rp.label) + '</b></div>' +
+        '<div class="slp-kv"><span>' + T('ui.mileage', 'Mileage') + '</span><b>' + Number(rp.mileage || 0).toLocaleString() + ' km</b></div><div class="slp-kv"><span>' + T('ui.dents_and_damage', 'Dents and damage') + '</span><b>' + esc(dm.label) + ' (' + (dm.amount || 0) + '%)</b></div>' +
+        '<div class="slp-kv"><span>' + T('ui.known_faults', 'Known faults') + '</span><b>' + (arr(rp.faults).length ? esc(arr(rp.faults).join(', ')) : 'none') + '</b></div>' + secs +
+        '<div class="slp-kv"><span><b>' + T('ui.repair_estimate_to_95', 'Repair estimate, to 95 %') + '</b></span><b>' + money(rp.total) + '</b></div></div></div></div>';
     }
     function carAdCard(l) {
       var tells = arr(l.tells).length ? '<p class="slp-warn">&#9888; ' + arr(l.tells).map(esc).join(' &middot; ') + '</p>' : '';
@@ -1268,6 +1294,8 @@
       }
       var scroll = layer.querySelector('.slp-body, .slp-msgs');
       var keep = scroll ? scroll.scrollTop : 0, keepApp = st.app;
+      var repScroll0 = layer.querySelector('.slp-repbody');
+      var repKeep = repScroll0 ? repScroll0.scrollTop : 0;
       var page;
       switch (st.app) {
         case 'contacts': page = contactsPage(); break;
@@ -1312,7 +1340,7 @@
           (d.phase ? '<span>' + (d.phase === 'night' ? '&#9790;' : '&#9728;') + '</span>' : '') + (d.heat > 0 ? '<span style="color:#ff6a4a">' + '&#9650;'.repeat(d.heat) + '</span>' : '') + (d.phase === 'night' && d.atRisk > 0 ? '<span style="color:#ffb74a">+' + d.atRisk + (T('ui.at_risk', ' at risk') + '</span>') : '') + '<span>' + two(d.hour || 0) + ':' + two(d.minute || 0) + '</span></div>' +
         '<div class="slp-device' + (st.open ? '' : ' slp-away') + '" style="transform:' + (st.open ? '' : 'translateY(70%) ') + 'scale(' + scale() + ')">' + screen + '</div>' +
         lotView() + garageView() + stationView() + meetView() + raceView() +
-        huHtml +
+        huHtml + reportModal() +
         '<div class="slp-toast' + (st.toast ? '' : ' slp-gone') + '">' + esc(st.toast || '') + '</div>' +
         fadeView();
       var after = layer.querySelector('.slp-body, .slp-msgs');
@@ -1320,6 +1348,8 @@
         if (st.app === 'thread') after.scrollTop = after.scrollHeight;
         else if (keepApp === st.app) after.scrollTop = keep;
       }
+      var repScroll1 = layer.querySelector('.slp-repbody');
+      if (repScroll1) repScroll1.scrollTop = repKeep;
       navify(focusKey);
     }
 
@@ -1335,10 +1365,11 @@
       var device = layer.querySelector('.slp-device');
       var items = layer.querySelectorAll('[data-a]');
       var first = null, again = null, panel = null;
+      var modal = layer.querySelector('.slp-repmodal');
       var PANELS = '.slp-lot, .slp-meet, .slp-race, .slp-chooser, .slp-chcard';      // what opens without the phone
       for (var i = 0; i < items.length; i++) {
         var el = items[i];
-        var hidden = (device && device.contains(el) && !st.open) || (el.closest && el.closest('.slp-gone')) || el.classList.contains('slp-gone');
+        var hidden = (modal && !modal.contains(el)) || (device && device.contains(el) && !st.open) || (el.closest && el.closest('.slp-gone')) || el.classList.contains('slp-gone');
         if (hidden) { el.setAttribute('bng-no-nav', 'true'); el.removeAttribute('bng-nav-item'); el.removeAttribute('tabindex'); continue; }
         el.setAttribute('bng-nav-item', '');
         el.setAttribute('tabindex', '0');
@@ -1347,28 +1378,42 @@
         if (key && !again && keyOf(el) === key) again = el;
         if (!panel && el.closest && el.closest(PANELS)) panel = el;
       }
-      var pages = layer.querySelectorAll('.slp-body, .slp-msgs');
+      var pages = layer.querySelectorAll('.slp-body, .slp-msgs, .slp-repbody');
       for (var j = 0; j < pages.length; j++) pages[j].setAttribute('bng-nav-scroll', '');
       var active = doc.activeElement;
       var inside = active && layer.contains(active) && active.hasAttribute && active.hasAttribute('bng-nav-item');
       var padding = Date.now() - padAt < 15000;
-      var target = again || (padding && !inside ? (st.open ? first : panel) : null);
+      var target = again || (padding && !inside ? (modal ? modal.querySelector('[data-a="repsec"], [data-a="reportclose"]') : st.open ? first : panel) : null);
       if (target && target !== active && target.focus) target.focus();
     }
+    // drag the report's body to scroll it (the wheel and the pad work by themselves)
+    var drag = null;
+    layer.addEventListener('mousedown', function (ev) {
+      var rb = ev.target && ev.target.closest && ev.target.closest('.slp-repbody');
+      if (rb && !(ev.target.closest('[data-a]'))) drag = { rb: rb, y: ev.clientY, top: rb.scrollTop };
+    });
+    layer.addEventListener('mousemove', function (ev) { if (drag) drag.rb.scrollTop = drag.top - (ev.clientY - drag.y); });
+    layer.addEventListener('mouseup', function () { drag = null; });
+    layer.addEventListener('mouseleave', function () { drag = null; });
     doc.addEventListener('focusin', function (ev) { focusKey = layer.contains(ev.target) ? keyOf(ev.target) : null; }, true);   // (elsewhere: leave it there)
     // B on the pad: back a page (and put the phone away from its home screen) instead of opening the game's menu
     (doc.defaultView || doc).addEventListener('ui_nav', function (ev) {      // (window capture: before the game's document handler)
       var d = ev.detail || {};
       padAt = Date.now();
       // a lot being looked at: the right stick turns the camera round the car, the zoom buttons zoom (what the mouse does on the catch layer)
-      if (!st.open && st.lot && st.lot.open && st.lot.mode === 'browse') {
+      if (st.repOpen) {                      // the report panel: the right stick scrolls it
+        var rb = layer.querySelector('.slp-repbody');
+        var sv = Number(d.value) || 0;
+        if (rb && d.name === 'rotate_v_cam' && Math.abs(sv) > 0.15) rb.scrollTop += sv * 40;
+      } else if (!st.open && st.lot && st.lot.open && st.lot.mode === 'browse') {
         var v = Number(d.value) || 0;
         if (d.name === 'rotate_h_cam' && Math.abs(v) > 0.15) lua('@sl_lot.cameraDrag(' + Math.round(v * 10) + ',0)');
         else if (d.name === 'rotate_v_cam' && Math.abs(v) > 0.15) lua('@sl_lot.cameraDrag(0,' + Math.round(v * 8) + ')');
         else if ((d.name === 'zoom_in' || d.name === 'zoom_out') && v === 1) lua('@sl_lot.cameraZoom(' + (d.name === 'zoom_in' ? 1 : -1) + ')');
       }
       if (d.name !== 'back' || d.value !== 1) return;
-      if (st.open) back();
+      if (st.repOpen) { st.repOpen = null; render(); }       // B closes the report panel first
+      else if (st.open) back();
       else {
         // B leaves what opens without the phone (a lot, a car meet, a gas station, the career chooser) through its own leave button
         var panel = layer.querySelector('.slp-lot, .slp-meet, .slp-chooser');
@@ -1452,7 +1497,9 @@
         case 'watchreplay': lua('watchReplay()'); break;
         case 'saveclip': lua('saveClip()'); break;
         case 'adview': go('ad', { adId: v }); break;
-        case 'report': st.rep[v] = !st.rep[v]; render(); break;
+        case 'report': st.repOpen = v; st.repSec = {}; render(); break;
+        case 'reportclose': st.repOpen = null; render(); break;
+        case 'repsec': var rpOpen = st.repOpen && reports[st.repOpen]; if (rpOpen) { st.repSec[v] = !repOpen(rpOpen, v); render(); } break;
         case 'workon': lua('workOn(' + Number(v) + ')'); st.garage = null; break;
         case 'despawn': lua('despawn(' + Number(v) + ')'); break;
         case 'garageclose': lua('closeGarage()'); st.garage = null; render(); break;
