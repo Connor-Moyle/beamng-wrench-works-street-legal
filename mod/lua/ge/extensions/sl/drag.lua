@@ -42,6 +42,7 @@ end
 
 local function install()
   if not careerOn() then return end
+  if extensions and extensions.load and not core() then pcall(extensions.load, 'gameplay_drag_core') end        -- (the core brings the bridge with it)
   local changed = false
   if core() then changed = patch.install(core(), 'isDragEnabled', isDragEnabled, savedCore) or changed end
   if gameplay_drag_poi then changed = patch.install(gameplay_drag_poi, 'applyUserRulesToData', applyUserRulesToData, savedPoi) or changed end
@@ -92,7 +93,12 @@ function M.onUpdate(dtReal)
   installTimer = installTimer + (dtReal or 0)
   if installTimer > 3 then
     installTimer = 0
-    if not core() and extensions and extensions.load then pcall(extensions.load, 'gameplay_drag_core') end
+    -- the game's own UI (the strip's rules, history and timeslip panels) calls gameplay_drag_dragBridge by name at any time: while the career runs both are kept loaded
+    -- (a FATAL LUA ERROR 'index global gameplay_drag_dragBridge' twice in a session without a race)
+    if extensions and extensions.load then
+      if not core() then pcall(extensions.load, 'gameplay_drag_core') end
+      if not gameplay_drag_dragBridge then pcall(extensions.load, 'gameplay_drag_dragBridge') end
+    end
     if not savedCore.isDragEnabled then install() end
   end
 end
