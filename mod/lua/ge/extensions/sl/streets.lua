@@ -1148,6 +1148,7 @@ local function startPreload(s)
   preloading = core_jobsystem.create(function(job)
     job.sleep(25)
     for _, model in ipairs(models) do
+      if not M.PRELOAD then break end                    -- (switched off from the console: checked before every model)
       local waited = 0
       while career() and waited < 180 do
         local v = getPlayerVehicle(0)
