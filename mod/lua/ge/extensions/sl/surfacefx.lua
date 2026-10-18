@@ -48,6 +48,42 @@ function M.level(vid)
   return ok and type(l) == 'table' and l or nil
 end
 
+-- a used car as it stands on a lot, with the dirt of its condition and mileage (sl/core/carwear); a clean car gets nothing. Called for lot cars and cars built from an offer.
+function M.dress(vid, offer)
+  if not (vid and v2() and has('setState')) then return nil end
+  local st = require('sl/core/carwear').dirtFor(offer)
+  if not st then return nil end
+  return (pcall(api().setState, vid, st))
+end
+
+-- a wash that shows: the dirt comes off over a few seconds (CSFX takes `amount` off every kind each call), not in one pop
+local washing = {}
+function M.washOff(vid, seconds)
+  if not (vid and has('wash')) then return nil end
+  local lvl = M.level(vid)
+  local carwear = require('sl/core/carwear')
+  washing[vid] = { left = seconds or carwear.washSeconds(lvl and lvl.dirt or 0.5), total = seconds or carwear.washSeconds(lvl and lvl.dirt or 0.5), t = 0 }
+  return true
+end
+local stepT = 0
+function M.onUpdate(dtReal)
+  if not next(washing) then return end
+  stepT = stepT + (dtReal or 0)
+  if stepT < 0.25 then return end
+  local dt = stepT
+  stepT = 0
+  local carwear = require('sl/core/carwear')
+  for vid, w in pairs(washing) do
+    w.left = w.left - dt
+    if w.left <= 0 or not (getObjectByID and getObjectByID(vid)) then
+      pcall(api().wash, vid)      -- (the rest, and the splats)
+      washing[vid] = nil
+    else
+      pcall(api().wash, vid, carwear.washStep(dt, w.total))
+    end
+  end
+end
+
 local DIRT = { clean = 'fx.clean', dusty = 'fx.dusty', muddy = 'fx.muddy' }
 local SCRATCH = { none = 'fx.no_scratches', light = 'fx.light_scratches', heavy = 'fx.heavy_scratches' }
 
