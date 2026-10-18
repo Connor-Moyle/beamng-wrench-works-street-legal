@@ -133,7 +133,7 @@ local function batch(n, target)
   local did = 0
   for _, entry in ipairs(plan) do
     local st = state[entry.name]
-    local skip = st and st.slow and target > 0 and target < rules.STEPS      -- (a slow material waits for the full wet)
+    local skip = st and st.slow and ((target > 0 and target < rules.STEPS) or (os.clock() - (M.lastSlowAt or -99) < 4))      -- (a slow material waits for the full wet, and one at a time, four seconds apart)
     if (st and st.step or 0) ~= target and not (st and st.failed) and not skip then
       local t0 = os.clock()
       local ok, err = pcall(apply, entry, target)
@@ -141,6 +141,7 @@ local function batch(n, target)
       if ok and err then
         stats.edits, stats.ms, stats.worst = stats.edits + 1, stats.ms + ms, math.max(stats.worst, ms)
         if ms > rules.SLOW_MS then
+          M.lastSlowAt = os.clock()
           local s2 = state[entry.name]
           if s2 then s2.slow = true end
           stats.slow = stats.slow or {}

@@ -10,10 +10,10 @@ M.STEPS = 6                   -- wetness is applied in this many steps (0 = dry)
 -- per kind: rough = roughness factor at full wetness (times the original), dark = base colour factor at full wetness (times the original), order = who is edited first
 M.KINDS = {
   asphalt = { rough = 0.30, dark = 0.60, order = 1 },
-  concrete = { rough = 0.42, dark = 0.72, order = 2 },
-  paving = { rough = 0.45, dark = 0.74, order = 3 },
+  concrete = { rough = 0.42, dark = 0.6, order = 2 },
+  paving = { rough = 0.45, dark = 0.64, order = 3 },
   terrain = { rough = 0.70, dark = 0.78, order = 4 },
-  building = { rough = 0.62, dark = 0.80, order = 5 },
+  building = { rough = 0.62, dark = 0.7, order = 5 },
   roof = { rough = 0.50, dark = 0.76, order = 6 },
   metal = { rough = 0.65, dark = 0.94, order = 7 },
   glass = { rough = 0.75, dark = 1.00, order = 8 },
