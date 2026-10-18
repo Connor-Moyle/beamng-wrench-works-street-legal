@@ -4,6 +4,7 @@
 
 local M = {}
 
+M.TERRAIN_STEP = 4            -- from this step on the terrain's asphalt layers show their wet texture (it is one swap, not a blend)
 M.STEPS = 6                   -- wetness is applied in this many steps (0 = dry); a material is edited only when its step changes
 -- per kind: rough = roughness factor at full wetness (times the original), dark = base colour factor at full wetness (times the original), order = who is edited first
 M.KINDS = {

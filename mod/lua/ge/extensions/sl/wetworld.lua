@@ -55,6 +55,36 @@ local function gather()
   return plan
 end
 
+-- The tarmac of West Coast USA is the terrain's own Asphalt layers, not a Material: their colour is a texture, no factor to lower. Wet, their base colour texture is the layer's roughness
+-- texture (dark, speckled asphalt: the look of wet tarmac, tested in the game), put back dry; the terrain block redraws the layer (updateMaterial).
+local terr                     -- { { mat, name, orig, wet } } or false when there is none
+local terrWet = false
+local function terrainLayers()
+  if terr ~= nil then return terr end
+  terr = {}
+  local ok, mats = pcall(function() return getObjectsByClass and getObjectsByClass('TerrainMaterial') or {} end)
+  for _, m in ipairs(ok and mats or {}) do
+    local g = tostring(m:getField('groundmodelName', 0) or ''):upper()
+    local orig, wetTex, name = m:getField('baseColorBaseTex', 0), m:getField('roughnessBaseTex', 0), m:getField('internalName', 0)
+    if (g:find('^ASPHALT') or g:find('^CONCRETE')) and orig ~= '' and wetTex ~= '' and name ~= '' then terr[#terr + 1] = { mat = m, name = name, orig = orig, wet = wetTex } end
+  end
+  if #terr == 0 then terr = false else log('I', TAG, 'wet terrain layers: ' .. #terr) end
+  return terr
+end
+local function applyTerrain(wetNow)
+  local layers = terrainLayers()
+  terrWet = wetNow
+  if not layers then return end
+  local blocks = {}
+  pcall(function() blocks = getObjectsByClass('TerrainBlock') or {} end)
+  for _, l in ipairs(layers) do
+    pcall(function()
+      l.mat:setField('baseColorBaseTex', 0, wetNow and l.wet or l.orig)
+      if blocks[1] then blocks[1]:updateMaterial(0, l.name) end
+    end)
+  end
+end
+
 -- one material to a step: the original text of its roughness and colour factors is taken the first time, the wet values come from it, the material is reloaded once
 local function apply(entry, step)
   local m = scenetree.findObject(entry.name)
@@ -123,6 +153,7 @@ function M.update(dt, wet)
   if target ~= current then
     if target > 0 and gather() == false then return end
     current = target
+    if (current >= rules.TERRAIN_STEP) ~= terrWet then applyTerrain(current >= rules.TERRAIN_STEP) end
     log('I', TAG, string.format('wet world heads for step %d of %d (wetness %.2f)', current, rules.STEPS, wet or 0))
   end
   if not plan then return end
@@ -135,6 +166,7 @@ end
 
 -- every material back to its original text at once (the level ends, the career stops, or a test)
 function M.restore()
+  if terrWet then applyTerrain(false) end
   if plan then
     current = 0
     local guard = 0
@@ -154,8 +186,8 @@ end
 function M.stats() return stats, current, plan and #plan or 0 end
 function M.onStreetLegalStopped() pcall(M.restore) plan = nil end
 -- (the level is going away with its materials: reloading hundreds of them in this tick would be a hitch for nothing, so only our state is dropped)
-function M.onClientEndMission() plan, state, current = nil, {}, 0 end
-function M.onClientStartMission() plan, state, current = nil, {}, 0 end      -- (a level load rebuilt the materials: nothing of ours is on them)
+function M.onClientEndMission() plan, state, current, terr, terrWet = nil, {}, 0, nil, false end
+function M.onClientStartMission() plan, state, current, terr, terrWet = nil, {}, 0, nil, false end      -- (a level load rebuilt the materials: nothing of ours is on them)
 function M.onExtensionUnloaded() pcall(M.restore) end
 
 return M
