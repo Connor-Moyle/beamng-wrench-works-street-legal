@@ -119,7 +119,9 @@ end
 
 -- a vehicle spawned, not driven by the player. config: a .pc path or a config table. nobodyDrives: a lot's display car
 -- or one of the player's own (the player's driver is a full one): Drivers & Pedestrians gives it no driver props
-function M.spawn(job, model, config, pos, rot, nobodyDrives)
+-- playerCar: a car the player owns: Drivers & Pedestrians gives it the rigged (flex) driver; everything else (traffic, stock, rivals) keeps props
+function M.spawn(job, model, config, pos, rot, nobodyDrives, playerCar)
+  if playerCar and slrrDriverMount and slrrDriverMount.playerCarNext then slrrDriverMount.playerCarNext() end
   if nobodyDrives and slrrDriverMount and slrrDriverMount.noPropsNext then slrrDriverMount.noPropsNext() end
   local t0 = os.clock()
   local firstOfModel = not seenModels[model]
@@ -129,6 +131,7 @@ function M.spawn(job, model, config, pos, rot, nobodyDrives)
   })
   local callMs = (os.clock() - t0) * 1000
   if nobodyDrives and slrrDriverMount and slrrDriverMount.noPropsDone then slrrDriverMount.noPropsDone() end   -- (the hook has run inside the call)
+  if playerCar and slrrDriverMount and slrrDriverMount.playerCarDone then slrrDriverMount.playerCarDone() end
   if not ok or not veh then
     -- why: pcall's error text if it threw, else the game answered nothing (nil); the setup it was given, so a bad one can be told from a bad model
     local what = type(config) == 'string' and ('config file ' .. config .. (FS:fileExists(config) and ' (exists)' or ' (MISSING)'))
@@ -461,7 +464,7 @@ function M.spawnOwned(job, car, pos, rot)
   if pc then attempts[#attempts + 1] = { 'stock default', 'vehicles/' .. car.model .. '/' .. pc .. '.pc' } end
   local veh
   for i, a in ipairs(attempts) do
-    veh = M.spawn(job, car.model, a[2], pos, rot, not M.PLAYER_DRIVER_PROPS)
+    veh = M.spawn(job, car.model, a[2], pos, rot, not M.PLAYER_DRIVER_PROPS, true)
     if veh then
       if i > 1 then
         log('W', 'street_legal', 'owned car ' .. tostring(car.name) .. ': the ' .. attempts[1][1] .. ' would not spawn, built from the ' .. a[1])

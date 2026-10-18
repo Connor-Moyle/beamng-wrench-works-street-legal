@@ -2673,6 +2673,37 @@ do -- the depth of a night chase (core/chase)
 end
 
 
+-- the rigged driver goes on the player's own cars only: spawnOwned wraps its spawn in slrrDriverMount.playerCarNext/Done, any other spawn does not
+do
+  local saved = { slrrDriverMount = rawget(_G, 'slrrDriverMount'), core_vehicles = rawget(_G, 'core_vehicles'), core_vehicle_manager = rawget(_G, 'core_vehicle_manager'), getObjectByID = rawget(_G, 'getObjectByID'), log = rawget(_G, 'log') }
+  local savedIo = package.loaded['jbeam/io']
+  local calls = {}
+  slrrDriverMount = { playerCarNext = function() calls[#calls + 1] = 'next' end, playerCarDone = function() calls[#calls + 1] = 'done' end }
+  core_vehicles = { spawnNewVehicle = function() calls[#calls + 1] = 'spawn' return { getID = function() return 1 end } end }
+  log = function() end
+  core_vehicle_manager = { getVehicleData = function() return {} end }
+  getObjectByID = function() return { getID = function() return 1 end } end
+  package.loaded['jbeam/io'] = {}
+  package.loaded['sl/carBuilder'] = nil
+  local ok, CB = pcall(require, 'sl/carBuilder')
+  if ok then
+    local job = { sleep = function() end }
+    CB.spawn(job, 'covet', 'x.pc', nil, nil, true)
+    check('a stock/traffic car is spawned without the player-car hook', table.concat(calls, ',') == 'spawn')
+    calls = {}
+    CB.spawn(job, 'covet', 'x.pc', nil, nil, false, true)
+    check('a player-owned car is spawned between playerCarNext and playerCarDone', table.concat(calls, ',') == 'next,spawn,done')
+    slrrDriverMount = nil
+    calls = {}
+    check('without Drivers & Pedestrians the owned spawn still works', CB.spawn(job, 'covet', 'x.pc', nil, nil, false, true) ~= nil and table.concat(calls, ',') == 'spawn')
+  else
+    check('carBuilder loads in the test (' .. tostring(CB):sub(1, 100) .. ')', false)
+  end
+  package.loaded['sl/carBuilder'] = nil
+  for n, v in pairs(saved) do _G[n] = v end
+  package.loaded['jbeam/io'] = savedIo
+end
+
 -- "Drive this one" (sl_fleet.setActive): the car is built at the forecourt and the player is seated in it
 do
   local saved = {}
