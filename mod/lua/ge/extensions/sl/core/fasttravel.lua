@@ -63,7 +63,7 @@ function M.extras(places, state)
     for _, q in ipairs(seen) do
       if q.kind == p.kind and (q.x - at.x) ^ 2 + (q.y - at.y) ^ 2 < M.SAME_SPOT ^ 2 then twin = true break end
     end
-      if not twin then
+    if not twin then
       seen[#seen + 1] = { kind = p.kind, x = at.x, y = at.y }
       if p.kind == 'garage' then ok, why = progression.garageAccess(state or {}, id) end
       local a = M.arrival(p)
