@@ -76,9 +76,10 @@ function M.buy(placeId, offerId)
   for _, o in ipairs(sl_lot.offersFor(place, s)) do if o.id == offerId then offer = o end end
   local ok, why = rules.canBuy(s, offer)
   if not ok then toast(why) M.offers(placeId) return end
-  if not sl_career.addMoney(-offer.price, strings.t('carcare.bought_1', (offer.name))) then toast(string.format('It is $%d.', offer.price)) return end
   local yard = sl_fleet.forecourt(s, 0)
-  local order = rules.place(s, offer, placeId, metres(place.pos, yard), now(s))
+  local away = metres(place.pos, yard)
+  if not sl_career.addMoney(-offer.price, strings.t('dealers.bought_arriving', offer.name, rules.delayHours(away))) then toast(string.format('It is $%d.', offer.price)) return end
+  local order = rules.place(s, offer, placeId, away, now(s))
   toast(string.format(strings.t('dealers.the_s_will_be_at'), offer.name, order.hours))
   extensions.hook('onStreetLegalChanged')
   M.offers(placeId)
@@ -88,6 +89,17 @@ end
 -- the car is built at the garage forecourt and becomes one of yours (the car you drive stays the one you drive)
 local building = false
 local retryAt = 0
+-- the cars bought here (and from private sellers) that are still on their way, for the phone's and the laptop's My cars: { name, dealer, day, hour }
+function M.ordersList()
+  local s, out = career(), {}
+  local places = sl_career and sl_career.getPlaces and sl_career.getPlaces() or {}
+  for _, o in ipairs(s and s.orders or {}) do
+    out[#out + 1] = { name = o.offer and o.offer.name or '?', dealer = places[o.place] and places[o.place].name or nil, day = math.floor((o.due or 0) / 24), hour = (o.due or 0) % 24,
+      hours = math.max(1, math.ceil((o.due or 0) - now(s))) }
+  end
+  return out
+end
+
 local told = {}                 -- order -> true once the player was told that the forecourt is full
 local function deliver(s, order)
   building = true
@@ -117,6 +129,7 @@ local function deliver(s, order)
     veh:queueLuaCommand('input.event("parkingbrake", 0, FILTER_DIRECT)')
     rules.remove(s, order)
     sl_career.sendText('benny', string.format(strings.t('dealers.your_s_has_been_delivered'), o.name), 2)
+    if sl_phone and sl_phone.routeGarage then pcall(sl_phone.routeGarage) end      -- the route to the garage where it stands
     extensions.hook('onStreetLegalCarDelivered', o)
     extensions.hook('onStreetLegalChanged')
     building = false

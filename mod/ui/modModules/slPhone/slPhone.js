@@ -1038,7 +1038,9 @@
 
     function garagePage() {
       var ordered = arr(st.data.onOrder).map(function (o) {
-        return '<div class="slp-card"><h4>' + T('ui.on_order_1_arrives_day', 'On order: {1}, {2} &middot; arrives day {3} {4}:00', esc(o.name), esc(o.dealer || ''), o.day, two(o.hour)) + '</h4></div>';
+        return '<div class="slp-card"><h4>' + esc(o.name) + '</h4><p>' + (o.hours != null
+          ? T('ui.arriving_at_in_about', 'Arriving at {1} in about {2} h', esc(st.data.garage || ''), o.hours)
+          : T('ui.on_order_1_arrives_day', 'On order: {1}, {2} &middot; arrives day {3} {4}:00', esc(o.name), esc(o.dealer || ''), o.day, two(o.hour))) + '</p></div>';
       });
       var cars = arr(st.data.fleet);
       var cards = cars.map(function (c) {

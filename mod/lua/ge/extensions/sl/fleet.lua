@@ -360,10 +360,18 @@ function M.setActive(carId)
       spawned[old.id] = nil
     end
     local pos, rot = M.forecourt(s, 0)
+    local fresh = not M.vehicleOf(carId)
     local veh = M.vehicleOf(carId) or builder.spawnOwned(job, car, pos, rot)
     if veh then
       spawned[carId] = veh:getID()
       car.out = true
+      if fresh then                                                 -- "Drive this one": the player ends up in it (fade, seat), not left on foot 15 m away
+        guihooks.trigger('slFade', { on = true })
+        job.sleep(0.5)
+        pcall(function() if gameplay_walk and gameplay_walk.getInVehicle then gameplay_walk.getInVehicle(veh) else be:enterVehicle(0, veh) end end)
+        job.sleep(0.3)
+        guihooks.trigger('slFade', { on = false })
+      end
     end
     s.activeCar = carId
     extensions.hook('onStreetLegalChanged')

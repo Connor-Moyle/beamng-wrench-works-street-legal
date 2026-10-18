@@ -1311,6 +1311,8 @@ do
   check('a second buy of the same car takes nothing', state.money == 5000 and charged == 1 and toasts[#toasts] == 'That car has gone.')
   check('it is gone from the lot and the laptop', #sl_lot.offersFor(nil, state) == 1 and #last('slLaptopOffers').offers == 1)
   check('and the list shows the order on its way', #last('slLaptopDealers').coming == 1 and last('slLaptopDealers').coming[1].hours >= 1)
+  local onWay = dealers.ordersList()
+  check('the car on its way is listed for My cars with its arrival', #onWay == 1 and onWay[1].name == state.orders[1].offer.name and onWay[1].day == math.floor(state.orders[1].due / 24) and onWay[1].hour == state.orders[1].due % 24)
   dealers.onUpdate(5)
   check('nothing is built before the delay', #built == 0 and #state.cars == 0)
   -- the forecourt is full (a vehicle within 4 m of every spot): the car is not built on top of one; the player is told once; later, with room, it comes
@@ -2665,6 +2667,44 @@ do -- the depth of a night chase (core/chase)
   check('chase: a breaker is passed at speed with a patrol 25-55 m back, once the distance grows', CH.breakerPassed(4, 6, 20, 30) and not CH.breakerPassed(12, 14, 20, 30)
     and not CH.breakerPassed(6, 4, 20, 30) and not CH.breakerPassed(4, 6, 5, 30) and not CH.breakerPassed(4, 6, 20, 10) and not CH.breakerPassed(4, 6, 20, 80))
   check('chase: a breaker is ready again after 60 s', CH.breakerReady(60) and not CH.breakerReady(59) and CH.breakerReady(nil))
+end
+
+
+-- "Drive this one" (sl_fleet.setActive): the car is built at the forecourt and the player is seated in it
+do
+  local saved = {}
+  local function setg(n, v) saved[n] = { _G[n] } _G[n] = v end
+  local function setp(n, v) saved['p:' .. n] = { package.loaded[n] } package.loaded[n] = v end
+  local seated, faded, built = nil, {}, 0
+  local V3 = {}
+  V3.__index = V3
+  V3.__sub = function(p, q) return setmetatable({ x = p.x - q.x, y = p.y - q.y, z = p.z - q.z }, V3) end
+  function V3:length() return math.sqrt(self.x ^ 2 + self.y ^ 2 + self.z ^ 2) end
+  setg('vec3', function(x, y, z) return setmetatable({ x = x, y = y, z = z }, V3) end)
+  setg('quatFromDir', function() return {} end)
+  local veh = { getID = function() return 55 end, getPosition = function() return vec3(0, 0, 0) end }
+  setp('slrr/garageSites', { getSites = function() return { { id = 'alder', spot = vec3(0, 0, 0), doorDist = -10, dir = vec3(1, 0, 0) } } end, point = function() return vec3(5, 0, 0) end })
+  setp('sl/carBuilder', { spawnOwned = function() built = built + 1 return veh end })
+  local st = { garageLevel = 1, cars = { { id = 3, name = 'Covet' } }, activeCar = nil }
+  setg('sl_career', { isActive = function() return true end, getState = function() return st end })
+  setg('getPlayerVehicle', function() return { getID = function() return 9 end, getPosition = function() return vec3(0, 0, 0) end } end)
+  setg('getObjectByID', function(id) return id == 55 and veh or nil end)
+  setg('guihooks', { trigger = function(n, d) faded[#faded + 1] = n .. ':' .. tostring(d and d.on) end })
+  setg('extensions', { hook = function() end })
+  setg('gameplay_walk', { getInVehicle = function(v) seated = v end })
+  setg('core_jobsystem', { create = function(f) f({ sleep = function() end }) end })
+  package.loaded['sl/fleet'] = nil
+  local ok, F = pcall(require, 'sl/fleet')
+  if ok then
+    local progression = require('sl/core/progression')
+    progression.garages[1].site = 'alder'
+    local good = F.setActive(3)
+    check('Drive this one: the car is built and the player is seated in it', good == true and built == 1 and seated == veh and st.activeCar == 3 and faded[1] == 'slFade:true' and faded[#faded] == 'slFade:false')
+  else
+    check('fleet loads in the test (' .. tostring(F):sub(1, 80) .. ')', false)
+  end
+  package.loaded['sl/fleet'] = nil
+  for n, v in pairs(saved) do if n:sub(1, 2) == 'p:' then package.loaded[n:sub(3)] = v[1] else _G[n] = v[1] end end
 end
 
 print(string.format('lua tests passed: %d checks', passed))

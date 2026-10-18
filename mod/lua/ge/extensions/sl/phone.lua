@@ -76,7 +76,11 @@ local function snapshot()
     challenges = challenges, ledger = ledger, places = placesOut,
     cars = #s.cars, stats = s.stats,
     fleet = sl_fleet and sl_fleet.list() or {},
-    onOrder = sl_lot and sl_lot.ordersList and sl_lot.ordersList() or {},
+    onOrder = (function()      -- the factory orders of the high-end dealers, then the stock dealers' and private sellers' cars on their way
+      local out = sl_lot and sl_lot.ordersList and sl_lot.ordersList() or {}
+      for _, o in ipairs(sl_dealers and sl_dealers.ordersList and sl_dealers.ordersList() or {}) do out[#out + 1] = o end
+      return out
+    end)(),
     rocRound = (s.roc or {}).round or 0, rocChampion = (s.roc or {}).champion == true,
     rocEntry = progression.ROC.entry,
     jobs = sl_jobs and sl_jobs.summary and sl_jobs.summary() or nil,
