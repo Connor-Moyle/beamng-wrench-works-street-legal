@@ -277,6 +277,7 @@ M.TEXT = {
   ["ui.junk"] = "Junk",
   ["ui.junkyard_challenge_flip_a_car"] = "Junkyard challenge: flip a car",
   ["ui.junkyards"] = "Junkyards",
+  ["ui.other_places"] = "More",
   ["ui.just_looking"] = "Just looking",
   ["ui.km_old"] = " km old",
   ["ui.known_faults"] = "Known faults",

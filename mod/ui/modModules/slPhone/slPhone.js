@@ -992,7 +992,7 @@
     }
 
     // the cab's places by category (#21): garages, shops, dealers (by the price tier of their cars), junkyards
-    var CAB_KINDS = { all: null, garage: ['garage'], shop: ['shop', 'parts', 'gas', 'carwash'], dealer: ['dealer'], junk: ['junkyard', 'scrapyard'] };
+    var CAB_KINDS = { all: null, garage: ['garage'], shop: ['shop', 'parts', 'gas', 'carwash'], dealer: ['dealer'], junk: ['junkyard', 'scrapyard'], other: ['meet', 'hospital', 'valet'] };
     var CAB_TIERS = [['all', T('ui.any', 'Any')], ['high', T('ui.high', 'High')], ['mid', T('ui.mid', 'Mid')], ['low', T('ui.low', 'Low')], ['junk', T('ui.junk', 'Junk')]];
     function cabShown(p) {
       var kinds = CAB_KINDS[st.tab.cab];
@@ -1003,9 +1003,9 @@
     function cabPage() {
       var rows = arr(st.data.places).filter(cabShown).map(function (p) {
         return '<div class="slp-row" data-a="taxi" data-v="' + esc(p.id) + '"><div class="slp-av" style="background:#ffd8a8">' + I.cab.replace('<svg', '<svg style="width:22px;height:22px;fill:#5b3d00"') + '</div>' +
-          '<div class="slp-rt"><b>' + esc(p.name) + '</b><span>' + esc(p.kind) + (p.tierLabel ? ' &middot; ' + esc(p.tierLabel) : '') + '</span></div><div class="slp-ib" data-a="gps" data-v="' + esc(p.id) + '">' + I.gps + '</div></div>';
+          '<div class="slp-rt"><b>' + esc(p.name) + '</b><span>' + esc(MAP_KINDS[p.kind] || p.kind) + (p.tierLabel ? ' &middot; ' + esc(p.tierLabel) : '') + '</span></div><div class="slp-ib" data-a="gps" data-v="' + esc(p.id) + '">' + I.gps + '</div></div>';
       });
-      return bar(T('app.cab', 'Cab')) + tabsHtml('cab', [['all', T('ui.all', 'All')], ['garage', T('ui.garages', 'Garages')], ['shop', T('ui.shops', 'Shops')], ['dealer', T('ui.dealers', 'Dealers')], ['junk', T('ui.junkyards', 'Junkyards')]]) +
+      return bar(T('app.cab', 'Cab')) + tabsHtml('cab', [['all', T('ui.all', 'All')], ['garage', T('ui.garages', 'Garages')], ['shop', T('ui.shops', 'Shops')], ['dealer', T('ui.dealers', 'Dealers')], ['junk', T('ui.junkyards', 'Junkyards')], ['other', T('ui.other_places', 'More')]]) +
         (st.tab.cab === 'dealer' ? tabsHtml('cabtier', CAB_TIERS) : '') +
         ('<div class="slp-body"><div class="slp-card"><p>' + T('ui.on_foot_a_cab_takes', 'On foot, a cab takes you anywhere in town. In a car, the pin shows you the way.') + '</p></div>') +
         (rows.join('') || '<div class="slp-empty">' + (st.tab.cab === 'all' ? T('ui.the_cab_company_does_not', 'The cab company does not know any places on this map yet.') : T('ui.no_such_place_here', 'No such place here.')) + '</div>') + '</div>';
