@@ -713,7 +713,12 @@ local function ensureTraffic()
   if info and info.supportsTraffic == false then return end
   if (gt.getNumOfTraffic() or 0) > 0 or (core_gamestate and core_gamestate.getLoadingStatus and core_gamestate.getLoadingStatus('traffic')) then return end
   log('I', logTag, 'no traffic in this level: spawning ' .. M.CITY_TRAFFIC .. ' cars driving and ' .. M.CITY_PARKED .. ' parked')
-  pcall(gt.setupTrafficHelper, M.CITY_TRAFFIC, { police = false }, M.CITY_PARKED, {})
+  -- (the game's parking and traffic spawn through core_multiSpawn, a preset extension of its own freeroam start: nil here, seen in game as an error that this pcall hid)
+  for _, name in ipairs({ 'core_multiSpawn', 'gameplay_parking' }) do
+    if not rawget(_G, name) and extensions and extensions.load then pcall(extensions.load, name) end
+  end
+  local ok, err = pcall(gt.setupTrafficHelper, M.CITY_TRAFFIC, { police = false }, M.CITY_PARKED, {})
+  if not ok then log('E', logTag, 'traffic could not be spawned: ' .. tostring(err)) end
 end
 M.ensureTraffic = ensureTraffic
 
