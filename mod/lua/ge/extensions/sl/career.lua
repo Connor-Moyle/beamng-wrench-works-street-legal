@@ -717,8 +717,17 @@ local function ensureTraffic()
   for _, name in ipairs({ 'core_multiSpawn', 'gameplay_parking' }) do
     if not rawget(_G, name) and extensions and extensions.load then pcall(extensions.load, name) end
   end
-  local ok, err = pcall(gt.setupTrafficHelper, M.CITY_TRAFFIC, { police = false }, M.CITY_PARKED, {})
+  -- the driving cars first, the parked ones 12 s later: both in one go was a 1.3 s stall (measured, 68 slow frames)
+  local ok, err = pcall(gt.setupTrafficHelper, M.CITY_TRAFFIC, { police = false }, 0, {})
   if not ok then log('E', logTag, 'traffic could not be spawned: ' .. tostring(err)) end
+  if ok and M.CITY_PARKED > 0 and gameplay_parking and gameplay_parking.setupVehicles then
+    core_jobsystem.create(function(job)
+      job.sleep(12)
+      if not active then return end
+      local okp, errp = pcall(gameplay_parking.setupVehicles, M.CITY_PARKED, {})
+      if not okp then log('E', logTag, 'parked cars could not be spawned: ' .. tostring(errp)) end
+    end)
+  end
 end
 M.ensureTraffic = ensureTraffic
 
