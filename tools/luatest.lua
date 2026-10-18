@@ -2357,6 +2357,39 @@ do -- the rivals' and auctions' tunables: entries of sl_options for the Mods men
   check('the Mods-menu entries are not on the old settings screen', not leaked)
   _G.sl_options = saved.sl_options
 end
+do -- the look of a used car (sl/core/carwear) and the wash-off (sl_surfacefx against a mocked Car Surface FX)
+  local CW = require('sl/core/carwear')
+  check('a new dealer car and a track special are clean', CW.dirtFor({ id = 'a', kind = 'dealer', condition = 1, mileage = 10 }) == nil and CW.dirtFor({ id = 'b', kind = 'used', condition = 0.5, build = 'race' }) == nil)
+  local good = CW.dirtFor({ id = 'g', kind = 'used', condition = 0.85, mileage = 40000 }).dirt
+  local worn = CW.dirtFor({ id = 'w', kind = 'used', condition = 0.3, mileage = 250000 }).dirt
+  local scrap = CW.dirtFor({ id = 's', kind = 'scrap', condition = 0.1, mileage = 400000 }).dirt
+  check('the tireder and older, the dirtier: a good used car < a worn one < a scrap-yard car', good.grime < worn.grime and worn.dust < scrap.dust + 0.001 and scrap.mud >= 0.25 and good.mud == 0)
+  local again = CW.dirtFor({ id = 'w', kind = 'used', condition = 0.3, mileage = 250000 }).dirt
+  check('the same offer always looks the same, every value 0..1', again.dust == worn.dust and again.grime == worn.grime and (function() for _, v in pairs(scrap) do if v < 0 or v > 1 then return false end end return true end)())
+  local sum = 0
+  for _ = 1, 12 do sum = sum + CW.washStep(0.25, 3) end
+  check('twelve quarter-second steps of a three-second wash take off a whole dirt level', math.abs(sum - 1) < 1e-9 and CW.washSeconds(0) == 1.5 and CW.washSeconds(1) == 4.5)
+  local saved = { carSurfaceFx = _G.carSurfaceFx, getObjectByID = _G.getObjectByID, sl_career = _G.sl_career }
+  local state, washes = nil, {}
+  _G.carSurfaceFx = { apiVersion = 2, setState = function(id, st) state = { id = id, st = st } end, wash = function(id, amount) washes[#washes + 1] = amount or 'all' end, level = function() return { dirt = 0.5 } end, repair = function() end, getState = function() return nil end }
+  _G.getObjectByID = function() return {} end
+  package.loaded['sl/surfacefx'] = nil
+  local SFX = require('sl/surfacefx')
+  SFX.dress(7, { id = 'x', kind = 'used', condition = 0.4, mileage = 120000 })
+  check('a used car is dressed through setState with dirt only (no hand-made scratches)', state and state.id == 7 and state.st.dirt.grime > 0 and state.st.marks == nil and state.st.splats == nil)
+  state = nil
+  SFX.dress(8, { id = 'y', kind = 'dealer', condition = 1, mileage = 5 })
+  check('a clean new car is not touched', state == nil)
+  SFX.washOff(7, 3)
+  for _ = 1, 20 do SFX.onUpdate(0.25) end
+  check('the wash comes off in steps over the seconds and ends with a full wash', #washes >= 11 and washes[#washes] == 'all' and type(washes[1]) == 'number')
+  _G.carSurfaceFx = nil
+  package.loaded['sl/surfacefx'] = nil
+  local SFX2 = require('sl/surfacefx')
+  check('without Car Surface FX nothing happens and nothing fails', SFX2.dress(7, { id = 'x', kind = 'used', condition = 0.4, mileage = 1e5 }) == nil and SFX2.washOff(7) == nil)
+  _G.carSurfaceFx, _G.getObjectByID, _G.sl_career = saved.carSurfaceFx, saved.getObjectByID, saved.sl_career
+  package.loaded['sl/surfacefx'] = nil
+end
 do -- ambient police patrols share the racers' build rule; a chase's patrol is never held back
   local SPP = require('sl/core/spawnplan')
   check('an ambient patrol waits for the gap, the speed rule and any other build', not SPP.patrolOk(5, 3, false, false) and not SPP.patrolOk(30, 30, false, false) and not SPP.patrolOk(5, 99, true, false) and SPP.patrolOk(5, 99, false, false))

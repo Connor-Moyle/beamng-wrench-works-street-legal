@@ -382,7 +382,14 @@ end
 
 -- A car for sale, built as its offer describes: stock, then parts swapped and taken off, then dented.
 -- A track special is built as a race car instead. Returns the vehicle (nil if it could not be made).
+-- a car made from an offer (a lot's, a delivery, a private sale), dressed with the dirt its condition and mileage give it (Car Surface FX, if it is there)
 function M.buildOffer(job, offer, pos, rot, opts)
+  local veh, extra = M.buildOfferPlain(job, offer, pos, rot, opts)
+  if veh and sl_surfacefx and sl_surfacefx.dress then pcall(sl_surfacefx.dress, veh:getID(), offer) end
+  return veh, extra
+end
+
+function M.buildOfferPlain(job, offer, pos, rot, opts)
   if offer.build then
     local veh = M.buildCustom(job, offer.model, offer.config, { stage = offer.build, seed = rngLib.hash(offer.id) }, pos, rot, true)
     if veh then veh:queueLuaCommand('input.event("parkingbrake", 1, FILTER_DIRECT) controller.setFreeze(1)') end
