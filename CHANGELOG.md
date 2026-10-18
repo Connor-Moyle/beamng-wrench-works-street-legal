@@ -4,6 +4,17 @@
 
 What is new since 0.4.0, for players.
 
+### Built, not yet tested in game
+Built, with offline tests, but not yet seen working in the game. An item leaves this list only when the tester posts a pass.
+- **Phone:** Camera and Gallery (photos, wallpapers, a photo of every car you buy), Map (places by kind, a route on the road, Route to my garage), Contacts with the people you have met (rivals, crew leaders, dealers) and a Route to button.
+- **Rivals and the campaign:** six named rivals with texts, a rivalry meter, pink slips only as an offer on their card, tier bosses, and the campaign end (the last boss).
+- **Day jobs and economy:** tow jobs, scrapyard parts runs, taxi fares with a tip for a smooth ride, dealer deliveries judged by scratches; the balance settings (jobs, bank, markets, services, start money, heat, racers); hospital costs; car auctions (online lots and the live junkyard auction).
+- **Police:** deeper chases (spike strips, pursuit breakers), the nemesis cruising at night.
+- **Cars:** career dirt (used and delivered cars carry the dirt their condition and mileage give them; the car wash takes it off), deliveries that are never built on top of a car on the forecourt.
+- **Car Surface FX:** snow, frost, bugs, wipers, road spray, puddle splash and the mud look, and the features ported from Surface FX (skid marks, ruts, leaks, debris, sparks, grass).
+- **The Mods menu (ESC > Mods menu):** every setting of our mods in one place, with tabs, groups and a reset per tab; Street Legal, Wrench Works, graphics and camera (anti-aliasing, sharpening, Look, cinematic camera), Pedestrians & Drivers (driver tunables, rigged driver options, clothing colours) and Car Surface FX are on it. The settings on the phone, the laptop, the garage screen and the game's Options page are removed in its favour.
+- **Drivers:** the driver tunables and the injury effects (experimental rigged driver).
+
 ### Weather and puddles
 - **A moodier rain sky:** the sun, ambient light and fog colours go grey and dark in the rain, and dusk no longer turns orange under cloud.
 - **Puddles that look like water:** greyer and darker with a soft rim, never on a kerb or step; wheel spray and a wet-road mist behind a car, short wet trails, and drag and aquaplaning when you hit one at speed. Rain rings ripple on the puddles, gusts change how much falls and the wind drifts; damp patches breathe as the road dries.
