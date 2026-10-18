@@ -2703,6 +2703,12 @@ do
     progression.garages[1].site = 'alder'
     local good = F.setActive(3)
     check('Drive this one: the car is built and the player is seated in it', good == true and built == 1 and seated == veh and asked == 2 and st.activeCar == 3 and faded[1] == 'slFade:true' and faded[#faded] == 'slFade:false')
+    do      -- a car that is already out front (delivered): the player is seated in it all the same
+      seated, asked, built = nil, 0, 0
+      st.activeCar = nil
+      F.setActive(3)      -- (it is out now: vehicleOf finds it)
+      check('Drive this one on a car already out front: nothing is built, the player is seated', built == 0 and seated == veh)
+    end
   else
     check('fleet loads in the test (' .. tostring(F):sub(1, 80) .. ')', false)
   end

@@ -342,7 +342,8 @@ function M.setActive(carId)
   local car = s and carById(s, carId)
   if not car then return false, strings.t('carcare.no_such_car') end
   if car.impounded then return false, string.format(strings.t('fleet.it_is_in_the_police_2'), car.impounded) end
-  if s.activeCar == carId and M.vehicleOf(carId) then return false, strings.t('fleet.you_have_that_one_out') end
+  local outVeh = s.activeCar == carId and M.vehicleOf(carId)
+  if outVeh and be:getPlayerVehicleID(0) == outVeh:getID() then return false, strings.t('fleet.you_have_that_one_out') end      -- (on foot beside it: the tap seats you)
   local player = getPlayerVehicle(0)
   if not player or not M.atGarage(player:getPosition(), s) then return false, strings.t('fleet.swap_cars_at_your_garage') end
   local old = s.activeCar and carById(s, s.activeCar)
@@ -360,12 +361,11 @@ function M.setActive(carId)
       spawned[old.id] = nil
     end
     local pos, rot = M.forecourt(s, 0)
-    local fresh = not M.vehicleOf(carId)
     local veh = M.vehicleOf(carId) or builder.spawnOwned(job, car, pos, rot)
     if veh then
       spawned[carId] = veh:getID()
       car.out = true
-      if fresh then                                                 -- "Drive this one": the player ends up in it (fade, seat), not left on foot 15 m away
+      if be:getPlayerVehicleID(0) ~= veh:getID() then               -- "Drive this one": the player ends up in it (fade, seat), not left on foot; a car already out front (just delivered) too
         guihooks.trigger('slFade', { on = true })
         job.sleep(0.5)
         for try = 1, 5 do                                           -- (a car just built may not take the player on the first call: ask again until it does, and log what happened)
