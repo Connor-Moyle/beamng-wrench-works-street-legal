@@ -396,6 +396,7 @@ end
 -- the planes: made when a puddle is first visible (its grid is dropped onto the surface then), grown while it is new, shrunk as the road dries
 local function updateMeshes(wet, intensity)
   local pos = playerPos()
+  local tStart = os.clock()
   local made = 0                                  -- (two planes are built per pass, four passes a second: each is 25 rays and a file; their time is measured)
   for _, p in ipairs(puddles) do
     local f = rules.puddleAlpha(wet, os.clock() - p.born) / 0.8
@@ -404,8 +405,8 @@ local function updateMeshes(wet, intensity)
     local size = f < 0.03 and 0 or (0.15 + 0.85 * f) * g
     if size < 0.04 then
       if p.obj and (f < 0.03 or g < 0.03) then dropPuddle(p) end
-    elseif not p.obj and not p.dead and made >= 2 then
-      -- (next pass)
+    elseif not p.obj and not p.dead and (made >= 2 or (made > 0 and os.clock() - tStart > 0.006)) then
+      -- (next pass: at most two planes, and none once this pass has used 6 ms)
     else
       local k = size
       if p.damp and M.flags.shimmer then k = k * rules.shimmer(os.clock(), p.id or 1, intensity) end      -- (the damp patches breathe with the rain: darker, then lighter)
