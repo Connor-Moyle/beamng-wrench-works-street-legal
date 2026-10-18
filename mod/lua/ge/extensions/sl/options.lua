@@ -52,11 +52,23 @@ M.defs = {
     desc = strings.t('options.a_new_car_is_photographed') },
   { key = 'slWeather', needs = 'weather', title = 'Weather', type = 'bool', default = true,
     desc = strings.t('options.rain_wet_roads_and_night') },
+  { key = 'slPoliceStrips', career = true, tab = 'Police chase', group = strings.t('options.spike_strips'), title = strings.t('options.spike_strips'), type = 'bool', default = true,
+    desc = strings.t('options.at_heat_3_and_above') },
+  { key = 'slPoliceBreakers', career = true, tab = 'Police chase', group = strings.t('options.pursuit_breakers'), title = strings.t('options.pursuit_breakers'), type = 'bool', default = true,
+    desc = strings.t('options.marked_spots_on_straight_roads') },
+  { key = 'slPoliceStripYaw', advanced = true, tab = 'Police chase', group = 'Developer', title = strings.t('options.chase_prop_turn'), type = 'choice', default = '0',
+    options = { { id = '0', label = '0' }, { id = '90', label = '90' } }, desc = strings.t('options.turns_the_strip_and_the') },
+  { key = 'slNightRaceKinds', tab = 'Night traffic', group = strings.t('options.race_kinds'), title = strings.t('options.race_kinds'), type = 'bool', default = true,
+    desc = strings.t('options.night_races_go_to_a') },
+  { key = 'slNightPrespawn', tab = 'Night traffic', group = strings.t('options.prepare_night_traffic_during_the_fade'), title = strings.t('options.prepare_night_traffic_during_the_fade'), type = 'bool', default = true,
+    desc = strings.t('options.builds_the_first_two_cruisers') },
+  { key = 'slOfflineTree', advanced = true, tab = 'Night traffic', group = 'Developer', title = strings.t('options.read_the_parts_tree_without_a_car'), type = 'bool', default = true,
+    desc = strings.t('options.a_first_build_of_a') },
   { key = 'slRain', needs = 'weather', title = 'Rain', type = 'range', min = 0, max = 0.5, step = 0.02, default = 0.12, unit = '/h',
     desc = strings.t('options.how_often_a_shower_starts') },
 }
 local byKey = {}
-for _, d in ipairs(M.defs) do d.group = GROUP byKey[d.key] = d end
+for _, d in ipairs(M.defs) do d.group = d.group or GROUP byKey[d.key] = d end
 
 local global
 

@@ -282,7 +282,7 @@ local function startRace(racer, vid, stake, bet, standing, maxD, keepOpp)
   local v = playerCar()
   if not v or race then return false end
   local dest, destNode, distance, kind, kindMs
-  if M.KINDS then dest, destNode, distance, kind, kindMs = kindDest(v, standing, maxD) end
+  if M.KINDS and (not sl_options or sl_options.get('slNightRaceKinds') ~= false) then dest, destNode, distance, kind, kindMs = kindDest(v, standing, maxD) end
   if not dest then dest, destNode, distance = farSide(v:getPosition(), maxD or CITY_RACE) end
   if not dest then return false end
   race = { racer = racer.id, name = roster.displayName(racer), vid = vid, stake = stake, bet = bet, dest = dest, destNode = destNode,
@@ -506,14 +506,15 @@ end
 
 -- the switch to night is a black fade: the first cruisers are built then (two, no gap, no speed gate), when a 1-1.6 s freeze costs the player nothing
 M.PRESPAWN = true
+local function prespawnOn() return M.PRESPAWN and (not sl_options or sl_options.get('slNightPrespawn') ~= false) end
 local preCruisers, fadeUntil = 0, 0
 function M.onStreetLegalPhase(phase)
   if phase == 'night' then meetsTonight, meetTimer = 0, spawnplan.MEET_FIRST end      -- (the first meet starts at once: the player has just switched, usually standing)
-  if phase == 'night' and M.PRESPAWN and career() then preCruisers, fadeUntil = 2, os.clock() + 4 racelog.add('spawn', 'prespawn armed', { why = 'night phase' }) end
+  if phase == 'night' and prespawnOn() and career() then preCruisers, fadeUntil = 2, os.clock() + 4 racelog.add('spawn', 'prespawn armed', { why = 'night phase' }) end
 end
 -- the career start and a fast travel are black fades too (the hook comes after the player has been moved)
 function M.onStreetLegalFade()
-  if M.PRESPAWN and career() and night() and not race and next(cruisers) == nil then preCruisers, fadeUntil = 2, os.clock() + 3 racelog.add('spawn', 'prespawn armed', { why = 'fade' }) end
+  if prespawnOn() and career() and night() and not race and next(cruisers) == nil then preCruisers, fadeUntil = 2, os.clock() + 3 racelog.add('spawn', 'prespawn armed', { why = 'fade' }) end
 end
 
 local function updateCruisers(s, dt)
