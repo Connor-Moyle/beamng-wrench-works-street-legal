@@ -2390,6 +2390,32 @@ do -- the look of a used car (sl/core/carwear) and the wash-off (sl_surfacefx ag
   _G.carSurfaceFx, _G.getObjectByID, _G.sl_career = saved.carSurfaceFx, saved.getObjectByID, saved.sl_career
   package.loaded['sl/surfacefx'] = nil
 end
+do -- the balance entries (sl/balance): every one is an sl_options entry whose default is the constant it sets; a change reaches the rules and a reset brings the old value back
+  local BAL, OPT = require('sl/balance'), require('sl/options')
+  local byKey = {}
+  for _, d in ipairs(OPT.defs) do byKey[d.key] = d end
+  local ok, n = true, 0
+  for _, e in ipairs(BAL.MAP) do
+    local d = byKey[e[1]]
+    local good, mod = pcall(require, e[2])
+    if not (d and d.tab and d.desc and d.type == 'range' and d.default >= d.min and d.default <= d.max) then ok = false end
+    if good and type(mod) == 'table' then
+      n = n + 1
+      if mod[e[3]] ~= d.default then ok = false end
+    end
+  end
+  check('every balance entry has an options entry with tab, tooltip and range, and its default is the constant it sets', ok and n >= 18, tostring(n))
+  local HEAT, JOBS = require('sl/core/heat'), require('sl/core/jobs')
+  local values = { slHeatRace = 0.3, slPayPerKm = 200 }
+  local saved = _G.sl_options
+  _G.sl_options = { get = function(key) return values[key] end }
+  BAL.apply()
+  check('a changed setting reaches the rule', HEAT.RACE == 0.3 and JOBS.PAY_PER_KM == 200)
+  values.slHeatRace, values.slPayPerKm = nil, nil
+  BAL.apply()
+  check('a setting reset to nothing brings the original value back', HEAT.RACE == 0.12 and JOBS.PAY_PER_KM == 140)
+  _G.sl_options = saved
+end
 do -- ambient police patrols share the racers' build rule; a chase's patrol is never held back
   local SPP = require('sl/core/spawnplan')
   check('an ambient patrol waits for the gap, the speed rule and any other build', not SPP.patrolOk(5, 3, false, false) and not SPP.patrolOk(30, 30, false, false) and not SPP.patrolOk(5, 99, true, false) and SPP.patrolOk(5, 99, false, false))
