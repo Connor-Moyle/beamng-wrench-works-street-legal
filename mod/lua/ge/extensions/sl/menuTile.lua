@@ -8,7 +8,7 @@ local M = {}
 local strings = require('sl/core/strings')
 
 local KEY = 'streetLegalRacing'
-local PREVIEW = '/levels/slrr_valo_city/slrr_valo_city_preview.jpg'
+local PREVIEW = '/levels/west_coast_usa/west_coast_usa_preview1.jpg'
 
 -- the maps a career can be played on, and whether any is here (W1)
 local function maps() return sl_career and sl_career.listMaps and sl_career.listMaps() or {} end
@@ -24,7 +24,7 @@ function M.onGameplaySelectorGetTiles(items, backend)
     preview = FS:fileExists(PREVIEW) and PREVIEW or nil,
     favouriteIdx = 0, showFavouriteIconPercent = 0,
     showDetails = { key = KEY, streetLegal = true },
-    system = strings.t('menuTile.wrench_works_street_legal'), type = 'career', level = strings.t('menuTile.valo_city_or_west_coast'),
+    system = strings.t('menuTile.wrench_works_street_legal'), type = 'career', level = strings.t('menuTile.west_coast_usa'),
     sourceIcons = {}, order = -1e12,
     validBackends = { gameplaySelector = true },
   }
@@ -35,7 +35,7 @@ function M.onGameplaySelectorGetDetails(itemDetails, details, buttonInstance, ba
   local installed = levelInstalled()
   local summary = sl_career and sl_career.saveSummary()
   local names = {}
-  for _, m in ipairs(maps()) do names[#names + 1] = m.name .. (m.installed and '' or ' (not installed)') end
+  for _, m in ipairs(maps()) do if m.installed or m.id == 'west_coast_usa' then names[#names + 1] = m.name .. (m.installed and '' or ' (not installed)') end end      -- (a parked map that is not here is not mentioned)
   local specs = {
     { icon = 'flag', label = 'Maps', value = table.concat(names, ', ') },
     { icon = 'personSolid', label = 'Career', value = summary or strings.t('menuTile.no_career_yet') },
@@ -73,7 +73,7 @@ function M.onGameplaySelectorGetDetails(itemDetails, details, buttonInstance, ba
   end
   details[#details + 1] = {
     headerTitle = strings.t('menuTile.wrench_works_street_legal'),
-    description = strings.t('menuTile.no_car_a_few_thousand', (installed and '' or strings.t('menuTile.this_needs_the_valo_city'))),
+    description = strings.t('menuTile.no_car_a_few_thousand', (installed and '' or strings.t('menuTile.this_needs_west_coast'))),
     preview = FS:fileExists(PREVIEW) and PREVIEW or nil,
     isFavourite = backend.isFavourite(itemDetails.key),
     specifications = { specs },

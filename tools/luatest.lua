@@ -31,7 +31,7 @@ end
 
 -- progression
 do
-  check('titles', progression.titleFor(0) == 'Nobody' and progression.titleFor(150) == 'Street kid' and progression.titleFor(99999) == 'King of Valo City')
+  check('titles', progression.titleFor(0) == 'Nobody' and progression.titleFor(150) == 'Street kid' and progression.titleFor(99999) == 'King of the Streets')
   local _, nextRep = progression.titleFor(120)
   check('next title threshold', nextRep == 300, nextRep)
   local n = progression.nextGarage({ garageLevel = 1, rep = 100, money = 1e6 })
@@ -967,11 +967,11 @@ do
   check('Valo City offers every feature', valo)
   check('the phone marketplace (Revline, the paper, Swap & Bid) is on West Coast USA too', progression.has('west_coast_usa', 'classifieds'))
   check('West Coast USA hides every feature its data lacks', wc)
-  check('an unknown level or feature falls back to the default map / off', progression.has(nil, 'roc') and not progression.has('slrr_valo_city', 'nothing'))
+  check('an unknown level or feature falls back to the default map (West Coast USA) / off', not progression.has(nil, 'roc') and progression.has(nil, 'classifieds') and not progression.has('slrr_valo_city', 'nothing'))
   check('Valo texts are untouched on Valo City', progression.mapText('King of Valo City. King of Valo!', 'slrr_valo_city') == 'King of Valo City. King of Valo!'
-    and progression.titleFor(6000, 'slrr_valo_city') == 'King of Valo City')
+    and progression.titleFor(6000, 'slrr_valo_city') == 'King of the Streets')
   check('Valo texts name West Coast USA there', progression.mapText('King of Valo City. Every crew in Valo.', 'west_coast_usa') == 'King of West Coast USA. Every crew in West Coast USA.'
-    and progression.titleFor(6000, 'west_coast_usa') == 'King of West Coast USA' and progression.titleFor(6000) == 'King of Valo City')
+    and progression.titleFor(6000, 'west_coast_usa') == 'King of the Streets' and progression.titleFor(6000) == 'King of the Streets')
 end
 
 -- laptops: prompts only in a career, one per computer facility that has a position (T13)

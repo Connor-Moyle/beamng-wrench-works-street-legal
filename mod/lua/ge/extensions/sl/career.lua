@@ -736,7 +736,7 @@ function M.start(fresh, n, level)
     s = stateLib.new((os.time() % 1000000) * 31 + math.random(1, 997), now())
     s.level = progression.MAPS[level] and level or progression.DEFAULT_MAP
   end
-  useMap(progression.MAPS[s.level] and s.level or progression.DEFAULT_MAP)   -- (a save from before W1 has no level: Valo City)
+  useMap(progression.MAPS[s.level] and s.level or progression.DEFAULT_MAP)   -- (a save from before W1 has no level: the default map)
   pending = 'start'
   if getCurrentLevelIdentifier and getCurrentLevelIdentifier() == M.LEVEL then
     begin()

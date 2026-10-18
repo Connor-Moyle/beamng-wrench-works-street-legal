@@ -102,7 +102,7 @@ click('slotplay', '2');
 assert.ok(calls.includes('@sl_menuTile.startFromMenu(false,2)'), 'play a slot');
 phone.handle('slMenu', { show: true, installed: false });
 pressCareer();
-assert.ok(text().includes('Needs the Wrench Works: Valo City map'), 'tells you when the map is missing');
+assert.ok(text().includes('Needs the West Coast USA map'), 'tells you when the map is missing');
 click('chooser', 'close');
 assert.ok(!text().includes('BeamNG Career'), 'back closes it');
 phone.handle('slMenu', { show: false });

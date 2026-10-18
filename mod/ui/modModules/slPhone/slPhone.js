@@ -1315,7 +1315,7 @@
       var m = st.menu;
       if (!m || !m.show || !st.chooser) return '';
       var sl = !m.installed
-        ? ('<div class="slp-chcard slp-chsl slp-off"><b>' + T('menuTile.wrench_works_street_legal', 'Wrench Works: Street Legal') + '</b><span>' + T('ui.needs_the_wrench_works_valo', 'Needs the Wrench Works: Valo City map (slrr_valo_city). Switch it on under Mods.') + '</span></div>')
+        ? ('<div class="slp-chcard slp-chsl slp-off"><b>' + T('menuTile.wrench_works_street_legal', 'Wrench Works: Street Legal') + '</b><span>' + T('ui.needs_the_wrench_works_valo', 'Needs the West Coast USA map (west_coast_usa).') + '</span></div>')
         : ('<div class="slp-chcard slp-chsl"><b>' + T('menuTile.wrench_works_street_legal', 'Wrench Works: Street Legal') + '</b>') + (st.slrrArt ? slrrIcon(m.summary ? 'load_career_a.png' : 'new_career_a.png', 'slp-chimg') : '') + '<span>' + (m.summary ? T('ui.your_career_1', 'Your career: {1}', esc(m.summary)) : T('ui.no_car_5_000_and', 'No car, $5,000 and a name nobody knows. Junkyard wrecks, street racers, pink slips and the top garage.')) + '</span>' +
           (m.summary ? ('<div class="slp-btn slp-go" data-a="menustart" data-v="continue">' + T('ui.continue', 'Continue') + '</div>') : '') +
           slotsHtml(m) +

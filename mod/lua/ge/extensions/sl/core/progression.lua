@@ -27,8 +27,8 @@ M.MAPS = {
     { id = 'alderDragwayGarage', name = strings.t('progression.alder_dragway_garage') }, { id = 'commercialGarage', name = strings.t('progression.industrial_garage') },
     { id = 'belascoCityGarage', name = strings.t('progression.belasco_city_garage') } } },
 }
-M.MAP_ORDER = { 'slrr_valo_city', 'west_coast_usa' }
-M.DEFAULT_MAP = 'slrr_valo_city'
+M.MAP_ORDER = { 'west_coast_usa', 'slrr_valo_city' }      -- (West Coast USA is the game; Valo City is parked: its code stays, it is only not the default)
+M.DEFAULT_MAP = 'west_coast_usa'
 
 function M.has(level, feature) return ((M.MAPS[level] or M.MAPS[M.DEFAULT_MAP]).has or {})[feature] == true end
 
