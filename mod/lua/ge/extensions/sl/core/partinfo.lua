@@ -33,7 +33,7 @@ end
 -- A jbeam name field is usually a string but some are tables (a translation { txt = '...' }, a list): always reduce one to a string,
 -- or nil when there is no text in it (never "table: 0x...").
 function M.text(v)
-  if type(v) == 'string' then return v ~= '' and v or nil end
+  if type(v) == 'string' then return v ~= '' and not v:find('{{', 1, true) and v or nil end      -- (an unfilled template such as "{{ size }} {{ type }}" is no name)
   if type(v) == 'table' then
     return M.text(v.txt) or M.text(v.val) or M.text(v.en) or M.text(v[1])
   end
