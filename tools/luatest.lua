@@ -421,6 +421,22 @@ do
   local plan = ww.plan({ { name = 'grass_a' }, { name = 'road_b' }, { name = 'tunnel_road' }, { name = 'wall_c' }, { name = 'road_a' }, { name = 'ui_x' } }, 3)
   check('wet: the plan is road first, the rest by kind, capped, with the skipped left out', #plan == 3 and plan[1].name == 'road_a' and plan[2].name == 'road_b' and plan[3].name == 'wall_c')
   check('wet: the batch is small when edits are slow and never above the maximum', ww.batch(nil) == 2 and ww.batch(10) == 1 and ww.batch(0.1, 3, 8) == 8 and ww.batch(1, 3, 8) == 3)
+  -- the kinds of standing water: the odds add to one, every kind is sane, the long ones lie along the road, and over many draws every kind comes
+  local total = 0
+  for _, o in ipairs(wx.POOL_ODDS) do total = total + o[2] end
+  local seen, sane, mats = {}, true, {}
+  local seed = 7
+  local function rnd() seed = (seed * 1103515245 + 12345) % 2147483648 return seed / 2147483648 end
+  for _ = 1, 600 do
+    local pool = wx.pool(rnd)
+    seen[pool.kind] = true
+    mats[pool.material] = true
+    if pool.sx < 0.5 or pool.sy < 0.3 or pool.sx > 20 or pool.sy > 15 or (pool.kind == 'edge' or pool.kind == 'rut') and (not pool.along or pool.sx / pool.sy < 3.5) then sane = false end
+    if pool.lateral and (pool.lateral < 0 or pool.lateral > 0.95) then sane = false end
+  end
+  check('puddle kinds: odds add to one, every kind comes, shapes are sane (long pools and wheel tracks lie along the road and are long and thin)', math.abs(total - 1) < 1e-9 and seen.edge and seen.rut and seen.small and seen.dip and seen.round and seen.damp and sane)
+  check('puddle kinds: three materials (normal, deeper, thinner) are used', mats.sl_puddle and mats.sl_puddle_deep and mats.sl_puddle_thin)
+  check('puddles take 20 s to come to full size and the budget is bigger', wx.puddleAlpha(1, 20) > wx.puddleAlpha(1, 10) and wx.puddleAlpha(1, 10) > wx.puddleAlpha(1, 2) and wx.MAX_PUDDLES >= 120)
   check('damp patches: bare and hard ground only, never grass or a layer that says nothing', wx.dampGroundOk('asphalt_cracked') and wx.dampGroundOk('Dirt_dry') and wx.dampGroundOk('gravel_01') and wx.dampGroundOk('concrete_old')
     and not wx.dampGroundOk('grass_dry') and not wx.dampGroundOk('forest_floor_dirt') and not wx.dampGroundOk('unnamed_layer') and not wx.dampGroundOk(nil))
   check('puddles: full size up close, nothing at the far edge, smooth between (no pop in)', wx.distanceScale(50, 165, 225) == 1 and wx.distanceScale(225, 165, 225) == 0 and wx.distanceScale(300, 165, 225) == 0

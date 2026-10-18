@@ -138,7 +138,7 @@ function M.wetGrip(wet, rain)
 end
 
 -- puddles: how many may stand at this wetness, and how opaque they are (nothing below a damp road)
-M.MAX_PUDDLES = 18
+M.MAX_PUDDLES = 120
 function M.puddleCount(wet) return wet < 0.15 and 0 or math.floor(M.MAX_PUDDLES * math.min(1, (wet - 0.1) / 0.9) + 0.5) end
 -- which terrain layers a dark glossy damp patch may lie on: hard or bare ground (asphalt, concrete, road, dirt, gravel, rock, pavement), never grass, forest floor or leaves; a name
 -- that says nothing is left alone
@@ -158,8 +158,40 @@ function M.distanceScale(d, from, to)
   local t = (to - d) / (to - from)
   return t * t * (3 - 2 * t)
 end
+M.FADE_SECONDS = 20      -- a puddle takes this long to come to full size (it starts small and grows)
+
+-- The kinds of standing water: small patches, round puddles, long pools along the road edge, thin lines in the wheel tracks, wide shallow damp patches. rnd() gives 0..1.
+-- Returns { kind, sx, sy, lateral (a fraction of the road's half width from its middle: 0 middle, 1 the edge; the caller picks the side), along (lies along the road), dip (wants a dip),
+-- material (sl_puddle | sl_puddle_deep | sl_puddle_thin) }.
+M.POOL_ODDS = { { 'edge', 0.24 }, { 'rut', 0.16 }, { 'small', 0.22 }, { 'dip', 0.14 }, { 'round', 0.14 }, { 'damp', 0.10 } }
+function M.pool(rnd)
+  local r, acc, kind = rnd(), 0, 'round'
+  for _, o in ipairs(M.POOL_ODDS) do
+    acc = acc + o[2]
+    if r < acc then kind = o[1] break end
+  end
+  local deep = rnd() < 0.3
+  local function range(a, b) return a + rnd() * (b - a) end
+  if kind == 'edge' then
+    return { kind = kind, sx = range(6, 14), sy = range(0.9, 1.6), lateral = range(0.7, 0.92), along = true, material = deep and 'sl_puddle_deep' or 'sl_puddle' }
+  elseif kind == 'rut' then
+    return { kind = kind, sx = range(8, 18), sy = range(0.45, 0.75), lateral = range(0.3, 0.6), along = true, material = rnd() < 0.5 and 'sl_puddle_thin' or 'sl_puddle' }
+  elseif kind == 'small' then
+    local s = range(0.8, 1.7)
+    return { kind = kind, sx = s, sy = s * range(0.6, 1.1), lateral = range(0, 0.9), material = rnd() < 0.5 and 'sl_puddle_thin' or 'sl_puddle' }
+  elseif kind == 'dip' then
+    local s = range(2.5, 5)
+    return { kind = kind, sx = s, sy = s * range(0.6, 1.1), lateral = range(0, 0.8), dip = true, material = 'sl_puddle_deep' }
+  elseif kind == 'damp' then
+    local s = range(7, 12)
+    return { kind = kind, sx = s, sy = s * range(0.6, 1.1), lateral = range(0, 0.8), damp = true, material = 'sl_puddle' }
+  end
+  local s = range(2, 4)
+  return { kind = 'round', sx = s, sy = s * range(0.6, 1.1), lateral = range(0, 0.85), material = deep and 'sl_puddle_deep' or 'sl_puddle' }
+end
+
 function M.puddleAlpha(wet, age)
-  local fade = math.min(1, (age or 0) / 6)
+  local fade = math.min(1, (age or 0) / M.FADE_SECONDS)
   return math.max(0, math.min(1, (wet - 0.1) / 0.5)) * 0.8 * fade
 end
 
