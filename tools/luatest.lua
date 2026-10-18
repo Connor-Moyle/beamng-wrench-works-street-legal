@@ -2485,6 +2485,7 @@ do -- the balance entries (sl/balance): every one is an sl_options entry whose d
   local HOSP = require('sl/hospital')
   check('the hospital bills are the old numbers by default', HOSP.doctorBill({ broken = { 1, 2 }, severity = 0.5 }) == 1050 and HOSP.hospitalBill(0.5, false) == 2700 and HOSP.hospitalBill(0.5, true) == 4000)
   HOSP.DOCTOR_BASE, HOSP.HOSPITAL_BASE = 0, 0
+  check('a bill never takes it all: 40% of the money, at least 300, never more than there is', HOSP.payable(2700, 3450) == 1380 and HOSP.payable(2700, 100000) == 2700 and HOSP.payable(2700, 500) == 300 and HOSP.payable(2700, 120) == 120 and HOSP.payable(2700, 0) == 0)
   check('and follow the settings', HOSP.doctorBill({ broken = { 1, 2 }, severity = 0.5 }) == 900 and HOSP.hospitalBill(0.5, false) == 1500)
   HOSP.DOCTOR_BASE, HOSP.HOSPITAL_BASE = 150, 1200
   _G.sl_options = saved
@@ -2685,11 +2686,12 @@ do
   setg('vec3', function(x, y, z) return setmetatable({ x = x, y = y, z = z }, V3) end)
   setg('quatFromDir', function() return {} end)
   local veh = { getID = function() return 55 end, getPosition = function() return vec3(0, 0, 0) end }
+  local foot = false
   setp('slrr/garageSites', { getSites = function() return { { id = 'alder', spot = vec3(0, 0, 0), doorDist = -10, dir = vec3(1, 0, 0) } } end, point = function() return vec3(5, 0, 0) end })
   setp('sl/carBuilder', { spawnOwned = function() built = built + 1 return veh end })
   local st = { garageLevel = 1, cars = { { id = 3, name = 'Covet' } }, activeCar = nil }
   setg('sl_career', { isActive = function() return true end, getState = function() return st end })
-  setg('getPlayerVehicle', function() return { getID = function() return 9 end, getPosition = function() return vec3(0, 0, 0) end } end)
+  setg('getPlayerVehicle', function() return { getID = function() return 9 end, getPosition = function() return foot and vec3(900, 0, 0) or vec3(0, 0, 0) end, getJBeamFilename = function() return foot and 'unicycle' or 'covet' end } end)
   setg('getObjectByID', function(id) return id == 55 and veh or nil end)
   setg('guihooks', { trigger = function(n, d) faded[#faded + 1] = n .. ':' .. tostring(d and d.on) end })
   setg('extensions', { hook = function() end })
@@ -2710,6 +2712,10 @@ do
       st.activeCar = nil
       F.setActive(3)      -- (it is out now: vehicleOf finds it)
       check('Drive this one on a car already out front: nothing is built, the player is seated', built == 0 and seated == veh)
+      seated, st.activeCar, foot = nil, nil, true      -- on foot at the hospital's door, far from the garage
+      local ok2 = F.setActive(3)
+      check('Drive this one on foot far from the garage seats the player in a car that is out', ok2 == true and seated == veh and st.activeCar == 3)
+      foot = false
     end
   else
     check('fleet loads in the test (' .. tostring(F):sub(1, 80) .. ')', false)

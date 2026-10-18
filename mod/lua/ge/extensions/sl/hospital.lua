@@ -20,10 +20,12 @@ M.HOSPITAL_BASE, M.HOSPITAL_DIED, M.HOSPITAL_SEVERITY = 1200, 2500, 3000
 function M.doctorBill(injuries) return M.DOCTOR_BASE + M.BONE_FEE * #(injuries.broken or {}) + math.floor(M.DOCTOR_SEVERITY * (injuries.severity or 0) / 10) * 10 end
 function M.hospitalBill(severity, died) return (died and M.HOSPITAL_DIED or M.HOSPITAL_BASE) + math.floor(M.HOSPITAL_SEVERITY * (severity or 0.5) / 10) * 10 end
 
--- a bill is paid with what there is: the hospital treats you anyway (and what is left of it is let go)
+-- insurance pays what is above M.MAX_SHARE of what you have (never less than M.MIN_PAY, or all there is): a bill never wipes the balance, and the hospital treats you anyway
+M.MAX_SHARE, M.MIN_PAY = 0.4, 300
+function M.payable(amount, money) return math.max(0, math.min(amount, math.max(M.MIN_PAY, math.floor(money * M.MAX_SHARE)), money)) end
 local function bill(amount, label)
   local s = career()
-  local pay = math.max(0, math.min(amount, s and s.money or 0))
+  local pay = M.payable(amount, s and s.money or 0)
   if pay > 0 then sl_career.addMoney(-pay, label) end
   return pay
 end

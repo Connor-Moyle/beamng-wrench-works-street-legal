@@ -337,6 +337,20 @@ function M.workOn(carId)
 end
 
 -- drive another of your cars: it comes out of the garage, the one you had goes in
+-- fade, then ask the car to take the player up to five times (a car just built may not on the first call), logging what the player is in
+local function seatPlayer(job, veh)
+  guihooks.trigger('slFade', { on = true })
+  job.sleep(0.5)
+  for try = 1, 5 do
+    local ok, err = pcall(function() if gameplay_walk and gameplay_walk.getInVehicle then gameplay_walk.getInVehicle(veh) else be:enterVehicle(0, veh) end end)
+    job.sleep(0.4)
+    local now = be:getPlayerVehicleID(0)
+    if now == veh:getID() then break end
+    log('W', 'street_legal', string.format('Drive this one: attempt %d, the player is in vehicle %s, wanted %s%s', try, tostring(now), tostring(veh:getID()), ok and '' or (' (error: ' .. tostring(err) .. ')')))
+  end
+  guihooks.trigger('slFade', { on = false })
+end
+
 function M.setActive(carId)
   local s = career()
   local car = s and carById(s, carId)
@@ -345,6 +359,15 @@ function M.setActive(carId)
   local outVeh = s.activeCar == carId and M.vehicleOf(carId)
   if outVeh and be:getPlayerVehicleID(0) == outVeh:getID() then return false, strings.t('fleet.you_have_that_one_out') end      -- (on foot beside it: the tap seats you)
   local player = getPlayerVehicle(0)
+  local anyOut = M.vehicleOf(carId)
+  if anyOut and player and player:getJBeamFilename() == 'unicycle' then       -- on foot (after the hospital, say) and the car is already out: seat the player wherever they stand
+    core_jobsystem.create(function(job)
+      seatPlayer(job, anyOut)
+      s.activeCar = carId
+      extensions.hook('onStreetLegalChanged')
+    end)
+    return true, strings.t('fleet.the_1_is_out_front', (car.name))
+  end
   if not player or not M.atGarage(player:getPosition(), s) then return false, strings.t('fleet.swap_cars_at_your_garage') end
   local old = s.activeCar and carById(s, s.activeCar)
   local oldVeh = old and M.vehicleOf(old.id)
@@ -366,16 +389,7 @@ function M.setActive(carId)
       spawned[carId] = veh:getID()
       car.out = true
       if be:getPlayerVehicleID(0) ~= veh:getID() then               -- "Drive this one": the player ends up in it (fade, seat), not left on foot; a car already out front (just delivered) too
-        guihooks.trigger('slFade', { on = true })
-        job.sleep(0.5)
-        for try = 1, 5 do                                           -- (a car just built may not take the player on the first call: ask again until it does, and log what happened)
-          local ok, err = pcall(function() if gameplay_walk and gameplay_walk.getInVehicle then gameplay_walk.getInVehicle(veh) else be:enterVehicle(0, veh) end end)
-          job.sleep(0.4)
-          local now = be:getPlayerVehicleID(0)
-          if now == veh:getID() then break end
-          log('W', 'street_legal', string.format('Drive this one: attempt %d, the player is in vehicle %s, wanted %s%s', try, tostring(now), tostring(veh:getID()), ok and '' or (' (error: ' .. tostring(err) .. ')')))
-        end
-        guihooks.trigger('slFade', { on = false })
+        seatPlayer(job, veh)
       end
     end
     s.activeCar = carId
