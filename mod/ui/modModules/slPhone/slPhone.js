@@ -872,7 +872,7 @@
       var state = l.mine ? T('ui.auction_your_reserve', 'Your reserve {1}', money(l.reserve)) : (l.bid > 0 ? (mine ? T('ui.auction_high_you', 'You are the highest bidder') : T('ui.auction_outbid', 'Outbid')) : T('ui.auction_no_bids', 'No bids yet'));
       var plus = Math.round((l.bid || l.next) * 1.1 / 10) * 10;
       var acts = l.mine ? '' : '<div class="slp-acts">' + (mine ? '' : '<div class="slp-btn' + ((st.auction && st.auction.money != null && st.auction.money < l.next) ? ' slp-off' : '') + '" data-a="abid" data-v="' + esc(l.id) + '|' + l.next + '">' + T('ui.auction_bid_next', 'Bid {1}', money(l.next)) + '</div>' +
-        '<div class="slp-btn slp-tonal" data-a="abid" data-v="' + esc(l.id) + '|' + plus + '">' + T('ui.auction_bid_plus', 'Bid +10% ({1})', money(plus)) + '</div>') +
+        '<div class="slp-btn slp-tonal' + ((st.auction && st.auction.money != null && st.auction.money < plus) ? ' slp-off' : '') + '" data-a="abid" data-v="' + esc(l.id) + '|' + plus + '">' + T('ui.auction_bid_plus', 'Bid +10% ({1})', money(plus)) + '</div>') +
         '<div class="slp-btn slp-text" data-a="awatch" data-v="' + esc(l.id) + '|' + (l.watched ? 0 : 1) + '">' + (l.watched ? T('ui.auction_watching', 'Watching (tap to stop)') : T('ui.auction_watch', 'Watch')) + '</div></div>';
       return '<div class="slp-card">' + adPic(l) + '<h4>' + (l.year ? l.year + ' ' : '') + esc(l.name) + ' &middot; ' + T('ui.auction_grade', 'Grade {1}', esc(l.grade)) + '</h4>' +
         '<p>' + T('ui.auction_condition', 'Condition {1}%', l.condition) + (l.mileage != null ? ' &middot; ' + Math.round(l.mileage / 1000) + 'k km' : '') + (faults.length ? ' &middot; ' + T('ui.needs_2', 'Needs: ') + esc(faults.join(', ')) : '') + '</p>' +
@@ -1172,7 +1172,7 @@
           '<div class="slp-lotprice">' + money(al.bid) + '</div><div class="slp-lottitle">' + (aleader ? T('ui.auction_high_you', 'You are the highest bidder') : (al.bid > 0 ? T('ui.auction_outbid', 'Outbid') : T('ui.auction_no_bids', 'No bids yet'))) +
           ' &middot; ' + (al.reserveMet ? T('ui.auction_reserve_met', 'Reserve met') : T('ui.auction_reserve_not_met', 'Reserve not met')) + ' &middot; ' + (au.waiting ? T('ui.auction_next_lot', 'The next lot is coming up.') : T('ui.auction_going_in', 'Going in {1} s', al.secondsLeft)) + '</div>' +
           '<div class="slp-lotbtns">' + (aleader || au.waiting ? '' : '<div class="slp-btn' + (au.money != null && au.money < al.next ? ' slp-off' : '') + '" data-a="abid" data-v="' + esc(al.id) + '|' + al.next + '">' + T('ui.auction_bid_next', 'Bid {1}', money(al.next)) + '</div>' +
-          '<div class="slp-btn slp-tonal" data-a="abid" data-v="' + esc(al.id) + '|' + aplus + '">' + T('ui.auction_bid_plus', 'Bid +10% ({1})', money(aplus)) + '</div>') + '</div>' +
+          '<div class="slp-btn slp-tonal' + (au.money != null && au.money < aplus ? ' slp-off' : '') + '" data-a="abid" data-v="' + esc(al.id) + '|' + aplus + '">' + T('ui.auction_bid_plus', 'Bid +10% ({1})', money(aplus)) + '</div>') + '</div>' +
           '<div class="slp-lotleave"><div class="slp-btn slp-text" data-a="lot" data-v="close()">' + T('ui.leave', 'Leave') + '</div></div></div>';
       }
       if (l.factory) {
