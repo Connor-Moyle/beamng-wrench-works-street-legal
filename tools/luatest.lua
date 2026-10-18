@@ -407,6 +407,42 @@ do
     and flares.lockStep(true, false) == 'unlock' and flares.lockStep(false, false) == nil and flares.lockStep(false, nil) == nil)
 end
 
+-- the wet world and the puddles at a distance
+do
+  local ww, wx = require('sl/core/wetworld'), require('sl/core/weather')
+  check('wet: roads are asphalt first, cars and tunnels and lights are left alone', ww.classify('road_asphalt_01') == 'asphalt' and ww.classify('sidewalk_concrete') == 'concrete' and ww.classify('palm_leaves') == 'foliage'
+    and ww.classify('tunnel_wall') == nil and ww.classify('street_lamp_glass') == nil and ww.classify('road_x', '/vehicles/pickup/x.json') == nil and ww.classify('sl_puddle') == nil and ww.classify('') == nil)
+  check('wet: the step follows the wetness and the strength', ww.step(0, 1) == 0 and ww.step(1, 1) == ww.STEPS and ww.step(1, 0.5) == ww.STEPS / 2 and ww.step(1, 0) == 0)
+  check('wet: hysteresis, a flickering wetness does not move the step', ww.step(0.47, 1, 3) == 3 and ww.step(0.52, 1, 3) == 3 and ww.step(0.8, 1, 3) == 4 and ww.step(0.2, 1, 3) == 2)
+  check('wet: asphalt darkens and shines most, a dry step is the original, glass keeps its colour', ww.roughness('asphalt', 0.8, 1) < ww.roughness('foliage', 0.8, 1) and ww.roughness('asphalt', 0.8, 0) == 0.8
+    and ww.colorFactor('asphalt', 1) < ww.colorFactor('metal', 1) and ww.colorFactor('glass', 1) == 1 and ww.colorFactor('asphalt', 0) == 1)
+  local c = ww.parseColor('0.8 0.7 0.6 1')
+  check('wet: colour text round trips and the alpha is untouched', c and #c == 4 and ww.formatColor(c, 0.5) == '0.4000 0.3500 0.3000 1.0000' and ww.parseColor('x') == nil)
+  local plan = ww.plan({ { name = 'grass_a' }, { name = 'road_b' }, { name = 'tunnel_road' }, { name = 'wall_c' }, { name = 'road_a' }, { name = 'ui_x' } }, 3)
+  check('wet: the plan is road first, the rest by kind, capped, with the skipped left out', #plan == 3 and plan[1].name == 'road_a' and plan[2].name == 'road_b' and plan[3].name == 'wall_c')
+  check('wet: the batch is small when edits are slow and never above the maximum', ww.batch(nil) == 2 and ww.batch(10) == 1 and ww.batch(0.1, 3, 8) == 8 and ww.batch(1, 3, 8) == 3)
+  -- the kinds of standing water: the odds add to one, every kind is sane, the long ones lie along the road, and over many draws every kind comes
+  local total = 0
+  for _, o in ipairs(wx.POOL_ODDS) do total = total + o[2] end
+  local seen, sane, mats = {}, true, {}
+  local seed = 7
+  local function rnd() seed = (seed * 1103515245 + 12345) % 2147483648 return seed / 2147483648 end
+  for _ = 1, 600 do
+    local pool = wx.pool(rnd)
+    seen[pool.kind] = true
+    mats[pool.material] = true
+    if pool.sx < 0.5 or pool.sy < 0.3 or pool.sx > 20 or pool.sy > 15 or (pool.kind == 'edge' or pool.kind == 'rut') and (not pool.along or pool.sx / pool.sy < 3.5) then sane = false end
+    if pool.lateral and (pool.lateral < 0 or pool.lateral > 0.95) then sane = false end
+  end
+  check('puddle kinds: odds add to one, every kind comes, shapes are sane (long pools and wheel tracks lie along the road and are long and thin)', math.abs(total - 1) < 1e-9 and seen.edge and seen.rut and seen.small and seen.dip and seen.round and seen.damp and sane)
+  check('puddle kinds: three materials (normal, deeper, thinner) are used', mats.sl_puddle and mats.sl_puddle_deep and mats.sl_puddle_thin)
+  check('puddles take 20 s to come to full size and the budget is bigger', wx.puddleAlpha(1, 20) > wx.puddleAlpha(1, 10) and wx.puddleAlpha(1, 10) > wx.puddleAlpha(1, 2) and wx.MAX_PUDDLES >= 120)
+  check('damp patches: bare and hard ground only, never grass or a layer that says nothing', wx.dampGroundOk('asphalt_cracked') and wx.dampGroundOk('Dirt_dry') and wx.dampGroundOk('gravel_01') and wx.dampGroundOk('concrete_old')
+    and not wx.dampGroundOk('grass_dry') and not wx.dampGroundOk('forest_floor_dirt') and not wx.dampGroundOk('unnamed_layer') and not wx.dampGroundOk(nil))
+  check('puddles: full size up close, nothing at the far edge, smooth between (no pop in)', wx.distanceScale(50, 165, 225) == 1 and wx.distanceScale(225, 165, 225) == 0 and wx.distanceScale(300, 165, 225) == 0
+    and wx.distanceScale(195, 165, 225) > 0.4 and wx.distanceScale(195, 165, 225) < 0.6 and wx.distanceScale(180, 165, 225) > wx.distanceScale(210, 165, 225))
+end
+
 -- the garage forecourt: the first spot with nothing within 4 m
 do
   local fc = require('sl/core/forecourt')

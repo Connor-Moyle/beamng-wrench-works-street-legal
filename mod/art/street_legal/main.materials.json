@@ -72,6 +72,58 @@
     "doubleSided": true,
     "version": 1.5
   },
+  "sl_puddle_deep": {
+    "name": "sl_puddle_deep",
+    "mapTo": "sl_puddle_deep",
+    "class": "Material",
+    "Stages": [
+      {
+        "baseColorMap": "/art/street_legal/decals/puddle.color.png",
+        "baseColorFactor": [0.45, 0.45, 0.5, 1],
+        "opacityMap": "/art/street_legal/decals/puddle_o.data.png",
+        "metallicFactor": 0.15,
+        "roughnessFactor": 0.02
+      },
+      {},
+      {},
+      {}
+    ],
+    "annotation": "ASPHALT",
+    "castShadows": false,
+    "materialTag0": "decal",
+    "materialTag1": "road",
+    "materialTag2": "beamng",
+    "translucent": true,
+    "translucentZWrite": true,
+    "doubleSided": true,
+    "version": 1.5
+  },
+  "sl_puddle_thin": {
+    "name": "sl_puddle_thin",
+    "mapTo": "sl_puddle_thin",
+    "class": "Material",
+    "Stages": [
+      {
+        "baseColorMap": "/art/street_legal/decals/puddle.color.png",
+        "baseColorFactor": [0.9, 0.9, 0.95, 1],
+        "opacityMap": "/art/street_legal/decals/puddle_o.data.png",
+        "metallicFactor": 0.05,
+        "roughnessFactor": 0.09
+      },
+      {},
+      {},
+      {}
+    ],
+    "annotation": "ASPHALT",
+    "castShadows": false,
+    "materialTag0": "decal",
+    "materialTag1": "road",
+    "materialTag2": "beamng",
+    "translucent": true,
+    "translucentZWrite": true,
+    "doubleSided": true,
+    "version": 1.5
+  },
   "sl_ripple_s": {
     "name": "sl_ripple_s",
     "mapTo": "sl_ripple_s",

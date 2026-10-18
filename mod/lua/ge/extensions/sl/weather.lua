@@ -90,6 +90,13 @@ end
 -- the game's own environment calls (they apply the change to the object: a plain field write on a CloudLayer or the fog is not seen until the object is
 -- applied); the fields are the way back where a call is missing
 local function try(fn, ...) if fn then pcall(fn, ...) end end
+-- the rain falls in a box round the camera (the setting Rain around you, metres); the drop count is scaled by the box's area so the density stays what it was at 70 m
+local function rainBox()
+  local b = sl_options and sl_options.get and sl_options.get('slRainBox')
+  return type(b) == 'number' and b or 70
+end
+M.rainBox = rainBox
+local function boxFactor() return (rainBox() / 70) ^ 2 end
 local function applySky(v)
   local env = core_environment
   local rain, cloud, info = first('Precipitation'), first('CloudLayer'), first('LevelInfo')
@@ -98,9 +105,9 @@ local function applySky(v)
     if v.cirrus then try(env.setCloudCirrusCoverage, v.cirrus) end
     if v.density then try(env.setCloudCirrusDensity, v.density) end
     try(env.setFogDensity, v.fog)
-    try(env.setPrecipitation, math.floor((M.flags.gust and rules.dropsAt(v.drops, os.clock(), gustSeed) or v.drops) + 0.5))
+    try(env.setPrecipitation, math.floor((M.flags.gust and rules.dropsAt(v.drops, os.clock(), gustSeed) or v.drops) * boxFactor() + 0.5))
   else
-    if rain then pcall(function() rain.numOfDrops = math.floor(v.drops + 0.5) end) end
+    if rain then pcall(function() rain.numOfDrops = math.floor(v.drops * boxFactor() + 0.5) end) end
     if cloud then pcall(function() cloud.coverage = v.cloud if cloud.postApply then cloud:postApply() end end) end
     if info then pcall(function() info.fogDensity = v.fog if info.postApply then info:postApply() end end) end
   end
@@ -266,6 +273,7 @@ end
 local followLogged = false
 local noCamLogged = false
 M.RAIN_MOVE_EVERY, M.RAIN_MOVE_DIST = 0.25, 4      -- (seconds, metres)
+local boxSet
 local rainObj, rainAt, rainMovedAt, rainSet = nil, -99, -99, nil      -- the rain object is looked up every 5 s, not every frame; it is moved when the camera is 4 m away from where it was put (profile: 8 ms a frame in heavy rain)
 local function followRain()
   local now = os.clock()
@@ -289,8 +297,13 @@ local function followRain()
     followLogged = true
     local f, at = nil, nil
     pcall(function() f = rain:getField('followCam', 0) at = rain:getPosition() end)
-    pcall(function() rain:setField('followCam', 0, 'true') rain:setField('boxWidth', 0, '70') rain:setField('boxHeight', 0, '70') end)
+    pcall(function() rain:setField('followCam', 0, 'true') end)
     log('I', TAG, string.format('rain follows the %s: followCam was %s, the rain stood at %s, the %s is at %s', source, tostring(f), tostring(at), source, tostring(cam)))
+  end
+  local box = tostring(rainBox())
+  if boxSet ~= box then
+    boxSet = box
+    pcall(function() rain:setField('boxWidth', 0, box) rain:setField('boxHeight', 0, box) end)
   end
   if rainSet and (cam.x - rainSet.x) ^ 2 + (cam.y - rainSet.y) ^ 2 + (cam.z - rainSet.z) ^ 2 < M.RAIN_MOVE_DIST ^ 2 then return end
   rainMovedAt, rainSet = now, { x = cam.x, y = cam.y, z = cam.z }
@@ -345,7 +358,7 @@ local function update(dtReal)
   if gustTimer > 1 and current and (current.drops or 0) > 0 and blendT >= 1 and M.flags.gust then
     gustTimer = 0
     local env, t = core_environment, os.clock()
-    if env and env.setPrecipitation then pcall(env.setPrecipitation, math.floor(rules.dropsAt(current.drops, t, gustSeed) + 0.5)) end
+    if env and env.setPrecipitation then pcall(env.setPrecipitation, math.floor(rules.dropsAt(current.drops, t, gustSeed) * boxFactor() + 0.5)) end
     if env and env.setGroundWind then
       local speed = 1 + 3.5 * math.min(1, current.drops / 3000) * rules.gust(t, gustSeed)
       local a = 1.1 + rules.windAngle(t, gustSeed)
@@ -353,6 +366,7 @@ local function update(dtReal)
     end
   end
   lap('gust')
+  if sl_wetworld then guarded('wetworld.update', sl_wetworld.update, dtReal, wet) end      -- (the roads, walls and leaves darken and shine as it rains: sl/wetworld.lua)
   if sl_puddlefx then guarded('puddlefx.update', sl_puddlefx.update, dtReal, wet, current and math.min(1, (current.drops or 0) / 3000) or 0) else guarded('no puddlefx', function() error('sl_puddlefx is not loaded') end) end      -- (puddles, ripples, wheel spray, wet trails: sl/puddlefx.lua)
   lap('puddles')
   tintTimer = tintTimer + dtReal

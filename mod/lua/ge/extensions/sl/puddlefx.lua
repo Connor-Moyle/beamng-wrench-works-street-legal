@@ -11,15 +11,16 @@ local rules = require('sl/core/weather')
 local pr = require('sl_puddles')
 
 local TAG = 'sl_puddlefx'
-M.flags = { warp = true, splash = true, mist = true, physics = true, trail = true, ripples = true, shimmer = true }
+M.flags = { proc = true, warp = true, splash = true, mist = true, physics = true, trail = true, ripples = true, shimmer = true }
 
 local MATERIALS = '/art/street_legal/main.materials.json'
 local MATERIAL = 'sl_puddle'          -- translucent, alpha from its opacity map (the soft oval), shiny and dark
 local RIPPLE_MATERIAL = 'sl_ripple_s' -- one crisp ring; the ripple planes grow it from small to large over about a second (the scale is moved from Lua ten times a second)
 local SHAPES = '/temp/street_legal/shapes/'
 local GRID = 5                        -- corners across a puddle's grid
-local PUDDLE_RADIUS = { 8, 70 }       -- puddles stand between these distances from the player
-local FORGET_AT = 95                  -- ... and are deleted beyond this
+local PUDDLE_RADIUS = { 25, 230 }      -- puddles stand between these distances from the player (far out: they grow as he comes up to them, see FADE_*)
+local FORGET_AT = 270                 -- ... and are deleted beyond this
+M.FADE_FROM, M.FADE_TO = 165, 225     -- a puddle is full size up to FADE_FROM metres and nothing at FADE_TO
 local EMITTER = 'BNGP_50'             -- the game's own water-on-wheels emitter (the splash a wheel throws in a lake)
 local MAX_TRAILS, TRAIL_LIFE = 12, 5
 
@@ -66,6 +67,31 @@ local function roadSpot(x, y, zTop)
   local radius = 3
   pcall(function() radius = map.getMap().nodes[n1].radius or 3 end)
   if dist > math.max(2, radius * 0.8) then stats.noRoad = stats.noRoad + 1 return nil end
+  return z, n1, radius
+end
+
+-- a flat spot on bare or hard ground near a road (a verge, a car park, a shoulder): the terrain layer under it is asphalt, concrete, dirt, gravel or rock, never grass
+local groundOk = {}                   -- terrain layer index -> true | false
+local function groundSpot(x, y, zTop)
+  stats.tries = stats.tries + 1
+  local z = groundZ(x, y, zTop)
+  if not z then stats.noSurface = stats.noSurface + 1 return nil end
+  for _, d in ipairs({ { 1.4, 0 }, { -1.4, 0 }, { 0, 1.4 }, { 0, -1.4 } }) do
+    local zz = groundZ(x + d[1], y + d[2], zTop)
+    if not zz or math.abs(zz - z) > 0.25 then stats.notFlat = stats.notFlat + 1 return nil end
+  end
+  local t = core_terrain and core_terrain.getTerrain and core_terrain.getTerrain()
+  if not t then return nil end
+  local ok, idx = pcall(function() return t:getMaterialIdxWs(vec3(x, y, z)) end)
+  if not ok or idx == nil then return nil end
+  if groundOk[idx] == nil then
+    local okN, name = pcall(function() return t:getMaterialName(idx) end)
+    groundOk[idx] = okN and rules.dampGroundOk(name) or false
+    log('I', TAG, string.format('terrain layer %s (%s) takes damp patches: %s', tostring(idx), tostring(okN and name or '?'), tostring(groundOk[idx])))
+  end
+  if not groundOk[idx] then stats.badGround = (stats.badGround or 0) + 1 return nil end
+  local okR, n1 = pcall(function() return map.findClosestRoad(vec3(x, y, z), 45) end)
+  if not (okR and n1) then stats.noRoad = stats.noRoad + 1 return nil end
   return z
 end
 
@@ -167,7 +193,7 @@ M.groundShape = groundShape          -- (for the offline test)
 M.MAX_RANGE, M.MAX_STEP = 0.15, 0.04      -- more than this and the spot is not a puddle's (a kerb, a block, a dip)
 
 local function newObject(name, path)
-  if FS:fileExists(MATERIALS) and not (scenetree.findObject(MATERIAL) and scenetree.findObject(RIPPLE_MATERIAL)) then loadJsonMaterialsFile(MATERIALS) end
+  if FS:fileExists(MATERIALS) and not (scenetree.findObject(MATERIAL) and scenetree.findObject(RIPPLE_MATERIAL) and scenetree.findObject('sl_puddle_deep') and scenetree.findObject('sl_puddle_thin')) then loadJsonMaterialsFile(MATERIALS) end
   local o = createObject('TSStatic')
   o:setField('shapeName', 0, path)
   o:setField('collisionType', 0, 'None')
@@ -191,6 +217,39 @@ local function dropPuddle(p)
   if p.file then pcall(function() FS:removeFile(p.file) end) p.file = nil end
 end
 
+-- A puddle's plane built in memory: a ProceduralMesh (the engine object the game's own road and planet tools use) made from the grid heights, in world axes round the puddle's centre
+-- with its size and direction baked in, one skin (the material is double sided). No file is written; the object is moved and scaled (to grow) like any other. Returns nil when the
+-- engine refuses (the caller then falls back to a file). The mesh table: verts, uvs, normals, faces (0-based v, u, n), material.
+local function procPuddle(name, p, h)
+  if FS:fileExists(MATERIALS) and not (scenetree.findObject(MATERIAL) and scenetree.findObject('sl_puddle_deep') and scenetree.findObject('sl_puddle_thin')) then loadJsonMaterialsFile(MATERIALS) end
+  local n = GRID
+  local verts, uvs, faces = {}, {}, {}
+  for iy = 0, n - 1 do
+    for ix = 0, n - 1 do
+      local lx, ly = -0.5 + ix / (n - 1), -0.5 + iy / (n - 1)
+      verts[#verts + 1] = { x = lx * p.sx * p.dy + ly * p.sy * p.dx, y = -lx * p.sx * p.dx + ly * p.sy * p.dy, z = h[iy * n + ix + 1] or 0 }
+      uvs[#uvs + 1] = { u = ix / (n - 1), v = iy / (n - 1) }
+    end
+  end
+  for iy = 0, n - 2 do
+    for ix = 0, n - 2 do
+      local i = iy * n + ix
+      for _, c in ipairs({ i, i + 1, i + n + 1, i, i + n + 1, i + n }) do faces[#faces + 1] = { v = c, u = c, n = 0 } end
+    end
+  end
+  local ok, o = pcall(function()
+    local proc = createObject('ProceduralMesh')
+    proc:registerObject(name)
+    proc.canSave = false
+    pcall(function() scenetree.MissionGroup:addObject(proc) end)
+    proc:createMesh({ { { verts = verts, uvs = uvs, normals = { { x = 0, y = 0, z = 1 } }, faces = faces, material = p.material or MATERIAL } } })
+    return proc
+  end)
+  if ok and o then return o end
+  once('procFail', 'a puddle plane could not be made in memory (' .. tostring(o) .. '): falling back to files')
+  return nil
+end
+
 local function makeObject(p, force)
   counter = counter + 1
   p.id = p.id or counter
@@ -205,8 +264,13 @@ local function makeObject(p, force)
       return nil
     end
     p.range, p.step = range, step
+    if M.flags.proc then
+      local o = procPuddle('sl_pd_' .. p.id, p, h)
+      if o then p.proc = true return o end
+      M.flags.proc = false      -- (the engine does not take it: files from now on)
+    end
     path = SHAPES .. 'puddle_g' .. p.id .. '.dae'
-    writeFile(path, gridDae(h))
+    writeFile(path, gridDae(h, { material = p.material }))
     p.file = path
   else
     path = flatPath()
@@ -216,6 +280,14 @@ end
 
 -- a puddle's plane put on the road: 5 cm above the centre's surface, turned to its direction, scaled by k
 local function putMesh(p, k)
+  if p.proc then
+    -- the mesh has its size and direction in its vertices: only its place and the growing scale
+    pcall(function() p.obj:setPosition(vec3(p.x, p.y, p.z + 0.05)) end)
+    local ok = pcall(function() p.obj:setScale(vec3(k, k, 1)) end)
+    if not ok then pcall(function() p.obj.scale = vec3(k, k, 1) end) end
+    p.k = k
+    return
+  end
   local mx = MatrixF(true)
   mx:createOrientFromDirUp(vec3(p.dx, p.dy, 0), vec3(0, 0, 1))
   mx:setPosition(vec3(p.x, p.y, p.z + 0.05))
@@ -245,6 +317,8 @@ end
 local function updatePlacement(dt, wet)
   local pos, v = playerPos()
   if not pos then return end
+  local budget = sl_options and sl_options.get and sl_options.get('slPuddleCount')
+  if type(budget) == 'number' then rules.MAX_PUDDLES = budget end      -- (the setting: how many puddles stand at most)
   local want = rules.puddleCount(wet)
   for i = #puddles, 1, -1 do
     local p = puddles[i]
@@ -252,39 +326,87 @@ local function updatePlacement(dt, wet)
     if dx * dx + dy * dy > FORGET_AT * FORGET_AT or i > want then dropPuddle(p) table.remove(puddles, i) end
   end
   placeTimer = placeTimer + dt
-  if placeTimer < 0.3 or #puddles >= want then return end
+  if placeTimer < 0.15 or #puddles >= want then return end
   placeTimer = 0
   local heading = 0
   pcall(function() local d = v:getDirectionVector() heading = math.atan2(d.y, d.x) end)
-  for _ = 1, 3 do
+  for _ = 1, 4 do
     local a = heading + (math.random() - 0.5) * (math.random() < 0.6 and 2.2 or 6.28)
-    local r = PUDDLE_RADIUS[1] + math.random() * (PUDDLE_RADIUS[2] - PUDDLE_RADIUS[1])
+    local r = PUDDLE_RADIUS[1] + math.sqrt(math.random()) * (PUDDLE_RADIUS[2] - PUDDLE_RADIUS[1])      -- (the square root: more of them out where there is more ground)
     local x, y = pos.x + math.cos(a) * r, pos.y + math.sin(a) * r
-    local z = roadSpot(x, y, pos.z + 12)
+    -- every fourth try is for bare ground beside the road (verges, car parks): a damp patch there, so the ground is not dry next to wet asphalt
+    local ground = stats.placed % 4 == 3
+    local z, node, half
+    if ground then z = groundSpot(x, y, pos.z + 12) else z, node, half = roadSpot(x, y, pos.z + 12) end
     if z then
+      local pool = ground and { kind = 'ground', sx = 7 + math.random() * 6, damp = true, material = 'sl_puddle' } or rules.pool(math.random)
+      if ground then pool.sy = pool.sx * (0.6 + math.random() * 0.5) end
       local rot = math.random() * 6.28
-      -- every third one is a big faint damp patch (the road looks wet round the puddles: there is no wet material to reach); the others are puddles 2-4 m across
-      local damp = stats.placed % 3 == 2
-      local size = damp and (7 + math.random() * 5) or (2 + math.random() * 2)
-      puddles[#puddles + 1] = { x = x, y = y, z = z, sx = size, sy = size * (0.6 + math.random() * 0.5), dx = math.cos(rot), dy = math.sin(rot), born = os.clock(), damp = damp }
-      stats.placed = stats.placed + 1
-      log('I', TAG, string.format('puddle placed at %.0f, %.0f, %.2f (%d of %d, wet %.2f)', x, y, z, #puddles, want, wet))
-      break
+      local px, py = x, y
+      if node and (pool.lateral or 0) > 0 then
+        -- along the road and off its middle: toward an edge, a wheel track, a gutter. The direction is that of the road node's first link.
+        local nodes = map.getMap().nodes
+        local n = nodes[node]
+        local dirx, diry
+        for nb in pairs(n.links or {}) do
+          local q = nodes[nb]
+          if q and q.pos then
+            local ddx, ddy = q.pos.x - n.pos.x, q.pos.y - n.pos.y
+            local len = math.sqrt(ddx * ddx + ddy * ddy)
+            if len > 2 then dirx, diry = ddx / len, ddy / len break end
+          end
+        end
+        if dirx then
+          local side = math.random() < 0.5 and 1 or -1
+          local off = side * pool.lateral * (half or 3)
+          px, py = n.pos.x - diry * off, n.pos.y + dirx * off
+          if pool.along then rot = math.atan2(diry, dirx) end
+          local z2 = groundZ(px, py, pos.z + 12)
+          if not z2 or math.abs(z2 - z) > 0.2 then z = nil else z = z2 end
+        elseif pool.along then z = nil end      -- (a long pool with no road direction to lie along)
+      elseif pool.along then z = nil end
+      -- a dip: the ground in the middle is lower than 3 m round it (water would stand there)
+      if z and pool.dip then
+        local lower = 0
+        for _, d in ipairs({ { 3, 0 }, { -3, 0 }, { 0, 3 }, { 0, -3 } }) do
+          local zz = groundZ(px + d[1], py + d[2], pos.z + 12)
+          if zz and zz - z > 0.012 then lower = lower + 1 end
+        end
+        if lower < 2 then z = nil stats.noDip = (stats.noDip or 0) + 1 end
+      end
+      if z then
+        puddles[#puddles + 1] = { x = px, y = py, z = z, sx = pool.sx, sy = pool.sy, dx = math.cos(rot), dy = math.sin(rot), born = os.clock(), damp = pool.damp, kind = pool.kind, material = pool.material }
+        stats.placed = stats.placed + 1
+        stats.kinds = stats.kinds or {}
+        stats.kinds[pool.kind] = (stats.kinds[pool.kind] or 0) + 1
+        log('I', TAG, string.format('%s puddle placed at %.0f, %.0f, %.2f (%d of %d, wet %.2f)', pool.kind, px, py, z, #puddles, want, wet))
+        break
+      end
     end
   end
 end
 
 -- the planes: made when a puddle is first visible (its grid is dropped onto the surface then), grown while it is new, shrunk as the road dries
 local function updateMeshes(wet, intensity)
+  local pos = playerPos()
+  local made = 0                                  -- (two planes are built per pass, four passes a second: each is 25 rays and a file; their time is measured)
   for _, p in ipairs(puddles) do
     local f = rules.puddleAlpha(wet, os.clock() - p.born) / 0.8
-    if f < 0.03 then
-      if p.obj then dropPuddle(p) end
+    -- size: it grows while it is new (from 15 %) and with the wetness, and with the distance: out at the edge of the view it is nothing, so it never pops in
+    local g = pos and rules.distanceScale(math.sqrt((p.x - pos.x) ^ 2 + (p.y - pos.y) ^ 2), M.FADE_FROM, M.FADE_TO) or 1
+    local size = f < 0.03 and 0 or (0.15 + 0.85 * f) * g
+    if size < 0.04 then
+      if p.obj and (f < 0.03 or g < 0.03) then dropPuddle(p) end
+    elseif not p.obj and not p.dead and made >= 2 then
+      -- (next pass)
     else
-      local k = 0.6 + 0.4 * f
+      local k = size
       if p.damp and M.flags.shimmer then k = k * rules.shimmer(os.clock(), p.id or 1, intensity) end      -- (the damp patches breathe with the rain: darker, then lighter)
       if not p.obj and not p.dead then
+        made = made + 1
+        local t0 = os.clock()
         p.obj = makeObject(p)
+        stats.makes, stats.makeMs = (stats.makes or 0) + 1, (stats.makeMs or 0) + (os.clock() - t0) * 1000
         if not p.obj then p.dead = true end
         if p.obj then putMesh(p, k) stats.shown = stats.shown + 1 end
         if p.obj and stats.shown == 1 then
@@ -401,7 +523,17 @@ local function emitter(i)
   return e
 end
 
+-- the splash a wheel throws is smaller by the setting Splash size (1 is the game's emitter as it is): the particles leave slower, so the spray is lower, and fewer wheel passes make one
+local function splashSize()
+  local v = sl_options and sl_options.get and sl_options.get('slSplashSize')
+  return type(v) == 'number' and v or 0.4
+end
 local function emitterSet(e, on, x, y, z)
+  local size = splashSize()
+  if e.size ~= size then
+    e.size = size
+    pcall(function() e.obj:setField('velocity', 0, tostring(size)) end)
+  end
   if on then pcall(function() e.obj:setPosition(vec3(x, y, z)) end) end
   if on ~= e.on then
     e.on = on
@@ -462,7 +594,7 @@ function M.wheelFx(vid, list, dx, dy)
     local e = emitter(i)
     if w then
       local splash, mist = w[4] or 0, w[5] or 0
-      local on = math.random() < math.max(splash, mist * 0.5)
+      local on = math.random() < math.max(splash, mist * 0.5) * math.min(1, splashSize() * 1.5)
       if on then if splash >= mist * 0.5 then stats.splashOn = stats.splashOn + 1 else stats.mistOn = stats.mistOn + 1 end end
       emitterSet(e, on, w[1], w[2], w[3] + 0.05)
       if M.flags.trail and splash > 0.25 then addTrail(i, w[1], w[2], w[3], dx or 0, dy or 0) end
@@ -506,6 +638,14 @@ function M.flag(name, on)
 end
 
 function M.stats() return stats, #puddles, #trails end
+-- what the puddles cost: planes built so far, ms per plane, how many stand, the kinds placed
+function M.cost()
+  local kinds = {}
+  for k, n in pairs(stats.kinds or {}) do kinds[#kinds + 1] = k .. ' ' .. n end
+  table.sort(kinds)
+  return string.format('puddles: %d standing, %d planes built (avg %.1f ms each), %d rejected, no dip %d, bad ground %d; kinds placed: %s', #puddles, stats.makes or 0,
+    (stats.makes or 0) > 0 and (stats.makeMs or 0) / stats.makes or 0, stats.rejected or 0, stats.noDip or 0, stats.badGround or 0, table.concat(kinds, ', '))
+end
 
 -- for a game test: one 4 m puddle 6 m in front of the player's car at once (warped to the surface like the real ones); returns where it is and the box it covers
 function M.puddleNear()
@@ -549,6 +689,7 @@ function M.clear()
   if ringObj then deleteObject(ringObj) ringObj = nil end
   for _, p in ipairs(puddles) do dropPuddle(p) end
   puddles = {}
+  groundOk = {}                                  -- (a new level numbers its terrain layers again)
   if debugPuddle then dropPuddle(debugPuddle) debugPuddle = nil end
   for _, t in ipairs(trails) do deleteObject(t.obj) end
   trails, lastTrail = {}, {}
