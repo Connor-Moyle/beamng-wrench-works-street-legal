@@ -326,11 +326,13 @@ local function updatePlacement(dt, wet)
     if dx * dx + dy * dy > FORGET_AT * FORGET_AT or i > want then dropPuddle(p) table.remove(puddles, i) end
   end
   placeTimer = placeTimer + dt
-  if placeTimer < 0.15 or #puddles >= want then return end
+  -- (a car at speed leaves puddles behind faster than one try in four per 0.15 s makes new ones ahead: far short of the setting; catch up faster while well under it)
+  local behind = #puddles < want * 0.8
+  if placeTimer < (behind and 0.06 or 0.15) or #puddles >= want then return end
   placeTimer = 0
   local heading = 0
   pcall(function() local d = v:getDirectionVector() heading = math.atan2(d.y, d.x) end)
-  for _ = 1, 4 do
+  for _ = 1, (behind and 8 or 4) do
     local a = heading + (math.random() - 0.5) * (math.random() < 0.6 and 2.2 or 6.28)
     local r = PUDDLE_RADIUS[1] + math.sqrt(math.random()) * (PUDDLE_RADIUS[2] - PUDDLE_RADIUS[1])      -- (the square root: more of them out where there is more ground)
     local x, y = pos.x + math.cos(a) * r, pos.y + math.sin(a) * r
@@ -635,6 +637,17 @@ end
 function M.flag(name, on)
   if M.flags[name] ~= nil and on ~= nil then M.flags[name] = on == true end
   return M.flags
+end
+
+-- for a game test: how the standing puddles look from the player, nearest first: { distance m, scale, built }
+function M.sample()
+  local pos = playerPos()
+  local out = {}
+  for _, p in ipairs(puddles) do
+    if pos then out[#out + 1] = { math.floor(math.sqrt((p.x - pos.x) ^ 2 + (p.y - pos.y) ^ 2) + 0.5), math.floor((p.k or 0) * 100) / 100, p.obj ~= nil } end
+  end
+  table.sort(out, function(x, y) return x[1] < y[1] end)
+  return out
 end
 
 function M.stats() return stats, #puddles, #trails end
