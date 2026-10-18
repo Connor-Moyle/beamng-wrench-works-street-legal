@@ -4,7 +4,8 @@
 
 local M = {}
 
-M.MIN_APPROACH = 90        -- m: the cab starts at least this far along the road
+M.MIN_APPROACH = 100       -- m: the cab starts at least this far along the road (out of sight)...
+M.MAX_APPROACH = 200       -- m: ...and not further (it must be with you in 20-40 s); no such road: the nearest lane, close by
 M.FOV = 100                -- degrees across: what counts as in view (the camera's, with a margin)
 M.IN_VIEW_UP_TO = 450      -- m: further than this nothing is "in view" (it is too far to see)
 
@@ -13,7 +14,7 @@ M.IN_VIEW_UP_TO = 450      -- m: further than this nothing is "in view" (it is t
 function M.approach(cands, cam)
   local fl = math.sqrt((cam.fx or 0) ^ 2 + (cam.fy or 0) ^ 2)
   for _, c in ipairs(cands or {}) do
-    if c.dist >= M.MIN_APPROACH then
+    if c.dist >= M.MIN_APPROACH and c.dist <= M.MAX_APPROACH then
       local dx, dy = c.x - cam.x, c.y - cam.y
       local d = math.sqrt(dx * dx + dy * dy)
       local inView = false

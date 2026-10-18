@@ -16,6 +16,7 @@ local MODEL, CONFIG = 'fullsize', 'vehicles/fullsize/taxi.pc'
 local ARRIVED = 9              -- m from where it was sent: it has come
 local WAIT_SECONDS = 300
 local DRIVE_OFF_SECONDS = 25
+local DRIVE_LIMIT = 40        -- s: a cab not here by then (stuck, slow, lost) is put beside you
 
 local ride                     -- { vid, place, fee, waited }
 local leaving = {}             -- vid -> seconds until it is gone
@@ -65,7 +66,7 @@ function M.call(destination, fee)
   local node = n1 and map.getMap().nodes[n1]
   if node then
     -- drives up by itself and stops at the road node nearest to you
-    veh:queueLuaCommand('input.event("parkingbrake", 0, FILTER_DIRECT) ai.setState({mode = "manual"}) ai.setTarget("' .. n1 .. '")')
+    veh:queueLuaCommand('input.event("parkingbrake", 0, FILTER_DIRECT) ai.setState({mode = "manual"}) ai.setAggression(0.7) ai.setTarget("' .. n1 .. '")')
     ride.target = node.pos
     ride.here = nil
     toast(string.format(strings.t('cab.your_cab_is_on_its'), math.floor(c.dist + 0.5)))
@@ -135,6 +136,18 @@ function M.onUpdate(dtReal)
     if core_groundMarkers then core_groundMarkers.setPath(cab:getPosition()) end
     cab:queueLuaCommand('ai.setState({mode = "disabled"}) electrics.set_warn_signal(1) input.event("parkingbrake", 1, FILTER_DIRECT)')
     toast(strings.t('cab.your_cab_is_here_hazards'))
+  end
+  -- (a cab that is not here in DRIVE_LIMIT seconds is put at the nearest free lane close to you, hazards on)
+  if ride.target and not ride.arrived and ride.waited > DRIVE_LIMIT then
+    local mine = onFoot() and onFoot():getPosition()
+    local c = mine and spot(mine, 4)
+    if c then
+      place(cab, c)
+      cab:queueLuaCommand('ai.setState({mode = "disabled"}) electrics.set_warn_signal(1) input.event("parkingbrake", 1, FILTER_DIRECT)')
+      ride.arrived, ride.here = true, 0
+      if core_groundMarkers then core_groundMarkers.setPath(vec3(c.x, c.y, c.z)) end
+      toast(strings.t('cab.your_cab_is_here_hazards'))
+    end
   end
   local me = onFoot()
   if ride.here then ride.here = ride.here + dtReal end

@@ -48,7 +48,7 @@ local function snapshot()
       preview = c.race and sl_races and sl_races.preview and sl_races.preview(c.race) or nil }       -- (the route as a small map: #18)
   end
   local placesOut = {}
-  for id, p in pairs(sl_career.getPlaces() or {}) do
+  for id, p in pairs(sl_career.allPlaces() or {}) do
     local tier, tierLabel = nil, nil
     if sl_career.placeTier then tier, tierLabel = sl_career.placeTier(id) end        -- (a lot's price tier: high | mid | low | junk; nil is asked again next time)
     placesOut[#placesOut + 1] = { id = id, name = p.name, kind = p.kind, tier = tier, tierLabel = tierLabel }
@@ -217,7 +217,7 @@ function M.mapPlaces()
   if not career() then return end
   liveRoute()
   local list = {}
-  for id, p in pairs(sl_career.getPlaces() or {}) do
+  for id, p in pairs(sl_career.allPlaces() or {}) do
     if p.pos then list[#list + 1] = { id = id, name = p.name, kind = p.kind, x = p.pos.x, y = p.pos.y } end
   end
   guihooks.trigger('slMap', { groups = mapLib.groups(list, playerAt()), route = route and { id = route.id, name = route.name } or nil })
@@ -249,7 +249,7 @@ end
 
 function M.routeTo(id)
   local s = career()
-  local p = s and core_groundMarkers and sl_career.getPlaces()[tostring(id)]
+  local p = s and core_groundMarkers and sl_career.allPlaces()[tostring(id)]
   if not p then return end
   core_groundMarkers.setPath(p.pos)
   route = { id = tostring(id), name = p.name, x = p.pos.x, y = p.pos.y }

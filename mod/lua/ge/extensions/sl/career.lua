@@ -569,6 +569,35 @@ local function loadPlaces()
   end
 end
 
+-- EVERY place the player can go to or see on a map, one list for the phone's Map and Cab, the taxi, the routes and the big map's pins: the career's
+-- places (getPlaces) plus Wrench Works' parts shops (kind 'shop') and the map's gas stations (kind 'gas'). id -> { id, kind, name, pos, at, dir }.
+local gasCache = {}
+local function gasStations(level)
+  if gasCache.level == level and #gasCache > 0 then return gasCache end
+  gasCache = { level = level }
+  local gs, fac = freeroam_gasStations, freeroam_facilities
+  local f = gs and gs.gasStationCenterRadius and fac and fac.getFacilities and fac.getFacilities(level)
+  for _, g in ipairs(f and f.gasStations or {}) do
+    local ok, c = pcall(gs.gasStationCenterRadius, g)
+    if ok and c and (c.x ~= c.x or c:length() < 0.01) == false then
+      local okn, name = pcall(translateLanguage, g.name, g.name, true)
+      gasCache[#gasCache + 1] = { id = 'gas_' .. tostring(g.id), kind = 'gas', name = (okn and type(name) == 'string' and name ~= '' and name) or tostring(g.name or g.id), pos = c, at = c, dir = vec3(0, 1, 0) }
+    end
+  end
+  return gasCache
+end
+function M.allPlaces()
+  local out = {}
+  for id, p in pairs(M.getPlaces() or {}) do out[id] = p end
+  local sites = garageModule('slrr/garageSites')
+  for _, sh in ipairs(sites and sites.getShops and sites.getShops() or {}) do
+    local pos = sh.pos
+    out['shop_' .. sh.id] = { id = 'shop_' .. sh.id, kind = 'shop', name = sh.name or sh.id, pos = pos, at = pos, dir = vec3(0, 1, 0), trade = sh.trade }
+  end
+  for _, g in ipairs(gasStations(getCurrentLevelIdentifier and getCurrentLevelIdentifier())) do out[g.id] = g end
+  return out
+end
+
 -- the tier of a lot (high / mid / low / junk) and its label, for the cab filter and the big-map card; nil for a place that is not a lot
 function M.placeTier(placeId)
   local p = M.getPlaces()[placeId]
@@ -674,6 +703,20 @@ local function placeInGarage()
   end
 end
 
+-- Ambient traffic: the game spawns it only when ITS freeroam start does (and only with the options set before, see M.start). A level that was already
+-- loaded when the career began (the player in freeroam, a scripted load) has none: seen, C5, an empty city with no taxis. Once the level is up (the
+-- fade job in begin) and the game is not spawning any, the career asks for its own amount, parked cars too.
+local function ensureTraffic()
+  local gt = gameplay_traffic
+  if not (gt and gt.setupTrafficHelper and gt.getNumOfTraffic) then return end
+  local info = core_levels and core_levels.getLevelByName and core_levels.getLevelByName(M.LEVEL)
+  if info and info.supportsTraffic == false then return end
+  if (gt.getNumOfTraffic() or 0) > 0 or (core_gamestate and core_gamestate.getLoadingStatus and core_gamestate.getLoadingStatus('traffic')) then return end
+  log('I', logTag, 'no traffic in this level: spawning ' .. M.CITY_TRAFFIC .. ' cars driving and ' .. M.CITY_PARKED .. ' parked')
+  pcall(gt.setupTrafficHelper, M.CITY_TRAFFIC, { police = false }, M.CITY_PARKED, {})
+end
+M.ensureTraffic = ensureTraffic
+
 local function begin()
   pending = nil
   active = true
@@ -704,6 +747,7 @@ local function begin()
     if not active then return end
     if guihooks then guihooks.trigger('slFade', { on = true }) end
     job.sleep(0.6)
+    pcall(ensureTraffic)
     setHour((wanted + 12) % 24)
     job.sleep(0.5)
     setHour(wanted)
@@ -809,7 +853,7 @@ end
 
 function M.taxi(placeId)
   if not active then return false, strings.t('bank.no_career_running') end
-  local place = M.getPlaces()[placeId]
+  local place = M.allPlaces()[placeId]
   if not place then return false, strings.t('career.the_cab_does_not_know') end
   local v = getPlayerVehicle(0)
   if not v or v:getJBeamFilename() ~= 'unicycle' then return false, strings.t('career.cabs_are_for_people_on') end

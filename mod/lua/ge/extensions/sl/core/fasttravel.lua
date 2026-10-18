@@ -11,15 +11,18 @@ local M = {}
 
 local strings = require('sl/core/strings')
 
+-- cardIcon: the card's icon (the game's bngIcons names); pin: the map sprite of the pin (nil: the usual triangle)
+-- the lots (dealer, junkyard, scrapyard) have theirs in sl/core/pois, the gas stations the game's own
+M.SAME_SPOT = 8          -- m: two places of one kind this close are one pin
 M.KINDS = {
-  garage = { cardIcon = 'garage01', what = 'Garage' },
-  shop = { cardIcon = 'wrench', what = strings.t('fasttravel.parts_shop') },
+  garage = { cardIcon = 'garage01', pin = 'poi_garage_2', what = 'Garage' },
+  shop = { cardIcon = 'houseWrench', pin = 'poi_point_1_round', what = strings.t('fasttravel.parts_shop') },
   -- the other places of the map (their own pin and a trip there, never locked): car wash, meet, hospital, valet, parts store
-  carwash = { cardIcon = 'info', what = strings.t('fasttravel.car_wash') },
-  meet = { cardIcon = 'info', what = strings.t('fasttravel.car_meet') },
-  hospital = { cardIcon = 'info', what = strings.t('fasttravel.hospital') },
-  valet = { cardIcon = 'info', what = strings.t('fasttravel.valet') },
-  parts = { cardIcon = 'wrench', what = strings.t('fasttravel.parts_store') },
+  carwash = { cardIcon = 'droplet', pin = 'poi_point_1_round', what = strings.t('fasttravel.car_wash') },
+  meet = { cardIcon = 'cars', pin = 'poi_parking_round', what = strings.t('fasttravel.car_meet') },
+  hospital = { cardIcon = 'carCrash', pin = 'poi_exclamationmark_round', what = strings.t('fasttravel.hospital') },
+  valet = { cardIcon = 'keys1', pin = 'poi_parking_round', what = strings.t('fasttravel.valet') },
+  parts = { cardIcon = 'wrench', pin = 'poi_point_1_round', what = strings.t('fasttravel.parts_store') },
 }
 
 -- the text that refuses a trip, or nil. ctx: { racing, job, chase, cab } booleans
@@ -43,29 +46,30 @@ function M.arrival(place)
   return { x = p.x, y = p.y, z = p.z, dx = d.x, dy = d.y }
 end
 
--- the bigmap-only entries for the garages and shops: { poiId, kind, placeId, name, cardIcon, what, pos = { x, y, z }, arrive, locked, why }
--- places: id -> place (the garages have kind 'garage'); shops: { { id, name, trade, pos } }; state: { rep, garageLevel } for the garage ladder
-function M.extras(places, shops, state)
+-- the bigmap-only entries for the garages, shops and other places: { poiId, kind, placeId, name, cardIcon, pin, what, pos = { x, y, z }, arrive, locked, why }
+-- places: id -> place (sl_career.allPlaces: the garages have kind 'garage', the parts shops 'shop'); state: { rep, garageLevel } for the garage ladder
+function M.extras(places, state)
   local out = {}
   local ids = {}
-  for id, p in pairs(places or {}) do if M.KINDS[p.kind] and p.kind ~= 'shop' and (p.at or p.pos) then ids[#ids + 1] = id end end
+  for id, p in pairs(places or {}) do if M.KINDS[p.kind] and (p.at or p.pos) then ids[#ids + 1] = id end end
   table.sort(ids)
+  local seen = {}
   for _, id in ipairs(ids) do
     local p = places[id]
     local k = M.KINDS[p.kind]
     local ok, why = true, nil
-    if p.kind == 'garage' then ok, why = progression.garageAccess(state or {}, id) end
-    local a = M.arrival(p)
-    out[#out + 1] = { poiId = 'sl_place_' .. id, kind = p.kind, placeId = id, name = p.name or id, cardIcon = k.cardIcon,
-      what = ok and k.what or (k.what .. '. ' .. tostring(why)), pos = { x = a.x, y = a.y, z = a.z }, arrive = a, locked = not ok, why = why }
-  end
-  local sorted = {}
-  for _, s in ipairs(shops or {}) do if s.id and s.pos then sorted[#sorted + 1] = s end end
-  table.sort(sorted, function(a, b) return tostring(a.id) < tostring(b.id) end)
-  for _, s in ipairs(sorted) do
-    out[#out + 1] = { poiId = 'sl_shop_' .. s.id, kind = 'shop', placeId = s.id, name = s.name or s.id, cardIcon = M.KINDS.shop.cardIcon,
-      what = M.KINDS.shop.what .. (s.trade and (' · ' .. s.trade) or ''), pos = { x = s.pos.x, y = s.pos.y, z = s.pos.z },
-      arrive = { x = s.pos.x, y = s.pos.y, z = s.pos.z, dx = 0, dy = 1 }, locked = false }
+    local at = p.at or p.pos
+    local twin
+    for _, q in ipairs(seen) do
+      if q.kind == p.kind and (q.x - at.x) ^ 2 + (q.y - at.y) ^ 2 < M.SAME_SPOT ^ 2 then twin = true break end
+    end
+      if not twin then
+      seen[#seen + 1] = { kind = p.kind, x = at.x, y = at.y }
+      if p.kind == 'garage' then ok, why = progression.garageAccess(state or {}, id) end
+      local a = M.arrival(p)
+      out[#out + 1] = { poiId = 'sl_place_' .. id, kind = p.kind, placeId = id, name = p.name or id, cardIcon = k.cardIcon, pin = k.pin,
+        what = (ok and k.what or (k.what .. '. ' .. tostring(why))) .. (p.trade and (' · ' .. p.trade) or ''), pos = { x = a.x, y = a.y, z = a.z }, arrive = a, locked = not ok, why = why }
+    end
   end
   return out
 end

@@ -70,8 +70,8 @@ return function(check, rngLib)
   check('the cab starts far enough away and not in front of the camera: the first road behind or beside, not the one ahead', c1 and c1.y == -150)
   local c2 = CP.approach({ { x = 0, y = 30, dist = 30 }, { x = 0, y = 120, dist = 120 } }, cam)
   check('every road far enough is in view: nothing (the caller takes the nearest lane as before)', c2 == nil)
-  local c3 = CP.approach({ { x = 500, y = 500, dist = 700 } }, cam)
-  check('a road that is in the camera direction but too far to see is fine', c3 and c3.dist == 700)
+  local c3 = CP.approach({ { x = 0, y = -190, dist = 190 } }, cam)
+  check('a road behind at 190 m is fine; one over 200 m is too far for a 20-40 s ride', c3 and c3.dist == 190 and CP.approach({ { x = 500, y = 500, dist = 700 } }, cam) == nil)
   check('a road at the side (90 degrees) is out of a 100 degree view', CP.approach({ { x = 120, y = 0, dist = 120 } }, cam) ~= nil)
   check('no camera direction known: only the distance counts', CP.approach({ { x = 0, y = 30, dist = 30 }, { x = 0, y = 120, dist = 120 } }, { x = 0, y = 0, fx = 0, fy = 0 }).dist == 120 and CP.approach(nil, cam) == nil)
   check('boarding: walking up (under 6 m) gets you in at once; a cab that has waited 4 s takes you in within 30 m; further it waits',
@@ -231,19 +231,24 @@ return function(check, rngLib)
     and FT.arrival({ kind = 'garage', pos = { x = 5, y = 6, z = 0 }, dir = { x = 1, y = 0 } }).dx == 1 and FT.arrival({}) == nil)
   local places = { slrrGarage1 = { id = 'slrrGarage1', kind = 'garage', name = 'Club Garage 1', pos = { x = 1, y = 1, z = 0 }, dir = { x = 0, y = 1 } },
     slrrGarage2 = { id = 'slrrGarage2', kind = 'garage', name = 'Club Garage 2', pos = { x = 9, y = 9, z = 0 }, dir = { x = 0, y = 1 } }, jeff = lotPlace }
-  local ex = FT.extras(places, { { id = 'torres', name = 'Torres Tires', trade = 'Wheels', pos = { x = 7, y = 8, z = 9 } }, { id = 'nopos' } }, { rep = 100, garageLevel = 1 })
-  check('travel: garages and shops get an entry, lots do not; shops need a position', #ex == 3 and ex[1].kind == 'garage' and ex[3].kind == 'shop' and ex[3].placeId == 'torres' and ex[3].arrive.x == 7)
+  places.wshop_torres = { id = 'wshop_torres', kind = 'shop', name = 'Torres Tires', trade = 'Wheels', pos = { x = 7, y = 8, z = 9 }, at = { x = 7, y = 8, z = 9 } }
+  places.wshop_nopos = { id = 'wshop_nopos', kind = 'shop', name = 'Nowhere' }
+  places.stockGarage = { id = 'stockGarage', kind = 'garage', name = 'Club Garage 1 (stock)', pos = { x = 3, y = 3, z = 0 }, dir = { x = 0, y = 1 } }      -- 2.8 m from Club Garage 1
+  local ex = FT.extras(places, { rep = 100, garageLevel = 1 })
+  check('travel: garages and shops get an entry, lots do not; shops need a position; a garage on top of another is one pin', #ex == 3 and ex[1].kind == 'garage' and ex[3].kind == 'shop' and ex[3].placeId == 'wshop_torres' and ex[3].arrive.x == 7
+    and ex[3].pin ~= nil and ex[3].what:find('Wheels') ~= nil)
+  places.wshop_torres, places.wshop_nopos, places.stockGarage = nil, nil, nil
   check('travel: your garage is open, the next one locked with the reputation it needs; a shop is never locked', not ex[1].locked and ex[2].locked and ex[2].why:find('175') ~= nil and ex[2].what:find('175') ~= nil and not ex[3].locked)
   places.wash1 = { id = 'wash1', kind = 'carwash', name = 'Suds', pos = { x = 3, y = 4, z = 0 } }
   places.hosp = { id = 'hosp', kind = 'hospital', name = 'General', at = { x = 5, y = 5, z = 0 } }
   places.nowhere = { id = 'nowhere', kind = 'meet', name = 'No spot' }
-  local ex2 = FT.extras(places, {}, { rep = 100, garageLevel = 1 })
+  local ex2 = FT.extras(places, { rep = 100, garageLevel = 1 })
   local byKind = {}
   for _, e in ipairs(ex2) do byKind[e.kind] = e end
   check('travel: a car wash and a hospital get a pin with a trip (never locked), a place with no position none', #ex2 == 4 and byKind.carwash.arrive.x == 3 and byKind.carwash.what == 'Car wash'
     and byKind.hospital.arrive.y == 5 and not byKind.carwash.locked and not byKind.meet)
   places.wash1, places.hosp, places.nowhere = nil, nil, nil
-  local up = FT.extras(places, {}, { rep = 2000, garageLevel = 2 })
+  local up = FT.extras(places, { rep = 2000, garageLevel = 2 })
   check('travel: after moving up, the garage opens', not up[2].locked)
 
   -- #23: the drag strip
