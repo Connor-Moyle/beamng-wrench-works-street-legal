@@ -208,6 +208,7 @@ function M.onSlrrSettingsReady()
   hudField('units', 'Units', 'Speed in km/h or mph on the dashboard.', 'enum', { default = 'kmh', options = { { id = 'kmh', label = 'km/h' }, { id = 'mph', label = 'mph' } } })
   hudField('freeroam', 'Also outside the career', 'Shows the dashboard in freeroam as well.', 'bool', { default = false })
   fields[#fields + 1] = { id = 'devMoney', tab = 'Developer', group = 'Testing', type = 'button', label = strings.t('ui.give_all_the_money'), advanced = true,
+    confirm = strings.t('options.give_money_confirm'),
     tooltip = strings.t('ui.for_testing_the_money_goes'),
     action = function() local ok, text = sl_career.devMoney() return text or '' end }
   for _, f in ipairs(fields) do if f.tab == 'Accessibility' then f.group = f.group or 'Reading' end end
