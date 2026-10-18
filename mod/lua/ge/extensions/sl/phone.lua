@@ -77,7 +77,6 @@ local function snapshot()
     cars = #s.cars, stats = s.stats,
     fleet = sl_fleet and sl_fleet.list() or {},
     onOrder = sl_lot and sl_lot.ordersList and sl_lot.ordersList() or {},
-    hud = sl_hud and sl_hud.getSettings and sl_hud.getSettings() or nil,
     rocRound = (s.roc or {}).round or 0, rocChampion = (s.roc or {}).champion == true,
     rocEntry = progression.ROC.entry,
     jobs = sl_jobs and sl_jobs.summary and sl_jobs.summary() or nil,
@@ -291,24 +290,6 @@ function M.release(carId) if career() then answer(sl_career.releaseCar(tonumber(
 function M.useItem(carId, itemId) if career() and sl_carcare then answer(sl_carcare.useItem(tonumber(carId), tostring(itemId))) end end
 function M.useCar(carId) if career() then answer(sl_fleet.setActive(tonumber(carId))) end end
 function M.moveGarage() if career() then answer(sl_career.moveGarage()) end end
--- the Settings app: every Wrench Works setting and the career's own, as Wrench Works lists them (its own screen shows the same list)
-local function settingsList()
-  if slrr_garage and slrr_garage.settingsDefs then return slrr_garage.settingsDefs() end
-  local defs = {}
-  if sl_options and sl_options.onWrenchWorksSettingsDefs then sl_options.onWrenchWorksSettingsDefs(defs) end
-  return defs
-end
-function M.settings() if career() then guihooks.trigger('slSettings', { defs = settingsList() }) end end
-function M.setSetting(key, value)
-  if not career() then return end
-  key = tostring(key)
-  if slrr_garage and slrr_garage.setSetting then slrr_garage.setSetting(key, value)
-  elseif sl_options and sl_options.onWrenchWorksSetting then sl_options.onWrenchWorksSetting(key, value) end
-  M.settings()
-  wantSend = true
-end
--- for testing: all the money there can be (a ledger entry says so)
-function M.devMoney() if career() then answer(sl_career.devMoney()) end end
 -- the Wrench Works catalog from the market: the car you drive (else the one you last used) goes into the garage it stands at, catalog open
 function M.catalog()
   local s = career()

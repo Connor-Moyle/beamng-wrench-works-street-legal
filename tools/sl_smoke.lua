@@ -459,16 +459,14 @@ end)
 -- the settings group (X53): every setting has a value, the career's own go in the save, and Pay scales earnings
 check('options: Street Legal settings read and write, per career where they change the balance', function()
   local before = sl_options.get('slEconomy')
-  local defs = {}
-  sl_options.onWrenchWorksSettingsDefs(defs)
-  sl_options.onWrenchWorksSetting('slEconomy', 2)
+  sl_options.set('slEconomy', 2)
   local inSave = (sl_career.getState().options or {}).slEconomy == 2
   local m0 = sl_career.getState().money
   sl_career.payOut(100, 'Smoke pay')
   local paid = sl_career.getState().money - m0
   sl_career.addMoney(-paid, 'Smoke pay back')
-  sl_options.onWrenchWorksSetting('slEconomy', before)
-  return #defs >= 7 and inSave and paid == 200, string.format('%d settings shown, x2 paid $%d', #defs, paid)
+  sl_options.set('slEconomy', before)
+  return #sl_options.defs >= 7 and inSave and paid == 200, string.format('%d settings, x2 paid $%d', #sl_options.defs, paid)
 end)
 
 -- rival crews (X21): districts on this map, every racer in a crew, a win on a crew's own streets takes control
