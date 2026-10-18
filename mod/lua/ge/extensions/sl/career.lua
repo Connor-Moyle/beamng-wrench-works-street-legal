@@ -205,7 +205,7 @@ local function summaryOf(data)
   local level = progression.levelOf(data)
   local line = string.format(strings.t('career.day_d_d_s_s'), data.day or 1, data.money or 0, (progression.titleFor(data.rep or 0, level)),
     mapOf(level).name, data.ended and ' (ended)' or '')
-  if not levelInstalled(level) then line = string.format(strings.t('career.this_career_is_on_1_map'), mapOf(level).name) .. ' - ' .. line end
+  if not levelInstalled(level) then line = strings.t('career.this_career_is_on_1_map', mapOf(level).name) .. ' - ' .. line end
   return line
 end
 
@@ -736,7 +736,7 @@ function M.start(fresh, n, level)
     if data and data.ended then tell(strings.t('career.that_career_is_over_it', (tostring(data.ended.day))), 6) return false end
     -- a career on a map that is not here is not loaded (it would open on the wrong map): the slot list says which map it needs
     if data and not qa and not levelInstalled(progression.levelOf(data)) then
-      tell(string.format(strings.t('career.this_career_is_on_1_map'), mapOf(progression.levelOf(data)).name), 8)
+      tell(strings.t('career.this_career_is_on_1_map', mapOf(progression.levelOf(data)).name), 8)
       return false
     end
   end
