@@ -338,20 +338,22 @@ end
 
 -- drive another of your cars: it comes out of the garage, the one you had goes in
 -- fade, then ask the car to take the player up to five times (a car just built may not on the first call), logging what the player is in
-local function seatPlayer(job, veh)
+local function seatPlayer(job, veh, t0)
   guihooks.trigger('slFade', { on = true })
   job.sleep(0.5)
   for try = 1, 5 do
     local ok, err = pcall(function() if gameplay_walk and gameplay_walk.getInVehicle then gameplay_walk.getInVehicle(veh) else be:enterVehicle(0, veh) end end)
     job.sleep(0.4)
     local now = be:getPlayerVehicleID(0)
-    if now == veh:getID() then break end
+    if now == veh:getID() then log('D', 'street_legal', string.format('Drive this one: seated %.2f s after the tap (os.clock %.2f)', os.clock() - (t0 or os.clock()), os.clock())) break end
     log('W', 'street_legal', string.format('Drive this one: attempt %d, the player is in vehicle %s, wanted %s%s', try, tostring(now), tostring(veh:getID()), ok and '' or (' (error: ' .. tostring(err) .. ')')))
   end
   guihooks.trigger('slFade', { on = false })
 end
 
 function M.setActive(carId)
+  local t0 = os.clock()
+  log('D', 'street_legal', string.format('Drive this one: tapped for car %s (os.clock %.2f)', tostring(carId), t0))
   local s = career()
   local car = s and carById(s, carId)
   if not car then return false, strings.t('carcare.no_such_car') end
@@ -362,7 +364,7 @@ function M.setActive(carId)
   local anyOut = M.vehicleOf(carId)
   if anyOut and player and player:getJBeamFilename() == 'unicycle' then       -- on foot (after the hospital, say) and the car is already out: seat the player wherever they stand
     core_jobsystem.create(function(job)
-      seatPlayer(job, anyOut)
+      seatPlayer(job, anyOut, t0)
       s.activeCar = carId
       extensions.hook('onStreetLegalChanged')
     end)
@@ -389,7 +391,7 @@ function M.setActive(carId)
       spawned[carId] = veh:getID()
       car.out = true
       if be:getPlayerVehicleID(0) ~= veh:getID() then               -- "Drive this one": the player ends up in it (fade, seat), not left on foot; a car already out front (just delivered) too
-        seatPlayer(job, veh)
+        seatPlayer(job, veh, t0)
       end
     end
     s.activeCar = carId
