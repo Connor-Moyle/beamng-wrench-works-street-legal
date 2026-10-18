@@ -262,7 +262,7 @@ function M.accept(id)
   local m = s and state(s)
   local rival = m and rules.byId(m.list, tostring(id))
   local offer = rival and m.offers and m.offers[rival.id]
-  if not offer then toast(strings.t('rivals.no_offer')) return false end
+  if not offer then toast(strings.t('rivals.no_offer')) M.list() return false end
   local mine = sl_fleet and sl_fleet.currentCar and sl_fleet.currentCar()
   if not mine then toast(strings.t('career.pink_slips_for_which_car')) return false end
   local c, answer = challenge(s, rival, 'pink')
@@ -273,6 +273,7 @@ function M.accept(id)
   roster.pinkForced[rival.id] = nil
   toast(string.format(strings.t('rivals.pink_on'), mine.name or '?'))
   extensions.hook('onStreetLegalChanged')
+  M.list()      -- (the open Rivals card drops the offer buttons)
   return true
 end
 
@@ -286,6 +287,7 @@ function M.decline(id, forMoney)
   m.offers[rival.id] = nil
   roster.pinkForced[rival.id] = nil
   rival.meter = math.max(rules.METER[1], (rival.meter or 0) - 5)
+  toast(strings.t(forMoney and 'rivals.for_money' or 'rivals.walked_away'))
   if forMoney then
     local racer = racerOf(s, rival.id)
     local bet = offer.boss and rules.showdown({ tier = 2 }, racer).bet or rules.stake(rival, racer, 2).bet
@@ -300,6 +302,7 @@ function M.decline(id, forMoney)
     end
   end
   extensions.hook('onStreetLegalChanged')
+  M.list()      -- (the open Rivals card drops the offer buttons)
   return true
 end
 

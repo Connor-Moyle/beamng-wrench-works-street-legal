@@ -2216,7 +2216,8 @@ do -- the rivals extension (sl_rivals) against a mocked game: the tier gate, a r
   local texts, asked, isNight = {}, {}, true
   setp('sl/carInfo', { of = function() return {} end })
   setg('log', function() end)
-  setg('guihooks', { trigger = function() end })
+  local rvPushed
+  setg('guihooks', { trigger = function(name, data) if name == 'slRivals' then rvPushed = data end end })
   setg('extensions', { hook = function() end })
   setg('sl_career', { isActive = function() return true end, getState = function() return s end, isNight = function() return isNight end,
     sendText = function(thread, text) texts[#texts + 1] = { thread = thread, text = text } end,
@@ -2283,8 +2284,11 @@ do -- the rivals extension (sl_rivals) against a mocked game: the tier gate, a r
   for _, r in ipairs(offerShown.rivals) do if r.id == pinkRival.id then card = r end end
   check('the offer on the card names your car and his', card and card.offer and card.offer.myCar == 'Covet 1.5' and card.offer.stake == 'pink')
   local meterBefore = pinkRival.meter
-  check('walking away costs only a little meter: no challenge, no race', RVE.decline(pinkRival.id, false) == true and pinkRival.meter == meterBefore - 5 + 0 and #s.challenges == 0 and s.rivals.offers[pinkRival.id] == nil)
-  s.rivals.offers[pinkRival.id] = { stake = 'pink', day = s.day }
+  check('walking away costs only a little meter: no challenge, no race', RVE.decline(pinkRival.id, false) == true and pinkRival.meter == meterBefore - 5 + 0 and #s.challenges == 0 and s.rivals.offers[pinkRival.id] == nil)
+  local shownOffer
+  for _, r in ipairs(rvPushed and rvPushed.rivals or {}) do if r.id == pinkRival.id then shownOffer = r.offer end end
+  check('the open Rivals card is refreshed at once: the offer buttons go', rvPushed ~= nil and shownOffer == nil)
+  s.rivals.offers[pinkRival.id] = { stake = 'pink', day = s.day }
   local nAsked = #asked
   check('racing for money instead is a normal race at their top bet', RVE.decline(pinkRival.id, true) == true and asked[#asked].kind == 'race' and #asked == nAsked + 1 and s.challenges[#s.challenges].bet >= 100)
   s.rivals.offers[pinkRival.id] = { stake = 'pink', day = s.day }
