@@ -94,6 +94,18 @@ function M.plan(list, cap)
 end
 
 -- how many materials to edit in this tick: a small batch, fewer when the last ones were slow (ms per edit measured by the caller), never more than `max`
+-- real tarmac takes minutes to dry: the wetness the world follows rises with the rain at once and falls over `seconds` (1 to 0) at most
+M.DRY_SECONDS = 240
+function M.held(held, wet, dt, seconds)
+  wet = math.max(0, math.min(1, wet or 0))
+  if wet >= (held or 0) then return wet end
+  return math.max(wet, held - (dt or 0) / (seconds or M.DRY_SECONDS))
+end
+-- the materials are edited in three levels only (dry, damp, wet) so there are a third fewer reloads than with six steps; each reload is a stall
+function M.materialStep(step) step = step or 0 return step >= M.STEPS and M.STEPS or step >= M.STEPS / 2 and M.STEPS / 2 or 0 end
+-- a material whose edit took this long (ms) is only edited at the ends (dry / wet), not at the level in between
+M.SLOW_MS = 80
+
 function M.batch(lastMsPerEdit, budgetMs, max)
   budgetMs, max = budgetMs or 3, max or 8
   if not lastMsPerEdit or lastMsPerEdit <= 0 then return 2 end

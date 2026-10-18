@@ -18,6 +18,7 @@ local plan                     -- { { name, kind } } in edit order, or false whe
 local state = {}               -- material name -> { step = applied step, orig = { [stage] = { rough, color } }, failed }
 local current = 0              -- the step the world is heading to
 local timer = 0
+local held = 0                  -- the wetness we follow: falls slowly (rules.held)
 local msPerEdit
 local stats = { edits = 0, ms = 0, worst = 0, failed = 0, restored = 0, batches = 0 }
 
@@ -132,12 +133,19 @@ local function batch(n, target)
   local did = 0
   for _, entry in ipairs(plan) do
     local st = state[entry.name]
-    if (st and st.step or 0) ~= target and not (st and st.failed) then
+    local skip = st and st.slow and target > 0 and target < rules.STEPS      -- (a slow material waits for the full wet)
+    if (st and st.step or 0) ~= target and not (st and st.failed) and not skip then
       local t0 = os.clock()
       local ok, err = pcall(apply, entry, target)
       local ms = (os.clock() - t0) * 1000
       if ok and err then
         stats.edits, stats.ms, stats.worst = stats.edits + 1, stats.ms + ms, math.max(stats.worst, ms)
+        if ms > rules.SLOW_MS then
+          local s2 = state[entry.name]
+          if s2 then s2.slow = true end
+          stats.slow = stats.slow or {}
+          if #stats.slow < 10 then stats.slow[#stats.slow + 1] = string.format('%s %.0f ms', entry.name, ms) log('I', TAG, 'slow material edit: ' .. entry.name .. ' ' .. string.format('%.0f', ms) .. ' ms') end
+        end
         msPerEdit = msPerEdit and (msPerEdit * 0.7 + ms * 0.3) or ms
         if target == 0 then stats.restored = stats.restored + 1 end
       else
@@ -156,7 +164,8 @@ end
 -- called from the weather every frame: wet 0..1 is the wetness of the roads
 function M.update(dt, wet)
   local on = option('slWetWorld', true) == true
-  local target = on and rules.step(wet, option('slWetStrength', 0.8), current) or 0
+  held = rules.held(held, wet, dt)
+  local target = on and rules.step(held, option('slWetStrength', 0.8), current) or 0
   if target ~= current then
     if target > 0 and gather() == false then return end
     current = target
@@ -168,12 +177,13 @@ function M.update(dt, wet)
   timer = timer + (dt or 0)
   if timer < M.TICK then return end
   timer = 0
-  local did = batch(rules.batch(msPerEdit, M.BUDGET_MS, 8), current)
+  local did = batch(rules.batch(msPerEdit, M.BUDGET_MS, 8), rules.materialStep(current))
   if did > 0 then stats.batches = stats.batches + 1 end
 end
 
 -- every material back to its original text at once (the level ends, the career stops, or a test)
 function M.restore()
+  held = 0
   if terrWet > 0 then applyTerrain(0) end
   if plan then
     current = 0
