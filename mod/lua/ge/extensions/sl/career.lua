@@ -331,7 +331,6 @@ local function connectWallet(on)
   if parts and parts.setMoneyProvider then parts.setMoneyProvider(on and wallet or nil) end
 end
 
--- money in and out, from anywhere in the career (negative = paid). Returns ok.
 -- the cab's fare, charged when it has taken you there: what you have covers it, or what is left; returns what was paid
 function M.chargeFare(fee, placeName)
   local paid = require('sl/core/cabplan').fareDue(fee, s and s.money)
@@ -339,6 +338,7 @@ function M.chargeFare(fee, placeName)
   return paid
 end
 
+-- money in and out, from anywhere in the career (negative = paid). Returns ok.
 function M.addMoney(amount, label)
   return wallet.add(amount, label)
 end
