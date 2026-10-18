@@ -81,7 +81,9 @@ local function apply(entry, step)
       end
     end
   end
-  m:reload()
+  -- (Car Surface FX reloads through Sim.upcast(m): a material found by name is a plain SimObject, and its reload may not reach the renderer; the edits above were read back right and drew nothing)
+  local mat = Sim and Sim.upcast and Sim.upcast(m) or m
+  mat:reload()
   st.step = step
   return true
 end
