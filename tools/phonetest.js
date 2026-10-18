@@ -598,6 +598,9 @@ assert.ok(calls.includes('@sl_menuTile.startFromMenu(true)') && !text().includes
 phone.handle('slPhoneData', Object.assign({}, data, { upgrades: [{ id: 'lift', name: 'Two-post lift', price: 3000, desc: 'Engine work', has: false }, { id: 'dyno', name: 'Dyno', price: 6000, desc: 'Curves', has: true }] }));
 phone.act('home');
 phone.act('open', 'garage');
+assert.ok(!text().includes('Two-post lift'), 'My cars shows cars only: no garage upgrades');
+phone.act('home');
+phone.act('open', 'garagekit');
 calls.length = 0;
 click('upgrade', 'lift');
 assert.ok(text().includes('Two-post lift') && text().includes('In the garage') && calls.some(function (c) { return c.indexOf('upgrade("lift")') >= 0; }), 'garage upgrades listed and bought');
@@ -835,4 +838,10 @@ if (out > 0) {
     '.slp-root{position:static}</style></head><body><div class="slp-root" style="position:static;pointer-events:auto">' + shots.join('') + '</div></body></html>';
   fs.writeFileSync(process.argv[out + 1], page);
   console.log('wrote ' + process.argv[out + 1]);
+}
+// the app header (.slp-bar) must stay in the page flow above the scroll area: the letterbox bars once shared its class and made it absolute (the body scrolled over the back button)
+{
+  const css = require('fs').readFileSync(require('path').join(__dirname, '..', 'mod', 'ui', 'modModules', 'slPhone', 'slPhone.js'), 'utf8');
+  assert.ok(!/\.slp-bar\s*\{[^}]*position:\s*absolute/.test(css) && /\.slp-bar\{[^}]*z-index:2/.test(css) && /\.slp-body\{[^}]*overflow-y:auto/.test(css), 'the header is fixed above a scroll body');
+  console.log('phone header test passed');
 }

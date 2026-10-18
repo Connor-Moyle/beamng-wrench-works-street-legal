@@ -50,7 +50,7 @@
     '.slp-dock{display:grid;grid-template-columns:repeat(4,1fr);padding:12px 6px 14px 6px;margin:0 -6px 6px -6px;border-radius:28px;background:rgba(255,255,255,.08)}',
     /* app pages */
     '.slp-page{position:relative;flex:1;display:flex;flex-direction:column;min-height:0;background:#141218}',
-    '.slp-bar{height:60px;flex:none;display:flex;align-items:center;padding:0 8px 0 4px}',
+    '.slp-bar{height:60px;flex:none;display:flex;align-items:center;padding:0 8px 0 4px;position:relative;z-index:2;background:#141218}'      /* (the header sits above the scroll area; the letterbox bars have their own class, slp-lb) */,
     '.slp-bar b{font-size:20px;font-weight:400;margin-left:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
     '.slp-ib{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none}',
     '.slp-ib:hover{background:rgba(255,255,255,.08)}',
@@ -186,9 +186,9 @@
     '.slp-pill{position:absolute;right:3vw;top:1.2vh;padding:6px 14px;border-radius:16px;background:rgba(20,18,24,.72);font-size:13px;display:flex;gap:12px;align-items:center}',
     '.slp-pill b{font-weight:600}',
     '.slp-bars{position:absolute;left:0;top:0;right:0;bottom:0;pointer-events:none}',
-    '.slp-bar{position:absolute;left:0;right:0;height:9vh;background:#000;transition:transform .6s ease}',
-    '.slp-top{top:0;transform:translateY(-100%)}.slp-bot{bottom:0;transform:translateY(100%)}',
-    '.slp-bars.slp-on .slp-bar{transform:none}',
+    '.slp-lb{position:absolute;left:0;right:0;height:9vh;background:#000;transition:transform .6s ease}',
+    '.slp-lbtop{top:0;transform:translateY(-100%)}.slp-lbbot{bottom:0;transform:translateY(100%)}',
+    '.slp-bars.slp-on .slp-lb{transform:none}',
     /* while the camera plays its shots the car card shrinks to a bar at the bottom (the car stays centred and in view); the full card returns with the camera input */
     '.slp-barson .slp-lot:not(.slp-shop){width:min(980px,94vw);bottom:1.4vh;padding:6px 18px;border-radius:16px;display:flex;align-items:center;gap:16px}',
     '.slp-barson .slp-lot:not(.slp-shop)>.slp-lothead,.slp-barson .slp-lot:not(.slp-shop)>.slp-lottitle,.slp-barson .slp-lot:not(.slp-shop)>.slp-lotstats,.slp-barson .slp-lot:not(.slp-shop)>.slp-lotfaults,',
@@ -324,6 +324,7 @@
     contacts: svg('M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm0 2c-2.7 0-8 1.3-8 4v2h16v-2c0-2.7-5.3-4-8-4z'),
     flag: svg('M14.4 6 14 4H5v17h2v-7h5.6l.4 2h7V6z'),
     bank: svg('M4 10v7h3v-7zm6 0v7h3v-7zM2 22h19v-3H2zm14-12v7h3v-7zM11.5 1 2 6v2h19V6z'),
+    house: svg('M12 3 2 12h3v8h5v-6h4v6h5v-8h3z'),
     cab: svg('M18.9 6c-.2-.6-.8-1-1.4-1h-11c-.7 0-1.2.4-1.4 1L3 12v8a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-1h12v1a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-8zM6.5 16A1.5 1.5 0 1 1 8 14.5 1.5 1.5 0 0 1 6.5 16zm11 0a1.5 1.5 0 1 1 1.5-1.5 1.5 1.5 0 0 1-1.5 1.5zM5 11l1.5-4.5h11L19 11z'),
     me: svg('M12 2 4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5zm-1.5 14.5-4-4 1.4-1.4 2.6 2.6 6.1-6.1 1.4 1.4z'),
     back: svg('M20 11H7.8l5.6-5.6L12 4l-8 8 8 8 1.4-1.4L7.8 13H20z'),
@@ -346,7 +347,7 @@
   var SLRR_ART = '/ui/modModules/slHud/slrr/icons/';
   var SLRR_ICON = { races: 'cup.png', garage: 'garage.png', bank: 'dollar.png', cab: 'city.png', me: 'roc.png' };
   function slrrIcon(name, cls) { return '<img class="slp-slrr ' + (cls || '') + '" src="' + SLRR_ART + name + '" alt="">'; }
-  var APP_COLORS = { map: '#3a7d6e', camera: '#3b6fa0', gallery: '#a05a8a', carmarket: '#2e7d4f', partmarket: '#a3322c', settings: '#5c6474', wait: '#4a5d7a', market: '#a3322c', paper: '#5b5346', bid: '#b5651d', club: '#6a2e7a', jobs: '#3d7a2e', phone: '#2e7d4f', messages: '#2f5fb3', contacts: '#7b4fb0', races: '#c2541e', bank: '#1f7a70', cab: '#b58a12', me: '#5c6474', garage: '#8a3b8f' };
+  var APP_COLORS = { map: '#3a7d6e', camera: '#3b6fa0', gallery: '#a05a8a', carmarket: '#2e7d4f', partmarket: '#a3322c', settings: '#5c6474', wait: '#4a5d7a', market: '#a3322c', paper: '#5b5346', bid: '#b5651d', club: '#6a2e7a', jobs: '#3d7a2e', phone: '#2e7d4f', messages: '#2f5fb3', contacts: '#7b4fb0', races: '#c2541e', bank: '#1f7a70', cab: '#b58a12', me: '#5c6474', garage: '#8a3b8f', garagekit: '#6b5b2e' };
   var AV_COLORS = ['#a8c7fa', '#f2b8b5', '#c3e7c6', '#ffd8a8', '#d0bcff', '#9fe0e8', '#ffb4ab', '#e8def8'];
   var CLASS_NAMES = { beater: T('ui.beaters', 'Beaters'), compact: T('ui.compacts', 'Compacts'), muscle: T('ui.muscle', 'Muscle'), tuner: T('ui.tuners', 'Tuners'), sport: T('ui.sports_cars', 'Sports cars'), super: T('ui.supercars', 'Supercars') };
 
@@ -381,7 +382,7 @@
     var layer = doc.createElement('div');
     var bars = doc.createElement('div');           // the cinematic bars of the lot's camera: a node of their own, so their slide is not undone by a re-render
     bars.className = 'slp-bars';
-    bars.innerHTML = '<i class="slp-bar slp-top"></i><i class="slp-bar slp-bot"></i>';
+    bars.innerHTML = '<i class="slp-lb slp-lbtop"></i><i class="slp-lb slp-lbbot"></i>';
     root.appendChild(bars);
     root.appendChild(layer);                       // (after the bars: the compact lot card stands on the bottom bar, not under it)
     doc.body.appendChild(root);
@@ -428,6 +429,7 @@
         tut + '<div class="slp-grid">' + appsHtml([
           { id: 'races', title: T('app.races', 'Races'), icon: I.flag, badge: arranged || 0 },
           { id: 'garage', title: T('app.garage', 'My cars'), icon: I.cab },
+          { id: 'garagekit', title: T('app.garagekit', 'Garage'), icon: I.house },
           { id: 'bank', title: T('app.bank', 'Bank'), icon: I.bank },
           { id: 'me', title: T('app.me', 'Street cred'), icon: I.me },
           { id: 'jobs', title: T('app.jobs', 'Jobs'), icon: I.jobs, badge: d.jobs && d.jobs.active ? 1 : 0 },
@@ -1049,14 +1051,21 @@
         return '<div class="slp-card"><h4>' + esc(c.name) + (c.active ? ' &#9733;' : '') + '</h4><p>' + esc(c.where) + ' &middot; condition ' + Math.round((c.condition || 0) * 100) + '%' + (c.look ? ' &middot; ' + esc(c.look) : '') +
           (faults.length ? ('<br>' + T('ui.needs_2', 'Needs: ')) + esc(faults.join(', ')) : '') + '</p>' + careView(c) + (acts.length ? '<div class="slp-acts">' + acts.join('') + '</div>' : '') + '</div>';
       });
+      return bar(T('app.garage', 'My cars')) + '<div class="slp-body">' + (cards.join('') + ordered.join('') ||
+        ('<div class="slp-empty">' + T('ui.you_have_no_car_the', 'You have no car. The junkyard sells cheap ones that need work, the dealership new ones. The Cab app gets you there.') + '</div>')) + '</div>';
+    }
+
+    // the Garage app: the garage itself (its kit, where it is), not the cars (that is My cars)
+    function garageKitPage() {
+      var d = st.data;
       // the garage's own kit (X58): what it has, and what can be put in
-      var ups = arr(st.data.upgrades).map(function (u) {
+      var ups = arr(d.upgrades).map(function (u) {
         return '<div class="slp-kv"><span>' + esc(u.name) + '<br><small>' + esc(u.desc) + '</small></span><b>' +
           (u.has ? T('fleet.in_the_garage', 'In the garage') : '<div class="slp-btn slp-tonal" data-a="upgrade" data-v="' + esc(u.id) + '">' + money(u.price) + '</div>') + '</b></div>';
       }).join('');
-      return bar(T('app.garage', 'My cars')) + '<div class="slp-body">' + (cards.join('') + ordered.join('') ||
-        ('<div class="slp-empty">' + T('ui.you_have_no_car_the', 'You have no car. The junkyard sells cheap ones that need work, the dealership new ones. The Cab app gets you there.') + '</div>')) +
-        (ups ? ('<div class="slp-card"><h4>' + T('ui.the_garage', 'The garage') + '</h4>') + ups + '</div>' : '') + '</div>';
+      return bar(T('app.garagekit', 'Garage')) + '<div class="slp-body">' +
+        '<div class="slp-card"><h4>' + esc(d.garage || T('ui.the_garage', 'The garage')) + '</h4><div class="slp-acts"><div class="slp-btn" data-a="routegarage" data-v="1">' + T('ui.route_to_my_garage', 'Route to my garage') + '</div></div></div>' +
+        (ups ? ('<div class="slp-card"><h4>' + T('ui.the_garage', 'The garage') + '</h4>') + ups + '</div>' : '<div class="slp-empty">' + T('ui.no_garage_upgrades', 'No garage upgrades to buy here.') + '</div>') + '</div>';
     }
 
 
@@ -1413,6 +1422,7 @@
         case 'cab': page = cabPage(); break;
         case 'me': page = mePage(); break;
         case 'garage': page = garagePage(); break;
+        case 'garagekit': page = garageKitPage(); break;
         default: page = homePage();
       }
       // #51 text size: the Text size setting, and at least Large while a pad is in use (read from a distance)

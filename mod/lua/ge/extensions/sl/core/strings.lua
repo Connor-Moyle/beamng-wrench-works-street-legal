@@ -8,7 +8,7 @@ local M = {}
 
 M.TEXT = {
   -- the phone's apps and pages
-  ['app.races'] = 'Races', ['app.garage'] = 'My cars', ['app.bank'] = 'Bank', ['app.me'] = 'Street cred', ['app.jobs'] = 'Jobs', ['app.wait'] = 'Wait',
+  ['app.races'] = 'Races', ['app.garage'] = 'My cars', ['app.garagekit'] = 'Garage', ['app.bank'] = 'Bank', ['app.me'] = 'Street cred', ['app.jobs'] = 'Jobs', ['app.wait'] = 'Wait',
   ['app.settings'] = 'Settings', ['app.help'] = 'Help', ['app.club'] = 'Club', ['app.turf'] = 'Turf', ['app.carmarket'] = 'Car market',
   ['app.partmarket'] = 'Part market', ['app.phone'] = 'Phone', ['app.messages'] = 'Messages', ['app.contacts'] = 'Contacts', ['app.cab'] = 'Cab',
   ['app.map'] = 'Map', ['app.camera'] = 'Camera', ['app.gallery'] = 'Gallery',
@@ -441,6 +441,7 @@ M.TEXT = {
   ["ui.the_crews"] = "The crews",
   ["ui.the_game_s_own_career"] = "The game's own career mode: jobs, missions, your garage and vehicles.",
   ["ui.the_garage"] = "The garage",
+  ["ui.no_garage_upgrades"] = "No garage upgrades to buy here.",
   ["ui.the_junkyard_and_the_dealers"] = "The junkyard and the dealers sell them.",
   ["ui.the_leaders_want_a_word"] = " The leaders want a word.",
   ["ui.the_route_is_on_your"] = "The route is on your road.",
