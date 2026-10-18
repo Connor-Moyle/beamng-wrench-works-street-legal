@@ -371,7 +371,7 @@ local function updatePatrols()
     local want = policeOn() and night()      -- (D3: the phase decides the night, not the clock)
     if (slrrValoNight.getState and slrrValoNight.getState() or {}).police ~= want then slrrValoNight.setPolice(want) end
   end
-  local target = (policeOn() and not (slrrValoNight and slrrValoNight.setPolice)) and math.floor(PATROLS * level() + 0.5) or 0
+  local target = (policeOn() and not (slrrValoNight and slrrValoNight.setPolice)) and math.floor((sl_options and sl_options.get('slPatrols') or PATROLS) * level() + 0.5) or 0
   if policeOn() then target = target + math.floor(heatLib.extraPatrols(sl_career.phase(), M.level()) * level() + 0.5) end      -- (D3) one more a heat level, on top of the map's own
   for i = #units, 1, -1 do
     local u = getObjectByID(units[i])
