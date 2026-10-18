@@ -209,7 +209,8 @@ local function nameOf(id)
   return function(name)
     if not vd or not ok then return name end
     local okPart, part = pcall(jbeamIO.getPart, vd.ioCtx, name)
-    return okPart and part and part.information and tostring(part.information.name or name) or name
+    local n = okPart and part and part.information and part.information.name
+    return (type(n) == 'string' and n ~= '' and not n:find('{{', 1, true)) and n or name      -- (an unfilled template is no name)
   end
 end
 
