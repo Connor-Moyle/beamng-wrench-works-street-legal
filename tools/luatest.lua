@@ -2697,6 +2697,7 @@ do
   setg('extensions', { hook = function() end })
   local asked = 0
   setg('gameplay_walk', { getInVehicle = function(v) asked = asked + 1 if asked >= 2 then seated = v end end })      -- (the first call does not take: it is asked again)
+  setg('sl_carcare', { reportOf = function() return nil end })
   setg('be', { getPlayerVehicleID = function() return seated and 55 or 9 end })
   setg('log', function() end)
   setg('core_jobsystem', { create = function(f) f({ sleep = function() end }) end })
@@ -2715,6 +2716,10 @@ do
       seated, st.activeCar, foot = nil, nil, true      -- on foot at the hospital's door, far from the garage
       local ok2 = F.setActive(3)
       check('Drive this one on foot far from the garage seats the player in a car that is out', ok2 == true and seated == veh and st.activeCar == 3)
+      foot = false
+      seated, st.activeCar, foot = nil, 3, true      -- the ACTIVE car, player on foot after the hospital: the same tap seats them
+      check('Drive this one on the active car when on foot seats the player', F.setActive(3) == true and seated == veh)
+      check('the phone list says the car is not seated (so the button shows), foot or not', (function() local l = F.list()[1] return l and l.active == true and l.seated == false end)())
       foot = false
     end
   else

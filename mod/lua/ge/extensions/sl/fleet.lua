@@ -445,7 +445,7 @@ function M.list()
       if player and player:getID() == veh:getID() then where = strings.t('fleet.you_are_driving_it') end
     end
     out[#out + 1] = {
-      id = c.id, name = c.name, brand = c.brand, active = s.activeCar == c.id, where = where, out = veh ~= nil,
+      id = c.id, name = c.name, brand = c.brand, active = s.activeCar == c.id, seated = veh ~= nil and player ~= nil and player:getID() == veh:getID(), where = where, out = veh ~= nil,
       condition = c.condition, faults = market.unfixed(c), value = c.value,
       scrap = market.scrapValue(c), resale = market.resaleValue(c), towFee = veh and progression.towFee((veh:getPosition() - (M.forecourt(s, 0) or veh:getPosition())):length()) or nil,
       care = sl_carcare and sl_carcare.summary and sl_carcare.summary(c) or nil,
