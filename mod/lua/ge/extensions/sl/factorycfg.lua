@@ -94,7 +94,7 @@ function M.translate(text, id, m, isSlot)
   local t = type(text) == 'string' and text or nil
   if t and translateLanguage then t = translateLanguage(t, t) end
   if t and t:find('^ui%.') then t = t:match('([^%.]+)$') end
-  if t and t ~= '' and not t:find('^ui%.') then return (t:gsub('BRAND', (m and m.brand ~= '' and m.brand) or ''):gsub('^%s+', '')) end
+  if t and t ~= '' and not t:find('^ui%.') and not t:find('{{', 1, true) then return (t:gsub('BRAND', (m and m.brand ~= '' and m.brand) or ''):gsub('^%s+', '')) end
   return partinfo.displayName(nil, id, m and m.model or '')
 end
 
