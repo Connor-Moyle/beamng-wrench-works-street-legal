@@ -58,7 +58,7 @@ end
 -- The tarmac of West Coast USA is the terrain's own Asphalt layers, not a Material: their colour is a texture, no factor to lower. Wet, the layer's base colour and roughness textures
 -- are swapped for two small plain ones of ours (a dark grey, a smooth one: the layer's own roughness texture as colour came out pale in the game), put back dry; the terrain block redraws
 -- the layer (updateMaterial). The layer's detail textures still show on top.
-local WET_COLOR, WET_ROUGH = '/art/street_legal/terrain/wet_asphalt_b.png', '/art/street_legal/terrain/wet_asphalt_r.png'
+local WET_COLOR, WET_ROUGH = '/art/street_legal/terrain/wet_asphalt_b.dds', '/art/street_legal/terrain/wet_asphalt_r.dds'
 local terr                     -- { { mat, name, orig, wet } } or false when there is none
 local terrWet = false
 local function terrainLayers()
