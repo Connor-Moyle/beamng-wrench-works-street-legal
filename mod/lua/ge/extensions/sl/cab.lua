@@ -1,8 +1,9 @@
 -- Wrench Works: Street Legal: a real cab (extension name: sl_cab; playtest #5)
--- Booked on the phone (sl_career.taxi charges the fare): a taxi starts on a road out of your sight and drives up to you (the game's AI),
--- stops beside you and puts its hazards on. Walk up to it and you get in: the screen fades, and you step out at the place you asked for
--- (a lot: in its car park in front of the cars; else beside the cab on a road), while it drives off into town. Not reached in five minutes, it leaves and the fare
--- comes back.
+-- Booked on the phone (sl_career.taxi checks you can pay; nothing is charged yet): a taxi starts on a road out of your sight and drives up to you
+-- (the game's AI), stops beside you and puts its hazards on, a ground marker leading to it. Walk up to it (6 m) and you get in, or wait: a few seconds after
+-- it has stopped it takes you in if you are within 30 m. The screen fades, and you step out at the place you asked for (a lot: in its car park in front of the
+-- cars; else beside the cab on a road), while it drives off into town; the fare is charged then (sl_career.chargeFare). Never boarded (five minutes), it leaves
+-- and nothing was charged.
 
 local M = {}
 
@@ -12,7 +13,6 @@ local roadspot = require('sl/core/roadspot')
 local cabplan = require('sl/core/cabplan')
 
 local MODEL, CONFIG = 'fullsize', 'vehicles/fullsize/taxi.pc'
-local BOARD_RADIUS = 6         -- m from the cab's middle
 local ARRIVED = 9              -- m from where it was sent: it has come
 local WAIT_SECONDS = 300
 local DRIVE_OFF_SECONDS = 25
@@ -42,7 +42,7 @@ local function place(veh, c)
   spawn.safeTeleport(veh, vec3(c.x, c.y, c.z + 0.4), quatFromDir(vec3(c.dx, c.dy, 0), vec3(0, 0, 1)), true, nil, nil, nil, false)
 end
 
--- the fare is paid; returns false (and the caller refunds) when no cab can come here
+-- the fare is charged on arrival (fee: what it will be); returns false when no cab can come here
 function M.call(destination, fee)
   local me = onFoot()
   if ride or not me then return false end
@@ -55,7 +55,7 @@ function M.call(destination, fee)
   local cands = roadspot.candidates(map.getMap().nodes, mine, rightHand(), 400)
   local c = cabplan.approach(cands, cam)
   local coming = c ~= nil
-  if not c then c = spot(mine, 12) end
+  if not c then c = spot(mine, 4) end              -- (no road out of sight: the nearest free lane, close to you)
   if not c then return false end
   local ok, veh = pcall(core_vehicles.spawnNewVehicle, MODEL, { config = CONFIG, pos = vec3(c.x, c.y, c.z + 0.5), autoEnterVehicle = false, canSpawnAnotherVehicleCheck = false })
   if not ok or not veh then return false end
@@ -67,11 +67,13 @@ function M.call(destination, fee)
     -- drives up by itself and stops at the road node nearest to you
     veh:queueLuaCommand('input.event("parkingbrake", 0, FILTER_DIRECT) ai.setState({mode = "manual"}) ai.setTarget("' .. n1 .. '")')
     ride.target = node.pos
+    ride.here = nil
     toast(string.format(strings.t('cab.your_cab_is_on_its'), math.floor(c.dist + 0.5)))
   else
     veh:queueLuaCommand('electrics.set_warn_signal(1) input.event("parkingbrake", 1, FILTER_DIRECT)')
     if core_groundMarkers then core_groundMarkers.setPath(vec3(c.x, c.y, c.z)) end
     toast(string.format(strings.t('cab.your_cab_is_waiting_d'), math.floor(c.dist + 0.5)))
+    ride.here = 0
   end
   return true
 end
@@ -100,7 +102,8 @@ local function board()
     end
     job.sleep(0.6)
     guihooks.trigger('slFade', { on = false })
-    toast(string.format(strings.t('cab.s_that_was_d'), r.place.name, r.fee))
+    local paid = sl_career and sl_career.chargeFare and sl_career.chargeFare(r.fee, r.place.name) or 0
+    toast(string.format(strings.t('cab.s_that_was_d'), r.place.name, paid))
     if cab and c then
       job.sleep(1.5)
       cab:queueLuaCommand('electrics.set_warn_signal(0) input.event("parkingbrake", 0, FILTER_DIRECT) ai.setMode("traffic")')
@@ -120,7 +123,6 @@ function M.onUpdate(dtReal)
   local cab = getObjectByID(ride.vid)
   ride.waited = ride.waited + dtReal
   if not cab or ride.waited > WAIT_SECONDS then
-    if sl_career and ride.fee > 0 then sl_career.addMoney(ride.fee, strings.t('cab.cab_fare_back')) end
     toast(strings.t('cab.the_cab_got_tired_of'))
     if core_groundMarkers then core_groundMarkers.setPath(nil) end
     if cab then drop(ride.vid) end
@@ -129,12 +131,14 @@ function M.onUpdate(dtReal)
   end
   -- the cab has driven up: it stops, hazards on
   if ride.target and not ride.arrived and (cab:getPosition() - ride.target):length() < ARRIVED and cab:getVelocity():length() < 2 then
-    ride.arrived = true
+    ride.arrived, ride.here = true, 0
+    if core_groundMarkers then core_groundMarkers.setPath(cab:getPosition()) end
     cab:queueLuaCommand('ai.setState({mode = "disabled"}) electrics.set_warn_signal(1) input.event("parkingbrake", 1, FILTER_DIRECT)')
     toast(strings.t('cab.your_cab_is_here_hazards'))
   end
   local me = onFoot()
-  if me and (me:getPosition() - cab:getPosition()):length() < BOARD_RADIUS and (not ride.target or ride.arrived) then board() end
+  if ride.here then ride.here = ride.here + dtReal end
+  if me and (not ride.target or ride.arrived) and cabplan.boardNow((me:getPosition() - cab:getPosition()):length(), ride.here) then board() end
 end
 
 function M.busy() return ride ~= nil end
