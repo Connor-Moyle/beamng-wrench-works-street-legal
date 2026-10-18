@@ -405,6 +405,28 @@ local function updatePatrols()
   end)
 end
 
+-- for the tests (run_lua): a patrol 80-160 m from you and a chase started with it. Returns the words for the log.
+function M.debugChase()
+  local v = getPlayerVehicle(0)
+  if not (v and gameplay_police and gameplay_traffic) then return 'no player or no police' end
+  local node = nodeAround(v:getPosition(), 80, 160)
+  if not node then return 'no road node 80-160 m away, try again' end
+  local cfg = CONFIGS[1]
+  core_jobsystem.create(function(job)
+    local ok, veh = pcall(core_vehicles.spawnNewVehicle, cfg[1], { config = cfg[2], pos = node.pos + vec3(0, 0, 0.5), autoEnterVehicle = false, canSpawnAnotherVehicleCheck = false })
+    if not (ok and veh) then log('W', 'street_legal', 'chase: debug patrol could not be built') return end
+    job.sleep(1.5)
+    units[#units + 1] = veh:getID()
+    if slrrDrivers and slrrDrivers.setDriver then slrrDrivers.setDriver(veh:getID(), 'slrr_police') end
+    gameplay_traffic.insertTraffic(veh:getID())
+    playerInTraffic()
+    job.sleep(0.5)
+    gameplay_police.setPursuitMode(1, v:getID(), { veh:getID() })
+    log('I', 'street_legal', 'chase: debug chase started with patrol ' .. veh:getID())
+  end)
+  return 'building a patrol, the chase starts in about 3 s'
+end
+
 -- a street race has started: heat, and maybe a patrol on your tail
 function M.onRaceStart()
   local s = career()
