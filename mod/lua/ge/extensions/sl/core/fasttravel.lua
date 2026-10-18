@@ -14,6 +14,12 @@ local strings = require('sl/core/strings')
 M.KINDS = {
   garage = { cardIcon = 'garage01', what = 'Garage' },
   shop = { cardIcon = 'wrench', what = strings.t('fasttravel.parts_shop') },
+  -- the other places of the map (their own pin and a trip there, never locked): car wash, meet, hospital, valet, parts store
+  carwash = { cardIcon = 'info', what = strings.t('fasttravel.car_wash') },
+  meet = { cardIcon = 'info', what = strings.t('fasttravel.car_meet') },
+  hospital = { cardIcon = 'info', what = strings.t('fasttravel.hospital') },
+  valet = { cardIcon = 'info', what = strings.t('fasttravel.valet') },
+  parts = { cardIcon = 'wrench', what = strings.t('fasttravel.parts_store') },
 }
 
 -- the text that refuses a trip, or nil. ctx: { racing, job, chase, cab } booleans
@@ -42,14 +48,16 @@ end
 function M.extras(places, shops, state)
   local out = {}
   local ids = {}
-  for id, p in pairs(places or {}) do if p.kind == 'garage' and (p.at or p.pos) then ids[#ids + 1] = id end end
+  for id, p in pairs(places or {}) do if M.KINDS[p.kind] and p.kind ~= 'shop' and (p.at or p.pos) then ids[#ids + 1] = id end end
   table.sort(ids)
   for _, id in ipairs(ids) do
     local p = places[id]
-    local ok, why = progression.garageAccess(state or {}, id)
+    local k = M.KINDS[p.kind]
+    local ok, why = true, nil
+    if p.kind == 'garage' then ok, why = progression.garageAccess(state or {}, id) end
     local a = M.arrival(p)
-    out[#out + 1] = { poiId = 'sl_place_' .. id, kind = 'garage', placeId = id, name = p.name, cardIcon = M.KINDS.garage.cardIcon,
-      what = ok and M.KINDS.garage.what or (M.KINDS.garage.what .. '. ' .. tostring(why)), pos = { x = a.x, y = a.y, z = a.z }, arrive = a, locked = not ok, why = why }
+    out[#out + 1] = { poiId = 'sl_place_' .. id, kind = p.kind, placeId = id, name = p.name or id, cardIcon = k.cardIcon,
+      what = ok and k.what or (k.what .. '. ' .. tostring(why)), pos = { x = a.x, y = a.y, z = a.z }, arrive = a, locked = not ok, why = why }
   end
   local sorted = {}
   for _, s in ipairs(shops or {}) do if s.id and s.pos then sorted[#sorted + 1] = s end end

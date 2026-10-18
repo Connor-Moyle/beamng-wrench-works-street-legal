@@ -86,6 +86,16 @@ local function ensureCelestial()
   if core_celestial and core_celestial.setEnabled then pcall(core_celestial.setEnabled, true) end
   return core_celestial ~= nil
 end
+-- The big map (M) is the game's freeroam_vueBigMap, loaded with the other preset extensions when a freeroam level starts. A level that came up another way
+-- has none: M then throws "attempt to index global 'freeroam_vueBigMap'" on opening and on leaving, and the player is stuck on it. Loaded here (and checked
+-- every second while the career runs, in case the game unloads it); the bigmap places are listed by sl/pois.lua.
+local function ensureBigMap()
+  if freeroam_vueBigMap and freeroam_bigMapMode and freeroam_bigMapPoiProvider then return end
+  if extensions and extensions.load then
+    for _, name in ipairs({'freeroam_bigMapMode', 'freeroam_bigMapPoiProvider', 'freeroam_vueBigMap'}) do pcall(extensions.load, name) end
+  end
+end
+M.ensureBigMap = ensureBigMap
 local function skyFollow()
   if core_celestial then return end
   local tod = core_environment and core_environment.getTimeOfDay and core_environment.getTimeOfDay()
@@ -664,6 +674,7 @@ local function begin()
   places = nil
   loadPlaces()
   ensureCelestial()
+  ensureBigMap()
   local fresh = not s.begun
   if fresh then
     s.begun = true
@@ -1369,7 +1380,7 @@ local function onUpdate(dtReal)
   deliverTexts()
   updateClock()
   skyTimer = skyTimer + dtReal
-  if skyTimer > 1 then skyTimer = 0 skyFollow() end        -- (no core_celestial: the sun follows the running clock)
+  if skyTimer > 1 then skyTimer = 0 skyFollow() ensureBigMap() end        -- (no core_celestial: the sun follows the running clock)
   checkChallengeArrival()
   syncTimer = syncTimer + dtReal
   if syncTimer > 2 then syncTimer = 0 syncChallenge() dueRematches() end
