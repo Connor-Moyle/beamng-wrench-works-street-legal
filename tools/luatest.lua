@@ -2118,8 +2118,10 @@ do -- the car auction extension (sl_carauctions) against a mocked game: six lots
   end)())
   check('you cannot put up a car you have not got, and not your last car', CAE.sell(99, 100) == false)
   check('a car goes up with your reserve and is marked', CAE.sell(1, 100) == true and s.cars[1].atAuction == true and #s.auction.mine == 1 and s.auction.mine[1].reserve == 100)
+  local textsBefore = #texts
   s.day = s.day + 4
   CAE.onUpdate(6)
+  check('how the sale ended also comes as a text from Benny (a toast is lost while waiting)', (function() for i = textsBefore + 1, #texts do if texts[i]:find('sold at auction') or texts[i]:find('did not sell') then return true end end end)() == true)
   local gone = true
   for _, c in ipairs(s.cars) do if c.id == 1 then gone = false end end
   check('the sale ends: sold (the car gone, money in) or back with a toast, never both', (gone and #s.auction.mine == 0 and s.money > before - 10 ^ 6) or (not gone and s.cars[1].atAuction == nil and #s.auction.mine == 0))

@@ -24,6 +24,11 @@ local yard, liveLot, pushToLot      -- the live yard session, its current lot an
 local function career() return sl_career and sl_career.isActive() and sl_career.getState() or nil end
 local function now(s) return dealerRules.clock(s.day, sl_career.hour()) end
 local function toast(text) guihooks.trigger('slPhoneToast', { text = text }) end
+-- how a lot ended: a toast, and Benny's text too (a toast is gone while the player waits or sleeps through the close)
+local function tell(text)
+  toast(text)
+  if sl_career and sl_career.sendText then sl_career.sendText('benny', text, 2) end
+end
 
 local function state(s)
   s.auction = s.auction or { lots = {}, mine = {}, nextId = 1 }
@@ -83,16 +88,16 @@ local function settleBuy(s, m, lot, t)
         offer.foundFault = { key = r.hidden.key, cost = r.hidden.cost }      -- (told when it is delivered)
       end
       dealerRules.place(s, offer, 'auction', 4000, t)      -- (delivered like a dealer's car, as if 4 km away)
-      toast(string.format(strings.t('carauction.you_won_the_s_for'), name, r.price, fee))
+      tell(string.format(strings.t('carauction.you_won_the_s_for'), name, r.price, fee))
       extensions.hook('onStreetLegalChanged')
     else
       require('sl/core/state').addRep(s, -5)      -- (a bid you couldn't pay: the auction house remembers)
       toast(string.format(strings.t('carauction.you_won_the_s_but'), name))
     end
   elseif lot.high == 'you' and r.sold == 'reserve' then
-    toast(string.format(strings.t('carauction.the_reserve_on_the_s'), name))
+    tell(string.format(strings.t('carauction.the_reserve_on_the_s'), name))
   elseif lot.watched then
-    toast(string.format(strings.t('carauction.the_s_went_to_another'), name, r.price))
+    tell(string.format(strings.t('carauction.the_s_went_to_another'), name, r.price))
   end
 end
 
@@ -109,10 +114,10 @@ local function settleSale(s, m, lot)
     local car2, veh = sl_fleet.lose(carId)
     if veh then veh:delete() end
     sl_career.addMoney(got, string.format(strings.t('carauction.sold_1'), carName(lot.offer)))
-    toast(string.format(strings.t('carauction.your_s_sold_for_d'), carName(lot.offer), r.price, got))
+    tell(string.format(strings.t('carauction.your_s_sold_for_d'), carName(lot.offer), r.price, got))
   else
     car.atAuction = nil
-    toast(string.format(strings.t('carauction.your_s_did_not_sell'), carName(lot.offer), r.sold == 'none' and strings.t('carauction.no_bids') or strings.t('carauction.reserve_not_met')))
+    tell(string.format(strings.t('carauction.your_s_did_not_sell'), carName(lot.offer), r.sold == 'none' and strings.t('carauction.no_bids') or strings.t('carauction.reserve_not_met')))
   end
 end
 
