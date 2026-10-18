@@ -20,6 +20,7 @@ local SHAPES = '/temp/street_legal/shapes/'
 local GRID = 5                        -- corners across a puddle's grid
 local PUDDLE_RADIUS = { 25, 230 }      -- puddles stand between these distances from the player (far out: they grow as he comes up to them, see FADE_*)
 local FORGET_AT = 270                 -- ... and are deleted beyond this
+M.REFILL_FROM = 140                  -- a puddle placed while the shower is under way stands at least this far from the player
 M.FADE_FROM, M.FADE_TO = 165, 225     -- a puddle is full size up to FADE_FROM metres and nothing at FADE_TO
 local EMITTER = 'BNGP_50'             -- the game's own water-on-wheels emitter (the splash a wheel throws in a lake)
 local MAX_TRAILS, TRAIL_LIFE = 12, 5
@@ -334,7 +335,9 @@ local function updatePlacement(dt, wet)
   pcall(function() local d = v:getDirectionVector() heading = math.atan2(d.y, d.x) end)
   for _ = 1, (behind and 8 or 4) do
     local a = heading + (math.random() - 0.5) * (math.random() < 0.6 and 2.2 or 6.28)
-    local r = PUDDLE_RADIUS[1] + math.sqrt(math.random()) * (PUDDLE_RADIUS[2] - PUDDLE_RADIUS[1])      -- (the square root: more of them out where there is more ground)
+    -- (the first puddles of a shower may stand near: they fade in with the rain's age; later ones are only placed beyond sight, so none appears in view)
+    local minR = #puddles < want * 0.4 and PUDDLE_RADIUS[1] or M.REFILL_FROM
+    local r = minR + math.sqrt(math.random()) * (PUDDLE_RADIUS[2] - minR)      -- (the square root: more of them out where there is more ground)
     local x, y = pos.x + math.cos(a) * r, pos.y + math.sin(a) * r
     -- every fourth try is for bare ground beside the road (verges, car parks): a damp patch there, so the ground is not dry next to wet asphalt
     local ground = stats.placed % 4 == 3
