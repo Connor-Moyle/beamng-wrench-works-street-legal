@@ -52,8 +52,51 @@ M.defs = {
     desc = strings.t('options.a_new_car_is_photographed') },
   { key = 'slWeather', needs = 'weather', title = 'Weather', type = 'bool', default = true,
     desc = strings.t('options.rain_wet_roads_and_night') },
+  { key = 'slPoliceStrips', career = true, tab = 'Police chase', group = strings.t('options.spike_strips'), title = strings.t('options.spike_strips'), type = 'bool', default = true,
+    desc = strings.t('options.at_heat_3_and_above') },
+  { key = 'slPoliceBreakers', career = true, tab = 'Police chase', group = strings.t('options.pursuit_breakers'), title = strings.t('options.pursuit_breakers'), type = 'bool', default = true,
+    desc = strings.t('options.marked_spots_on_straight_roads') },
+  { key = 'slPoliceStripYaw', advanced = true, tab = 'Police chase', group = 'Developer', title = strings.t('options.chase_prop_turn'), type = 'choice', default = '0',
+    options = { { id = '0', label = '0' }, { id = '90', label = '90' } }, desc = strings.t('options.turns_the_strip_and_the') },
+  { key = 'slNightRaceKinds', tab = 'Night traffic', group = strings.t('options.race_kinds'), title = strings.t('options.race_kinds'), type = 'bool', default = true,
+    desc = strings.t('options.night_races_go_to_a') },
+  { key = 'slNightPrespawn', tab = 'Night traffic', group = strings.t('options.prepare_night_traffic_during_the_fade'), title = strings.t('options.prepare_night_traffic_during_the_fade'), type = 'bool', default = true,
+    desc = strings.t('options.builds_the_first_two_cruisers') },
+  { key = 'slOfflineTree', advanced = true, tab = 'Night traffic', group = 'Developer', title = strings.t('options.read_the_parts_tree_without_a_car'), type = 'bool', default = true,
+    desc = strings.t('options.a_first_build_of_a') },
   { key = 'slRain', needs = 'weather', title = 'Rain', type = 'range', min = 0, max = 0.5, step = 0.02, default = 0.12, unit = '/h',
     desc = strings.t('options.how_often_a_shower_starts') },
+  -- the rivals and the car auctions (sl_rivals, sl_carauctions): shown in the Mods menu only (tab / group), never on the phone or the laptop; the game's balance, per player, for every career
+  { key = 'slRivals', tab = 'Rivals', group = 'Rivals', title = 'Named rivals', type = 'bool', default = true,
+    desc = 'Six racers with names, personalities and cars who text you and challenge you. Off: no rival texts and no tier gate; the street races work as they did before.' },
+  { key = 'slRivalEscalate', tab = 'Rivals', group = 'How often', title = 'Bigger bet offers', type = 'range', min = 0, max = 1, step = 0.05, unit = '%', scale = 100, default = 0.35,
+    desc = 'The chance each night that a rival you have raced a few times offers a higher stake. Lower means fewer offers.' },
+  { key = 'slRivalTaunt', tab = 'Rivals', group = 'How often', title = 'Taunts and words of respect', type = 'range', min = 0, max = 1, step = 0.05, unit = '%', scale = 100, default = 0.3,
+    desc = 'The chance each night of a text from a rival you have raced, when nothing else is due. At zero they only write about the races.' },
+  { key = 'slRivalReactions', tab = 'Rivals', group = 'How often', title = 'Texts after a race', type = 'range', min = 0, max = 1, step = 0.05, unit = '%', scale = 100, default = 0.7,
+    desc = 'The chance a rival texts you after you race them. At zero they stay quiet after races.' },
+  { key = 'slRivalOfferDays', tab = 'Rivals', group = 'Pink slips', title = 'Days a pink slip offer stays open', type = 'range', min = 1, max = 10, step = 1, unit = 'days', default = 3,
+    desc = 'A rival who offers pink slips waits this many days for your answer. Nothing happens to your car unless you accept.' },
+  { key = 'slBossWins', tab = 'The climb', group = 'Bosses', title = 'Wins before a boss calls you out', type = 'range', min = 1, max = 8, step = 1, unit = '', default = 3, advanced = true,
+    desc = 'How many races you must win at a tier (or above) before its boss asks for you. Higher means a longer climb.' },
+  { key = 'slBossCooldown', tab = 'The climb', group = 'Bosses', title = 'Days a boss waits after beating you', type = 'range', min = 0, max = 10, step = 1, unit = 'days', default = 3, advanced = true,
+    desc = 'After you lose a boss showdown he will not ask again for this many days.' },
+  { key = 'slRivalStepRaces', tab = 'The climb', group = 'Stakes', title = 'Races before a rival raises the stake', type = 'range', min = 1, max = 8, step = 1, unit = '', default = 3,
+    desc = 'Each time you have raced a rival this many times, his bet steps up: pocket money, his top bet, high stakes.' },
+  { key = 'slRivalUpgradeDays', tab = 'The climb', group = 'Their cars', title = 'Days between rival car upgrades', type = 'range', min = 2, max = 15, step = 1, unit = 'days', default = 5,
+    desc = 'Rivals improve their cars with the days, and after you beat them. Lower means they get quicker sooner.' },
+  { key = 'slAuctionLots', tab = 'Car auctions', group = 'Online auction', title = 'Lots on the online auction', type = 'range', min = 3, max = 10, step = 1, unit = '', default = 6,
+    desc = 'How many cars are up for auction on the phone and laptop at once.' },
+  { key = 'slAuctionDay', tab = 'Car auctions', group = 'Junkyard auction', title = 'Auction day (day number modulo 7)', type = 'range', min = 0, max = 6, step = 1, unit = '', default = 5, advanced = true,
+    desc = 'The live auction at the junkyard happens on every seventh day. This picks which day of the seven.' },
+  { key = 'slAuctionFrom', tab = 'Car auctions', group = 'Junkyard auction', title = 'Opens at (hour)', type = 'range', min = 6, max = 18, step = 1, unit = 'h', default = 10,
+    desc = 'The hour the junkyard auction opens.' },
+  { key = 'slAuctionTo', tab = 'Car auctions', group = 'Junkyard auction', title = 'Closes at (hour)', type = 'range', min = 8, max = 20, step = 1, unit = 'h', default = 13,
+    desc = 'The hour the junkyard auction ends. Lots still running finish.' },
+  { key = 'slYardLots', tab = 'Car auctions', group = 'Junkyard auction', title = 'Cars in the yard', type = 'range', min = 3, max = 8, step = 1, unit = '', default = 6,
+    desc = 'How many cars stand in the junkyard bays on auction day.' },
+  { key = 'slAuctionLive', tab = 'Car auctions', group = 'Junkyard auction', title = 'Time on each lot', type = 'range', min = 30, max = 180, step = 5, unit = 's', default = 75,
+    desc = 'How long a lot is open at the live auction. A bid in the last seconds adds a few more.' },
 }
 -- where each setting is on the Mods menu page: { tab, group }
 local PLACE = {
@@ -67,10 +110,12 @@ local PLACE = {
 }
 local byKey = {}
 for _, d in ipairs(M.defs) do
-  d.group = GROUP
+  local own = d.group                          -- (a def of another module names its own group: it is its sub-heading on the Mods menu page)
+  d.group = d.group or GROUP
   byKey[d.key] = d
   local at = PLACE[d.key]
   if at then d.tab, d.sub = d.tab or at[1], d.sub or at[2] end
+  if own and not d.sub then d.sub = own end
 end
 
 local global

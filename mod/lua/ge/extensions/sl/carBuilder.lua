@@ -260,7 +260,7 @@ function M.buildCustom(job, model, config, recipe, pos, rot, nobodyDrives)
     customCache[key] = nil                                      -- (it did not take: built the long way below)
   end
   -- the parts tree without a spawn: one spawn for a custom car, the first time too
-  if M.OFFLINE_TREE then
+  if M.OFFLINE_TREE and (not sl_options or sl_options.get('slOfflineTree') ~= false) then
     local t0 = os.clock()
     local od, jbeamIO = offlineData(model, config)
     if od then

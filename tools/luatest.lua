@@ -2326,35 +2326,51 @@ do -- the campaign end (tier 1 to the last boss), walked offline: a player who w
   check('after the last boss, rep 6000 for the ROC is a few more races at the top', rep >= PR.ROC.rep and extra < 80, 'extra ' .. extra .. ' ' .. table.concat(detail, ' '))
   if os.getenv and os.getenv('SL_CAMPAIGN_REPORT') then print('campaign: races ' .. races .. ', to the ROC rep ' .. extra .. ' more; boss races/rep ' .. table.concat(detail, ' ')) end
 end
-do -- the tuning file and the Mods menu page for the rivals and the auctions
-  local saved = { jsonReadFile = _G.jsonReadFile }
-  _G.jsonReadFile = function(path) if path == '/settings/street_legal/tuning.json' then return { rivals = { escalateChance = 0.5, enabled = false }, auctions = { lots = 8 } } end end
-  package.loaded['sl/tuning'] = nil
-  local TU = require('sl/tuning')
-  check('the tuning file gives the values it has and the defaults for the rest', TU.get('rivals.escalateChance', 0.35) == 0.5 and TU.get('auctions.lots', 6) == 8 and TU.get('rivals.tauntChance', 0.3) == 0.3 and TU.get('rivals.enabled', true) == false and TU.get('nothing.here', 7) == 7)
-  _G.jsonReadFile = saved.jsonReadFile
-  package.loaded['sl/tuning'] = nil
-  local SM = require('sl/storymenu').schema()
-  local tabs, ids, ok = {}, {}, true
-  for _, t in ipairs(SM.tabs) do tabs[t.id] = true end
-  for _, f in ipairs(SM.fields) do
-    if ids[f.id] or not tabs[f.tab] then ok = false end
-    ids[f.id] = true
-    if f.type ~= 'note' then
-      if not (f.label and f.tooltip and f.store and f.store.path and f.store.file == '/settings/street_legal/tuning.json') then ok = false end
-      if f.min and (f.default < f.min or f.default > f.max) then ok = false end
-    end
+do -- the rivals' and auctions' tunables: entries of sl_options for the Mods menu (tab / group), read through sl/tuning
+  local saved = { sl_options = _G.sl_options }
+  local OPT, TU = require('sl/options'), require('sl/tuning')
+  local byKey, tabbed = {}, 0
+  for _, d in ipairs(OPT.defs) do byKey[d.key] = d if d.tab then tabbed = tabbed + 1 end end
+  local ok = tabbed >= 14
+  for path, key in pairs(TU.KEYS) do
+    local d = byKey[key]
+    if not (d and d.tab and d.group and d.title and d.desc and d.default ~= nil) then ok = false end
+    if d and d.type == 'range' and (d.default < d.min or d.default > d.max) then ok = false end
   end
-  check('the Mods menu page has unique fields on known tabs, a label, a tooltip and a store each, defaults in range', ok and #SM.fields >= 12 and #SM.tabs == 3)
-  local byId = {}
-  for _, f in ipairs(SM.fields) do byId[f.id] = f end
+  check('every tunable has an sl_options entry with a tab, a group, a title, a tooltip and a default in range', ok)
   local RVc, CAc = require('sl/core/rivals'), require('sl/core/carauction')
-  check('the page defaults are the constants the rules were written with', byId.bossWins.default == RVc.BOSS_WINS and byId.bossCooldown.default == RVc.BOSS_COOLDOWN and byId.stepRaces.default == RVc.STEP_RACES and byId.upgradeDays.default == RVc.UPGRADE_DAYS and byId.liveSeconds.default == CAc.DURATION)
-  local registered
-  _G.slrr_settings = { register = function(schema) registered = schema end }
-  require('sl/storymenu').onSlrrSettingsReady()
-  _G.slrr_settings = nil
-  check('the page registers when the registry says it is ready', registered and registered.mod == 'street_legal_story')
+  check('the defaults are the constants the rules were written with', byKey.slBossWins.default == RVc.BOSS_WINS and byKey.slBossCooldown.default == RVc.BOSS_COOLDOWN and byKey.slRivalStepRaces.default == RVc.STEP_RACES and byKey.slRivalUpgradeDays.default == RVc.UPGRADE_DAYS and byKey.slAuctionLive.default == CAc.DURATION)
+  _G.sl_options = { get = function(key) if key == 'slRivalEscalate' then return 0.5 end if key == 'slRivals' then return false end end }
+  check('the tuning follows sl_options, and the default stands for a setting it does not have', TU.get('rivals.escalateChance', 0.35) == 0.5 and TU.get('rivals.tauntChance', 0.3) == 0.3 and TU.get('rivals.enabled', true) == false and TU.get('nothing.here', 7) == 7)
+  _G.sl_options = nil
+  check('without sl_options every value is its default', TU.get('rivals.escalateChance', 0.35) == 0.35)
+  -- the Mods-menu page of Street Legal is generated from these definitions (a stand-in for the registry of Wrench Works)
+  local hadCopy, hadSlrr = _G.deepcopy, rawget(_G, 'slrr_settings')
+  _G.deepcopy = function(t) local c = {} for k, v in pairs(t) do c[k] = v end return c end
+  local got
+  _G.slrr_settings = {
+    fromDefs = function(defs, o)
+      local fields, tabs, seen = {}, {}, {}
+      for _, d in ipairs(defs) do
+        local t = o.tabOf(d)
+        if not seen[t] then seen[t] = true tabs[#tabs + 1] = { id = t, title = t } end
+        fields[#fields + 1] = { id = d.key, tab = t, group = d.sub, type = d.type, label = d.title, tooltip = d.desc }
+      end
+      return fields, tabs
+    end,
+    register = function(schema) got = schema return true end,
+  }
+  OPT.onSlrrSettingsReady()
+  _G.deepcopy = hadCopy
+  _G.slrr_settings = hadSlrr
+  local tabIds, byField = {}, {}
+  for _, t in ipairs(got and got.tabs or {}) do tabIds[t.id] = true end
+  for _, f in ipairs(got and got.fields or {}) do byField[f.id] = f end
+  check('the Mods menu page: Street Legal registers with its tabs, every setting on a tab', got and got.mod == 'street_legal' and tabIds.Difficulty and tabIds.Rivals and tabIds['Police chase'] and tabIds.Developer and tabIds.Accessibility)
+  check('every setting of the list is a field with a tab that exists', (function() for _, d in ipairs(OPT.defs) do if d.needs ~= 'weather' and not (byField[d.key] and tabIds[byField[d.key].tab]) then return false end end return true end)())
+  check('the dashboard parts and the money button are fields too', byField.hud_tacho and byField.hud_units and byField.devMoney and byField.devMoney.type == 'button')
+  check('SL adds nothing to the old Wrench Works settings screen', OPT.onWrenchWorksSettingsDefs == nil)
+  _G.sl_options = saved.sl_options
 end
 do -- ambient police patrols share the racers' build rule; a chase's patrol is never held back
   local SPP = require('sl/core/spawnplan')
