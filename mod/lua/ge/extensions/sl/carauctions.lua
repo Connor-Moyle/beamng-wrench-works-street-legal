@@ -15,7 +15,8 @@ local listings = require('sl/core/listings')
 local carInfo = require('sl/carInfo')
 local carreport = require('sl/core/carreport')
 
-local LOTS = 6                 -- on the screen at once
+local tuning = require('sl/tuning')
+local LOTS = 6                 -- on the screen at once (Mods menu: auctions.lots)
 local HOURS = { 12, 40 }       -- a lot closes this many game hours after it opens
 local MAX_CATCHUP = 3000       -- lot-clock steps in one call (a long Wait)
 
@@ -38,6 +39,7 @@ local function pool()
 end
 
 local function fill(s, m, t)
+  LOTS = tuning.get('auctions.lots', 6)
   local missing = LOTS - #m.lots
   if missing <= 0 then return end
   local rng = rngLib.new(rngLib.hash('auction:' .. t .. ':' .. m.nextId .. ':' .. tostring(s.seed)))
@@ -174,7 +176,11 @@ function M.list()
 end
 
 -- ---- the weekly auction at the junkyard: six lots one after the other, each open for rules.DURATION real seconds
-local YARD = { weekday = 5, from = 10, to = 13, lots = 6, gap = 4 }      -- every 7th day, 10:00-13:00
+local YARD = { weekday = 5, from = 10, to = 13, lots = 6, gap = 4 }      -- every 7th day, 10:00-13:00 (Mods menu: auctions.weekday / fromHour / toHour / yardLots / liveSeconds)
+local function applyTuning()
+  YARD.weekday, YARD.from, YARD.to, YARD.lots = tuning.get('auctions.weekday', 5), tuning.get('auctions.fromHour', 10), tuning.get('auctions.toHour', 13), tuning.get('auctions.yardLots', 6)
+  rules.DURATION = tuning.get('auctions.liveSeconds', 75)
+end
 -- (yard: the session { day, lots, idx, gap, rng, pushT })
 
 local function yardPlace()
@@ -184,6 +190,7 @@ end
 function M.yardOpen()
   local s = career()
   if not s or (sl_career.isNight and sl_career.isNight()) then return false end
+  applyTuning()
   local h = sl_career.hour()
   if (s.day or 0) % 7 ~= YARD.weekday or h < YARD.from or h >= YARD.to then return false end
   return not (state(s).yardDone == s.day)
@@ -359,6 +366,7 @@ function M.onUpdate(dtReal)
   local s = career()
   if not s then return end
   local m = state(s)
+  applyTuning()
   if (s.day or 0) % 7 == YARD.weekday and m.yardTold ~= s.day and sl_career.hour() >= 9 and sl_career.hour() < YARD.to and not (sl_career.isNight and sl_career.isNight()) then
     m.yardTold = s.day
     sl_career.sendText('benny', strings.t('carauction.auction_morning'), 2)

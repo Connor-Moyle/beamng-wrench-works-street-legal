@@ -2326,6 +2326,36 @@ do -- the campaign end (tier 1 to the last boss), walked offline: a player who w
   check('after the last boss, rep 6000 for the ROC is a few more races at the top', rep >= PR.ROC.rep and extra < 80, 'extra ' .. extra .. ' ' .. table.concat(detail, ' '))
   if os.getenv and os.getenv('SL_CAMPAIGN_REPORT') then print('campaign: races ' .. races .. ', to the ROC rep ' .. extra .. ' more; boss races/rep ' .. table.concat(detail, ' ')) end
 end
+do -- the tuning file and the Mods menu page for the rivals and the auctions
+  local saved = { jsonReadFile = _G.jsonReadFile }
+  _G.jsonReadFile = function(path) if path == '/settings/street_legal/tuning.json' then return { rivals = { escalateChance = 0.5, enabled = false }, auctions = { lots = 8 } } end end
+  package.loaded['sl/tuning'] = nil
+  local TU = require('sl/tuning')
+  check('the tuning file gives the values it has and the defaults for the rest', TU.get('rivals.escalateChance', 0.35) == 0.5 and TU.get('auctions.lots', 6) == 8 and TU.get('rivals.tauntChance', 0.3) == 0.3 and TU.get('rivals.enabled', true) == false and TU.get('nothing.here', 7) == 7)
+  _G.jsonReadFile = saved.jsonReadFile
+  package.loaded['sl/tuning'] = nil
+  local SM = require('sl/storymenu').schema()
+  local tabs, ids, ok = {}, {}, true
+  for _, t in ipairs(SM.tabs) do tabs[t.id] = true end
+  for _, f in ipairs(SM.fields) do
+    if ids[f.id] or not tabs[f.tab] then ok = false end
+    ids[f.id] = true
+    if f.type ~= 'note' then
+      if not (f.label and f.tooltip and f.store and f.store.path and f.store.file == '/settings/street_legal/tuning.json') then ok = false end
+      if f.min and (f.default < f.min or f.default > f.max) then ok = false end
+    end
+  end
+  check('the Mods menu page has unique fields on known tabs, a label, a tooltip and a store each, defaults in range', ok and #SM.fields >= 12 and #SM.tabs == 3)
+  local byId = {}
+  for _, f in ipairs(SM.fields) do byId[f.id] = f end
+  local RVc, CAc = require('sl/core/rivals'), require('sl/core/carauction')
+  check('the page defaults are the constants the rules were written with', byId.bossWins.default == RVc.BOSS_WINS and byId.bossCooldown.default == RVc.BOSS_COOLDOWN and byId.stepRaces.default == RVc.STEP_RACES and byId.upgradeDays.default == RVc.UPGRADE_DAYS and byId.liveSeconds.default == CAc.DURATION)
+  local registered
+  _G.slrr_settings = { register = function(schema) registered = schema end }
+  require('sl/storymenu').onSlrrSettingsReady()
+  _G.slrr_settings = nil
+  check('the page registers when the registry says it is ready', registered and registered.mod == 'street_legal_story')
+end
 do -- ambient police patrols share the racers' build rule; a chase's patrol is never held back
   local SPP = require('sl/core/spawnplan')
   check('an ambient patrol waits for the gap, the speed rule and any other build', not SPP.patrolOk(5, 3, false, false) and not SPP.patrolOk(30, 30, false, false) and not SPP.patrolOk(5, 99, true, false) and SPP.patrolOk(5, 99, false, false))

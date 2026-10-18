@@ -12,10 +12,19 @@ local stateLib = require('sl/core/state')
 local crewsLib = require('sl/core/crews')
 local rngLib = require('sl/core/rng')
 local builds = require('sl/core/builds')
+local tuning = require('sl/tuning')
 
 local PERSONA_OF_STYLE = { easy = 'friendly', trash = 'cocky', roller = 'ruthless', careful = 'respectful' }
 local STEP_KIND = { 'race', 'race', 'high', 'pink' }      -- the career's challenge kind for each step of the ladder
-local ESCALATE_CHANCE, TAUNT_CHANCE, RESULT_TEXT_CHANCE = 0.35, 0.3, 0.7
+-- (the chances and day counts below are tuning: Mods menu > Street Legal: story and markets > Rivals; defaults are these)
+local function tune(name, default) return tuning.get('rivals.' .. name, default) end
+local function applyTuning()
+  rules.BOSS_WINS = tune('bossWins', 3)
+  rules.BOSS_COOLDOWN = tune('bossCooldown', 3)
+  rules.STEP_RACES = tune('stepRaces', 3)
+  rules.UPGRADE_DAYS = tune('upgradeDays', 5)
+end
+local function on() return tune('enabled', true) end
 
 local function career() return sl_career and sl_career.isActive() and sl_career.getState() or nil end
 local function toast(text) guihooks.trigger('slPhoneToast', { text = text }) end
@@ -63,7 +72,7 @@ end
 -- ---- the tier gate: a racer more than one tier above your rank sends you to the boss in front of them
 local function gate(racer)
   local s = career()
-  if not s or not racer then return nil end
+  if not s or not racer or not on() then return nil end
   local m = state(s)
   local boss = rules.gatekeeper(m.list, racer.tier)
   if not boss then return nil end
@@ -98,7 +107,8 @@ function M.onSlrrRaceFinished(r) pending = { margin = tonumber(r and r.margin), 
 
 function M.onStreetLegalRaceResult(won, opponent, racerId, stake)
   local s = career()
-  if not s then return end
+  if not s or not on() then return end
+  applyTuning()
   local m = state(s)
   local racer = racerOf(s, racerId)
   if not racer then return end
@@ -124,7 +134,7 @@ function M.onStreetLegalRaceResult(won, opponent, racerId, stake)
       rival.cooldown = s.day + rules.BOSS_COOLDOWN
       say(s, rival, 'bossl', 20)
     end
-  elseif math.random() < RESULT_TEXT_CHANCE then
+  elseif math.random() < tune('reactionChance', 0.7) then
     say(s, rival, won and 'won' or 'lost', 25)
   end
   local word = rules.meterWord(rival.meter)
@@ -146,7 +156,7 @@ end
 
 -- A pink slip race is never arranged by a rival on his own: it is an OFFER on the Rivals card, naming your car and his; you accept it, race for money instead, or walk away
 -- (the meter drops a little, nothing else). The offer lapses after OFFER_DAYS.
-local OFFER_DAYS = 3
+local function offerDays() return tune('offerDays', 3) end
 local function makeOffer(s, m, rival, isBoss)
   m.offers = m.offers or {}
   m.offers[rival.id] = { stake = 'pink', boss = isBoss or nil, day = s.day }
@@ -208,7 +218,7 @@ local function proactive(s, m)
   for _, rival in ipairs(m.list) do
     if rules.allowed(m.list, rival.tier) and (not rival.boss or rival.bossBeaten) then      -- (a boss has his showdown first)
       local step = rules.step(rival)
-      if step >= 2 and not activeChallenge(s, rival.id) and rng:float() < ESCALATE_CHANCE then
+      if step >= 2 and not activeChallenge(s, rival.id) and rng:float() < tune('escalateChance', 0.35) then
         if STEP_KIND[step] == 'pink' then
           if not (m.offers and m.offers[rival.id]) and sl_fleet and sl_fleet.currentCar and sl_fleet.currentCar() then makeOffer(s, m, rival, false) return true end
         else
@@ -220,7 +230,7 @@ local function proactive(s, m)
   end
   -- 5. a taunt, or a word of respect
   local pick = m.list[rng:int(#m.list)]
-  if pick and rules.allowed(m.list, pick.tier) and (pick.beaten or 0) + (pick.youLost or 0) > 0 and rng:float() < TAUNT_CHANCE then      -- (a taunt presumes a past race)
+  if pick and rules.allowed(m.list, pick.tier) and (pick.beaten or 0) + (pick.youLost or 0) > 0 and rng:float() < tune('tauntChance', 0.3) then      -- (a taunt presumes a past race)
     local w = rules.meterWord(pick.meter)
     say(s, pick, (w == 'respect' or w == 'friends') and 'respect' or 'taunt', 3)
     return true
@@ -236,8 +246,10 @@ function M.onUpdate(dtReal)
   local s = career()
   if not s then return end
   local m = state(s)
+  if not on() then return end
+  applyTuning()
   applyStages(s, m)
-  for id, o in pairs(m.offers or {}) do if (s.day or 0) - (o.day or 0) > OFFER_DAYS then m.offers[id] = nil roster.pinkForced[id] = nil end end
+  for id, o in pairs(m.offers or {}) do if (s.day or 0) - (o.day or 0) > offerDays() then m.offers[id] = nil roster.pinkForced[id] = nil end end
   if night() and m.lastTextDay ~= s.day and #(s.cars or {}) > 0 and not (sl_streets and sl_streets.raceActive and sl_streets.raceActive()) then
     m.lastTextDay = s.day
     pcall(proactive, s, m)
