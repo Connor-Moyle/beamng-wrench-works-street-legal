@@ -1203,6 +1203,7 @@ do
   check('the help: at least ten pages, each with a unique id, a title and short paragraphs', okPages)
   check('the help covers the first hour, day and night, races, heat, clubs, crews', helpLib.page('first') and helpLib.page('daynight') and helpLib.page('races') and helpLib.page('heat') and helpLib.page('clubs') and helpLib.page('crews') and helpLib.page('nothing') == nil)
   local md = helpLib.markdown()
+  check('a part whose jbeam name is an unfilled template shows its id in words, never the template', (function() local PI = require('sl/core/partinfo') local n = PI.displayName('{{ size }} {{ type }}', 'vivace_wheel_01a', 'vivace') return not n:find('{{', 1, true) and n:lower():find('wheel') ~= nil and PI.text('{{ x }}') == nil and PI.text('Wheel') == 'Wheel' end)())
   check('a part named by a game translation key is shown by its id in words, never as the key', (function() local n = require('sl/core/partinfo').displayName('ui.vehicleconfig.generic.wheelName', 'vivace_wheel_01a', 'vivace') return not n:find('ui%.') and n:lower():find('wheel') ~= nil end)())
   check('the help covers the new features and its economy numbers are the real ones', (function()
     for _, id in ipairs({ 'dealers', 'weather', 'carcare', 'carmeets', 'graphics', 'extras' }) do if not helpLib.page(id) then return false end end
