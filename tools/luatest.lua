@@ -410,7 +410,7 @@ end
 -- the wet world and the puddles at a distance
 do
   local ww, wx = require('sl/core/wetworld'), require('sl/core/weather')
-  check('wet terrain: the swap step is inside the steps, past the first one', ww.TERRAIN_STEP >= 2 and ww.TERRAIN_STEP < ww.STEPS)
+  check('wet terrain tiers: dry 0, light 1, rain 2, heavy 3, in order over the steps', ww.terrainTier(0) == 0 and ww.terrainTier(1) == 0 and ww.terrainTier(2) == 1 and ww.terrainTier(4) == 2 and ww.terrainTier(ww.STEPS) == 3 and ww.terrainTier(nil) == 0)
   check('wet: roads are asphalt first, cars and tunnels and lights are left alone', ww.classify('road_asphalt_01') == 'asphalt' and ww.classify('sidewalk_concrete') == 'concrete' and ww.classify('palm_leaves') == 'foliage'
     and ww.classify('tunnel_wall') == nil and ww.classify('street_lamp_glass') == nil and ww.classify('road_x', '/vehicles/pickup/x.json') == nil and ww.classify('sl_puddle') == nil and ww.classify('') == nil)
   check('wet: the step follows the wetness and the strength', ww.step(0, 1) == 0 and ww.step(1, 1) == ww.STEPS and ww.step(1, 0.5) == ww.STEPS / 2 and ww.step(1, 0) == 0)

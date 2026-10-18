@@ -58,9 +58,10 @@ end
 -- The tarmac of West Coast USA is the terrain's own Asphalt layers, not a Material: their colour is a texture, no factor to lower. Wet, the layer's base colour and roughness textures
 -- are swapped for two small plain ones of ours (a dark grey, a smooth one: the layer's own roughness texture as colour came out pale in the game), put back dry; the terrain block redraws
 -- the layer (updateMaterial). The layer's detail textures still show on top.
-local WET_COLOR, WET_ROUGH = '/art/street_legal/terrain/wet_asphalt_b.png', '/art/street_legal/terrain/wet_asphalt_r.png'
+local WET_COLOR = '/art/street_legal/terrain/wet_asphalt_b.png'
+local WET_ROUGH = { '/art/street_legal/terrain/wet_asphalt_r1.png', '/art/street_legal/terrain/wet_asphalt_r2.png', '/art/street_legal/terrain/wet_asphalt_r3.png' }      -- (one is loaded at a time)
 local terr                     -- { { mat, name, orig, wet } } or false when there is none
-local terrWet = false
+local terrWet = 0                 -- the tier on the layers now
 local function terrainLayers()
   if terr ~= nil then return terr end
   terr = {}
@@ -73,9 +74,10 @@ local function terrainLayers()
   if #terr == 0 then terr = false else log('I', TAG, 'wet terrain layers: ' .. #terr) end
   return terr
 end
-local function applyTerrain(wetNow)
+local function applyTerrain(tier)
   local layers = terrainLayers()
-  terrWet = wetNow
+  terrWet = tier
+  local wetNow = tier > 0
   if not layers then return end
   local t0 = os.clock()
   local blocks = {}
@@ -83,11 +85,11 @@ local function applyTerrain(wetNow)
   for _, l in ipairs(layers) do
     pcall(function()
       l.mat:setField('baseColorBaseTex', 0, wetNow and WET_COLOR or l.orig)
-      if l.origR ~= '' then l.mat:setField('roughnessBaseTex', 0, wetNow and WET_ROUGH or l.origR) end
+      if l.origR ~= '' then l.mat:setField('roughnessBaseTex', 0, wetNow and WET_ROUGH[tier] or l.origR) end
       if blocks[1] then blocks[1]:updateMaterial(0, l.name) end
     end)
   end
-  log('I', TAG, string.format('terrain layers %s: %d layers, %.0f ms', wetNow and 'wet' or 'dry', #layers, (os.clock() - t0) * 1000))
+  log('I', TAG, string.format('terrain layers tier %d: %d layers, %.0f ms', tier, #layers, (os.clock() - t0) * 1000))
 end
 
 -- one material to a step: the original text of its roughness and colour factors is taken the first time, the wet values come from it, the material is reloaded once
@@ -160,7 +162,7 @@ function M.update(dt, wet)
     current = target
     log('I', TAG, string.format('wet world heads for step %d of %d (wetness %.2f)', current, rules.STEPS, wet or 0))
   end
-  local wantTerrain = on and current >= rules.TERRAIN_STEP and option('slWetTarmac', true) == true      -- (also when the setting is switched while it rains)
+  local wantTerrain = (on and option('slWetTarmac', true) == true) and rules.terrainTier(current) or 0      -- (also when the setting is switched while it rains)
   if wantTerrain ~= terrWet then applyTerrain(wantTerrain) end
   if not plan then return end
   timer = timer + (dt or 0)
@@ -172,7 +174,7 @@ end
 
 -- every material back to its original text at once (the level ends, the career stops, or a test)
 function M.restore()
-  if terrWet then applyTerrain(false) end
+  if terrWet > 0 then applyTerrain(0) end
   if plan then
     current = 0
     local guard = 0
@@ -192,8 +194,8 @@ end
 function M.stats() return stats, current, plan and #plan or 0 end
 function M.onStreetLegalStopped() pcall(M.restore) plan = nil end
 -- (the level is going away with its materials: reloading hundreds of them in this tick would be a hitch for nothing, so only our state is dropped)
-function M.onClientEndMission() plan, state, current, terr, terrWet = nil, {}, 0, nil, false end
-function M.onClientStartMission() plan, state, current, terr, terrWet = nil, {}, 0, nil, false end      -- (a level load rebuilt the materials: nothing of ours is on them)
+function M.onClientEndMission() plan, state, current, terr, terrWet = nil, {}, 0, nil, 0 end
+function M.onClientStartMission() plan, state, current, terr, terrWet = nil, {}, 0, nil, 0 end      -- (a level load rebuilt the materials: nothing of ours is on them)
 function M.onExtensionUnloaded() pcall(M.restore) end
 
 return M
