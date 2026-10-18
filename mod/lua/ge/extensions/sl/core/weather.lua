@@ -22,9 +22,9 @@ M.STATES = {
 -- overcast is what darkens it), cirrus / density (the high cloud over it), fog (kept thin: a thick fog takes the sun's colour, and at dawn that is an orange
 -- dust storm), tint (0..1: how far the sky's sun, fog and ambient colours are pulled to grey), dark (0..1: how much darker the sky's light, ambient, fog and clouds are made: moody, still day), grip, pay, wet (how wet the roads get at most, 0..1)
 M.RAIN_LEVELS = {
-  light = { id = 'light', name = 'Light rain', drops = 600, speed = 0.85, cloud = 1.3, cirrus = 0.6, density = 0.6, fog = 0.0005, grip = 0.88, pay = 1.04, wet = 0.45, tint = 0.5, dark = 0.4, haze = 0 },
-  medium = { id = 'medium', name = 'Rain', drops = 1500, speed = 1, cloud = 1.8, cirrus = 0.85, density = 0.85, fog = 0.0006, grip = 0.78, pay = 1.08, wet = 0.8, tint = 0.75, dark = 0.65, haze = 0 },
-  heavy = { id = 'heavy', name = 'Heavy rain', drops = 3000, speed = 1.25, cloud = 2.4, cirrus = 1, density = 1, fog = 0.0008, grip = 0.68, pay = 1.12, wet = 1, tint = 0.95, dark = 0.85, haze = 0 },
+  light = { id = 'light', name = 'Light rain', drops = 600, speed = 0.85, cloud = 1.3, cirrus = 0.6, density = 0.6, fog = 0.0005, grip = 0.88, pay = 1.04, wet = 0.45, tint = 0.85, dark = 0.7, haze = 0 },
+  medium = { id = 'medium', name = 'Rain', drops = 1500, speed = 1, cloud = 1.8, cirrus = 0.85, density = 0.85, fog = 0.0006, grip = 0.78, pay = 1.08, wet = 0.8, tint = 0.92, dark = 0.8, haze = 0 },
+  heavy = { id = 'heavy', name = 'Heavy rain', drops = 3000, speed = 1.25, cloud = 2.4, cirrus = 1, density = 1, fog = 0.0008, grip = 0.68, pay = 1.12, wet = 1, tint = 1, dark = 0.92, haze = 0 },
 }
 M.LEVEL_ODDS = { { 'light', 0.35 }, { 'medium', 0.45 }, { 'heavy', 0.20 } }
 

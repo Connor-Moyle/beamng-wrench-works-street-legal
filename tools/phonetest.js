@@ -845,3 +845,10 @@ if (out > 0) {
   assert.ok(!/\.slp-bar\s*\{[^}]*position:\s*absolute/.test(css) && /\.slp-bar\{[^}]*z-index:2/.test(css) && /\.slp-body\{[^}]*overflow-y:auto/.test(css), 'the header is fixed above a scroll body');
   console.log('phone header test passed');
 }
+// the home grid scrolls (wheel) and the dock never leaves the screen: the grid shrinks, the dock does not; the phone is scaled to fit the window height
+{
+  const css = require('fs').readFileSync(require('path').join(__dirname, '..', 'mod', 'ui', 'modModules', 'slPhone', 'slPhone.js'), 'utf8');
+  assert.ok(/\.slp-grid\{[^}]*overflow-y:auto/.test(css) && /\.slp-grid\{[^}]*min-height:0/.test(css) && /\.slp-dock\{flex:none/.test(css) && /\.slp-home\{[^}]*min-height:0/.test(css), 'home grid scrolls, dock fixed');
+  assert.ok(/\(h - 40\) \/ 760/.test(css), 'phone height is clamped to the window');
+  console.log('phone fit test passed');
+}

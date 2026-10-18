@@ -36,18 +36,18 @@
     /* home */
     '.slp-wall{position:absolute;left:0;top:0;right:0;bottom:0;background:radial-gradient(120% 70% at 20% 0%,#3b2f6b 0%,rgba(59,47,107,0) 60%),',
     '  radial-gradient(90% 60% at 100% 100%,#7a2e3d 0%,rgba(122,46,61,0) 65%),linear-gradient(#17121f,#0d0b12)}',
-    '.slp-home{position:relative;flex:1;display:flex;flex-direction:column;padding:10px 18px 0 18px}',
+    '.slp-home{position:relative;flex:1;min-height:0;display:flex;flex-direction:column;padding:10px 18px 0 18px}',
     '.slp-clock{margin:26px 0 2px 4px;font-size:64px;font-weight:300;line-height:1;letter-spacing:-1px}',
     '.slp-date{margin-left:6px;font-size:15px;color:#cac4d0}',
     '.slp-chip{display:inline-block;margin:14px 0 0 4px;padding:6px 12px;border-radius:16px;background:rgba(255,255,255,.1);font-size:12px}',
-    '.slp-grid{margin-top:auto;display:grid;grid-template-columns:repeat(4,1fr);row-gap:18px;padding-bottom:16px}',
+    '.slp-grid{margin-top:auto;display:grid;grid-template-columns:repeat(4,1fr);row-gap:18px;padding-bottom:16px;flex:0 1 auto;min-height:0;overflow-y:auto;scrollbar-width:none}',
     '.slp-app{display:flex;flex-direction:column;align-items:center;cursor:pointer;position:relative}',
     '.slp-ico{width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center}',
     '.slp-ico svg{width:28px;height:28px;fill:#fff}',
     '.slp-app span{margin-top:6px;font-size:11.5px;color:#e6e1e5}',
     '.slp-app:active .slp-ico{transform:scale(.92)}',
     '.slp-badge{position:absolute;top:-2px;left:50%;margin-left:14px;min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:#f2b8b5;color:#601410;font-size:11px;font-weight:700;line-height:20px;text-align:center}',
-    '.slp-dock{display:grid;grid-template-columns:repeat(4,1fr);padding:12px 6px 14px 6px;margin:0 -6px 6px -6px;border-radius:28px;background:rgba(255,255,255,.08)}',
+    '.slp-dock{flex:none;display:grid;grid-template-columns:repeat(4,1fr);padding:12px 6px 14px 6px;margin:0 -6px 6px -6px;border-radius:28px;background:rgba(255,255,255,.08)}',
     /* app pages */
     '.slp-page{position:relative;flex:1;display:flex;flex-direction:column;min-height:0;background:#141218}',
     '.slp-bar{height:60px;flex:none;display:flex;align-items:center;padding:0 8px 0 4px;position:relative;z-index:2;background:#141218}'      /* (the header sits above the scroll area; the letterbox bars have their own class, slp-lb) */,
@@ -1547,7 +1547,7 @@
 
     function scale() {
       var h = (doc.defaultView && doc.defaultView.innerHeight) || 1080;
-      return Math.max(0.5, Math.min(1.2, h * 0.78 / 760)).toFixed(3);
+      return Math.max(0.4, Math.min(1.2, (h - 40) / 760, h * 0.78 / 760)).toFixed(3);
     }
 
     // ---------------------------------------------------------------- what the buttons do
@@ -1580,7 +1580,7 @@
     var shownApp = null;
     function toTop() {
       layer.scrollTop = 0;
-      Array.prototype.forEach.call(layer.querySelectorAll('.slp-screen, .slp-home, .slp-page'), function (e) { e.scrollTop = 0; });
+      Array.prototype.forEach.call(layer.querySelectorAll('.slp-screen, .slp-home, .slp-grid, .slp-page'), function (e) { e.scrollTop = 0; });
     }
     function home() { st.stack = []; st.app = 'home'; lua('@sl_carauctions.view(false)'); toTop(); render(); }
     function setOpen(open) {

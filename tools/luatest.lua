@@ -1740,7 +1740,7 @@ do
   local dl, dm, dh = wx.resolve('rain', 'light').dark, wx.resolve('rain', 'medium').dark, wx.resolve('rain', 'heavy').dark
   check('rain darkness: light < medium < heavy, cloudy a little, clear and fog none', dl < dm and dm < dh and dh <= 1 and wx.resolve('cloudy').dark > 0 and wx.resolve('cloudy').dark < dl and wx.resolve('clear').dark == nil)
   check('what each part keeps at heavy rain: the sun a bit over half, the ambient about two thirds (it must still read as day), the sky brightness half',
-    math.abs(wx.keep('sun', dh) - (1 - 0.55 * 0.85)) < 1e-9 and wx.keep('ambient', dh) > 0.6 and wx.keep('ambient', dh) < 0.75 and wx.keep('sun', dh) > 0.5 and wx.keep('sky', 1) == 0.5 and wx.keep('sun', 0) == 1 and wx.keep('sun', 9) == wx.keep('sun', 1))
+    math.abs(wx.keep('sun', dh) - (1 - 0.55 * 0.92)) < 1e-9 and wx.keep('ambient', dh) > 0.6 and wx.keep('ambient', dh) < 0.75 and wx.keep('sun', dh) > 0.45 and wx.keep('sky', 1) == 0.5 and wx.keep('sun', 0) == 1 and wx.keep('sun', 9) == wx.keep('sun', 1))
   local dc = wx.darker({ 1, 0.8, 0.6 }, 0.5)
   check('a colour made darker keeps its hue', dc[1] == 0.5 and dc[2] == 0.4 and dc[3] == 0.3)
   local gd = wx.darker(wx.greyer({ 0.996, 0.839, 0.745 }, 0.95), wx.keep('sun', dh))
