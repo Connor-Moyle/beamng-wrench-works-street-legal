@@ -618,11 +618,16 @@ function M.update(dt, wet, intensity)
   intensity = intensity or 0
   -- dry road, nothing standing, nothing to draw and the car already told so: no player or car calls at all (hitch recordings showed ~8 ms a frame here while cars were being built)
   if wet < 0.01 and sentEmpty and #puddles == 0 and #trails == 0 and not debugPuddle then return end
+  local t0 = os.clock()
   updatePlacement(dt, wet)
+  local tPlace = os.clock() - t0
+  local tMesh = 0
   meshTimer = meshTimer + dt
   if meshTimer > 0.25 then
     meshTimer = 0
+    local t1 = os.clock()
     local ok, err = pcall(updateMeshes, wet, intensity)
+    tMesh = os.clock() - t1
     if not ok then once('meshErr', 'puddle planes: ' .. tostring(err)) end
     removeDead()
     ok, err = pcall(updateRipples, intensity)
@@ -632,6 +637,12 @@ function M.update(dt, wet, intensity)
   if rippleTimer > 0.1 then rippleTimer = 0 pcall(growRipples) end
   feedVehicle(dt, wet)
   updateTrails(dt)
+  -- a slow pass is logged with its parts (at most one line every 2 s), so a hitch in a drive can be told from the road streaming
+  local total = os.clock() - t0
+  if total > 0.012 and os.clock() - (M.lastSlow or 0) > 2 then
+    M.lastSlow = os.clock()
+    log('W', TAG, string.format('slow puddle pass: %.0f ms (placing %.0f, planes %.0f, rest %.0f); %d standing', total * 1000, tPlace * 1000, tMesh * 1000, (total - tPlace - tMesh) * 1000, #puddles))
+  end
   if wet >= 0.15 and os.clock() - lastStatsLog > 15 then
     lastStatsLog = os.clock()
     log('I', TAG, string.format('puddles: %d standing, %d shown (wet %.2f); tries %d, no surface %d, not flat %d, no road %d, placed %d; wheel calls %d (splash %d, mist %d), wheels in puddles %d, trails %d, ripples made %d',
@@ -644,12 +655,12 @@ function M.flag(name, on)
   return M.flags
 end
 
--- for a game test: how the standing puddles look from the player, nearest first: { distance m, scale, built }
+-- for a game test: how the standing puddles look from the player, nearest first: { distance m, scale, built, x, y }
 function M.sample()
   local pos = playerPos()
   local out = {}
   for _, p in ipairs(puddles) do
-    if pos then out[#out + 1] = { math.floor(math.sqrt((p.x - pos.x) ^ 2 + (p.y - pos.y) ^ 2) + 0.5), math.floor((p.k or 0) * 100) / 100, p.obj ~= nil } end
+    if pos then out[#out + 1] = { math.floor(math.sqrt((p.x - pos.x) ^ 2 + (p.y - pos.y) ^ 2) + 0.5), math.floor((p.k or 0) * 100) / 100, p.obj ~= nil, math.floor(p.x), math.floor(p.y) } end
   end
   table.sort(out, function(x, y) return x[1] < y[1] end)
   return out
