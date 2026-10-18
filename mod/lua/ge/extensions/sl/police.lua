@@ -31,6 +31,8 @@ local nearTimer = 0
 
 local function career() return sl_career and sl_career.isActive() and sl_career.getState() or nil end
 local function night() return sl_career and sl_career.isNight and sl_career.isNight() end
+local function opt(key) return not sl_options or sl_options.get(key) ~= false end      -- (a Mods menu switch; on without the options)
+local function propYaw(default) return sl_options and tonumber(sl_options.get('slPoliceStripYaw')) or default end
 
 -- heat is the night's: by day it is nothing
 function M.heat()
@@ -172,7 +174,8 @@ local function placeStrip(v)
   local pos = vec3(spot.x, spot.y, spot.z + 0.3)
   local across = vec3(-d.y, d.x, 0):normalized()
   local rot = quatFromDir(across, vec3(0, 0, 1))
-  if M.STRIP_YAW ~= 0 then rot = rot * quatFromAxisAngle(vec3(0, 0, 1), math.rad(M.STRIP_YAW)) end
+  local yaw = propYaw(M.STRIP_YAW)
+  if yaw ~= 0 then rot = rot * quatFromAxisAngle(vec3(0, 0, 1), math.rad(yaw)) end
   sv:setActive(1)
   spawn.safeTeleport(sv, pos, rot, true, nil, nil, nil, false)
   stripPos, stripAt, stripPassed, lastStrip = pos, os.clock(), false, os.clock()
@@ -195,7 +198,7 @@ end
 function M.stripWarning() return stripPos ~= nil and not stripPassed end
 function M.stripReset() parkStrip() if M.breakerReset then M.breakerReset() end end
 function M.stripTick(v)       -- (from the chase tick)
-  if M.STRIP and not stripPos and stripVeh() and chaseLib.stripDue(sl_career.phase(), M.level(), true, os.clock() - lastStrip) then placeStrip(v) end
+  if M.STRIP and opt('slPoliceStrips') and not stripPos and stripVeh() and chaseLib.stripDue(sl_career.phase(), M.level(), true, os.clock() - lastStrip) then placeStrip(v) end
 end
 -- a build gate for the chase props (the strip, the wall): the patrol rule, but heat 4-5 is urgent (as for the patrols: at 15 m/s with cruisers
 -- being built the rule held the strip back for minutes). The reason it said no is logged, at most once in 30 s.
@@ -213,7 +216,7 @@ local function propGate(what, v)
 end
 -- the strip itself, built once at night from heat 3 while nobody is after you (a spawn is a hitch)
 local function updateStrip(v)
-  if not M.STRIP or stripId or stripBusy or not night() or M.level() < 3 or M.inPursuit() or not gameplay_traffic then return end
+  if not M.STRIP or not opt('slPoliceStrips') or stripId or stripBusy or not night() or M.level() < 3 or M.inPursuit() or not gameplay_traffic then return end
   local node = nodeAround(v:getPosition(), 500, 900)
   if not node then return end
   if not propGate('strip', v) then return end
@@ -265,7 +268,8 @@ local function dropWall(v)
   dir = dir:normalized()
   local p = v:getPosition()
   local rot = quatFromDir(vec3(-dir.y, dir.x, 0), vec3(0, 0, 1))
-  if M.BREAKER_YAW ~= 0 then rot = rot * quatFromAxisAngle(vec3(0, 0, 1), math.rad(M.BREAKER_YAW)) end
+  local yaw = propYaw(M.BREAKER_YAW)
+  if yaw ~= 0 then rot = rot * quatFromAxisAngle(vec3(0, 0, 1), math.rad(yaw)) end
   wv:setActive(1)
   spawn.safeTeleport(wv, p - dir * 15 + vec3(0, 0, 0.3), rot, true, nil, nil, nil, false)
   wallOut, wallAt, lastBreaker = true, os.clock(), os.clock()
@@ -274,7 +278,7 @@ local function dropWall(v)
 end
 -- every frame at night from heat 2: the posts, and the pass
 local function breakerWatch()
-  if not (M.BREAKERS and spots and #spots > 0 and night() and M.level() >= 2) then return end
+  if not (M.BREAKERS and opt('slPoliceBreakers') and spots and #spots > 0 and night() and M.level() >= 2) then return end
   local v = getPlayerVehicle(0)
   if not v then return end
   local p = v:getPosition()
@@ -299,7 +303,7 @@ local function breakerWatch()
 end
 -- the spots (when none yet, or over 1200 m from where they were chosen) and the wall (built once, like the strip, with the patrol build rule)
 local function updateBreakers(v)
-  if not M.BREAKERS or not night() or M.level() < 2 then return end
+  if not M.BREAKERS or not opt('slPoliceBreakers') or not night() or M.level() < 2 then return end
   local p = v:getPosition()
   if not spots or not spotsAt or (spotsAt - p):length() > 1200 then
     local ok, nodes = pcall(function() return map.getMap().nodes end)
