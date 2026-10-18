@@ -198,8 +198,8 @@ end
 function M.profile()
   local wetNow = 0
   for _, st in pairs(state) do if (st.step or 0) > 0 then wetNow = wetNow + 1 end end
-  return string.format('wet world: step %d/%d, %d materials planned, %d wet now, %d edits (avg %.2f ms, worst %.2f ms), %d restored, %d failed, %d batches',
-    current, rules.STEPS, plan and #plan or 0, wetNow, stats.edits, stats.edits > 0 and stats.ms / stats.edits or 0, stats.worst, stats.restored, stats.failed, stats.batches)
+  return string.format('wet world: step %d/%d (held wetness %.2f, terrain tier %d), %d materials planned, %d wet now, %d edits (avg %.2f ms, worst %.2f ms), %d restored, %d failed, %d batches',
+    current, rules.STEPS, held, terrWet, plan and #plan or 0, wetNow, stats.edits, stats.edits > 0 and stats.ms / stats.edits or 0, stats.worst, stats.restored, stats.failed, stats.batches)
 end
 
 function M.stats() return stats, current, plan and #plan or 0 end
