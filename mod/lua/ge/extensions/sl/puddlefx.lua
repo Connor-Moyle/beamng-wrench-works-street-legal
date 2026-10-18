@@ -333,7 +333,9 @@ local function updatePlacement(dt, wet)
   placeTimer = 0
   local heading = 0
   pcall(function() local d = v:getDirectionVector() heading = math.atan2(d.y, d.x) end)
+  local t0 = os.clock()
   for _ = 1, (behind and 8 or 4) do
+    if os.clock() - t0 > 0.002 then break end      -- (catching up never costs more than ~2 ms of a frame)
     local a = heading + (math.random() - 0.5) * (math.random() < 0.6 and 2.2 or 6.28)
     -- (the first puddles of a shower may stand near: they fade in with the rain's age; later ones are only placed beyond sight, so none appears in view)
     local minR = #puddles < want * 0.4 and PUDDLE_RADIUS[1] or M.REFILL_FROM
