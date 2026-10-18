@@ -128,18 +128,32 @@ local function apply(entry, step)
   return true
 end
 
+-- Materials measured at 80-200 ms for one reload (the game, West Coast USA): they are edited one at a time, four seconds apart, and only while the car stands (a freeze at a standstill
+-- is not noticed; one at speed is), and only at the ends (dry / wet). Others that turn out slow while it runs are added to the list.
+local SLOW = { concrete_plain = true, curbs = true, brick_plain = true, tiles_marble_square = true, m_plaster_worn_01 = true, balustrades = true, ind_metal_trim = true,
+  metal_galvanized = true, metal_plates = true, windows_doors_reflective = true, ind_metal_grate = true }
+local function quiet()
+  local ok, v = pcall(function()
+    local veh = be:getPlayerVehicle(0)
+    return not veh or veh:getVelocity():length() < 1.5
+  end)
+  return not ok or v
+end
+
 -- the next materials whose step is not the target, at most n of them
-local function batch(n, target)
+local function batch(n, target, force)
   local did = 0
   for _, entry in ipairs(plan) do
     local st = state[entry.name]
-    local skip = st and st.slow and ((target > 0 and target < rules.STEPS) or (os.clock() - (M.lastSlowAt or -99) < 4))      -- (a slow material waits for the full wet, and one at a time, four seconds apart)
+    local slow = SLOW[entry.name] or (st and st.slow)
+    local skip = slow and not force and ((target > 0 and target < rules.STEPS) or (os.clock() - (M.lastSlowAt or -99) < 4) or not quiet())      -- (a slow material waits for the full wet, a standstill, and one at a time, four seconds apart)
     if (st and st.step or 0) ~= target and not (st and st.failed) and not skip then
       local t0 = os.clock()
       local ok, err = pcall(apply, entry, target)
       local ms = (os.clock() - t0) * 1000
       if ok and err then
         stats.edits, stats.ms, stats.worst = stats.edits + 1, stats.ms + ms, math.max(stats.worst, ms)
+        if SLOW[entry.name] and ms > 20 then M.lastSlowAt = os.clock() end
         if ms > rules.SLOW_MS then
           M.lastSlowAt = os.clock()
           local s2 = state[entry.name]
@@ -189,7 +203,7 @@ function M.restore()
   if plan then
     current = 0
     local guard = 0
-    while batch(50, 0) > 0 and guard < 20 do guard = guard + 1 end
+    while batch(50, 0, true) > 0 and guard < 20 do guard = guard + 1 end
   end
   state = {}
 end
