@@ -140,6 +140,13 @@ end
 -- puddles: how many may stand at this wetness, and how opaque they are (nothing below a damp road)
 M.MAX_PUDDLES = 18
 function M.puddleCount(wet) return wet < 0.15 and 0 or math.floor(M.MAX_PUDDLES * math.min(1, (wet - 0.1) / 0.9) + 0.5) end
+-- a puddle is drawn full size up to `from` metres from the player and shrinks to nothing at `to` (so one placed far out grows as the car comes up to it: no pop-in)
+function M.distanceScale(d, from, to)
+  if d <= from then return 1 end
+  if d >= to then return 0 end
+  local t = (to - d) / (to - from)
+  return t * t * (3 - 2 * t)
+end
 function M.puddleAlpha(wet, age)
   local fade = math.min(1, (age or 0) / 6)
   return math.max(0, math.min(1, (wet - 0.1) / 0.5)) * 0.8 * fade

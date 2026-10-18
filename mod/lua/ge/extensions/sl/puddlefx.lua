@@ -18,8 +18,9 @@ local MATERIAL = 'sl_puddle'          -- translucent, alpha from its opacity map
 local RIPPLE_MATERIAL = 'sl_ripple_s' -- one crisp ring; the ripple planes grow it from small to large over about a second (the scale is moved from Lua ten times a second)
 local SHAPES = '/temp/street_legal/shapes/'
 local GRID = 5                        -- corners across a puddle's grid
-local PUDDLE_RADIUS = { 8, 70 }       -- puddles stand between these distances from the player
-local FORGET_AT = 95                  -- ... and are deleted beyond this
+local PUDDLE_RADIUS = { 25, 230 }      -- puddles stand between these distances from the player (far out: they grow as he comes up to them, see FADE_*)
+local FORGET_AT = 270                 -- ... and are deleted beyond this
+M.FADE_FROM, M.FADE_TO = 165, 225     -- a puddle is full size up to FADE_FROM metres and nothing at FADE_TO
 local EMITTER = 'BNGP_50'             -- the game's own water-on-wheels emitter (the splash a wheel throws in a lake)
 local MAX_TRAILS, TRAIL_LIFE = 12, 5
 
@@ -245,6 +246,8 @@ end
 local function updatePlacement(dt, wet)
   local pos, v = playerPos()
   if not pos then return end
+  local budget = sl_options and sl_options.get and sl_options.get('slPuddleCount')
+  if type(budget) == 'number' then rules.MAX_PUDDLES = budget end      -- (the setting: how many puddles stand at most)
   local want = rules.puddleCount(wet)
   for i = #puddles, 1, -1 do
     local p = puddles[i]
@@ -252,13 +255,13 @@ local function updatePlacement(dt, wet)
     if dx * dx + dy * dy > FORGET_AT * FORGET_AT or i > want then dropPuddle(p) table.remove(puddles, i) end
   end
   placeTimer = placeTimer + dt
-  if placeTimer < 0.3 or #puddles >= want then return end
+  if placeTimer < 0.15 or #puddles >= want then return end
   placeTimer = 0
   local heading = 0
   pcall(function() local d = v:getDirectionVector() heading = math.atan2(d.y, d.x) end)
-  for _ = 1, 3 do
+  for _ = 1, 4 do
     local a = heading + (math.random() - 0.5) * (math.random() < 0.6 and 2.2 or 6.28)
-    local r = PUDDLE_RADIUS[1] + math.random() * (PUDDLE_RADIUS[2] - PUDDLE_RADIUS[1])
+    local r = PUDDLE_RADIUS[1] + math.sqrt(math.random()) * (PUDDLE_RADIUS[2] - PUDDLE_RADIUS[1])      -- (the square root: more of them out where there is more ground)
     local x, y = pos.x + math.cos(a) * r, pos.y + math.sin(a) * r
     local z = roadSpot(x, y, pos.z + 12)
     if z then
@@ -276,14 +279,22 @@ end
 
 -- the planes: made when a puddle is first visible (its grid is dropped onto the surface then), grown while it is new, shrunk as the road dries
 local function updateMeshes(wet, intensity)
+  local pos = playerPos()
+  local made = 0                                  -- (one plane is built per pass: each is 25 rays and a file)
   for _, p in ipairs(puddles) do
     local f = rules.puddleAlpha(wet, os.clock() - p.born) / 0.8
-    if f < 0.03 then
-      if p.obj then dropPuddle(p) end
+    -- size: it grows while it is new (from 15 %) and with the wetness, and with the distance: out at the edge of the view it is nothing, so it never pops in
+    local g = pos and rules.distanceScale(math.sqrt((p.x - pos.x) ^ 2 + (p.y - pos.y) ^ 2), M.FADE_FROM, M.FADE_TO) or 1
+    local size = f < 0.03 and 0 or (0.15 + 0.85 * f) * g
+    if size < 0.04 then
+      if p.obj and (f < 0.03 or g < 0.03) then dropPuddle(p) end
+    elseif not p.obj and not p.dead and made >= 1 then
+      -- (next pass)
     else
-      local k = 0.6 + 0.4 * f
+      local k = size
       if p.damp and M.flags.shimmer then k = k * rules.shimmer(os.clock(), p.id or 1, intensity) end      -- (the damp patches breathe with the rain: darker, then lighter)
       if not p.obj and not p.dead then
+        made = made + 1
         p.obj = makeObject(p)
         if not p.obj then p.dead = true end
         if p.obj then putMesh(p, k) stats.shown = stats.shown + 1 end
