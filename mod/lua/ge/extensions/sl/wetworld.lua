@@ -55,8 +55,10 @@ local function gather()
   return plan
 end
 
--- The tarmac of West Coast USA is the terrain's own Asphalt layers, not a Material: their colour is a texture, no factor to lower. Wet, their base colour texture is the layer's roughness
--- texture (dark, speckled asphalt: the look of wet tarmac, tested in the game), put back dry; the terrain block redraws the layer (updateMaterial).
+-- The tarmac of West Coast USA is the terrain's own Asphalt layers, not a Material: their colour is a texture, no factor to lower. Wet, the layer's base colour and roughness textures
+-- are swapped for two small plain ones of ours (a dark grey, a smooth one: the layer's own roughness texture as colour came out pale in the game), put back dry; the terrain block redraws
+-- the layer (updateMaterial). The layer's detail textures still show on top.
+local WET_COLOR, WET_ROUGH = '/art/street_legal/terrain/wet_asphalt_b.png', '/art/street_legal/terrain/wet_asphalt_r.png'
 local terr                     -- { { mat, name, orig, wet } } or false when there is none
 local terrWet = false
 local function terrainLayers()
@@ -65,8 +67,8 @@ local function terrainLayers()
   local ok, mats = pcall(function() return getObjectsByClass and getObjectsByClass('TerrainMaterial') or {} end)
   for _, m in ipairs(ok and mats or {}) do
     local g = tostring(m:getField('groundmodelName', 0) or ''):upper()
-    local orig, wetTex, name = m:getField('baseColorBaseTex', 0), m:getField('roughnessBaseTex', 0), m:getField('internalName', 0)
-    if (g:find('^ASPHALT') or g:find('^CONCRETE')) and orig ~= '' and wetTex ~= '' and name ~= '' then terr[#terr + 1] = { mat = m, name = name, orig = orig, wet = wetTex } end
+    local orig, origR, name = m:getField('baseColorBaseTex', 0), m:getField('roughnessBaseTex', 0), m:getField('internalName', 0)
+    if (g:find('^ASPHALT') or g:find('^CONCRETE')) and orig ~= '' and name ~= '' then terr[#terr + 1] = { mat = m, name = name, orig = orig, origR = origR } end
   end
   if #terr == 0 then terr = false else log('I', TAG, 'wet terrain layers: ' .. #terr) end
   return terr
@@ -79,7 +81,8 @@ local function applyTerrain(wetNow)
   pcall(function() blocks = getObjectsByClass('TerrainBlock') or {} end)
   for _, l in ipairs(layers) do
     pcall(function()
-      l.mat:setField('baseColorBaseTex', 0, wetNow and l.wet or l.orig)
+      l.mat:setField('baseColorBaseTex', 0, wetNow and WET_COLOR or l.orig)
+      if l.origR ~= '' then l.mat:setField('roughnessBaseTex', 0, wetNow and WET_ROUGH or l.origR) end
       if blocks[1] then blocks[1]:updateMaterial(0, l.name) end
     end)
   end
