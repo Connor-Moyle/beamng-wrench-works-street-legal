@@ -65,7 +65,11 @@ function M.roughness(kind, orig, f) local k = M.KINDS[kind] return (tonumber(ori
 function M.colorFactor(kind, f) local k = M.KINDS[kind] return lerpFactor(k and k.dark or 1, f) end
 
 -- '0.8 0.8 0.8 1' -> { 0.8, 0.8, 0.8, 1 } and back (the alpha is never changed)
+-- (the game writes a plain white factor as the word White: that was skipped, and so every material with a White colour factor, the wall and the track road among them, stayed unchanged)
+local NAMED = { white = { 1, 1, 1, 1 }, black = { 0, 0, 0, 1 } }
 function M.parseColor(text)
+  local named = NAMED[tostring(text or ''):lower():match('^%s*(%a+)%s*$') or '']
+  if named then return { named[1], named[2], named[3], named[4] } end
   local out = {}
   for v in tostring(text or ''):gmatch('%S+') do out[#out + 1] = tonumber(v) end
   if #out < 3 then return nil end

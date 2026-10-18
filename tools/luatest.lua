@@ -418,7 +418,8 @@ do
     local mid = h
     for _ = 1, 130 do h = ww.held(h, 0, 1) end
     check('wet world: wetness follows rain up at once and dries down over about four minutes', up == 1 and mid > 0.45 and mid < 0.55 and h == 0 and ww.held(0.2, 0.8, 1) == 0.8)
-    check('materials are edited in three levels', ww.materialStep(0) == 0 and ww.materialStep(2) == 0 and ww.materialStep(3) == 3 and ww.materialStep(5) == 3 and ww.materialStep(6) == 6)
+    check('a colour factor given as the word White is read (it was skipped: walls and roads stayed dry-looking)', ww.parseColor('White')[1] == 1 and #ww.parseColor('White') == 4 and ww.parseColor('0.5 0.5 0.5 1')[1] == 0.5 and ww.parseColor('nonsense') == nil)
+  check('materials are edited in three levels', ww.materialStep(0) == 0 and ww.materialStep(2) == 0 and ww.materialStep(3) == 3 and ww.materialStep(5) == 3 and ww.materialStep(6) == 6)
   end
   check('wet terrain tiers: dry 0, light 1, rain 2, heavy 3, in order over the steps', ww.terrainTier(0) == 0 and ww.terrainTier(1) == 0 and ww.terrainTier(2) == 1 and ww.terrainTier(4) == 2 and ww.terrainTier(ww.STEPS) == 3 and ww.terrainTier(nil) == 0)
   check('wet: roads are asphalt first, cars and tunnels and lights are left alone', ww.classify('road_asphalt_01') == 'asphalt' and ww.classify('sidewalk_concrete') == 'concrete' and ww.classify('palm_leaves') == 'foliage'
