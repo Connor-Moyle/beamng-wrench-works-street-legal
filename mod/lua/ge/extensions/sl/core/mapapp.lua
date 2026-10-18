@@ -5,7 +5,7 @@ local M = {}
 
 M.ARRIVED = 15          -- metres from the route's end: it is there
 -- the order of the groups on the screen; a kind that is not listed comes after them
-M.ORDER = { 'garage', 'dealer', 'junkyard', 'scrapyard', 'shop', 'parts', 'carwash', 'meet', 'hospital', 'valet' }
+M.ORDER = { 'garage', 'dealer', 'junkyard', 'scrapyard', 'shop', 'parts', 'carwash', 'gas', 'meet', 'hospital', 'valet' }
 
 local function rank(kind)
   for i, k in ipairs(M.ORDER) do if k == kind then return i end end

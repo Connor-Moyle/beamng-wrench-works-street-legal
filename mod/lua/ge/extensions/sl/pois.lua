@@ -72,7 +72,7 @@ function M.onGetRawPoiListForLevel(level, elements)
         interactableInPlayMode = true, quickTravelAvailable = false,
         markerInfo = {
           missionMarker = { pos = pos, rot = quat(0, 0, 0, 1), icon = ICON },
-          bigmapMarker = { pos = pos, icon = ICON, cardIcon = r.cardIcon, name = r.name, description = r.what },
+          bigmapMarker = { pos = pos, icon = r.pin or ICON, cardIcon = r.cardIcon, name = r.name, description = r.what },
         },
       }
     end
@@ -98,16 +98,15 @@ function M.onGetRawPoiListForLevel(level, elements)
     end
   end
   -- the garages and the Wrench Works shops: on the big map only (their own markers stand at their doors); a locked garage greyed, with what it needs
-  local sites = pcall(require, 'slrr/garageSites') and require('slrr/garageSites') or nil
   local state = sl_career.getState()
-  for _, r in ipairs(fasttravel.extras(sl_career.getPlaces(), sites and sites.getShops and sites.getShops() or {}, state)) do
+  for _, r in ipairs(fasttravel.extras(sl_career.allPlaces(), state)) do
     local pos = vec3(r.pos.x, r.pos.y, r.pos.z)
     elements[#elements + 1] = {
       id = r.poiId, data = { type = 'other', name = r.name }, clusterType = 'missionMarker', clusterInBigMap = true, clusterInPlayMode = false,
       interactableInPlayMode = false, quickTravelAvailable = false,
       markerInfo = {
         missionMarker = { pos = pos, rot = quat(0, 0, 0, 1), icon = ICON },
-        bigmapMarker = { pos = pos, icon = ICON, cardIcon = r.cardIcon, name = r.locked and (r.name .. ' (locked)') or r.name, description = r.what,
+        bigmapMarker = { pos = pos, icon = r.pin or ICON, cardIcon = r.cardIcon, name = r.locked and (r.name .. ' (locked)') or r.name, description = r.what,
           quickTravelPosRotFunction = (not r.locked) and travelFunction(r.arrive) or nil },
       },
     }

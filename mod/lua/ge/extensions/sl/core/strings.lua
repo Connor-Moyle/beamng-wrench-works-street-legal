@@ -1221,6 +1221,7 @@ M.TEXT = {
   ["ui.kind_meet"] = "Car meets",
   ["ui.kind_hospital"] = "Hospital",
   ["ui.kind_valet"] = "Valet",
+  ["ui.kind_gas"] = "Gas stations",
   ["ui.kind_other"] = "Other places",
   ["ui.take_a_photo"] = "Take a photo",
   ["ui.camera_text"] = "Takes a picture of what you see, without the phone or any other screen. It is kept in the Gallery and in the folder screenshots/street_legal.",
