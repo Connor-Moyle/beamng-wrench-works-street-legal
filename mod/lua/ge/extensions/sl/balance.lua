@@ -23,6 +23,12 @@ M.MAP = {
   { 'slPinkChance', 'sl/core/roster', 'PINK_NIGHT_CHANCE' },
   { 'slRematchChance', 'sl/core/roster', 'REMATCH_CHANCE' },
   { 'slTauntChance', 'sl/core/roster', 'TAUNT_CHANCE' },
+  { 'slDoctorBase', 'sl/hospital', 'DOCTOR_BASE' },
+  { 'slBoneFee', 'sl/hospital', 'BONE_FEE' },
+  { 'slDoctorSeverity', 'sl/hospital', 'DOCTOR_SEVERITY' },
+  { 'slHospitalBase', 'sl/hospital', 'HOSPITAL_BASE' },
+  { 'slHospitalDied', 'sl/hospital', 'HOSPITAL_DIED' },
+  { 'slHospitalSeverity', 'sl/hospital', 'HOSPITAL_SEVERITY' },
   { 'slBuildGap', 'sl/core/spawnplan', 'MIN_GAP' },
 }
 

@@ -15,12 +15,15 @@ Anything that sets a constant of the rules is applied by `sl/balance.lua` (a map
 | Economy | Bank | Insurance deductible / cover (slInsDeductible, slInsCover) | 200 / 50 % | 0-1000 / 10-100 % |
 | Economy | Markets | Seller fee (slListingFee) | 5 % | 0-20 % |
 | Economy | Services | Car wash price (slWashPrice) | 15 | 0-100 |
+| Economy | Doctor / Hospital | Doctor base, per broken bone, worst injuries; hospital stay, after a killing crash, worst injuries (slDoctorBase, slBoneFee, slDoctorSeverity, slHospitalBase, slHospitalDied, slHospitalSeverity) | 150 / 250 / 800 / 1200 / 2500 / 3000 | 0-1000 / 0-1000 / 0-3000 / 0-6000 / 0-10000 / 0-10000 |
 | Economy | New careers | Starting money (slStartMoney) | 5000 | 1000-20000 |
 | Police & heat | What raises/lowers heat | Race, near miss, bust, escape, cooling (slHeatRace, slHeatNearMiss, slHeatBust, slHeatEscape, slHeatCool) | .12 / .04 / .2 / .06 / .01 | see options.lua |
 | Races | Racers | Pink slip nights, rematch texts, taunts (slPinkChance, slRematchChance, slTauntChance) | 12 % / 50 % / 40 % | 0-50 % / 0-100 % / 0-100 % |
 | World | Performance | Seconds between built cars (slBuildGap, advanced) | 20 | 8-60 |
 | Rivals / The climb / Car auctions | | 15 entries (see sl/options.lua) | | |
 | (existing) | | Police, Police aggression, Pay (slEconomy), Hardcore, Crew raids, Traffic in street races, Race flares, Text pop-ups, Clock speed, Dashboard, Record races, Text size, Colour blind, Captions, Performance overlay, Wallpaper, Auto photo, Weather, Rain | | sl_options (connor-9e moves them) |
+
+Taken by connor-a5 (their files): slMaxCruisers 'Racers cruising at night' 0-6 (3), slCityRace 'Longest street race' 800-4000 m (1800), slRaceTimeout 'Time before a race is called off' 240-1200 s (600), slPatrols 'Patrols at night' 0-4 (2).
 
 ## Worth exposing, still local constants (owner to change; each needs `sl_options.get(key)` in place of the constant)
 

@@ -14,9 +14,11 @@ local progression = require('sl/core/progression')
 local function career() return sl_career and sl_career.isActive() and sl_career.getState() or nil end
 local function toast(text) guihooks.trigger('slPhoneToast', { text = text }) end
 
--- what it costs: a doctor for broken bones, the hospital for a night in it (scaled by how bad)
-function M.doctorBill(injuries) return 150 + 250 * #(injuries.broken or {}) + math.floor(800 * (injuries.severity or 0) / 10) * 10 end
-function M.hospitalBill(severity, died) return (died and 2500 or 1200) + math.floor(3000 * (severity or 0.5) / 10) * 10 end
+-- what it costs: a doctor for broken bones, the hospital for a night in it (scaled by how bad). The rates are settings (Mods menu > Economy, sl/balance.lua sets these)
+M.DOCTOR_BASE, M.BONE_FEE, M.DOCTOR_SEVERITY = 150, 250, 800
+M.HOSPITAL_BASE, M.HOSPITAL_DIED, M.HOSPITAL_SEVERITY = 1200, 2500, 3000
+function M.doctorBill(injuries) return M.DOCTOR_BASE + M.BONE_FEE * #(injuries.broken or {}) + math.floor(M.DOCTOR_SEVERITY * (injuries.severity or 0) / 10) * 10 end
+function M.hospitalBill(severity, died) return (died and M.HOSPITAL_DIED or M.HOSPITAL_BASE) + math.floor(M.HOSPITAL_SEVERITY * (severity or 0.5) / 10) * 10 end
 
 -- a bill is paid with what there is: the hospital treats you anyway (and what is left of it is let go)
 local function bill(amount, label)

@@ -2414,6 +2414,11 @@ do -- the balance entries (sl/balance): every one is an sl_options entry whose d
   values.slHeatRace, values.slPayPerKm = nil, nil
   BAL.apply()
   check('a setting reset to nothing brings the original value back', HEAT.RACE == 0.12 and JOBS.PAY_PER_KM == 140)
+  local HOSP = require('sl/hospital')
+  check('the hospital bills are the old numbers by default', HOSP.doctorBill({ broken = { 1, 2 }, severity = 0.5 }) == 1050 and HOSP.hospitalBill(0.5, false) == 2700 and HOSP.hospitalBill(0.5, true) == 4000)
+  HOSP.DOCTOR_BASE, HOSP.HOSPITAL_BASE = 0, 0
+  check('and follow the settings', HOSP.doctorBill({ broken = { 1, 2 }, severity = 0.5 }) == 900 and HOSP.hospitalBill(0.5, false) == 1500)
+  HOSP.DOCTOR_BASE, HOSP.HOSPITAL_BASE = 150, 1200
   _G.sl_options = saved
 end
 do -- ambient police patrols share the racers' build rule; a chase's patrol is never held back
