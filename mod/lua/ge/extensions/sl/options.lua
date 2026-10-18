@@ -147,6 +147,12 @@ local PLACE = {
   slTextScale = { 'Accessibility', 'Reading' }, slColorBlind = { 'Accessibility', 'Colours' }, slCaptions = { 'Accessibility', 'Rally' },
   slPerf = { 'Developer', 'Performance' },
 }
+-- the Quick setup presets of the Mods menu (performance | balanced | quality | max): what costs frames at night or in a race is lighter at Performance
+local PRESETS = {
+  slRaceTraffic = { performance = 'light', balanced = 'normal', quality = 'normal', max = 'normal' },
+  slReplay = { performance = false, balanced = true, quality = true, max = true },
+  slMarkers = { performance = false, balanced = true, quality = true, max = true },
+}
 local byKey = {}
 for _, d in ipairs(M.defs) do
   local own = d.group                          -- (a def of another module names its own group: it is its sub-heading on the Mods menu page)
@@ -155,6 +161,7 @@ for _, d in ipairs(M.defs) do
   local at = PLACE[d.key]
   if at then d.tab, d.sub = d.tab or at[1], d.sub or at[2] end
   if own and not d.sub then d.sub = own end
+  d.presets = d.presets or PRESETS[d.key]
 end
 
 local global
