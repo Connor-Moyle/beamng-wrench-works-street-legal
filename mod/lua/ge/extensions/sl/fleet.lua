@@ -368,8 +368,13 @@ function M.setActive(carId)
       if fresh then                                                 -- "Drive this one": the player ends up in it (fade, seat), not left on foot 15 m away
         guihooks.trigger('slFade', { on = true })
         job.sleep(0.5)
-        pcall(function() if gameplay_walk and gameplay_walk.getInVehicle then gameplay_walk.getInVehicle(veh) else be:enterVehicle(0, veh) end end)
-        job.sleep(0.3)
+        for try = 1, 5 do                                           -- (a car just built may not take the player on the first call: ask again until it does, and log what happened)
+          local ok, err = pcall(function() if gameplay_walk and gameplay_walk.getInVehicle then gameplay_walk.getInVehicle(veh) else be:enterVehicle(0, veh) end end)
+          job.sleep(0.4)
+          local now = be:getPlayerVehicleID(0)
+          if now == veh:getID() then break end
+          log('W', 'street_legal', string.format('Drive this one: attempt %d, the player is in vehicle %s, wanted %s%s', try, tostring(now), tostring(veh:getID()), ok and '' or (' (error: ' .. tostring(err) .. ')')))
+        end
         guihooks.trigger('slFade', { on = false })
       end
     end

@@ -2691,7 +2691,10 @@ do
   setg('getObjectByID', function(id) return id == 55 and veh or nil end)
   setg('guihooks', { trigger = function(n, d) faded[#faded + 1] = n .. ':' .. tostring(d and d.on) end })
   setg('extensions', { hook = function() end })
-  setg('gameplay_walk', { getInVehicle = function(v) seated = v end })
+  local asked = 0
+  setg('gameplay_walk', { getInVehicle = function(v) asked = asked + 1 if asked >= 2 then seated = v end end })      -- (the first call does not take: it is asked again)
+  setg('be', { getPlayerVehicleID = function() return seated and 55 or 9 end })
+  setg('log', function() end)
   setg('core_jobsystem', { create = function(f) f({ sleep = function() end }) end })
   package.loaded['sl/fleet'] = nil
   local ok, F = pcall(require, 'sl/fleet')
@@ -2699,7 +2702,7 @@ do
     local progression = require('sl/core/progression')
     progression.garages[1].site = 'alder'
     local good = F.setActive(3)
-    check('Drive this one: the car is built and the player is seated in it', good == true and built == 1 and seated == veh and st.activeCar == 3 and faded[1] == 'slFade:true' and faded[#faded] == 'slFade:false')
+    check('Drive this one: the car is built and the player is seated in it', good == true and built == 1 and seated == veh and asked == 2 and st.activeCar == 3 and faded[1] == 'slFade:true' and faded[#faded] == 'slFade:false')
   else
     check('fleet loads in the test (' .. tostring(F):sub(1, 80) .. ')', false)
   end
