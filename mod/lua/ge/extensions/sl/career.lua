@@ -332,6 +332,13 @@ local function connectWallet(on)
 end
 
 -- money in and out, from anywhere in the career (negative = paid). Returns ok.
+-- the cab's fare, charged when it has taken you there: what you have covers it, or what is left; returns what was paid
+function M.chargeFare(fee, placeName)
+  local paid = require('sl/core/cabplan').fareDue(fee, s and s.money)
+  if paid > 0 then wallet.add(-paid, strings.t('career.cab_to_1', placeName)) end
+  return paid
+end
+
 function M.addMoney(amount, label)
   return wallet.add(amount, label)
 end
@@ -815,8 +822,9 @@ function M.taxi(placeId)
     M.sendText('benny', strings.t('career.my_cousin_will_run_you'), 1)
   end
   if sl_cab and sl_cab.busy() then return false, strings.t('career.a_cab_is_already_waiting') end
-  if fee > 0 and not wallet.add(-fee, strings.t('career.cab_to_1', (place.name))) then return false, string.format(strings.t('career.the_ride_is_d_you'), fee, s.money) end
+  if fee > s.money then return false, string.format(strings.t('career.the_ride_is_d_you'), fee, s.money) end      -- (the fare is charged when the cab gets you there: sl_cab -> chargeFare)
   if sl_cab and sl_cab.call(place, fee) then return true end
+  if fee > 0 then wallet.add(-fee, strings.t('career.cab_to_1', (place.name))) end
   -- no lane for a cab to pull up on here: the old way, straight there
   core_jobsystem.create(function(job)
     if guihooks then guihooks.trigger('slFade', { on = true }) end

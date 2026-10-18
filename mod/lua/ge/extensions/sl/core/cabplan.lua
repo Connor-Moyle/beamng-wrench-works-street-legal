@@ -27,6 +27,21 @@ function M.approach(cands, cam)
   return nil
 end
 
+-- Boarding: walking up to the cab (within BOARD_RADIUS of its middle) gets you in at once; a cab that has stopped for you (hazards on) waits BOARD_DELAY
+-- seconds and then takes you in if you are within AUTO_RADIUS of it (the ground marker leads you there), so a cab that pulled up on the road beside a
+-- pavement is not left waiting for a walk the player does not know to make. Further away: it waits (and leaves after its five minutes, no fare).
+M.BOARD_RADIUS, M.BOARD_DELAY, M.AUTO_RADIUS = 6, 4, 30
+function M.boardNow(dist, hereFor)
+  if type(dist) ~= 'number' then return false end
+  if dist < M.BOARD_RADIUS then return true end
+  return type(hereFor) == 'number' and hereFor >= M.BOARD_DELAY and dist <= M.AUTO_RADIUS
+end
+
+-- The fare is paid on arrival: what the player has covers it, or what is left of it (a ride is never refused after it was taken).
+function M.fareDue(fee, money)
+  return math.max(0, math.min(tonumber(fee) or 0, tonumber(money) or 0))
+end
+
 -- The spot a ride to this place ends at, for a lot: { x, y, z, dx, dy } (where the lot's cars are in front of you), else nil.
 -- place: { pos, at (the arrival point before any lane nudge), dir, displays }; the kinds that are lots.
 local LOTS = { dealer = true, junkyard = true, scrapyard = true }

@@ -74,6 +74,10 @@ return function(check, rngLib)
   check('a road that is in the camera direction but too far to see is fine', c3 and c3.dist == 700)
   check('a road at the side (90 degrees) is out of a 100 degree view', CP.approach({ { x = 120, y = 0, dist = 120 } }, cam) ~= nil)
   check('no camera direction known: only the distance counts', CP.approach({ { x = 0, y = 30, dist = 30 }, { x = 0, y = 120, dist = 120 } }, { x = 0, y = 0, fx = 0, fy = 0 }).dist == 120 and CP.approach(nil, cam) == nil)
+  check('boarding: walking up (under 6 m) gets you in at once; a cab that has waited 4 s takes you in within 30 m; further it waits',
+    CP.boardNow(5, 0) and not CP.boardNow(10, 3.9) and CP.boardNow(10, 4) and CP.boardNow(30, 9) and not CP.boardNow(31, 99) and not CP.boardNow(10, nil) and not CP.boardNow(nil, 9))
+  check('the fare is charged on arrival: all of it when you can pay, what is left otherwise, never negative or nil',
+    CP.fareDue(33, 500) == 33 and CP.fareDue(33, 20) == 20 and CP.fareDue(33, 0) == 0 and CP.fareDue(33, -5) == 0 and CP.fareDue(0, 500) == 0 and CP.fareDue(nil, nil) == 0)
   local drop = CP.dropAt({ kind = 'dealer', at = { x = 10, y = 20, z = 5 }, pos = { x = 40, y = 50, z = 6 }, dir = { x = 0, y = -1 } })
   check('a ride to a dealer ends at its arrival spot in the car park (not the lane-nudged position), facing the cars', drop and drop.x == 10 and drop.y == 20 and drop.z == 5 and drop.dy == -1)
   check('the used lot and the scrap yard too; a garage, a meet or nothing: no drop spot (the lane, as before)', CP.dropAt({ kind = 'junkyard', pos = { x = 1, y = 2, z = 3 } }).x == 1 and CP.dropAt({ kind = 'scrapyard', at = { x = 4, y = 5, z = 6 } }).z == 6
