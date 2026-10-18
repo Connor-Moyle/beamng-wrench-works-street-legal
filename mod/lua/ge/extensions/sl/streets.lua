@@ -35,6 +35,8 @@ local FINISH_RADIUS = 22
 local MIN_ROAD = 1.5          -- half-width of a road node worth racing on (the map's lanes are 2)
 local CITY_RACE = 1800        -- street races stay in town (tunnels run on to the tracks, km away)
 local RACE_TIMEOUT = 600
+-- (the Mods menu's values; the constants above are their defaults)
+local function setting(key, default) return sl_options and sl_options.get(key) or default end
 
 local cruisers = {}       -- racer id -> vehicle id: racers out driving
 local pool = {}           -- racer id -> vehicle id: cruisers sent away, kept inactive to be put back on a road (A12: a spawn costs the frame; a pooled car does not)
@@ -273,7 +275,7 @@ local function kindDest(v, standing, maxD)
   local t0 = os.clock()
   local goal, _, m = racekinds.pick(nodes, a, pathFn, id, rng, 10)         -- (a few tries: each is a path search in one frame; a miss falls back to the far side)
   local ms = (os.clock() - t0) * 1000
-  if not goal or (nodes[goal].pos - v:getPosition()):length() > (maxD or CITY_RACE) then racelog.add('race', 'kind missed', { kind = id, ms = string.format('%.0f', ms) }) return nil end
+  if not goal or (nodes[goal].pos - v:getPosition()):length() > (maxD or setting('slCityRace', CITY_RACE)) then racelog.add('race', 'kind missed', { kind = id, ms = string.format('%.0f', ms) }) return nil end
   return nodes[goal].pos, goal, m.len, id, ms
 end
 
@@ -283,7 +285,7 @@ local function startRace(racer, vid, stake, bet, standing, maxD, keepOpp)
   if not v or race then return false end
   local dest, destNode, distance, kind, kindMs
   if M.KINDS and (not sl_options or sl_options.get('slNightRaceKinds') ~= false) then dest, destNode, distance, kind, kindMs = kindDest(v, standing, maxD) end
-  if not dest then dest, destNode, distance = farSide(v:getPosition(), maxD or CITY_RACE) end
+  if not dest then dest, destNode, distance = farSide(v:getPosition(), maxD or setting('slCityRace', CITY_RACE)) end
   if not dest then return false end
   race = { racer = racer.id, name = roster.displayName(racer), vid = vid, stake = stake, bet = bet, dest = dest, destNode = destNode,
     destName = placeNear(dest), distance = distance, kind = kind, t = 0, countdown = standing and 3.5 or nil, skill = racer.skill }
@@ -417,12 +419,12 @@ local function updateRace(dt)
     if why then cancelRace(why) return end
   end
   if race.circuit then
-    if not updateCircuit(v, opp) and race.t > RACE_TIMEOUT then finish(false) end
+    if not updateCircuit(v, opp) and race.t > setting('slRaceTimeout', RACE_TIMEOUT) then finish(false) end
     return
   end
   if (v:getPosition() - race.dest):length() < FINISH_RADIUS then finish(true) return end
   if (opp:getPosition() - race.dest):length() < FINISH_RADIUS then finish(false) return end
-  if race.t > RACE_TIMEOUT then finish(false) return end
+  if race.t > setting('slRaceTimeout', RACE_TIMEOUT) then finish(false) return end
   -- a racer who has crashed or wedged themselves (seen in game: one sat in the canal for the rest of
   -- the race) is put back on the road a little further along and sent on, as SLRR's AI was
   race.stuck = opp:getVelocity():length() < 1 and (race.stuck or 0) + dt or 0
@@ -531,7 +533,7 @@ local function updateCruisers(s, dt)
     end
   end
   spawnTimer = spawnTimer + dt
-  local pre = spawnplan.preStep(preCruisers, inFade, race, busy, count, MAX_CRUISERS)
+  local pre = spawnplan.preStep(preCruisers, inFade, race, busy, count, setting('slMaxCruisers', MAX_CRUISERS))
   if pre ~= 'none' then
     if pre == 'reset' then preCruisers = 0
     elseif pre == 'build' and spawnCruiser(s) then preCruisers = preCruisers - 1 spawnTimer = 0 end
@@ -540,7 +542,7 @@ local function updateCruisers(s, dt)
   -- one build at a time, a gap between, and not while he races along (spawnplan.canBuild); the timer restarts only when a car is really begun
   local speed = v and v:getVelocity():length() or 0
   tryTimer = tryTimer + dt
-  if tryTimer >= 1 and night() and count < MAX_CRUISERS and not race and spawnplan.canBuild(speed, spawnTimer, busy, next(pool) ~= nil) and spawnplan.framesRecovered(os.clock() - lastSlowFrame, spawnTimer) then
+  if tryTimer >= 1 and night() and count < setting('slMaxCruisers', MAX_CRUISERS) and not race and spawnplan.canBuild(speed, spawnTimer, busy, next(pool) ~= nil) and spawnplan.framesRecovered(os.clock() - lastSlowFrame, spawnTimer) then
     tryTimer = 0                                 -- (looking for a hidden road costs a pass over the graph: once a second at most)
     if spawnCruiser(s, spawnTimer < spawnplan.MIN_GAP) then spawnTimer = 0 end
   end
