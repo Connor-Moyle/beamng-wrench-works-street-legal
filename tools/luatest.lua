@@ -1709,7 +1709,7 @@ do
   local wmin, wmax = 0, 0
   for i = 0, 1500 do local a = wx.windAngle(i * 1.0, 4) wmin, wmax = math.min(wmin, a), math.max(wmax, a) end
   check('the wind angle drifts within about 40 degrees either way', wmin > -0.7 and wmax < 0.7 and wmax - wmin > 0.5)
-  check('ripples: none when it does not rain, 1 to 3 by intensity', wx.rippleCount(0) == 0 and wx.rippleCount(0.01) == 0 and wx.rippleCount(0.2) == 1 and wx.rippleCount(0.5) == 2 and wx.rippleCount(1) == 3 and wx.rippleCount(5) == 3)
+  check('ripples: none when it does not rain, 1 to 2 by intensity', wx.rippleCount(0) == 0 and wx.rippleCount(0.01) == 0 and wx.rippleCount(0.2) == 1 and wx.rippleCount(0.6) == 2 and wx.rippleCount(1) == 2 and wx.rippleCount(5) == 2)
   local sh = 1
   for i = 0, 200 do sh = math.max(sh, wx.shimmer(i * 0.5, 2, 1)) end
   check('the damp patches breathe by a few percent when it rains hard and not at all when it does not', sh > 1.04 and sh <= 1.07 + 1e-9 and wx.shimmer(33, 2, 0) == 1)

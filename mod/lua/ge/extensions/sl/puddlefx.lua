@@ -436,7 +436,7 @@ local function placeRipple(p, r)
   mx:createOrientFromDirUp(vec3(math.cos(a), math.sin(a), 0), vec3(0, 0, 1))
   mx:setPosition(vec3(wx, wy, z + 0.08))
   r.obj:setTransform(mx)
-  r.size, r.born, r.life = 1.0 + math.random() * 0.9, os.clock() - math.random() * 0.8, 0.9 + math.random() * 0.6   -- (rings of 1-2 m across when full, each at its own point of growing)
+  r.size, r.born, r.life = 0.35 + math.random() * 0.45, os.clock() - math.random() * 0.8, 0.9 + math.random() * 0.6   -- (rings of 0.35-0.8 m across when full, faint (ripple.color is a grey-blue, its opacity a quarter of what it was), each at its own point of growing)
   r.obj:setScale(vec3(0.05, 0.05, 1))
 end
 

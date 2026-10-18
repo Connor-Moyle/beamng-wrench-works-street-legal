@@ -98,7 +98,7 @@ end
 function M.rippleCount(intensity)
   intensity = intensity or 0
   if intensity <= 0.02 then return 0 end
-  return math.min(3, math.ceil(intensity * 3))
+  return math.min(2, math.ceil(intensity * 2))
 end
 function M.shimmer(t, id, intensity) return 1 + 0.07 * math.min(1, (intensity or 0) * 1.5) * math.sin((t or 0) / 2.3 + (id or 0) * 1.7) end
 
