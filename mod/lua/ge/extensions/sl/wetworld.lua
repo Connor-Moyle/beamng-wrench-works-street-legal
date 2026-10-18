@@ -77,6 +77,7 @@ local function applyTerrain(wetNow)
   local layers = terrainLayers()
   terrWet = wetNow
   if not layers then return end
+  local t0 = os.clock()
   local blocks = {}
   pcall(function() blocks = getObjectsByClass('TerrainBlock') or {} end)
   for _, l in ipairs(layers) do
@@ -86,6 +87,7 @@ local function applyTerrain(wetNow)
       if blocks[1] then blocks[1]:updateMaterial(0, l.name) end
     end)
   end
+  log('I', TAG, string.format('terrain layers %s: %d layers, %.0f ms', wetNow and 'wet' or 'dry', #layers, (os.clock() - t0) * 1000))
 end
 
 -- one material to a step: the original text of its roughness and colour factors is taken the first time, the wet values come from it, the material is reloaded once
@@ -156,9 +158,10 @@ function M.update(dt, wet)
   if target ~= current then
     if target > 0 and gather() == false then return end
     current = target
-    if (current >= rules.TERRAIN_STEP) ~= terrWet then applyTerrain(current >= rules.TERRAIN_STEP) end
     log('I', TAG, string.format('wet world heads for step %d of %d (wetness %.2f)', current, rules.STEPS, wet or 0))
   end
+  local wantTerrain = on and current >= rules.TERRAIN_STEP and option('slWetTarmac', true) == true      -- (also when the setting is switched while it rains)
+  if wantTerrain ~= terrWet then applyTerrain(wantTerrain) end
   if not plan then return end
   timer = timer + (dt or 0)
   if timer < M.TICK then return end

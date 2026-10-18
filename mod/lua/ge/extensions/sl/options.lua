@@ -57,6 +57,8 @@ M.defs = {
     tab = 'Clock and weather', group = 'Rain on the ground', presets = { performance = 0.25, balanced = 0.4, quality = 0.5, max = 0.6 }, desc = strings.t('options.how_high_the_water_a') },
   { key = 'slWetWorld', title = strings.t('options.wet_world'), type = 'bool', default = true, tab = 'Clock and weather', group = 'Rain on the ground',
     presets = { performance = false, balanced = true, quality = true, max = true }, desc = strings.t('options.in_the_rain_roads_walls_and') },
+  { key = 'slWetTarmac', title = strings.t('options.wet_tarmac'), type = 'bool', default = true, tab = 'Clock and weather', group = 'Rain on the ground',
+    presets = { performance = false, balanced = true, quality = true, max = true }, desc = strings.t('options.wet_tarmac_text') },
   { key = 'slWetStrength', title = strings.t('options.wet_world_strength'), type = 'range', min = 0, max = 1, step = 0.05, scale = 100, unit = '%', default = 0.8,
     tab = 'Clock and weather', group = 'Rain on the ground', presets = { quality = 0.9, max = 1 }, desc = strings.t('options.how_dark_and_shiny_the') },
   { key = 'slRainBox', title = strings.t('options.rain_around_you'), type = 'range', min = 40, max = 150, step = 10, unit = 'm', default = 70,
