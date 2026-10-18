@@ -11,7 +11,7 @@ local rules = require('sl/core/weather')
 local pr = require('sl_puddles')
 
 local TAG = 'sl_puddlefx'
-M.flags = { warp = true, splash = true, mist = true, physics = true, trail = true, ripples = true, shimmer = true }
+M.flags = { proc = true, warp = true, splash = true, mist = true, physics = true, trail = true, ripples = true, shimmer = true }
 
 local MATERIALS = '/art/street_legal/main.materials.json'
 local MATERIAL = 'sl_puddle'          -- translucent, alpha from its opacity map (the soft oval), shiny and dark
@@ -217,6 +217,39 @@ local function dropPuddle(p)
   if p.file then pcall(function() FS:removeFile(p.file) end) p.file = nil end
 end
 
+-- A puddle's plane built in memory: a ProceduralMesh (the engine object the game's own road and planet tools use) made from the grid heights, in world axes round the puddle's centre
+-- with its size and direction baked in, one skin (the material is double sided). No file is written; the object is moved and scaled (to grow) like any other. Returns nil when the
+-- engine refuses (the caller then falls back to a file). The mesh table: verts, uvs, normals, faces (0-based v, u, n), material.
+local function procPuddle(name, p, h)
+  if FS:fileExists(MATERIALS) and not (scenetree.findObject(MATERIAL) and scenetree.findObject('sl_puddle_deep') and scenetree.findObject('sl_puddle_thin')) then loadJsonMaterialsFile(MATERIALS) end
+  local n = GRID
+  local verts, uvs, faces = {}, {}, {}
+  for iy = 0, n - 1 do
+    for ix = 0, n - 1 do
+      local lx, ly = -0.5 + ix / (n - 1), -0.5 + iy / (n - 1)
+      verts[#verts + 1] = { x = lx * p.sx * p.dy + ly * p.sy * p.dx, y = -lx * p.sx * p.dx + ly * p.sy * p.dy, z = h[iy * n + ix + 1] or 0 }
+      uvs[#uvs + 1] = { u = ix / (n - 1), v = iy / (n - 1) }
+    end
+  end
+  for iy = 0, n - 2 do
+    for ix = 0, n - 2 do
+      local i = iy * n + ix
+      for _, c in ipairs({ i, i + 1, i + n + 1, i, i + n + 1, i + n }) do faces[#faces + 1] = { v = c, u = c, n = 0 } end
+    end
+  end
+  local ok, o = pcall(function()
+    local proc = createObject('ProceduralMesh')
+    proc:registerObject(name)
+    proc.canSave = false
+    pcall(function() scenetree.MissionGroup:addObject(proc) end)
+    proc:createMesh({ { { verts = verts, uvs = uvs, normals = { { x = 0, y = 0, z = 1 } }, faces = faces, material = p.material or MATERIAL } } })
+    return proc
+  end)
+  if ok and o then return o end
+  once('procFail', 'a puddle plane could not be made in memory (' .. tostring(o) .. '): falling back to files')
+  return nil
+end
+
 local function makeObject(p, force)
   counter = counter + 1
   p.id = p.id or counter
@@ -231,6 +264,11 @@ local function makeObject(p, force)
       return nil
     end
     p.range, p.step = range, step
+    if M.flags.proc then
+      local o = procPuddle('sl_pd_' .. p.id, p, h)
+      if o then p.proc = true return o end
+      M.flags.proc = false      -- (the engine does not take it: files from now on)
+    end
     path = SHAPES .. 'puddle_g' .. p.id .. '.dae'
     writeFile(path, gridDae(h, { material = p.material }))
     p.file = path
@@ -242,6 +280,14 @@ end
 
 -- a puddle's plane put on the road: 5 cm above the centre's surface, turned to its direction, scaled by k
 local function putMesh(p, k)
+  if p.proc then
+    -- the mesh has its size and direction in its vertices: only its place and the growing scale
+    pcall(function() p.obj:setPosition(vec3(p.x, p.y, p.z + 0.05)) end)
+    local ok = pcall(function() p.obj:setScale(vec3(k, k, 1)) end)
+    if not ok then pcall(function() p.obj.scale = vec3(k, k, 1) end) end
+    p.k = k
+    return
+  end
   local mx = MatrixF(true)
   mx:createOrientFromDirUp(vec3(p.dx, p.dy, 0), vec3(0, 0, 1))
   mx:setPosition(vec3(p.x, p.y, p.z + 0.05))
