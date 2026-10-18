@@ -1451,6 +1451,8 @@
       if (html === lastHtml && layer.firstChild) { renderSkips++; reportRenders(); return; }
       lastHtml = html; renders++; reportRenders();
       layer.innerHTML = html;
+      // a new app, or Home: back at the top (focus moves had scrolled the clipped screen, so the home grid came back shifted and the next tap hit another app)
+      if (shownApp !== st.app) { toTop(); shownApp = st.app; }
       var after = layer.querySelector('.slp-body, .slp-msgs');
       if (after) {
         if (st.app === 'thread') after.scrollTop = after.scrollHeight;
@@ -1573,7 +1575,12 @@
       if (st.app !== 'carmarket') lua('@sl_carauctions.view(false)');
       render();
     }
-    function home() { st.stack = []; st.app = 'home'; lua('@sl_carauctions.view(false)'); render(); }
+    var shownApp = null;
+    function toTop() {
+      layer.scrollTop = 0;
+      Array.prototype.forEach.call(layer.querySelectorAll('.slp-screen, .slp-home, .slp-page'), function (e) { e.scrollTop = 0; });
+    }
+    function home() { st.stack = []; st.app = 'home'; lua('@sl_carauctions.view(false)'); toTop(); render(); }
     function setOpen(open) {
       st.open = open;
       lua('uiOpen("phone", ' + (open ? 'true' : 'false') + ')');      // (the game side sends the phone's data faster while it is open)
