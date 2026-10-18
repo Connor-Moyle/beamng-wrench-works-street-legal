@@ -706,6 +706,7 @@ end
 -- Ambient traffic: the game spawns it only when ITS freeroam start does (and only with the options set before, see M.start). A level that was already
 -- loaded when the career began (the player in freeroam, a scripted load) has none: seen, C5, an empty city with no taxis. Once the level is up (the
 -- fade job in begin) and the game is not spawning any, the career asks for its own amount, parked cars too.
+local trafficCover        -- the loading screen for the traffic spawn is up
 local function ensureTraffic()
   local gt = gameplay_traffic
   if not (gt and gt.setupTrafficHelper and gt.getNumOfTraffic) then return end
@@ -717,11 +718,25 @@ local function ensureTraffic()
   for _, name in ipairs({ 'core_multiSpawn', 'gameplay_parking' }) do
     if not rawget(_G, name) and extensions and extensions.load then pcall(extensions.load, name) end
   end
-  -- (one call: split in two it measured worse, two stalls of 170 and 190 ms peaks against one of 100 ms)
+  -- the spawn is a stall of 5-6 s with 220-245 ms frames whatever the amount (measured, 3 runs, none without it): hidden behind the game's own loading
+  -- screen for traffic, as its freeroam start does; it goes when the game says the cars are in (onTrafficOrParkingReady) or after 40 s
+  local cover = core_gamestate and core_gamestate.requestEnterLoadingScreen
+  if cover then pcall(core_gamestate.requestEnterLoadingScreen, 'traffic') trafficCover = true end
   local ok, err = pcall(gt.setupTrafficHelper, M.CITY_TRAFFIC, { police = false }, M.CITY_PARKED, {})
   if not ok then log('E', logTag, 'traffic could not be spawned: ' .. tostring(err)) end
+  if cover then
+    core_jobsystem.create(function(job)
+      job.sleep(ok and 40 or 0.1)
+      M.onTrafficOrParkingReady()
+    end)
+  end
 end
 M.ensureTraffic = ensureTraffic
+function M.onTrafficOrParkingReady()
+  if not trafficCover then return end
+  trafficCover = false
+  if core_gamestate and core_gamestate.requestExitLoadingScreen then pcall(core_gamestate.requestExitLoadingScreen, 'traffic') end
+end
 
 local function begin()
   pending = nil
@@ -852,6 +867,7 @@ stop = function()
   active = false
   if core_groundMarkers then core_groundMarkers.setPath(nil) end
   extensions.hook('onStreetLegalStopped')
+  M.onTrafficOrParkingReady()           -- (no loading screen left up)
 end
 
 ----------------------------------------------------------------------------------------------
