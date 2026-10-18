@@ -230,6 +230,15 @@ return function(check, rngLib)
   local ex = FT.extras(places, { { id = 'torres', name = 'Torres Tires', trade = 'Wheels', pos = { x = 7, y = 8, z = 9 } }, { id = 'nopos' } }, { rep = 100, garageLevel = 1 })
   check('travel: garages and shops get an entry, lots do not; shops need a position', #ex == 3 and ex[1].kind == 'garage' and ex[3].kind == 'shop' and ex[3].placeId == 'torres' and ex[3].arrive.x == 7)
   check('travel: your garage is open, the next one locked with the reputation it needs; a shop is never locked', not ex[1].locked and ex[2].locked and ex[2].why:find('175') ~= nil and ex[2].what:find('175') ~= nil and not ex[3].locked)
+  places.wash1 = { id = 'wash1', kind = 'carwash', name = 'Suds', pos = { x = 3, y = 4, z = 0 } }
+  places.hosp = { id = 'hosp', kind = 'hospital', name = 'General', at = { x = 5, y = 5, z = 0 } }
+  places.nowhere = { id = 'nowhere', kind = 'meet', name = 'No spot' }
+  local ex2 = FT.extras(places, {}, { rep = 100, garageLevel = 1 })
+  local byKind = {}
+  for _, e in ipairs(ex2) do byKind[e.kind] = e end
+  check('travel: a car wash and a hospital get a pin with a trip (never locked), a place with no position none', #ex2 == 4 and byKind.carwash.arrive.x == 3 and byKind.carwash.what == 'Car wash'
+    and byKind.hospital.arrive.y == 5 and not byKind.carwash.locked and not byKind.meet)
+  places.wash1, places.hosp, places.nowhere = nil, nil, nil
   local up = FT.extras(places, {}, { rep = 2000, garageLevel = 2 })
   check('travel: after moving up, the garage opens', not up[2].locked)
 
