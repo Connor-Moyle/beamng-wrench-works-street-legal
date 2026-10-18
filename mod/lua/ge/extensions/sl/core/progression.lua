@@ -29,6 +29,16 @@ M.MAPS = {
 }
 M.MAP_ORDER = { 'west_coast_usa', 'slrr_valo_city' }      -- (West Coast USA is the game; Valo City is parked: its code stays, it is only not the default)
 M.DEFAULT_MAP = 'west_coast_usa'
+-- A save from before the maps were chosen has no level field, and before West Coast USA was the default every career was a Valo City one: a save with no level IS Valo City.
+-- Only a new career takes the default map.
+M.LEGACY_MAP = 'slrr_valo_city'
+-- the map of a saved career (nil / no save: the default for a new one)
+function M.levelOf(save)
+  if type(save) ~= 'table' then return M.DEFAULT_MAP end
+  if save.level == nil then return M.LEGACY_MAP end
+  if M.MAPS[save.level] then return save.level end
+  return M.DEFAULT_MAP
+end
 
 function M.has(level, feature) return ((M.MAPS[level] or M.MAPS[M.DEFAULT_MAP]).has or {})[feature] == true end
 

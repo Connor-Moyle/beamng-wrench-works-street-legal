@@ -658,6 +658,7 @@ M.TEXT = {
   ["career.career_1"] = "Career {1}",
   ["career.career_start_clock_2f"] = "career start (clock %.2f)",
   ["career.d_you_have_d"] = "$%d? You have $%d.",
+  ["career.this_career_is_on_1_map"] = "This career is on {1} (map not installed).",
   ["career.day_d_d_s_s"] = "Day %d, $%d, %s, %s%s",
   ["career.developer_all_the_money"] = "Developer: all the money",
   ["career.drag_1"] = "Drag {1}",

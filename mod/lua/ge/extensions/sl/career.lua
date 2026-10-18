@@ -196,9 +196,17 @@ function M.has(feature) return progression.has(M.LEVEL, feature) end
 function M.mapName() return mapOf(M.LEVEL).name end
 function M.mapText(text) return progression.mapText(text, M.LEVEL) end
 
+local function levelInstalled(level)
+  return core_levels and core_levels.getLevelByName and core_levels.getLevelByName(level) ~= nil or false
+end
+
 local function summaryOf(data)
-  return data and string.format(strings.t('career.day_d_d_s_s'), data.day or 1, data.money or 0, (progression.titleFor(data.rep or 0, data.level)),
-    mapOf(data.level).name, data.ended and ' (ended)' or '') or nil
+  if not data then return nil end
+  local level = progression.levelOf(data)
+  local line = string.format(strings.t('career.day_d_d_s_s'), data.day or 1, data.money or 0, (progression.titleFor(data.rep or 0, level)),
+    mapOf(level).name, data.ended and ' (ended)' or '')
+  if not levelInstalled(level) then line = string.format(strings.t('career.this_career_is_on_1_map'), mapOf(level).name) .. ' - ' .. line end
+  return line
 end
 
 -- every map a career can be played on, in order: { id, name, installed }
@@ -234,7 +242,8 @@ function M.listSlots()
   for n = 1, M.SLOTS do
     if slotUsed(n) then
       local data = readSave(slotFile(n))
-      out[#out + 1] = { slot = n, name = m.names[tostring(n)] or (strings.t('career.career_1', (n))), summary = summaryOf(data), last = m.last == n, ended = data and data.ended ~= nil }
+      out[#out + 1] = { slot = n, name = m.names[tostring(n)] or (strings.t('career.career_1', (n))), summary = summaryOf(data), last = m.last == n, ended = data and data.ended ~= nil,
+        level = progression.levelOf(data), installed = levelInstalled(progression.levelOf(data)) }
     end
   end
   return out
@@ -725,6 +734,11 @@ function M.start(fresh, n, level)
   if not fresh then
     local data = readSave(slotFile(n))
     if data and data.ended then tell(strings.t('career.that_career_is_over_it', (tostring(data.ended.day))), 6) return false end
+    -- a career on a map that is not here is not loaded (it would open on the wrong map): the slot list says which map it needs
+    if data and not qa and not levelInstalled(progression.levelOf(data)) then
+      tell(string.format(strings.t('career.this_career_is_on_1_map'), mapOf(progression.levelOf(data)).name), 8)
+      return false
+    end
   end
   slot, SAVE_FILE = n, slotFile(n)
   if not qa then
@@ -736,7 +750,8 @@ function M.start(fresh, n, level)
     s = stateLib.new((os.time() % 1000000) * 31 + math.random(1, 997), now())
     s.level = progression.MAPS[level] and level or progression.DEFAULT_MAP
   end
-  useMap(progression.MAPS[s.level] and s.level or progression.DEFAULT_MAP)   -- (a save from before W1 has no level: the default map)
+  s.level = progression.levelOf(s)      -- (a save from before the maps has no level and is Valo City: it is written into the save the next time the game saves it)
+  useMap(s.level)
   pending = 'start'
   if getCurrentLevelIdentifier and getCurrentLevelIdentifier() == M.LEVEL then
     begin()

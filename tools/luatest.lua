@@ -955,6 +955,13 @@ do
   check('unknown kind is open', hours.isOpen('nowhere', at(3)))
 end
 
+-- the map of a saved career: no level field means Valo City (every career before the default changed); only a new career takes West Coast USA
+do
+  check('a save without a level is a Valo City career', progression.levelOf({ day = 3, money = 100 }) == 'slrr_valo_city' and progression.LEGACY_MAP == 'slrr_valo_city')
+  check('a save with a level keeps it; an unknown level and no save give the default', progression.levelOf({ level = 'west_coast_usa' }) == 'west_coast_usa' and progression.levelOf({ level = 'slrr_valo_city' }) == 'slrr_valo_city'
+    and progression.levelOf({ level = 'nowhere' }) == progression.DEFAULT_MAP and progression.levelOf(nil) == 'west_coast_usa' and progression.DEFAULT_MAP == 'west_coast_usa')
+end
+
 -- per-map capabilities: Valo City hosts everything, West Coast USA hides what its data lacks (T9)
 do
   local feats = { 'roc', 'tracks', 'testdrive', 'clubDays', 'swapMeet', 'clubs', 'crews' }
