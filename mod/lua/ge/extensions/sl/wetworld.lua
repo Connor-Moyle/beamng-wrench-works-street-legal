@@ -59,7 +59,7 @@ end
 -- The tarmac of West Coast USA is the terrain's own Asphalt layers, not a Material: their colour is a texture, no factor to lower. Wet, the layer's base colour and roughness textures
 -- are swapped for two small plain ones of ours (a dark grey, a smooth one: the layer's own roughness texture as colour came out pale in the game), put back dry; the terrain block redraws
 -- the layer (updateMaterial). The layer's detail textures still show on top.
-local WET_COLOR = '/art/street_legal/terrain/wet_asphalt_b.png'
+local WET_COLOR = { '/art/street_legal/terrain/wet_asphalt_b1.png', '/art/street_legal/terrain/wet_asphalt_b2.png', '/art/street_legal/terrain/wet_asphalt_b3.png' }      -- (medium grey late in the drying, dark in heavy rain)
 local WET_ROUGH = { '/art/street_legal/terrain/wet_asphalt_r1.png', '/art/street_legal/terrain/wet_asphalt_r2.png', '/art/street_legal/terrain/wet_asphalt_r3.png' }      -- (one is loaded at a time)
 local terr                     -- { { mat, name, orig, wet } } or false when there is none
 local terrWet = 0                 -- the tier on the layers now
@@ -85,7 +85,7 @@ local function applyTerrain(tier)
   pcall(function() blocks = getObjectsByClass('TerrainBlock') or {} end)
   for _, l in ipairs(layers) do
     pcall(function()
-      l.mat:setField('baseColorBaseTex', 0, wetNow and WET_COLOR or l.orig)
+      l.mat:setField('baseColorBaseTex', 0, wetNow and WET_COLOR[tier] or l.orig)
       if l.origR ~= '' then l.mat:setField('roughnessBaseTex', 0, wetNow and WET_ROUGH[tier] or l.origR) end
       if blocks[1] then blocks[1]:updateMaterial(0, l.name) end
     end)
@@ -134,6 +134,7 @@ local SLOW = { concrete_plain = true, curbs = true, brick_plain = true, tiles_ma
   metal_galvanized = true, metal_plates = true, windows_doors_reflective = true, ind_metal_grate = true }
 local function quiet()
   local ok, v = pcall(function()
+    if simTimeAuthority and simTimeAuthority.getPause and simTimeAuthority.getPause() then return true end      -- (paused: a menu, the map or the phone is open; the freeze is not seen)
     local veh = be:getPlayerVehicle(0)
     return not veh or veh:getVelocity():length() < 1.5
   end)
