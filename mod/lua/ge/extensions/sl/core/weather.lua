@@ -140,6 +140,17 @@ end
 -- puddles: how many may stand at this wetness, and how opaque they are (nothing below a damp road)
 M.MAX_PUDDLES = 18
 function M.puddleCount(wet) return wet < 0.15 and 0 or math.floor(M.MAX_PUDDLES * math.min(1, (wet - 0.1) / 0.9) + 0.5) end
+-- which terrain layers a dark glossy damp patch may lie on: hard or bare ground (asphalt, concrete, road, dirt, gravel, rock, pavement), never grass, forest floor or leaves; a name
+-- that says nothing is left alone
+local DAMP_OK = { 'asphalt', 'concrete', 'road', 'dirt', 'gravel', 'rock', 'pavement', 'tarmac', 'cement' }
+local DAMP_NO = { 'grass', 'forest', 'leaf', 'leaves', 'moss', 'bush', 'weed', 'snow', 'ice', 'water' }
+function M.dampGroundOk(name)
+  local n = tostring(name or ''):lower()
+  for _, w in ipairs(DAMP_NO) do if n:find(w, 1, true) then return false end end
+  for _, w in ipairs(DAMP_OK) do if n:find(w, 1, true) then return true end end
+  return false
+end
+
 -- a puddle is drawn full size up to `from` metres from the player and shrinks to nothing at `to` (so one placed far out grows as the car comes up to it: no pop-in)
 function M.distanceScale(d, from, to)
   if d <= from then return 1 end

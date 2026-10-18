@@ -70,6 +70,31 @@ local function roadSpot(x, y, zTop)
   return z
 end
 
+-- a flat spot on bare or hard ground near a road (a verge, a car park, a shoulder): the terrain layer under it is asphalt, concrete, dirt, gravel or rock, never grass
+local groundOk = {}                   -- terrain layer index -> true | false
+local function groundSpot(x, y, zTop)
+  stats.tries = stats.tries + 1
+  local z = groundZ(x, y, zTop)
+  if not z then stats.noSurface = stats.noSurface + 1 return nil end
+  for _, d in ipairs({ { 1.4, 0 }, { -1.4, 0 }, { 0, 1.4 }, { 0, -1.4 } }) do
+    local zz = groundZ(x + d[1], y + d[2], zTop)
+    if not zz or math.abs(zz - z) > 0.25 then stats.notFlat = stats.notFlat + 1 return nil end
+  end
+  local t = core_terrain and core_terrain.getTerrain and core_terrain.getTerrain()
+  if not t then return nil end
+  local ok, idx = pcall(function() return t:getMaterialIdxWs(vec3(x, y, z)) end)
+  if not ok or idx == nil then return nil end
+  if groundOk[idx] == nil then
+    local okN, name = pcall(function() return t:getMaterialName(idx) end)
+    groundOk[idx] = okN and rules.dampGroundOk(name) or false
+    log('I', TAG, string.format('terrain layer %s (%s) takes damp patches: %s', tostring(idx), tostring(okN and name or '?'), tostring(groundOk[idx])))
+  end
+  if not groundOk[idx] then stats.badGround = (stats.badGround or 0) + 1 return nil end
+  local okR, n1 = pcall(function() return map.findClosestRoad(vec3(x, y, z), 45) end)
+  if not (okR and n1) then stats.noRoad = stats.noRoad + 1 return nil end
+  return z
+end
+
 ----------------------------------------------------------------------------------------------
 -- the model: a GRID x GRID mesh of unit size (a thin slab: a top and a bottom skin), written once per puddle with the ground heights of its corners
 
@@ -263,11 +288,13 @@ local function updatePlacement(dt, wet)
     local a = heading + (math.random() - 0.5) * (math.random() < 0.6 and 2.2 or 6.28)
     local r = PUDDLE_RADIUS[1] + math.sqrt(math.random()) * (PUDDLE_RADIUS[2] - PUDDLE_RADIUS[1])      -- (the square root: more of them out where there is more ground)
     local x, y = pos.x + math.cos(a) * r, pos.y + math.sin(a) * r
-    local z = roadSpot(x, y, pos.z + 12)
+    -- every fourth try is for bare ground beside the road (verges, car parks): a damp patch there, so the ground is not dry next to wet asphalt
+    local ground = stats.placed % 4 == 3
+    local z = ground and groundSpot(x, y, pos.z + 12) or roadSpot(x, y, pos.z + 12)
     if z then
       local rot = math.random() * 6.28
       -- every third one is a big faint damp patch (the road looks wet round the puddles: there is no wet material to reach); the others are puddles 2-4 m across
-      local damp = stats.placed % 3 == 2
+      local damp = ground or stats.placed % 3 == 2
       local size = damp and (7 + math.random() * 5) or (2 + math.random() * 2)
       puddles[#puddles + 1] = { x = x, y = y, z = z, sx = size, sy = size * (0.6 + math.random() * 0.5), dx = math.cos(rot), dy = math.sin(rot), born = os.clock(), damp = damp }
       stats.placed = stats.placed + 1
@@ -560,6 +587,7 @@ function M.clear()
   if ringObj then deleteObject(ringObj) ringObj = nil end
   for _, p in ipairs(puddles) do dropPuddle(p) end
   puddles = {}
+  groundOk = {}                                  -- (a new level numbers its terrain layers again)
   if debugPuddle then dropPuddle(debugPuddle) debugPuddle = nil end
   for _, t in ipairs(trails) do deleteObject(t.obj) end
   trails, lastTrail = {}, {}

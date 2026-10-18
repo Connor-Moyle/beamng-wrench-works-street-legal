@@ -421,6 +421,8 @@ do
   local plan = ww.plan({ { name = 'grass_a' }, { name = 'road_b' }, { name = 'tunnel_road' }, { name = 'wall_c' }, { name = 'road_a' }, { name = 'ui_x' } }, 3)
   check('wet: the plan is road first, the rest by kind, capped, with the skipped left out', #plan == 3 and plan[1].name == 'road_a' and plan[2].name == 'road_b' and plan[3].name == 'wall_c')
   check('wet: the batch is small when edits are slow and never above the maximum', ww.batch(nil) == 2 and ww.batch(10) == 1 and ww.batch(0.1, 3, 8) == 8 and ww.batch(1, 3, 8) == 3)
+  check('damp patches: bare and hard ground only, never grass or a layer that says nothing', wx.dampGroundOk('asphalt_cracked') and wx.dampGroundOk('Dirt_dry') and wx.dampGroundOk('gravel_01') and wx.dampGroundOk('concrete_old')
+    and not wx.dampGroundOk('grass_dry') and not wx.dampGroundOk('forest_floor_dirt') and not wx.dampGroundOk('unnamed_layer') and not wx.dampGroundOk(nil))
   check('puddles: full size up close, nothing at the far edge, smooth between (no pop in)', wx.distanceScale(50, 165, 225) == 1 and wx.distanceScale(225, 165, 225) == 0 and wx.distanceScale(300, 165, 225) == 0
     and wx.distanceScale(195, 165, 225) > 0.4 and wx.distanceScale(195, 165, 225) < 0.6 and wx.distanceScale(180, 165, 225) > wx.distanceScale(210, 165, 225))
 end
