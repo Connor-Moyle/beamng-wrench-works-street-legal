@@ -1,5 +1,5 @@
 -- Wrench Works: Street Legal: its own settings (extension name: sl_options; X53), a "Street Legal" group on
--- Wrench Works' settings screen (through its onWrenchWorksSettingsDefs / onWrenchWorksSetting hooks).
+-- the Mods menu in the pause menu (Wrench Works' slrr_settings registry; docs/MODS_MENU.md on its branch mods-menu): this list is the data model, the page is generated from it.
 -- What changes the game's balance is the career's own (kept in its save, per slot, and shown only while one is
 -- played); the rest is the player's, for every career (/settings/street_legal/options.json).
 
@@ -157,8 +157,32 @@ M.defs = {
   { key = 'slBuildGap', tab = 'World', group = 'Performance', title = 'Seconds between built cars', type = 'range', min = 8, max = 60, step = 2, unit = 's', default = 20, advanced = true,
     desc = 'Building a car for the night traffic freezes the game for a second or so. Longer gaps mean fewer freezes and a quieter street.' },
 }
+-- where each setting is on the Mods menu page: { tab, group }
+local PLACE = {
+  slPolice = { 'Difficulty', 'Police' }, slPoliceLevel = { 'Difficulty', 'Police' }, slRaids = { 'Difficulty', 'Crews' },
+  slEconomy = { 'Difficulty', 'Money' }, slHardcore = { 'Difficulty', 'Hardcore' },
+  slRaceTraffic = { 'Street racing', 'Races' }, slMarkers = { 'Street racing', 'Races' }, slReplay = { 'Street racing', 'Recording' },
+  slClock = { 'Clock and weather', 'Time' }, slWeather = { 'Clock and weather', 'Weather' }, slRain = { 'Clock and weather', 'Weather' },
+  slNotify = { 'Screens and texts', 'Texts' }, slDashboard = { 'Screens and texts', 'Dashboard' }, slWallpaper = { 'Screens and texts', 'Laptop' }, slAutoPhoto = { 'Screens and texts', 'Camera' },
+  slTextScale = { 'Accessibility', 'Reading' }, slColorBlind = { 'Accessibility', 'Colours' }, slCaptions = { 'Accessibility', 'Rally' },
+  slPerf = { 'Developer', 'Performance' },
+}
+-- the Quick setup presets of the Mods menu (performance | balanced | quality | max): what costs frames at night or in a race is lighter at Performance
+local PRESETS = {
+  slRaceTraffic = { performance = 'light', balanced = 'normal', quality = 'normal', max = 'normal' },
+  slReplay = { performance = false, balanced = true, quality = true, max = true },
+  slMarkers = { performance = false, balanced = true, quality = true, max = true },
+}
 local byKey = {}
-for _, d in ipairs(M.defs) do d.group = d.group or GROUP byKey[d.key] = d end
+for _, d in ipairs(M.defs) do
+  local own = d.group                          -- (a def of another module names its own group: it is its sub-heading on the Mods menu page)
+  d.group = d.group or GROUP
+  byKey[d.key] = d
+  local at = PLACE[d.key]
+  if at then d.tab, d.sub = d.tab or at[1], d.sub or at[2] end
+  if own and not d.sub then d.sub = own end
+  d.presets = d.presets or PRESETS[d.key]
+end
 
 local global
 
@@ -216,29 +240,47 @@ local function set(key, value)
 end
 M.set = set
 
--- Wrench Works' settings screen: the group (the career's settings only while a career is played)
-function M.onWrenchWorksSettingsDefs(defs)
-  local inCareer = career() ~= nil
+-- The Mods menu page of Street Legal (slrr_settings): every setting above by its tab and group. The career's own settings (police, pay, hardcore, raids) are kept in the
+-- career's save: they show their start values and take a change only while a career is played. Developer: the all-the-money button.
+function M.onSlrrSettingsReady()
+  local S = rawget(_G, 'slrr_settings')
+  if not (S and S.fromDefs) then return end
+  local defs = {}
   for _, d in ipairs(M.defs) do
-    local show = not d.tab and (not d.career or inCareer) and (d.needs ~= 'weather' or (slrrValoWeather and slrrValoWeather.setEnabled))
-    if show then
+    if d.needs ~= 'weather' or (slrrValoWeather and slrrValoWeather.setEnabled) then
       local c = deepcopy(d)
-      c.value = M.get(d.key)
+      if d.career then c.desc = tostring(d.desc or '') .. ' ' .. strings.t('options.saved_with_the_career') end
+      if d.key == 'slPerf' then c.advanced = true end
       defs[#defs + 1] = c
     end
   end
-end
-
-function M.onWrenchWorksSetting(key, value)
-  if key == '__reset' then
-    global = {}
-    jsonWriteFile(FILE, global, true)
-    local s = career()
-    if s then s.options = {} end
-    return
+  local fields, tabs = S.fromDefs(defs, { tabOf = function(d) return d.tab or 'More' end, get = M.get, set = set })
+  local developer
+  for _, t in ipairs(tabs) do if t.id == 'Developer' then developer = t end end
+  if not developer then developer = { id = 'Developer', title = 'Developer' } tabs[#tabs + 1] = developer end
+  -- the dashboard's parts (kept in hud.json by sl_hud): once the dashboard itself is on
+  local function hudField(key, label, tip, kind, extra)
+    local f = { id = 'hud_' .. key, tab = 'Screens and texts', group = 'Dashboard', type = kind, label = label, tooltip = tip, default = extra and extra.default,
+      visibleIf = { field = 'slDashboard', equals = true },
+      store = { kind = 'custom', get = function() local h = sl_hud and sl_hud.getSettings and sl_hud.getSettings() return h and h[key] end,
+        set = function(v) if sl_hud and sl_hud.setOption then sl_hud.setOption(key, v) end end } }
+    for k, v in pairs(extra or {}) do f[k] = v end
+    fields[#fields + 1] = f
   end
-  set(key, value)
+  hudField('tacho', 'Rev counter', 'The rev counter of the Street Legal dashboard.', 'bool', { default = true })
+  hudField('speedo', 'Speedometer', 'The speedometer of the Street Legal dashboard.', 'bool', { default = true })
+  hudField('map', 'Map', 'The map that turns with the car.', 'bool', { default = true })
+  hudField('damage', 'Damage diagram', 'The diagram of the car\'s damage.', 'bool', { default = true })
+  hudField('units', 'Units', 'Speed in km/h or mph on the dashboard.', 'enum', { default = 'kmh', options = { { id = 'kmh', label = 'km/h' }, { id = 'mph', label = 'mph' } } })
+  hudField('freeroam', 'Also outside the career', 'Shows the dashboard in freeroam as well.', 'bool', { default = false })
+  fields[#fields + 1] = { id = 'devMoney', tab = 'Developer', group = 'Testing', type = 'button', label = strings.t('ui.give_all_the_money'), advanced = true,
+    confirm = strings.t('options.give_money_confirm'),
+    tooltip = strings.t('ui.for_testing_the_money_goes'),
+    action = function() local ok, text = sl_career.devMoney() return text or '' end }
+  for _, f in ipairs(fields) do if f.tab == 'Accessibility' then f.group = f.group or 'Reading' end end
+  S.register({ mod = 'street_legal', title = 'Street Legal', icon = 'wrench', order = 20, tabs = tabs, fields = fields })
 end
+M.onExtensionLoaded = M.onSlrrSettingsReady
 
 ----------------------------------------------------------------------------------------------
 -- traffic in street races: thinned while a race runs, put back after (and after 15 minutes whatever happens)

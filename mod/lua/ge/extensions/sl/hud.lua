@@ -35,7 +35,24 @@ local function sendSettings()
   guihooks.trigger('slHudSettings', M.getSettings())
 end
 
--- phone buttons: toggle a part ('enabled', 'speedo', 'tacho', 'map', 'damage', 'freeroam') or the units
+-- the Mods menu: set a part ('speedo', 'tacho', 'map', 'damage', 'freeroam' true | false) or the units ('kmh' | 'mph')
+function M.setOption(key, value)
+  local s = M.getSettings()
+  if key == 'units' then
+    if value ~= 'kmh' and value ~= 'mph' then return false end
+    s.units = value
+  elseif type(DEFAULTS[key]) == 'boolean' and key ~= 'enabledChosen' and key ~= 'enabled' and type(value) == 'boolean' then
+    s[key] = value
+  else
+    return false
+  end
+  jsonWriteFile(SETTINGS_FILE, s, true)
+  sendSettings()
+  extensions.hook('onStreetLegalChanged')
+  return true
+end
+
+-- toggle a part (the bindable key; the phone no longer has the switches) ('enabled', 'speedo', 'tacho', 'map', 'damage', 'freeroam') or the units
 function M.toggle(key)
   local s = M.getSettings()
   if key == 'units' then

@@ -20,7 +20,7 @@ Benny, who runs your first garage, texts you where to begin. Open Messages.
 
 ## The phone
 
-The home screen has the apps: Races, My cars, Bank, Street cred, Jobs, Wait, Settings, Club, Turf, Car market, Part market, Map, Camera, Gallery and Help. Messages, Contacts, Phone and Cab are in the dock.
+The home screen has the apps: Races, My cars, Bank, Street cred, Jobs, Wait, Club, Turf, Car market, Part market, Map, Camera, Gallery and Help. Messages, Contacts, Phone and Cab are in the dock.
 
 The Map lists the places by kind with their distance; tap one and the route shows on the road (it clears when you get there, or with Clear route); Route to my garage on the home screen does the same for your garage. The Camera takes a picture without any screen (also kept in screenshots/street_legal); in the Gallery a photo can be the wallpaper of the phone or the laptop; a new car is photographed at the end of its purchase scene (Settings: Photo of a new car).
 
@@ -155,12 +155,14 @@ Wrench Works adds a group to the game's Options > Graphics page, under the anti-
 
 ## Optional extras
 
-- Performance overlay: Settings > Performance overlay (off by default) shows the frame time, the video memory and counts of what is in the world. Use it when the game stutters, and say what it showed when you report it.
+- Performance overlay: ESC > Mods menu > Street Legal > Developer (off by default) shows the frame time, the video memory and counts of what is in the world. Use it when the game stutters, and say what it showed when you report it.
 - Flex driver (EXPERIMENTAL, can crash the game when switching cars: leave it off; off by default): with the Drivers & Pedestrians mod the driver in the car is normally a set of rigid parts. To try the rigged driver, open the game's Lua console (the ~ key) and type slrrDriverMount.setDriverRig("flex"); it is saved and applies to cars spawned from then on. Type slrrDriverMount.setDriverRig("props") to go back.
 
 ## Settings and tools
 
-The Settings app has the options of the career: police and their aggression, pay, hardcore mode (no pull-outs, no insurance, no free cab), clock speed, race traffic, and more.
+All settings are in one place: press ESC and open the Mods menu. Each mod has a page with tabs (for Street Legal: Difficulty, Street racing, Clock and weather, Screens and texts, Accessibility, Police chase, Night traffic, Rivals, The climb, Car auctions, Developer); every tab has a Reset to defaults. Nothing is set on the phone or the laptop.
+
+Difficulty has the police and their aggression, pay, hardcore mode (no pull-outs, no insurance, no free cab) and crew raids; Street racing has the race traffic and flares.
 
 - Street Legal dashboard: the game's own HUD is used by default; switch this on for the Street Legal gauges and map.
 - Performance overlay: frame time and counts, for reporting stutters.

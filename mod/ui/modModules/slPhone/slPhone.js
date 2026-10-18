@@ -436,7 +436,6 @@
           { id: 'map', title: T('app.map', 'Map'), icon: I.map },
           { id: 'camera', title: T('app.camera', 'Camera'), icon: I.camera },
           { id: 'gallery', title: T('app.gallery', 'Gallery'), icon: I.gallery },
-          { id: 'settings', title: T('app.settings', 'Settings'), icon: I.settings },
           { id: 'club', title: T('app.club', 'Club'), icon: I.club, hide: has.clubs === false },
           { id: 'turf', title: T('app.turf', 'Turf'), icon: I.turf, hide: has.crews === false },
           { id: 'carmarket', title: T('app.carmarket', 'Car market'), icon: I.cab },
@@ -920,32 +919,7 @@
       return bar(T('app.partmarket', 'Part market')) + tabsHtml('parts', [['revline', T('ui.revline', 'Revline')], ['auctions', T('ui.swap_bid', 'Swap & Bid')], ['paper', T('ui.classifieds_2', 'Classifieds')], ['catalog', T('ui.catalog', 'Catalog')]]) + body;
     }
 
-    // Settings: Wrench Works' settings and the career's, as Android lists them
-    function findSetting(key) {
-      var defs = arr(obj(st.settings).defs);
-      for (var i = 0; i < defs.length; i++) if (defs[i].key === key) return defs[i];
-      return null;
-    }
-    function settingValue(d) {
-      if (d.type === 'bool') return d.value ? 'On' : T('ui.off', 'Off');
-      if (d.type === 'choice') { var o = arr(d.options).filter(function (x) { return x.id === d.value; })[0]; return o ? o.label : String(d.value); }
-      return (typeof d.value === 'number' ? Math.round(d.value * 1000) / 1000 : d.value) + (d.unit ? ' ' + d.unit : '');
-    }
-    function settingRow(d) {
-      var title = '<div class="slp-st"><b>' + esc(d.title) + '</b>' + (d.desc ? '<small>' + esc(d.desc) + '</small>' : '');
-      if (d.type === 'bool') {
-        return '<div class="slp-set" data-a="settoggle" data-v="' + esc(d.key) + '">' + title + '</div><div class="slp-sw' + (d.value ? ' slp-swon' : '') + '"><i></i></div></div>';
-      }
-      if (d.type === 'choice') {
-        return '<div class="slp-set">' + title + '</div><div class="slp-val"><div class="slp-mini" data-a="setchoice" data-v="' + esc(d.key) + '|-1">&#9664;</div>' + esc(settingValue(d)) +
-          '<div class="slp-mini" data-a="setchoice" data-v="' + esc(d.key) + '|1">&#9654;</div></div></div>';
-      }
-      // a number or a range: a slider (the mouse) and - / + (the pad)
-      var slider = d.type === 'range' ? '<input class="slp-range" type="range" data-key="' + esc(d.key) + '" min="' + d.min + '" max="' + d.max + '" step="' + d.step + '" value="' + d.value + '">' : '';
-      return '<div class="slp-set">' + title + slider + '</div><div class="slp-val"><div class="slp-mini" data-a="setstep" data-v="' + esc(d.key) + '|-1">&minus;</div>' + esc(settingValue(d)) +
-        '<div class="slp-mini" data-a="setstep" data-v="' + esc(d.key) + '|1">+</div></div></div>';
-    }
-    // Help: the topics (sl/core/help, the same words as docs/PLAYER_GUIDE.md), then one page
+                // Help: the topics (sl/core/help, the same words as docs/PLAYER_GUIDE.md), then one page
     function helpPage() {
       var rows = arr(st.help).map(function (p) {
         return '<div class="slp-row" data-a="helppage" data-v="' + esc(p.id) + '"><div class="slp-rt"><b>' + esc(p.title) + '</b></div></div>';
@@ -1003,16 +977,7 @@
         '<div class="slp-btn slp-tonal" data-a="setwall" data-v="both|">' + T('ui.usual_wallpapers', 'Back to the usual wallpapers') + '</div></div></div>';
     }
 
-    function settingsPage() {
-      var defs = arr(obj(st.settings).defs), groups = [], by = {};
-      defs.forEach(function (d) { var g = d.group || T('ui.other', 'Other'); if (!by[g]) { by[g] = []; groups.push(g); } by[g].push(d); });
-      var out = groups.map(function (g) { return '<div class="slp-seth">' + esc(g) + '</div>' + by[g].map(settingRow).join(''); }).join('');
-      return bar(T('app.settings', 'Settings')) + '<div class="slp-body">' + (out || ('<div class="slp-empty">' + T('ui.no_settings_yet', 'No settings yet.') + '</div>')) +
-        ('<div class="slp-seth">' + T('ui.settings', 'Settings') + '</div><div class="slp-acts"><div class="slp-btn slp-tonal" data-a="setreset">' + T('ui.reset_to_defaults', 'Reset to defaults') + '</div></div>') +
-        ('<div class="slp-seth">' + T('ui.developer', 'Developer') + '</div><div class="slp-set"><div class="slp-st"><b>' + T('ui.all_the_money', 'All the money') + '</b><small>' + T('ui.for_testing_the_money_goes', 'For testing: the money goes to $99,999,999.') + '</small></div></div>') +
-        ('<div class="slp-acts"><div class="slp-btn slp-pinkbtn" data-a="devmoney">' + T('ui.give_all_the_money', 'Give all the money') + '</div></div></div>');
-    }
-
+    
     // waiting: to the next morning or a few hours on (the clock, deliveries and shop hours follow); refused in a race, on a job or with the police after you
     function waitPage() {
       var h = [['switch', st.data.phaseSwitch || T('phase.startNight', 'Start the night')], ['1', T('wait.hour1', 'One hour')], ['3', T('wait.hour3', 'Three hours')], ['6', T('wait.hour6', 'Six hours')]].map(function (x) {
@@ -1130,7 +1095,7 @@
         ('<div class="slp-kv" style="border:none"><span>' + T('crews.pink_slips', 'Pink slips') + '</span><b>') + (s.pinksWon || 0) + T('ui.won_3', ' won, ') + (s.pinksLost || 0) + ' lost</b></div>' +
         (acts.length ? '<div class="slp-acts">' + acts.join('') + '</div>' : '') + '</div>' +
         (d.rocChampion ? ('<div class="slp-card"><h4>' + T('streets.roc_champion', 'ROC champion') + '</h4><p>' + T('ui.the_best_in', 'The best in ')) + esc(d.mapName || T('progression.valo_city', 'Valo City')) + (T('ui.there_is_nobody_left_to', '. There is nobody left to beat.') + '</p></div>') : '') +
-        rivalCards() + achievementsCard(d.achievements) + hudCard(d.hud) + '</div>';
+        rivalCards() + achievementsCard(d.achievements) + '</div>';
     }
 
     // achievements (earned ones lit, the rest dimmed) and personal best times
@@ -1142,18 +1107,6 @@
       var bests = arr(a.bests).map(function (b) { return '<div class="slp-kv"><span>' + esc(b.name) + '</span><b>' + Number(b.time).toFixed(2) + ' s</b></div>'; }).join('');
       return ('<div class="slp-card"><h4>' + T('ui.achievements', 'Achievements ')) + (a.earned || 0) + ' / ' + (a.total || 0) + '</h4>' + rows + '</div>' +
         (bests ? ('<div class="slp-card"><h4>' + T('ui.best_times', 'Best times') + '</h4>') + bests + '</div>' : '');
-    }
-
-    // the SLRR dashboard's switches
-    function hudCard(h) {
-      if (!h) return '';
-      var row = function (key, label, on, text) {
-        return '<div class="slp-kv slp-hudrow" data-a="hud" data-v="' + key + '"><span>' + label + '</span><b class="' + (on ? 'slp-on' : 'slp-offtxt') + '">' + (text || (on ? 'On' : T('ui.off', 'Off'))) + '</b></div>';
-      };
-      return ('<div class="slp-card"><h4>' + T('ui.dashboard', 'Dashboard') + '</h4><p>' + T('ui.the_slrr_gauges_map_and', 'The Street Legal gauges, map and damage diagram while you drive.') + '</p>') +
-        row('enabled', T('ui.dashboard', 'Dashboard'), h.enabled) +
-        (h.enabled ? row('tacho', T('ui.rev_counter', 'Rev counter'), h.tacho) + row('speedo', T('ui.speedometer', 'Speedometer'), h.speedo) + row('map', T('ui.map', 'Map'), h.map) + row('damage', T('ui.damage', 'Damage'), h.damage) +
-          row('units', T('ui.units', 'Units'), true, h.units === 'mph' ? 'mph' : 'km/h') + row('freeroam', T('ui.also_outside_the_career', 'Also outside the career'), h.freeroam) : '') + '</div>';
     }
 
     function callPage() {
@@ -1441,7 +1394,6 @@
         case 'phone': page = phonePage(); break;
         case 'races': page = racesPage(); break;
         case 'wait': page = waitPage(); break;
-        case 'settings': page = settingsPage(); break;
         case 'map': page = mapPage(); break;
         case 'camera': page = cameraPage(); break;
         case 'gallery': page = galleryPage(); break;
@@ -1588,7 +1540,6 @@
     function go(app, params) {
       st.stack.push({ app: st.app, contact: st.contact, thread: st.thread });
       st.app = app;
-      if (app === 'settings') lua('settings()');
       if (app === 'gallery') lua('photos()');
       if (app === 'contacts') lua('people()');
       if (app === 'map') { st.mapAt = Date.now(); lua('mapPlaces()'); }
@@ -1663,31 +1614,12 @@
         case 'workon': lua('workOn(' + Number(v) + ')'); st.garage = null; break;
         case 'despawn': lua('despawn(' + Number(v) + ')'); break;
         case 'garageclose': lua('closeGarage()'); st.garage = null; render(); break;
-        case 'settoggle': var tg = findSetting(v); if (tg) lua('setSetting(' + JSON.stringify(v) + ',' + (tg.value ? 'false' : 'true') + ')'); break;
-        case 'setchoice':
-          var cp = String(v).split('|'), cd = findSetting(cp[0]);
-          if (cd && arr(cd.options).length) {
-            var opts = arr(cd.options), at = 0;
-            opts.forEach(function (o, i) { if (o.id === cd.value) at = i; });
-            lua('setSetting(' + JSON.stringify(cp[0]) + ',' + JSON.stringify(opts[(at + Number(cp[1]) + opts.length) % opts.length].id) + ')');
-          }
-          break;
-        case 'setstep':
-          var sp = String(v).split('|'), sd = findSetting(sp[0]);
-          if (sd) {
-            var step = Number(sd.step) || 1, nv = Number(sd.value) + Number(sp[1]) * step;
-            nv = Math.round(Math.min(Number(sd.max), Math.max(Number(sd.min), nv)) / step * 1000) / 1000 * step;
-            lua('setSetting(' + JSON.stringify(sp[0]) + ',' + Math.round(nv * 10000) / 10000 + ')');
-          }
-          break;
         case 'route': lua('routeTo(' + JSON.stringify(String(v)) + ')'); break;
         case 'routegarage': lua('routeGarage()'); break;
         case 'clearroute': lua('clearRoute()'); break;
         case 'photo': lua('takePhoto()'); break;
         case 'photoopen': go('photo', { photoFile: v }); break;
         case 'setwall': (function () { var q = String(v).split('|'); lua('setWallpaper(' + JSON.stringify(q[0]) + ',' + JSON.stringify(q[1] || '') + ')'); })(); break;
-        case 'setreset': lua('setSetting("__reset",true)'); break;
-        case 'devmoney': lua('devMoney()'); break;
         case 'mtab': var tp = String(v).split('|'); st.tab[tp[0]] = tp[1]; if (tp[0] === 'cars' && tp[1] === 'dealers') { st.cmView = 'dealers'; lua('@sl_dealers.list()'); }
         if (tp[0] === 'cars') lua('@sl_carauctions.view(' + (tp[1] === 'auction' ? 'true' : 'false') + ')');
         render(); break;
@@ -1751,7 +1683,6 @@
           st.chooser = false; render();
           if (v === 'beamng' && careerButton) { letThrough = true; try { careerButton.click(); } finally { letThrough = false; } }
           break;
-        case 'hud': lua('@sl_hud.toggle(' + JSON.stringify(v) + ')'); break;
         case 'fuelpick': st.fuelPick = v; render(); break;
         case 'station':
           var sv = String(v).split('|');
@@ -1799,11 +1730,6 @@
       if (ev.target && ev.target.getAttribute && ev.target.getAttribute('data-catch') === 'lot') lua('@sl_lot.cameraZoom(' + (ev.deltaY < 0 ? 1 : -1) + ')');
     });
     root.addEventListener('contextmenu', function (ev) { if (st.lot && st.lot.open) ev.preventDefault(); });
-    // a settings slider let go: the new value
-    root.addEventListener('change', function (ev) {
-      var t = ev.target;
-      if (t && t.classList && t.classList.contains('slp-range')) lua('setSetting(' + JSON.stringify(t.getAttribute('data-key')) + ',' + Number(t.value) + ')');
-    });
 
     root.addEventListener('click', function (ev) {
       var el = ev.target;
@@ -1852,7 +1778,6 @@
         case 'slMeet': st.meet = data.open ? data : null; render(); break;
         case 'slStation': st.station = data.open ? data : null; render(); break;
         case 'slGarage': st.garage = data.open ? data : null; render(); break;
-        case 'slSettings': st.settings = data; render(); break;
         case 'slPhotos': st.photos = data; render(); break;
         case 'slMap': st.map = data; render(); break;
         case 'slPeople': st.people = data; render(); break;
@@ -1893,7 +1818,7 @@
       var probe = new Image();
       probe.onload = function () { phone.handle('slArt'); };
       probe.src = '/ui/modModules/slHud/slrr/icons/cup.png';
-      ['slPhoneData', 'slPhoneToggle', 'slPhoneGo', 'slPhoneCall', 'slPhoneCallReply', 'slPhoneNotify', 'slPhoneToast', 'slFade', 'slLotBars', 'slLotData', 'slMeet', 'slRace', 'slMenu', 'slStation', 'slGarage', 'slSettings', 'slPhotos', 'slMap', 'slPeople', 'slLaptopDealers', 'slAuctions', 'slRivals', 'slLaptopOffers', 'slHelp', 'slStrings'].forEach(function (name) {
+      ['slPhoneData', 'slPhoneToggle', 'slPhoneGo', 'slPhoneCall', 'slPhoneCallReply', 'slPhoneNotify', 'slPhoneToast', 'slFade', 'slLotBars', 'slLotData', 'slMeet', 'slRace', 'slMenu', 'slStation', 'slGarage', 'slPhotos', 'slMap', 'slPeople', 'slLaptopDealers', 'slAuctions', 'slRivals', 'slLaptopOffers', 'slHelp', 'slStrings'].forEach(function (name) {
         $rootScope.$on(name, function (ev, data) { phone.handle(name, data); });
       });
       if (window.bngApi) window.bngApi.engineLua('if sl_phone then sl_phone.request() end if sl_menuTile then sl_menuTile.request() end');

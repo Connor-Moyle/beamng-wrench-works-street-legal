@@ -2344,17 +2344,32 @@ do -- the rivals' and auctions' tunables: entries of sl_options for the Mods men
   check('the tuning follows sl_options, and the default stands for a setting it does not have', TU.get('rivals.escalateChance', 0.35) == 0.5 and TU.get('rivals.tauntChance', 0.3) == 0.3 and TU.get('rivals.enabled', true) == false and TU.get('nothing.here', 7) == 7)
   _G.sl_options = nil
   check('without sl_options every value is its default', TU.get('rivals.escalateChance', 0.35) == 0.35)
-  local hadJson = _G.jsonReadFile
-  _G.jsonReadFile = function() return {} end
-  local hadCopy = _G.deepcopy
+  -- the Mods-menu page of Street Legal is generated from these definitions (a stand-in for the registry of Wrench Works)
+  local hadCopy, hadSlrr = _G.deepcopy, rawget(_G, 'slrr_settings')
   _G.deepcopy = function(t) local c = {} for k, v in pairs(t) do c[k] = v end return c end
-  local shown = {}
-  OPT.onWrenchWorksSettingsDefs(shown)
+  local got
+  _G.slrr_settings = {
+    fromDefs = function(defs, o)
+      local fields, tabs, seen = {}, {}, {}
+      for _, d in ipairs(defs) do
+        local t = o.tabOf(d)
+        if not seen[t] then seen[t] = true tabs[#tabs + 1] = { id = t, title = t } end
+        fields[#fields + 1] = { id = d.key, tab = t, group = d.sub, type = d.type, label = d.title, tooltip = d.desc }
+      end
+      return fields, tabs
+    end,
+    register = function(schema) got = schema return true end,
+  }
+  OPT.onSlrrSettingsReady()
   _G.deepcopy = hadCopy
-  _G.jsonReadFile = hadJson
-  local leaked = false
-  for _, d in ipairs(shown) do if d.tab then leaked = true end end
-  check('the Mods-menu entries are not on the old settings screen', not leaked)
+  _G.slrr_settings = hadSlrr
+  local tabIds, byField = {}, {}
+  for _, t in ipairs(got and got.tabs or {}) do tabIds[t.id] = true end
+  for _, f in ipairs(got and got.fields or {}) do byField[f.id] = f end
+  check('the Mods menu page: Street Legal registers with its tabs, every setting on a tab', got and got.mod == 'street_legal' and tabIds.Difficulty and tabIds.Rivals and tabIds['Police chase'] and tabIds.Developer and tabIds.Accessibility)
+  check('every setting of the list is a field with a tab that exists', (function() for _, d in ipairs(OPT.defs) do if d.needs ~= 'weather' and not (byField[d.key] and tabIds[byField[d.key].tab]) then return false end end return true end)())
+  check('the dashboard parts and the money button are fields too', byField.hud_tacho and byField.hud_units and byField.devMoney and byField.devMoney.type == 'button')
+  check('SL adds nothing to the old Wrench Works settings screen', OPT.onWrenchWorksSettingsDefs == nil)
   _G.sl_options = saved.sl_options
 end
 do -- the look of a used car (sl/core/carwear) and the wash-off (sl_surfacefx against a mocked Car Surface FX)
