@@ -2685,6 +2685,33 @@ do -- the depth of a night chase (core/chase)
 end
 
 
+-- the garage app's upgrade (sl_upgrades.buy): takes the money once, is listed as built, is refused the second time and when the money is short
+do
+  local saved = { sl_career = rawget(_G, 'sl_career'), extensions = rawget(_G, 'extensions') }
+  local st = { money = 2500, garageLevel = 1 }
+  sl_career = { isActive = function() return true end, getState = function() return st end,
+    addMoney = function(a) if st.money + a < 0 then return false end st.money = st.money + a return true end }
+  extensions = { hook = function() end }
+  package.loaded['sl/upgrades'] = nil
+  local ok, UP = pcall(require, 'sl/upgrades')
+  if ok then
+    local ok1 = UP.buy('lift')
+    check('garage upgrade: the lift is bought once for its price', ok1 == true and st.money == 500)
+    local has = false
+    for _, u in ipairs(UP.summary()) do if u.id == 'lift' then has = u.has end end
+    check('and the Garage app lists it as built', has == true)
+    local ok2, why2 = UP.buy('lift')
+    check('buying it twice is refused and costs nothing', ok2 == false and st.money == 500 and why2 ~= nil)
+    local ok3, why3 = UP.buy('dyno')
+    check('an upgrade the player cannot afford is refused with the price and the money in the text', ok3 == false and st.money == 500 and tostring(why3):find('6000') ~= nil)
+    check('an unknown upgrade is refused', UP.buy('nonsense') == false)
+  else
+    check('upgrades loads in the test (' .. tostring(UP):sub(1, 100) .. ')', false)
+  end
+  package.loaded['sl/upgrades'] = nil
+  for n, v in pairs(saved) do _G[n] = v end
+end
+
 -- the rigged driver goes on the player's own cars only: spawnOwned wraps its spawn in slrrDriverMount.playerCarNext/Done, any other spawn does not
 do
   local saved = { slrrDriverMount = rawget(_G, 'slrrDriverMount'), core_vehicles = rawget(_G, 'core_vehicles'), core_vehicle_manager = rawget(_G, 'core_vehicle_manager'), getObjectByID = rawget(_G, 'getObjectByID'), log = rawget(_G, 'log') }
