@@ -65,6 +65,7 @@ Seen working in the game by the tester:
 - The pieces are called by their player-facing names everywhere: the Street Legal dashboard, Wrench Works: Drivers & Pedestrians, Street Legal Racing Redline in the credits.
 
 ### Fixes
+- No doubled garage marker on the map and in the world (seen in the game).
 - A car never becomes unspawnable: only parts that can come off are dropped from a damaged saved setup, never the body, frame or engine.
 - Recorded damage waits for the car to settle before it is applied.
 - The phone's text size scales the page body, not the whole screen.
