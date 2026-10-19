@@ -82,6 +82,7 @@
     '.slp-btn.slp-off{opacity:.38;pointer-events:none}',
     '.slp-card{margin:8px 16px;padding:14px 16px;border-radius:18px;background:#211f26}',
     '.slp-mapbody{position:relative;padding:0}.slp-mapcv{display:block;width:100%;height:340px;background:#f2efe9}.slp-mapzoom{position:absolute;right:10px;top:10px;background:#fff;border-radius:8px;box-shadow:0 1px 5px rgba(0,0,0,.4);color:#3c4043;font-size:20px;line-height:36px;text-align:center}.slp-mapzoom div{width:36px;cursor:pointer}',
+    '.slp-tyres{margin:8px 0}.slp-tyrehead{font-size:13px;color:#a8c7fa;margin-bottom:4px}.slp-tyrebox{display:flex;gap:10px;align-items:center}.slp-tyrecar{flex:none}.slp-tyreaxles{flex:1;min-width:0}',
     '.slp-tabs{display:flex;gap:6px;margin:6px 14px 0 14px;overflow-x:auto;flex:none}',
     '.slp-tab{flex:none;padding:7px 14px;border-radius:16px;background:#2b2930;color:#cac4d0;font-size:12px;cursor:pointer;border:2px solid transparent}',
     '.slp-tab.slp-tabon{background:#a8c7fa;color:#062e6f;font-weight:500}.slp-tab:focus{outline:none;border-color:#e6e1e5}',
@@ -1051,6 +1052,40 @@
         (rows.join('') || '<div class="slp-empty">' + (st.tab.cab === 'all' ? T('ui.the_cab_company_does_not', 'The cab company does not know any places on this map yet.') : T('ui.no_such_place_here', 'No such place here.')) + '</div>') + '</div>';
     }
 
+    // the tyres of a car (sl_tyrecare.card): a top-down car with its four tyres coloured by tread, and a line per axle
+    var TYRE_COLOURS = { new: '#4caf7d', good: '#8bc34a', worn: '#f2b84b', low: '#ef7b45', bald: '#e5534b', blown: '#b04bd6' };
+    function tyreWord(stage) { return T('tyres.word_' + stage, stage); }
+    function tyreName(id) { return T('tyres.name_' + id, id); }
+    function tyresView(t) {
+      if (!t || !arr(t.rows).length) return '';
+      var rows = arr(t.rows);
+      var tyres = rows.map(function (w) {
+        var left = String(w.side || '').toLowerCase().charAt(0) === 'l', front = w.axle === 'front';
+        var x = left ? 14 : 78, y = front ? 20 : 92, col = TYRE_COLOURS[w.stage] || '#888';
+        var pct = Math.round((w.frac || 0) * 100);
+        return '<rect x="' + x + '" y="' + y + '" width="18" height="40" rx="5" fill="' + col + '"' + (w.blown ? ' stroke="#fff" stroke-dasharray="3 2"' : '') + '/>' +
+          '<text x="' + (x + 9) + '" y="' + (y + 24) + '" font-size="9" text-anchor="middle" fill="#111" font-weight="600">' + (w.blown ? '&times;' : pct + '%') + '</text>' +
+          (w.flat ? '<circle cx="' + (x + 9) + '" cy="' + (y + 6) + '" r="3" fill="#fff"/>' : '');
+      }).join('');
+      var svg = '<svg class="slp-tyrecar" viewBox="0 0 110 152" width="96" height="132"><rect x="32" y="10" width="46" height="132" rx="16" fill="#2a2830" stroke="#555"/>' +
+        '<rect x="38" y="26" width="34" height="28" rx="6" fill="#3a3844"/><rect x="38" y="90" width="34" height="34" rx="6" fill="#3a3844"/>' + tyres + '</svg>';
+      var axles = arr(t.axles).map(function (a) {
+        return '<div class="slp-kv"><span>' + T('tyres.axle_' + a.axle, String(a.axle).charAt(0).toUpperCase() + String(a.axle).slice(1)) + '</span><b' + (a.replace ? ' class="slp-warn"' : '') + '>' + (a.replace ? '&#9888; ' : '') + esc(tyreName(a.compound)) +
+          ' &middot; ' + T('ui.tyre_tread_pct', '{1}% tread', Math.round((a.frac || 0) * 100)) + ' &middot; ' + esc(tyreWord(a.stage)) + (a.flat ? ' &middot; ' + T('ui.tyre_flat_spot', 'flat spot') : '') + '</b></div>';
+      }).join('');
+      return '<div class="slp-tyres"><div class="slp-tyrehead">' + T('ui.tyres_title', 'Tyres') + '</div><div class="slp-tyrebox">' + svg + '<div class="slp-tyreaxles">' + axles + '</div></div></div>';
+    }
+    // the Swap tyres panel at a meet: what each set costs here, refused by the game side while the car moves
+    function tyreSwapView() {
+      var car = arr(st.data.fleet).filter(function (c) { return c.seated && c.tyres && arr(c.tyres.offers).length; })[0];
+      if (!car) return '';
+      var offers = arr(car.tyres.offers).filter(function (o) { return !o.current; }).map(function (o) {
+        return '<div class="slp-btn slp-tonal" data-a="tyreswap" data-v="' + esc(o.id) + '">' + esc(tyreName(o.id)) + '<br><small>' + money(o.price) + '</small></div>';
+      }).join('');
+      return '<div class="slp-card" style="margin:6px 0 4px 0"><h4>' + T('ui.swap_tyres', 'Swap tyres') + '</h4><p>' + T('ui.swap_tyres_text', 'The crew changes the set where you stand. The car must be stopped.') + '</p>' +
+        '<div class="slp-acts" style="flex-wrap:wrap">' + offers + '</div></div>';
+    }
+
     // a car's health, its trunk (use what is in it) and its history
     var ITEM_NAMES = { fuelCan: T('ui.fuel_can', 'Fuel can'), oil: T('ui.engine_oil', 'Engine oil'), coolant: T('ui.coolant', 'Coolant'), battery: T('ui.12_v_battery', '12 V battery') };
     function careView(c) {
@@ -1073,7 +1108,7 @@
       var h = k.history || {};
       var hist = ('<div class="slp-kv" style="border:none"><span>' + T('ui.history', 'History') + '</span><b>') + (h.owners || 0) + T('ui.owners_before_you_middot', ' owners before you &middot; ') + (h.wins || 0) + '/' + (h.races || 0) + T('ui.races_won', ' races won') +
         (h.wrecks ? T('ui.middot_wrecked_1_times', ' &middot; wrecked {1}&times;', h.wrecks) : '') + '</b></div>';
-      return '<div class="slp-carcare">' + rows + (trunk ? ('<div class="slp-trunk">' + T('ui.trunk', 'Trunk') + '</div>') + trunk : '') + hist + reportBlock('car:' + c.id, c.report) + '</div>';
+      return '<div class="slp-carcare">' + rows + tyresView(c.tyres) + (trunk ? ('<div class="slp-trunk">' + T('ui.trunk', 'Trunk') + '</div>') + trunk : '') + hist + reportBlock('car:' + c.id, c.report) + '</div>';
     }
 
     function garagePage() {
@@ -1318,6 +1353,7 @@
       return '<div class="slp-meet"><h3>' + (m.theme ? esc(m.theme) + ' &middot; ' : T('ui.car_meet_middot', 'Car meet &middot; ')) + esc(m.name) + '</h3><div class="slp-card" style="margin:6px 0 4px 0"><p>Pick somebody. The race is to the other side of town; first one there wins.</p></div>' +
         (rows.join('') || ('<div class="slp-empty">' + T('ui.everybody_has_gone_home', 'Everybody has gone home.') + '</div>')) +
         (owners ? ('<div class="slp-trunk">' + T('ui.owners_by_their_cars', 'Owners by their cars') + '</div>') + owners : '') +
+        tyreSwapView() +
         (m.canShow ? ('<div class="slp-lotbtns"><div class="slp-btn slp-tonal" data-a="meetshow" data-v="1">' + T('ui.show_and_shine', 'Show and shine (')) + money(m.showFee || 50) + ')</div></div>' : '') +
         ('<div class="slp-lotleave"><div class="slp-btn slp-text" data-a="meetclose">' + T('ui.just_looking', 'Just looking') + '</div></div></div>');
     }
@@ -1690,6 +1726,7 @@
         case 'despawn': lua('despawn(' + Number(v) + ')'); break;
         case 'garageclose': lua('closeGarage()'); st.garage = null; render(); break;
         case 'mapzoom': MV.mpp = Math.max(0.5, Math.min(12, MV.mpp * (v === 'in' ? 0.7 : 1.43))); MV.last = 0; paintMap(); break;
+        case 'tyreswap': lua('@sl_tyrecare.swap(' + JSON.stringify(String(v)) + ')'); break;
         case 'route': lua('routeTo(' + JSON.stringify(String(v)) + ')'); break;
         case 'routegarage': lua('routeGarage()'); break;
         case 'clearroute': lua('clearRoute()'); break;

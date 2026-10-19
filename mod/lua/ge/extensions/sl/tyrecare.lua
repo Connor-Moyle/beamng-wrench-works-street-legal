@@ -47,6 +47,24 @@ local function setNow(car, info)
   return { compound = compoundOf(car), frac = info and info.worst and info.worst.frac or 1 }
 end
 
+-- what the phone shows for a car: the tyres (a diagram and the axles) and, for the car you sit in, what a swap costs where you are (a track or a meet: the crew comes to you)
+-- { compound, rows, axles, replace, worst = { frac, stage }, offers = { { id, price, current } } } or nil (no tyre module, or it is switched off)
+function M.card(car, vid, withOffers)
+  local info = M.info(car, vid)
+  if not info then return nil end
+  local out = { compound = info.compound, rows = info.rows, axles = info.axles, replace = info.replace,
+    worst = info.worst and { frac = info.worst.frac, stage = info.worst.stage } or nil }
+  if withOffers then
+    local now = setNow(car, info)
+    out.offers = {}
+    for _, id in ipairs(T.ORDER) do
+      local price = T.quote(id, nil, 'track', now)
+      if price then out.offers[#out.offers + 1] = { id = id, price = price, current = id == now.compound and not info.replace } end
+    end
+  end
+  return out
+end
+
 local function moving(vid)
   local v = getObjectByID and getObjectByID(vid)
   if not v then return false end
@@ -70,6 +88,12 @@ function M.changeNow(compound, where)
   car.tyres = { compound = compound }                   -- (no blob: the new set is new)
   extensions.hook('onStreetLegalChanged')
   return true, strings.t('tyres.fitted', T.name(compound))
+end
+
+-- the phone's Swap tyres button (a track or a meet)
+function M.swap(compound)
+  local _, text = M.changeNow(tostring(compound), 'track')
+  toast(text)
 end
 
 -- what the garage's drawer offers for the car on the lift

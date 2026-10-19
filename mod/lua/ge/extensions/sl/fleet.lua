@@ -452,6 +452,7 @@ function M.list()
       condition = c.condition, faults = market.unfixed(c), value = c.value,
       scrap = market.scrapValue(c), resale = market.resaleValue(c), towFee = veh and progression.towFee((veh:getPosition() - (M.forecourt(s, 0) or veh:getPosition())):length()) or nil,
       care = sl_carcare and sl_carcare.summary and sl_carcare.summary(c) or nil,
+      tyres = (veh and sl_tyrecare and sl_tyrecare.card) and sl_tyrecare.card(c, veh:getID(), player ~= nil and player:getID() == veh:getID()) or nil,
       impounded = c.impounded,
       look = veh and sl_surfacefx and sl_surfacefx.lookText(veh:getID()) or nil,      -- ('Clean, no scratches': Car Surface FX, when it is there)
       report = (function() local ok, r = pcall(sl_carcare.reportOf, c) return ok and r or nil end)(),       -- (#30: with the wear since you bought it)

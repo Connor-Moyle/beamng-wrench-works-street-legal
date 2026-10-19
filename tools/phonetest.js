@@ -780,6 +780,27 @@ assert.strictEqual(Array.from(phone.root.querySelectorAll('[data-a="contact"] b'
 calls.length = 0;
 click('route', 'd1');
 assert.ok(calls.includes('routeTo("d1")'), 'Route to sets the route');
+// the tyres of a car: a diagram with four tyres and a line per axle (sl_tyrecare.card); the Swap tyres panel at a meet
+phone.act('home');
+if (!phone.state.open) phone.handle('slPhoneToggle');
+const tyreCard = { compound: 'road', replace: false, rows: [{ idx: 0, axle: 'front', side: 'left', frac: 0.9, stage: 'new', flat: false, blown: false }, { idx: 1, axle: 'front', side: 'right', frac: 0.5, stage: 'good', flat: true, blown: false },
+  { idx: 2, axle: 'rear', side: 'left', frac: 0.1, stage: 'low', flat: false, blown: false }, { idx: 3, axle: 'rear', side: 'right', frac: 0, stage: 'blown', flat: false, blown: true }],
+  axles: [{ axle: 'front', compound: 'road', frac: 0.5, stage: 'good', flat: true, replace: false }, { axle: 'rear', compound: 'road', frac: 0, stage: 'blown', flat: false, replace: true }],
+  offers: [{ id: 'road', price: 0, current: false }, { id: 'slick', price: 640, current: false }, { id: 'performance', price: 420, current: true }] };
+phone.handle('slPhoneData', Object.assign({}, phone.state.data, { active: true, fleet: [{ id: 7, name: 'Covet', where: 'Out on the street', seated: true, out: true, condition: 0.9, care: { battery: 0.9, oilLevel: 0.9, coolantLevel: 0.9, fuelLevel: 0.5, fuel: 'Regular', engineKm: 100, performance: 1, history: {} }, tyres: tyreCard }] }));
+phone.act('open', 'garage');
+assert.ok(phone.root.querySelectorAll('.slp-tyrecar rect[fill="#4caf7d"]').length === 1 && /Tyres/.test(phone.root.textContent), 'the tyre diagram with a coloured tyre');
+assert.ok(/Front/.test(phone.root.textContent) && /Rear/.test(phone.root.textContent) && /50% tread/.test(phone.root.textContent) && /flat spot/.test(phone.root.textContent) && /blown/.test(phone.root.textContent), 'a line per axle with the tread, the stage and the flags');
+phone.handle('slPhoneData', Object.assign({}, phone.state.data, { fleet: [{ id: 8, name: 'Other', where: 'Garage', condition: 1, care: { history: {} } }] }));
+assert.ok(!phone.root.querySelector('.slp-tyrecar'), 'a car without tyre data shows no tyres');
+phone.handle('slPhoneData', Object.assign({}, phone.state.data, { fleet: [{ id: 7, name: 'Covet', seated: true, out: true, condition: 0.9, tyres: tyreCard }] }));
+phone.handle('slMeet', { open: true, name: 'Pier', owners: [], racers: [], money: 1000 });
+assert.ok(/Swap tyres/.test(phone.root.textContent) && phone.root.querySelectorAll('[data-a="tyreswap"]').length === 2 && !phone.root.querySelector('[data-a="tyreswap"][data-v="performance"]'), 'the meet offers the other sets, not the one on the car');
+assert.ok(/\$640/.test(phone.root.textContent), 'with the price');
+calls.length = 0;
+click('tyreswap', 'slick');
+assert.ok(calls.includes('@sl_tyrecare.swap("slick")'), 'a tap swaps the tyres through sl_tyrecare');
+phone.handle('slMeet', { open: false });
 // Map: groups with distances, a tap sets the route, the home shortcut, clear route
 phone.act('home');
 if (!phone.state.open) phone.handle('slPhoneToggle');
