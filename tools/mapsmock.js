@@ -1,7 +1,7 @@
 // Renders a mock of the Maps app (landscape phone) with made-up roads to a PNG: node tools/mapsmock.js out.png
 const { createCanvas } = require('canvas');
 const fs = require('fs');
-const D = require('../mod/ui/modules/apps/slMaps/mapdraw.js');
+const D = require('../mod/ui/modules/apps/slMaps/app.js');
 const W = 900, H = 440;
 const cv = createCanvas(W, H), ctx = cv.getContext('2d');
 // a made-up town: a grid of streets, two arterials, a highway, a park, a river

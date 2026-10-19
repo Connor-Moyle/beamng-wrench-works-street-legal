@@ -1217,6 +1217,21 @@ do
   local md = helpLib.markdown()
   check('a part whose jbeam name is an unfilled template shows its id in words, never the template', (function() local PI = require('sl/core/partinfo') local n = PI.displayName('{{ size }} {{ type }}', 'vivace_wheel_01a', 'vivace') return not n:find('{{', 1, true) and n:lower():find('wheel') ~= nil and PI.text('{{ x }}') == nil and PI.text('Wheel') == 'Wheel' end)())
   check('a translated part name with a brand placeholder shows without the placeholder', (function() local old = translateLanguage translateLanguage = function() return '{{brand1 | translate}} A11 Rear Hubcaps' end local n = require('sl/core/partinfo').displayName('ui.part.hubcaps', 'x_hubcap', 'x') translateLanguage = old return n == 'A11 Rear Hubcaps' end)())
+  do
+    local MF = require('sl/core/mapfeed')
+    local A, B = { pos = { x = 0, y = 0 }, radius = 1.75 }, { pos = { x = 100, y = 0 }, radius = 1.75 }
+    check('maps: a plain lane link is a minor road', MF.classify({}, A, B) == 'minor')
+    check('maps: width alone gives the class when there is no speed limit', MF.classify({}, { radius = 5 }, B) == 'arterial' and MF.classify({ lanes = '++---' }, A, B) == 'highway' and MF.classify({}, { radius = 3 }, B) == 'street')
+    check('maps: a high speed limit is a highway, a dirt track never a main road', MF.classify({ speedLimit = 30 }, A, B) == 'highway' and MF.classify({ speedLimit = 30, drivability = 0.2 }, A, B) == 'minor')
+    local nodes = { a = { pos = { x = 10, y = 10 }, links = { b = {}, c = { speedLimit = 20 } } }, b = { pos = { x = 300, y = 10 }, links = { a = {} } }, c = { pos = { x = 10, y = 600 }, links = { a = { speedLimit = 20 } } } }
+    local bl = MF.builder(nodes)
+    while not bl:step(os.clock, 1) do end
+    local n = 0 for _, t in pairs(bl.tiles) do n = n + #t end
+    check('maps: every link is in one tile once, in the tile of its middle', bl.count == 2 and n == 2 and bl.tiles['0,0'] ~= nil and bl.tiles['0,1'] ~= nil)
+    check('maps: tiles around a point cover the square', #MF.tilesAround(10, 10, 200) == 4 and MF.key(-1, -1) == '-1,-1')
+    local rp = MF.routePoints({ { pos = { x = 0, y = 0 } }, { pos = { x = 1, y = 0 } }, { pos = { x = 50, y = 0 } }, { pos = { x = 51, y = 0 } } }, 6)
+    check('maps: a route is thinned and keeps its last point', #rp == 6 and rp[5] == 51)
+  end
   check('a part named by a game translation key is shown by its id in words, never as the key', (function() local n = require('sl/core/partinfo').displayName('ui.vehicleconfig.generic.wheelName', 'vivace_wheel_01a', 'vivace') return not n:find('ui%.') and n:lower():find('wheel') ~= nil end)())
   check('the help covers the new features and its economy numbers are the real ones', (function()
     for _, id in ipairs({ 'dealers', 'weather', 'carcare', 'carmeets', 'graphics', 'extras' }) do if not helpLib.page(id) then return false end end
