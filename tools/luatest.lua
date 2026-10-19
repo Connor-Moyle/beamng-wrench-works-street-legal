@@ -2850,4 +2850,87 @@ do -- the career's tyres (sl/core/tyres)
   check('tyres: a change is refused moving or when short of money, never otherwise', T.refusal(100, 500, true) ~= nil and T.refusal(100, 50, false) ~= nil and T.refusal(100, 100, false) == nil)
 end
 
+-- sl_tyrecare: the career's tyres against a stub of carSurfaceFx_tyres (absent, off, on)
+do
+  local saved = { sl_career = rawget(_G, 'sl_career'), sl_fleet = rawget(_G, 'sl_fleet'), carSurfaceFx_tyres = rawget(_G, 'carSurfaceFx_tyres'), guihooks = rawget(_G, 'guihooks'),
+    extensions = rawget(_G, 'extensions'), getObjectByID = rawget(_G, 'getObjectByID'), ui_message = rawget(_G, 'ui_message') }
+  local T = require('sl/core/tyres')
+  local rows = T.carRows({ compound = 'road', wheels = { { idx = 0, stage = 1 }, { idx = 1, stage = 2, flat = 0.5 }, { idx = 2, stage = 4 }, { idx = 3, stage = 5 } } })
+  check('tyrecare: the wheel rows read the stage when there is no fraction, the worst tyre says replace', #rows.rows == 4 and rows.rows[1].stage == 'new' and rows.rows[2].stage == 'good' and rows.rows[2].flat
+    and rows.rows[3].stage == 'low' and rows.rows[4].stage == 'bald' and rows.worst.idx == 3 and rows.replace and T.carRows(nil) == nil and T.carRows({ wheels = {} }) == nil)
+  check('tyrecare: a fraction wins over the stage and a blow-out is blown', T.wheelRow({ idx = 0, frac = 0.9, stage = 5 }).stage == 'new' and T.wheelRow({ idx = 0, frac = 0.9, blown = true }).stage == 'blown' and T.wheelRow({ idx = 0, blown = true }).replace)
+  local p = T.plan('slick', 'track', { compound = 'road', frac = 0.5 }, 5000, false)
+  check('tyrecare: a change plan has the track fee and the trade-in', p.ok and p.price == 1430 - 27 and p.parts.fee == 330)
+  check('tyrecare: a plan is refused moving, when poor, or for a compound that does not exist', not T.plan('slick', 'garage', nil, 5000, true).ok and not T.plan('slick', 'garage', nil, 10, false).ok and not T.plan('moon', 'garage', nil, 5000, false).ok)
+
+  local state = { money = 5000, cars = {} }
+  local car = { id = 1, name = 'Covet' }
+  state.cars[1] = car
+  local spent, hooks, toasts, calls = {}, {}, {}, {}
+  _G.sl_career = { isActive = function() return true end, getState = function() return state end, addMoney = function(n, why) if state.money + n < 0 then return false end state.money = state.money + n spent[#spent + 1] = n return true end }
+  _G.sl_fleet = { currentCar = function() return car end, vehicleOf = function(id) return { getID = function() return 77 end } end, carOfVehicle = function(vid) return vid == 77 and 1 or nil end }
+  _G.getObjectByID = function() return { getVelocity = function() return { length = function() return 0 end } end } end
+  _G.guihooks = { trigger = function(n, t) toasts[#toasts + 1] = t.text end }
+  _G.extensions = { hook = function(n) hooks[#hooks + 1] = n end }
+  _G.ui_message = nil
+  package.loaded['sl/tyrecare'] = nil
+  _G.carSurfaceFx_tyres = nil
+  local tc = require('sl/tyrecare')
+  local list = {}
+  tc.onWrenchWorksServices(list)
+  check('tyrecare: without the tyre module nothing is offered, changed or saved', not tc.available() and #list == 0 and tc.changeNow('slick', 'garage') == false and tc.save(77, car) == nil and tc.restore(77, car) == nil and tc.info(car, 77) == nil)
+
+  local mod = { enabled = false }
+  _G.carSurfaceFx_tyres = {
+    getConfig = function() return { enabled = mod.enabled } end,
+    getTyres = function() return { wheels = { { idx = 0, stage = 3 }, { idx = 1, stage = 2 } } } end,
+    setCompound = function(id, axle, name) calls[#calls + 1] = 'compound:' .. id .. ':' .. name return true end,
+    setTread = function(id, w, f) calls[#calls + 1] = 'tread:' .. id .. ':' .. tostring(w) .. ':' .. f return true end,
+    snapshot = function(id) return { [0] = { h = 4 } } end,
+    restore = function(id, blob) calls[#calls + 1] = 'restore:' .. id return true end,
+    attach = function(id) calls[#calls + 1] = 'attach:' .. id end,
+  }
+  check('tyrecare: the tyre module switched off in its Mods page hides everything', not tc.available())
+  mod.enabled = true
+  list = {}
+  tc.onWrenchWorksServices(list)
+  local info, slick
+  for _, e in ipairs(list) do if e.id == 'tyres:info' then info = e end if e.id == 'tyre:slick' then slick = e end end
+  check('tyrecare: the drawer shows the tyres state and a change for each other compound, priced with the trade-in', info and info.disabled and info.label:find('Road') and slick and slick.price == 1100 - math.floor(T.COMPOUNDS.road.set * 0.15 * 0.4 + 0.5)
+    and slick.group == 'Tyres')
+  local ok, text = tc.changeNow('slick', 'garage')
+  check('tyrecare: a change pays, sets the compound and a fresh tread, and keeps the compound with the car', ok and text:find('Slick') and state.money == 5000 - (1100 - math.floor(T.COMPOUNDS.road.set * 0.15 * 0.4 + 0.5)) and calls[1] == 'compound:77:slick'
+    and calls[2] == 'tread:77:nil:1' and car.tyres.compound == 'slick' and car.tyres.blob == nil and hooks[#hooks] == 'onStreetLegalChanged')
+  state.money = 100
+  local before = #calls
+  ok, text = tc.changeNow('slicksoft', 'track')
+  check('tyrecare: too poor, nothing is sold and nothing is sent to the car', not ok and #calls == before and car.tyres.compound == 'slick')
+  state.money = 5000
+  _G.getObjectByID = function() return { getVelocity = function() return { length = function() return 20 end } end } end
+  ok = tc.changeNow('road', 'garage')
+  check('tyrecare: not while the car is moving', ok == false and car.tyres.compound == 'slick')
+  _G.getObjectByID = function() return { getVelocity = function() return { length = function() return 0 end } end } end
+
+  car.tyres = { compound = 'slick' }
+  check('tyrecare: the wear is snapshotted into the car record', tc.save(77, car) == true and car.tyres.blob[0].h == 4 and car.tyres.compound == 'slick')
+  calls = {}
+  tc.restore(78, car)
+  check('tyrecare: a car that comes out gets the module and its wear back (the blob has the compound)', calls[1] == 'attach:78' and calls[2] == 'restore:78' and #calls == 2)
+  calls = {}
+  tc.restore(78, { tyres = { compound = 'slick' } })
+  check('tyrecare: a compound with no wear saved is set again', calls[2] == 'compound:78:slick' and #calls == 2)
+  calls = {}
+  tc.restore(78, { tyres = { compound = 'road' } })
+  check('tyrecare: a road-tyre car with no wear saved is left alone', #calls == 1 and calls[1] == 'attach:78')
+  calls = {}
+  tc.onVehicleResetted(77)
+  check('tyrecare: after a reset (R) the wear is put back', calls[1] == 'attach:77' and calls[2] == 'restore:77')
+  tc.onCsfxTyreBlown(77) tc.onCsfxTyreBlown(99)
+  check('tyrecare: a blow-out of the player\'s own car is a toast, any other car is not', #toasts >= 1 and toasts[#toasts] == 'A tyre has blown.' and (function() local n = 0 for _, t in ipairs(toasts) do if t == 'A tyre has blown.' then n = n + 1 end end return n == 1 end)())
+  _G.carSurfaceFx_tyres = { getConfig = function() error('boom') end, getTyres = function() error('boom') end, setCompound = function() error('boom') end }
+  check('tyrecare: an error inside the tyre module never reaches the career', tc.info(car, 77) == nil)
+  _G.sl_career, _G.sl_fleet, _G.carSurfaceFx_tyres, _G.guihooks, _G.extensions, _G.getObjectByID, _G.ui_message = saved.sl_career, saved.sl_fleet, saved.carSurfaceFx_tyres, saved.guihooks, saved.extensions, saved.getObjectByID, saved.ui_message
+  package.loaded['sl/tyrecare'] = nil
+end
+
 print(string.format('lua tests passed: %d checks', passed))
