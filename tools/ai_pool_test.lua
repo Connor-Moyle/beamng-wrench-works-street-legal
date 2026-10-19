@@ -238,6 +238,14 @@ return function(check, rngLib)
   check('travel: garages and shops get an entry, lots do not; shops need a position; a garage on top of another is one pin', #ex == 3 and ex[1].kind == 'garage' and ex[3].kind == 'shop' and ex[3].placeId == 'wshop_torres' and ex[3].arrive.x == 7
     and ex[3].pin ~= nil and ex[3].what:find('Wheels') ~= nil)
   places.wshop_torres, places.wshop_nopos, places.stockGarage = nil, nil, nil
+  places.auction = { id = 'auction', kind = 'auction', name = 'Junkyard auction', pos = { x = 50, y = 60, z = 1 } }
+  places.job_j1 = { id = 'job_j1', kind = 'job', name = 'Parcel', pos = { x = 70, y = 80, z = 1 } }
+  places.hosp = { id = 'hosp', kind = 'hospital', name = 'County', pos = { x = 90, y = 10, z = 1 } }
+  local byKind = {}
+  for _, e in ipairs(FT.extras(places, { rep = 100, garageLevel = 1 })) do byKind[e.kind] = e end
+  check('travel: the auction, a job stop and the hospital have their own pin and card icon',
+    byKind.auction and byKind.job and byKind.job.pin == 'poi_pickup_round' and byKind.job.cardIcon == 'boxPickUp01' and byKind.hospital.cardIcon == 'shieldHandPlus')
+  places.auction, places.job_j1, places.hosp = nil, nil, nil
   check('travel: your garage is open, the next one locked with the reputation it needs; a shop is never locked', not ex[1].locked and ex[2].locked and ex[2].why:find('175') ~= nil and ex[2].what:find('175') ~= nil and not ex[3].locked)
   places.wash1 = { id = 'wash1', kind = 'carwash', name = 'Suds', pos = { x = 3, y = 4, z = 0 } }
   places.hosp = { id = 'hosp', kind = 'hospital', name = 'General', at = { x = 5, y = 5, z = 0 } }

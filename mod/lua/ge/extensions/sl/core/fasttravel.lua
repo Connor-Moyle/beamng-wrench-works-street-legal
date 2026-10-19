@@ -20,9 +20,11 @@ M.KINDS = {
   -- the other places of the map (their own pin and a trip there, never locked): car wash, meet, hospital, valet, parts store
   carwash = { cardIcon = 'droplet', pin = 'poi_point_1_round', what = strings.t('fasttravel.car_wash') },
   meet = { cardIcon = 'cars', pin = 'poi_parking_round', what = strings.t('fasttravel.car_meet') },
-  hospital = { cardIcon = 'carCrash', pin = 'poi_exclamationmark_round', what = strings.t('fasttravel.hospital') },
+  hospital = { cardIcon = 'shieldHandPlus', pin = 'poi_exclamationmark_round', what = strings.t('fasttravel.hospital') },
   valet = { cardIcon = 'keys1', pin = 'poi_parking_round', what = strings.t('fasttravel.valet') },
   parts = { cardIcon = 'wrench', pin = 'poi_point_1_round', what = strings.t('fasttravel.parts_store') },
+  auction = { cardIcon = 'carCoins', pin = 'poi_point_1_round', what = strings.t('fasttravel.live_auction') },     -- (the junkyard on auction day)
+  job = { cardIcon = 'boxPickUp01', pin = 'poi_pickup_round', what = strings.t('fasttravel.job_pickup') },         -- (a job on the board that starts off the map's places, or the stop you are heading for)
 }
 
 -- the text that refuses a trip, or nil. ctx: { racing, job, chase, cab } booleans

@@ -946,7 +946,7 @@
     // the map: the places by kind, nearest first; a tap sets the route on the road
     var MAP_KINDS = { garage: T('ui.kind_garage', 'Garages'), dealer: T('ui.kind_dealer', 'Dealers'), junkyard: T('ui.kind_junkyard', 'Junkyards'),
       scrapyard: T('ui.kind_scrapyard', 'Scrapyards and auctions'), shop: T('ui.kind_shop', 'Shops'), parts: T('ui.kind_parts', 'Parts shops'),
-      carwash: T('ui.kind_carwash', 'Car washes'), meet: T('ui.kind_meet', 'Car meets'), hospital: T('ui.kind_hospital', 'Hospital'), valet: T('ui.kind_valet', 'Valet'), gas: T('ui.kind_gas', 'Gas stations') };
+      carwash: T('ui.kind_carwash', 'Car washes'), meet: T('ui.kind_meet', 'Car meets'), hospital: T('ui.kind_hospital', 'Hospital'), valet: T('ui.kind_valet', 'Valet'), gas: T('ui.kind_gas', 'Gas stations'), auction: T('ui.kind_auction', 'Live auction'), job: T('ui.kind_job', 'Job stops') };
     function distText(m) { return m == null ? '' : (m < 1000 ? m + ' m' : (m / 1000).toFixed(1) + ' km'); }
     function mapPage() {
       var m = obj(st.map), groups = arr(m.groups), r = m.route;
@@ -992,7 +992,7 @@
     }
 
     // the cab's places by category (#21): garages, shops, dealers (by the price tier of their cars), junkyards
-    var CAB_KINDS = { all: null, garage: ['garage'], shop: ['shop', 'parts', 'gas', 'carwash'], dealer: ['dealer'], junk: ['junkyard', 'scrapyard'], other: ['meet', 'hospital', 'valet'] };
+    var CAB_KINDS = { all: null, garage: ['garage'], shop: ['shop', 'parts', 'gas', 'carwash'], dealer: ['dealer'], junk: ['junkyard', 'scrapyard'], other: ['meet', 'hospital', 'valet', 'auction', 'job'] };
     var CAB_TIERS = [['all', T('ui.any', 'Any')], ['high', T('ui.high', 'High')], ['mid', T('ui.mid', 'Mid')], ['low', T('ui.low', 'Low')], ['junk', T('ui.junk', 'Junk')]];
     function cabShown(p) {
       var kinds = CAB_KINDS[st.tab.cab];
