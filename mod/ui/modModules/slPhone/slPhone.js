@@ -1075,9 +1075,13 @@
       }).join('');
       return '<div class="slp-tyres"><div class="slp-tyrehead">' + T('ui.tyres_title', 'Tyres') + '</div><div class="slp-tyrebox">' + svg + '<div class="slp-tyreaxles">' + axles + '</div></div></div>';
     }
+    function tyreSwapCard(c) {
+      if (!(c.seated && c.tyres && arr(c.tyres.offers).length)) return '';
+      return c.tyres.swapAt ? tyreSwapView(c) : '<div class="slp-kv" style="border:none"><span>' + T('ui.tyre_changes_where', 'Tyre changes: at a garage or a track') + '</span></div>';
+    }
     // the Swap tyres panel at a meet: what each set costs here, refused by the game side while the car moves
-    function tyreSwapView() {
-      var car = arr(st.data.fleet).filter(function (c) { return c.seated && c.tyres && arr(c.tyres.offers).length; })[0];
+    function tyreSwapView(car) {
+      car = car || arr(st.data.fleet).filter(function (c) { return c.seated && c.tyres && arr(c.tyres.offers).length; })[0];
       if (!car) return '';
       var offers = arr(car.tyres.offers).filter(function (o) { return !o.current; }).map(function (o) {
         return '<div class="slp-btn slp-tonal" data-a="tyreswap" data-v="' + esc(o.id) + '">' + esc(tyreName(o.id)) + '<br><small>' + money(o.price) + '</small></div>';
@@ -1108,7 +1112,7 @@
       var h = k.history || {};
       var hist = ('<div class="slp-kv" style="border:none"><span>' + T('ui.history', 'History') + '</span><b>') + (h.owners || 0) + T('ui.owners_before_you_middot', ' owners before you &middot; ') + (h.wins || 0) + '/' + (h.races || 0) + T('ui.races_won', ' races won') +
         (h.wrecks ? T('ui.middot_wrecked_1_times', ' &middot; wrecked {1}&times;', h.wrecks) : '') + '</b></div>';
-      return '<div class="slp-carcare">' + rows + tyresView(c.tyres) + (trunk ? ('<div class="slp-trunk">' + T('ui.trunk', 'Trunk') + '</div>') + trunk : '') + hist + reportBlock('car:' + c.id, c.report) + '</div>';
+      return '<div class="slp-carcare">' + rows + tyresView(c.tyres) + tyreSwapCard(c) + (trunk ? ('<div class="slp-trunk">' + T('ui.trunk', 'Trunk') + '</div>') + trunk : '') + hist + reportBlock('car:' + c.id, c.report) + '</div>';
     }
 
     function garagePage() {

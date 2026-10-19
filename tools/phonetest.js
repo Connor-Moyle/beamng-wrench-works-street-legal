@@ -791,6 +791,11 @@ phone.handle('slPhoneData', Object.assign({}, phone.state.data, { active: true, 
 phone.act('open', 'garage');
 assert.ok(phone.root.querySelectorAll('.slp-tyrecar rect[fill="#4caf7d"]').length === 1 && /Tyres/.test(phone.root.textContent), 'the tyre diagram with a coloured tyre');
 assert.ok(/Front/.test(phone.root.textContent) && /Rear/.test(phone.root.textContent) && /50% tread/.test(phone.root.textContent) && /flat spot/.test(phone.root.textContent) && /blown/.test(phone.root.textContent), 'a line per axle with the tread, the stage and the flags');
+assert.ok(/Tyre changes: at a garage or a track/.test(phone.root.textContent) && !phone.root.querySelector('[data-a="tyreswap"]'), 'away from a track the card says where tyre changes are');
+tyreCard.swapAt = 'Pier';
+phone.handle('slPhoneData', Object.assign({}, phone.state.data, { fleet: [{ id: 7, name: 'Covet', where: 'Out on the street', seated: true, out: true, condition: 0.9, care: { history: {} }, tyres: tyreCard }] }));
+assert.ok(phone.root.querySelectorAll('[data-a="tyreswap"]').length === 2 && /Swap tyres/.test(phone.root.textContent), 'at a track or a meet place My cars offers the swap');
+delete tyreCard.swapAt;
 phone.handle('slPhoneData', Object.assign({}, phone.state.data, { fleet: [{ id: 8, name: 'Other', where: 'Garage', condition: 1, care: { history: {} } }] }));
 assert.ok(!phone.root.querySelector('.slp-tyrecar'), 'a car without tyre data shows no tyres');
 phone.handle('slPhoneData', Object.assign({}, phone.state.data, { fleet: [{ id: 7, name: 'Covet', seated: true, out: true, condition: 0.9, tyres: tyreCard }] }));

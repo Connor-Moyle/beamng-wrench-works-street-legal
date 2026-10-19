@@ -47,6 +47,21 @@ local function setNow(car, info)
   return { compound = compoundOf(car), frac = info and info.worst and info.worst.frac or 1 }
 end
 
+-- a place where the crew changes tyres (a car meet, a track, a drag strip): the name of the one the car stands at, or nil
+M.SWAP_KINDS = { meet = true, track = true, drag = true, dragstrip = true, circuit = true }
+M.SWAP_REACH = 80            -- m
+local function swapPlace(vid)
+  local v = getObjectByID and getObjectByID(vid)
+  local ok, pos = pcall(function() return v:getPosition() end)
+  if not (ok and pos) then return nil end
+  for _, p in pairs(sl_career and sl_career.getPlaces and sl_career.getPlaces() or {}) do
+    if M.SWAP_KINDS[p.kind] and p.pos then
+      local dx, dy = pos.x - p.pos.x, pos.y - p.pos.y
+      if dx * dx + dy * dy <= M.SWAP_REACH * M.SWAP_REACH then return p.name or p.id end
+    end
+  end
+end
+
 -- what the phone shows for a car: the tyres (a diagram and the axles) and, for the car you sit in, what a swap costs where you are (a track or a meet: the crew comes to you)
 -- { compound, rows, axles, replace, worst = { frac, stage }, offers = { { id, price, current } } } or nil (no tyre module, or it is switched off)
 function M.card(car, vid, withOffers)
@@ -55,6 +70,7 @@ function M.card(car, vid, withOffers)
   local out = { compound = info.compound, rows = info.rows, axles = info.axles, replace = info.replace,
     worst = info.worst and { frac = info.worst.frac, stage = info.worst.stage } or nil }
   if withOffers then
+    out.swapAt = swapPlace(vid)               -- (nil elsewhere: the phone says tyre changes are at a garage or a track)
     local now = setNow(car, info)
     out.offers = {}
     for _, id in ipairs(T.ORDER) do
@@ -108,6 +124,11 @@ function M.onWrenchWorksServices(list)
   if info and info.worst then
     local line = strings.t('tyres.fitted_line', T.name(info.compound or now.compound), strings.t('tyres.word_' .. info.worst.stage))
     list[#list + 1] = { id = 'tyres:info', group = group, label = line, desc = info.replace and strings.t('tyres.old_set_credit') or '', disabled = true }
+  end
+  for _, r in ipairs(info and info.rows or {}) do                       -- one line per tyre
+    local flat = r.flat and (' - ' .. strings.t('ui.tyre_flat_spot')) or ''
+    list[#list + 1] = { id = 'tyres:w' .. tostring(r.idx), group = group, disabled = true, desc = '',
+      label = strings.t('tyres.tyre_line', strings.t('tyres.axle_' .. tostring(r.axle)), strings.t('ui.tyre_' .. tostring(r.side)), math.floor((r.frac or 0) * 100 + 0.5), strings.t('tyres.word_' .. tostring(r.stage))) .. flat }
   end
   for _, id in ipairs(T.ORDER) do
     if id ~= now.compound or (info and info.replace) then
