@@ -1,35 +1,54 @@
-# Free roam: Street Legal outside a career (design note, draft)
+# Free roam: Street Legal outside a career (design note)
 
-Goal: in free roam the phone and the SL features work through Mods-menu switches, off by default, and a career save is never read or written.
+Goal: in free roam the phone and the SL features work through Mods-menu switches, off by default, and a career save is never read or written. Written by a5 (world/career side) and 9e (UI side), merged. For SL 0.6.0 / Wrench Complete 0.10.0. Plan only; nothing is built yet.
 
 ## Decisions (62, 2026-10-19)
-- One shared helper replaces the ~35 one-line `career()` helpers (one change per module). `sl_mode.enabled(feature)` answers "may this feature run now?"; `sl_mode.state()` returns the career state in a career, the sandbox state in free roam, else nil.
-- The sandbox state lives in its own file (`/settings/street_legal/freeroam.json`), never in a career slot (`career.lua` SAVE_DIR/slotFile).
-- Money is Wrench Works' free-roam balance (Mods > Wrench Works > Money > Freeroam money; `garageParts` `save.wallet`). No second wallet: the sandbox state holds no cash, the wallet calls read and write WW's.
-- Owned cars in free roam = the cars the player spawns. Garage = the WW home garage only. Rep, rivals and the campaign stay off.
+- **Switches**: ESC > Mods > Street Legal > Free roam: a master switch "Use Street Legal features in free roam" and one per feature. All off by default, so nothing changes for a player who does not opt in. The master alone enables nothing; a feature needs both.
+- **Helper**: one shared helper replaces the ~30 one-line `career()` helpers (one change per module). `sl_mode.enabled(feature)`, `sl_mode.state(feature)`, `sl_mode.kind()`.
+  - In a career: `enabled` is true and `state` is the career's state, exactly as now.
+  - In free roam: `enabled(f)` needs the master and the f switch; `state(f)` is the **sandbox state**, a `state.new()` that is never passed to `writeSave` and never written to a career slot.
+  - A career-only feature asks `sl_mode.enabled(f)` with f not in the free-roam list; it is false there whatever the switches.
+- **Sandbox file**: the sandbox's own choices live in `/settings/street_legal/freeroam.json` (not a career slot, not `career.lua` SAVE_DIR slot files), so they survive a restart. Nothing from a career goes into it, and nothing from it into a career.
+- **Money**: Wrench Works' existing free-roam balance (Mods > Wrench Works > Money > Freeroam money; `garageParts` `save.wallet`). No second wallet; the sandbox state holds no cash of its own. If the wallet is not callable from SL GE Lua, add one getter/setter function to the WW repo, with a test; that stays in the plan.
+- **Cars and garage**: owned cars = the cars the player spawns. Garage = the WW home garage only. Rep, rivals and the campaign stay off.
+- **Clock**: the clock follows the game's time in free roam. An opt-in switch lets SL control it. SL never moves the time of day on its own in free roam.
+- **Maps**: SL's place files exist per career map. Other maps get facility pins only (`freeroam_facilities`).
+- **Safety**: every career-only write is a no-op in the sandbox. A luatest asserts a free-roam session never calls `writeSave` and never fires rival or heat events. A crash handler must not write a save either.
 
-## Helper
-```
-sl_mode.state()          career state | sandbox state | nil
-sl_mode.enabled(f)       career active (as now) | (free roam and the Mods switch for f is on and f is in FREEROAM_OK)
-sl_mode.kind()           'career' | 'freeroam' | nil
-```
-Each module's `local function career()` becomes `return sl_mode.state()`; modules that check `sl_career.has('x')` call `sl_mode.enabled('x')`. Pure core in `sl/core/mode.lua` (table of features, tested by luatest); the GE wrapper reads the switches.
-
-## Feature split (first pass; to be settled with 9e for the UI side)
-| Feature | Free roam? | Notes |
+## Features
+| Feature | Free roam | Why |
 |---|---|---|
-| Phone, Maps | yes (9e) | apps that need rep/garage hide |
-| Weather / wet world | yes | no state needed; own switch |
-| Places and pins (shops, gas, wash, hospital) | yes where the map has `/street_legal/places/`; else the level's facilities | own switch |
-| Shops, parts, tyres, car wash | yes | pay from WW balance |
-| Traffic | yes | own switch |
-| Cab, jobs (day-job board), wwjobs | yes | rewards go to WW balance; no rep |
-| Races (drag, street), spectators | yes | no rep, no rival challenges |
-| Police | optional, own switch | heat is sandbox-only, resets with the session |
-| Rep, rivals, crews, clubs, classifieds, auctions, dealers, bank, achievements, campaign | no | need career-only data |
+| Phone (K) with its apps | yes, a subset | the shell reads the state for messages, money and the day; apps of the career's story (rivals, pink slips, campaign, rep, owned garages) stay off |
+| Maps app, HUD phone | yes | road graph, player, places; not the career state |
+| Big-map pins (our places) | yes | `pois` works from the place list; only its "career on" check changes |
+| Weather, wet roads, puddles | yes | need the level and rain, not the career |
+| Clock, day/night | yes, game time | see Clock above |
+| Traffic density | yes | a setting of ours |
+| Car wash | yes | car plus WW money |
+| Shops (Wrench Works), tyres | yes | WW free-roam money |
+| Cab | yes | road graph and places |
+| Dashboard HUD | yes | `hud` has a free-roam switch already |
+| Jobs, wwjobs | 0.6.1 | pay into WW money; no rep, no heat |
+| Races, meets, spectators | 0.6.1, a subset | a race against a stranger for money; no pink slips, rivals or rep |
+| Police | optional later | heat is sandbox-only and resets with the session |
+| Saves, progression, rivals' story, hospital bills, rep, crews, clubs, dealers, bank, classifieds, auctions, pink slips, campaign end, tutorial, achievements | no | one persistent career's data |
+| Drivers, Driver Injuries, Car Surface FX | already work | only the pedestrians ask whether a career is active (`slrrPedestrians.lua` ~1203); 80 confirms in game |
 
-## Open
-- Which maps: SL places exist per career map only; other maps get facility-based pins only (needs a check).
-- Whether WW's wallet is reachable from SL GE Lua (a cross-mod call); if not, a small getter in the Wrench Works repo.
-- Not checked: any module's use of career-only fields beyond the grep of `isActive()`. Nothing was run.
+## Release split
+- 0.6.0: `sl_mode` and the settings, the zero-risk features, the phone subset, Maps, weather, shops/wash/cab.
+- 0.6.1: jobs and races.
+
+## Work order
+1. `sl_mode` (pure core `sl/core/mode.lua` plus a GE wrapper) and its luatests; the audit of career-only writes.
+2. The one-line swap in the modules, zero-risk ones first (Maps, pins, weather, traffic, wash, cab, hud).
+3. Phone with the sandbox state, then WW shops, then the clock switch.
+4. Jobs, then races.
+
+## Tests and proof
+- luatest for `sl_mode`: off by default; master alone enables nothing; a feature needs both switches; the sandbox state is not the career state and is never offered to the save; career-only features are false in free roam; in a career behaviour is unchanged; a free-roam session never calls `writeSave` or fires rival/heat events.
+- 80 proves it in free roam on West Coast: the phone opens, the map works, rain and wet roads, and the career save files' checksums are unchanged.
+
+## Risks
+- Each module may have writes that assume a career (a message to a rival, a heat change): the audit must list them. A sandbox that quietly takes a write is fine; one that fires a career-only event is not.
+- Phone data pushed to the UI (`sl_uipush`) assumes the state exists; with the master off the phone must not appear.
+- Not checked: any module beyond a grep of `isActive()`; nothing was run.
