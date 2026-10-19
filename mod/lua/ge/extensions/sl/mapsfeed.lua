@@ -48,7 +48,8 @@ end
 local function places()
   local list = {}
   for id, p in pairs(sl_career and sl_career.getPlaces and sl_career.getPlaces() or {}) do
-    if type(p) == 'table' and p.pos and type(p.pos.x) == 'number' then list[#list + 1] = { id = id, kind = p.kind, name = p.name, x = math.floor(p.pos.x), y = math.floor(p.pos.y) } end
+    local x, y = feed.xy(type(p) == 'table' and p.pos or nil)
+    if x then list[#list + 1] = { id = id, kind = p.kind, name = p.name, x = math.floor(x), y = math.floor(y) } end
   end
   return list
 end
@@ -57,6 +58,11 @@ local function tick(dtReal)
   local lv = getCurrentLevelIdentifier and getCurrentLevelIdentifier() or ''
   if lv ~= level then level = lv reset() end
   if builder and not builder.done then builder:step(os.clock, BUDGET) end
+  if builder and builder.done and not builder.reported then
+    builder.reported = true
+    local n = 0 for _ in pairs(builder.tiles) do n = n + 1 end
+    log('I', 'sl_mapsfeed', 'road tiles built: ' .. builder.count .. ' segments in ' .. n .. ' tiles')
+  end
   if next(wanted) then sendWanted() end
   poseTimer = poseTimer + (dtReal or 0)
   if poseTimer < POSE_EVERY then return end
@@ -69,8 +75,8 @@ local function tick(dtReal)
   if not placesSent then placesSent = true guihooks.trigger('slMapsPlaces', { places = places() }) end
   local gm = core_groundMarkers
   local path = gm and gm.routePlanner and gm.routePlanner.path
-  local last = path and path[#path] and path[#path].pos
-  local key = last and type(last.x) == 'number' and (#path .. ':' .. math.floor(last.x) .. ':' .. math.floor(last.y)) or ''
+  local lx, ly = feed.xy(path and path[#path] and path[#path].pos or nil)
+  local key = lx and (#path .. ':' .. math.floor(lx) .. ':' .. math.floor(ly)) or ''
   if key ~= routeKey then
     routeKey = key
     guihooks.trigger('slMapsRoute', { route = path and path[1] and feed.routePoints(path, 6) or {} })
@@ -86,6 +92,13 @@ function M.onUpdate(dtReal)
     isActive = false
     reset()
   end
+end
+
+-- for a game test: what the feed has built
+function M.status()
+  local n = 0
+  if builder then for _ in pairs(builder.tiles) do n = n + 1 end end
+  return { active = isActive, built = builder and builder.done or false, segments = builder and builder.count or 0, tiles = n, waiting = next(wanted) ~= nil }
 end
 
 function M.onClientEndMission() reset() end

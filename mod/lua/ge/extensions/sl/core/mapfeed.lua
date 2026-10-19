@@ -42,6 +42,13 @@ function M.key(x, y) return math.floor(x / M.TILE) .. ',' .. math.floor(y / M.TI
 
 local function round(v) return math.floor(v + 0.5) end
 
+-- x, y of anything with a position: a plain table or the game's vec3 (userdata, not a table); nil when it has none
+local function xy(pos)
+  local ok, x, y = pcall(function() return pos.x, pos.y end)
+  if ok and type(x) == 'number' and type(y) == 'number' then return x, y end
+end
+M.xy = xy
+
 -- a builder that walks the nodes a few at a time: b = M.builder(nodes); repeat until b:step(clock, seconds) is true; b.tiles is the result.
 function M.builder(nodes)
   local self = { tiles = {}, count = 0, done = false }
@@ -55,11 +62,13 @@ function M.builder(nodes)
       key = id
       for other, link in pairs(type(a) == 'table' and type(a.links) == 'table' and a.links or {}) do
         local b = nodes[other]
-        if type(b) ~= 'table' or type(b.pos) ~= 'table' or type(a.pos) ~= 'table' or type(a.pos.x) ~= 'number' or type(b.pos.x) ~= 'number' then b = nil end      -- (a malformed node is skipped)
+        local ax, ay, bx, by
+        if type(b) == 'table' and type(a) == 'table' then ax, ay = xy(a.pos) bx, by = xy(b.pos) end
+        if not (ax and bx) then b = nil end      -- (a malformed node is skipped)
         local k = tostring(id) < tostring(other) and (tostring(id) .. '|' .. tostring(other)) or (tostring(other) .. '|' .. tostring(id))
-        if b and not seen[k] and a.pos and b.pos then
+        if b and not seen[k] then
           seen[k] = true
-          local x1, y1, x2, y2 = round(a.pos.x), round(a.pos.y), round(b.pos.x), round(b.pos.y)
+          local x1, y1, x2, y2 = round(ax), round(ay), round(bx), round(by)
           local tk = M.key((x1 + x2) / 2, (y1 + y2) / 2)
           local t = self.tiles[tk]
           if not t then t = {} self.tiles[tk] = t end
@@ -88,9 +97,9 @@ function M.routePoints(path, gap)
   local out, lx, ly = {}, nil, nil
   gap = gap or 6
   for i, e in ipairs(path or {}) do
-    local p = type(e) == 'table' and e.pos
-    if type(p) == 'table' and type(p.x) == 'number' and type(p.y) == 'number' then
-      local x, y = round(p.x), round(p.y)
+    local px, py = xy(type(e) == 'table' and e.pos or nil)
+    if px then
+      local x, y = round(px), round(py)
       if not lx or i == #path or (x - lx) ^ 2 + (y - ly) ^ 2 >= gap * gap then
         out[#out + 1], out[#out + 2] = x, y
         lx, ly = x, y

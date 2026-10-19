@@ -972,7 +972,7 @@
       var half = Math.max(w, h) * MV.mpp * 0.75, keys = [], p = MV.pose;
       for (var tx = Math.floor((p.x - half) / 256); tx <= Math.floor((p.x + half) / 256); tx++) for (var ty = Math.floor((p.y - half) / 256); ty <= Math.floor((p.y + half) / 256); ty++) keys.push(tx + ',' + ty);
       var want = keys.filter(function (k) { return !MV.tiles[k] && !MV.asked[k]; });
-      if (want.length) { want.forEach(function (k) { MV.asked[k] = true; }); lua('@sl_mapsfeed.tiles(' + JSON.stringify(want) + ')'); }
+      if (want.length) { want.forEach(function (k) { MV.asked[k] = true; }); lua('@sl_mapsfeed.tiles({' + want.map(function (k) { return '"' + k + '"'; }).join(',') + '})'); }      // (a Lua table: tile keys are digits, commas and minus signs)
       var key = keys.join(';');
       if (key !== MV.key) { MV.key = key; MV.roads = []; keys.forEach(function (k) { if (MV.tiles[k]) MV.roads = MV.roads.concat(MV.tiles[k]); }); }
       D.draw(ctx, w, h, { roads: MV.roads, route: MV.route, pins: MV.places, player: p }, { cx: p.x, cy: p.y, mpp: MV.mpp, rot: 0, skin: 'street', night: obj(st.data).phase === 'night' });

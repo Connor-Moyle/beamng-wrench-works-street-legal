@@ -1232,6 +1232,11 @@ do
     local bad = { a = { pos = { x = 0, y = 0 }, links = { b = {}, c = {}, d = 5 } }, b = { links = {} }, c = 'nope', d = { pos = { x = 'x' }, links = 3 }, e = { pos = { x = 5, y = 5 }, links = 'x' } }
     local bb = MF.builder(bad)
     check('maps: malformed nodes and links are skipped, never thrown on', select(1, pcall(function() while not bb:step(os.clock, 1) do end end)) and bb.count == 0)
+    local vec = function(x, y) return setmetatable({}, { __index = function(_, k) if k == 'x' then return x elseif k == 'y' then return y end end }) end
+    local vn = { a = { pos = vec(0, 0), links = { b = {} } }, b = { pos = vec(100, 0), links = { a = {} } }, c = { pos = 5, links = { a = {} } } }
+    local vb = MF.builder(vn)
+    while not vb:step(os.clock, 1) do end
+    check('maps: positions that are not plain tables (the game vec3) are read, a number position is skipped', vb.count == 1)
     check('maps: a route point without a position is skipped', #MF.routePoints({ { pos = { x = 0, y = 0 } }, {}, { pos = 'x' }, { pos = { x = 40, y = 0 } } }, 6) == 4)
     local rp = MF.routePoints({ { pos = { x = 0, y = 0 } }, { pos = { x = 1, y = 0 } }, { pos = { x = 50, y = 0 } }, { pos = { x = 51, y = 0 } } }, 6)
     check('maps: a route is thinned and keeps its last point', #rp == 6 and rp[5] == 51)
