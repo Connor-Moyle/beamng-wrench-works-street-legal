@@ -87,7 +87,7 @@ local function tick(dtReal)
   end
   if not placesSent then placesSent = true guihooks.trigger('slMapsPlaces', { places = places() }) end
   local o = feed.mapOptions(function(k) return sl_options and sl_options.get and sl_options.get(k) or nil end)           -- (the Mods menu's Maps rows)
-  local ok = o.style .. ':' .. tostring(o.headingUp) .. ':' .. tostring(o.speed) .. ':' .. o.zoom
+  local ok = o.style .. ':' .. tostring(o.headingUp) .. ':' .. tostring(o.speed) .. ':' .. tostring(o.slide) .. ':' .. o.zoom
   if ok ~= optsKey then optsKey = ok guihooks.trigger('slMapsOptions', o) end
   local gm = core_groundMarkers
   local path = gm and gm.routePlanner and gm.routePlanner.path

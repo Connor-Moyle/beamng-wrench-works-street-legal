@@ -94,7 +94,7 @@
   // the speed limit sign and the speed bubble, bottom left of the map. speed = { now, limit, mph, sign }; speeds in m/s, shown in the player's unit
   function drawSpeed(ctx, w, h, C, speed) {
     if (!speed) return;
-    var k = speed.mph ? 2.23694 : 3.6, now = Math.round((speed.now || 0) * k), lim = speed.limit ? Math.round(speed.limit * k / 5) * 5 : null;
+    var k = speed.mph ? 2.23694 : 3.6, now = Math.round((speed.now || 0) * k), lim = (isFinite(speed.limit) && speed.limit > 0 && speed.limit < 100) ? Math.round(speed.limit * k / 5) * 5 : null;      // (no sign for none or an unlimited road)
     var over = lim !== null && now > lim, x = 14, y = h - 14, round = speed.sign === 'round';
     // the sign
     ctx.save(); ctx.translate(x, y - 66);

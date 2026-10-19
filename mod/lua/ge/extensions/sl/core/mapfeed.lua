@@ -56,7 +56,7 @@ function M.mapOptions(get)
   local style, zoom = get('slMapStyle'), get('slMapZoom')
   if not STYLES[style] then style = 'street' end
   if not ZOOMS[zoom] then zoom = 'normal' end
-  return { style = style, headingUp = get('slMapHeadingUp') == true, speed = get('slMapSpeed') ~= false, zoom = zoom, mpp = ZOOMS[zoom] }
+  return { style = style, headingUp = get('slMapHeadingUp') == true, speed = get('slMapSpeed') ~= false, slide = get('slMapKSlide') ~= false, zoom = zoom, mpp = ZOOMS[zoom] }
 end
 
 -- the speed limit (m/s) of the road between two nodes (either direction), or nil when the link has none
@@ -65,7 +65,7 @@ function M.limitOf(nodes, a, b)
     local n = nodes and nodes[i]
     local l = n and n.links and n.links[j]
     local v = l and tonumber(l.speedLimit)
-    return v and v > 0 and v or nil
+    return v and v > 0 and v < 100 and v or nil      -- (an unlimited road, math.huge or 999, has no sign)
   end
   return of(a, b) or of(b, a)
 end

@@ -1680,12 +1680,61 @@
       Array.prototype.forEach.call(layer.querySelectorAll('.slp-screen, .slp-home, .slp-grid, .slp-page'), function (e) { e.scrollTop = 0; });
     }
     function home() { st.stack = []; st.app = 'home'; lua('@sl_carauctions.view(false)'); toTop(); render(); }
-    function setOpen(open) {
+    // K with the Maps HUD app on screen: the phone turns out of the landscape app and slides to its place at the right edge (and back when it closes).
+    // The app tells us where it is (window.slMapsHud = { rect(), setHidden(b) }); a missing app, no layout, reduced motion, the Mods switch off or any error in here
+    // leaves the plain open and close. The animation is a Web Animations transform on the phone's own element (centre origin), so when it ends or is cut short the
+    // phone is at rest where the style puts it.
+    var sliding = false;
+    function hudApp() {
+      var h = win.slMapsHud;
+      if (!h || typeof h.rect !== 'function' || MV.opts.slide === false) return null;
+      try { if (win.matchMedia && win.matchMedia('(prefers-reduced-motion: reduce)').matches) return null; } catch (e) { return null; }
+      return h;
+    }
+    function slideFrames(dv, A) {
+      var R = dv.getBoundingClientRect(), w = dv.offsetWidth, h = dv.offsetHeight;
+      if (!(R.width > 0 && w > 0 && h > 0 && A && A.width > 40 && A.height > 40 && typeof dv.animate === 'function')) return null;
+      var s = R.width / w, cx = R.right - w / 2, cy = R.bottom - h / 2;                 // (the phone is scaled about its bottom right corner)
+      var k = Math.min(A.width / h, A.height / w);                                      // (turned a quarter, it fits the app's rectangle)
+      var from = 'translate(' + (A.left + A.width / 2 - cx) + 'px,' + (A.top + A.height / 2 - cy) + 'px) rotate(-90deg) scale(' + k + ')';
+      var to = 'translate(' + (1 - s) * w / 2 + 'px,' + (1 - s) * h / 2 + 'px) scale(' + s + ')';
+      return [{ transform: from, transformOrigin: '50% 50%', opacity: 0.85 }, { transform: to, transformOrigin: '50% 50%', opacity: 1 }];
+    }
+    function hudShow() { try { var h = win.slMapsHud; if (h && h.setHidden) h.setHidden(false); } catch (e) { /* the app is gone */ } }
+    function slideIn() {
+      var h = hudApp();
+      if (!h) return;
+      try {
+        var dv = layer.querySelector('.slp-device'), fr = dv && slideFrames(dv, h.rect());
+        if (!fr) return;
+        h.setHidden(true);
+        dv.animate(fr, { duration: 420, easing: 'cubic-bezier(.2,.9,.25,1)' });
+      } catch (e) { hudShow(); }
+    }
+    // closing: the phone turns back into the app first, then the normal close; false when it cannot (the caller closes at once)
+    function slideOut(then) {
+      var h = hudApp();
+      if (!h || sliding) return false;
+      try {
+        var dv = layer.querySelector('.slp-device'), fr = dv && slideFrames(dv, h.rect());
+        if (!fr) return false;
+        sliding = true;
+        var a = dv.animate(fr.slice().reverse(), { duration: 360, easing: 'cubic-bezier(.4,0,.6,1)', fill: 'forwards' }), done = false;
+        var finish = function () { if (done) return; done = true; sliding = false; hudShow(); then(); };
+        if ('onfinish' in a) a.onfinish = finish; else return (sliding = false, false);
+        clock.set(finish, 500);                                                         // (an animation that never reports back must not keep the phone open)
+        return true;
+      } catch (e) { sliding = false; hudShow(); return false; }
+    }
+    function setOpen(open, plain) {
+      if (!open && st.open && !plain && slideOut(function () { setOpen(false, true); })) return;
       st.open = open;
       lua('uiOpen("phone", ' + (open ? 'true' : 'false') + ')');      // (the game side sends the phone's data faster while it is open)
       if (open && !TABLE) lua('requestStrings()');
+      if (!open && !sliding) hudShow();
       if (open) lua('request()'); else { st.stack = []; st.app = 'home'; lua('@sl_carauctions.view(false)'); }      // (B68: closed, it opens on the home screen next time)
       render();
+      if (open) slideIn();
     }
     function startCall(id) {
       st.call = { id: id, phase: 'ringing', started: clock.now(), result: null };

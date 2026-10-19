@@ -63,6 +63,8 @@ M.defs = {
     desc = 'The map turns so the way you are heading is always up. Off: north is up.' },
   { key = 'slMapSpeed', title = 'Speed and speed limit on the map', type = 'bool', default = true, tab = 'Maps', group = 'Maps',
     desc = 'Your speed and the limit of the road you are on, bottom left of the map.' },
+  { key = 'slMapKSlide', title = 'Phone slides out of the Maps app', type = 'bool', default = true, tab = 'Maps', group = 'Maps',
+    desc = 'Press K with the Maps app on screen and the phone turns upright and slides in from it (and back when you close it). Off: the phone just appears.' },
   { key = 'slMapZoom', title = 'Map zoom when it opens', type = 'choice', default = 'normal', tab = 'Maps', group = 'Maps',
     options = { { id = 'close', label = 'Close' }, { id = 'normal', label = 'Normal' }, { id = 'far', label = 'Far' } }, desc = 'How much of the town the map shows at first (the phone map also has its own zoom buttons).' },
   { key = 'slWetTarmac', title = strings.t('options.wet_tarmac'), type = 'bool', default = true, tab = 'Clock and weather', group = 'Rain on the ground',

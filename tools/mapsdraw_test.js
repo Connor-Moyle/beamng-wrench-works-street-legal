@@ -31,4 +31,7 @@ assert.ok(c.log.texts.includes('45') && c.log.texts.includes('30'), 'the speed a
 c = rec();
 D.draw(c, 400, 250, Object.assign({}, base, { speed: { now: 20, limit: null, mph: false, sign: 'round' } }), { cx: 0, cy: 0, mpp: 1.5, rot: 0 });
 assert.ok(c.log.texts.includes('72'), 'km/h without a limit shows only the speed');
+c = rec();
+D.draw(c, 400, 250, Object.assign({}, base, { speed: { now: 20, limit: Infinity, mph: true, sign: 'us' } }), { cx: 0, cy: 0, mpp: 1.5, rot: 0 });
+assert.ok(!c.log.texts.includes('Infinity') && !c.log.texts.includes('NaN'), 'an infinite limit shows no sign: ' + c.log.texts.join(','));
 console.log('maps draw test passed');

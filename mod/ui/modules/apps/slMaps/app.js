@@ -46,8 +46,13 @@ if (typeof angular !== 'undefined') angular.module('beamng.apps').directive('slM
       $scope.$on('slMapsPose', function (ev, d) { pose = d; });
       $scope.$on('slMapsRoute', function (ev, d) { route = (d && d.route) || []; });
       $scope.$on('slMapsPlaces', function (ev, d) { places = (d && d.places) || []; });
+      // the phone's K transition starts from this rectangle and hides the app while the phone is up (slPhone.js: window.slMapsHud)
+      window.slMapsHud = {
+        rect: function () { var r = element[0].getBoundingClientRect(); return element[0].offsetParent !== null && r.width ? { left: r.left, top: r.top, width: r.width, height: r.height } : null; },
+        setHidden: function (b) { element[0].style.visibility = b ? 'hidden' : ''; }
+      };
       bngApi.engineLua('sl_mapsfeed.use("hud", true)');
-      $scope.$on('$destroy', function () { clearInterval(timer); bngApi.engineLua('sl_mapsfeed.use("hud", false)'); });
+      $scope.$on('$destroy', function () { clearInterval(timer); delete window.slMapsHud; bngApi.engineLua('sl_mapsfeed.use("hud", false)'); });
     }
   };
 }]);

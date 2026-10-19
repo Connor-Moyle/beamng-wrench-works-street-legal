@@ -885,6 +885,43 @@ if (out > 0) {
   assert.ok(!/\.slp-bar\s*\{[^}]*position:\s*absolute/.test(css) && /\.slp-bar\{[^}]*z-index:2/.test(css) && /\.slp-body\{[^}]*overflow-y:auto/.test(css), 'the header is fixed above a scroll body');
   console.log('phone header test passed');
 }
+// K with the Maps HUD app on screen: the phone slides out of the app and back (Web Animations stubbed, no layout in jsdom); any problem leaves the plain open and close
+{
+  const P = win.HTMLElement.prototype, origRect = P.getBoundingClientRect, origW = Object.getOwnPropertyDescriptor(P, 'offsetWidth'), origH = Object.getOwnPropertyDescriptor(P, 'offsetHeight');
+  P.getBoundingClientRect = function () { return this.classList && this.classList.contains('slp-device') ? { left: 900, top: 100, right: 1260, bottom: 860, width: 360, height: 760 } : origRect.call(this); };
+  Object.defineProperty(P, 'offsetWidth', { configurable: true, get() { return this.classList && this.classList.contains('slp-device') ? 360 : 0; } });
+  Object.defineProperty(P, 'offsetHeight', { configurable: true, get() { return this.classList && this.classList.contains('slp-device') ? 760 : 0; } });
+  const anims = [], hid = [];
+  P.animate = function (frames, opts) { const a = { frames, opts, onfinish: null }; anims.push(a); return a; };
+  const hudRect = { left: 100, top: 500, width: 500, height: 250 };
+  win.slMapsHud = { rect: () => hudRect, setHidden: (b) => hid.push(b) };
+  const close = () => { if (phone.root.querySelector('.slp-device:not(.slp-away)')) phone.handle('slPhoneToggle'); };
+  close(); while (anims.length) anims.pop(); advance(600); hid.length = 0;
+  phone.handle('slPhoneToggle');
+  assert.ok(anims.length === 1 && /rotate\(-90deg\)/.test(anims[0].frames[0].transform) && /^translate\(/.test(anims[0].frames[1].transform) && hid[hid.length - 1] === true, 'opening with the app on screen turns the phone out of it and hides the app');
+  phone.handle('slPhoneToggle');
+  assert.ok(anims.length === 2 && anims[1].opts.fill === 'forwards' && phone.root.querySelector('.slp-device:not(.slp-away)'), 'closing plays the animation back first, the phone stays until it ends');
+  anims[1].onfinish();
+  assert.ok(phone.root.querySelector('.slp-device.slp-away') && hid[hid.length - 1] === false, 'when it ends the phone closes and the app shows again');
+  // a second close while one is running, a cut-short animation, no app, the switch off, reduced motion
+  phone.handle('slPhoneToggle'); anims[anims.length - 1].onfinish && 0;
+  phone.handle('slPhoneToggle'); advance(600);
+  assert.ok(phone.root.querySelector('.slp-device.slp-away'), 'an animation that never reports back still closes (500 ms)');
+  const n = anims.length;
+  delete win.slMapsHud; phone.handle('slPhoneToggle'); phone.handle('slPhoneToggle');
+  assert.ok(anims.length === n && phone.root.querySelector('.slp-device.slp-away'), 'no Maps app on screen: the plain open and close');
+  win.slMapsHud = { rect: () => hudRect, setHidden: (b) => hid.push(b) };
+  phone.handle('slMapsOptions', { style: 'street', slide: false });
+  phone.handle('slPhoneToggle'); phone.handle('slPhoneToggle');
+  assert.ok(anims.length === n && phone.root.querySelector('.slp-device.slp-away'), 'the Mods switch off: the plain open and close');
+  phone.handle('slMapsOptions', { style: 'street', slide: true });
+  win.slMapsHud = { rect: () => { throw new Error('gone'); }, setHidden: () => {} };
+  phone.handle('slPhoneToggle'); phone.handle('slPhoneToggle');
+  assert.ok(phone.root.querySelector('.slp-device.slp-away'), 'an app that throws leaves the plain close');
+  delete win.slMapsHud; delete P.animate; P.getBoundingClientRect = origRect;
+  if (origW) Object.defineProperty(P, 'offsetWidth', origW); if (origH) Object.defineProperty(P, 'offsetHeight', origH);
+  console.log('phone K slide test passed');
+}
 // the home grid scrolls (wheel) and the dock never leaves the screen: the grid shrinks, the dock does not; the phone is scaled to fit the window height
 {
   const css = require('fs').readFileSync(require('path').join(__dirname, '..', 'mod', 'ui', 'modModules', 'slPhone', 'slPhone.js'), 'utf8');
