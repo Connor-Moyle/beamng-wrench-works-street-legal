@@ -974,7 +974,7 @@
       var want = keys.filter(function (k) { return !MV.tiles[k] && !MV.asked[k]; });
       if (want.length) { want.forEach(function (k) { MV.asked[k] = true; }); lua('@sl_mapsfeed.tiles({' + want.map(function (k) { return '"' + k + '"'; }).join(',') + '})'); }      // (a Lua table: tile keys are digits, commas and minus signs)
       var key = keys.join(';');
-      if (key !== MV.key) { MV.key = key; MV.roads = []; keys.forEach(function (k) { if (MV.tiles[k]) MV.roads = MV.roads.concat(MV.tiles[k]); }); }
+      if (key !== MV.key) { MV.key = key; MV.roads = []; keys.forEach(function (k) { if (MV.tiles[k]) MV.roads = MV.roads.concat(Array.isArray(MV.tiles[k]) ? MV.tiles[k] : []); }); }
       D.draw(ctx, w, h, { roads: MV.roads, route: MV.route, pins: MV.places, player: p }, { cx: p.x, cy: p.y, mpp: MV.mpp, rot: 0, skin: 'street', night: obj(st.data).phase === 'night' });
     }
     function mapPage() {
@@ -992,7 +992,7 @@
           return '<div class="slp-row" data-a="route" data-v="' + esc(p.id) + '"><div class="slp-rt"><b>' + esc(p.name) + (r && r.id === p.id ? ' &#10003;' : '') + '</b><span>' + distText(p.dist) + '</span></div><div class="slp-ib">' + I.gps + '</div></div>';
         }).join('');
       }).join('');
-      return bar(T('app.map', 'Map')) + '<div class="slp-body">' + head + (body || '<div class="slp-empty">' + T('ui.no_places_yet', 'The map has no places yet.') + '</div>') + '</div>';
+      return bar(T('app.map', 'Map')) + tabsHtml('map', [['map', T('ui.map_tab', 'Map')], ['list', T('ui.list_tab', 'List')]]) + '<div class="slp-body">' + head + (body || '<div class="slp-empty">' + T('ui.no_places_yet', 'The map has no places yet.') + '</div>') + '</div>';
     }
     function cameraPage() {
       return bar(T('app.camera', 'Camera')) + '<div class="slp-body"><div class="slp-card"><p>' + esc(T('ui.camera_text', 'Takes a picture of what you see, without the phone or any other screen. It is kept in the Gallery and in the folder screenshots/street_legal.')) + '</p>' +
@@ -1594,7 +1594,7 @@
       st.app = app;
       if (app === 'gallery') lua('photos()');
       if (app === 'contacts') lua('people()');
-      if (app === 'map') { st.mapAt = Date.now(); lua('mapPlaces()'); }
+      if (app === 'map') { st.tab.map = 'map'; st.mapAt = Date.now(); lua('mapPlaces()'); }      // (the Map app opens on the map)
       if (app === 'help' && !arr(st.help).length) lua('requestHelp()');
       if (app === 'carmarket') { st.cmView = 'dealers'; lua('@sl_dealers.list()'); }
       if (app === 'me') lua('@sl_rivals.list()');

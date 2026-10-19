@@ -33,7 +33,7 @@ if (typeof angular !== 'undefined') angular.module('beamng.apps').directive('slM
         ask(keys);
         if (key !== lastKey || dirty) {                       // the road list is rebuilt only when the tiles in view change
           lastKey = key; dirty = false; roads = [];
-          keys.forEach(function (k) { if (tiles[k]) roads = roads.concat(tiles[k]); });
+          keys.forEach(function (k) { if (tiles[k]) roads = roads.concat(Array.isArray(tiles[k]) ? tiles[k] : []); });
         }
         var data = { roads: roads, route: route, pins: places.map(function (p) { return { x: p.x, y: p.y, name: p.name }; }), player: pose };
         draw(ctx, w, h, data, { cx: pose.x, cy: pose.y, mpp: MPP, rot: 0 });

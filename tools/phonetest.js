@@ -790,6 +790,7 @@ assert.ok(phone.root.querySelector('.slp-mapcv') && calls.includes('@sl_mapsfeed
 calls.length = 0;
 click('mtab', 'map|list');
 assert.ok(calls.includes('@sl_mapsfeed.active(false)') && !phone.root.querySelector('.slp-mapcv'), 'the List tab turns the feed off');
+assert.ok(phone.root.querySelector('[data-a="mtab"]'), 'the List tab keeps the tab bar, so the Map tab can be reached again');
 assert.ok(/no places yet/.test(phone.root.textContent), 'an empty map says so');
 phone.handle('slMap', { groups: [{ kind: 'garage', places: [{ id: 'g1', name: 'Home', dist: 120 }] }, { kind: 'meet', places: [{ id: 'm1', name: 'Pier meet', dist: 2300 }, { id: 'm2', name: 'Far meet' }] }], route: null });
 assert.strictEqual(phone.root.querySelectorAll('[data-a="route"]').length, 3, 'a row for each place');

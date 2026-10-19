@@ -25,7 +25,7 @@ local function sendWanted()
   if not builder then return end
   local out, any = {}, false
   for key in pairs(wanted) do
-    if builder.done or builder.tiles[key] then out[key] = builder.tiles[key] or {} any = true wanted[key] = nil end
+    if builder.done then out[key] = builder.tiles[key] or {} any = true wanted[key] = nil end      -- (only a finished tile: one sent half-built would never be completed)
   end
   if any then guihooks.trigger('slMapsTiles', { tiles = out }) end
 end
