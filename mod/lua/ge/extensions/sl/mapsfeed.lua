@@ -119,5 +119,10 @@ function M.status()
 end
 
 function M.onClientEndMission() reset() end
+-- the Maps part switched off: the feed stops (the apps drop out of the use list)
+function M.onStreetLegalStopped() isActive = false users.clear() reset() end
+
+-- (the Mods menu's Parts of the game: with this part off, the hooks above do nothing)
+require('sl/core/features').gate('maps', M, nil, nil, { 'use', 'tiles' })
 
 return M

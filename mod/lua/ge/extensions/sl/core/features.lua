@@ -19,6 +19,12 @@ M.LIST = {
   { id = 'crews', opt = 'slCrews', title = 'Crews and turf', desc = 'Street crews, their turf and raids, and the Turf app. Off: no crews.' },
   { id = 'tow', opt = 'slTow', title = 'Tow truck', desc = 'A tow truck comes for a car left out on the street. Off: the car is brought round without a truck.' },
   { id = 'cab', opt = 'slCab', title = 'Taxi ride', desc = 'A cab drives you across town. Off: the Cab app still takes you there, at once, with no cab on the road.' },
+  { id = 'bank', opt = 'slBank', title = 'Bank', desc = 'A loan and insurance, with the Bank app. Off: no loan, no insurance, repairs and impound bills are paid in full. Cannot be switched off while a loan is open.' },
+  { id = 'hospital', opt = 'slHospital', title = 'Hospital', desc = 'A crash that hurts or kills the driver costs a doctor bill and keeps you off the road for a while. Off: injuries cost nothing and stop nothing (hardcore death needs the hospital on); the damage of the car stays as it is.' },
+  { id = 'hudpill', opt = 'slHudPill', title = 'HUD phone pill', desc = 'The small money and title pill and the message pop-ups on the screen while the phone is closed. Off: neither (the phone itself still works).' },
+  { id = 'laptop', opt = 'slLaptop', title = 'Laptops', desc = 'The computers of the map open the laptop for the career. Off: no laptop prompts.' },
+  { id = 'maps', opt = 'slMaps', title = 'Maps', desc = 'The Map app on the phone and the Maps HUD app. Off: no Map app and no map feed (the route buttons of the phone still work).' },
+  { id = 'upgrades', opt = 'slUpgrades', title = 'Garage upgrades', desc = 'The lift, bench, dyno, paint booth, shelving and photo corner are bought for the garage. Off: the garage has all of them from the start and nothing is for sale.' },
   { id = 'jobs', opt = 'slJobs', title = 'Jobs', desc = 'Courier and workshop jobs, their markers and the Jobs app. Off: no jobs.' },
 }
 local byId = {}
@@ -42,8 +48,8 @@ local function always(name)
 end
 
 -- wraps every on... hook of the extension table m that is not an always-hook, and the calls named in `also`: with the part off they return nothing. Also takes the option change: switched off, the extension
--- is stopped once (its onStreetLegalStopped). `get` is for tests. Returns m.
-function M.gate(id, m, get, keep, also)
+-- is stopped once (its onStreetLegalStopped), and switched on again the hooks named in `resume` run once. `get` is for tests. Returns m.
+function M.gate(id, m, get, keep, also, resume)
   local f = byId[id]
   if not f then return m end
   local kept = {}
@@ -59,6 +65,7 @@ function M.gate(id, m, get, keep, also)
   local stopped = m.onStreetLegalStopped
   m.onStreetLegalOption = function(key, value, ...)
     if key == f.opt and value == false and stopped then pcall(stopped) end
+    if key == f.opt and value == true then for _, name in ipairs(resume or {}) do if type(m[name]) == 'function' then pcall(m[name]) end end end      -- (switched on again: start what a career start starts)
     if after then return after(key, value, ...) end
   end
   return m

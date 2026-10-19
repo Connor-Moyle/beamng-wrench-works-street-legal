@@ -1,4 +1,6 @@
-# Switching off the core parts (a note first, nothing built yet)
+# Switching off the core parts
+
+**Status: decided and built** (62's answers): the bank refuses to switch off while a loan is open ("Pay back the loan first"); the hospital off ignores injuries in Street Legal only (Driver Injuries is its own switch, the car's damage is unchanged, hardcore death needs the hospital on); the phone has no off switch, only "HUD phone pill" and "Laptops"; Maps and house upgrades are switches. Below is the note as it was written for the decision.
 
 Written for the review of the "each part optional" work. The fourteen self-contained parts (spectators, billboards, ambience, puddles, achievements, tutorial, markets, rally, races and drag, clubs, crews, tow, cab, jobs) are built: an off part's hooks do nothing, its phone app goes, saves are never touched. These five are tied into more of the game, so here is what the player would get with each off, and what I would do. I will build none of them until this is read.
 

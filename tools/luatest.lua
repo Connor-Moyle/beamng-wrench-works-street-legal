@@ -2959,7 +2959,7 @@ do
   local Opt = require('sl/options')
   local defs = {}
   for _, d in ipairs(Opt.defs) do defs[d.key] = d end
-  local okDefs = #F.LIST == 14
+  local okDefs = #F.LIST == 20
   for _, f in ipairs(F.LIST) do
     local d = defs[f.opt]
     if not (d and d.type == 'bool' and d.default == true and d.feature == true and d.title == f.title and f.desc ~= '') then okDefs = false end
@@ -2987,6 +2987,35 @@ do
   calls = {}
   m.onStreetLegalOption('slRaces', false) m.onStreetLegalOption('slJobs', true)
   check('parts: another option, or switching on, stops nothing', #calls == 0)
+  -- the bank cannot be switched off while a loan is open; the hospital off lets an injured driver drive
+  do
+    local oldBank, oldInj = rawget(_G, 'sl_bank'), rawget(_G, 'slrrInjury')
+    local oldR, oldW, oldExt = rawget(_G, 'jsonReadFile'), rawget(_G, 'jsonWriteFile'), rawget(_G, 'extensions')
+    local store = {}
+    _G.jsonReadFile = function() return store end
+    _G.jsonWriteFile = function() return true end
+    _G.extensions = { hook = function() end }
+    _G.sl_bank = { hasLoan = function() return true end }
+    local okRefused, msg = pcall(Opt.set, 'slBank', false)
+    check('parts: the bank will not switch off with a loan open, and says why', okRefused == false and msg == 'Pay back the loan first')
+    _G.sl_bank = { hasLoan = function() return false end }
+    local okFree, errFree = pcall(Opt.set, 'slBank', false)
+    check('parts: with no loan open the bank switches off', okFree == true, tostring(errFree))
+    pcall(Opt.set, 'slBank', true)
+    _G.sl_bank = oldBank
+    local H = require('sl/hospital')
+    _G.slrrInjury = { getState = function() return { injured = true, limits = { noDriving = true } } end }
+    local was = H.canDrive()
+    local offOpt = Opt.get
+    Opt.set('slHospital', false)
+    _G.sl_options = Opt
+    local offNow = H.canDrive()
+    Opt.set('slHospital', true)
+    check('parts: an injured driver cannot drive with the hospital on, and can with it off', was == false and offNow == true and H.canDrive() == false)
+    _G.slrrInjury = oldInj
+    _G.sl_options = nil
+    _G.jsonReadFile, _G.jsonWriteFile, _G.extensions = oldR, oldW, oldExt
+  end
   local g = { onStreetLegalOption = function(k) calls[#calls + 1] = 'old:' .. k end }
   F.gate('races', g, get)
   g.onStreetLegalOption('slRaces', false)

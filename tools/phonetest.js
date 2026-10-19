@@ -941,6 +941,23 @@ if (out > 0) {
   if (origW) Object.defineProperty(P, 'offsetWidth', origW); if (origH) Object.defineProperty(P, 'offsetHeight', origH);
   console.log('phone K slide test passed');
 }
+// the parts of the game that are switched off lose their apps and the HUD pill (the data says what is on)
+{
+  const off = { races: false, jobs: false, market: false, bank: false, maps: false, hudpill: false };
+  phone.handle('slPhoneData', Object.assign({}, data, { has: off }));
+  assert.ok(/display:none/.test((phone.root.querySelector('.slp-pill') || { getAttribute: () => '' }).getAttribute('style') || ''), 'the HUD pill is hidden with the HUD pill switched off');
+  if (!phone.root.querySelector('.slp-device:not(.slp-away)')) phone.handle('slPhoneToggle');
+  phone.act('home');
+  const apps = Array.from(phone.root.querySelectorAll('.slp-app')).map((a) => a.getAttribute('data-v'));
+  for (const id of ['races', 'jobs', 'carmarket', 'partmarket', 'bank', 'map']) assert.ok(!apps.includes(id), id + ' is not shown while its part is off');
+  assert.ok(apps.includes('garage') && apps.includes('me') && apps.includes('cab'), 'the other apps stay');
+  phone.handle('slPhoneData', Object.assign({}, data, { has: Object.assign({}, off, { races: true, jobs: true, market: true, bank: true, maps: true, hudpill: true, classifieds: true }) }));
+  phone.act('home');
+  const on = Array.from(phone.root.querySelectorAll('.slp-app')).map((a) => a.getAttribute('data-v'));
+  for (const id of ['races', 'jobs', 'carmarket', 'bank', 'map']) assert.ok(on.includes(id), id + ' is back when its part is on');
+  phone.handle('slPhoneData', data);
+  console.log('phone parts off test passed');
+}
 // the home grid scrolls (wheel) and the dock never leaves the screen: the grid shrinks, the dock does not; the phone is scaled to fit the window height
 {
   const css = require('fs').readFileSync(require('path').join(__dirname, '..', 'mod', 'ui', 'modModules', 'slPhone', 'slPhone.js'), 'utf8');

@@ -436,18 +436,18 @@
           { id: 'races', title: T('app.races', 'Races'), icon: I.flag, badge: arranged || 0, hide: has.races === false },
           { id: 'garage', title: T('app.garage', 'My cars'), icon: I.cab },
           { id: 'garagekit', title: T('app.garagekit', 'Garage'), icon: I.house },
-          { id: 'bank', title: T('app.bank', 'Bank'), icon: I.bank },
+          { id: 'bank', title: T('app.bank', 'Bank'), icon: I.bank, hide: has.bank === false },
           { id: 'me', title: T('app.me', 'Street cred'), icon: I.me },
           { id: 'jobs', title: T('app.jobs', 'Jobs'), icon: I.jobs, badge: d.jobs && d.jobs.active ? 1 : 0, hide: has.jobs === false },
           { id: 'wait', title: T('app.wait', 'Wait'), icon: I.wait },
           { id: 'help', title: T('app.help', 'Help'), icon: I.help },
-          { id: 'map', title: T('app.map', 'Map'), icon: I.map },
+          { id: 'map', title: T('app.map', 'Map'), icon: I.map, hide: has.maps === false },
           { id: 'camera', title: T('app.camera', 'Camera'), icon: I.camera },
           { id: 'gallery', title: T('app.gallery', 'Gallery'), icon: I.gallery },
           { id: 'club', title: T('app.club', 'Club'), icon: I.club, hide: has.clubs === false },
           { id: 'turf', title: T('app.turf', 'Turf'), icon: I.turf, hide: has.crews === false },
           { id: 'carmarket', title: T('app.carmarket', 'Car market'), icon: I.cab, hide: has.market === false },
-          { id: 'partmarket', title: T('app.partmarket', 'Part market'), icon: I.market, badge: (d.market && d.market.deliveries || 0) + (d.market ? arr(d.market.auctions).filter(function (l) { return l.high === 'you'; }).length : 0), hide: has.classifieds === false },
+          { id: 'partmarket', title: T('app.partmarket', 'Part market'), icon: I.market, badge: (d.market && d.market.deliveries || 0) + (d.market ? arr(d.market.auctions).filter(function (l) { return l.high === 'you'; }).length : 0), hide: has.classifieds === false || has.market === false },
         ]) + '</div>' +
         '<div class="slp-dock">' + appsHtml([
           { id: 'phone', title: T('app.phone', 'Phone'), icon: I.phone },
@@ -1519,10 +1519,10 @@
         (st.call ? callPage() : '') +
         '<div class="slp-nav"><div data-a="back">' + NAV.back + '</div><div data-a="home">' + NAV.home + '</div><div data-a="away">' + NAV.recent + '</div></div></div>';
       var hu = st.hu;
-      var huHtml = '<div class="slp-hu' + (hu && !st.open && !lotHides() ? '' : ' slp-gone') + '" data-a="openthread" data-v="' + esc(hu ? hu.thread : '') + '">' +
+      var huHtml = '<div class="slp-hu' + (hu && !st.open && !lotHides() && obj(d.has).hudpill !== false ? '' : ' slp-gone') + '" data-a="openthread" data-v="' + esc(hu ? hu.thread : '') + '">' +
         (hu ? avatar({ id: hu.thread, name: hu.name }) + ('<div><small>' + T('ui.messages', 'Messages ') + '&middot;' + ' now' + '</small><b>') + esc(hu.name) + '</b><span>' + esc(hu.text) + '</span></div>' : '') + '</div>';
       var html =
-        '<div class="slp-pill"' + (st.open || lotHides() ? ' style="display:none"' : '') + '><b>' + money(d.money) + '</b><span>' + esc(d.title) + '</span>' +
+        '<div class="slp-pill"' + (st.open || lotHides() || obj(d.has).hudpill === false ? ' style="display:none"' : '') + '><b>' + money(d.money) + '</b><span>' + esc(d.title) + '</span>' +
           (d.phase ? '<span>' + (d.phase === 'night' ? '&#9790;' : '&#9728;') + '</span>' : '') + (d.heat > 0 ? '<span style="color:#ff6a4a">' + '&#9650;'.repeat(d.heat) + '</span>' : '') + (d.phase === 'night' && d.atRisk > 0 ? '<span style="color:#ffb74a">+' + d.atRisk + (T('ui.at_risk', ' at risk') + '</span>') : '') + '<span>' + two(d.hour || 0) + ':' + two(d.minute || 0) + '</span></div>' +
         '<div class="slp-device@@LAND@@' + (st.open ? '' : ' slp-away') + '" style="transform:' + (st.open ? '' : 'translateY(70%) ') + 'scale(' + scale() + ')">' + screen + '</div>' +
         lotView() + garageView() + stationView() + meetView() + raceView() +
