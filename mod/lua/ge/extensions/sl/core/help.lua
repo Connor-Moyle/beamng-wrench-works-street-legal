@@ -108,7 +108,7 @@ M.PAGES = {
   } },
   { id = 'extras', title = 'Optional extras', body = {
     '- Performance overlay: ESC > Mods menu > Street Legal > Developer (off by default) shows the frame time, the video memory and counts of what is in the world. Use it when the game stutters, and say what it showed when you report it.',
-    '- Rigged driver: the rigged driver is the default for your own car; switch to Props in Mods > Driver model if you see problems. Every other car always keeps the prop driver.',
+    '- Rigged driver: the rigged driver is the default for your own car on the checked models; switch to Props in Mods > Driver model if you see problems. Other cars use the props driver.',
   } },
   { id = 'settings', title = 'Settings and tools', body = {
     'All settings are in one place: press ESC and open the Mods menu. Each mod has a page with tabs (for Street Legal: Difficulty, Street racing, Clock and weather, Screens and texts, Accessibility, Police chase, Night traffic, Rivals, The climb, Car auctions, Developer); every tab has a Reset to defaults. Nothing is set on the phone or the laptop.',

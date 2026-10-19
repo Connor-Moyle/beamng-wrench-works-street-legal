@@ -13,6 +13,7 @@ Built, with offline tests, but not yet seen working in the game. An item leaves 
 - **Cars:** career dirt (used and delivered cars carry the dirt their condition and mileage give them; the car wash takes it off), deliveries that are never built on top of a car on the forecourt.
 - **Car Surface FX:** snow, frost, bugs, wipers, road spray, puddle splash and the mud look, and the features ported from Surface FX (skid marks, ruts, leaks, debris, sparks, grass).
 - **The Mods menu (ESC > Mods menu):** every setting of our mods in one place, with tabs, groups and a reset per tab; Street Legal, Wrench Works, graphics and camera (anti-aliasing, sharpening, Look, cinematic camera), Pedestrians & Drivers (driver tunables, rigged driver options, clothing colours) and Car Surface FX are on it. The settings on the phone, the laptop, the garage screen and the game's Options page are removed in its favour.
+- **Night races:** more variety: a street race can now be a city run, a highway run, a hill climb or a rolling 60-130 run. The goal is picked from the road graph (length, share of fast road, tarmac, turns, height gained, no dead ends), and the challenge card says which kind it is.
 - **Drivers:** the driver tunables and the injury effects. The rigged driver is now the default for your own car (switch to Props in Mods > Driver model if you see problems); every other car keeps the prop driver.
 - **The Mods menu look:** each row is a title and a control on one line, with the help text in a side panel like the game's Options (shown on hover and on keyboard or controller focus); tabs whose settings are all advanced show them; the reset button is no longer under the career HUD.
 - **Wet world, small parts:** the warmer grey of each wetness tier on the road, and the phone fitting a 3440x1440 screen (it was seen at 1920x993).
@@ -38,11 +39,8 @@ Seen working in the game by the tester:
 ### Car meets
 - On foot, walk up to an owner's parked car and press the game's prompt (**Talk to <name> (<car>)**): you get their story and their offer (a tip, a race word or the car for sale). Nothing pops up by itself while you walk through.
 - Owners stand in pairs and trios; the music plays from one car and the crowd murmur is at the centre.
-- A meet fills without freezes: one car is built at a time, the gap between cars follows how you drive (6 s when you are slow, longer when you are moving), and no car is built while you drive fast nearby.
+- A meet fills without freezes: one car is built at a time, the gap between cars follows how you drive (4 s when you stand, 10 s when you are slow, 16 s when you are moving, 25 s when you are fast), and no car is built while you drive fast nearby.
 - Meets come more reliably: the first meet of a night is tried 30 seconds in and a miss is retried 20 seconds later. A meet that could not build any car (you kept driving fast nearby) is closed and does not count, so the next try comes.
-
-### Night races
-- **More variety:** a street race can now be a city run, a highway run, a hill climb or a rolling 60-130 run. The goal is picked from the road graph (length, share of fast road, tarmac, turns, height gained, no dead ends), and the challenge card says which kind it is.
 
 ### Economy
 - Day jobs pay 35% more.

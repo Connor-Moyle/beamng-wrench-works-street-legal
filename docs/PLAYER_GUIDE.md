@@ -156,7 +156,7 @@ Wrench Works adds a group to the game's Options > Graphics page, under the anti-
 ## Optional extras
 
 - Performance overlay: ESC > Mods menu > Street Legal > Developer (off by default) shows the frame time, the video memory and counts of what is in the world. Use it when the game stutters, and say what it showed when you report it.
-- Rigged driver: the rigged driver is the default for your own car; switch to Props in Mods > Driver model if you see problems. Every other car always keeps the prop driver.
+- Rigged driver: the rigged driver is the default for your own car on the checked models; switch to Props in Mods > Driver model if you see problems. Other cars use the props driver.
 
 ## Settings and tools
 
