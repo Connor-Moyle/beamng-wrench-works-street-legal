@@ -25,6 +25,7 @@ if (typeof angular !== 'undefined') angular.module('beamng.apps').directive('slM
         for (var tx = x0; tx <= x1; tx++) for (var ty = y0; ty <= y1; ty++) keys.push(tx + ',' + ty);
         return keys;
       }
+      function speedOf(p) { return p && { now: p.speed || 0, limit: p.limit || null, mph: !!p.mph, sign: p.mph ? 'us' : 'round' }; }
       function frame() {
         var w = canvas.clientWidth, h = canvas.clientHeight;
         if (!w || !h || !pose) return;
@@ -35,7 +36,7 @@ if (typeof angular !== 'undefined') angular.module('beamng.apps').directive('slM
           lastKey = key; dirty = false; roads = [];
           keys.forEach(function (k) { if (tiles[k]) roads = roads.concat(Array.isArray(tiles[k]) ? tiles[k] : []); });
         }
-        var data = { roads: roads, route: route, pins: places.map(function (p) { return { x: p.x, y: p.y, name: p.name }; }), player: pose };
+        var data = { roads: roads, route: route, pins: places.map(function (p) { return { x: p.x, y: p.y, name: p.name, kind: p.kind }; }), player: pose, speed: speedOf(pose) };
         draw(ctx, w, h, data, { cx: pose.x, cy: pose.y, mpp: MPP, rot: 0 });
       }
       var timer = setInterval(frame, 100);                    // 10 fps

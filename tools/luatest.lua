@@ -1228,6 +1228,7 @@ do
     while not bl:step(os.clock, 1) do end
     local n = 0 for _, t in pairs(bl.tiles) do n = n + #t end
     check('maps: every link is in one tile once, in the tile of its middle', bl.count == 2 and n == 2 and bl.tiles['0,0'] ~= nil and bl.tiles['0,1'] ~= nil)
+    check('maps: the speed limit of a road, either way round, nothing when there is none', MF.limitOf(nodes, 'a', 'c') == 20 and MF.limitOf(nodes, 'c', 'a') == 20 and MF.limitOf(nodes, 'a', 'b') == nil and MF.limitOf(nil, 'a', 'b') == nil)
     check('maps: tiles around a point cover the square', #MF.tilesAround(10, 10, 200) == 4 and MF.key(-1, -1) == '-1,-1')
     local bad = { a = { pos = { x = 0, y = 0 }, links = { b = {}, c = {}, d = 5 } }, b = { links = {} }, c = 'nope', d = { pos = { x = 'x' }, links = 3 }, e = { pos = { x = 5, y = 5 }, links = 'x' } }
     local bb = MF.builder(bad)

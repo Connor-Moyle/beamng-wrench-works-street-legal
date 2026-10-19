@@ -49,6 +49,17 @@ local function xy(pos)
 end
 M.xy = xy
 
+-- the speed limit (m/s) of the road between two nodes (either direction), or nil when the link has none
+function M.limitOf(nodes, a, b)
+  local function of(i, j)
+    local n = nodes and nodes[i]
+    local l = n and n.links and n.links[j]
+    local v = l and tonumber(l.speedLimit)
+    return v and v > 0 and v or nil
+  end
+  return of(a, b) or of(b, a)
+end
+
 -- a builder that walks the nodes a few at a time: b = M.builder(nodes); repeat until b:step(clock, seconds) is true; b.tiles is the result.
 function M.builder(nodes)
   local self = { tiles = {}, count = 0, done = false }

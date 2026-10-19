@@ -74,7 +74,16 @@ local function tick(dtReal)
   local v = getPlayerVehicle and getPlayerVehicle(0)
   if v then
     local p, d = v:getPosition(), v:getDirectionVector()
-    push('slMapsPose', { x = p.x, y = p.y, heading = math.atan2(d.x, d.y) }, { minInterval = POSE_EVERY })
+    local pose = { x = p.x, y = p.y, heading = math.atan2(d.x, d.y) }
+    local okv, vel = pcall(function() return v:getVelocity() end)
+    pose.speed = okv and vel and vel:length() or 0
+    local okr, n1, n2, dist = pcall(function() return map.findClosestRoad(p, 25) end)                 -- (the road under the car, within 25 m)
+    if okr and n1 and n2 and (dist or 99) <= 25 then
+      local okm, m = pcall(function() return map.getMap() end)
+      pose.limit = okm and m and feed.limitOf(m.nodes, n1, n2) or nil
+    end
+    pose.mph = settings and settings.getValue and settings.getValue('uiUnitLength') == 'imperial' or false
+    push('slMapsPose', pose, { minInterval = POSE_EVERY })
   end
   if not placesSent then placesSent = true guihooks.trigger('slMapsPlaces', { places = places() }) end
   local gm = core_groundMarkers

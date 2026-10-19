@@ -981,7 +981,7 @@
       if (want.length) { want.forEach(function (k) { MV.asked[k] = true; }); lua('@sl_mapsfeed.tiles({' + want.map(function (k) { return '"' + k + '"'; }).join(',') + '})'); }      // (a Lua table: tile keys are digits, commas and minus signs)
       var key = keys.join(';');
       if (key !== MV.key) { MV.key = key; MV.roads = []; keys.forEach(function (k) { if (MV.tiles[k]) MV.roads = MV.roads.concat(Array.isArray(MV.tiles[k]) ? MV.tiles[k] : []); }); }
-      D.draw(ctx, w, h, { roads: MV.roads, route: MV.route, pins: MV.places, player: p }, { cx: p.x, cy: p.y, mpp: MV.mpp, rot: 0, skin: 'street', night: obj(st.data).phase === 'night' });
+      D.draw(ctx, w, h, { roads: MV.roads, route: MV.route, pins: MV.places, player: p, speed: { now: p.speed || 0, limit: p.limit || null, mph: !!p.mph, sign: p.mph ? 'us' : 'round' } }, { cx: p.x, cy: p.y, mpp: MV.mpp, rot: 0, skin: 'street', night: obj(st.data).phase === 'night' });
     }
     function mapPage() {
       var m = obj(st.map), groups = arr(m.groups), r = m.route;
