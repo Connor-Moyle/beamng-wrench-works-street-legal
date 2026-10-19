@@ -748,6 +748,24 @@ function M.summary()
   return out
 end
 
+-- the map's pins for jobs: the stop you are heading for, and where each job on the board starts (legs are { id, name, x, y, z })
+function M.pins()
+  local s = career()
+  if not s then return {} end
+  local js = jobsState(s)
+  local out = {}
+  local a = js.active
+  if a and a.legs[a.leg] then
+    local l = a.legs[a.leg]
+    out[#out + 1] = { id = 'job_active', name = l.name, x = l.x, y = l.y, z = l.z, active = true }
+  end
+  for _, j in ipairs(js.offers or {}) do
+    local l = j.legs[1]
+    if l and l.x then out[#out + 1] = { id = 'job_' .. tostring(j.id), name = j.title .. ' · ' .. tostring(l.name), x = l.x, y = l.y, z = l.z } end
+  end
+  return out
+end
+
 function M.showWay()
   local s = career()
   local a = s and jobsState(s).active
