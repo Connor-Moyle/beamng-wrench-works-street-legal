@@ -302,6 +302,7 @@ function M.catalog()
   local car = sl_fleet.currentCar() or (s.activeCar and (function() for _, c in ipairs(s.cars) do if c.id == s.activeCar then return c end end end)())
   local veh = car and sl_fleet.vehicleOf(car.id)
   if not veh then return answer(false, strings.t('phone.bring_a_car_of_yours')) end
+  if not (slrr_garage and slrr_garage.enterWith) then return answer(false, strings.t('career.not_now')) end
   local ok, why = slrr_garage.enterWith(veh:getID(), 'catalog')
   if not ok then answer(false, why or strings.t('career.not_now')) end
 end
