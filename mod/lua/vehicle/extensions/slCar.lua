@@ -25,8 +25,8 @@ local function findFluids()
   local f = engine and engine.thermals and engine.thermals.getPartConditionRadiator
   if not f or not debug or not debug.getupvalue then return end
   for i = 1, 40 do
-    local name, value = debug.getupvalue(f, i)
-    if not name then break end
+    local okU, name, value = pcall(debug.getupvalue, f, i)       -- a sandboxed build must not throw every call
+    if not okU or not name then break end
     if name == 'fluidReservoirs' and type(value) == 'table' then oil, coolant = value.oil, value.coolant end
   end
 end
