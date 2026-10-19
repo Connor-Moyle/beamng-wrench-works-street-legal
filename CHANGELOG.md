@@ -1,4 +1,8 @@
-# Changelog: Wrench Works: Street Legal (the career)
+# Changelog
+
+## Unreleased
+
+- The main switches (police, crew raids, race flares, dashboard, race recording, weather, wet world and tarmac, spike strips, pursuit breakers, night race kinds, rivals, photo of a new car, the Maps speed and the phone's K slide) are tagged for the Active features page of the Mods menu.: Wrench Works: Street Legal (the career)
 
 ## 0.5.1 (needs Wrench Works 1.8.0)
 
