@@ -153,4 +153,6 @@
   }
   var api = { draw: draw, SKINS: SKINS, skinOf: skinOf, project: project, drawSpeed: drawSpeed };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.slMapsDraw = api;
+  // the game loads every folder of ui/modModules as an angular module of the same name: an empty one keeps the whole UI from failing to boot
+  if (typeof angular !== 'undefined') angular.module('slMapsDraw', []);
 })(typeof window !== 'undefined' ? window : this);
