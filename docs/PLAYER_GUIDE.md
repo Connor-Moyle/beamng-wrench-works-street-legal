@@ -156,7 +156,7 @@ Wrench Works adds a group to the game's Options > Graphics page, under the anti-
 ## Optional extras
 
 - Performance overlay: ESC > Mods menu > Street Legal > Developer (off by default) shows the frame time, the video memory and counts of what is in the world. Use it when the game stutters, and say what it showed when you report it.
-- Flex driver (EXPERIMENTAL, can crash the game when switching cars: leave it off; off by default): with the Drivers & Pedestrians mod the driver in the car is normally a set of rigid parts. To try the rigged driver, open the game's Lua console (the ~ key) and type slrrDriverMount.setDriverRig("flex"); it is saved and applies to cars spawned from then on. Type slrrDriverMount.setDriverRig("props") to go back.
+- Rigged driver: the rigged driver is the default for your own car; switch to Props in Mods > Driver model if you see problems. Every other car always keeps the prop driver.
 
 ## Settings and tools
 
