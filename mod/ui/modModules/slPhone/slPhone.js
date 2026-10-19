@@ -1941,9 +1941,15 @@
       });
       window.__slPhone = phone;
       // SLRR's art, when the player has copied it from their SLRR (tools/slrr_ui.py)
-      var probe = new Image();
-      probe.onload = function () { phone.handle('slArt'); };
-      probe.src = '/ui/modModules/slHud/slrr/icons/cup.png';
+      // (asked for only when the game side says the art is there: the released pack has none, and a missing picture is a 404 in the log)
+      var probed = false;
+      $rootScope.$on('slPhoneData', function (ev, data) {
+        if (probed || !data || data.art !== true) return;
+        probed = true;
+        var probe = new Image();
+        probe.onload = function () { phone.handle('slArt'); };
+        probe.src = '/ui/modModules/slHud/slrr/icons/cup.png';
+      });
       ['slPhoneData', 'slPhoneToggle', 'slPhoneGo', 'slPhoneCall', 'slPhoneCallReply', 'slPhoneNotify', 'slPhoneToast', 'slFade', 'slLotBars', 'slLotData', 'slMeet', 'slRace', 'slMenu', 'slStation', 'slGarage', 'slPhotos', 'slMap', 'slPeople', 'slLaptopDealers', 'slAuctions', 'slRivals', 'slLaptopOffers', 'slHelp', 'slStrings', 'slMapsTiles', 'slMapsPose', 'slMapsRoute', 'slMapsPlaces'].forEach(function (name) {
         $rootScope.$on(name, function (ev, data) { phone.handle(name, data); });
       });
