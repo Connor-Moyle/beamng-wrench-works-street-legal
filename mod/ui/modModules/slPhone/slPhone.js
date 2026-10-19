@@ -1684,7 +1684,7 @@
     // The app tells us where it is (window.slMapsHud = { rect(), setHidden(b) }); a missing app, no layout, reduced motion, the Mods switch off or any error in here
     // leaves the plain open and close. The animation is a Web Animations transform on the phone's own element (centre origin), so when it ends or is cut short the
     // phone is at rest where the style puts it.
-    var sliding = false;
+    var sliding = false, openToken = 0;           // (the token changes with every open or close: a slide-out that is overtaken by a newer one does not close the phone)
     function hudApp() {
       var h = win.slMapsHud;
       if (!h || typeof h.rect !== 'function' || MV.opts.slide === false) return null;
@@ -1719,14 +1719,16 @@
         var dv = layer.querySelector('.slp-device'), fr = dv && slideFrames(dv, h.rect());
         if (!fr) return false;
         sliding = true;
+        var token = openToken;
         var a = dv.animate(fr.slice().reverse(), { duration: 360, easing: 'cubic-bezier(.4,0,.6,1)', fill: 'forwards' }), done = false;
-        var finish = function () { if (done) return; done = true; sliding = false; hudShow(); then(); };
+        var finish = function () { if (done) return; done = true; sliding = false; if (token === openToken) then(); else if (!st.open) hudShow(); };      // (then() shows the app: setOpen(false))
         if ('onfinish' in a) a.onfinish = finish; else return (sliding = false, false);
         clock.set(finish, 500);                                                         // (an animation that never reports back must not keep the phone open)
         return true;
       } catch (e) { sliding = false; hudShow(); return false; }
     }
     function setOpen(open, plain) {
+      if (!plain) openToken++;
       if (!open && st.open && !plain && slideOut(function () { setOpen(false, true); })) return;
       st.open = open;
       lua('uiOpen("phone", ' + (open ? 'true' : 'false') + ')');      // (the game side sends the phone's data faster while it is open)
@@ -1913,6 +1915,7 @@
     // ---------------------------------------------------------------- what Lua says
     function handle(name, data) {
       data = data || {};
+      if (!st.open && !sliding) hudShow();                                         // (never leave the Maps app hidden behind a closed phone)
       switch (name) {
         case 'slMapsTiles': Object.keys(data.tiles || {}).forEach(function (k) { MV.tiles[k] = data.tiles[k]; }); MV.key = ''; paintMap(); break;
         case 'slMapsPose': MV.pose = data; paintMap(); break;
@@ -1921,7 +1924,7 @@
         case 'slMapsPlaces': MV.places = data.places || []; break;
         case 'slPhoneData':
           st.data = data;
-          if (!data.active) { st.open = false; st.call = null; st.hu = null; }
+          if (!data.active) { st.open = false; st.call = null; st.hu = null; openToken++; hudShow(); }
           if (st.open && st.app === 'map' && Date.now() - (st.mapAt || 0) > 4000) { st.mapAt = Date.now(); lua('mapPlaces()'); }      // (the distances follow the car)
           render();
           break;

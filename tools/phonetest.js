@@ -903,6 +903,25 @@ if (out > 0) {
   assert.ok(anims.length === 2 && anims[1].opts.fill === 'forwards' && phone.root.querySelector('.slp-device:not(.slp-away)'), 'closing plays the animation back first, the phone stays until it ends');
   anims[1].onfinish();
   assert.ok(phone.root.querySelector('.slp-device.slp-away') && hid[hid.length - 1] === false, 'when it ends the phone closes and the app shows again');
+  // a game side that ends the phone (data.active false) while it is open must show the app again
+  phone.handle('slPhoneToggle');
+  assert.ok(hid[hid.length - 1] === true && phone.root.querySelector('.slp-device:not(.slp-away)'), 'open again, the app hidden');
+  phone.handle('slPhoneData', Object.assign({}, data, { active: false }));
+  assert.ok(hid[hid.length - 1] === false && !phone.root.querySelector('.slp-device:not(.slp-away)'), 'the game closed the phone: the app is shown again, not left hidden');
+  phone.handle('slPhoneData', data);
+  // K, K, K: a slide-out overtaken by a newer open or close must not close the phone the player has just reopened
+  phone.handle('slPhoneToggle');                                  // open
+  const before = anims.length;
+  phone.handle('slPhoneToggle');                                  // close: the slide-out starts
+  const stale = anims[anims.length - 1];
+  assert.ok(anims.length === before + 1 && stale.opts.fill === 'forwards', 'a slide-out is running');
+  phone.handle('slPhoneToggle');                                  // K again: closes at once (one slide at a time)
+  phone.handle('slPhoneToggle');                                  // and again: open
+  assert.ok(phone.root.querySelector('.slp-device:not(.slp-away)'), 'reopened');
+  stale.onfinish();
+  advance(600);
+  assert.ok(phone.root.querySelector('.slp-device:not(.slp-away)') && hid[hid.length - 1] === true, 'the old slide-out ending does not close the reopened phone');
+  phone.handle('slPhoneToggle'); advance(600);
   // a second close while one is running, a cut-short animation, no app, the switch off, reduced motion
   phone.handle('slPhoneToggle'); anims[anims.length - 1].onfinish && 0;
   phone.handle('slPhoneToggle'); advance(600);
