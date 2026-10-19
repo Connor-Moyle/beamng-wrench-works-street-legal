@@ -1,5 +1,13 @@
 # Changelog: Wrench Works: Street Legal (the career)
 
+## 0.5.1 (needs Wrench Works 1.8.0)
+
+Hotfix for 0.5.0.
+
+### Fixes
+- **Big map:** every marker we list now carries a date. The game's mission marker sort threw 'compare two nil values' on every frame where two markers overlap (the auction on the junkyard), which stopped routes and markers on the big map. Offline tests pass; not yet confirmed in game.
+- **Car fluids:** the oil and coolant lookup in the car is guarded, so a build that blocks the lookup does not throw on every call. Offline tests only; not seen in game.
+
 ## 0.5.0 (needs Wrench Works 1.8.0)
 
 What is new since 0.4.0, for players.
