@@ -238,6 +238,23 @@ return function(check, rngLib)
   check('travel: garages and shops get an entry, lots do not; shops need a position; a garage on top of another is one pin', #ex == 3 and ex[1].kind == 'garage' and ex[3].kind == 'shop' and ex[3].placeId == 'wshop_torres' and ex[3].arrive.x == 7
     and ex[3].pin ~= nil and ex[3].what:find('Wheels') ~= nil)
   places.wshop_torres, places.wshop_nopos, places.stockGarage = nil, nil, nil
+  do
+    local base = {
+      yard = { id = 'yard', kind = 'junkyard', name = 'Junkyard', pos = { x = 500, y = 500, z = 1 } },
+      dealer = { id = 'dealer', kind = 'dealer', name = 'Belasco Auto', pos = { x = 0, y = 0, z = 0 } },
+      shop_b = { id = 'shop_b', kind = 'shop', name = 'Belasco Auto', pos = { x = 900, y = 900, z = 0 } },
+    }
+    FT.derive(base, { { id = 'job_active', name = 'Sealbrik', x = 505, y = 505, z = 1, active = true },       -- (on the yard: the stop you head for is still listed)
+      { id = 'job_a', name = 'Offer on a place', x = 0, y = 5, z = 0 }, { id = 'job_b', name = 'Offer off the map', x = 2000, y = 2000 } })
+    check('derived places: the auction at the junkyard, the active job stop even on a place, an offer only off the places, a same-named shop told apart',
+      base.auction and base.auction.kind == 'auction' and base.auction.pos.x == 500
+      and base.job_active and base.job_active.kind == 'job' and base.job_active.at.x == 505 and not base.job_a and base.job_b and base.job_b.at.z == 0
+      and base.shop_b.name == 'Belasco Auto (parts shop)' and base.dealer.name == 'Belasco Auto')
+    local ex = FT.extras(base, { rep = 100, garageLevel = 1 })
+    local k = {}
+    for _, e in ipairs(ex) do k[e.kind] = (k[e.kind] or 0) + 1 end
+    check('derived places: each becomes a big-map entry (auction, two job stops, the shop)', k.auction == 1 and k.job == 2 and k.shop == 1)
+  end
   places.auction = { id = 'auction', kind = 'auction', name = 'Junkyard auction', pos = { x = 50, y = 60, z = 1 } }
   places.job_j1 = { id = 'job_j1', kind = 'job', name = 'Parcel', pos = { x = 70, y = 80, z = 1 } }
   places.hosp = { id = 'hosp', kind = 'hospital', name = 'County', pos = { x = 90, y = 10, z = 1 } }

@@ -595,31 +595,7 @@ function M.allPlaces()
     out['shop_' .. sh.id] = { id = 'shop_' .. sh.id, kind = 'shop', name = sh.name or sh.id, pos = pos, at = pos, dir = vec3(0, 1, 0), trade = sh.trade }
   end
   for _, g in ipairs(gasStations(getCurrentLevelIdentifier and getCurrentLevelIdentifier())) do out[g.id] = g end
-  -- a shop that shares a name with another place (the stock dealer 'Belasco Auto' and Wrench Works' trim shop) is told apart
-  local names = {}
-  for _, p in pairs(out) do if p.kind ~= 'shop' and p.name then names[tostring(p.name):lower()] = true end end
-  for _, p in pairs(out) do
-    if p.kind == 'shop' and names[tostring(p.name):lower()] then p.name = string.format(strings.t('career.s_parts_shop'), p.name) end
-  end
-  -- the weekly live auction is held at the junkyard
-  for _, p in pairs(M.getPlaces() or {}) do
-    if p.kind == 'junkyard' and p.pos then
-      out.auction = { id = 'auction', kind = 'auction', name = strings.t('career.junkyard_auction'), pos = p.pos, at = p.at or p.pos, dir = p.dir }
-      break
-    end
-  end
-  -- jobs: the stop you are heading for always, the start of a job on the board where no place of the map is already
-  for _, j in ipairs(sl_jobs and sl_jobs.pins and sl_jobs.pins() or {}) do
-    local free = true
-    if not j.active then
-      for _, p in pairs(out) do
-        local q = p.at or p.pos
-        if q and (q.x - j.x) ^ 2 + (q.y - j.y) ^ 2 < 15 ^ 2 then free = false break end
-      end
-    end
-    if free then out[j.id] = { id = j.id, kind = 'job', name = j.name, pos = vec3(j.x, j.y, j.z or 0), at = vec3(j.x, j.y, j.z or 0), dir = vec3(0, 1, 0) } end
-  end
-  return out
+  return require('sl/core/fasttravel').derive(out, sl_jobs and sl_jobs.pins and sl_jobs.pins() or {})
 end
 
 -- the tier of a lot (high / mid / low / junk) and its label, for the cab filter and the big-map card; nil for a place that is not a lot
