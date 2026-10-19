@@ -2799,4 +2799,28 @@ do
   for n, v in pairs(saved) do if n:sub(1, 2) == 'p:' then package.loaded[n:sub(3)] = v[1] else _G[n] = v[1] end end
 end
 
+do -- the career's tyres (sl/core/tyres)
+  local T = require('sl/core/tyres')
+  local n = 0
+  for _ in pairs(T.COMPOUNDS) do n = n + 1 end
+  local known = 0
+  for _, id in ipairs(T.ORDER) do if T.known(id) then known = known + 1 end end
+  check('tyres: every ordered compound is known and the order lists them all', known == #T.ORDER and n == #T.ORDER)
+  local torres, race = T.stocked('torresTires'), T.stocked('fastAutomotive')
+  check('tyres: Torres sells the road, weather and off-road ranges, Fast Automotive the track rubber, together all twelve', #torres == 8 and #race == 4 and #T.stocked() == 12 and race[1] == 'semislick')
+  check('tyres: a set costs its price, an axle half, a track change 30% more', T.quote('road', nil, 'shop') == 360 and T.quote('road', 'front', 'shop') == 180 and T.quote('slick', nil, 'track') == 1430)
+  local p, parts = T.quote('performance', nil, 'garage', { compound = 'road', frac = 0.5 })
+  check('tyres: the worn old set is part-exchanged (15% of its price times the tread left)', p == 640 - 27 and parts.credit == 27 and parts.fee == 0)
+  check('tyres: an unknown compound has no quote, and an expensive old set cannot make the new one free', T.quote('nonsense', nil, 'shop') == nil and T.quote('road', 'rear', 'shop', { compound = 'slicksoft', frac = 1 }) == 86)
+  check('tyres: the tread words by fraction left (new, good, worn, low, bald, blown)',
+    T.stage(1) == 'new' and T.stage(0.6) == 'good' and T.stage(0.3) == 'worn' and T.stage(0.1) == 'low' and T.stage(0) == 'bald' and T.stage(0.9, true) == 'blown' and T.stage(nil) == 'new')
+  local sum = T.summary({ compound = 'road', wheels = {
+    { axle = 'front', compound = 'road', frac = 0.9 }, { axle = 'front', compound = 'road', frac = 0.3, flat = 0.5 },
+    { axle = 'rear', compound = 'road', frac = 0.02 }, { axle = 'rear', compound = 'road', frac = 0.6, blown = true } } })
+  check('tyres: the summary takes the worst tyre of each axle; flat spots and blow-outs are flagged, bald or blown means replace',
+    #sum == 2 and sum[1].axle == 'front' and sum[1].stage == 'worn' and sum[1].flat and not sum[1].replace
+    and sum[2].stage == 'blown' and sum[2].blown and sum[2].replace and #T.summary(nil) == 0 and #T.summary({}) == 0)
+  check('tyres: a change is refused moving or when short of money, never otherwise', T.refusal(100, 500, true) ~= nil and T.refusal(100, 50, false) ~= nil and T.refusal(100, 100, false) == nil)
+end
+
 print(string.format('lua tests passed: %d checks', passed))
