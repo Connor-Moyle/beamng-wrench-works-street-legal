@@ -515,7 +515,7 @@ local function sampleRide(j, dtReal)
   ridePrev = 0
 end
 
-local timer = 0
+local timer, pinSig = 0, nil
 function M.onUpdate(dtReal)
   local s = career()
   if not s then return end
@@ -525,6 +525,14 @@ function M.onUpdate(dtReal)
   if timer < 0.5 then return end
   timer = 0
   refresh(s)
+  -- the big map lists the job stops it was last built with: a new offer, a taken job or the next leg asks for a rebuild
+  local sig = {}
+  for _, p in ipairs(M.pins()) do sig[#sig + 1] = p.id .. ':' .. math.floor(p.x) .. ',' .. math.floor(p.y) end
+  sig = table.concat(sig, ';')
+  if sig ~= pinSig then
+    pinSig = sig
+    if sl_pois and sl_pois.refresh then sl_pois.refresh() end
+  end
   local js = jobsState(s)
   local j = js.active
   if not j or (j.settle and not j.car) then return end    -- (settle: it ends somewhere else; a car job still picks up its car)
