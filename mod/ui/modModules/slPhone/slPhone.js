@@ -956,7 +956,7 @@
     function distText(m) { return m == null ? '' : (m < 1000 ? m + ' m' : (m / 1000).toFixed(1) + ' km'); }
     // the live map (a canvas drawn by the global module slMapsDraw from the tiles of sl_mapsfeed): the Map tab; the places by kind stay as the List tab
     var lastLand = false;
-    var MV = { tiles: {}, asked: {}, pose: null, route: [], places: [], on: false, last: 0, roads: [], key: '', mpp: 2 };
+    var MV = { tiles: {}, asked: {}, pose: null, route: [], places: [], on: false, last: 0, roads: [], key: '', mpp: 2, opts: { style: 'street', headingUp: false, speed: true }, zoomed: false };
     function mapWanted() { return !!(st.open && st.app === 'map' && st.tab.map === 'map'); }
     function syncMapFeed() {
       var w = mapWanted();
@@ -981,7 +981,7 @@
       if (want.length) { want.forEach(function (k) { MV.asked[k] = true; }); lua('@sl_mapsfeed.tiles({' + want.map(function (k) { return '"' + k + '"'; }).join(',') + '})'); }      // (a Lua table: tile keys are digits, commas and minus signs)
       var key = keys.join(';');
       if (key !== MV.key) { MV.key = key; MV.roads = []; keys.forEach(function (k) { if (MV.tiles[k]) MV.roads = MV.roads.concat(Array.isArray(MV.tiles[k]) ? MV.tiles[k] : []); }); }
-      D.draw(ctx, w, h, { roads: MV.roads, route: MV.route, pins: MV.places, player: p, speed: { now: p.speed || 0, limit: p.limit || null, mph: !!p.mph, sign: p.mph ? 'us' : 'round' } }, { cx: p.x, cy: p.y, mpp: MV.mpp, rot: 0, skin: 'street', night: obj(st.data).phase === 'night' });
+      D.draw(ctx, w, h, { roads: MV.roads, route: MV.route, pins: MV.places, player: p, speed: MV.opts.speed === false ? null : { now: p.speed || 0, limit: p.limit || null, mph: !!p.mph, sign: p.mph ? 'us' : 'round' } }, { cx: p.x, cy: p.y, mpp: MV.mpp, rot: MV.opts.headingUp ? -(p.heading || 0) : 0, skin: MV.opts.style || 'street', night: obj(st.data).phase === 'night' });
     }
     function mapPage() {
       var m = obj(st.map), groups = arr(m.groups), r = m.route;
@@ -1730,7 +1730,7 @@
         case 'workon': lua('workOn(' + Number(v) + ')'); st.garage = null; break;
         case 'despawn': lua('despawn(' + Number(v) + ')'); break;
         case 'garageclose': lua('closeGarage()'); st.garage = null; render(); break;
-        case 'mapzoom': MV.mpp = Math.max(0.5, Math.min(12, MV.mpp * (v === 'in' ? 0.7 : 1.43))); MV.last = 0; paintMap(); break;
+        case 'mapzoom': MV.zoomed = true; MV.mpp = Math.max(0.5, Math.min(12, MV.mpp * (v === 'in' ? 0.7 : 1.43))); MV.last = 0; paintMap(); break;
         case 'tyreswap': lua('@sl_tyrecare.swap(' + JSON.stringify(String(v)) + ')'); break;
         case 'route': lua('routeTo(' + JSON.stringify(String(v)) + ')'); break;
         case 'routegarage': lua('routeGarage()'); break;
@@ -1868,6 +1868,7 @@
         case 'slMapsTiles': Object.keys(data.tiles || {}).forEach(function (k) { MV.tiles[k] = data.tiles[k]; }); MV.key = ''; paintMap(); break;
         case 'slMapsPose': MV.pose = data; paintMap(); break;
         case 'slMapsRoute': MV.route = data.route || []; paintMap(); break;
+        case 'slMapsOptions': MV.opts = data || MV.opts; if (data && data.mpp && !MV.zoomed) MV.mpp = data.mpp; MV.key = ''; paintMap(); break;
         case 'slMapsPlaces': MV.places = data.places || []; break;
         case 'slPhoneData':
           st.data = data;
@@ -1944,7 +1945,7 @@
       var probe = new Image();
       probe.onload = function () { phone.handle('slArt'); };
       probe.src = '/ui/modModules/slHud/slrr/icons/cup.png';
-      ['slPhoneData', 'slPhoneToggle', 'slPhoneGo', 'slPhoneCall', 'slPhoneCallReply', 'slPhoneNotify', 'slPhoneToast', 'slFade', 'slLotBars', 'slLotData', 'slMeet', 'slRace', 'slMenu', 'slStation', 'slGarage', 'slPhotos', 'slMap', 'slPeople', 'slLaptopDealers', 'slAuctions', 'slRivals', 'slLaptopOffers', 'slHelp', 'slStrings', 'slMapsTiles', 'slMapsPose', 'slMapsRoute', 'slMapsPlaces'].forEach(function (name) {
+      ['slPhoneData', 'slPhoneToggle', 'slPhoneGo', 'slPhoneCall', 'slPhoneCallReply', 'slPhoneNotify', 'slPhoneToast', 'slFade', 'slLotBars', 'slLotData', 'slMeet', 'slRace', 'slMenu', 'slStation', 'slGarage', 'slPhotos', 'slMap', 'slPeople', 'slLaptopDealers', 'slAuctions', 'slRivals', 'slLaptopOffers', 'slHelp', 'slStrings', 'slMapsTiles', 'slMapsPose', 'slMapsRoute', 'slMapsPlaces', 'slMapsOptions'].forEach(function (name) {
         $rootScope.$on(name, function (ev, data) { phone.handle(name, data); });
       });
       if (window.bngApi) window.bngApi.engineLua('if sl_phone then sl_phone.request() end if sl_menuTile then sl_menuTile.request() end');

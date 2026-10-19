@@ -13,14 +13,14 @@ local builder, level
 local users = feed.consumers()
 local isActive = false
 local failed = false          -- an error was logged since the app last turned us on
-local poseTimer, routeKey, placesSent = 0, nil, false
+local poseTimer, routeKey, placesSent, optsKey = 0, nil, false, nil
 
 local function push(name, data, opts)
   if sl_uipush and sl_uipush.push then return sl_uipush.push(name, data, opts) end
   guihooks.trigger(name, data)
 end
 
-local function reset() builder, wanted, routeKey, placesSent = nil, {}, nil, false end
+local function reset() builder, wanted, routeKey, placesSent, optsKey = nil, {}, nil, false, nil end
 
 local function sendWanted()
   if not builder then return end
@@ -36,7 +36,7 @@ function M.use(name, on)
   local added = users.use(tostring(name), on)
   isActive = users.any()
   if isActive then failed = false end
-  if added then routeKey, placesSent = nil, false end        -- (a new consumer has not got the route and the places yet)
+  if added then routeKey, placesSent, optsKey = nil, false, nil end        -- (a new consumer has not got the route and the places yet)
   if not isActive then reset() end
 end
 
@@ -86,6 +86,9 @@ local function tick(dtReal)
     push('slMapsPose', pose, { minInterval = POSE_EVERY })
   end
   if not placesSent then placesSent = true guihooks.trigger('slMapsPlaces', { places = places() }) end
+  local o = feed.mapOptions(function(k) return sl_options and sl_options.get and sl_options.get(k) or nil end)           -- (the Mods menu's Maps rows)
+  local ok = o.style .. ':' .. tostring(o.headingUp) .. ':' .. tostring(o.speed) .. ':' .. o.zoom
+  if ok ~= optsKey then optsKey = ok guihooks.trigger('slMapsOptions', o) end
   local gm = core_groundMarkers
   local path = gm and gm.routePlanner and gm.routePlanner.path
   local lx, ly = feed.xy(path and path[#path] and path[#path].pos or nil)

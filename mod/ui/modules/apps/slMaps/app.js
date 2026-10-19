@@ -7,12 +7,13 @@ if (typeof angular !== 'undefined') angular.module('beamng.apps').directive('slM
     '.slm-status{flex:0 0 auto;display:flex;justify-content:space-between;align-items:center;height:16px;margin-bottom:3px;padding:0 10px;color:#e6e1e5;font-size:10px}' +
     '.slm-icons{display:inline-flex;gap:5px;align-items:center}.slm-sig{display:inline-block;width:10px;height:8px;background:linear-gradient(135deg,transparent 50%,#e6e1e5 50%)}.slm-bat{display:inline-block;width:14px;height:7px;border:1px solid #e6e1e5;border-radius:2px;background:linear-gradient(90deg,#e6e1e5 70%,transparent 70%)}' +
     '.slm-screen{position:relative;flex:1 1 auto;min-height:0;border-radius:18px;overflow:hidden;background:#f2efe9}.slm-canvas{display:block;width:100%;height:100%}';
-  var TILE = 256, MPP = 2;
+  var TILE = 256;
   return {
     restrict: 'EA', replace: true, template: TEMPLATE,
     link: function ($scope, element) {
       var style = document.createElement('style'); style.textContent = CSS; element[0].appendChild(style);
       var canvas = element[0].querySelector('canvas'), ctx = canvas.getContext('2d');
+      var MPP = 2, opts = { style: 'street', headingUp: false, speed: true };
       var tiles = {}, asked = {}, places = [], route = [], pose = null, lastKey = '', roads = [], dirty = true;
       function ask(keys) {
         var want = keys.filter(function (k) { return !tiles[k] && !asked[k]; });
@@ -36,11 +37,12 @@ if (typeof angular !== 'undefined') angular.module('beamng.apps').directive('slM
           lastKey = key; dirty = false; roads = [];
           keys.forEach(function (k) { if (tiles[k]) roads = roads.concat(Array.isArray(tiles[k]) ? tiles[k] : []); });
         }
-        var data = { roads: roads, route: route, pins: places.map(function (p) { return { x: p.x, y: p.y, name: p.name, kind: p.kind }; }), player: pose, speed: speedOf(pose) };
-        draw(ctx, w, h, data, { cx: pose.x, cy: pose.y, mpp: MPP, rot: 0 });
+        var data = { roads: roads, route: route, pins: places.map(function (p) { return { x: p.x, y: p.y, name: p.name, kind: p.kind }; }), player: pose, speed: opts.speed === false ? null : speedOf(pose) };
+        draw(ctx, w, h, data, { cx: pose.x, cy: pose.y, mpp: MPP, rot: opts.headingUp ? -(pose.heading || 0) : 0, skin: opts.style });
       }
       var timer = setInterval(frame, 100);                    // 10 fps
       $scope.$on('slMapsTiles', function (ev, d) { var t = (d && d.tiles) || {}; Object.keys(t).forEach(function (k) { tiles[k] = t[k]; dirty = true; }); });
+      $scope.$on('slMapsOptions', function (ev, d) { opts = d || opts; if (d && d.mpp) MPP = d.mpp; dirty = true; lastKey = ''; });
       $scope.$on('slMapsPose', function (ev, d) { pose = d; });
       $scope.$on('slMapsRoute', function (ev, d) { route = (d && d.route) || []; });
       $scope.$on('slMapsPlaces', function (ev, d) { places = (d && d.places) || []; });
