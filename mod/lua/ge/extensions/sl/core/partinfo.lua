@@ -45,6 +45,7 @@ function M.displayName(name, partId, model)
   local n = M.text(name) or ''
   if n:find('^ui%.') then                                  -- a game translation key ("ui.vehicleconfig.generic.wheelName"): translated when the game can, else the id in words
     if type(translateLanguage) == 'function' then local ok, t = pcall(translateLanguage, n, n, true) if ok and type(t) == 'string' then n = t end end
+    n = n:gsub('{{.-}}%s*', ''):gsub('%s+$', '')           -- (a translation can hold a brand placeholder such as "{{brand1 | translate}} A11 Rear Hubcaps": the placeholder goes, the name stays)
     if n:find('^ui%.') then n = '' end
   end
   local internal = n == '' or n == tostring(partId) or (not n:find('%s') and (n:find('_', 1, true) or n:find('/', 1, true)))
