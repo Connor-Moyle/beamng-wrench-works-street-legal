@@ -106,6 +106,7 @@ function M.snapshot(withDamage)
     if car and veh then
       car.config = builder.configOf(vid) or car.config
       car.where = placeOf(veh)
+      if sl_tyrecare and fxApplied[vid] then sl_tyrecare.save(vid, car) end      -- (the tyres' wear stays with the car, as the dirt does)
       if sl_surfacefx and fxApplied[vid] then local fx = sl_surfacefx.save(vid) if fx ~= nil then car.fx = fx or nil end end      -- (Car Surface FX: its dirt and scratches stay with the car when it is put away or the game is saved)
       if withDamage then veh:queueLuaCommand('extensions.load("slrrGarageVeh") if slrrGarageVeh then slrrGarageVeh.capture() end') end
     elseif not veh then
@@ -501,6 +502,7 @@ function M.onUpdate(dtReal)
         fxApplied[vid] = true
         local car = carById(s, carId)
         if car and car.fx then sl_surfacefx.restore(vid, car.fx) end
+        if car and sl_tyrecare then sl_tyrecare.restore(vid, car) end
       end
     end
   end
