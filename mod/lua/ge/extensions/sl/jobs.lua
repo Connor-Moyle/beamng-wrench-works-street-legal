@@ -798,4 +798,7 @@ function M.onStreetLegalStarted()
   end
 end
 
+-- (the Mods menu's Parts of the game: with this part off, the hooks above do nothing)
+require('sl/core/features').gate('jobs', M)
+
 return M

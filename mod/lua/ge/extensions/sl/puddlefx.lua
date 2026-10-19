@@ -734,4 +734,7 @@ end
 function M.onStreetLegalStopped() M.clear() end
 function M.onClientEndMission() M.clear() end
 
+-- (the Mods menu's Parts of the game: with this part off, the hooks above do nothing)
+require('sl/core/features').gate('puddles', M, nil, nil, { 'update', 'wheelIn', 'wheelFx' })
+
 return M

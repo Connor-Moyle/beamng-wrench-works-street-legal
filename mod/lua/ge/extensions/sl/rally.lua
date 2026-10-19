@@ -208,4 +208,7 @@ function M.status() return { stages = stages and #stages or 0, running = run and
 function M.onStreetLegalStopped() if run then finish(false) end run = nil end
 function M.onClientEndMission() stages, run = nil, nil end
 
+-- (the Mods menu's Parts of the game: with this part off, the hooks above do nothing)
+require('sl/core/features').gate('rally', M)
+
 return M

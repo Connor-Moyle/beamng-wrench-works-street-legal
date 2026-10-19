@@ -58,4 +58,7 @@ function M.onStreetLegalStopped() restore() end
 function M.onClientEndMission() current, original = nil, nil end
 function M.onExtensionUnloaded() restore() end
 
+-- (the Mods menu's Parts of the game: with this part off, the hooks above do nothing)
+require('sl/core/features').gate('billboards', M)
+
 return M

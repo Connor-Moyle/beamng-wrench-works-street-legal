@@ -380,4 +380,7 @@ function M.onUpdate(dtReal)
   if not ok and not failed then failed = true log('E', 'sl_carauctions', 'tick failed: ' .. tostring(err)) end      -- (once: a failing tick must not fill the log)
 end
 
+-- (the Mods menu's Parts of the game: with this part off, the hooks above do nothing)
+require('sl/core/features').gate('market', M)
+
 return M

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Parts of the game you can switch off** (Mods > Street Legal > Parts of the game, and the Active features page; all on by default): spectators, sponsor billboards, ambient sounds, puddles and splashes, achievements, getting-started tips, car and part markets (classifieds and auctions), rally stages, street races and drag racing, clubs, crews and turf, the tow truck, the taxi ride, and jobs. A part that is off does nothing and loses its phone app; switched on again it carries on from your save (nothing is deleted). Off for the tow truck: a car left out is brought round without a truck; off for the taxi: the Cab app still takes you there, at once.
+
 - The main switches (police, crew raids, race flares, dashboard, race recording, weather, wet world and tarmac, spike strips, pursuit breakers, night race kinds, rivals, photo of a new car, the Maps speed and the phone's K slide) are tagged for the Active features page of the Mods menu.: Wrench Works: Street Legal (the career)
 
 ## 0.5.1 (needs Wrench Works 1.8.0)

@@ -202,7 +202,12 @@ local function slotUsed(n) local f = slotFile(n) return FS:fileExists(f) or FS:f
 local function mapOf(level) return progression.MAPS[level] or progression.MAPS[progression.DEFAULT_MAP] end
 
 -- what this career's map can host (progression.MAPS has), and its name in texts
-function M.has(feature) return progression.has(M.LEVEL, feature) end
+-- a map's feature, and for the parts the player can switch off (Mods menu: Parts of the game) that switch too
+local PART_OF = { clubs = 'clubs', clubDays = 'clubs', crews = 'crews', classifieds = 'market' }
+function M.has(feature)
+  if PART_OF[feature] and not require('sl/core/features').on(PART_OF[feature]) then return false end
+  return progression.has(M.LEVEL, feature)
+end
 function M.mapName() return mapOf(M.LEVEL).name end
 function M.mapText(text) return progression.mapText(text, M.LEVEL) end
 

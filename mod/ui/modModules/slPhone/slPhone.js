@@ -433,12 +433,12 @@
         '<div><span class="slp-chip">' + esc(d.title || '') + ' &middot; ' + (d.rep || 0) + ' rep &middot; ' + money(d.money) + '</span>' +
           '<span class="slp-chip" data-a="routegarage" data-v="1" style="cursor:pointer">' + T('ui.route_to_my_garage', 'Route to my garage') + '</span></div>' +
         tut + '<div class="slp-grid">' + appsHtml([
-          { id: 'races', title: T('app.races', 'Races'), icon: I.flag, badge: arranged || 0 },
+          { id: 'races', title: T('app.races', 'Races'), icon: I.flag, badge: arranged || 0, hide: has.races === false },
           { id: 'garage', title: T('app.garage', 'My cars'), icon: I.cab },
           { id: 'garagekit', title: T('app.garagekit', 'Garage'), icon: I.house },
           { id: 'bank', title: T('app.bank', 'Bank'), icon: I.bank },
           { id: 'me', title: T('app.me', 'Street cred'), icon: I.me },
-          { id: 'jobs', title: T('app.jobs', 'Jobs'), icon: I.jobs, badge: d.jobs && d.jobs.active ? 1 : 0 },
+          { id: 'jobs', title: T('app.jobs', 'Jobs'), icon: I.jobs, badge: d.jobs && d.jobs.active ? 1 : 0, hide: has.jobs === false },
           { id: 'wait', title: T('app.wait', 'Wait'), icon: I.wait },
           { id: 'help', title: T('app.help', 'Help'), icon: I.help },
           { id: 'map', title: T('app.map', 'Map'), icon: I.map },
@@ -446,7 +446,7 @@
           { id: 'gallery', title: T('app.gallery', 'Gallery'), icon: I.gallery },
           { id: 'club', title: T('app.club', 'Club'), icon: I.club, hide: has.clubs === false },
           { id: 'turf', title: T('app.turf', 'Turf'), icon: I.turf, hide: has.crews === false },
-          { id: 'carmarket', title: T('app.carmarket', 'Car market'), icon: I.cab },
+          { id: 'carmarket', title: T('app.carmarket', 'Car market'), icon: I.cab, hide: has.market === false },
           { id: 'partmarket', title: T('app.partmarket', 'Part market'), icon: I.market, badge: (d.market && d.market.deliveries || 0) + (d.market ? arr(d.market.auctions).filter(function (l) { return l.high === 'you'; }).length : 0), hide: has.classifieds === false },
         ]) + '</div>' +
         '<div class="slp-dock">' + appsHtml([

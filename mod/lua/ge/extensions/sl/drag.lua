@@ -242,4 +242,7 @@ M.onDragClear = function() removeOpponent() end
 local restoreAll = restore
 M.onStreetLegalStopped = function() removeOpponent() restoreAll() end
 
+-- (the Mods menu's Parts of the game: with this part off, the hooks above do nothing)
+require('sl/core/features').gate('races', M)
+
 return M

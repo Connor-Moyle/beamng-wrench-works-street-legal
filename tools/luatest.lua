@@ -2953,4 +2953,44 @@ do
   package.loaded['sl/tyrecare'] = nil
 end
 
+-- the parts of the game that can be switched off (sl/core/features)
+do
+  local F = require('sl/core/features')
+  local Opt = require('sl/options')
+  local defs = {}
+  for _, d in ipairs(Opt.defs) do defs[d.key] = d end
+  local okDefs = #F.LIST == 14
+  for _, f in ipairs(F.LIST) do
+    local d = defs[f.opt]
+    if not (d and d.type == 'bool' and d.default == true and d.feature == true and d.title == f.title and f.desc ~= '') then okDefs = false end
+  end
+  check('parts: every part has an option, one bool, on by default, tagged for the Active features page', okDefs)
+  local off = { slJobs = false }
+  local function get(k) return off[k] end
+  check('parts: on unless the option is false; a missing option system is on', F.on('jobs', get) == false and F.on('races', get) == true and F.on('jobs', function() return nil end) == true and F.on('nope', get) == true)
+  local calls = {}
+  local m = { onUpdate = function(dt) calls[#calls + 1] = 'update' return 'u' end, onStreetLegalNewDay = function() calls[#calls + 1] = 'day' end,
+    onStreetLegalBeforeSave = function() calls[#calls + 1] = 'save' end, onStreetLegalStarted = function() calls[#calls + 1] = 'started' end,
+    onStreetLegalStopped = function() calls[#calls + 1] = 'stopped' end, onClientEndMission = function() calls[#calls + 1] = 'end' end,
+    summary = function() calls[#calls + 1] = 'summary' return { x = 1 } end, list = function() return { 1 } end }
+  F.gate('jobs', m, get, { 'onStreetLegalStarted' }, { 'summary' })
+  local r = m.onUpdate(0.1) m.onStreetLegalNewDay(2) local sm = m.summary()
+  check('parts: an off part ignores updates, new days and its summary', r == nil and sm == nil and #calls == 0)
+  m.onStreetLegalBeforeSave() m.onStreetLegalStarted() m.onClientEndMission()
+  check('parts: saving, a kept start hook and cleanup always run; a call not named stays', #calls == 3 and calls[1] == 'save' and calls[2] == 'started' and calls[3] == 'end' and m.list()[1] == 1)
+  calls = {}
+  off.slJobs = nil
+  check('parts: switched on again the hooks run', m.onUpdate(0.1) == 'u' and m.summary().x == 1 and #calls == 2)
+  calls = {}
+  m.onStreetLegalOption('slJobs', false)
+  check('parts: switching the part off stops it once (the cleanup hook)', #calls == 1 and calls[1] == 'stopped')
+  calls = {}
+  m.onStreetLegalOption('slRaces', false) m.onStreetLegalOption('slJobs', true)
+  check('parts: another option, or switching on, stops nothing', #calls == 0)
+  local g = { onStreetLegalOption = function(k) calls[#calls + 1] = 'old:' .. k end }
+  F.gate('races', g, get)
+  g.onStreetLegalOption('slRaces', false)
+  check('parts: an own option hook of the extension still runs', calls[#calls] == 'old:slRaces')
+end
+
 print(string.format('lua tests passed: %d checks', passed))

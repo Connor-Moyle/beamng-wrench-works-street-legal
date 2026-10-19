@@ -196,6 +196,10 @@ local PRESETS = {
   slReplay = { performance = false, balanced = true, quality = true, max = true },
   slMarkers = { performance = false, balanced = true, quality = true, max = true },
 }
+-- the parts of the game that can be switched off (sl/core/features: each is gated by its extension): one bool each, on by default, listed on the Active features page
+for _, f in ipairs(require('sl/core/features').LIST) do
+  M.defs[#M.defs + 1] = { key = f.opt, feature = true, title = f.title, type = 'bool', default = true, tab = 'Parts of the game', group = 'Parts of the game', desc = f.desc }
+end
 local byKey = {}
 for _, d in ipairs(M.defs) do
   local own = d.group                          -- (a def of another module names its own group: it is its sub-heading on the Mods menu page)

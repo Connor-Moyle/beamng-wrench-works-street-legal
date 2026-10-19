@@ -260,4 +260,7 @@ function M.summary()
   }
 end
 
+-- (the Mods menu's Parts of the game: with this part off, the hooks above do nothing)
+require('sl/core/features').gate('clubs', M)
+
 return M
