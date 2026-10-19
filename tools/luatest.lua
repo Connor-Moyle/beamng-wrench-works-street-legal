@@ -2823,4 +2823,21 @@ do -- the career's tyres (sl/core/tyres)
   check('tyres: a change is refused moving or when short of money, never otherwise', T.refusal(100, 500, true) ~= nil and T.refusal(100, 50, false) ~= nil and T.refusal(100, 100, false) == nil)
 end
 
+do -- Street Legal in free roam (sl/core/mode)
+  local Mo = require('sl/core/mode')
+  local on = {}
+  local function sw(k) return on[k] == true end
+  check('mode: free roam is off by default and a career is always on', not Mo.enabled(false, sw, 'phone') and Mo.kind(false, sw) == nil and Mo.enabled(true, sw, 'rivals') and Mo.kind(true, sw) == 'career')
+  on.freeroam_phone = true
+  check('mode: a feature switch alone enables nothing (the master is needed)', not Mo.enabled(false, sw, 'phone'))
+  on = { freeroam = true }
+  check('mode: the master alone enables nothing', Mo.kind(false, sw) == 'freeroam' and not Mo.enabled(false, sw, 'phone'))
+  on.freeroam_phone = true
+  check('mode: master and the feature switch enable it, other features stay off', Mo.enabled(false, sw, 'phone') and not Mo.enabled(false, sw, 'maps'))
+  on.freeroam_rivals, on.freeroam_rep = true, true
+  check('mode: career-only features are off in free roam whatever is set', not Mo.enabled(false, sw, 'rivals') and not Mo.enabled(false, sw, 'rep') and not Mo.enabled(false, sw, 'freeroam'))
+  local f = Mo.FEATURES()
+  check('mode: the menu list has the master first, then every feature, all off by default', f[1].id == 'freeroam' and #f == #Mo.IDS + 1 and f[2].id == 'phone' and f[2].default == false and f[2].title ~= '' and Mo.key('freeroam') == 'freeroam' and Mo.key('cab') == 'freeroam_cab')
+end
+
 print(string.format('lua tests passed: %d checks', passed))
