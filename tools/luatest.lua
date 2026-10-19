@@ -2927,6 +2927,23 @@ do
   check('tyrecare: after a reset (R) the wear is put back', calls[1] == 'attach:77' and calls[2] == 'restore:77')
   tc.onCsfxTyreBlown(77) tc.onCsfxTyreBlown(99)
   check('tyrecare: a blow-out of the player\'s own car is a toast, any other car is not', #toasts >= 1 and toasts[#toasts] == 'A tyre has blown.' and (function() local n = 0 for _, t in ipairs(toasts) do if t == 'A tyre has blown.' then n = n + 1 end end return n == 1 end)())
+  -- a car on bare rims (the starter car): the module reports no wheels, so nothing is followed, sold or snapshotted; once tyres are fitted it is followed
+  local snaps, bareCalls = 0, {}
+  local wheelsNow = {}
+  _G.carSurfaceFx_tyres = { getConfig = function() return { enabled = true } end, getTyres = function() return { wheels = wheelsNow } end,
+    setCompound = function() bareCalls[#bareCalls + 1] = 'compound' return true end, setTread = function() bareCalls[#bareCalls + 1] = 'tread' return true end,
+    snapshot = function() snaps = snaps + 1 return { [0] = { h = 1 } } end, restore = function() bareCalls[#bareCalls + 1] = 'restore' end }
+  local bare = { id = 2, name = 'Autobello' }
+  local cardB = tc.card(bare, 77, true)
+  check('tyrecare: a car on bare rims is not tracked: the card says no_tyres and has no offers', tc.noTyres(77) and cardB and cardB.tracked == false and cardB.reason == 'no_tyres' and cardB.offers == nil)
+  local bareList = {}
+  tc.onWrenchWorksServices(bareList)
+  local okB, textB = tc.changeNow('slick', 'garage')
+  check('tyrecare: bare rims: the drawer says so, no change is sold, nothing is sent to the car, nothing is snapshotted', #bareList == 1 and bareList[1].id == 'tyres:none' and okB == false and textB ~= nil and #bareCalls == 0
+    and tc.save(77, bare) == nil and snaps == 0 and bare.tyres == nil)
+  wheelsNow = { { idx = 0, frac = 1, axle = 'front', side = 'left' }, { idx = 1, frac = 1, axle = 'front', side = 'right' } }
+  local fitted = tc.card(bare, 77, true)
+  check('tyrecare: once tyres are fitted (the car respawned with the part) it is followed: rows, offers, and its wear is snapshotted', not tc.noTyres(77) and #fitted.rows == 2 and fitted.offers ~= nil and tc.save(77, bare) == true and snaps == 1 and bare.tyres.blob ~= nil)
   _G.carSurfaceFx_tyres = { getConfig = function() error('boom') end, getTyres = function() error('boom') end, setCompound = function() error('boom') end }
   check('tyrecare: an error inside the tyre module never reaches the career', tc.info(car, 77) == nil)
   _G.sl_career, _G.sl_fleet, _G.carSurfaceFx_tyres, _G.guihooks, _G.extensions, _G.getObjectByID, _G.ui_message = saved.sl_career, saved.sl_fleet, saved.carSurfaceFx_tyres, saved.guihooks, saved.extensions, saved.getObjectByID, saved.ui_message

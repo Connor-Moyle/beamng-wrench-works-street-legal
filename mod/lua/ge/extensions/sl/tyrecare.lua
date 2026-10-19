@@ -182,7 +182,7 @@ end
 
 -- ---- keeping the wear with the car (called by sl_fleet: snapshot() every minute and before a save, and when a car comes out)
 function M.save(vid, car)
-  if not (vid and car and has('snapshot')) then return nil end
+  if not (vid and car and has('snapshot')) or M.noTyres(vid) then return nil end             -- (a car on bare rims has no wear to keep)
   local ok, blob = pcall(api().snapshot, vid)
   if ok and type(blob) == 'table' and next(blob) then
     car.tyres = car.tyres or {}
