@@ -27,6 +27,37 @@ M.KINDS = {
   job = { cardIcon = 'boxPickUp01', pin = 'poi_pickup_round', what = strings.t('fasttravel.job_pickup') },         -- (a job on the board that starts off the map's places, or the stop you are heading for)
 }
 
+-- The places that are not in the career's lists, added to `out` (id -> place): a shop with the name of another place is told apart (the stock dealer
+-- 'Belasco Auto' and Wrench Works' trim shop), the weekly live auction stands at the junkyard, and the job stops: the one you are heading for always, the
+-- start of a job on the board where no place is within JOB_APART metres already. jobPins: { { id, name, x, y, z, active } } (sl_jobs.pins)
+M.JOB_APART = 15
+function M.derive(out, jobPins)
+  local names = {}
+  for _, p in pairs(out) do if p.kind ~= 'shop' and p.name then names[tostring(p.name):lower()] = true end end
+  for _, p in pairs(out) do
+    if p.kind == 'shop' and names[tostring(p.name):lower()] then p.name = string.format(strings.t('career.s_parts_shop'), p.name) end
+  end
+  local ids = {}
+  for id, p in pairs(out) do if p.kind == 'junkyard' and p.pos then ids[#ids + 1] = id end end
+  table.sort(ids)
+  local jy = ids[1] and out[ids[1]]
+  if jy then out.auction = { id = 'auction', kind = 'auction', name = strings.t('career.junkyard_auction'), pos = jy.pos, at = jy.at or jy.pos, dir = jy.dir } end
+  for _, j in ipairs(jobPins or {}) do
+    local free = true
+    if not j.active then
+      for _, p in pairs(out) do
+        local q = p.at or p.pos
+        if q and (q.x - j.x) ^ 2 + (q.y - j.y) ^ 2 < M.JOB_APART ^ 2 then free = false break end
+      end
+    end
+    if free then
+      local at = { x = j.x, y = j.y, z = j.z or 0 }
+      out[j.id] = { id = j.id, kind = 'job', name = j.name, pos = at, at = at, dir = { x = 0, y = 1 } }
+    end
+  end
+  return out
+end
+
 -- the text that refuses a trip, or nil. ctx: { racing, job, chase, cab } booleans
 function M.refusal(ctx)
   ctx = ctx or {}
