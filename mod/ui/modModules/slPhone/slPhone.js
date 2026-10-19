@@ -24,9 +24,13 @@
     '.slp-root svg{display:block}',
     /* the device */
     '.slp-device{position:absolute;right:3vw;bottom:0;width:360px;height:760px;transform-origin:100% 100%;pointer-events:auto;',
-    '  transition:transform .32s cubic-bezier(.2,.9,.25,1),opacity .2s;border-radius:46px;background:#0b0b0d;padding:11px;',
+    '  transition:transform .32s cubic-bezier(.2,.9,.25,1),opacity .2s,width .4s cubic-bezier(.3,.8,.25,1),height .4s cubic-bezier(.3,.8,.25,1);border-radius:46px;background:#0b0b0d;padding:11px;',
     '  box-shadow:0 0 0 2px #2a2a2e,0 30px 80px rgba(0,0,0,.65)}',
     '.slp-device.slp-away{opacity:0;pointer-events:none}',
+    '.slp-device.slp-land{width:760px;height:380px;border-radius:34px}',
+    '.slp-land .slp-mapbody{flex:1}.slp-land .slp-mapcv{height:100%}.slp-land .slp-mapbody .slp-card{position:absolute;left:10px;bottom:10px;margin:0;max-width:300px}',
+    '.slp-page.slp-open{animation:slp-zoom .3s cubic-bezier(.2,.9,.25,1)}@keyframes slp-zoom{from{transform:scale(.2);opacity:0;border-radius:40px}to{transform:none;opacity:1}}',
+    '@media (prefers-reduced-motion:reduce){.slp-device{transition:none !important}.slp-page.slp-open{animation:none}}',
     '.slp-screen{position:relative;width:100%;height:100%;border-radius:36px;overflow:hidden;background:#141218;display:flex;flex-direction:column}',
     '.slp-cam{position:absolute;left:50%;top:10px;width:11px;height:11px;margin-left:-5.5px;border-radius:50%;background:#000;box-shadow:0 0 0 2px #1d1d22;z-index:5}',
     /* status bar */
@@ -950,6 +954,7 @@
       carwash: T('ui.kind_carwash', 'Car washes'), meet: T('ui.kind_meet', 'Car meets'), hospital: T('ui.kind_hospital', 'Hospital'), valet: T('ui.kind_valet', 'Valet'), gas: T('ui.kind_gas', 'Gas stations'), auction: T('ui.kind_auction', 'Live auction'), job: T('ui.kind_job', 'Job stops') };
     function distText(m) { return m == null ? '' : (m < 1000 ? m + ' m' : (m / 1000).toFixed(1) + ' km'); }
     // the live map (a canvas drawn by the global module slMapsDraw from the tiles of sl_mapsfeed): the Map tab; the places by kind stay as the List tab
+    var lastLand = false;
     var MV = { tiles: {}, asked: {}, pose: null, route: [], places: [], on: false, last: 0, roads: [], key: '', mpp: 2 };
     function mapWanted() { return !!(st.open && st.app === 'map' && st.tab.map === 'map'); }
     function syncMapFeed() {
@@ -1478,18 +1483,31 @@
       var html =
         '<div class="slp-pill"' + (st.open || lotHides() ? ' style="display:none"' : '') + '><b>' + money(d.money) + '</b><span>' + esc(d.title) + '</span>' +
           (d.phase ? '<span>' + (d.phase === 'night' ? '&#9790;' : '&#9728;') + '</span>' : '') + (d.heat > 0 ? '<span style="color:#ff6a4a">' + '&#9650;'.repeat(d.heat) + '</span>' : '') + (d.phase === 'night' && d.atRisk > 0 ? '<span style="color:#ffb74a">+' + d.atRisk + (T('ui.at_risk', ' at risk') + '</span>') : '') + '<span>' + two(d.hour || 0) + ':' + two(d.minute || 0) + '</span></div>' +
-        '<div class="slp-device' + (st.open ? '' : ' slp-away') + '" style="transform:' + (st.open ? '' : 'translateY(70%) ') + 'scale(' + scale() + ')">' + screen + '</div>' +
+        '<div class="slp-device@@LAND@@' + (st.open ? '' : ' slp-away') + '" style="transform:' + (st.open ? '' : 'translateY(70%) ') + 'scale(' + scale() + ')">' + screen + '</div>' +
         lotView() + garageView() + stationView() + meetView() + raceView() +
         huHtml + reportModal() +
         '<div class="slp-toast' + (st.toast ? '' : ' slp-gone') + '">' + esc(st.toast || '') + '</div>' +
         fadeView();
       // the game sends the data every few seconds: a screen that did not change is left alone (a rebuild between the press and the release of a click loses the
       // click, and drops what is typed, the hover and the scroll)
-      if (html === lastHtml && layer.firstChild) { renderSkips++; reportRenders(); return; }
-      lastHtml = html; renders++; reportRenders();
-      layer.innerHTML = html;
+      var wantLand = mapWanted(), landChanged = wantLand !== lastLand;
+      var final = html.replace('@@LAND@@', wantLand ? ' slp-land' : '');
+      if (final === lastHtml && layer.firstChild) { renderSkips++; reportRenders(); return; }
+      // the Map tab turns the phone to landscape: the device keeps its element, so the class changes after the first paint and the size animates (right edge fixed: it grows to the left)
+      lastHtml = final; renders++; reportRenders();
+      layer.innerHTML = landChanged ? final.replace('slp-device' + (wantLand ? ' slp-land' : ''), 'slp-device' + (lastLand ? ' slp-land' : '')) : final;
+      if (landChanged) {
+        var dv = layer.querySelector('.slp-device');
+        if (dv) { void dv.offsetWidth; dv.classList.toggle('slp-land', wantLand); }
+        lastLand = wantLand;
+      }
       // a new app, or Home: back at the top (focus moves had scrolled the clipped screen, so the home grid came back shifted and the next tap hit another app)
-      if (shownApp !== st.app) { toTop(); shownApp = st.app; }
+      if (shownApp !== st.app) {
+        // an app opened from the home screen grows out of its icon (the animation is a class on the new page; not with reduced motion: the style rule)
+        var pg = layer.querySelector('.slp-page');
+        if (pg && shownApp === 'home' && st.iconAt) { pg.style.transformOrigin = st.iconAt; pg.classList.add('slp-open'); }
+        toTop(); shownApp = st.app;
+      }
       var after = layer.querySelector('.slp-body, .slp-msgs');
       if (after) {
         if (st.app === 'thread') after.scrollTop = after.scrollHeight;
@@ -1794,6 +1812,10 @@
       while (el && el !== root && !(el.getAttribute && el.getAttribute('data-a'))) el = el.parentNode;
       if (!el || el === root) return;
       ev.stopPropagation();
+      if (el.getAttribute('data-a') === 'open') {                  // where the icon is, for the app to grow out of
+        var sc = layer.querySelector('.slp-screen'), r = el.getBoundingClientRect(), sr = sc ? sc.getBoundingClientRect() : null;
+        st.iconAt = sr && r.width ? Math.round(r.left + r.width / 2 - sr.left) + 'px ' + Math.round(r.top + r.height / 2 - sr.top) + 'px' : null;
+      }
       act(el.getAttribute('data-a'), el.getAttribute('data-v'));
     });
 
