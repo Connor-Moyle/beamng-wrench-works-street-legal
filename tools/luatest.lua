@@ -1229,6 +1229,10 @@ do
     local n = 0 for _, t in pairs(bl.tiles) do n = n + #t end
     check('maps: every link is in one tile once, in the tile of its middle', bl.count == 2 and n == 2 and bl.tiles['0,0'] ~= nil and bl.tiles['0,1'] ~= nil)
     check('maps: tiles around a point cover the square', #MF.tilesAround(10, 10, 200) == 4 and MF.key(-1, -1) == '-1,-1')
+    local bad = { a = { pos = { x = 0, y = 0 }, links = { b = {}, c = {}, d = 5 } }, b = { links = {} }, c = 'nope', d = { pos = { x = 'x' }, links = 3 }, e = { pos = { x = 5, y = 5 }, links = 'x' } }
+    local bb = MF.builder(bad)
+    check('maps: malformed nodes and links are skipped, never thrown on', select(1, pcall(function() while not bb:step(os.clock, 1) do end end)) and bb.count == 0)
+    check('maps: a route point without a position is skipped', #MF.routePoints({ { pos = { x = 0, y = 0 } }, {}, { pos = 'x' }, { pos = { x = 40, y = 0 } } }, 6) == 4)
     local rp = MF.routePoints({ { pos = { x = 0, y = 0 } }, { pos = { x = 1, y = 0 } }, { pos = { x = 50, y = 0 } }, { pos = { x = 51, y = 0 } } }, 6)
     check('maps: a route is thinned and keeps its last point', #rp == 6 and rp[5] == 51)
   end

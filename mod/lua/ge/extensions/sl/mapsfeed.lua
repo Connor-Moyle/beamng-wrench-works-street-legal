@@ -11,6 +11,7 @@ local POSE_EVERY = 0.1        -- s: the pose goes to the app at 10 Hz
 local wanted = {}             -- tile keys the app asked for and has not got yet
 local builder, level
 local isActive = false
+local failed = false          -- an error was logged since the app last turned us on
 local poseTimer, routeKey, placesSent = 0, nil, false
 
 local function push(name, data, opts)
@@ -31,6 +32,7 @@ end
 
 function M.active(on)
   isActive = on and true or false
+  if isActive then failed = false end
   if not isActive then reset() end
 end
 
@@ -46,13 +48,12 @@ end
 local function places()
   local list = {}
   for id, p in pairs(sl_career and sl_career.getPlaces and sl_career.getPlaces() or {}) do
-    if p.pos then list[#list + 1] = { id = id, kind = p.kind, name = p.name, x = math.floor(p.pos.x), y = math.floor(p.pos.y) } end
+    if type(p) == 'table' and p.pos and type(p.pos.x) == 'number' then list[#list + 1] = { id = id, kind = p.kind, name = p.name, x = math.floor(p.pos.x), y = math.floor(p.pos.y) } end
   end
   return list
 end
 
-function M.onUpdate(dtReal)
-  if not isActive then return end
+local function tick(dtReal)
   local lv = getCurrentLevelIdentifier and getCurrentLevelIdentifier() or ''
   if lv ~= level then level = lv reset() end
   if builder and not builder.done then builder:step(os.clock, BUDGET) end
@@ -68,10 +69,22 @@ function M.onUpdate(dtReal)
   if not placesSent then placesSent = true guihooks.trigger('slMapsPlaces', { places = places() }) end
   local gm = core_groundMarkers
   local path = gm and gm.routePlanner and gm.routePlanner.path
-  local key = path and path[1] and (#path .. ':' .. math.floor(path[#path].pos.x) .. ':' .. math.floor(path[#path].pos.y)) or ''
+  local last = path and path[#path] and path[#path].pos
+  local key = last and type(last.x) == 'number' and (#path .. ':' .. math.floor(last.x) .. ':' .. math.floor(last.y)) or ''
   if key ~= routeKey then
     routeKey = key
     guihooks.trigger('slMapsRoute', { route = path and path[1] and feed.routePoints(path, 6) or {} })
+  end
+end
+
+-- one error switches the feed off (logged once) rather than erroring every frame until the app closes; the app's next active(true) turns it on again
+function M.onUpdate(dtReal)
+  if not isActive then return end
+  local ok, err = pcall(tick, dtReal)
+  if not ok then
+    if not failed then failed = true log('E', 'sl_mapsfeed', 'switched off after an error: ' .. tostring(err)) end
+    isActive = false
+    reset()
   end
 end
 

@@ -53,8 +53,9 @@ function M.builder(nodes)
       local id, a = next(nodes, key)
       if id == nil then self.done = true return true end
       key = id
-      for other, link in pairs(a.links or {}) do
+      for other, link in pairs(type(a) == 'table' and type(a.links) == 'table' and a.links or {}) do
         local b = nodes[other]
+        if type(b) ~= 'table' or type(b.pos) ~= 'table' or type(a.pos) ~= 'table' or type(a.pos.x) ~= 'number' or type(b.pos.x) ~= 'number' then b = nil end      -- (a malformed node is skipped)
         local k = tostring(id) < tostring(other) and (tostring(id) .. '|' .. tostring(other)) or (tostring(other) .. '|' .. tostring(id))
         if b and not seen[k] and a.pos and b.pos then
           seen[k] = true
@@ -87,8 +88,8 @@ function M.routePoints(path, gap)
   local out, lx, ly = {}, nil, nil
   gap = gap or 6
   for i, e in ipairs(path or {}) do
-    local p = e.pos
-    if p then
+    local p = type(e) == 'table' and e.pos
+    if type(p) == 'table' and type(p.x) == 'number' and type(p.y) == 'number' then
       local x, y = round(p.x), round(p.y)
       if not lx or i == #path or (x - lx) ^ 2 + (y - ly) ^ 2 >= gap * gap then
         out[#out + 1], out[#out + 2] = x, y
