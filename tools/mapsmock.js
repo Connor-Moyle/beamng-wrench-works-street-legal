@@ -1,7 +1,7 @@
 // Renders mocks of the Maps app skins (Street, Cruise, Atlas; day and night) with made-up roads: node tools/mapsmock.js out.png
 const { createCanvas } = require('canvas');
 const fs = require('fs');
-const D = require('../mod/ui/modules/apps/slMaps/app.js');
+const D = require('../mod/ui/modModules/slMapsDraw/slMapsDraw.js');
 const W = 440, H = 250, PAD = 10;
 const roads = [];
 for (let i = -6; i <= 6; i++) { roads.push({ k: 'street', p: [i * 120, -700, i * 120 + (i % 3) * 20, 700] }); roads.push({ k: 'minor', p: [-700, i * 90, 700, i * 90 + (i % 2) * 30] }); }
