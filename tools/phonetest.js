@@ -798,6 +798,11 @@ assert.ok(phone.root.querySelectorAll('[data-a="tyreswap"]').length === 2 && /Sw
 delete tyreCard.swapAt;
 phone.handle('slPhoneData', Object.assign({}, phone.state.data, { fleet: [{ id: 9, name: 'Nameless', seated: true, out: true, condition: 1, care: { history: {} }, tyres: { compound: 'road', rows: [{ idx: 0, frac: 0.8, stage: 'new' }, { idx: 3, frac: 0.2, stage: 'worn' }], axles: [] } }] }));
 assert.ok(phone.root.querySelectorAll('.slp-tyrecar rect[fill="#4caf7d"]').length === 1 && !/undefined|null|NaN/.test(phone.root.querySelector('.slp-tyres').textContent), 'a wheel without an axle or a side is drawn by its number');
+phone.handle('slPhoneData', Object.assign({}, phone.state.data, { fleet: [{ id: 10, name: 'Hubs', seated: true, out: true, condition: 1, care: { history: {} }, tyres: { tracked: false, reason: 'no_tyres' } }] }));
+assert.ok(/No tyres fitted/.test(phone.root.textContent) && !phone.root.querySelector('.slp-tyrecar') && !phone.root.querySelector('[data-a="tyreswap"]') && !/Tyre changes: at a garage/.test(phone.root.textContent), 'a car on bare rims says so, with no diagram and no swap');
+calls.length = 0;
+click('pcatalog', '1');
+assert.ok(calls.includes('catalog()') || calls.some((c) => /catalog/.test(c)), 'Fit tyres opens the catalog');
 phone.handle('slPhoneData', Object.assign({}, phone.state.data, { fleet: [{ id: 8, name: 'Other', where: 'Garage', condition: 1, care: { history: {} } }] }));
 assert.ok(!phone.root.querySelector('.slp-tyrecar'), 'a car without tyre data shows no tyres');
 phone.handle('slPhoneData', Object.assign({}, phone.state.data, { fleet: [{ id: 7, name: 'Covet', seated: true, out: true, condition: 0.9, tyres: tyreCard }] }));

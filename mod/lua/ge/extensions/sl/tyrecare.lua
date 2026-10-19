@@ -33,6 +33,13 @@ end
 
 local function compoundOf(car) return car and car.tyres and car.tyres.compound or 'road' end
 
+-- the tyre module is on but the car has no tyres to report (a starter car is sold on bare rims): no tyre rows and no swap until a tyre part is fitted and the car respawns
+function M.noTyres(vid)
+  if not (vid and M.available()) then return false end
+  local ok, raw = pcall(api().getTyres, vid)
+  return ok and type(raw) == 'table' and (type(raw.wheels) ~= 'table' or #raw.wheels == 0)
+end
+
 -- what the garage and the phone show for a car: T.carRows plus the compound we know ({ compound, rows, worst, replace } or nil)
 function M.info(car, vid)
   if not (M.available() and car and vid) then return nil end
@@ -76,7 +83,7 @@ end
 -- { compound, rows, axles, replace, worst = { frac, stage }, offers = { { id, price, current } } } or nil (no tyre module, or it is switched off)
 function M.card(car, vid, withOffers)
   local info = M.info(car, vid)
-  if not info then return nil end
+  if not info then return M.noTyres(vid) and { tracked = false, reason = 'no_tyres' } or nil end      -- (a car on bare rims says so)
   local out = { compound = info.compound, rows = info.rows, axles = info.axles, replace = info.replace,
     worst = info.worst and { frac = info.worst.frac, stage = info.worst.stage } or nil }
   if withOffers then
@@ -105,6 +112,7 @@ function M.changeNow(compound, where)
   local car, vid = current()
   if not (car and vid) then return false, strings.t('tyres.get_in_car') end
   if not (M.available() and T.known(compound)) then return false, strings.t('tyres.not_here') end
+  if M.noTyres(vid) then return false, strings.t('tyres.no_tyres') end
   local info = M.info(car, vid)
   local plan = T.plan(compound, where or 'garage', setNow(car, info), s.money or 0, moving(vid))
   if not plan.ok then return false, plan.why end
@@ -132,6 +140,10 @@ function M.onWrenchWorksServices(list)
   if not (car and vid) then return end
   local group = strings.t('tyres.group')
   local info = M.info(car, vid)
+  if not info and M.noTyres(vid) then
+    list[#list + 1] = { id = 'tyres:none', group = group, label = strings.t('tyres.no_tyres'), desc = strings.t('tyres.fit_from_catalog'), disabled = true }
+    return
+  end
   local now = setNow(car, info)
   if info and info.worst then
     local line = strings.t('tyres.fitted_line', T.name(info.compound or now.compound), strings.t('tyres.word_' .. info.worst.stage))

@@ -1057,6 +1057,7 @@
     function tyreWord(stage) { return T('tyres.word_' + stage, stage); }
     function tyreName(id) { return T('tyres.name_' + id, id); }
     function tyresView(t) {
+      if (t && t.tracked === false) return '<div class="slp-tyres"><div class="slp-kv" style="border:none"><span style="opacity:.75">' + T('tyres.no_tyres', 'No tyres fitted') + '</span><b class="slp-on" data-a="pcatalog" data-v="1">' + T('ui.fit_tyres', 'Fit tyres') + '</b></div></div>';
       if (!t || !arr(t.rows).length) return '';
       var rows = arr(t.rows);
       var tyres = rows.map(function (w) {
