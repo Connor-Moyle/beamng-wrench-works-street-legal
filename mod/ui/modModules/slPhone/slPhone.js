@@ -1060,7 +1060,7 @@
       if (!t || !arr(t.rows).length) return '';
       var rows = arr(t.rows);
       var tyres = rows.map(function (w) {
-        var left = String(w.side || '').toLowerCase().charAt(0) === 'l', front = w.axle === 'front';
+        var left = w.side ? String(w.side).toLowerCase().charAt(0) === 'l' : (w.idx || 0) % 2 === 0, front = w.axle ? w.axle === 'front' : (w.idx || 0) < 2;      // (a wheel the tyre module has not described: by its number)
         var x = left ? 14 : 78, y = front ? 20 : 92, col = TYRE_COLOURS[w.stage] || '#888';
         var pct = Math.round((w.frac || 0) * 100);
         return '<rect x="' + x + '" y="' + y + '" width="18" height="40" rx="5" fill="' + col + '"' + (w.blown ? ' stroke="#fff" stroke-dasharray="3 2"' : '') + '/>' +

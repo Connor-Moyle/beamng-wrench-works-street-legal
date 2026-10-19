@@ -796,6 +796,8 @@ tyreCard.swapAt = 'Pier';
 phone.handle('slPhoneData', Object.assign({}, phone.state.data, { fleet: [{ id: 7, name: 'Covet', where: 'Out on the street', seated: true, out: true, condition: 0.9, care: { history: {} }, tyres: tyreCard }] }));
 assert.ok(phone.root.querySelectorAll('[data-a="tyreswap"]').length === 2 && /Swap tyres/.test(phone.root.textContent), 'at a track or a meet place My cars offers the swap');
 delete tyreCard.swapAt;
+phone.handle('slPhoneData', Object.assign({}, phone.state.data, { fleet: [{ id: 9, name: 'Nameless', seated: true, out: true, condition: 1, care: { history: {} }, tyres: { compound: 'road', rows: [{ idx: 0, frac: 0.8, stage: 'new' }, { idx: 3, frac: 0.2, stage: 'worn' }], axles: [] } }] }));
+assert.ok(phone.root.querySelectorAll('.slp-tyrecar rect[fill="#4caf7d"]').length === 1 && !/undefined|null|NaN/.test(phone.root.querySelector('.slp-tyres').textContent), 'a wheel without an axle or a side is drawn by its number');
 phone.handle('slPhoneData', Object.assign({}, phone.state.data, { fleet: [{ id: 8, name: 'Other', where: 'Garage', condition: 1, care: { history: {} } }] }));
 assert.ok(!phone.root.querySelector('.slp-tyrecar'), 'a car without tyre data shows no tyres');
 phone.handle('slPhoneData', Object.assign({}, phone.state.data, { fleet: [{ id: 7, name: 'Covet', seated: true, out: true, condition: 0.9, tyres: tyreCard }] }));

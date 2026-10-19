@@ -47,9 +47,11 @@ local function setNow(car, info)
   return { compound = compoundOf(car), frac = info and info.worst and info.worst.frac or 1 }
 end
 
--- a place where the crew changes tyres (a car meet, a track, a drag strip): the name of the one the car stands at, or nil
-M.SWAP_KINDS = { meet = true, track = true, drag = true, dragstrip = true, circuit = true }
-M.SWAP_REACH = 80            -- m
+-- a place where the crew changes tyres: a car meet (a place of the map), or the start of a track or a drag strip (the race missions: sl_career.racesList / tracksList).
+-- The name of the one the car stands at, or nil.
+M.SWAP_KINDS = { meet = true }
+M.SWAP_REACH = 80            -- m: a meet place
+M.START_REACH = 150          -- m: a race start (the grid is long)
 local function swapPlace(vid)
   local v = getObjectByID and getObjectByID(vid)
   local ok, pos = pcall(function() return v:getPosition() end)
@@ -58,6 +60,14 @@ local function swapPlace(vid)
     if M.SWAP_KINDS[p.kind] and p.pos then
       local dx, dy = pos.x - p.pos.x, pos.y - p.pos.y
       if dx * dx + dy * dy <= M.SWAP_REACH * M.SWAP_REACH then return p.name or p.id end
+    end
+  end
+  for _, list in ipairs({ sl_career and sl_career.racesList and sl_career.racesList() or {}, sl_career and sl_career.tracksList and sl_career.tracksList() or {} }) do
+    for _, r in ipairs(list) do
+      if r.start then
+        local dx, dy = pos.x - r.start.x, pos.y - r.start.y
+        if dx * dx + dy * dy <= M.START_REACH * M.START_REACH then return r.name end
+      end
     end
   end
 end
@@ -108,6 +118,8 @@ end
 
 -- the phone's Swap tyres button (a track or a meet)
 function M.swap(compound)
+  local car, vid = current()
+  if not (car and vid and swapPlace(vid)) then toast(strings.t('ui.tyre_changes_where')) return end       -- (a stale card must not pay the track fee anywhere)
   local _, text = M.changeNow(tostring(compound), 'track')
   toast(text)
 end
@@ -127,8 +139,10 @@ function M.onWrenchWorksServices(list)
   end
   for _, r in ipairs(info and info.rows or {}) do                       -- one line per tyre
     local flat = r.flat and (' - ' .. strings.t('ui.tyre_flat_spot')) or ''
+    local named = (r.axle == 'front' or r.axle == 'rear') and (r.side == 'left' or r.side == 'right')
+    local what = named and (strings.t('tyres.axle_' .. r.axle) .. ' ' .. strings.t('ui.tyre_' .. r.side)) or strings.t('tyres.tyre_n', (tonumber(r.idx) or 0) + 1)
     list[#list + 1] = { id = 'tyres:w' .. tostring(r.idx), group = group, disabled = true, desc = '',
-      label = strings.t('tyres.tyre_line', strings.t('tyres.axle_' .. tostring(r.axle)), strings.t('ui.tyre_' .. tostring(r.side)), math.floor((r.frac or 0) * 100 + 0.5), strings.t('tyres.word_' .. tostring(r.stage))) .. flat }
+      label = strings.t('tyres.tyre_line2', what, math.floor((r.frac or 0) * 100 + 0.5), strings.t('tyres.word_' .. tostring(r.stage))) .. flat }
   end
   for _, id in ipairs(T.ORDER) do
     if id ~= now.compound or (info and info.replace) then
