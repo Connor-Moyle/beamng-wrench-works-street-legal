@@ -77,6 +77,7 @@
     '.slp-btn.slp-red{background:#f2b8b5;color:#601410}',
     '.slp-btn.slp-off{opacity:.38;pointer-events:none}',
     '.slp-card{margin:8px 16px;padding:14px 16px;border-radius:18px;background:#211f26}',
+    '.slp-mapbody{position:relative;padding:0}.slp-mapcv{display:block;width:100%;height:340px;background:#f2efe9}.slp-mapzoom{position:absolute;right:10px;top:10px;background:#fff;border-radius:8px;box-shadow:0 1px 5px rgba(0,0,0,.4);color:#3c4043;font-size:20px;line-height:36px;text-align:center}.slp-mapzoom div{width:36px;cursor:pointer}',
     '.slp-tabs{display:flex;gap:6px;margin:6px 14px 0 14px;overflow-x:auto;flex:none}',
     '.slp-tab{flex:none;padding:7px 14px;border-radius:16px;background:#2b2930;color:#cac4d0;font-size:12px;cursor:pointer;border:2px solid transparent}',
     '.slp-tab.slp-tabon{background:#a8c7fa;color:#062e6f;font-weight:500}.slp-tab:focus{outline:none;border-color:#e6e1e5}',
@@ -388,7 +389,7 @@
     doc.body.appendChild(root);
 
     var st = {
-      repOpen: null, repSec: {}, tab: { cars: 'dealers', parts: 'revline', cab: 'all', cabtier: 'all' }, cmView: 'dealers', cmOffer: null, dealers: null, auction: null, rivals: null, offers: null,
+      repOpen: null, repSec: {}, tab: { cars: 'dealers', parts: 'revline', cab: 'all', cabtier: 'all', map: 'map' }, cmView: 'dealers', cmOffer: null, dealers: null, auction: null, rivals: null, offers: null,
       open: false, data: { active: false }, app: 'home', stack: [], contact: null, thread: null,
       call: null, dial: '', hu: null, toast: null, fade: false,
     };
@@ -948,8 +949,42 @@
       scrapyard: T('ui.kind_scrapyard', 'Scrapyards and auctions'), shop: T('ui.kind_shop', 'Shops'), parts: T('ui.kind_parts', 'Parts shops'),
       carwash: T('ui.kind_carwash', 'Car washes'), meet: T('ui.kind_meet', 'Car meets'), hospital: T('ui.kind_hospital', 'Hospital'), valet: T('ui.kind_valet', 'Valet'), gas: T('ui.kind_gas', 'Gas stations'), auction: T('ui.kind_auction', 'Live auction'), job: T('ui.kind_job', 'Job stops') };
     function distText(m) { return m == null ? '' : (m < 1000 ? m + ' m' : (m / 1000).toFixed(1) + ' km'); }
+    // the live map (a canvas drawn by the global module slMapsDraw from the tiles of sl_mapsfeed): the Map tab; the places by kind stay as the List tab
+    var MV = { tiles: {}, asked: {}, pose: null, route: [], places: [], on: false, last: 0, roads: [], key: '', mpp: 2 };
+    function mapWanted() { return !!(st.open && st.app === 'map' && st.tab.map === 'map'); }
+    function syncMapFeed() {
+      var w = mapWanted();
+      if (w === MV.on) return;
+      MV.on = w;
+      lua('@sl_mapsfeed.active(' + w + ')');
+      if (!w) MV.asked = {};
+    }
+    function paintMap() {
+      var now = Date.now();
+      if (!mapWanted() || now - MV.last < 100) return;           // at most 10 frames a second
+      var cv = layer.querySelector('.slp-mapcv'), D = win.slMapsDraw;
+      if (!cv || !D || !MV.pose || !cv.clientWidth || !cv.getContext) return;
+      MV.last = now;
+      var w = cv.clientWidth, h = cv.clientHeight, ctx;
+      try { ctx = cv.getContext('2d'); } catch (e) { return; }
+      if (!ctx) return;
+      if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; MV.key = ''; }
+      var half = Math.max(w, h) * MV.mpp * 0.75, keys = [], p = MV.pose;
+      for (var tx = Math.floor((p.x - half) / 256); tx <= Math.floor((p.x + half) / 256); tx++) for (var ty = Math.floor((p.y - half) / 256); ty <= Math.floor((p.y + half) / 256); ty++) keys.push(tx + ',' + ty);
+      var want = keys.filter(function (k) { return !MV.tiles[k] && !MV.asked[k]; });
+      if (want.length) { want.forEach(function (k) { MV.asked[k] = true; }); lua('@sl_mapsfeed.tiles(' + JSON.stringify(want) + ')'); }
+      var key = keys.join(';');
+      if (key !== MV.key) { MV.key = key; MV.roads = []; keys.forEach(function (k) { if (MV.tiles[k]) MV.roads = MV.roads.concat(MV.tiles[k]); }); }
+      D.draw(ctx, w, h, { roads: MV.roads, route: MV.route, pins: MV.places, player: p }, { cx: p.x, cy: p.y, mpp: MV.mpp, rot: 0, skin: 'street', night: obj(st.data).phase === 'night' });
+    }
     function mapPage() {
       var m = obj(st.map), groups = arr(m.groups), r = m.route;
+      if (st.tab.map === 'map') {
+        return bar(T('app.map', 'Map')) + tabsHtml('map', [['map', T('ui.map_tab', 'Map')], ['list', T('ui.list_tab', 'List')]]) +
+          '<div class="slp-body slp-mapbody"><canvas class="slp-mapcv"></canvas>' +
+          '<div class="slp-mapzoom"><div data-a="mapzoom" data-v="in">+</div><div data-a="mapzoom" data-v="out">&minus;</div></div>' +
+          (r ? '<div class="slp-card"><h4>' + esc(T('ui.route_to_1', 'Route: {1}', r.name)) + '</h4><div class="slp-acts"><div class="slp-btn slp-tonal" data-a="clearroute" data-v="1">' + T('ui.clear_route', 'Clear route') + '</div></div></div>' : '') + '</div>';
+      }
       var head = '<div class="slp-card"><p>' + esc(T('ui.map_text', 'Tap a place and the route shows on the road. It clears when you get there.')) + '</p>' +
         (r ? '<h4>' + esc(T('ui.route_to_1', 'Route: {1}', r.name)) + '</h4><div class="slp-acts"><div class="slp-btn slp-tonal" data-a="clearroute" data-v="1">' + T('ui.clear_route', 'Clear route') + '</div></div>' : '') + '</div>';
       var body = groups.map(function (g) {
@@ -1463,6 +1498,9 @@
       var repScroll1 = layer.querySelector('.slp-repbody');
       if (repScroll1) repScroll1.scrollTop = repKeep;
       navify(focusKey);
+      syncMapFeed();
+      MV.last = 0;
+      paintMap();
     }
 
     // ---------------------------------------------------------------- gamepad (BeamNG's UI navigation, X51)
@@ -1633,6 +1671,7 @@
         case 'workon': lua('workOn(' + Number(v) + ')'); st.garage = null; break;
         case 'despawn': lua('despawn(' + Number(v) + ')'); break;
         case 'garageclose': lua('closeGarage()'); st.garage = null; render(); break;
+        case 'mapzoom': MV.mpp = Math.max(0.5, Math.min(12, MV.mpp * (v === 'in' ? 0.7 : 1.43))); MV.last = 0; paintMap(); break;
         case 'route': lua('routeTo(' + JSON.stringify(String(v)) + ')'); break;
         case 'routegarage': lua('routeGarage()'); break;
         case 'clearroute': lua('clearRoute()'); break;
@@ -1762,6 +1801,10 @@
     function handle(name, data) {
       data = data || {};
       switch (name) {
+        case 'slMapsTiles': Object.keys(data.tiles || {}).forEach(function (k) { MV.tiles[k] = data.tiles[k]; }); MV.key = ''; paintMap(); break;
+        case 'slMapsPose': MV.pose = data; paintMap(); break;
+        case 'slMapsRoute': MV.route = data.route || []; paintMap(); break;
+        case 'slMapsPlaces': MV.places = data.places || []; break;
         case 'slPhoneData':
           st.data = data;
           if (!data.active) { st.open = false; st.call = null; st.hu = null; }
@@ -1837,7 +1880,7 @@
       var probe = new Image();
       probe.onload = function () { phone.handle('slArt'); };
       probe.src = '/ui/modModules/slHud/slrr/icons/cup.png';
-      ['slPhoneData', 'slPhoneToggle', 'slPhoneGo', 'slPhoneCall', 'slPhoneCallReply', 'slPhoneNotify', 'slPhoneToast', 'slFade', 'slLotBars', 'slLotData', 'slMeet', 'slRace', 'slMenu', 'slStation', 'slGarage', 'slPhotos', 'slMap', 'slPeople', 'slLaptopDealers', 'slAuctions', 'slRivals', 'slLaptopOffers', 'slHelp', 'slStrings'].forEach(function (name) {
+      ['slPhoneData', 'slPhoneToggle', 'slPhoneGo', 'slPhoneCall', 'slPhoneCallReply', 'slPhoneNotify', 'slPhoneToast', 'slFade', 'slLotBars', 'slLotData', 'slMeet', 'slRace', 'slMenu', 'slStation', 'slGarage', 'slPhotos', 'slMap', 'slPeople', 'slLaptopDealers', 'slAuctions', 'slRivals', 'slLaptopOffers', 'slHelp', 'slStrings', 'slMapsTiles', 'slMapsPose', 'slMapsRoute', 'slMapsPlaces'].forEach(function (name) {
         $rootScope.$on(name, function (ev, data) { phone.handle(name, data); });
       });
       if (window.bngApi) window.bngApi.engineLua('if sl_phone then sl_phone.request() end if sl_menuTile then sl_menuTile.request() end');
