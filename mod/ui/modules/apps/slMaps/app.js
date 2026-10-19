@@ -157,7 +157,7 @@
 
 // ---- the app ----------------------------------------------------------------------------------------------------------------
 // A HUD app (the game's app editor places and resizes it): our phone, sideways, with the live map. The game side is sl/mapsfeed.lua.
-if (typeof angular !== 'undefined') angular.module('beamng.apps').directive('slMaps', ['bngApi', function (bngApi) {
+if (typeof angular !== 'undefined') angular.module('beamng.apps').directive('slMaps', [function () {
   var TEMPLATE = '<div class="slm-phone"><div class="slm-status"><span class="slm-name">Maps</span><span class="slm-icons"><i class="slm-sig"></i><i class="slm-bat"></i></span></div><div class="slm-screen"><canvas class="slm-canvas"></canvas></div></div>';
   var CSS = '.slm-phone{position:absolute;left:0;top:0;right:0;bottom:0;box-sizing:border-box;padding:7px 8px 7px 22px;background:#0b0b0d;border-radius:26px;box-shadow:0 0 0 2px #2a2a2e,0 10px 30px rgba(0,0,0,.55);display:flex;flex-direction:column;font-family:Roboto,"Noto Sans","Segoe UI",Arial,sans-serif;pointer-events:none}' +
     '.slm-status{flex:0 0 auto;display:flex;justify-content:space-between;align-items:center;height:16px;margin-bottom:3px;padding:0 10px;color:#e6e1e5;font-size:10px}' +
