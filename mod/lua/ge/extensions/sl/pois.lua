@@ -12,6 +12,8 @@ local pois = require('sl/core/pois')
 local fasttravel = require('sl/core/fasttravel')
 
 local ICON = 'mission_arrival_triangle'
+-- (every element carries data.date: the game's mission marker sorts the markers that overlap by it, and two without one throw "compare two nil values" every frame,
+-- which stops the big map's routes and markers; the auction's pin stands on the junkyard's)
 
 local function careerOn() return sl_career ~= nil and sl_career.isActive() == true end
 local function stockCareerOn() return career_career ~= nil and career_career.isActive and career_career.isActive() == true end
@@ -50,13 +52,13 @@ function M.onGetRawPoiListForLevel(level, elements)
   -- the owners of a car meet: a walk-up marker beside each parked car, its prompt is sl_streets' (Talk to <name>)
   for _, o in ipairs(sl_streets and sl_streets.meetOwnerPois and sl_streets.meetOwnerPois() or {}) do
     elements[#elements + 1] = {
-      id = 'slOwner:' .. o.key, data = { type = 'other', id = 'slOwner:' .. o.key, ownerKey = o.key, name = o.name }, clusterType = 'missionMarker', clusterInBigMap = false,
+      id = 'slOwner:' .. o.key, data = { type = 'other', id = 'slOwner:' .. o.key, ownerKey = o.key, name = o.name, date = 0 }, clusterType = 'missionMarker', clusterInBigMap = false,
       clusterInPlayMode = false, interactableInPlayMode = true, quickTravelAvailable = false,
       markerInfo = { missionMarker = { pos = o.pos, rot = quat(0, 0, 0, 1), icon = ICON } },
     }
   end
   for _, r in ipairs(pois.records(sl_career.getPlaces())) do
-    local data = { type = r.type, id = r.poiId, placeId = r.placeId, name = r.name }
+    local data = { type = r.type, id = r.poiId, placeId = r.placeId, name = r.name, date = 0 }
     local fac = stockFacility(r.stockId, level)
     local el
     if fac then
@@ -102,7 +104,7 @@ function M.onGetRawPoiListForLevel(level, elements)
   for _, r in ipairs(fasttravel.extras(sl_career.allPlaces(), state)) do
     local pos = vec3(r.pos.x, r.pos.y, r.pos.z)
     elements[#elements + 1] = {
-      id = r.poiId, data = { type = 'other', name = r.name }, clusterType = 'missionMarker', clusterInBigMap = true, clusterInPlayMode = false,
+      id = r.poiId, data = { type = 'other', name = r.name, date = 0 }, clusterType = 'missionMarker', clusterInBigMap = true, clusterInPlayMode = false,
       interactableInPlayMode = false, quickTravelAvailable = false,
       markerInfo = {
         missionMarker = { pos = pos, rot = quat(0, 0, 0, 1), icon = ICON },
