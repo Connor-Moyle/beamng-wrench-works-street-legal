@@ -25,7 +25,7 @@ function M.onGetRawPoiListForLevel(level, elements)
   if not (careerOn() and freeroam_facilities and freeroam_facilities.getFacilitiesByType) then return end
   local list = freeroam_facilities.getFacilitiesByType('computer', level) or {}
   for _, c in ipairs(computer.points(true, list, posOf)) do
-    elements[#elements + 1] = { id = 'sl_computer_' .. c.id, data = { type = 'slrrComputer', id = c.id, name = c.name },
+    elements[#elements + 1] = { id = 'sl_computer_' .. c.id, data = { type = 'slrrComputer', id = c.id, name = c.name, date = 0 },
       markerInfo = { missionMarker = { pos = c.pos, rot = quat(0, 0, 0, 1), icon = ICON } } }
   end
 end
