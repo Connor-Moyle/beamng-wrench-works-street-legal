@@ -109,5 +109,20 @@ function M.routePoints(path, gap)
   return out
 end
 
+-- who needs the feed: the HUD app and the phone's Map tab each say so by name; it runs while any of them does.
+-- use(name, on) returns true when a consumer was ADDED (it has not seen the route and the places yet: send them again)
+function M.consumers()
+  local set = {}
+  local self = {}
+  function self.use(name, on)
+    local had = set[name] == true
+    set[name] = on and true or nil
+    return on and not had or false
+  end
+  function self.any() return next(set) ~= nil end
+  function self.clear() set = {} end
+  return self
+end
+
 M.RANK = RANK
 return M

@@ -43,8 +43,8 @@ if (typeof angular !== 'undefined') angular.module('beamng.apps').directive('slM
       $scope.$on('slMapsPose', function (ev, d) { pose = d; });
       $scope.$on('slMapsRoute', function (ev, d) { route = (d && d.route) || []; });
       $scope.$on('slMapsPlaces', function (ev, d) { places = (d && d.places) || []; });
-      bngApi.engineLua('sl_mapsfeed.active(true)');
-      $scope.$on('$destroy', function () { clearInterval(timer); bngApi.engineLua('sl_mapsfeed.active(false)'); });
+      bngApi.engineLua('sl_mapsfeed.use("hud", true)');
+      $scope.$on('$destroy', function () { clearInterval(timer); bngApi.engineLua('sl_mapsfeed.use("hud", false)'); });
     }
   };
 }]);

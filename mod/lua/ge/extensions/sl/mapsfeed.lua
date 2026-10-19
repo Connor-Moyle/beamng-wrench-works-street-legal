@@ -1,5 +1,5 @@
 -- Street Legal: feeds the Maps HUD app (ui/modules/apps/slMaps): the road tiles from the navgraph, the player's pose, the route and the places.
--- The app tells us it is on screen (sl_mapsfeed.active(true)) and asks for tiles (sl_mapsfeed.tiles({ "0,0", ... })); nothing is built or sent while it is not.
+-- The app tells us it is on screen (sl_mapsfeed.use(name, true): the HUD app and the phone's Map tab each count as a consumer) and asks for tiles (sl_mapsfeed.tiles({ "0,0", ... })); nothing is built or sent while it is not.
 -- The road tiles are built a few nodes at a time (2 ms a frame at most, the same rule as the puddles).
 
 local M = {}
@@ -10,6 +10,7 @@ local BUDGET = 0.002          -- s of tile building per frame
 local POSE_EVERY = 0.1        -- s: the pose goes to the app at 10 Hz
 local wanted = {}             -- tile keys the app asked for and has not got yet
 local builder, level
+local users = feed.consumers()
 local isActive = false
 local failed = false          -- an error was logged since the app last turned us on
 local poseTimer, routeKey, placesSent = 0, nil, false
@@ -30,9 +31,12 @@ local function sendWanted()
   if any then guihooks.trigger('slMapsTiles', { tiles = out }) end
 end
 
-function M.active(on)
-  isActive = on and true or false
+-- a consumer (the HUD app 'hud', the phone's Map tab 'phone') turns the feed on or off for itself; it runs while any of them needs it
+function M.use(name, on)
+  local added = users.use(tostring(name), on)
+  isActive = users.any()
   if isActive then failed = false end
+  if added then routeKey, placesSent = nil, false end        -- (a new consumer has not got the route and the places yet)
   if not isActive then reset() end
 end
 
@@ -90,6 +94,7 @@ function M.onUpdate(dtReal)
   if not ok then
     if not failed then failed = true log('E', 'sl_mapsfeed', 'switched off after an error: ' .. tostring(err)) end
     isActive = false
+    users.clear()
     reset()
   end
 end

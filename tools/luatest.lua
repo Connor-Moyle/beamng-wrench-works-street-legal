@@ -1238,6 +1238,8 @@ do
     while not vb:step(os.clock, 1) do end
     check('maps: positions that are not plain tables (the game vec3) are read, a number position is skipped', vb.count == 1)
     check('maps: a route point without a position is skipped', #MF.routePoints({ { pos = { x = 0, y = 0 } }, {}, { pos = 'x' }, { pos = { x = 40, y = 0 } } }, 6) == 4)
+    local cu = MF.consumers()
+    check('maps: the feed runs while any consumer needs it, and a new consumer is told to be sent the route', cu.use('hud', true) == true and cu.any() and cu.use('phone', true) == true and cu.use('phone', false) == false and cu.any() and cu.use('hud', false) == false and not cu.any())
     local rp = MF.routePoints({ { pos = { x = 0, y = 0 } }, { pos = { x = 1, y = 0 } }, { pos = { x = 50, y = 0 } }, { pos = { x = 51, y = 0 } } }, 6)
     check('maps: a route is thinned and keeps its last point', #rp == 6 and rp[5] == 51)
   end

@@ -961,7 +961,7 @@
       var w = mapWanted();
       if (w === MV.on) return;
       MV.on = w;
-      lua('@sl_mapsfeed.active(' + w + ')');
+      lua('@sl_mapsfeed.use("phone", ' + w + ')');
       if (!w) MV.asked = {};
     }
     function paintMap() {
