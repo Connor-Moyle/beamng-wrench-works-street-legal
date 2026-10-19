@@ -2987,6 +2987,30 @@ do
   calls = {}
   m.onStreetLegalOption('slRaces', false) m.onStreetLegalOption('slJobs', true)
   check('parts: another option, or switching on, stops nothing', #calls == 0)
+  -- clubs: days that went by while the part was off make the season stale; it closes with no reward when the part is back
+  do
+    local CL = require('sl/core/clubs')
+    check('clubs: a season is stale only when days passed that were not simulated', CL.unsimulated({ simDay = 3 }, 8) == true and CL.unsimulated({ simDay = 7 }, 8) == false and CL.unsimulated({ simDay = 8 }, 8) == false and CL.unsimulated({}, 8) == false and CL.unsimulated(nil, 8) == false)
+    local sent, paid = {}, {}
+    local oldC, oldG, oldF = rawget(_G, 'sl_career'), rawget(_G, 'guihooks'), rawget(_G, 'sl_fleet')
+    _G.guihooks = { trigger = function() end }
+    _G.sl_fleet = nil
+    _G.sl_career = { isActive = function() return true end, has = function() return true end, getState = function() return nil end,
+      sendText = function(who, text) sent[#sent + 1] = text end, payOut = function(m) paid[#paid + 1] = m end, racesList = function() return {} end }
+    local okLoad, CE = pcall(require, 'sl/clubs')
+    if okLoad then
+      local st = { day = 8, garageLevel = 1, seed = 1, rep = 0, club = { club = 1, start = 1, season = 1, simDay = 3, standings = { player = 99 }, raced = {}, calendar = {} } }
+      local okE = pcall(CE.ensureSeason, st)
+      check('clubs: a season the clubs did not simulate pays nothing and a new one starts', okE and #paid == 0 and st.club.season == 2 and st.club.start == 8 and st.club.simDay == 8 and sent[1] ~= nil and sent[1]:find('not raced', 1, true) ~= nil, tostring(okE) .. ' paid=' .. #paid .. ' sent=' .. tostring(sent[1]))
+      local st2 = { day = 12, garageLevel = 1, seed = 1, rep = 0, club = { club = 1, start = 1, season = 1, simDay = 12, standings = { player = 99, other = 0 }, raced = {}, calendar = {} } }
+      paid = {}
+      pcall(CE.ensureSeason, st2)
+      check('clubs: a season that was simulated to the end still pays its reward as before', st2.club.season == 2 and #sent >= 2)
+    else
+      check('clubs: the extension loads in the test', false, tostring(CE))
+    end
+    _G.sl_career, _G.guihooks, _G.sl_fleet = oldC, oldG, oldF
+  end
   -- the bank cannot be switched off while a loan is open; the hospital off lets an injured driver drive
   do
     local oldBank, oldInj = rawget(_G, 'sl_bank'), rawget(_G, 'slrrInjury')
@@ -3012,6 +3036,15 @@ do
     local offNow = H.canDrive()
     Opt.set('slHospital', true)
     check('parts: an injured driver cannot drive with the hospital on, and can with it off', was == false and offNow == true and H.canDrive() == false)
+    -- a hardcore career cannot switch the hospital off
+    local oldCareer = rawget(_G, 'sl_career')
+    _G.sl_career = { isActive = function() return true end, getState = function() return { options = { slHardcore = true } } end }
+    local okH, msgH = pcall(Opt.set, 'slHospital', false)
+    check('parts: a hardcore career cannot switch the hospital off, and is told why', okH == false and msgH == 'Hardcore careers need the hospital')
+    _G.sl_career = { isActive = function() return true end, getState = function() return { options = { slHardcore = false } } end }
+    check('parts: a normal career can', pcall(Opt.set, 'slHospital', false) == true)
+    Opt.set('slHospital', true)
+    _G.sl_career = oldCareer
     _G.slrrInjury = oldInj
     _G.sl_options = nil
     _G.jsonReadFile, _G.jsonWriteFile, _G.extensions = oldR, oldW, oldExt

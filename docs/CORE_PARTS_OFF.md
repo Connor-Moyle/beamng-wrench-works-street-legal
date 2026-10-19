@@ -8,10 +8,12 @@ Rule for all five (the same as the built parts): the save keeps everything; a sw
 
 ## 1. Bank (loan and insurance)
 - Off: no Bank app, no loan, no insurance. A loan that is already open stops charging its weekly payment and cannot be repossessed while the bank is off (the debt stays in the save and resumes when it is switched on). Repair and impound bills are paid in full (no insurance share).
+- The switch is global (not per career): with the bank off, a loan open in another career is frozen: no interest and no payments until it is switched on again.
 - Touches: `sl_bank` hooks (new day), `phone.bank` summary, the repair and impound price paths that ask for the insurance share. One question: a player with an open loan who switches the bank off keeps the borrowed money (nothing is taken back). Is that acceptable, or should the switch refuse while a loan is open? My suggestion: refuse with a line ("pay back the loan first"), because the alternative is free money.
 
 ## 2. Hospital (injuries and death at the wheel)
 - Off: a crash that knocks out or kills the driver costs nothing and sends nobody anywhere: the car is as it was, the player carries on. No doctor's bill, no "no racing while injured", no game over in a hardcore career (hardcore death is a hospital feature, so with it off hardcore only keeps its no-pull-out rule). The Driver Injuries mod (slrrInjury) can still hurt the driver visually; Street Legal just ignores it.
+- The switch refuses in a hardcore career ("Hardcore careers need the hospital"), because hardcore death is a hospital rule.
 - Touches: `sl_hospital` (onSlrrDriverInjured/Died), `canDrive()` used by jobs and races, hardcore's death.
 - Question: should "hospital off" also switch Driver Injuries off? They are separate mods (Injury is on the Active features page by itself), so I would leave them separate.
 

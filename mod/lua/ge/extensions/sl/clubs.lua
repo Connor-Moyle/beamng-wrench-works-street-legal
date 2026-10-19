@@ -65,11 +65,12 @@ local function members(s) return clubs.members(s.racers, s.garageLevel or 1) end
 
 function M.ensureSeason(s)
   local c = s.club
-  if c and c.club == (s.garageLevel or 1) and s.day < c.start + clubs.SEASON_DAYS then return c end
-  if c and c.club == (s.garageLevel or 1) then M.endSeason(s) end
+  local stale = clubs.unsimulated(c, s.day)
+  if c and c.club == (s.garageLevel or 1) and s.day < c.start + clubs.SEASON_DAYS and not stale then return c end
+  if c and c.club == (s.garageLevel or 1) then M.endSeason(s, stale) end      -- (a season the clubs did not simulate pays no reward)
   local car = sl_fleet and sl_fleet.currentCar()
   local rng = rngLib.new(rngLib.hash('season:' .. s.day .. ':' .. tostring(s.seed)))
-  s.club = { club = s.garageLevel or 1, start = s.day, class = car and car.class or nil, standings = {}, raced = {},
+  s.club = { club = s.garageLevel or 1, start = s.day, class = car and car.class or nil, standings = {}, raced = {}, simDay = s.day,
     calendar = clubs.calendar(sl_career.racesList and M.listed() or {}, rng), season = ((c and c.season) or 0) + 1 }
   for _, r in ipairs(members(s)) do s.club.standings[r.id] = 0 end
   s.club.standings.player = 0
@@ -116,6 +117,7 @@ function M.onStreetLegalNewDay(day)
   local s = career()
   local c = s and s.club
   if not c then return end
+  c.simDay = day
   local d = day - 1 - c.start + 1
   local ev = c.calendar[d]
   if ev then
@@ -129,8 +131,12 @@ function M.onStreetLegalNewDay(day)
   if day < c.start + clubs.SEASON_DAYS then M.morningText(s) end
 end
 
-function M.endSeason(s)
+function M.endSeason(s, unraced)
   local c = s.club
+  if unraced then
+    sl_career.sendText('benny', string.format(strings.t('clubs.season_unraced'), clubs.CLUBS[c.club].name, c.season), 1)
+    return
+  end
   local place = clubs.placeOf(c.standings, 'player')
   local money, rep, invited = clubs.seasonReward(c.club, place)
   if money > 0 then sl_career.payOut(money, strings.t('clubs.1_season_2', (clubs.CLUBS[c.club].name), (c.season))) end

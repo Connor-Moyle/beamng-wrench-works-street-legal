@@ -248,6 +248,7 @@ local function set(key, value)
   local d = byKey[key]
   if not d then return false end
   value = sanitize(d, value)
+  if key == 'slHospital' and value == false and M.get('slHardcore') == true then error('Hardcore careers need the hospital', 0) end      -- (hardcore death is a hospital rule)
   if key == 'slBank' and value == false and sl_bank and sl_bank.hasLoan and sl_bank.hasLoan() then error('Pay back the loan first', 0) end      -- (the Mods menu shows this; the loan stays in the save)
   if d.needs == 'weather' then
     if not slrrValoWeather then return false end
