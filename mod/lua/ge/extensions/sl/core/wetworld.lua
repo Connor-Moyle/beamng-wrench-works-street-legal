@@ -112,7 +112,7 @@ M.SLOW_MS = 80
 
 function M.batch(lastMsPerEdit, budgetMs, max)
   budgetMs, max = budgetMs or 3, max or 8
-  if not lastMsPerEdit or lastMsPerEdit <= 0 then return 2 end
+  if not lastMsPerEdit or lastMsPerEdit <= 0 then return math.min(2, max) end
   return math.max(1, math.min(max, math.floor(budgetMs / lastMsPerEdit)))
 end
 
