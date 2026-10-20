@@ -2963,12 +2963,21 @@ do
     check('tyrecare: other tyre parts fitted: a new set, the old wear and compound are dropped', c2.tyres.blob == nil and c2.tyres.compound == nil and c2.tyres.sig == sb)
     tc.onWrenchWorksDriveOut(77, { partsTree = { children = {} } })
     check('tyrecare: tyres taken off leave bare rims with no wear', c2.tyres.sig == '' and c2.tyres.blob == nil)
+    c2.tyres = { compound = 'slick', blob = { [0] = { h = 1 } }, sig = sb }
+    tc.onWrenchWorksPartBought(77, '/wheels/rim_F/', 'rim', 50)
+    check('tyrecare: buying a part that is not a tyre keeps the wear', c2.tyres and c2.tyres.blob)
+    tc.onWrenchWorksPartBought(77, '/wheels/tire_F/', 'tire_b', 90)
+    check('tyrecare: buying a tyre part, even the same one, drops the old wear (a new set)', c2.tyres == nil)
     state.cars[1] = car
   end
   check('tyrecare: the wear is snapshotted into the car record', tc.save(77, car) == true and car.tyres.blob[0].h == 4 and car.tyres.compound == 'slick')
   calls = {}
   tc.restore(78, car)
   check('tyrecare: a car that comes out gets the module and its wear back (the blob has the compound)', calls[1] == 'attach:78' and calls[2] == 'restore:78' and #calls == 2)
+  tc.onUpdate(1)
+  check('tyrecare: the blob is not sent again before the retry time', #calls == 2)
+  tc.onUpdate(1.5)
+  check('tyrecare: the restore is sent once more after 2 s (a car whose module was not loaded yet), and then no more', calls[#calls] == 'restore:78' and #calls == 4 and (function() tc.onUpdate(5) return #calls == 4 end)())
   calls = {}
   tc.restore(78, { tyres = { compound = 'slick' } })
   check('tyrecare: a compound with no wear saved is set again', calls[2] == 'compound:78:slick' and #calls == 2)

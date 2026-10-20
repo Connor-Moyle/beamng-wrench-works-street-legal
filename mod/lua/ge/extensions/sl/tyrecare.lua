@@ -191,12 +191,21 @@ function M.save(vid, car)
   end
 end
 
-function M.restore(vid, car)
-  if not (vid and car and car.tyres and M.available()) then return nil end
+-- the blob is sent twice, the second time M.RETRY seconds later: the first can reach a car whose tyre module is not loaded yet (it is dropped) or arrive before the car's own reset has
+-- renewed the tyres (the reset wipes it); the same blob twice sets the same state (the module holds one that arrives before the tyres are built)
+M.RETRY = 2
+local retries = {}                   -- vehicle id -> { car, left }
+local function send(vid, car)
   local a = api()
   if has('attach') then pcall(a.attach, vid) end
   if type(car.tyres.blob) == 'table' and has('restore') then pcall(a.restore, vid, car.tyres.blob)         -- (the blob keeps the compound of every wheel)
   elseif car.tyres.compound and car.tyres.compound ~= 'road' then pcall(a.setCompound, vid, nil, car.tyres.compound) end
+end
+
+function M.restore(vid, car)
+  if not (vid and car and car.tyres and M.available()) then return nil end
+  send(vid, car)
+  retries[vid] = { car = car, left = M.RETRY }
   return true
 end
 
@@ -211,6 +220,15 @@ function M.onWrenchWorksDriveOut(vid, info)
   car.tyres.sig = sig
 end
 
+-- a tyre part bought in Wrench Works is a new set, even the same part as the worn one (like for like): the wear saved for the old set is dropped
+function M.onWrenchWorksPartBought(vid, slotPath)
+  local path = tostring(slotPath or ''):lower()
+  if not (path:find('tire', 1, true) or path:find('tyre', 1, true)) then return end
+  local s = career()
+  local car = s and carById(s, sl_fleet and sl_fleet.carOfVehicle(vid))
+  if car then car.tyres = nil end
+end
+
 -- a vehicle reset (R) gives the tyres new in the tyre module; the career does not: the wear is put back from the last snapshot
 function M.onVehicleResetted(vid)
   local s = career()
@@ -222,6 +240,13 @@ end
 -- the player's current car gets its tyres snapshotted every few seconds (a blob up to that old is what a respawn gets back)
 local timer = 0
 function M.onUpdate(dtReal)
+  for vid, r in pairs(retries) do
+    r.left = r.left - (dtReal or 0)
+    if r.left <= 0 then
+      retries[vid] = nil
+      if r.car.tyres and M.available() then send(vid, r.car) end
+    end
+  end
   timer = timer + (dtReal or 0)
   if timer < 5 then return end
   timer = 0
