@@ -1739,6 +1739,12 @@ do
   check('drag: none dry or when standing, grows with speed and depth, capped', pr.drag(20, 0) == 0 and pr.drag(0.5, 1) == 0 and pr.drag(20, 1) > pr.drag(10, 1) and pr.drag(20, 1) > pr.drag(20, 0.5) and pr.drag(200, 1) == 500)
   check('spray and mist: spray only in water and with speed; mist only on a wet road (> 0.3) and with speed', pr.splash(20, 0) == 0 and pr.splash(20, 1) == 1 and pr.splash(5, 1) < pr.splash(15, 1)
     and pr.mist(0.3, 20) == 0 and pr.mist(1, 3) == 0 and pr.mist(1, 26) == 1 and pr.mist(0.65, 26) > 0 and pr.mist(0.65, 26) < 1)
+  do -- a puddle's plane: dropped under 0.04, made only from 0.08 (no flicker at the edge of view), capped
+    local w = require('sl/core/weather')
+    check('planeAction: a standing plane is kept between 0.04 and 0.08 and dropped under 0.04; a missing one is made from 0.08 only, and not at the cap',
+      w.planeAction(true, 0.06, 0) == 'keep' and w.planeAction(true, 0.03, 0) == 'drop' and w.planeAction(false, 0.06, 0) == 'none' and w.planeAction(false, 0.08, 0) == 'make'
+      and w.planeAction(false, 1, w.MAX_PLANES) == 'none' and w.planeAction(false, 1, w.MAX_PLANES - 1) == 'make' and w.planeAction(true, 1, w.MAX_PLANES) == 'keep')
+  end
   do -- slPuddles with and without Car Surface FX's tyre module owning the water's grip
     local sv = { obj = rawget(_G, 'obj'), wheels = rawget(_G, 'wheels'), v = rawget(_G, 'v'), slCar = rawget(_G, 'slCar'), slPuddles = rawget(_G, 'slPuddles'), tyres = rawget(_G, 'carSurfaceFxTyres') }
     local fric, water = {}, {}
