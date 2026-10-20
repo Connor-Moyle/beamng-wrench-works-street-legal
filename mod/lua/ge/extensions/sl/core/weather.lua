@@ -158,6 +158,13 @@ function M.distanceScale(d, from, to)
   local t = (to - d) / (to - from)
   return t * t * (3 - 2 * t)
 end
+-- is a puddle's plane to be made / dropped / left as it is, given its drawn size 0..1 (a plane is dropped under 0.04 but made only from 0.08: at the edge of the view a puddle
+-- does not flicker between the two) and how many planes stand against the cap
+M.DROP_BELOW, M.MAKE_FROM, M.MAX_PLANES = 0.04, 0.08, 60
+function M.planeAction(has, size, live)
+  if has then return size < M.DROP_BELOW and 'drop' or 'keep' end
+  return (size >= M.MAKE_FROM and live < M.MAX_PLANES) and 'make' or 'none'
+end
 M.FADE_SECONDS = 20      -- a puddle takes this long to come to full size (it starts small and grows)
 
 -- The kinds of standing water: small patches, round puddles, long pools along the road edge, thin lines in the wheel tracks, wide shallow damp patches. rnd() gives 0..1.
