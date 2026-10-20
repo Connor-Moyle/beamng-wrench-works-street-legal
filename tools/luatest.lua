@@ -421,7 +421,7 @@ do
     check('a colour factor given as the word White is read (it was skipped: walls and roads stayed dry-looking)', ww.parseColor('White')[1] == 1 and #ww.parseColor('White') == 4 and ww.parseColor('0.5 0.5 0.5 1')[1] == 0.5 and ww.parseColor('nonsense') == nil)
   check('materials are edited in three levels', ww.materialStep(0) == 0 and ww.materialStep(2) == 0 and ww.materialStep(3) == 3 and ww.materialStep(5) == 3 and ww.materialStep(6) == 6)
   end
-  check('wet terrain tiers: dry 0, light 1, rain 2, heavy 3, in order over the steps', ww.terrainTier(0) == 0 and ww.terrainTier(1) == 0 and ww.terrainTier(2) == 1 and ww.terrainTier(4) == 2 and ww.terrainTier(ww.STEPS) == 3 and ww.terrainTier(nil) == 0)
+  check('wet terrain: dry 0, one wet tier (2) from step 2 on, so a rain swaps the terrain once', ww.terrainTier(0) == 0 and ww.terrainTier(1) == 0 and ww.terrainTier(2) == 2 and ww.terrainTier(4) == 2 and ww.terrainTier(ww.STEPS) == 2 and ww.terrainTier(nil) == 0)
   check('wet: roads are asphalt first, cars and tunnels and lights are left alone', ww.classify('road_asphalt_01') == 'asphalt' and ww.classify('sidewalk_concrete') == 'concrete' and ww.classify('palm_leaves') == 'foliage'
     and ww.classify('tunnel_wall') == nil and ww.classify('street_lamp_glass') == nil and ww.classify('road_x', '/vehicles/pickup/x.json') == nil and ww.classify('sl_puddle') == nil and ww.classify('') == nil)
   check('wet: the step follows the wetness and the strength', ww.step(0, 1) == 0 and ww.step(1, 1) == ww.STEPS and ww.step(1, 0.5) == ww.STEPS / 2 and ww.step(1, 0) == 0)
@@ -3002,6 +3002,38 @@ do -- the GPU gate between the wet world's reloads and the puddle planes
   local l4 = G.waited('wet', 306)
   check('gate: a wait is logged once per 5 s per side, with the count since, and the sides are separate', l1 and l1:find('1 time') and l2 == nil and l3 and l3:find('planes waited') and l4 and l4:find('2 time'))
   G.reset()
+end
+
+do -- 0.5.2: a saved Wet tarmac "on" is reset to off once
+  local O = require('sl/options')
+  local a = { slWetTarmac = true }
+  local changed = O.migrate052(a)
+  check('wet tarmac migration: a saved on becomes off, once, and the flag is stored', changed and a.slWetTarmac == false and a.slWetTarmacReset052 == true)
+  a.slWetTarmac = true
+  check('wet tarmac migration: a player who turned it back on afterwards keeps it', O.migrate052(a) == false and a.slWetTarmac == true)
+  local b = {}
+  O.migrate052(b)
+  check('wet tarmac migration: nothing saved stays unset (the default applies), and a saved off stays off', b.slWetTarmac == nil and b.slWetTarmacReset052 == true and O.migrate052({ slWetTarmac = false }) == true)
+end
+
+do -- the migration never overwrites a file it could not read
+  local sv = { r = rawget(_G, 'jsonReadFile'), w = rawget(_G, 'jsonWriteFile') }
+  local reads, writes = nil, 0
+  _G.jsonReadFile = function() return reads end
+  _G.jsonWriteFile = function() writes = writes + 1 return true end
+  local function fresh() package.loaded['sl/options'] = nil return require('sl/options') end
+  reads = nil
+  local O = fresh()
+  O.get('slWetTarmac')
+  check('wet tarmac migration: a file that could not be read (nil) is not overwritten', writes == 0 and O.get('slWetTarmac') == false)
+  O.set('slPerf', O.get('slPerf'))
+  check('wet tarmac migration: the next normal save carries the flag, so a later "on" is kept', writes == 1)
+  reads = { slWetTarmac = true, slClock = false }
+  O = fresh()
+  O.get('slWetTarmac')
+  check('wet tarmac migration: a readable file with on is reset and rewritten with the other options kept', writes == 2 and O.get('slWetTarmac') == false)
+  _G.jsonReadFile, _G.jsonWriteFile = sv.r, sv.w
+  package.loaded['sl/options'] = nil
 end
 
 print(string.format('lua tests passed: %d checks', passed))

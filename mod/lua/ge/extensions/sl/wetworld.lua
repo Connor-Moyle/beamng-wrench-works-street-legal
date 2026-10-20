@@ -93,6 +93,7 @@ local function applyTerrain(tier)
     end)
   end
   log('I', TAG, string.format('terrain layers tier %d: %d layers, %.0f ms', tier, #layers, (os.clock() - t0) * 1000))
+  gate.reloaded(os.clock())                       -- (a terrain material swap repacks the terrain cache: the puddle planes wait for it too)
 end
 
 -- one material to a step: the original text of its roughness and colour factors is taken the first time, the wet values come from it, the material is reloaded once
@@ -189,7 +190,7 @@ function M.update(dt, wet)
     current = target
     log('I', TAG, string.format('wet world heads for step %d of %d (wetness %.2f)', current, rules.STEPS, wet or 0))
   end
-  local wantTerrain = (on and option('slWetTarmac', true) == true) and rules.terrainTier(current) or 0      -- (also when the setting is switched while it rains)
+  local wantTerrain = (on and option('slWetTarmac', false) == true) and rules.terrainTier(current) or 0      -- (also when the setting is switched while it rains)
   if wantTerrain ~= terrWet then applyTerrain(wantTerrain) end
   if not plan then return end
   timer = timer + (dt or 0)
