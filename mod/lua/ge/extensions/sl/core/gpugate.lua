@@ -7,6 +7,7 @@ M.PLANE_HOLD = 0.5      -- s the wet world is left alone after a puddle plane wa
 M.STARVED_AFTER = 10     -- s the planes may have waited, without making any, before the wet world pauses for them
 M.WINDOW = 1.5          -- s the wet world pauses then (the planes need 1 s after the last reload: they get about half a second of building)
 M.TERRAIN_HOLD = 60      -- s after a terrain material swap in which the puddles make no terrain material lookups (a crash with the swap on, 8 s later, with only those running)
+M.TERRAIN_QUIET = 10     -- s after a terrain material swap in which Car Surface FX's terrain hollows write no heights (updateGrid rebuilds terrain geometry)
 M.LOG_EVERY = 5         -- s between two "waits" log lines of one side
 
 local lastReload, lastPlanes = -1e9, -1e9
@@ -18,6 +19,8 @@ function M.reset() lastTerrain = -1e9 lastReload, lastPlanes, lastLog, waits, wa
 function M.reloaded(now) lastReload = now end
 function M.terrainSwapped(now) lastTerrain = now end
 function M.terrainLookupsOk(now) return now - lastTerrain >= M.TERRAIN_HOLD end
+-- Car Surface FX's terrain hollows ask this before each updateGrid flush, and tell planesTouched after it so the wet world waits too
+function M.terrainEditOk(now) return now - lastTerrain >= M.TERRAIN_QUIET and now - lastReload >= M.WET_HOLD end
 function M.planesTouched(now) lastPlanes, waitSince = now, nil end
 function M.planesMayChange(now) return now - lastReload >= M.WET_HOLD end
 function M.wetMayBatch(now)
