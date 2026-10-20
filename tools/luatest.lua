@@ -2987,6 +2987,18 @@ do
   calls = {}
   tc.onVehicleResetted(77)
   check('tyrecare: after a reset (R) the wear is put back', calls[1] == 'attach:77' and calls[2] == 'restore:77')
+  do -- the test aid
+    local sv = { fleet = _G.sl_fleet, gp = rawget(_G, 'getPlayerVehicle') }
+    local made
+    _G.getPlayerVehicle = function() return { getID = function() return 90 end } end
+    _G.sl_fleet = { carOfVehicle = function(v) return v == 77 and 1 or nil end, registerVehicle = function(v, info) made = { v = v, info = info } return { id = 5 } end }
+    local ok1, t1 = tc.devRegister()
+    check('tyrecare: devRegister makes the car under the player a career car', ok1 and made.v == 90 and made.info.name == 'QA tyre car' and t1:find('career car 5'))
+    _G.getPlayerVehicle = function() return { getID = function() return 77 end } end
+    made = nil
+    check('tyrecare: devRegister leaves a car that is already a career car alone', tc.devRegister() == false and made == nil)
+    _G.sl_fleet, _G.getPlayerVehicle = sv.fleet, sv.gp
+  end
   tc.onCsfxTyreBlown(77) tc.onCsfxTyreBlown(99)
   check('tyrecare: a blow-out of the player\'s own car is a toast, any other car is not', #toasts >= 1 and toasts[#toasts] == 'A tyre has blown.' and (function() local n = 0 for _, t in ipairs(toasts) do if t == 'A tyre has blown.' then n = n + 1 end end return n == 1 end)())
   -- a car on bare rims (the starter car): the module reports no wheels, so nothing is followed, sold or snapshotted; once tyres are fitted it is followed

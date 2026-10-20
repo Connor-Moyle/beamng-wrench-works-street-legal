@@ -220,6 +220,19 @@ function M.onWrenchWorksDriveOut(vid, info)
   car.tyres.sig = sig
 end
 
+-- a test aid (console: sl_tyrecare.devRegister()): the car the player sits in becomes one of the career's cars, so a QA career with no cars can test the tyres' record, restore after a reset
+-- or a respawn, and save and load. Returns ok, text.
+function M.devRegister()
+  local s = career()
+  if not (s and sl_fleet and sl_fleet.registerVehicle) then return false, 'no career running' end
+  local veh = getPlayerVehicle and getPlayerVehicle(0)
+  if not veh then return false, 'no car under the player' end
+  if sl_fleet.carOfVehicle(veh:getID()) then return false, 'already a career car' end
+  local car = sl_fleet.registerVehicle(veh:getID(), { name = 'QA tyre car', value = 1000, condition = 1 })
+  if not car then return false, 'the car could not be registered' end
+  return true, 'registered as career car ' .. tostring(car.id)
+end
+
 -- a tyre part bought in Wrench Works is a new set, even the same part as the worn one (like for like): the wear saved for the old set is dropped
 function M.onWrenchWorksPartBought(vid, slotPath)
   local path = tostring(slotPath or ''):lower()
