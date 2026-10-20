@@ -208,10 +208,19 @@ local function sanitize(d, v)
   return v and math.max(d.min, math.min(d.max, v)) or d.default
 end
 
+-- 0.5.2: Wet tarmac (a terrain texture swap) is suspected of a GPU loss on BeamNG 0.40, so it is off by default; a saved "on" is reset to off once (a player who turns it back on keeps it)
+function M.migrate052(data)
+  if data.slWetTarmacReset052 then return false end
+  data.slWetTarmacReset052 = true
+  if data.slWetTarmac == true then data.slWetTarmac = false log('I', 'sl_options', 'Wet tarmac reset to off (0.5.2); it can be turned on again in the Mods menu') end
+  return true
+end
+
 local function loadGlobal()
   if global then return global end
   local data = jsonReadFile(FILE)
   global = type(data) == 'table' and data or {}
+  if M.migrate052(global) then jsonWriteFile(FILE, global, true) end
   return global
 end
 
