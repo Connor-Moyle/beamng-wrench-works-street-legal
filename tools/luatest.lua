@@ -2831,4 +2831,21 @@ do -- the migration never overwrites a file it could not read
   package.loaded['sl/options'] = nil
 end
 
+do -- the GPU gate between the wet world's reloads and the puddle planes
+  local G = require('sl/core/gpugate')
+  G.reset()
+  check('gate: with nothing happening both sides may work', G.planesMayChange(100) and G.wetMayBatch(100))
+  G.reloaded(100)
+  check('gate: after a wet world batch the planes wait 1 s, then may go', not G.planesMayChange(100.5) and not G.planesMayChange(100.99) and G.planesMayChange(101) and G.wetMayBatch(100.1))
+  G.planesTouched(200)
+  check('gate: after a plane was made the wet world waits 0.5 s, then may go', not G.wetMayBatch(200.2) and G.wetMayBatch(200.5))
+  G.reset()
+  local l1 = G.waited('wet', 300)
+  local l2 = G.waited('wet', 301)
+  local l3 = G.waited('planes', 301)
+  local l4 = G.waited('wet', 306)
+  check('gate: a wait is logged once per 5 s per side, with the count since, and the sides are separate', l1 and l1:find('1 time') and l2 == nil and l3 and l3:find('planes waited') and l4 and l4:find('2 time'))
+  G.reset()
+end
+
 print(string.format('lua tests passed: %d checks', passed))

@@ -8,6 +8,7 @@
 local M = {}
 
 local rules = require('sl/core/wetworld')
+local gate = require('sl/core/gpugate')
 local TAG = 'sl_wetworld'
 
 M.MAX_MATERIALS = 400          -- at most this many materials are touched
@@ -193,9 +194,14 @@ function M.update(dt, wet)
   if not plan then return end
   timer = timer + (dt or 0)
   if timer < M.TICK then return end
+  if not gate.wetMayBatch(os.clock()) then          -- (a puddle plane was made a moment ago: the batch waits, the timer stays full so it goes in the first frame that is free)
+    local line = gate.waited('wet', os.clock())
+    if line then log('I', TAG, line) end
+    return
+  end
   timer = 0
   local did = batch(rules.batch(msPerEdit, M.BUDGET_MS, M.MAX_BATCH), rules.materialStep(current))
-  if did > 0 then stats.batches = stats.batches + 1 end
+  if did > 0 then stats.batches = stats.batches + 1 gate.reloaded(os.clock()) end
 end
 
 -- every material back to its original text at once (the level ends, the career stops, or a test)
