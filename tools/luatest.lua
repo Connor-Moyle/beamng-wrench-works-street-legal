@@ -3000,6 +3000,14 @@ do -- the GPU gate between the wet world's reloads and the puddle planes
   local l2 = G.waited('wet', 301)
   local l3 = G.waited('planes', 301)
   local l4 = G.waited('wet', 306)
+  G.reset()
+  G.reloaded(0)
+  for t = 0.2, 11, 0.2 do G.waited('planes', t) end
+  check('gate: planes that waited over 10 s without a plane made get a window: the wet world pauses 1.5 s, then goes on', not G.wetMayBatch(11) and not G.wetMayBatch(12.4) and G.wetMayBatch(12.6) and G.planesMayChange(12.6))
+  G.reset()
+  G.waited('planes', 0) G.waited('planes', 5) G.planesTouched(6) G.waited('planes', 12)
+  check('gate: a plane made, or a pause in the waiting, starts a new spell, so no window opens', G.wetMayBatch(13))
+  G.reset()
   check('gate: a wait is logged once per 5 s per side, with the count since, and the sides are separate', l1 and l1:find('1 time') and l2 == nil and l3 and l3:find('planes waited') and l4 and l4:find('2 time'))
   G.reset()
 end
