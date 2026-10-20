@@ -35,7 +35,7 @@ local placeTimer, meshTimer, feedTimer, trailTimer, rippleTimer = 0, 0, 0, 0, 0
 local debugPuddle
 local sentEmpty = true
 local stats = { tries = 0, noSurface = 0, notFlat = 0, noRoad = 0, placed = 0, shown = 0, fxCalls = 0, splashOn = 0, mistOn = 0, trails = 0, wheelsIn = 0, ripples = 0, rejected = 0 }
-local lastStatsLog = 0
+local lastStatsLog, lastLoadLog, loadMark = 0, 0, { built = 0, deleted = 0 }
 local logged = {}
 
 local function once(key, text) if not logged[key] then logged[key] = true log('I', TAG, text) end end
@@ -214,6 +214,7 @@ end
 
 local function dropPuddle(p)
   dropRipples(p)
+  if p.obj then stats.deleted = (stats.deleted or 0) + 1 end
   deleteObject(p.obj)
   p.obj = nil
   if p.file then pcall(function() FS:removeFile(p.file) end) p.file = nil end
@@ -399,20 +400,26 @@ local function updateMeshes(wet, intensity)
   local pos = playerPos()
   local tStart = os.clock()
   local may = gate.planesMayChange(os.clock())
+  local order, rank = {}, {}                      -- (the puddles by distance from the player: the planes go to the nearest ones)
+  for i, p in ipairs(puddles) do order[i] = p rank[p] = pos and ((p.x - pos.x) ^ 2 + (p.y - pos.y) ^ 2) or 0 end
+  table.sort(order, function(a, b) return rank[a] < rank[b] end)
+  for i, p in ipairs(order) do rank[p] = i end
   local made = 0                                  -- (two planes are built per pass, four passes a second: each is 25 rays and a file; their time is measured)
-  for _, p in ipairs(puddles) do
+  for _, p in ipairs(order) do
     local f = rules.puddleAlpha(wet, os.clock() - p.born) / 0.8
     -- size: it grows while it is new (from 15 %) and with the wetness, and with the distance: out at the edge of the view it is nothing, so it never pops in
     local g = pos and rules.distanceScale(math.sqrt((p.x - pos.x) ^ 2 + (p.y - pos.y) ^ 2), M.FADE_FROM, M.FADE_TO) or 1
     local size = f < 0.03 and 0 or (0.15 + 0.85 * f) * g
-    local drop = size < 0.04 and p.obj and (f < 0.03 or g < 0.03)
-    local create = size >= 0.04 and not p.obj and not p.dead
-    local hold = (drop or create) and not may                 -- (the wet world reloaded materials a moment ago: no plane is made or dropped now)
+    local act = rules.planeAction(p.obj ~= nil, size, rank[p])
+    local drop = act == 'drop' and (f < 0.03 or g < 0.03 or rank[p] > rules.MAX_PLANES + rules.RANK_MARGIN)
+    local hold = (drop or (act == 'make' and not p.dead)) and not may      -- (the wet world reloaded materials a moment ago: no plane is made or dropped now)
     if hold then
       local line = gate.waited('planes', os.clock())
       if line then log('I', TAG, line) end
-    elseif size < 0.04 then
+    elseif act == 'drop' then
       if drop then dropPuddle(p) gate.planesTouched(os.clock()) end
+    elseif act == 'none' then
+      -- (too small to make yet, or not among the nearest planes)
     elseif not p.obj and not p.dead and (made >= 2 or (made > 0 and os.clock() - tStart > 0.006)) then
       -- (next pass: at most two planes, and none once this pass has used 6 ms)
     else
@@ -652,6 +659,15 @@ function M.update(dt, wet, intensity)
   if total > 0.012 and os.clock() - (M.lastSlow or 0) > 2 then
     M.lastSlow = os.clock()
     log('W', TAG, string.format('slow puddle pass: %.0f ms (placing %.0f, planes %.0f, rest %.0f); %d standing', total * 1000, tPlace * 1000, tMesh * 1000, (total - tPlace - tMesh) * 1000, #puddles))
+  end
+  if lastLoadLog == 0 then lastLoadLog = os.clock() end
+  if wet >= 0.15 and os.clock() - lastLoadLog >= 5 then
+    -- the rate of objects made and deleted, for a soak (a GPU crash while puddles were placed in heavy rain)
+    local dt5, ripples = os.clock() - lastLoadLog, 0
+    for _, p in ipairs(puddles) do ripples = ripples + #(p.ripples or {}) end
+    local built, deleted = stats.shown, stats.deleted or 0
+    log('I', TAG, string.format('puddle load: planes built %.1f/s, deleted %.1f/s, %d live, %d ripple planes, %d standing', (built - loadMark.built) / dt5, (deleted - loadMark.deleted) / dt5, built - deleted, ripples, #puddles))
+    lastLoadLog, loadMark = os.clock(), { built = built, deleted = deleted }
   end
   if wet >= 0.15 and os.clock() - lastStatsLog > 15 then
     lastStatsLog = os.clock()
