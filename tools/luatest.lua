@@ -2799,4 +2799,16 @@ do
   for n, v in pairs(saved) do if n:sub(1, 2) == 'p:' then package.loaded[n:sub(3)] = v[1] else _G[n] = v[1] end end
 end
 
+do -- 0.5.2: a saved Wet tarmac "on" is reset to off once
+  local O = require('sl/options')
+  local a = { slWetTarmac = true }
+  local changed = O.migrate052(a)
+  check('wet tarmac migration: a saved on becomes off, once, and the flag is stored', changed and a.slWetTarmac == false and a.slWetTarmacReset052 == true)
+  a.slWetTarmac = true
+  check('wet tarmac migration: a player who turned it back on afterwards keeps it', O.migrate052(a) == false and a.slWetTarmac == true)
+  local b = {}
+  O.migrate052(b)
+  check('wet tarmac migration: nothing saved stays unset (the default applies), and a saved off stays off', b.slWetTarmac == nil and b.slWetTarmacReset052 == true and O.migrate052({ slWetTarmac = false }) == true)
+end
+
 print(string.format('lua tests passed: %d checks', passed))
