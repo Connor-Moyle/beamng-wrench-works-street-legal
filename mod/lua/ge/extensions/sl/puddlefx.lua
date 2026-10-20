@@ -420,8 +420,6 @@ local function updateMeshes(wet, intensity)
       if drop then dropPuddle(p) gate.planesTouched(os.clock()) end
     elseif act == 'none' then
       -- (too small to make yet, or not among the nearest planes)
-    elseif act == 'none' then
-      -- (too small to make yet, or not among the nearest planes)
     elseif not p.obj and not p.dead and (made >= 2 or (made > 0 and os.clock() - tStart > 0.006)) then
       -- (next pass: at most two planes, and none once this pass has used 6 ms)
     else
