@@ -1684,7 +1684,9 @@
     // The app tells us where it is (window.slMapsHud = { rect(), setHidden(b) }); a missing app, no layout, reduced motion, the Mods switch off or any error in here
     // leaves the plain open and close. The animation is a Web Animations transform on the phone's own element (centre origin), so when it ends or is cut short the
     // phone is at rest where the style puts it.
-    var sliding = false, openToken = 0;           // (the token changes with every open or close: a slide-out that is overtaken by a newer one does not close the phone)
+    // slide: 'in' | 'out' while the animation runs; intent: the last K press during it (true open, false close, applied when the slide ends: three presses are three toggles);
+    // slideSeq makes the callbacks of an older slide harmless
+    var slide = null, intent = null, slideSeq = 0;
     function hudApp() {
       var h = win.slMapsHud;
       if (!h || typeof h.rect !== 'function' || MV.opts.slide === false) return null;
@@ -1708,32 +1710,49 @@
         var dv = layer.querySelector('.slp-device'), fr = dv && slideFrames(dv, h.rect());
         if (!fr) return;
         h.setHidden(true);
-        dv.animate(fr, { duration: 420, easing: 'cubic-bezier(.2,.9,.25,1)' });
-      } catch (e) { hudShow(); }
+        var seq = ++slideSeq, a = dv.animate(fr, { duration: 420, easing: 'cubic-bezier(.2,.9,.25,1)' }), done = false;
+        slide = 'in';
+        var end = function () { if (done || seq !== slideSeq) return; done = true; endSlide(); };
+        if ('onfinish' in a) a.onfinish = end;
+        clock.set(end, 520);                                                            // (an animation that never reports back must not hold the phone)
+      } catch (e) { slide = null; hudShow(); }
+    }
+    // a slide is over: a press made during it is applied now
+    function endSlide() {
+      var want = intent;
+      intent = null; slide = null;
+      if (want !== null && want !== st.open) setOpen(want);
     }
     // closing: the phone turns back into the app first, then the normal close; false when it cannot (the caller closes at once)
     function slideOut(then) {
       var h = hudApp();
-      if (!h || sliding) return false;
+      if (!h || slide) return false;
       try {
         var dv = layer.querySelector('.slp-device'), fr = dv && slideFrames(dv, h.rect());
         if (!fr) return false;
-        sliding = true;
-        var token = openToken;
+        var seq = ++slideSeq;
+        slide = 'out';
         var a = dv.animate(fr.slice().reverse(), { duration: 360, easing: 'cubic-bezier(.4,0,.6,1)', fill: 'forwards' }), done = false;
-        var finish = function () { if (done) return; done = true; sliding = false; if (token === openToken) then(); else if (!st.open) hudShow(); };      // (then() shows the app: setOpen(false))
-        if ('onfinish' in a) a.onfinish = finish; else return (sliding = false, false);
+        var finish = function () {
+          if (done || seq !== slideSeq) return;
+          done = true;
+          var want = intent;
+          intent = null; slide = null;
+          if (want === true) { try { a.cancel(); } catch (e) { /* no animation left */ } slideIn(); return; }      // (pressed again while it closed: the phone stays up)
+          then();
+        };
+        if ('onfinish' in a) a.onfinish = finish; else { slide = null; return false; }
         clock.set(finish, 500);                                                         // (an animation that never reports back must not keep the phone open)
         return true;
-      } catch (e) { sliding = false; hudShow(); return false; }
+      } catch (e) { slide = null; hudShow(); return false; }
     }
     function setOpen(open, plain) {
-      if (!plain) openToken++;
+      if (slide && !plain) { intent = (open === (slide === 'in')) ? null : open; return; }      // (during a slide only the last press counts: it is applied when the slide ends)
       if (!open && st.open && !plain && slideOut(function () { setOpen(false, true); })) return;
       st.open = open;
       lua('uiOpen("phone", ' + (open ? 'true' : 'false') + ')');      // (the game side sends the phone's data faster while it is open)
       if (open && !TABLE) lua('requestStrings()');
-      if (!open && !sliding) hudShow();
+      if (!open && !slide) hudShow();
       if (open) lua('request()'); else { st.stack = []; st.app = 'home'; lua('@sl_carauctions.view(false)'); }      // (B68: closed, it opens on the home screen next time)
       render();
       if (open) slideIn();
@@ -1915,7 +1934,7 @@
     // ---------------------------------------------------------------- what Lua says
     function handle(name, data) {
       data = data || {};
-      if (!st.open && !sliding) hudShow();                                         // (never leave the Maps app hidden behind a closed phone)
+      if (!st.open && slide !== 'out') hudShow();                                  // (never leave the Maps app hidden behind a closed phone)
       switch (name) {
         case 'slMapsTiles': Object.keys(data.tiles || {}).forEach(function (k) { MV.tiles[k] = data.tiles[k]; }); MV.key = ''; paintMap(); break;
         case 'slMapsPose': MV.pose = data; paintMap(); break;
@@ -1924,11 +1943,11 @@
         case 'slMapsPlaces': MV.places = data.places || []; break;
         case 'slPhoneData':
           st.data = data;
-          if (!data.active) { st.open = false; st.call = null; st.hu = null; openToken++; hudShow(); }
+          if (!data.active) { st.open = false; st.call = null; st.hu = null; slide = null; intent = null; slideSeq++; hudShow(); }
           if (st.open && st.app === 'map' && Date.now() - (st.mapAt || 0) > 4000) { st.mapAt = Date.now(); lua('mapPlaces()'); }      // (the distances follow the car)
           render();
           break;
-        case 'slPhoneToggle': setOpen(!st.open); break;
+        case 'slPhoneToggle': setOpen(!(intent !== null ? intent : (slide === 'out' ? false : st.open))); break;
         case 'slPhoneGo': if (!st.open) setOpen(true); st.stack = []; st.app = 'home'; if (data.app && data.app !== 'home') go(data.app); else render();
           if (data.tabs) { Object.keys(data.tabs).forEach(function (k) { st.tab[k] = data.tabs[k]; }); render(); }
           break;      // (a game test: open this app; the yard auction opens the Car auctions tab)

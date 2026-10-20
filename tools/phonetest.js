@@ -892,13 +892,14 @@ if (out > 0) {
   Object.defineProperty(P, 'offsetWidth', { configurable: true, get() { return this.classList && this.classList.contains('slp-device') ? 360 : 0; } });
   Object.defineProperty(P, 'offsetHeight', { configurable: true, get() { return this.classList && this.classList.contains('slp-device') ? 760 : 0; } });
   const anims = [], hid = [];
-  P.animate = function (frames, opts) { const a = { frames, opts, onfinish: null }; anims.push(a); return a; };
+  P.animate = function (frames, opts) { const a = { frames, opts, onfinish: null, cancelled: false, cancel() { this.cancelled = true; } }; anims.push(a); return a; };
   const hudRect = { left: 100, top: 500, width: 500, height: 250 };
   win.slMapsHud = { rect: () => hudRect, setHidden: (b) => hid.push(b) };
   const close = () => { if (phone.root.querySelector('.slp-device:not(.slp-away)')) phone.handle('slPhoneToggle'); };
   close(); while (anims.length) anims.pop(); advance(600); hid.length = 0;
   phone.handle('slPhoneToggle');
   assert.ok(anims.length === 1 && /rotate\(-90deg\)/.test(anims[0].frames[0].transform) && /^translate\(/.test(anims[0].frames[1].transform) && hid[hid.length - 1] === true, 'opening with the app on screen turns the phone out of it and hides the app');
+  anims[0].onfinish();
   phone.handle('slPhoneToggle');
   assert.ok(anims.length === 2 && anims[1].opts.fill === 'forwards' && phone.root.querySelector('.slp-device:not(.slp-away)'), 'closing plays the animation back first, the phone stays until it ends');
   anims[1].onfinish();
@@ -909,22 +910,40 @@ if (out > 0) {
   phone.handle('slPhoneData', Object.assign({}, data, { active: false }));
   assert.ok(hid[hid.length - 1] === false && !phone.root.querySelector('.slp-device:not(.slp-away)'), 'the game closed the phone: the app is shown again, not left hidden');
   phone.handle('slPhoneData', data);
-  // K, K, K: a slide-out overtaken by a newer open or close must not close the phone the player has just reopened
-  phone.handle('slPhoneToggle');                                  // open
-  const before = anims.length;
-  phone.handle('slPhoneToggle');                                  // close: the slide-out starts
-  const stale = anims[anims.length - 1];
-  assert.ok(anims.length === before + 1 && stale.opts.fill === 'forwards', 'a slide-out is running');
-  phone.handle('slPhoneToggle');                                  // K again: closes at once (one slide at a time)
-  phone.handle('slPhoneToggle');                                  // and again: open
-  assert.ok(phone.root.querySelector('.slp-device:not(.slp-away)'), 'reopened');
-  stale.onfinish();
+  const isOpen = () => !!phone.root.querySelector('.slp-device:not(.slp-away)');
+  const finishAll = () => { for (let k = 0; k < 4; k++) { anims.forEach((a) => { if (a.onfinish) { const f = a.onfinish; a.onfinish = null; f(); } }); advance(600); } };
+  finishAll();
+  if (isOpen()) { phone.handle('slPhoneToggle'); finishAll(); }
+  assert.ok(!isOpen() && hid[hid.length - 1] === false, 'closed and the app shown, ready for the presses');
+  // K, K, K from closed: three toggles leave it OPEN (the last press counts: presses during a slide are queued)
+  let before = anims.length;
+  phone.handle('slPhoneToggle'); phone.handle('slPhoneToggle'); phone.handle('slPhoneToggle');
+  finishAll();
+  assert.ok(isOpen() && hid[hid.length - 1] === true && anims.length === before + 1, 'three presses from closed end open, with no extra slide: ' + isOpen() + ' ' + (anims.length - before));
+  // K, K, K from open: closed
+  phone.handle('slPhoneToggle'); phone.handle('slPhoneToggle'); phone.handle('slPhoneToggle');
+  finishAll();
+  assert.ok(!isOpen() && hid[hid.length - 1] === false, 'three presses from open end closed');
+  // K, K from closed: closed again; two presses from open: open again
+  phone.handle('slPhoneToggle'); phone.handle('slPhoneToggle'); finishAll();
+  assert.ok(!isOpen(), 'two presses from closed end closed');
+  phone.handle('slPhoneToggle'); finishAll();
+  assert.ok(isOpen(), 'open');
+  before = anims.length;
+  phone.handle('slPhoneToggle'); phone.handle('slPhoneToggle'); finishAll();
+  assert.ok(isOpen() && hid[hid.length - 1] === true, 'two presses from open end open: the close was pressed again while it ran');
+  const cancelled = anims.filter((a) => a.cancelled).length;
+  assert.ok(cancelled >= 1, 'the closing slide was cancelled and the phone slid in again');
+  // an old slide's callback does nothing once a newer one runs
+  const old = anims[anims.length - 1];
+  if (old.onfinish) old.onfinish();
   advance(600);
-  assert.ok(phone.root.querySelector('.slp-device:not(.slp-away)') && hid[hid.length - 1] === true, 'the old slide-out ending does not close the reopened phone');
-  phone.handle('slPhoneToggle'); advance(600);
+  assert.ok(isOpen(), 'a stale finish leaves the open phone alone');
+  phone.handle('slPhoneToggle'); finishAll();
+  assert.ok(!isOpen(), 'closed for the next cases');
   // a second close while one is running, a cut-short animation, no app, the switch off, reduced motion
-  phone.handle('slPhoneToggle'); anims[anims.length - 1].onfinish && 0;
-  phone.handle('slPhoneToggle'); advance(600);
+  phone.handle('slPhoneToggle'); advance(600);                     // open (the slide in never reports: the guard timer ends it)
+  phone.handle('slPhoneToggle'); advance(600);                     // close (the slide out never reports either)
   assert.ok(phone.root.querySelector('.slp-device.slp-away'), 'an animation that never reports back still closes (500 ms)');
   const n = anims.length;
   delete win.slMapsHud; phone.handle('slPhoneToggle'); phone.handle('slPhoneToggle');
