@@ -3,7 +3,7 @@
 ## 0.6.0 (unreleased)
 
 ### Changes
-- **Wet tarmac:** the road darkening now waits for puddles (a 60-second hold); with it, a heavy-rain test with wet tarmac on no longer crashed. Still off by default.
+- **Wet tarmac:** the road darkening now waits for puddles (a 60-second hold); with it, in one heavy-rain test with wet tarmac on, it no longer crashed. Still off by default, and it may still crash some cards.
 
 ## 0.5.2 (needs Wrench Works 1.8.0)
 
