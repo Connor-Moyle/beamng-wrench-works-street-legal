@@ -29,6 +29,15 @@ local function applyGrip()
   end
 end
 
+-- the tyre module of Car Surface FX, when it tracks this car's tyres, owns the water's grip loss (a slick aquaplanes, a wet tyre copes): it is told the depth and this file stops scaling the friction
+local function tyreWater(wid, depth)
+  local ok, set = pcall(function()
+    local t = rawget(_G, 'carSurfaceFxTyres')
+    if t and t.active and t.active() and t.setWheelWater then return t.setWheelWater(wid, depth) end
+  end)
+  return ok and set == true
+end
+
 function M.setPuddles(list, wet, flags)
   puddleList, puddleWet, puddleFlags = list or {}, tonumber(wet) or 0, flags or {}
   if not puddleFlags.physics and next(wheelMult) then wheelMult = {} applyGrip() end
@@ -51,7 +60,7 @@ local function update(dt)
       local p = base + obj:getNodePosition(wheel.node1)
       local depth = rules.deepest(puddleList, p.x, p.y)
       if puddleFlags.physics then
-        local target = rules.wheelGrip(speed * 3.6, depth)
+        local target = tyreWater(wid, depth) and 1 or rules.wheelGrip(speed * 3.6, depth)
         if math.abs(target - (wheelMult[wid] or 1)) > 0.03 or (target == 1 and wheelMult[wid]) then
           wheelMult[wid] = target ~= 1 and target or nil
           changed = true
