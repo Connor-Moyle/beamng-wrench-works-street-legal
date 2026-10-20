@@ -3008,6 +3008,8 @@ do -- the GPU gate between the wet world's reloads and the puddle planes
   G.waited('planes', 0) G.waited('planes', 5) G.planesTouched(6) G.waited('planes', 12)
   check('gate: a plane made, or a pause in the waiting, starts a new spell, so no window opens', G.wetMayBatch(13))
   G.reset()
+  check('gate: terrain material lookups are held for 60 s after a terrain swap, and free before one', G.terrainLookupsOk(5) and (function() G.terrainSwapped(100) return not G.terrainLookupsOk(159) and G.terrainLookupsOk(160) end)())
+  G.reset()
   check('gate: a wait is logged once per 5 s per side, with the count since, and the sides are separate', l1 and l1:find('1 time') and l2 == nil and l3 and l3:find('planes waited') and l4 and l4:find('2 time'))
   G.reset()
 end
