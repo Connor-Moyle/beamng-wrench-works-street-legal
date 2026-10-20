@@ -398,17 +398,21 @@ end
 local function updateMeshes(wet, intensity)
   local pos = playerPos()
   local tStart = os.clock()
+  local order, rank = {}, {}                      -- (the puddles by distance from the player: the planes go to the nearest ones)
+  for i, p in ipairs(puddles) do order[i] = p rank[p] = pos and ((p.x - pos.x) ^ 2 + (p.y - pos.y) ^ 2) or 0 end
+  table.sort(order, function(a, b) return rank[a] < rank[b] end)
+  for i, p in ipairs(order) do rank[p] = i end
   local made = 0                                  -- (two planes are built per pass, four passes a second: each is 25 rays and a file; their time is measured)
-  for _, p in ipairs(puddles) do
+  for _, p in ipairs(order) do
     local f = rules.puddleAlpha(wet, os.clock() - p.born) / 0.8
     -- size: it grows while it is new (from 15 %) and with the wetness, and with the distance: out at the edge of the view it is nothing, so it never pops in
     local g = pos and rules.distanceScale(math.sqrt((p.x - pos.x) ^ 2 + (p.y - pos.y) ^ 2), M.FADE_FROM, M.FADE_TO) or 1
     local size = f < 0.03 and 0 or (0.15 + 0.85 * f) * g
-    local act = rules.planeAction(p.obj ~= nil, size, stats.shown - (stats.deleted or 0))
+    local act = rules.planeAction(p.obj ~= nil, size, rank[p])
     if act == 'drop' then
-      if f < 0.03 or g < 0.03 then dropPuddle(p) end
+      if f < 0.03 or g < 0.03 or rank[p] > rules.MAX_PLANES + rules.RANK_MARGIN then dropPuddle(p) end
     elseif act == 'none' then
-      -- (too small to make yet, or the cap of planes is reached)
+      -- (too small to make yet, or not among the nearest planes)
     elseif not p.obj and not p.dead and (made >= 2 or (made > 0 and os.clock() - tStart > 0.006)) then
       -- (next pass: at most two planes, and none once this pass has used 6 ms)
     else
