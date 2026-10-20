@@ -4,8 +4,8 @@
 
 local M = {}
 
--- the terrain's asphalt layers: tier 0 dry, 1 light rain (roughness 60/255), 2 rain (35), 3 heavy (22); a texture swap per tier, not a blend
-function M.terrainTier(step) step = step or 0 return step >= 6 and 3 or step >= 4 and 2 or step >= 2 and 1 or 0 end
+-- the terrain's asphalt layers: tier 0 dry, 2 wet (roughness 35/255). A swap makes the engine repack the whole terrain material cache (suspected of a GPU loss), so it happens once per rain: wet or dry, no tiers between
+function M.terrainTier(step) step = step or 0 return step >= 2 and 2 or 0 end
 M.STEPS = 6                   -- wetness is applied in this many steps (0 = dry); a material is edited only when its step changes
 -- per kind: rough = roughness factor at full wetness (times the original), dark = base colour factor at full wetness (times the original), order = who is edited first
 M.KINDS = {
