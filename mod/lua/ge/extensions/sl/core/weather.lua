@@ -159,11 +159,12 @@ function M.distanceScale(d, from, to)
   return t * t * (3 - 2 * t)
 end
 -- is a puddle's plane to be made / dropped / left as it is, given its drawn size 0..1 (a plane is dropped under 0.04 but made only from 0.08: at the edge of the view a puddle
--- does not flicker between the two) and how many planes stand against the cap
-M.DROP_BELOW, M.MAKE_FROM, M.MAX_PLANES = 0.04, 0.08, 60
-function M.planeAction(has, size, live)
-  if has then return size < M.DROP_BELOW and 'drop' or 'keep' end
-  return (size >= M.MAKE_FROM and live < M.MAX_PLANES) and 'make' or 'none'
+-- does not flicker between the two) and its rank by distance from the player (1 = nearest): planes go to the nearest MAX_PLANES puddles, and one that has a plane keeps it until
+-- it is MARGIN places further out (so two puddles at the boundary do not swap planes). At most MAX_PLANES + MARGIN planes stand.
+M.DROP_BELOW, M.MAKE_FROM, M.MAX_PLANES, M.RANK_MARGIN = 0.04, 0.08, 60, 10
+function M.planeAction(has, size, rank)
+  if has then return (size < M.DROP_BELOW or rank > M.MAX_PLANES + M.RANK_MARGIN) and 'drop' or 'keep' end
+  return (size >= M.MAKE_FROM and rank <= M.MAX_PLANES) and 'make' or 'none'
 end
 M.FADE_SECONDS = 20      -- a puddle takes this long to come to full size (it starts small and grows)
 

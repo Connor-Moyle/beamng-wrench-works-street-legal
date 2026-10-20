@@ -1714,9 +1714,10 @@ do
     and pr.mist(0.3, 20) == 0 and pr.mist(1, 3) == 0 and pr.mist(1, 26) == 1 and pr.mist(0.65, 26) > 0 and pr.mist(0.65, 26) < 1)
   do -- a puddle's plane: dropped under 0.04, made only from 0.08 (no flicker at the edge of view), capped
     local w = require('sl/core/weather')
-    check('planeAction: a standing plane is kept between 0.04 and 0.08 and dropped under 0.04; a missing one is made from 0.08 only, and not at the cap',
-      w.planeAction(true, 0.06, 0) == 'keep' and w.planeAction(true, 0.03, 0) == 'drop' and w.planeAction(false, 0.06, 0) == 'none' and w.planeAction(false, 0.08, 0) == 'make'
-      and w.planeAction(false, 1, w.MAX_PLANES) == 'none' and w.planeAction(false, 1, w.MAX_PLANES - 1) == 'make' and w.planeAction(true, 1, w.MAX_PLANES) == 'keep')
+    check('planeAction: a standing plane is kept between 0.04 and 0.08 and dropped under 0.04; a missing one is made from 0.08 only',
+      w.planeAction(true, 0.06, 1) == 'keep' and w.planeAction(true, 0.03, 1) == 'drop' and w.planeAction(false, 0.06, 1) == 'none' and w.planeAction(false, 0.08, 1) == 'make')
+    check('planeAction: only the nearest 60 get a plane; one that has it keeps it until 10 places further out (no swap at the boundary)',
+      w.planeAction(false, 1, 60) == 'make' and w.planeAction(false, 1, 61) == 'none' and w.planeAction(true, 1, 61) == 'keep' and w.planeAction(true, 1, 70) == 'keep' and w.planeAction(true, 1, 71) == 'drop')
   end
   local fx = require('sl/puddlefx')
   local dae = fx.gridDae({ 0, 0.01, 0, 0, 0, 0, 0, 0.02, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.05 })
