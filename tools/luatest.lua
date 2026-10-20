@@ -1739,6 +1739,36 @@ do
   check('drag: none dry or when standing, grows with speed and depth, capped', pr.drag(20, 0) == 0 and pr.drag(0.5, 1) == 0 and pr.drag(20, 1) > pr.drag(10, 1) and pr.drag(20, 1) > pr.drag(20, 0.5) and pr.drag(200, 1) == 500)
   check('spray and mist: spray only in water and with speed; mist only on a wet road (> 0.3) and with speed', pr.splash(20, 0) == 0 and pr.splash(20, 1) == 1 and pr.splash(5, 1) < pr.splash(15, 1)
     and pr.mist(0.3, 20) == 0 and pr.mist(1, 3) == 0 and pr.mist(1, 26) == 1 and pr.mist(0.65, 26) > 0 and pr.mist(0.65, 26) < 1)
+  do -- slPuddles with and without Car Surface FX's tyre module owning the water's grip
+    local sv = { obj = rawget(_G, 'obj'), wheels = rawget(_G, 'wheels'), v = rawget(_G, 'v'), slCar = rawget(_G, 'slCar'), slPuddles = rawget(_G, 'slPuddles'), tyres = rawget(_G, 'carSurfaceFxTyres') }
+    local fric, water = {}, {}
+    _G.slCar, _G.slPuddles = nil, nil
+    _G.obj = { getVelocity = function() return { length = function() return 40 end, x = 40, y = 0 } end, getPosition = function() return setmetatable({ x = 0, y = 0, z = 0 }, { __add = function(l, r) return { x = l.x + r.x, y = l.y + r.y, z = l.z + r.z } end }) end,
+      getNodePosition = function() return { x = 10, y = 20, z = 0 } end, getId = function() return 1 end, queueGameEngineLua = function() end,
+      applyForceVectorTime = function() end, setNodeFrictionSlidingCoefs = function(_, id, a, b) fric[#fric + 1] = a end }
+    _G.wheels = { wheels = { [0] = { node1 = 1, treadNodes = { 5 } } } }
+    _G.v = { data = { nodes = { [5] = { frictionCoef = 1 } } } }
+    package.loaded['slPuddles'] = nil
+    local sp = require('slPuddles')
+    local function run() fric, water = {}, {} sp.setPuddles({ { x = 10, y = 20, sx = 4, sy = 2, dx = 1, dy = 0, k = 1 } }, 0, { physics = true }) sp.updateGFX(0.06) end
+    _G.carSurfaceFxTyres = nil
+    run()
+    check('slPuddles: without the tyre module it scales the friction itself', fric[1] and fric[1] < 0.3 and sp.wheelFactor(0) < 0.3)
+    _G.carSurfaceFxTyres = { active = function() return true end, setWheelWater = function(w, d) water[#water + 1] = { w, d } return true end }
+    package.loaded['slPuddles'] = nil sp = require('slPuddles')
+    run()
+    check('slPuddles: with the tyre module on it is told the depth per wheel and writes no friction', #fric == 0 and water[1] and water[1][1] == 0 and water[1][2] == 1 and sp.wheelFactor(0) == 1)
+    _G.carSurfaceFxTyres.active = function() return false end
+    package.loaded['slPuddles'] = nil sp = require('slPuddles')
+    run()
+    check('slPuddles: the tyre module present but off changes nothing', #water == 0 and fric[1] and fric[1] < 0.3)
+    _G.carSurfaceFxTyres.active = function() error('boom') end
+    package.loaded['slPuddles'] = nil sp = require('slPuddles')
+    run()
+    check('slPuddles: an error in the tyre module falls back to the own friction', fric[1] and fric[1] < 0.3)
+    _G.obj, _G.wheels, _G.v, _G.slCar, _G.slPuddles, _G.carSurfaceFxTyres = sv.obj, sv.wheels, sv.v, sv.slCar, sv.slPuddles, sv.tyres
+    package.loaded['slPuddles'] = nil
+  end
   local fx = require('sl/puddlefx')
   local dae = fx.gridDae({ 0, 0.01, 0, 0, 0, 0, 0, 0.02, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.05 })
   check('the puddle grid: 5 x 5 corners on two skins, 64 triangles, uv for each corner, ground heights in', dae:find('count="150"', 1, true) and dae:find('count="50"', 1, true) and dae:find('<triangles material="sl_puddle" count="64"', 1, true)
