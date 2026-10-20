@@ -11,7 +11,8 @@ local rules = require('sl/core/wetworld')
 local TAG = 'sl_wetworld'
 
 M.MAX_MATERIALS = 400          -- at most this many materials are touched
-M.TICK = 0.1                   -- seconds between batches
+M.TICK = 0.3                   -- seconds between batches
+M.MAX_BATCH = 3                -- every edit reloads a material (a shader recompile on the GPU): at most about 10 a second, so 300 materials take 30 s, not a few
 M.BUDGET_MS = 3                -- what a batch may cost
 
 local plan                     -- { { name, kind } } in edit order, or false when the level has none
@@ -193,7 +194,7 @@ function M.update(dt, wet)
   timer = timer + (dt or 0)
   if timer < M.TICK then return end
   timer = 0
-  local did = batch(rules.batch(msPerEdit, M.BUDGET_MS, 8), rules.materialStep(current))
+  local did = batch(rules.batch(msPerEdit, M.BUDGET_MS, M.MAX_BATCH), rules.materialStep(current))
   if did > 0 then stats.batches = stats.batches + 1 end
 end
 
