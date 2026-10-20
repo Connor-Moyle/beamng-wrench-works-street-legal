@@ -93,6 +93,7 @@ local function applyTerrain(tier)
     end)
   end
   log('I', TAG, string.format('terrain layers tier %d: %d layers, %.0f ms', tier, #layers, (os.clock() - t0) * 1000))
+  gate.reloaded(os.clock())                       -- (a terrain material swap repacks the terrain cache: the puddle planes wait for it too)
 end
 
 -- one material to a step: the original text of its roughness and colour factors is taken the first time, the wet values come from it, the material is reloaded once
