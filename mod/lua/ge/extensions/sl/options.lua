@@ -220,7 +220,8 @@ local function loadGlobal()
   if global then return global end
   local data = jsonReadFile(FILE)
   global = type(data) == 'table' and data or {}
-  if M.migrate052(global) then jsonWriteFile(FILE, global, true) end
+  -- (the flag is set in memory always, so the next normal save carries it; the file is rewritten here only when it was read as a table: a missing, locked or corrupt file is never overwritten by a migration)
+  if M.migrate052(global) and type(data) == 'table' then jsonWriteFile(FILE, global, true) end
   return global
 end
 

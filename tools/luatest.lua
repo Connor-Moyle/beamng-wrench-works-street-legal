@@ -2992,4 +2992,24 @@ do -- 0.5.2: a saved Wet tarmac "on" is reset to off once
   check('wet tarmac migration: nothing saved stays unset (the default applies), and a saved off stays off', b.slWetTarmac == nil and b.slWetTarmacReset052 == true and O.migrate052({ slWetTarmac = false }) == true)
 end
 
+do -- the migration never overwrites a file it could not read
+  local sv = { r = rawget(_G, 'jsonReadFile'), w = rawget(_G, 'jsonWriteFile') }
+  local reads, writes = nil, 0
+  _G.jsonReadFile = function() return reads end
+  _G.jsonWriteFile = function() writes = writes + 1 return true end
+  local function fresh() package.loaded['sl/options'] = nil return require('sl/options') end
+  reads = nil
+  local O = fresh()
+  O.get('slWetTarmac')
+  check('wet tarmac migration: a file that could not be read (nil) is not overwritten', writes == 0 and O.get('slWetTarmac') == false)
+  O.set('slPerf', O.get('slPerf'))
+  check('wet tarmac migration: the next normal save carries the flag, so a later "on" is kept', writes == 1)
+  reads = { slWetTarmac = true, slClock = false }
+  O = fresh()
+  O.get('slWetTarmac')
+  check('wet tarmac migration: a readable file with on is reset and rewritten with the other options kept', writes == 2 and O.get('slWetTarmac') == false)
+  _G.jsonReadFile, _G.jsonWriteFile = sv.r, sv.w
+  package.loaded['sl/options'] = nil
+end
+
 print(string.format('lua tests passed: %d checks', passed))
