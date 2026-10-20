@@ -82,6 +82,7 @@ local function groundSpot(x, y, zTop)
     local zz = groundZ(x + d[1], y + d[2], zTop)
     if not zz or math.abs(zz - z) > 0.25 then stats.notFlat = stats.notFlat + 1 return nil end
   end
+  if not gate.terrainLookupsOk(os.clock()) then stats.terrainHold = (stats.terrainHold or 0) + 1 return nil end      -- (a terrain material swap is repacking the terrain cache: no terrain material lookups for a minute)
   local t = core_terrain and core_terrain.getTerrain and core_terrain.getTerrain()
   if not t then return nil end
   local ok, idx = pcall(function() return t:getMaterialIdxWs(vec3(x, y, z)) end)
