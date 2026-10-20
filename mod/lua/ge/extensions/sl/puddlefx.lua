@@ -9,6 +9,7 @@ local M = {}
 
 local rules = require('sl/core/weather')
 local pr = require('sl_puddles')
+local gate = require('sl/core/gpugate')
 
 local TAG = 'sl_puddlefx'
 M.flags = { proc = true, warp = true, splash = true, mist = true, physics = true, trail = true, ripples = true, shimmer = true }
@@ -397,14 +398,21 @@ end
 local function updateMeshes(wet, intensity)
   local pos = playerPos()
   local tStart = os.clock()
+  local may = gate.planesMayChange(os.clock())
   local made = 0                                  -- (two planes are built per pass, four passes a second: each is 25 rays and a file; their time is measured)
   for _, p in ipairs(puddles) do
     local f = rules.puddleAlpha(wet, os.clock() - p.born) / 0.8
     -- size: it grows while it is new (from 15 %) and with the wetness, and with the distance: out at the edge of the view it is nothing, so it never pops in
     local g = pos and rules.distanceScale(math.sqrt((p.x - pos.x) ^ 2 + (p.y - pos.y) ^ 2), M.FADE_FROM, M.FADE_TO) or 1
     local size = f < 0.03 and 0 or (0.15 + 0.85 * f) * g
-    if size < 0.04 then
-      if p.obj and (f < 0.03 or g < 0.03) then dropPuddle(p) end
+    local drop = size < 0.04 and p.obj and (f < 0.03 or g < 0.03)
+    local create = size >= 0.04 and not p.obj and not p.dead
+    local hold = (drop or create) and not may                 -- (the wet world reloaded materials a moment ago: no plane is made or dropped now)
+    if hold then
+      local line = gate.waited('planes', os.clock())
+      if line then log('I', TAG, line) end
+    elseif size < 0.04 then
+      if drop then dropPuddle(p) gate.planesTouched(os.clock()) end
     elseif not p.obj and not p.dead and (made >= 2 or (made > 0 and os.clock() - tStart > 0.006)) then
       -- (next pass: at most two planes, and none once this pass has used 6 ms)
     else
@@ -412,6 +420,7 @@ local function updateMeshes(wet, intensity)
       if p.damp and M.flags.shimmer then k = k * rules.shimmer(os.clock(), p.id or 1, intensity) end      -- (the damp patches breathe with the rain: darker, then lighter)
       if not p.obj and not p.dead then
         made = made + 1
+        gate.planesTouched(os.clock())
         local t0 = os.clock()
         p.obj = makeObject(p)
         stats.makes, stats.makeMs = (stats.makes or 0) + 1, (stats.makeMs or 0) + (os.clock() - t0) * 1000
