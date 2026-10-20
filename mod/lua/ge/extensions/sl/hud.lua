@@ -23,8 +23,17 @@ end
 
 local function dashboardOn() return sl_options ~= nil and sl_options.get ~= nil and sl_options.get('slDashboard') == true end
 
+-- SLRR's own art (copied in by the player: tools/slrr_ui.py) is not part of the released pack: the UI asks for it only when the file is there, so a pack without it logs no 404s
+local artHere
+local function slrrArt()
+  if artHere == nil then artHere = FS ~= nil and FS.fileExists ~= nil and FS:fileExists('/ui/modModules/slHud/slrr/osd.png') == true end
+  return artHere
+end
+M.slrrArt = slrrArt
+
 function M.getSettings()
   if not settings then load() end
+  settings.art = slrrArt()
   settings.enabled = dashboardOn()          -- (the option decides: an old hud.json 'enabled' no longer does)
   settings.textScale = require('sl/core/strings').textScale(sl_options and sl_options.get and sl_options.get('slTextScale'))      -- (#51)
   settings.colorBlind = sl_options ~= nil and sl_options.get ~= nil and sl_options.get('slColorBlind') == true

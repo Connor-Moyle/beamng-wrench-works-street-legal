@@ -71,6 +71,7 @@ local function snapshot()
     weather = sl_weather and sl_weather.forecast and sl_weather.forecast() or nil,
     nextGarage = nextGarage and { name = nextGarage.garage.name, canMove = nextGarage.canMove, why = nextGarage.why } or nil,
     roc = progression.rocOpen(s) and sl_career.has('roc'), hasRoc = sl_career.has('roc'), mapName = sl_career.mapName(),
+    art = sl_hud ~= nil and sl_hud.slrrArt ~= nil and sl_hud.slrrArt() or false,
     has = { clubs = sl_career.has('clubs'), crews = sl_career.has('crews'), classifieds = sl_career.has('classifieds'),
       races = require('sl/core/features').on('races'), jobs = require('sl/core/features').on('jobs'), market = require('sl/core/features').on('market'),
       bank = require('sl/core/features').on('bank'), maps = require('sl/core/features').on('maps'), hudpill = require('sl/core/features').on('hudpill') },      -- (the parts that are switched off lose their apps)
@@ -303,6 +304,7 @@ function M.catalog()
   local car = sl_fleet.currentCar() or (s.activeCar and (function() for _, c in ipairs(s.cars) do if c.id == s.activeCar then return c end end end)())
   local veh = car and sl_fleet.vehicleOf(car.id)
   if not veh then return answer(false, strings.t('phone.bring_a_car_of_yours')) end
+  if not (slrr_garage and slrr_garage.enterWith) then return answer(false, strings.t('career.not_now')) end
   local ok, why = slrr_garage.enterWith(veh:getID(), 'catalog')
   if not ok then answer(false, why or strings.t('career.not_now')) end
 end
