@@ -126,6 +126,21 @@ function M.refusal(price, money, carMoving)
   return nil
 end
 
+-- the tyre parts a Wrench Works parts tree has fitted, as one text ('' = none fitted: bare rims): the same text means the same tyres, so a part swapped in the garage is a new set
+-- whatever wear was saved for the old one
+function M.signature(partsTree)
+  local out = {}
+  local function walk(node)
+    local chosen = node.chosenPartName ~= nil and node.chosenPartName ~= ''
+    local path = node.path and tostring(node.path):lower()
+    if path and chosen and (path:find('tire', 1, true) or path:find('tyre', 1, true)) then out[#out + 1] = path .. '=' .. tostring(node.chosenPartName) end
+    if node.path == nil or chosen then for _, c in pairs(node.children or {}) do walk(c) end end
+  end
+  walk(type(partsTree) == 'table' and partsTree or {})
+  table.sort(out)
+  return table.concat(out, ';')
+end
+
 -- a change of the whole car's tyres: compound id, where ('garage' | 'track'), the set now on { compound, frac } (frac = the worst tyre's tread), money, whether the car is moving
 -- -> { ok, price, parts = { gross, fee, credit } } or { ok = false, why = text }
 function M.plan(compound, where, current, money, moving)

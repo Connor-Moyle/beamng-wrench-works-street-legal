@@ -2949,6 +2949,22 @@ do
   _G.getObjectByID = function() return { getVelocity = function() return { length = function() return 0 end } end } end
 
   car.tyres = { compound = 'slick' }
+  do -- fitting other tyre parts in the garage makes a new set
+    local function tree(tire) return { children = { { path = '/body/', chosenPartName = 'body', children = { { path = '/wheels/tire_F/', chosenPartName = tire, children = {} }, { path = '/wheels/rim_F/', chosenPartName = 'rim' } } } } } end
+    local sa, sb = T.signature(tree('tire_a')), T.signature(tree('tire_b'))
+    check('tyrecare: the tyre signature names the fitted tyre parts only, "" for bare rims', sa:find('tire_a', 1, true) and not sa:find('rim', 1, true) and sa ~= sb and T.signature({ children = { { path = '/wheels/rim_F/', chosenPartName = 'rim' } } }) == '' and T.signature(nil) == '')
+    local c2 = { id = 1, tyres = { compound = 'slick', blob = { [0] = { h = 1 } } } }
+    state.cars[1] = c2
+    tc.onWrenchWorksDriveOut(77, { partsTree = tree('tire_a') })
+    check('tyrecare: a car saved before signatures keeps its wear when it first drives out, and gets its signature', c2.tyres.blob and c2.tyres.compound == 'slick' and c2.tyres.sig == sa)
+    tc.onWrenchWorksDriveOut(77, { partsTree = tree('tire_a') })
+    check('tyrecare: the same tyres at the next drive-out keep the wear', c2.tyres.blob and c2.tyres.compound == 'slick')
+    tc.onWrenchWorksDriveOut(77, { partsTree = tree('tire_b') })
+    check('tyrecare: other tyre parts fitted: a new set, the old wear and compound are dropped', c2.tyres.blob == nil and c2.tyres.compound == nil and c2.tyres.sig == sb)
+    tc.onWrenchWorksDriveOut(77, { partsTree = { children = {} } })
+    check('tyrecare: tyres taken off leave bare rims with no wear', c2.tyres.sig == '' and c2.tyres.blob == nil)
+    state.cars[1] = car
+  end
   check('tyrecare: the wear is snapshotted into the car record', tc.save(77, car) == true and car.tyres.blob[0].h == 4 and car.tyres.compound == 'slick')
   calls = {}
   tc.restore(78, car)
