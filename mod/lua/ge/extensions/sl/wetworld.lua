@@ -8,10 +8,12 @@
 local M = {}
 
 local rules = require('sl/core/wetworld')
+local gate = require('sl/core/gpugate')
 local TAG = 'sl_wetworld'
 
 M.MAX_MATERIALS = 400          -- at most this many materials are touched
-M.TICK = 0.1                   -- seconds between batches
+M.TICK = 0.3                   -- seconds between batches
+M.MAX_BATCH = 3                -- every edit reloads a material (a shader recompile on the GPU): at most about 10 a second, so 300 materials take 30 s, not a few
 M.BUDGET_MS = 3                -- what a batch may cost
 
 local plan                     -- { { name, kind } } in edit order, or false when the level has none
@@ -91,6 +93,7 @@ local function applyTerrain(tier)
     end)
   end
   log('I', TAG, string.format('terrain layers tier %d: %d layers, %.0f ms', tier, #layers, (os.clock() - t0) * 1000))
+  gate.reloaded(os.clock())                       -- (a terrain material swap repacks the terrain cache: the puddle planes wait for it too)
 end
 
 -- one material to a step: the original text of its roughness and colour factors is taken the first time, the wet values come from it, the material is reloaded once
@@ -187,14 +190,19 @@ function M.update(dt, wet)
     current = target
     log('I', TAG, string.format('wet world heads for step %d of %d (wetness %.2f)', current, rules.STEPS, wet or 0))
   end
-  local wantTerrain = (on and option('slWetTarmac', true) == true) and rules.terrainTier(current) or 0      -- (also when the setting is switched while it rains)
+  local wantTerrain = (on and option('slWetTarmac', false) == true) and rules.terrainTier(current) or 0      -- (also when the setting is switched while it rains)
   if wantTerrain ~= terrWet then applyTerrain(wantTerrain) end
   if not plan then return end
   timer = timer + (dt or 0)
   if timer < M.TICK then return end
+  if not gate.wetMayBatch(os.clock()) then          -- (a puddle plane was made a moment ago: the batch waits, the timer stays full so it goes in the first frame that is free)
+    local line = gate.waited('wet', os.clock())
+    if line then log('I', TAG, line) end
+    return
+  end
   timer = 0
-  local did = batch(rules.batch(msPerEdit, M.BUDGET_MS, 8), rules.materialStep(current))
-  if did > 0 then stats.batches = stats.batches + 1 end
+  local did = batch(rules.batch(msPerEdit, M.BUDGET_MS, M.MAX_BATCH), rules.materialStep(current))
+  if did > 0 then stats.batches = stats.batches + 1 gate.reloaded(os.clock()) end
 end
 
 -- every material back to its original text at once (the level ends, the career stops, or a test)

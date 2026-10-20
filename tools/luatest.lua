@@ -421,7 +421,7 @@ do
     check('a colour factor given as the word White is read (it was skipped: walls and roads stayed dry-looking)', ww.parseColor('White')[1] == 1 and #ww.parseColor('White') == 4 and ww.parseColor('0.5 0.5 0.5 1')[1] == 0.5 and ww.parseColor('nonsense') == nil)
   check('materials are edited in three levels', ww.materialStep(0) == 0 and ww.materialStep(2) == 0 and ww.materialStep(3) == 3 and ww.materialStep(5) == 3 and ww.materialStep(6) == 6)
   end
-  check('wet terrain tiers: dry 0, light 1, rain 2, heavy 3, in order over the steps', ww.terrainTier(0) == 0 and ww.terrainTier(1) == 0 and ww.terrainTier(2) == 1 and ww.terrainTier(4) == 2 and ww.terrainTier(ww.STEPS) == 3 and ww.terrainTier(nil) == 0)
+  check('wet terrain: dry 0, one wet tier (2) from step 2 on, so a rain swaps the terrain once', ww.terrainTier(0) == 0 and ww.terrainTier(1) == 0 and ww.terrainTier(2) == 2 and ww.terrainTier(4) == 2 and ww.terrainTier(ww.STEPS) == 2 and ww.terrainTier(nil) == 0)
   check('wet: roads are asphalt first, cars and tunnels and lights are left alone', ww.classify('road_asphalt_01') == 'asphalt' and ww.classify('sidewalk_concrete') == 'concrete' and ww.classify('palm_leaves') == 'foliage'
     and ww.classify('tunnel_wall') == nil and ww.classify('street_lamp_glass') == nil and ww.classify('road_x', '/vehicles/pickup/x.json') == nil and ww.classify('sl_puddle') == nil and ww.classify('') == nil)
   check('wet: the step follows the wetness and the strength', ww.step(0, 1) == 0 and ww.step(1, 1) == ww.STEPS and ww.step(1, 0.5) == ww.STEPS / 2 and ww.step(1, 0) == 0)
@@ -432,7 +432,7 @@ do
   check('wet: colour text round trips and the alpha is untouched', c and #c == 4 and ww.formatColor(c, 0.5) == '0.4000 0.3500 0.3000 1.0000' and ww.parseColor('x') == nil)
   local plan = ww.plan({ { name = 'grass_a' }, { name = 'road_b' }, { name = 'tunnel_road' }, { name = 'wall_c' }, { name = 'road_a' }, { name = 'ui_x' } }, 3)
   check('wet: the plan is road first, the rest by kind, capped, with the skipped left out', #plan == 3 and plan[1].name == 'road_a' and plan[2].name == 'road_b' and plan[3].name == 'wall_c')
-  check('wet: the batch is small when edits are slow and never above the maximum', ww.batch(nil) == 2 and ww.batch(10) == 1 and ww.batch(0.1, 3, 8) == 8 and ww.batch(1, 3, 8) == 3)
+  check('wet: the batch is small when edits are slow and never above the maximum', ww.batch(nil) == 2 and ww.batch(nil, 3, 1) == 1 and ww.batch(10) == 1 and ww.batch(0.1, 3, 8) == 8 and ww.batch(1, 3, 8) == 3)
   -- the kinds of standing water: the odds add to one, every kind is sane, the long ones lie along the road, and over many draws every kind comes
   local total = 0
   for _, o in ipairs(wx.POOL_ODDS) do total = total + o[2] end
@@ -1739,6 +1739,13 @@ do
   check('drag: none dry or when standing, grows with speed and depth, capped', pr.drag(20, 0) == 0 and pr.drag(0.5, 1) == 0 and pr.drag(20, 1) > pr.drag(10, 1) and pr.drag(20, 1) > pr.drag(20, 0.5) and pr.drag(200, 1) == 500)
   check('spray and mist: spray only in water and with speed; mist only on a wet road (> 0.3) and with speed', pr.splash(20, 0) == 0 and pr.splash(20, 1) == 1 and pr.splash(5, 1) < pr.splash(15, 1)
     and pr.mist(0.3, 20) == 0 and pr.mist(1, 3) == 0 and pr.mist(1, 26) == 1 and pr.mist(0.65, 26) > 0 and pr.mist(0.65, 26) < 1)
+  do -- a puddle's plane: dropped under 0.04, made only from 0.08 (no flicker at the edge of view), capped
+    local w = require('sl/core/weather')
+    check('planeAction: a standing plane is kept between 0.04 and 0.08 and dropped under 0.04; a missing one is made from 0.08 only',
+      w.planeAction(true, 0.06, 1) == 'keep' and w.planeAction(true, 0.03, 1) == 'drop' and w.planeAction(false, 0.06, 1) == 'none' and w.planeAction(false, 0.08, 1) == 'make')
+    check('planeAction: only the nearest 60 get a plane; one that has it keeps it until 10 places further out (no swap at the boundary)',
+      w.planeAction(false, 1, 60) == 'make' and w.planeAction(false, 1, 61) == 'none' and w.planeAction(true, 1, 61) == 'keep' and w.planeAction(true, 1, 70) == 'keep' and w.planeAction(true, 1, 71) == 'drop')
+  end
   do -- slPuddles with and without Car Surface FX's tyre module owning the water's grip
     local sv = { obj = rawget(_G, 'obj'), wheels = rawget(_G, 'wheels'), v = rawget(_G, 'v'), slCar = rawget(_G, 'slCar'), slPuddles = rawget(_G, 'slPuddles'), tyres = rawget(_G, 'carSurfaceFxTyres') }
     local fric, water = {}, {}
@@ -2978,6 +2985,63 @@ do
   check('tyrecare: an error inside the tyre module never reaches the career', tc.info(car, 77) == nil)
   _G.sl_career, _G.sl_fleet, _G.carSurfaceFx_tyres, _G.guihooks, _G.extensions, _G.getObjectByID, _G.ui_message = saved.sl_career, saved.sl_fleet, saved.carSurfaceFx_tyres, saved.guihooks, saved.extensions, saved.getObjectByID, saved.ui_message
   package.loaded['sl/tyrecare'] = nil
+end
+
+do -- the GPU gate between the wet world's reloads and the puddle planes
+  local G = require('sl/core/gpugate')
+  G.reset()
+  check('gate: with nothing happening both sides may work', G.planesMayChange(100) and G.wetMayBatch(100))
+  G.reloaded(100)
+  check('gate: after a wet world batch the planes wait 1 s, then may go', not G.planesMayChange(100.5) and not G.planesMayChange(100.99) and G.planesMayChange(101) and G.wetMayBatch(100.1))
+  G.planesTouched(200)
+  check('gate: after a plane was made the wet world waits 0.5 s, then may go', not G.wetMayBatch(200.2) and G.wetMayBatch(200.5))
+  G.reset()
+  local l1 = G.waited('wet', 300)
+  local l2 = G.waited('wet', 301)
+  local l3 = G.waited('planes', 301)
+  local l4 = G.waited('wet', 306)
+  G.reset()
+  G.reloaded(0)
+  for t = 0.2, 11, 0.2 do G.waited('planes', t) end
+  check('gate: planes that waited over 10 s without a plane made get a window: the wet world pauses 1.5 s, then goes on', not G.wetMayBatch(11) and not G.wetMayBatch(12.4) and G.wetMayBatch(12.6) and G.planesMayChange(12.6))
+  G.reset()
+  G.waited('planes', 0) G.waited('planes', 5) G.planesTouched(6) G.waited('planes', 12)
+  check('gate: a plane made, or a pause in the waiting, starts a new spell, so no window opens', G.wetMayBatch(13))
+  G.reset()
+  check('gate: a wait is logged once per 5 s per side, with the count since, and the sides are separate', l1 and l1:find('1 time') and l2 == nil and l3 and l3:find('planes waited') and l4 and l4:find('2 time'))
+  G.reset()
+end
+
+do -- 0.5.2: a saved Wet tarmac "on" is reset to off once
+  local O = require('sl/options')
+  local a = { slWetTarmac = true }
+  local changed = O.migrate052(a)
+  check('wet tarmac migration: a saved on becomes off, once, and the flag is stored', changed and a.slWetTarmac == false and a.slWetTarmacReset052 == true)
+  a.slWetTarmac = true
+  check('wet tarmac migration: a player who turned it back on afterwards keeps it', O.migrate052(a) == false and a.slWetTarmac == true)
+  local b = {}
+  O.migrate052(b)
+  check('wet tarmac migration: nothing saved stays unset (the default applies), and a saved off stays off', b.slWetTarmac == nil and b.slWetTarmacReset052 == true and O.migrate052({ slWetTarmac = false }) == true)
+end
+
+do -- the migration never overwrites a file it could not read
+  local sv = { r = rawget(_G, 'jsonReadFile'), w = rawget(_G, 'jsonWriteFile') }
+  local reads, writes = nil, 0
+  _G.jsonReadFile = function() return reads end
+  _G.jsonWriteFile = function() writes = writes + 1 return true end
+  local function fresh() package.loaded['sl/options'] = nil return require('sl/options') end
+  reads = nil
+  local O = fresh()
+  O.get('slWetTarmac')
+  check('wet tarmac migration: a file that could not be read (nil) is not overwritten', writes == 0 and O.get('slWetTarmac') == false)
+  O.set('slPerf', O.get('slPerf'))
+  check('wet tarmac migration: the next normal save carries the flag, so a later "on" is kept', writes == 1)
+  reads = { slWetTarmac = true, slClock = false }
+  O = fresh()
+  O.get('slWetTarmac')
+  check('wet tarmac migration: a readable file with on is reset and rewritten with the other options kept', writes == 2 and O.get('slWetTarmac') == false)
+  _G.jsonReadFile, _G.jsonWriteFile = sv.r, sv.w
+  package.loaded['sl/options'] = nil
 end
 
 print(string.format('lua tests passed: %d checks', passed))

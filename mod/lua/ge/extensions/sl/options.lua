@@ -57,8 +57,8 @@ M.defs = {
     tab = 'Clock and weather', group = 'Rain on the ground', presets = { performance = 0.25, balanced = 0.4, quality = 0.5, max = 0.6 }, desc = strings.t('options.how_high_the_water_a') },
   { key = 'slWetWorld', title = strings.t('options.wet_world'), type = 'bool', default = true, tab = 'Clock and weather', group = 'Rain on the ground',
     presets = { performance = false, balanced = true, quality = true, max = true }, desc = strings.t('options.in_the_rain_roads_walls_and') },
-  { key = 'slWetTarmac', title = strings.t('options.wet_tarmac'), type = 'bool', default = true, tab = 'Clock and weather', group = 'Rain on the ground',
-    presets = { performance = false, balanced = true, quality = true, max = true }, desc = strings.t('options.wet_tarmac_text') },
+  { key = 'slWetTarmac', title = strings.t('options.wet_tarmac'), type = 'bool', default = false, tab = 'Clock and weather', group = 'Rain on the ground',
+    presets = { performance = false, balanced = false, quality = false, max = false }, desc = strings.t('options.wet_tarmac_text') },
   { key = 'slWetStrength', title = strings.t('options.wet_world_strength'), type = 'range', min = 0, max = 1, step = 0.05, scale = 100, unit = '%', default = 0.8,
     tab = 'Clock and weather', group = 'Rain on the ground', presets = { quality = 0.9, max = 1 }, desc = strings.t('options.how_dark_and_shiny_the') },
   { key = 'slRainBox', title = strings.t('options.rain_around_you'), type = 'range', min = 40, max = 150, step = 10, unit = 'm', default = 70,
@@ -208,10 +208,20 @@ local function sanitize(d, v)
   return v and math.max(d.min, math.min(d.max, v)) or d.default
 end
 
+-- 0.5.2: Wet tarmac (a terrain texture swap) is suspected of a GPU loss on BeamNG 0.40, so it is off by default; a saved "on" is reset to off once (a player who turns it back on keeps it)
+function M.migrate052(data)
+  if data.slWetTarmacReset052 then return false end
+  data.slWetTarmacReset052 = true
+  if data.slWetTarmac == true then data.slWetTarmac = false log('I', 'sl_options', 'Wet tarmac reset to off (0.5.2); it can be turned on again in the Mods menu') end
+  return true
+end
+
 local function loadGlobal()
   if global then return global end
   local data = jsonReadFile(FILE)
   global = type(data) == 'table' and data or {}
+  -- (the flag is set in memory always, so the next normal save carries it; the file is rewritten here only when it was read as a table: a missing, locked or corrupt file is never overwritten by a migration)
+  if M.migrate052(global) and type(data) == 'table' then jsonWriteFile(FILE, global, true) end
   return global
 end
 
