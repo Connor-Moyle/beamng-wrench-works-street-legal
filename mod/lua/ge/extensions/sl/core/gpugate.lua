@@ -19,8 +19,9 @@ function M.reset() lastTerrain = -1e9 lastReload, lastPlanes, lastLog, waits, wa
 function M.reloaded(now) lastReload = now end
 function M.terrainSwapped(now) lastTerrain = now end
 function M.terrainLookupsOk(now) return now - lastTerrain >= M.TERRAIN_HOLD end
--- Car Surface FX's terrain hollows ask this before each updateGrid flush, and tell planesTouched after it so the wet world waits too
+-- Car Surface FX's terrain hollows ask this before each updateGrid flush, and tell terrainEdited after it so the wet world waits too
 function M.terrainEditOk(now) return now - lastTerrain >= M.TERRAIN_QUIET and now - lastReload >= M.WET_HOLD end
+function M.terrainEdited(now) lastPlanes = now end      -- (not planesTouched: that clears the planes' starving timer)
 function M.planesTouched(now) lastPlanes, waitSince = now, nil end
 function M.planesMayChange(now) return now - lastReload >= M.WET_HOLD end
 function M.wetMayBatch(now)

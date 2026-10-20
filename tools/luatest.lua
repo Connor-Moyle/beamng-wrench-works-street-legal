@@ -3046,6 +3046,7 @@ do -- the GPU gate between the wet world's reloads and the puddle planes
   check('gate: a plane made, or a pause in the waiting, starts a new spell, so no window opens', G.wetMayBatch(13))
   G.reset()
   check('gate: terrain height edits wait 10 s after a swap and 1 s after a wet reload', (function() G.reset() G.terrainSwapped(100) local a = not G.terrainEditOk(105) and G.terrainEditOk(110) G.reloaded(200) local b = a and not G.terrainEditOk(200.5) and G.terrainEditOk(201) G.reset() return b end)())
+  check('gate: a terrain edit holds the wet world for 0.5 s but does not clear a planes wait', (function() G.reset() G.waited('planes', 0) G.waited('planes', 6) G.waited('planes', 11) G.terrainEdited(11.2) local held = not G.wetMayBatch(11.4) local ok = G.wetMayBatch(11.8) G.reset() return held and ok end)())
   check('gate: terrain material lookups are held for 60 s after a terrain swap, and free before one', G.terrainLookupsOk(5) and (function() G.terrainSwapped(100) return not G.terrainLookupsOk(159) and G.terrainLookupsOk(160) end)())
   G.reset()
   check('gate: a wait is logged once per 5 s per side, with the count since, and the sides are separate', l1 and l1:find('1 time') and l2 == nil and l3 and l3:find('planes waited') and l4 and l4:find('2 time'))
