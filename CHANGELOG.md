@@ -1,5 +1,10 @@
 # Changelog: Wrench Works: Street Legal (the career)
 
+## 0.6.0 (unreleased)
+
+### Changes
+- **Wet tarmac:** the road darkening now waits for puddles (a 60-second hold); with it, a heavy-rain test with wet tarmac on no longer crashed. Still off by default.
+
 ## 0.5.2 (needs Wrench Works 1.8.0)
 
 Hotfix for 0.5.1, for BeamNG 0.40.
