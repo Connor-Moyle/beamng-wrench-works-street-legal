@@ -200,6 +200,17 @@ function M.restore(vid, car)
   return true
 end
 
+-- the car leaves the garage: if its tyre parts are not the ones its wear was saved for, the tyres are a new set (no old blob, no old compound); the parts now fitted are remembered
+function M.onWrenchWorksDriveOut(vid, info)
+  local s = career()
+  local car = s and carById(s, sl_fleet and sl_fleet.carOfVehicle(vid))
+  if not (car and type(info) == 'table' and type(info.partsTree) == 'table') then return end
+  local sig = T.signature(info.partsTree)
+  if car.tyres and car.tyres.sig ~= nil and car.tyres.sig ~= sig then car.tyres = nil end      -- (a save from before this has no signature: kept, not guessed)
+  car.tyres = car.tyres or {}
+  car.tyres.sig = sig
+end
+
 -- a vehicle reset (R) gives the tyres new in the tyre module; the career does not: the wear is put back from the last snapshot
 function M.onVehicleResetted(vid)
   local s = career()
