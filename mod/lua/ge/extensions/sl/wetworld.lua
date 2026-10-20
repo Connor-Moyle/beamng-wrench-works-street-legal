@@ -187,7 +187,7 @@ function M.update(dt, wet)
     current = target
     log('I', TAG, string.format('wet world heads for step %d of %d (wetness %.2f)', current, rules.STEPS, wet or 0))
   end
-  local wantTerrain = (on and option('slWetTarmac', true) == true) and rules.terrainTier(current) or 0      -- (also when the setting is switched while it rains)
+  local wantTerrain = (on and option('slWetTarmac', false) == true) and rules.terrainTier(current) or 0      -- (also when the setting is switched while it rains)
   if wantTerrain ~= terrWet then applyTerrain(wantTerrain) end
   if not plan then return end
   timer = timer + (dt or 0)
