@@ -1,9 +1,17 @@
 # Changelog
 
+## 0.7.1 (needs Wrench Works 1.8.5)
+
+Fix release for 0.7.0.
+
+### Changes
+- **No start warning:** BeamNG 0.40 logged "Please make sure to call setExtensionUnloadMode("gameplay_drag_core", "manual")" at game start; the mod now sets that first.
+- **Phone skins:** in the built 0.7.0 zip both Classic and Slate are listed (seen in the game). The skin reader now logs once if a failure stops it listing skins, instead of failing silently.
+
 ## 0.7.0 (needs Wrench Works 1.8.5)
 
 ### New
-- **Phone skins (new, off by default):** ESC > Mods > Street Legal > Screens and texts > Phone skin. Classic is the default and the phone is unchanged. **Slate** is a modern look of our own (squircle tiles, outline icons, a pill camera island). You can add your own skins as folders in the user folder (`settings/street_legal/phone_skins/<id>/skin.json`); see docs/PHONE_SKINS.md. Offline-tested; not yet seen in the game.
+- **Phone skins (new, off by default):** ESC > Mods > Street Legal > Screens and texts > Phone skin. Classic is the default and the phone is unchanged. **Slate** is a modern look of our own (squircle tiles, outline icons, a pill camera island). You can add your own skins as folders in the user folder (`settings/street_legal/phone_skins/<id>/skin.json`); see docs/PHONE_SKINS.md. Seen in the game (Classic and Slate both listed and applied, back to Classic works; a phone that is already open keeps the old look until you close and reopen it). Not tested: your own skin folders, and a skin from another mod.
 
 - **Street Legal in free roam (new, all off by default):** ESC > Mods > Street Legal > Free roam. A master switch, "Use Street Legal features in free roam", and one switch per feature: Phone (K) with the Maps and Cab apps, Maps, Map pins (shops, garages, car washes and gas stations on the big map; meets are pins only), Weather (with wet roads and puddles, on the game's clock), Cab (free), Car wash (free), and the Dashboard. No career is started or saved, no money is spent or taken, and the career apps, shops and jobs are not part of it. Seen working in the game at Low graphics: the weather (the sky follows the clock and goes back when the switch is turned off), the dashboard (the Dashboard setting in Screens and texts must be on too), the phone (K: only the Map and Cab apps, the clock, no money; it names the map you are on), the Map app (shops, garages, car washes and car meets with their distances, and a route on the road), the free cab (it ends with "That was $0."), the free car wash, and that no career save file is touched. Not yet seen on screen: the pins on the big map (the game was given them, but the big map did not draw any pin in the test).
 
