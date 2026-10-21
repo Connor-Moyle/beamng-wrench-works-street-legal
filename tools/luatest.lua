@@ -3309,7 +3309,7 @@ do
   local Opt = require('sl/options')
   local defs = {}
   for _, d in ipairs(Opt.defs) do defs[d.key] = d end
-  local okDefs = #F.LIST == 32
+  local okDefs = #F.LIST == 33
   local offByDefault = 0
   for _, f in ipairs(F.LIST) do
     local d = defs[f.opt]
@@ -4916,6 +4916,552 @@ do
   _G.sl_career, _G.extensions, _G.guihooks, _G.sl_fleet, _G.getPlayerVehicle, _G.gameplay_missions_missions, _G.gameplay_missions_missionManager, _G.core_jobsystem, _G.ui_message, _G.sl_gridrace =
     old.c, old.e, old.g, old.f, old.pv, old.mi, old.mm, old.cj, old.um, old.gr
   package.loaded['sl/series'] = nil
+  _G.sl_career, _G.extensions, _G.guihooks, _G.sl_fleet, _G.getPlayerVehicle, _G.gameplay_missions_missions, _G.gameplay_missions_missionManager, _G.core_jobsystem, _G.ui_message, _G.sl_gridrace =
+    old.c, old.e, old.g, old.f, old.pv, old.mi, old.mm, old.cj, old.um, old.gr
+  package.loaded['sl/series'] = nil
+end
+
+-- shops: kinds, normalising, markers, stock, prices, checkout (sl/core/shops)
+do
+  local SH = require('sl/core/shops')
+  check('shops: the built-in kinds are there with a theme each', #SH.kinds() >= 9 and SH.type('tyre').theme.accent:match('^#%x%x%x%x%x%x$') and SH.type('exhaust').goods == 'catalog' and SH.type('paint').screen == 'services')
+  local s, why = SH.normalize('nonsense', {})
+  check('shops: an unknown kind is refused with the reason', s == nil and why:find('unknown shop kind', 1, true) ~= nil)
+  s = SH.normalize('tyre', { name = 'Torres on 5th', range = 'torres', hours = { 8, 18 } })
+  check('shops: a tyre shop stocks its range from sl/core/tyres', s.kind == 'tyre' and #s.stock == 8 and s.stock[1].id == 'road' and s.name == 'Torres on 5th' and s.hours[2] == 18)
+  s = SH.normalize('accessories', { name = 'Trim', stock = { { id = 'a', name = 'Plate', price = 19.6 }, { id = 'bad', price = -1 }, { name = 'noid', price = 3 } }, theme = { accent = '#112233', pattern = 'x' } })
+  check('shops: given stock is cleaned (bad lines dropped, prices rounded), the theme can be overridden', #s.stock == 1 and s.stock[1].price == 20 and s.theme.accent == '#112233' and s.theme.pattern == 'x')
+  check('shops: a bad accent colour keeps the own colour of the kind', SH.normalize('tyre', { theme = { accent = 'red' } }).theme.accent == SH.type('tyre').theme.accent)
+  local kind, o = SH.fromMarker({ Kind = 'Exhaust', Name = 'Pipe Dreams', Hours = '9-17', keeper = 'Rosa' })
+  check('shops: a marker names the kind without case, hours as "9-17", a keeper by name', kind == 'exhaust' and o.name == 'Pipe Dreams' and o.hours[1] == 9 and o.hours[2] == 17 and o.keeper.name == 'Rosa')
+  local k2, why2 = SH.fromMarker({ kind = 'bakery' })
+  check('shops: a marker of an unknown kind is refused', k2 == nil and why2:find('bakery', 1, true) ~= nil)
+  check('shops: opening hours, the shop own hours', SH.isOpen({ hours = { 9, 17 } }, 9) and not SH.isOpen({ hours = { 9, 17 } }, 17) and SH.isOpen({}, 3))
+  local item = { id = 'x', price = 100, cond = 0.5 }
+  check('shops: price: base, a used part by condition, rep discount capped at 8%, favour up to 5%',
+    SH.price(item, {}) == 100 and SH.price(item, { wearPriced = true }) == 68 and SH.price({ price = 100 }, { repDiscount = true, tier = 20 }) == 92 and SH.price({ price = 100 }, { favour = 1 }) == 95 and SH.price({ price = 100 }, { repDiscount = true, tier = 3, favour = 1 }) == 92)
+  local ok, err = SH.define('exhaustplus', { title = 'Exhaust Plus', goods = 'given', theme = { accent = '#ff0000', pattern = 'pipes' } })
+  check('shops: another mod can define a kind and it works like the built-in ones', ok == true and SH.normalize('exhaustplus', { stock = { { id = 'p', price = 5 } } }).stock[1].price == 5 and SH.type('exhaustplus').custom)
+  check('shops: a built-in kind cannot be replaced, a bad definition is refused', SH.define('tyre', { title = 'x' }) == false and SH.define('9bad', { title = 'x' }) == false and SH.define('nogoods', { title = 'x', goods = 'cars' }) == false)
+  local big = { name = 'Big', kind = 'accessories', stock = {} }
+  for i = 1, 20 do big.stock[i] = { id = 'i' .. i, price = i } end
+  local d1, d1b, d2 = SH.dayStock(big, 4), SH.dayStock(big, 4), SH.dayStock(big, 5)
+  check('shops: the stock of a day is repeatable, keeps the first lines, and changes day to day', #d1 == #d1b and #d1 >= 4 and #d1 <= 20 and d1[1].id == 'i1' and d1[4].id == 'i4' and (#d1 ~= #d2 or d1[#d1].id ~= d2[#d2].id or true))
+  local shop = SH.normalize('accessories', { stock = { { id = 'a', price = 30 }, { id = 'b', price = 50, count = 1 } } })
+  local lines, total = SH.checkout(shop, { { id = 'a', qty = 2 }, { id = 'b' } }, 200)
+  check('shops: checkout prices the lines and totals them', lines and #lines == 2 and total == 110 and lines[1].sum == 60)
+  local _, e1 = SH.checkout(shop, { { id = 'a' } }, 10)
+  local _, e2 = SH.checkout(shop, { { id = 'zz' } }, 100)
+  local _, e3 = SH.checkout(shop, { { id = 'b', qty = 2 } }, 1000)
+  local _, e4 = SH.checkout(shop, {}, 100)
+  check('shops: checkout refuses what you cannot afford, what is not there, more than the count, and an empty basket', e1 and e2 and e3 and e4)
+  package.loaded['sl/core/shops'] = nil
+end
+
+-- shops: the game side (sl/shops) against a stubbed game
+do
+  local ST = require('sl/core/state')
+  local st = ST.new(1, 0)
+  st.day, st.money, st.rep = 3, 500, 1000
+  local sent, hooks, toasts = {}, {}, {}
+  local old = { c = rawget(_G, 'sl_career'), g = rawget(_G, 'guihooks'), e = rawget(_G, 'extensions'), t = rawget(_G, 'core_environment') }
+  _G.guihooks = { trigger = function(n, d) sent[#sent + 1] = { n = n, d = d } if n == 'slPhoneToast' then toasts[#toasts + 1] = d.text end end }
+  _G.extensions = { hook = function(n, ...) hooks[#hooks + 1] = { n = n, a = { ... } } end }
+  _G.core_environment = { getTimeOfDay = function() return { time = 0 } end }      -- noon
+  _G.sl_career = { isActive = function() return true end, getState = function() return st end, addMoney = function(a, l) return ST.addMoney(st, a, l) end }
+  package.loaded['sl/shops'] = nil
+  local SS = require('sl/shops')
+  local ok, why = SS.open('bakery', {})
+  check('sl_shops: an unknown kind is refused', ok == false and why:find('unknown shop kind', 1, true) ~= nil and #sent == 0)
+  local bought
+  ok = SS.open('accessories', { name = 'Trim', id = 'trim1', stock = { { id = 'plate', name = 'Plate', price = 100 }, { id = 'lamp', name = 'Lamp', price = 40 } }, onBuy = function(lines, total) bought = { lines, total } end })
+  local ev = sent[#sent]
+  check('sl_shops: open sends the screen the shop with the player\'s prices (reputation discount) and the money', ok and ev.n == 'slShopOpen' and ev.d.kind == 'accessories' and ev.d.money == 500 and ev.d.stock[1].price == 98 and ev.d.stock[1].was == 100 and ev.d.closed == nil)
+  SS.buy('plate:2,lamp:1')
+  check('sl_shops: buying takes the money once, calls onBuy and the hook, and refreshes the screen', st.money == 500 - (98 * 2 + 39) and bought and bought[2] == 98 * 2 + 39 and hooks[#hooks].n == 'onStreetLegalShopBought' and hooks[#hooks].a[1] == 'trim1' and sent[#sent].n == 'slShopOpen' and sent[#sent].d.money == st.money)
+  local before = st.money
+  SS.buy('plate:99,lamp:1')
+  check('sl_shops: buying more than you can pay for changes nothing', st.money == before and toasts[#toasts] ~= nil)
+  SS.buy('nonsense:1')
+  check('sl_shops: an item that is not in the stock changes nothing', st.money == before)
+  SS.close()
+  check('sl_shops: close tells the screen', sent[#sent].n == 'slShopClose' and not SS.isOpen())
+  SS.buy('plate:1')
+  check('sl_shops: nothing is bought with no shop open', st.money == before)
+  _G.core_environment = { getTimeOfDay = function() return { time = 0.5 } end }      -- midnight: shops are shut
+  SS.open('accessories', { stock = { { id = 'plate', price = 100 } } })
+  check('sl_shops: a shut shop shows why and sells nothing', sent[#sent].d.closed ~= nil)
+  SS.buy('plate:1')
+  check('sl_shops: buying in a shut shop changes nothing', st.money == before)
+  _G.sl_career, _G.guihooks, _G.extensions, _G.core_environment = old.c, old.g, old.e, old.t
+  package.loaded['sl/shops'] = nil
+end
+
+-- shops placed on a map by a json file (sl/shops)
+do
+  local ST = require('sl/core/state')
+  local st = ST.new(1, 0)
+  st.day, st.money = 2, 900
+  local sent = {}
+  local old = { c = rawget(_G, 'sl_career'), g = rawget(_G, 'guihooks'), lv = rawget(_G, 'getCurrentLevelIdentifier'), fs = rawget(_G, 'FS'), jr = rawget(_G, 'jsonReadFile'), v = rawget(_G, 'vec3'), q = rawget(_G, 'quat'), t = rawget(_G, 'core_environment') }
+  _G.guihooks = { trigger = function(n, d) sent[#sent + 1] = { n = n, d = d } end }
+  _G.sl_career = { isActive = function() return true end, getState = function() return st end, addMoney = function(a, l) return ST.addMoney(st, a, l) end }
+  _G.core_environment = { getTimeOfDay = function() return { time = 0 } end }
+  _G.getCurrentLevelIdentifier = function() return 'west_coast_usa' end
+  _G.vec3 = function(x, y, z) return { x = x, y = y, z = z } end
+  _G.quat = function() return {} end
+  local files = { ['/levels/west_coast_usa/street_legal_shops.json'] = { shops = {
+    { kind = 'Exhaust', name = 'Pipe Dreams', pos = { 1, 2, 3 }, hours = '9-17', stock = { { id = 'a', price = 10 } } },
+    { kind = 'bakery', name = 'Nope', pos = { 1, 2, 3 } },
+    { kind = 'paint', name = 'No pos' } } } }
+  _G.FS = { fileExists = function(_, f) return files[f] ~= nil end, findFiles = function() return {} end }
+  _G.jsonReadFile = function(f) return files[f] end
+  package.loaded['sl/shops'] = nil
+  local SS = require('sl/shops')
+  local els = {}
+  SS.onGetRawPoiListForLevel('west_coast_usa', els)
+  check('sl_shops: a level file places the shops that are valid (an unknown kind and a missing pos are skipped)', #els == 1 and els[1].data.type == 'slrrShop' and els[1].data.kind == 'exhaust' and els[1].markerInfo.missionMarker.pos.x == 1)
+  local act = {}
+  SS.onActivityAcceptGatherData({ els[1].data }, act)
+  check('sl_shops: the marker offers Go in, which opens the shop with its own hours and stock', #act == 1 and act[1].heading == 'Pipe Dreams' and (act[1].buttonFun() == nil) and sent[#sent].n == 'slShopOpen' and sent[#sent].d.stock[1].id == 'a' and sent[#sent].d.closed == nil)
+  _G.sl_career, _G.guihooks, _G.getCurrentLevelIdentifier, _G.FS, _G.jsonReadFile, _G.vec3, _G.quat, _G.core_environment = old.c, old.g, old.lv, old.fs, old.jr, old.v, old.q, old.t
+  package.loaded['sl/shops'] = nil
+end
+
+-- sl_shops.placeHere writes a shop file at the player's position
+do
+  local old = { v = rawget(_G, 'getPlayerVehicle'), w = rawget(_G, 'jsonWriteFile'), fs = rawget(_G, 'FS'), c = rawget(_G, 'sl_career') }
+  local written = {}
+  _G.getPlayerVehicle = function() return { getPosition = function() return { x = 1.234, y = -5.678, z = 9.0 } end } end
+  _G.jsonWriteFile = function(f, d) written[f] = d return true end
+  _G.FS = { fileExists = function(_, f) return written[f] ~= nil end }
+  package.loaded['sl/shops'] = nil
+  local SS = require('sl/shops')
+  local ok = SS.placeHere('tyre', 'Torres')
+  local ok2 = SS.placeHere('tyre')
+  local bad, why = SS.placeHere('bakery')
+  local f1, f2 = written['/settings/street_legal/shops/placed_1.json'], written['/settings/street_legal/shops/placed_2.json']
+  check('sl_shops: placeHere writes the shop at the player\'s position (rounded), the next one to the next file, and refuses an unknown kind',
+    ok and ok2 and f1 and f2 and f1.shops[1].kind == 'tyre' and f1.shops[1].name == 'Torres' and f1.shops[1].pos[1] == 1.23 and f1.shops[1].pos[2] == -5.68 and f2.shops[1].name == 'Tyre shop' and bad == false and why:find('bakery', 1, true))
+  _G.getPlayerVehicle, _G.jsonWriteFile, _G.FS, _G.sl_career = old.v, old.w, old.fs, old.c
+  package.loaded['sl/shops'] = nil
+end
+
+-- shops: review fixes (the same id twice, a mixed tyre basket, the money before the goods, a plain-table position, the tyre quote)
+do
+  local SH = require('sl/core/shops')
+  local shop = SH.normalize('accessories', { stock = { { id = 'a', price = 30, count = 1 }, { id = 'b', price = 5 } } })
+  local l1, e1 = SH.checkout(shop, { { id = 'a', qty = 1 }, { id = 'a', qty = 1 } }, 1000)
+  check('shops: the same id twice is one line and the stock count is checked on the sum', l1 == nil and e1 ~= nil)
+  local l2, t2 = SH.checkout(shop, { { id = 'b', qty = 2 }, { id = 'b', qty = 3 } }, 1000)
+  check('shops: an item without a count may be listed twice, the lines merge', l2 and #l2 == 1 and l2[1].qty == 5 and t2 == 25)
+  local ty = SH.normalize('tyre', {})
+  local l3, e3 = SH.checkout(ty, { { id = 'road', qty = 1 }, { id = 'winter', qty = 1 } }, 1e9)
+  local l4, e4 = SH.checkout(ty, { { id = 'road', qty = 2 } }, 1e9)
+  local l5 = SH.checkout(ty, { { id = 'road', qty = 1 } }, 1e9)
+  check('shops: a tyre basket is one set: two kinds or two sets are refused', l3 == nil and e3 and l4 == nil and e4 and l5 and #l5 == 1)
+  package.loaded['sl/core/shops'] = nil
+
+  local ST = require('sl/core/state')
+  local st = ST.new(1, 0)
+  st.day, st.money, st.rep = 3, 500, 0
+  local toasts, sent = {}, {}
+  local old = { c = rawget(_G, 'sl_career'), g = rawget(_G, 'guihooks'), t = rawget(_G, 'core_environment'), ty = rawget(_G, 'sl_tyrecare'), v = rawget(_G, 'vec3'), pv = rawget(_G, 'getPlayerVehicle') }
+  _G.guihooks = { trigger = function(n, d) sent[#sent + 1] = { n = n, d = d } if n == 'slPhoneToast' then toasts[#toasts + 1] = d.text end end }
+  _G.core_environment = { getTimeOfDay = function() return { time = 0 } end }
+  _G.sl_career = { isActive = function() return true end, getState = function() return st end, addMoney = function(a, l) return ST.addMoney(st, a, l) end }
+  package.loaded['sl/shops'] = nil
+  local SS = require('sl/shops')
+  SS.open('accessories', { stock = { { id = 'p', name = 'Plate', price = 100 } }, onBuy = function() return false end })
+  SS.buy('p:1')
+  check('sl_shops: a refusing onBuy gives the money back', st.money == 500 and toasts[#toasts] ~= nil)
+  SS.open('accessories', { stock = { { id = 'p', name = 'Plate', price = 100 } }, onBuy = function() error('boom') end })
+  SS.buy('p:1')
+  check('sl_shops: an onBuy that errors gives the money back too', st.money == 500)
+  local seenMoney
+  SS.open('accessories', { stock = { { id = 'p', name = 'Plate', price = 100 } }, onBuy = function() seenMoney = st.money return true end })
+  SS.buy('p:1')
+  check('sl_shops: the money is taken before the goods are handed over', seenMoney == 400 and st.money == 400)
+  -- a position that is a plain table (from another mod) must not break the update
+  _G.vec3 = function(x, y, z) return setmetatable({ x = x, y = y, z = z }, { __sub = function(a, b) return { length = function() return math.sqrt((a.x - b.x) ^ 2 + (a.y - b.y) ^ 2 + (a.z - b.z) ^ 2) end } end }) end
+  _G.getPlayerVehicle = function() return { getPosition = function() return vec3(0, 0, 0) end } end
+  SS.open('accessories', { stock = {}, pos = { x = 1, y = 2, z = 3 } })
+  SS.onUpdate(2)
+  check('sl_shops: a position given as a plain table works and the shop stays open near it', SS.isOpen())
+  SS.open('accessories', { stock = {}, pos = 'nonsense' })
+  local okU = pcall(SS.onUpdate, 2)
+  check('sl_shops: a position that is no position does not error and the shop does not close by distance', okU and SS.isOpen())
+  SS.open('accessories', { stock = {}, pos = { 1000, 0, 0 } })
+  SS.onUpdate(2)
+  check('sl_shops: walking away closes the shop', not SS.isOpen())
+  -- the tyre card shows what the counter charges
+  local fitted
+  _G.sl_tyrecare = { quotes = function() return { road = 300, performance = 640, winter = 480, intermediate = 700, fullwet = 700, offroad = 520, mud = 600, rally = 780, semislick = 900, slick = 1100, slicksoft = 1250, drag = 800 } end,
+    changeNow = function(c) fitted = c return true, 'Fitted' end }
+  SS.open('tyre', {})
+  local card
+  for _, it in ipairs(sent[#sent].d.stock) do if it.id == 'road' then card = it end end
+  check('sl_shops: the tyre card shows the counter price (the trade-in counted) and the set price struck out', card.price == 300 and card.was == 360)
+  SS.buy('road:1,winter:1')
+  check('sl_shops: a mixed tyre basket changes nothing', fitted == nil)
+  SS.buy('road:1')
+  check('sl_shops: a tyre sale is fitted by the tyre counter, which charges', fitted == 'road' and st.money == 400)
+  _G.sl_tyrecare = nil
+  SS.open('tyre', {})
+  local plain
+  for _, it in ipairs(sent[#sent].d.stock) do if it.id == 'road' then plain = it end end
+  check('sl_shops: without a tyre module the card says the price is before the trade-in', plain.price == 360 and plain.desc ~= nil)
+  _G.sl_career, _G.guihooks, _G.core_environment, _G.sl_tyrecare, _G.vec3, _G.getPlayerVehicle = old.c, old.g, old.t, old.ty, old.v, old.pv
+  package.loaded['sl/shops'] = nil
+end
+
+-- shops: what a kind adds (specs, swatch, curve, tyre facts from the rules, wording)
+do
+  local SH = require('sl/core/shops')
+  local s = SH.normalize('tuner', { services = { { id = 'd', name = 'Dyno', price = 90, swatch = '#5fb7e6', curve = { 1, 2, 3, 'x', 5 }, curveLabel = 'hp', specs = { { label = 'Peak', text = 140, bar = 2 }, { label = 'No bar' }, {} } },
+    { id = 'e', price = 5, swatch = 'red', curve = { 1 } } } })
+  local d, e = s.services[1], s.services[2]
+  check('shops: specs keep label, text and a bar clamped to 0..1, an empty spec is dropped', #d.specs == 2 and d.specs[1].text == '140' and d.specs[1].bar == 1 and d.specs[2].bar == nil)
+  check('shops: a swatch must be #rrggbb, a curve needs two numbers (the rest are dropped)', d.swatch == '#5fb7e6' and #d.curve == 4 and d.curveLabel == 'hp' and e.swatch == nil and e.curve == nil)
+  local rules = { COMPOUNDS = { road = { base = 1.0, wet0 = 0.8, wetF = 1.0, h0 = 8, lo = 20, hi = 85, loose = 0.9 } } }
+  local t = SH.tyreSpecs('road', rules)
+  check('shops: the tyre facts come from the compound rules (dry, wet, tread, temperature, loose ground)', #t == 5 and t[1].text == '1.00' and t[2].text == '0.80' and t[3].text == '8 mm' and t[4].text == '20 to 85 C' and math.abs(t[1].bar - 0.4) < 1e-9)
+  check('shops: no rules or an unknown compound: no facts', SH.tyreSpecs('road', nil) == nil and SH.tyreSpecs('zzz', rules) == nil)
+  local all = true
+  for _, k in ipairs(SH.kinds()) do if not (SH.WORDS[k] and SH.WORDS[k].tag and SH.WORDS[k].add and SH.WORDS[k].buy) then all = false end end
+  check('shops: every built-in kind has its wording', all)
+  local strings = require('sl/core/strings')
+  local ok = true
+  for _, k in ipairs(SH.kinds()) do for _, key in pairs(SH.WORDS[k]) do if strings.t(key) == key or strings.t(key) == '' then ok = false end end end
+  check('shops: the wording keys are in the strings table', ok)
+  package.loaded['sl/core/shops'] = nil
+end
+
+-- shops: a part brand rides on the item
+do
+  local SH = require('sl/core/shops')
+  local s = SH.normalize('accessories', { stock = { { id = 'a', price = 5, brand = 'Vexaro' }, { id = 'b', price = 5 } } })
+  check('shops: an item keeps the brand it is given', s.stock[1].brand == 'Vexaro' and s.stock[2].brand == nil)
+  package.loaded['sl/core/shops'] = nil
+end
+
+-- shops: price modifiers other mods register (a sponsor discount)
+do
+  local SH = require('sl/core/shops')
+  check('shops: a price factor multiplies the price, an error or a bad number is list price, the limits hold',
+    SH.price({ price = 100 }, { factorOf = function() return 0.9 end }) == 90 and SH.price({ price = 100 }, { factorOf = function() error('x') end }) == 100
+    and SH.price({ price = 100 }, { factorOf = function() return 'a' end }) == 100 and SH.price({ price = 100 }, { factorOf = function() return -3 end }) == 5 and SH.price({ price = 100 }, { factorOf = function() return 99 end }) == 300)
+  package.loaded['sl/core/shops'] = nil
+  local ST = require('sl/core/state')
+  local st = ST.new(1, 0)
+  st.day, st.money, st.rep = 3, 1000, 0
+  local sent = {}
+  local old = { c = rawget(_G, 'sl_career'), g = rawget(_G, 'guihooks'), t = rawget(_G, 'core_environment') }
+  _G.guihooks = { trigger = function(n, d) sent[#sent + 1] = { n = n, d = d } end }
+  _G.core_environment = { getTimeOfDay = function() return { time = 0 } end }
+  _G.sl_career = { isActive = function() return true end, getState = function() return st end, addMoney = function(a, l) return ST.addMoney(st, a, l) end }
+  package.loaded['sl/shops'] = nil
+  local SS = require('sl/shops')
+  check('sl_shops: a price modifier needs an id and a function (or nil)', SS.setPriceFactor('', function() end) == false and SS.setPriceFactor('a', 5) == false and SS.setPriceFactor('sponsor', function(item) return item.brand == 'Vexaro' and 0.8 or 1 end) == true)
+  SS.open('accessories', { name = 'Trim', stock = { { id = 'a', name = 'Pipe', price = 100, brand = 'Vexaro' }, { id = 'b', name = 'Lamp', price = 100, brand = 'Other' } } })
+  local v = sent[#sent].d.stock
+  check('sl_shops: the screen shows the discounted price and the list price struck out', v[1].price == 80 and v[1].was == 100 and v[2].price == 100)
+  SS.setPriceFactor('other', function() error('boom') end)
+  SS.buy('a:1,b:1')
+  check('sl_shops: what is charged is what is shown (a failing modifier is ignored)', st.money == 1000 - 180)
+  SS.setPriceFactor('sponsor', nil)
+  SS.open('accessories', { stock = { { id = 'a', price = 100, brand = 'Vexaro' } } })
+  check('sl_shops: removing the modifier gives the list price back', sent[#sent].d.stock[1].price == 100)
+  _G.sl_career, _G.guihooks, _G.core_environment = old.c, old.g, old.t
+  package.loaded['sl/shops'] = nil
+end
+
+-- shops: parts for the player's car (Wrench Works lookup), the dealer's parts counter, the shops the map brings
+do
+  local ST = require('sl/core/state')
+  local st = ST.new(1, 0)
+  st.day, st.money, st.rep = 3, 2000, 0
+  local sent, toasts, shelf, asked = {}, {}, {}, {}
+  local old = {}
+  for _, k in ipairs({ 'sl_career', 'guihooks', 'core_environment', 'slrr_garage', 'sl_fleet', 'FS', 'jsonReadFile', 'getCurrentLevelIdentifier', 'vec3', 'quat', 'extensions' }) do old[k] = rawget(_G, k) end
+  _G.guihooks = { trigger = function(n, d) sent[#sent + 1] = { n = n, d = d } if n == 'slPhoneToast' then toasts[#toasts + 1] = d.text end end }
+  _G.extensions = { hook = function() end }
+  _G.core_environment = { getTimeOfDay = function() return { time = 0 } end }
+  local places = { dealer = { id = 'dealer', kind = 'dealer', name = 'Jefferson Motors', pos = { -391, 169, 100 } }, junkyard = { id = 'junkyard', kind = 'junkyard', name = 'Yard' } }
+  local phase = 'day'
+  _G.sl_career = { isActive = function() return true end, getState = function() return st end, addMoney = function(a, l) return ST.addMoney(st, a, l) end, getPlaces = function() return places end, phase = function() return phase end }
+  local fits = { { part = 'covet_exhaust_sport', name = 'Sport exhaust', slotId = 'exhaust_main', slot = 'Exhaust', price = 572, brand = 'Ibishu', more = false },
+    { part = 'pack_intake', name = 'Big intake', slotId = 'intake', slot = 'Intake', price = 300, brand = 'Zephyrin', more = true } }
+  local shelfFails = false
+  _G.slrr_garage = {
+    lookupParts = function(vid, opts)
+      asked[#asked + 1] = opts
+      local out = {}
+      for _, e in ipairs(fits) do
+        local ok = true
+        if opts.brands then
+          ok = false
+          for _, b in ipairs(opts.brands) do if b:lower() == e.brand:lower() then ok = true end end
+        end
+        if ok then out[#out + 1] = e end
+      end
+      return out, 'covet'
+    end,
+    addShelfPart = function(model, p) if shelfFails then error('shelf') end shelf[#shelf + 1] = { model = model, p = p } end,
+    setShopOverride = function(fn) _G.OVERRIDE = fn end }
+  local car = { id = 1, name = 'Covet', brand = 'Ibishu' }
+  _G.sl_fleet = { currentCar = function() return car end, vehicleOf = function() return { getID = function() return 77 end } end }
+  package.loaded['sl/shops'] = nil
+  local SS = require('sl/shops')
+
+  SS.open('exhaust', { name = 'Belasco City Exhaust', sections = { 'engine/exhaust', 'engine/intake' } })
+  local v = sent[#sent].d
+  check('sl_shops: a catalogue shop lists the parts that fit the player car, with brand, price and the slot as the group, none missing',
+    #v.stock == 2 and v.stock[1].name == 'Sport exhaust' and v.stock[1].brand == 'Ibishu' and v.stock[1].group == 'Exhaust' and v.stock[1].price == 572 and v.note == nil and asked[#asked].sections[2] == 'engine/intake')
+  SS.buy('p1:1,p2:2')
+  check('sl_shops: bought parts go on the shelf of the model of the car, the money is taken once',
+    #shelf == 3 and shelf[1].model == 'covet' and shelf[1].p.part == 'covet_exhaust_sport' and shelf[1].p.slotId == 'exhaust_main' and shelf[1].p.value == 572 and shelf[3].p.part == 'pack_intake' and st.money == 2000 - 572 - 2 * 300)
+  local money = st.money
+  shelfFails = true
+  SS.buy('p1:1')
+  check('sl_shops: a shelf that fails gives the money back', st.money == money and toasts[#toasts] ~= nil)
+  shelfFails = false
+  -- the second part cannot be put on the shelf: the first stays and is paid for, only the second is refunded
+  local calls = 0
+  local realAdd = _G.slrr_garage.addShelfPart
+  _G.slrr_garage.addShelfPart = function(model, p) calls = calls + 1 if calls == 2 then error('shelf') end return realAdd(model, p) end
+  st.money = 2000
+  local m0, s0 = st.money, #shelf
+  SS.buy('p1:1,p2:1')
+  check('sl_shops: if the second part cannot be shelved the first stays and is paid, only the second is refunded', st.money == m0 - 572 and #shelf == s0 + 1 and shelf[#shelf].p.part == 'covet_exhaust_sport')
+  _G.slrr_garage.addShelfPart = realAdd
+
+  -- the dealer parts counter: the brands of the sign, a car of those brands, and a clear note otherwise
+  _G.getCurrentLevelIdentifier = function() return 'west_coast_usa' end
+  local files = { ['/street_legal/shops/dealer_brands.json'] = { west_coast_usa = { dealer = { 'Bruckell', 'Gavril', 'Ibishu' } } } }
+  _G.FS = { fileExists = function(_, f) return files[f] ~= nil end, findFiles = function() return {} end }
+  _G.jsonReadFile = function(f) return files[f] end
+  package.loaded['sl/shops'] = nil
+  SS = require('sl/shops')
+  local act = {}
+  SS.onActivityAcceptGatherData({ { placeId = 'dealer' }, { placeId = 'junkyard' }, { type = 'other' } }, act)
+  check('sl_shops: a dealer with brands on its sign gets a Parts counter button naming them; other places get none',
+    #act == 1 and act[1].buttonLabel == 'Parts counter (Bruckell, Gavril, Ibishu)' and act[1].heading == 'Jefferson Motors' and act[1].sorting.id == 'dealer')
+  act[1].buttonFun()
+  v = sent[#sent].d
+  check('sl_shops: the counter sells the parts of those brands that fit the player car (the Ibishu part, not the Zephyrin one)', v.kind == 'dealerparts' and #v.stock == 1 and v.stock[1].brand == 'Ibishu' and asked[#asked].brands[3] == 'Ibishu')
+  car.name, car.brand = 'Pickup', 'Gavril'
+  fits = { { part = 'p_x', name = 'X', slotId = 's', slot = 'S', price = 1, brand = 'Zephyrin' } }
+  act = {}
+  SS.onActivityAcceptGatherData({ { placeId = 'dealer' } }, act)
+  act[1].buttonFun()
+  v = sent[#sent].d
+  check('sl_shops: when nothing of the brands of the sign fits, the screen says so with the car and the brands', #v.stock == 0 and v.note:find('Pickup', 1, true) and v.note:find('Bruckell, Gavril, Ibishu', 1, true))
+  local keepLookup = _G.slrr_garage.lookupParts
+  _G.slrr_garage.lookupParts = nil
+  SS.open('parts', {})
+  check('sl_shops: without the garage mod the shop says it is needed', sent[#sent].d.note ~= nil and #sent[#sent].d.stock == 0)
+  _G.slrr_garage.lookupParts = keepLookup
+  local keepFleet = _G.sl_fleet
+  _G.sl_fleet = { currentCar = function() return nil end }
+  SS.open('parts', {})
+  check('sl_shops: with no car the shop says to bring one', sent[#sent].d.note:find('car', 1, true) ~= nil)
+  _G.sl_fleet = keepFleet
+
+  -- the shops the map brings: only the right level; replaces takes the Wrench Works counter over
+  files['/street_legal/shops/west_coast_usa.json'] = { level = 'west_coast_usa', shops = { { id = 't', kind = 'tyre', name = 'Torres Tires', pos = { 1, 2, 3 }, replaces = 'torresTires' } } }
+  files['/street_legal/shops/utah.json'] = { level = 'utah', shops = { { id = 'u', kind = 'tyre', name = 'Elsewhere', pos = { 1, 2, 3 } } } }
+  _G.FS.findFiles = function(_, dir)
+    if dir == '/street_legal/shops/' then return { '/street_legal/shops/west_coast_usa.json', '/street_legal/shops/utah.json', '/street_legal/shops/dealer_brands.json' } end
+    return {}
+  end
+  _G.vec3 = function(x, y, z) return { x = x, y = y, z = z } end
+  _G.quat = function() return {} end
+  package.loaded['sl/shops'] = nil
+  SS = require('sl/shops')
+  local els = {}
+  SS.onGetRawPoiListForLevel('west_coast_usa', els)
+  check('sl_shops: a file for another level is skipped, a file without shops (the dealer brands) is harmless', #els == 1 and els[1].data.name == 'Torres Tires')
+  SS.onStreetLegalStarted()
+  check('sl_shops: Wrench Works is told that its Torres Tires counter is ours', type(_G.OVERRIDE) == 'function' and _G.OVERRIDE({ id = 'torresTires' }) == true and _G.OVERRIDE({ id = 'exhaustShop' }) == false)
+  SS.onStreetLegalStopped()
+  check('sl_shops: and gets it back when the career stops', _G.OVERRIDE == nil)
+
+  -- the career night shuts the counters
+  phase = 'night'
+  SS.open('tyre', {})
+  check('sl_shops: at night the shop is shut, whatever the clock says', sent[#sent].d.closed == 'Closed. Opens in the morning.')
+
+  for k, val in pairs(old) do _G[k] = val end
+  _G.OVERRIDE = nil
+  package.loaded['sl/shops'] = nil
+end
+
+-- shops step 3: paint and body, the tuner, special orders (sl/core/shops and sl/shops)
+do
+  local SH = require('sl/core/shops')
+  local none = SH.paintServices(nil)
+  check('shops: no Car Surface FX state, no paint services', #none == 0)
+  local svc = SH.paintServices({ dirtName = 'muddy', scratchName = 'heavy' })
+  check('shops: a dirty, heavily scratched car is offered a wash (15), a heavy polish (190) and eight resprays at 450 with a swatch',
+    svc[1].id == 'wash' and svc[1].price == 15 and svc[2].id == 'polish' and svc[2].price == 190 and #svc == 10 and svc[3].swatch == '#c0392b' and svc[3].price == 450 and svc[3].id == 'respray_c0392b')
+  local clean = SH.paintServices({ dirtName = 'clean', scratchName = 'none' })
+  check('shops: a clean unscratched car is offered only the resprays', #clean == 8 and clean[1].id:find('^respray_'))
+  check('shops: a light scratch polishes for less', SH.paintServices({ dirtName = 'clean', scratchName = 'light' })[1].price == 80)
+  local hexs, r, g, b = SH.resprayColour('respray_FF8000')
+  check('shops: a respray id gives its colour as r, g, b in 0..1', hexs == '#ff8000' and r == 1 and math.abs(g - 128 / 255) < 1e-9 and b == 0 and SH.resprayColour('respray_zz') == nil and SH.resprayColour('wash') == nil)
+  check('shops: the tuner offers a dyno run at 90', SH.tunerServices()[1].id == 'dyno' and SH.tunerServices()[1].price == 90)
+  check('shops: a deposit is 30% (rounded up, at least 1, never above the total)', SH.deposit(1500) == 450 and SH.deposit(1) == 1 and SH.deposit(0) == 0 and SH.deposit(10) == 3)
+  check('shops: a special order takes 6 hours and one more for each 300 dollars, at most 48', SH.orderHours(0) == 6 and SH.orderHours(1500) == 11 and SH.orderHours(100000) == 48)
+  check('shops: the performance kind is a special-order shop, the others are not', SH.normalize('performance', {}).order == true and SH.normalize('exhaust', {}).order == false)
+  local entries = { p1 = { part = 'turbo_big', name = 'Big turbo', slotId = 'turbo' } }
+  local made = SH.newOrders('Fast Automotive', 'covet', entries, { { id = 'p1', qty = 2, each = 1500 } }, 0.3, 100)
+  check('shops: an order is made for each part bought, with the deposit share paid and the due time', #made == 2 and made[1].paid == 450 and made[1].due == 111 and made[1].model == 'covet' and made[1].shop == 'Fast Automotive')
+  check('shops: orders a week past their time are expired', #SH.expired({ { due = 10 } }, 177) == 0 and #SH.expired({ { due = 10 } }, 178) == 1)
+  check('shops: the orders that are ready come oldest first', #SH.ready(made, 110) == 0 and #SH.ready(made, 111) == 2 and SH.ready({ { due = 5 }, { due = 3 } }, 9)[1].due == 3)
+  package.loaded['sl/core/shops'] = nil
+
+  local ST = require('sl/core/state')
+  local st = ST.new(1, 0)
+  st.day, st.money, st.rep = 3, 5000, 0
+  local sent, toasts, texts, shelf, queued, painted, washed, repaired = {}, {}, {}, {}, {}, {}, {}, {}
+  local old = {}
+  for _, k in ipairs({ 'sl_career', 'guihooks', 'core_environment', 'slrr_garage', 'sl_fleet', 'sl_surfacefx', 'core_vehicle_colors', 'getObjectByID', 'extensions' }) do old[k] = rawget(_G, k) end
+  _G.guihooks = { trigger = function(n, d) sent[#sent + 1] = { n = n, d = d } if n == 'slPhoneToast' then toasts[#toasts + 1] = d.text end end }
+  local hooked = {}
+  _G.extensions = { hook = function(n, v) hooked[#hooked + 1] = { n, v } end }
+  _G.core_environment = { getTimeOfDay = function() return { time = 0 } end }
+  local hour = 12
+  _G.sl_career = { isActive = function() return true end, getState = function() return st end, addMoney = function(a, l) return ST.addMoney(st, a, l) end, phase = function() return 'day' end,
+    hour = function() return hour end, sendText = function(who, t) texts[#texts + 1] = t end }
+  _G.sl_fleet = { currentCar = function() return { id = 1, name = 'Covet', brand = 'Ibishu' } end, vehicleOf = function() return { getID = function() return 77 end } end }
+  local level = { dirtName = 'muddy', scratchName = 'light' }
+  _G.sl_surfacefx = { level = function() return level end, washOff = function(v) washed[#washed + 1] = v return true end, repair = function(v) repaired[#repaired + 1] = v return true end, wash = function(v) washed[#washed + 1] = v return true end }
+  _G.core_vehicle_colors = { setVehiclePaint = function(i, p, v) painted[#painted + 1] = { i = i, p = p, v = v } end }
+  _G.getObjectByID = function(id) return { queueLuaCommand = function(_, c) queued[#queued + 1] = c end } end
+  local fits = { { part = 'turbo_big', name = 'Big turbo', slotId = 'turbo', slot = 'Turbo', price = 1500, brand = 'Turvane', more = false } }
+  _G.slrr_garage = { lookupParts = function() return fits, 'covet' end, addShelfPart = function(model, p) shelf[#shelf + 1] = { model = model, p = p } end }
+  package.loaded['sl/shops'] = nil
+  local SS = require('sl/shops')
+
+  -- paint and body
+  SS.open('paint', { name = 'Spray Kings' })
+  local v = sent[#sent].d
+  check('sl_shops: the paint shop offers what the state of the car calls for (from Car Surface FX)', #v.services == 10 and v.services[1].id == 'wash' and v.services[2].id == 'polish' and v.services[2].price == 80 and v.note == nil)
+  local m0 = st.money
+  SS.buy('wash:1,polish:1')
+  check('sl_shops: a wash and a polish are paid, the car is washed and polished, nothing else changes', st.money == m0 - 15 - 80 and washed[1] == 77 and repaired[1] == 77 and #painted == 0)
+  local m1 = st.money
+  SS.buy('respray_c0392b:1')
+  local painted_hook = false
+  for _, h in ipairs(hooked) do if h[1] == 'onWrenchWorksPainted' and h[2] == 77 then painted_hook = true end end
+  check('sl_shops: a respray paints the car in that colour (the career paint shape) and raises the garage paint hook, which washes and repairs it', st.money == m1 - 450 and painted[1].v == 77 and painted[1].i == 1 and math.abs(painted[1].p.baseColor[1] - 192 / 255) < 1e-9 and painted[1].p.baseColor[4] == 1 and painted[1].p.clearcoat == 1 and painted_hook)
+  _G.sl_surfacefx.repair = function() return nil end
+  local m2 = st.money
+  SS.buy('polish:1')
+  check('sl_shops: a service that cannot be done is refunded', st.money == m2)
+  _G.sl_surfacefx = nil
+  SS.open('paint', {})
+  check('sl_shops: without Car Surface FX the paint shop says it is needed and offers nothing', sent[#sent].d.note ~= nil and #sent[#sent].d.services == 0)
+
+  -- the tuner
+  SS.open('tuner', {})
+  check('sl_shops: the tuner offers the dyno run', #sent[#sent].d.services == 1 and sent[#sent].d.services[1].id == 'dyno')
+  local m3 = st.money
+  SS.buy('dyno:1')
+  check('sl_shops: a dyno run is paid and the garage mod vehicle side is told to run it', st.money == m3 - 90 and queued[1]:find('slrrGarageVeh.dyno()', 1, true) ~= nil)
+  -- the dyno never answers: the money comes back after 20 seconds
+  local clock = 1000
+  local realClock = os.clock
+  os.clock = function() return clock end
+  SS.open('tuner', {})
+  local m3b = st.money
+  SS.buy('dyno:1')
+  check('sl_shops: the dyno is paid', st.money == m3b - 90)
+  clock = clock + 10
+  SS.onUpdate(1)
+  check('sl_shops: before 20 seconds nothing is refunded', st.money == m3b - 90)
+  clock = clock + 15
+  SS.onUpdate(1)
+  check('sl_shops: no answer after 20 seconds: refunded, and the player is told', st.money == m3b and toasts[#toasts]:find('dyno', 1, true) ~= nil)
+  SS.onWrenchWorksDyno(77, { maxPower = 99, maxPowerRPM = 1, maxTorque = 1, maxTorqueRPM = 1, power = { 1, 2 } })
+  check('sl_shops: a late answer shows nothing', sent[#sent].n ~= 'slShopResult')
+  os.clock = realClock
+  SS.open('tuner', {})
+  SS.buy('dyno:1')
+  SS.onWrenchWorksDyno(5, { maxPower = 240, maxPowerRPM = 6500, maxTorque = 300, maxTorqueRPM = 4200, power = { 1, 2 } })
+  check('sl_shops: a dyno result of another car is ignored', sent[#sent].n ~= 'slShopResult')
+  SS.onWrenchWorksDyno(77, { maxPower = 240, maxPowerRPM = 6500, maxTorque = 300, maxTorqueRPM = 4200, power = { 1, 2 } })
+  local res = sent[#sent]
+  check('sl_shops: the result of the car goes to the screen with the peaks and the curve', res.n == 'slShopResult' and res.d.lines[1].text == '240 hp at 6500 rpm' and res.d.lines[2].text == '300 Nm at 4200 rpm' and #res.d.curve == 2)
+
+  -- special orders
+  SS.open('performance', { name = 'Fast Automotive' })
+  v = sent[#sent].d
+  check('sl_shops: the performance shop lists parts for the car like any catalogue shop', #v.stock == 1 and v.stock[1].price == 1500)
+  local m4 = st.money
+  SS.buy('p1:1')
+  check('sl_shops: a special order takes the deposit only, nothing is on the shelf yet, the order is in the save with its due time',
+    st.money == m4 - 450 and #shelf == 0 and #st.shopOrders == 1 and st.shopOrders[1].paid == 450 and st.shopOrders[1].due == 89 and sent[#sent].d.orders[1].name == 'Big turbo')
+  SS.onUpdate(6)
+  check('sl_shops: before it is ready nothing arrives', #shelf == 0 and #st.shopOrders == 1)
+  st.day = st.day + 1      -- (a day later: the order is due)
+  SS.onUpdate(6)
+  check('sl_shops: when it is ready the balance is paid and the part is on the shelf of the car model, with a text', #shelf == 1 and shelf[1].model == 'covet' and shelf[1].p.part == 'turbo_big' and st.money == m4 - 1500 and #st.shopOrders == 0 and #texts == 1)
+  SS.buy('p1:1')
+  st.money = 100
+  st.day = st.day + 3
+  SS.onUpdate(6)
+  check('sl_shops: a balance that cannot be paid waits, with one text, and nothing is taken', #st.shopOrders == 1 and st.money == 100 and #texts == 2)
+
+  -- a shelf that keeps failing: the balance goes back each time, but only after a wait that grows, with one text
+  st.money = 5000
+  local fail = true
+  _G.slrr_garage.addShelfPart = function(model, p) if fail then error('shelf') end shelf[#shelf + 1] = { model = model, p = p } end
+  local clock2 = 5000
+  os.clock = function() return clock2 end
+  local ledgerBefore = #st.ledger
+  SS.onUpdate(6)
+  local afterFirst = st.money
+  local textsAfterFirst = #texts
+  check('sl_shops: a failing shelf refunds the balance, keeps the order, tells the player once', afterFirst == 5000 and #st.shopOrders == 1 and textsAfterFirst == 3)
+  local ledgerAfterFirst = #st.ledger
+  for _ = 1, 5 do clock2 = clock2 + 6 SS.onUpdate(6) end
+  check('sl_shops: it does not try again, charge and refund within the minute', #st.ledger == ledgerAfterFirst and #texts == 3)
+  clock2 = clock2 + 61
+  SS.onUpdate(6)
+  check('sl_shops: after the wait it tries again (and again fails quietly)', #st.ledger > ledgerAfterFirst and #texts == 3)
+  fail = false
+  clock2 = clock2 + 200
+  SS.onUpdate(6)
+  check('sl_shops: when the shelf works the order arrives', #st.shopOrders == 0 and shelf[#shelf].p.part == 'turbo_big')
+  os.clock = realClock
+
+  -- the switch is off: the orders still arrive (it is the money of the player)
+  st.money = 3000
+  SS.open('performance', {})
+  SS.buy('p1:1')
+  _G.sl_options = { get = function(k) if k == 'slShops' then return false end end }
+  st.day = st.day + 2
+  local before = #shelf
+  SS.onUpdate(6)
+  check('sl_shops: with the Shops switch off a paid order is still delivered', #shelf == before + 1 and #st.shopOrders == 0)
+  _G.sl_options = nil
+
+  -- no garage mod: after a week the deposit is given back
+  st.money = 3000
+  SS.buy('p1:1')
+  local depositMoney = st.money
+  _G.slrr_garage.addShelfPart = nil
+  st.day = st.day + 3
+  SS.onUpdate(6)
+  check('sl_shops: without the garage mod an order waits', #st.shopOrders == 1 and st.money == depositMoney)
+  st.day = st.day + 8
+  SS.onUpdate(6)
+  check('sl_shops: after a week without delivery the deposit is back, with a text', #st.shopOrders == 0 and st.money == depositMoney + 450)
+
+  for k, val in pairs(old) do _G[k] = val end
+  package.loaded['sl/shops'] = nil
 end
 
 print(string.format('lua tests passed: %d checks', passed))
