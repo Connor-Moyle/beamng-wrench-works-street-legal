@@ -1431,6 +1431,13 @@ do
     local function card(id) for _, c in ipairs(C.summary().listings) do if c.id == id then return c end end end
     local c3 = card('m3')
     check('used car: the ad hides the faults and the report, and shows the history and the fee', c3 and c3.hidden == true and c3.faults == nil and c3.faultList == nil and c3.report == nil and #c3.history == 3 and c3.checkFee == U.fee(2000) and c3.checked == false)
+    local function leaks(v, depth)
+      if depth > 4 then return false end
+      if type(v) == 'string' then return v == 'brakes' or v == 'engine' or v:find('Brakes', 1, true) ~= nil end
+      if type(v) == 'table' then for _, x in pairs(v) do if leaks(x, depth + 1) then return true end end end
+      return false
+    end
+    check('used car: no field of an unchecked card names a fault', not leaks(c3, 0))
     local okc = C.check('m3')
     check('used car: the check costs the fee and shows the faults with what each costs', okc == true and state.money == 500 - U.fee(2000) and card('m3').checked == true and card('m3').faults == 2 and #card('m3').found == 2 and card('m3').found[1].cost == 150 and card('m3').report ~= nil)
     local moneyAfter = state.money
@@ -3569,13 +3576,25 @@ do
     local old = {}
     local so = S.state(old, 1300, { brakes = 10 })
     local g0 = S.gross(so, 1300, 1000, { brakes = 10 })
-    check('service: a car seen for the first time has the wear of before (300 km, 1x), not 40x, and is not due', so.origin == 1300 and math.abs(g0.brakes - W.lost(300, { brakes = 10 }).brakes) < 1e-9 and not S.due(S.since(so, 1300, 1000)))
+    check('service: a car seen for the first time has the wear of before (300 km, 1x), not 40x, and is not due', so.origin == 1300 and math.abs(g0.brakes - W.lost(300, { brakes = 10 }).brakes) < 1e-9 and not S.due(so, S.since(so, 1300, 1000)))
     local g1 = S.gross(so, 1400, 1000, { brakes = 12 })
     check('service: from then on the driving and the new abuse count 40 times', math.abs(g1.brakes - W.lost(300 + 100 * 40, { brakes = 10 + 2 * 40 }).brakes) < 1e-9)
     check('service: the record is made once', S.state(old, 9999, {}).origin == 1300)
   end
+  do -- the Wear rate setting: presets, the interval follows, a change keeps the wear already there
+    check('service: Wear rate presets', S.rate('half') == 0.5 and S.rate('normal') == 1 and S.rate('double') == 2 and S.rate('quad') == 4 and S.rate('nope') == 1 and S.rate(nil) == 1)
+    local r2 = S.state({}, 1000, {}, 2)
+    check('service: at 2x a service is due after 75 km and the wear is twice as fast', S.due(r2, 75) and not S.due(r2, 74) and math.abs(S.gross(r2, 1070, 1000, {}).brakes - 2 * S.gross(S.state({}, 1000, {}, 1), 1070, 1000, {}).brakes) < 1e-12)
+    local c = S.state({}, 1000, {}, 1)
+    local before = S.gross(c, 1100, 1000, { brakes = 5 })
+    check('service: the rate changing keeps the wear as it is, then counts at the new rate', S.sync(c, 4, 1100, 1000, { brakes = 5 }) == true and math.abs(S.gross(c, 1100, 1000, { brakes = 5 }).brakes - before.brakes) < 1e-12
+      and S.gross(c, 1200, 1000, { brakes = 5 }).brakes > before.brakes and S.sync(c, 4, 1200, 1000, { brakes = 5 }) == false)
+    local grown = S.gross(c, 1200, 1000, { brakes = 5 }).brakes - before.brakes
+    check('service: after the change 100 km wear four times the 1x scale, with the overdue part past the 37.5 km interval', math.abs(grown - W.lost((100 + 0.5 * (100 - 37.5)) * 40 * 4, {}).brakes) < 1e-9)
+    check('service: the service clock restarts at a change of the rate (the overdue wear so far is kept)', c.baseKm == 1100 and S.since(c, 1200, 1000) == 100)
+  end
   local sv = S.state({})
-  check('service: a fresh record, due once the interval is driven', sv.penalty == 0 and S.since(sv, 1000, 1000) == 0 and not S.due(149) and S.due(150) and S.wearFactor(100) == 1 and S.wearFactor(200) == 1.5)
+  check('service: a fresh record, due once the interval is driven', sv.penalty == 0 and S.since(sv, 1000, 1000) == 0 and not S.due(sv, 149) and S.due(sv, 150) and S.wearFactor(sv, 100) == 1 and S.wearFactor(sv, 200) == 1.5)
   local g0 = S.gross(sv, 1000, 1000, {})
   local g1 = S.gross(sv, 1100, 1000, {})
   check('service: wear is scaled so a few hundred km show (brakes after 100 km: 0.5*100*40/120000)', g0.brakes == 0 and math.abs(g1.brakes - 0.5 * 100 * 40 / 120000) < 1e-9)
@@ -3631,6 +3650,27 @@ do
   check('service: Part Wear by key is read when the car is not spawned', sus == 0.3)
   _G.slrr_partwear = { conditionsOf = function() error('boom') end }
   check('service: a failing Part Wear query falls back to our model', #SV.serviceOf(1).sections == 5)
+  do -- the Wear rate reaches Part Wear and the tyres, and every car gets a record
+    local got = {}
+    local f0, t0 = rawget(_G, 'slrr_partwear'), rawget(_G, 'carSurfaceFx_tyres')
+    _G.slrr_partwear = { setWearRate = function(k) got.pw = k return k end }
+    _G.carSurfaceFx_tyres = { setWearScale = function(k) got.tyre = k return true end }
+    local fo = _G.sl_options
+    _G.sl_options = { get = function(k) if k == 'slWearRate' then return 'double' end end }
+    st.cars[2] = { id = 2, name = 'Other', value = 5000, mileage = 500, care = { engineKm = 800, abuse = {}, trunk = {} } }
+    SV.onUpdate(6)
+    check('service: the Wear rate is sent to Part Wear and the tyres, as a number', got.pw == 2 and got.tyre == 2)
+    check('service: every car gets a record at once, at the rate and the engine km of that moment', st.cars[2].service and st.cars[2].service.origin == 800 and st.cars[2].service.rate == 2)
+    got = {}
+    SV.onUpdate(1)
+    check('service: nothing is sent again while it is unchanged', got.pw == nil and got.tyre == nil)
+    SV.onStreetLegalOption('slWearRate', 'quad')
+    _G.sl_options = { get = function(k) if k == 'slWearRate' then return 'quad' end end }
+    SV.onStreetLegalOption('slWearRate', 'quad')
+    check('service: a change of the setting is sent at once', got.pw == 4 and got.tyre == 4 and st.cars[2].service.rate == 4)
+    _G.sl_options = fo
+    _G.slrr_partwear, _G.carSurfaceFx_tyres = f0, t0
+  end
   do
     local f = _G.sl_options
     _G.sl_options = { get = function(k) if k == 'slService' then return false end end }

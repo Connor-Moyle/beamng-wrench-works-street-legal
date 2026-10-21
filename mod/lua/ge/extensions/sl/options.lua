@@ -181,6 +181,10 @@ M.defs = {
     desc = "The base bill when the crash would have killed you (you wake up at the hospital in a normal career)." },
   { key = 'slHospitalSeverity', tab = 'Economy', group = 'Hospital', title = "Hospital, worst injuries", type = 'range', min = 0, max = 10000, step = 100, unit = '$', default = 3000,
     desc = "Added to the hospital bill in proportion to how bad the injuries are." },
+  { key = 'slWearRate', tab = 'Difficulty', group = 'Wear', title = 'Wear rate and service interval', type = 'choice', default = 'normal',
+    options = { { id = 'half', label = '0.5x: parts last twice as long, service every 300 km' }, { id = 'normal', label = '1x: service every 150 km' },
+      { id = 'double', label = '2x: parts wear twice as fast, service every 75 km' }, { id = 'quad', label = '4x: four times as fast, service every 38 km' } },
+    desc = 'How fast cars wear and how often they need a service. It sets the wear of the own wear model of the career, Part Wear (when installed) and the tyres (with Car Surface FX). Needs the Servicing and wear part on. Wear already there stays as it is.' },
   { key = 'slBuildGap', tab = 'World', group = 'Performance', title = 'Seconds between built cars', type = 'range', min = 8, max = 60, step = 2, unit = 's', default = 20, advanced = true,
     desc = 'Building a car for the night traffic freezes the game for a second or so. Longer gaps mean fewer freezes and a quieter street.' },
 }
