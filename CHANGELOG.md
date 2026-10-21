@@ -5,7 +5,7 @@
 Fix release for 0.7.0.
 
 ### Changes
-- **No start warning:** BeamNG 0.40 logged "Please make sure to call setExtensionUnloadMode("gameplay_drag_core", "manual")" at game start; the mod now sets that first.
+- **No start warning:** BeamNG 0.40 logged "Please make sure to call setExtensionUnloadMode("gameplay_drag_core", "manual")" at game start; the mod now sets that first. Not yet seen in the game.
 - **Phone skins:** in the built 0.7.0 zip both Classic and Slate are listed (seen in the game). The skin reader now logs once if a failure stops it listing skins, instead of failing silently.
 
 ## 0.7.0 (needs Wrench Works 1.8.5)
