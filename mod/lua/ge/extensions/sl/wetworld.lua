@@ -158,6 +158,7 @@ local function batch(n, target, force)
       local ms = (os.clock() - t0) * 1000
       if ok and err then
         stats.edits, stats.ms, stats.worst = stats.edits + 1, stats.ms + ms, math.max(stats.worst, ms)
+        if option('slWetTrace', false) == true then log('I', TAG, rules.traceLine(stats.edits, entry, target, ms)) end
         if SLOW[entry.name] and ms > 20 then M.lastSlowAt = os.clock() end
         if ms > rules.SLOW_MS then
           M.lastSlowAt = os.clock()
