@@ -18,7 +18,7 @@ On BeamNG 0.40, in heavy rain, with Wet roads and walls on, the game loses the g
 
 ## The 11-edit crash (crash_2026-10-21_2251_highrain_wettrace_63fb2a8_driving.log in the graph repo's crashlogs)
 - Edits #1-#11 were all asphalt, the last at 211.88 s; no "wet start" without its edit afterwards, so no edit was running at the hang. The next Lua log line is the device loss at 217.14 s: a 5.3 s silence.
-- The car was rebuilt just before: slrrDrivers logged the autobello's wheel at 209.16 s, "parts that fell off" at 209.72 s; the first edit was at 209.59 s. So a vehicle reset/respawn happened about 0.4 s before the first edit and 2.7 s before the stall (62 read this as "no reset in that moment" at the time of the stall; the reset is in the first seconds of the edits).
+- The car was rebuilt just before: slrrDrivers logged the autobello's wheel at 209.16 s, "parts that fell off" at 209.72 s; the first edit was at 209.59 s. So a vehicle reset/respawn happened about 0.4 s before the first edit and 2.7 s before the stall (the reset is in the first seconds of the edits, not at the moment of the stall).
 - The plan had 332 materials (glass 35) where the standing runs had 308 (glass 11): the car's materials seem to enter the plan when the car exists, although `classify` skips files under /vehicles/. Unchecked: which 24 glass materials these were.
 - One misclassification seen in the trace: a tree imposter material (`imposter_mat_levels_west_coast_usa_art_shapes_trees_trees_conifer_redwood_broad.dae`) counts as asphalt.
 
@@ -34,7 +34,7 @@ Wet roads and walls off (default). Puddles and rain are unchanged.
 
 ## Hypotheses to try later (none proven)
 1. **Wet asphalt feeding reflections at High.** The wet step sets roughness to `orig * (1 - f + f * rough)` and the base colour darker (core/wetworld.lua KINDS: asphalt rough 0.30, dark 0.60). At High, SSR / reflection probes read roughness; a very smooth dark asphalt that a car then drives over (moving reflections, wheel spray, headlights) might hang a shader. Test: keep the edits but never go below a roughness of, say, 0.5 of the original, or set only the colour factor, and drive.
-2. **A vehicle rebuild (spawn, reset, replace) during the first seconds of the material reloads.** The 21:11 and 16:37 logs also show vehicle resets near the loss. A fix prepared and unmerged: branch worker-a-vehiclehold (gpugate VEHICLE_HOLD 2 s, bounded to 10 s). 62's read: not enough on its own, since the stall began 2.7 s after the reset; 2 s may be too short, and the standing run had no reset either.
+2. **A vehicle rebuild (spawn, reset, replace) during the first seconds of the material reloads.** The 21:11 and 16:37 logs also show vehicle resets near the loss. A fix prepared and unmerged: branch worker-a-vehiclehold (gpugate VEHICLE_HOLD 2 s, bounded to 10 s). Probably not enough on its own: the stall began 2.7 s after the reset, so 2 s may be too short.
 3. **The car's own materials in the plan** (332 vs 308): an edit to a vehicle's glass materials while it drives. Test: filter out materials whose file is empty or whose name matches a vehicle in the scene.
 4. **A driver or driver-version issue** of the card (Windows logged nvlddmkm TDR events on this PC on other days).
 
