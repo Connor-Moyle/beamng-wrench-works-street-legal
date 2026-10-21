@@ -52,3 +52,9 @@ Goal: in free roam the phone and the SL features work through Mods-menu switches
 - Each module may have writes that assume a career (a message to a rival, a heat change): the audit must list them. A sandbox that quietly takes a write is fine; one that fires a career-only event is not.
 - Phone data pushed to the UI (`sl_uipush`) assumes the state exists; with the master off the phone must not appear.
 - Not checked: any module beyond a grep of `isActive()`; nothing was run.
+
+## Audit of career-only writes (a5, step 3)
+- **Save files**: only `career.lua` writes a career. `writeSave` (local) returns at once with no state (`if not s`), its callers are start, stop (guarded by `active`), the autosave in `onUpdate` (guarded by `dirty` and `s`) and one more at the end of a path in the 1470 range. Free roam never sets `s`, `active` or `dirty`, because `sl_mode.state()` is a separate sandbox (step 4), never the career's. Other writers: `hud.json` (the HUD's own settings), `options.json` (the Mods switches, global), `photos` (`WALLS`, the wall photos). None of them is a career file; they are the same in free roam.
+- **Test**: `tools/luatest.lua` "free roam never writes a career": loads the real `sl/career.lua`, switches every free-roam feature on with no career, runs every `on*` hook of the career module several times, and asserts no `FS:` call, no `jsonWriteFile`, and no rival, heat, start or save event. A hook that starts writing without a career fails it.
+- **Remaining work for step 4**: each module that reads `sl_career.getState()` (about 35 files; `phone` 49 uses, `fleet` 22, `streets` 20, `jobs` 19) must either be career-only (`sl_mode.enabled(f)` false in free roam) or handle `state == nil`/sandbox. The swap goes one module at a time, zero-risk first.
+- Not checked: modules that write through another mod's API (Wrench Works wallet, `slrr_garage`); events other mods hook (`onStreetLegal*`) are not audited yet.
