@@ -4367,10 +4367,16 @@ do
   -- a result: done with the purse, in the history
   local st2 = C.newStore()
   C.enter(st2, sat, 500, 40, 17.5)
-  check('calendar: a win is done with the purse and kept in the history; a second result changes nothing', C.result(st2, sat, true) == sat.reward and st2.done[sat.id].won == true and #st2.history == 1 and C.result(st2, sat, true) == 0 and C.find(C.schedule(41, 17, 9, 700, st2), sat.id).status == 'done' and C.find(C.schedule(41, 17, 9, 700, st2), sat.id).reward == sat.reward)
+  local money, rep = C.result(st2, sat, 1)
+  check('calendar: a win is done with the purse and 40 rep and kept in the history; a second result changes nothing', money == sat.reward and rep == 40 and st2.done[sat.id].won == true and st2.done[sat.id].place == 1 and #st2.history == 1 and C.result(st2, sat, 1) == 0 and C.find(C.schedule(41, 17, 9, 700, st2), sat.id).status == 'done' and C.find(C.schedule(41, 17, 9, 700, st2), sat.id).reward == sat.reward)
   local st3 = C.newStore()
   C.enter(st3, sat, 500, 40, 17.5)
-  check('calendar: a loss is done without a purse', C.result(st3, sat, false) == 0 and st3.done[sat.id].won == false and st3.entered[sat.id] == nil)
+  money, rep = C.result(st3, sat, nil)
+  check('calendar: a DNF is done without a purse or rep', money == 0 and rep == 0 and st3.done[sat.id].won == false and st3.entered[sat.id] == nil)
+  local st4 = C.newStore()
+  C.enter(st4, sat, 500, 40, 17.5)
+  money, rep = C.result(st4, sat, 2)
+  check('calendar: second place takes half the purse and 20 rep', money == sat.reward / 2 and rep == 20 and st4.done[sat.id].won == false and st4.done[sat.id].place == 2)
   C.sweep(st2, 60)
   check('calendar: a sweep forgets results older than a week', st2.done[sat.id] == nil and #C.schedule(60, 10, 9, 700, st2) > 0)
   check('calendar: a done or missed event stays a week, then goes', C.find(C.schedule(47, 10, 9, 700, st3), sat.id) ~= nil and C.find(C.schedule(49, 10, 9, 700, st3), sat.id) == nil)
@@ -4386,12 +4392,13 @@ do
   check('calendar: the clock text', C.clock(15) == '15:00' and C.clock(8.5) == '08:30' and C.clock(nil) == '00:00')
   -- the game side: the part off answers nothing; the reminders and the race start go through the stubs
   do
-    local old = { c = _G.sl_career, s = _G.sl_streets, o = _G.sl_options, pv = _G.getPlayerVehicle, gh = _G.guihooks, ex = _G.extensions, jr = _G.jsonReadFile, v3 = _G.vec3 }
+    local old = { c = _G.sl_career, s = _G.sl_streets, g = _G.sl_gridrace, o = _G.sl_options, pv = _G.getPlayerVehicle, gh = _G.guihooks, ex = _G.extensions, jr = _G.jsonReadFile, v3 = _G.vec3 }
     local state = { day = 41, seed = 9, rep = 700, money = 1000, racers = { { id = 'ra', rep = 650, name = 'Ra' }, { id = 'rb', rep = 9000, name = 'Rb' } }, calendar = nil }
-    local hourNow, texts, hooks, started, paid = 14.5, {}, {}, nil, {}
+    local hourNow, texts, hooks, started, paid, finish = 14.5, {}, {}, nil, {}, nil
     _G.sl_career = { isActive = function() return true end, getState = function() return state end, hour = function() return hourNow end, LEVEL = 'west_coast_usa', has = function() return true end,
       addMoney = function(a, l) state.money = state.money + a paid[#paid + 1] = l return true end, payOut = function(a, l) state.money = state.money + a paid[#paid + 1] = l return true end, sendText = function(_, t) texts[#texts + 1] = t end }
-    _G.sl_streets = { isRacing = function() return false end, startCalendarRace = function(id, track, laps, rival) started = { id = id, laps = laps, rival = rival, cps = #track.cps } return true end }
+    _G.sl_streets = { isRacing = function() return false end }
+    _G.sl_gridrace = { running = function() return started ~= nil and finish == nil end, start = function(spec, done) started = spec finish = done return true end }
     local on = true
     _G.sl_options = { get = function(k) if k == 'slCalendar' then return on end return nil end }
     _G.guihooks = { trigger = function(name, data) if name == 'slPhoneToast' then texts[#texts + 1] = data.text end end }
@@ -4414,14 +4421,102 @@ do
     check('calendar game side: half an hour before, the 1 h reminder is a toast and the banner hook', texts[#texts] ~= nil and texts[#texts]:find('in 1 h') ~= nil and hooks[#hooks].name == 'onStreetLegalCalendarReminder' and hooks[#hooks][2] == 1 and started == nil)
     hourNow = 15.1
     G.onUpdate(2.5)
-    check('calendar game side: at the hour, on the grid, the race starts on the layout against a rival of your standing, three laps', started ~= nil and started.id == evId and started.laps == 3 and started.rival == 'ra' and started.cps == 3)
-    G.onStreetLegalCalendarRace(evId, true)
-    check('calendar game side: a win pays the purse and is done', state.money == 1000 - home.fee + home.purse and paid[#paid]:find('Purse') ~= nil and state.calendar.done[evId].won == true)
+    check('calendar game side: at the hour, on the grid, the grid runner is started with the layout, the title, three laps and the purse', started ~= nil and started.layer == home.layer and started.name == home.title and started.laps == 3 and started.purse == home.purse)
+    local rep0 = state.rep
+    finish({ place = 1, time = 180, grid = 6 })
+    check('calendar game side: a win pays the purse and 40 rep and is done', state.money == 1000 - home.fee + home.purse and paid[#paid]:find('Purse') ~= nil and state.calendar.done[evId].won == true and state.rep == rep0 + 40 and texts[#texts]:find('1st') ~= nil)
     on = false
     check('calendar game side: the part off: no summary, the actions answer nothing', G.summary() == nil and G.enter(evId) == nil)
     on = true
-    _G.sl_career, _G.sl_streets, _G.sl_options, _G.getPlayerVehicle, _G.guihooks, _G.extensions, _G.jsonReadFile, _G.vec3 = old.c, old.s, old.o, old.pv, old.gh, old.ex, old.jr, old.v3
+    _G.sl_career, _G.sl_streets, _G.sl_gridrace, _G.sl_options, _G.getPlayerVehicle, _G.guihooks, _G.extensions, _G.jsonReadFile, _G.vec3 = old.c, old.s, old.g, old.o, old.pv, old.gh, old.ex, old.jr, old.v3
     package.loaded['sl/calendar'] = nil
+  end
+end
+
+-- the grid runner (sl/core/gridrace): the grid size, the field by class, the aggression, the payout, the camera length, the flares; and a stubbed run of sl/gridrace
+do
+  local GR = require('sl/core/gridrace')
+  local rngLib = require('sl/core/rng')
+  check('gridrace: the grid size is the setting within 3..7 and the slots less one', GR.gridSize(6, 10) == 6 and GR.gridSize(9, 10) == 7 and GR.gridSize(1, 10) == 3 and GR.gridSize(6, 4) == 3 and GR.gridSize(nil, 8) == 7 and GR.gridSize(5, 1) == 0)
+  local cands = {}
+  for i, c in ipairs({ 'D', 'C', 'C', 'B', 'B', 'B', 'A', 'A', 'S' }) do cands[i] = { model = 'm' .. (i % 4), config = 'c' .. i, class = c } end
+  local f = GR.field(cands, 'B', 5, rngLib.new(3))
+  local classes = {}
+  for _, c in ipairs(f) do classes[#classes + 1] = c.class end
+  check('gridrace: the field takes the player class first, then the classes next to it', #f == 5 and classes[1] == 'B' and classes[2] == 'B' and classes[3] == 'B' and (classes[4] == 'C' or classes[4] == 'A') and (classes[5] == 'C' or classes[5] == 'A'))
+  local f2 = GR.field(cands, 'B', 3, rngLib.new(3))
+  local models = {}
+  for _, c in ipairs(f2) do models[c.model] = (models[c.model] or 0) + 1 end
+  local distinct = true
+  for _, n in pairs(models) do if n > 1 then distinct = false end end
+  check('gridrace: distinct models come first; an unknown class falls back; no candidates gives an empty field', distinct and #GR.field(cands, 'Z', 2, rngLib.new(1)) == 2 and #GR.field({}, 'B', 5, rngLib.new(1)) == 0 and #GR.field(cands, 'S', 20, rngLib.new(1)) == 9)
+  check('gridrace: the aggression grows with reputation and is capped', GR.aggression(0) == 0.55 and GR.aggression(1000) == 0.75 and GR.aggression(5000) == 0.95)
+  local m1, r1 = GR.payout(1, 800)
+  local m2, r2 = GR.payout(2, 800)
+  local m3, r3 = GR.payout(3, 800)
+  local m5, r5 = GR.payout(5, 800)
+  local m0, r0 = GR.payout(nil, 800)
+  check('gridrace: the purse by place (all, half, a quarter, nothing) and the rep (40, 20, 10, 5; a DNF nothing)', m1 == 800 and r1 == 40 and m2 == 400 and r2 == 20 and m3 == 200 and r3 == 10 and m5 == 0 and r5 == 5 and m0 == 0 and r0 == 0)
+  check('gridrace: a camera path plays for its last marker time, capped', GR.camSeconds({ markers = { { time = 0 }, { time = 23 } } }, 8) == 8 and GR.camSeconds({ markers = { { time = 0 }, { time = 4 } } }, 8) == 4 and GR.camSeconds(nil, 8) == 0)
+  local cps = GR.cps({ { pos = 1, normal = 'n1', radius = 6 }, { pos = 2, normal = 'n2', radius = 2 } })
+  check('gridrace: the flares get the nodes with their normal and half width at least 4', #cps == 2 and cps[1].dir == 'n1' and cps[1].half == 6 and cps[2].half == 4)
+  check('gridrace: place words', GR.placeWord(1) == '1st' and GR.placeWord(2) == '2nd' and GR.placeWord(3) == '3rd' and GR.placeWord(4) == '4th')
+  -- the game side with a stubbed race object and world: the build (prefab, the grid, the field under the budget), the start, the laps, the finish and the cleanup
+  do
+    local old = { c = _G.sl_career, o = _G.sl_options, pv = _G.getPlayerVehicle, id = _G.getObjectByID, gh = _G.guihooks, lg = _G.log, v3 = _G.vec3, sp = _G.spawnPrefab, rp = _G.removePrefab, vp = _G.gameplay_vehiclePerformance,
+      js = _G.core_jobsystem, um = _G.ui_message, cb = package.loaded['sl/carBuilder'], mk = _G.sl_markers, cp = _G.core_paths, cc = _G.core_camera, sd = _G.slrrDrivers }
+    local events, prefabs, built, deleted = {}, {}, {}, {}
+    local function ev(e) events[#events + 1] = e end
+    local function car(id) return { getID = function() return id end, queueLuaCommand = function(_, c) ev('cmd ' .. id .. ' ' .. c:sub(1, 22)) end, delete = function() deleted[#deleted + 1] = id end } end
+    local v3 = function(x, y, z) return setmetatable({ x = x, y = y, z = z }, { __add = function(a, b) return { x = a.x + b.x, y = a.y + b.y, z = a.z + b.z } end }) end
+    _G.vec3 = v3
+    local sps = {}
+    for i = 1, 4 do sps[i] = { pos = v3(i, 0, 0), rot = {}, missing = false, moveResetVehicleTo = function(_, vid) ev('grid ' .. vid .. ' slot ' .. i) end } end
+    local raceObj = { states = {}, path = { startPositions = { sorted = sps, objects = { [2] = sps[1] } }, defaultStartPosition = 2, config = { linearPathnodes = { 1, 2 } }, pathnodes = { objects = { { pos = 1, radius = 5 }, { pos = 2, radius = 5 } } } } }
+    function raceObj:setPathFile() end
+    function raceObj:setVehicleIds(ids) self.ids = ids ev('ids ' .. #ids) end
+    function raceObj:startRace() ev('startRace') for _, id in ipairs(self.ids) do self.states[id] = { complete = false } end end
+    function raceObj:startAiVehicle(id, a) ev('ai ' .. id .. ' ' .. a) end
+    function raceObj:stopRace() ev('stopRace') end
+    function raceObj:onUpdate(dt) self.ticks = (self.ticks or 0) + 1 if self.ticks == 3 then self.states[100].complete = true self.states[100].placement = 2 self.states[100].endTime = 180 end end
+    package.preload['/lua/ge/extensions/gameplay/race/race'] = function() return function() return raceObj end end
+    _G.sl_career = { isActive = function() return true end, getState = function() return { day = 41, seed = 9, rep = 1000 } end, LEVEL = 'west_coast_usa' }
+    _G.sl_options = { get = function(k) if k == 'slGridCars' then return 3 end return nil end }
+    _G.getPlayerVehicle = function() return car(100) end
+    _G.getObjectByID = function(id) return car(id) end
+    _G.guihooks = { trigger = function(name, d) if name == 'slFade' then ev('fade ' .. tostring(d.on)) end end }
+    _G.log = function() end
+    _G.ui_message = function(t) ev('say ' .. tostring(t)) end
+    _G.spawnPrefab = function(name, file) prefabs[#prefabs + 1] = name return {} end
+    _G.removePrefab = function(name) prefabs[#prefabs] = nil ev('prefab removed') end
+    _G.gameplay_vehiclePerformance = { getClassFromVehId = function() return { class = { name = 'A' } } end, getClassFromConfig = function(m, c) return { class = { name = c:sub(1, 1) } } end }
+    _G.core_jobsystem = { create = function(f) f({ sleep = function() end }) end }
+    _G.core_paths = { loadPath = function() return { markers = { { time = 0 }, { time = 3 } } } end, playPath = function() ev('cam') end, stopCurrentPath = function() end }
+    _G.core_camera = { setByName = function() end }
+    _G.sl_markers = { flareCircuit = function(cps) ev('flares ' .. #cps) end, clear = function() ev('flares cleared') end }
+    _G.slrrDrivers = nil
+    local nextId = 200
+    package.loaded['sl/carBuilder'] = { aiPool = function() return { { model = 'm1', config = 'A1' }, { model = 'm2', config = 'A2' }, { model = 'm3', config = 'B1' }, { model = 'm4', config = 'S1' } } end,
+      spawn = function(_, model, config) nextId = nextId + 1 built[#built + 1] = model .. '/' .. config return car(nextId) end }
+    package.loaded['sl/gridrace'] = nil
+    local G = require('sl/gridrace')
+    local result
+    local ok = G.start({ layer = '003', name = 'Test', laps = 3, purse = 800 }, function(r) result = r end)
+    local log = table.concat(events, '|')
+    check('gridrace game side: start builds the prefab, puts the player on the default spot, builds 3 AI of the class and the next, flares, the camera, the countdown, the start', ok and #prefabs == 1 and log:find('grid 100 slot 1') ~= nil and #built == 3 and built[1]:find('/A') ~= nil and built[2]:find('/A') ~= nil and log:find('ids 4') ~= nil and log:find('startRace') ~= nil and log:find('ai 201 0.75') ~= nil and log:find('flares 2') ~= nil and log:find('cam') ~= nil and log:find('say 3') ~= nil and G.running() ~= nil, log)
+    G.onUpdate(0.1) G.onUpdate(0.1)
+    check('gridrace game side: the race runs until the player is complete', result == nil and G.running() ~= nil)
+    G.onUpdate(0.1)
+    check('gridrace game side: the finish: the place and time go to done, the AI cars are deleted, the prefab removed, the flares cleared, nothing runs', result ~= nil and result.place == 2 and result.time == 180 and result.grid == 4 and #deleted == 3 and #prefabs == 0 and G.running() == nil and table.concat(events, '|'):find('stopRace') ~= nil)
+    -- an abort mid-race cleans up and tells the caller
+    events, built, deleted, result = {}, {}, {}, nil
+    raceObj.ticks, raceObj.states = 0, {}
+    G.start({ layer = '003', name = 'Test', laps = 3 }, function(r) result = r end)
+    G.onStreetLegalStopped()
+    check('gridrace game side: a career stop aborts: done gets aborted, the cars and the prefab go', result ~= nil and result.aborted == true and result.place == nil and #deleted == 3 and #prefabs == 0 and G.running() == nil)
+    _G.sl_career, _G.sl_options, _G.getPlayerVehicle, _G.getObjectByID, _G.guihooks, _G.log, _G.vec3, _G.spawnPrefab, _G.removePrefab, _G.gameplay_vehiclePerformance = old.c, old.o, old.pv, old.id, old.gh, old.lg, old.v3, old.sp, old.rp, old.vp
+    _G.core_jobsystem, _G.ui_message, _G.sl_markers, _G.core_paths, _G.core_camera, _G.slrrDrivers = old.js, old.um, old.mk, old.cp, old.cc, old.sd
+    package.loaded['sl/carBuilder'], package.loaded['sl/gridrace'], package.preload['/lua/ge/extensions/gameplay/race/race'] = old.cb, nil, nil
   end
 end
 

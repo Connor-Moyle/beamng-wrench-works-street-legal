@@ -1,8 +1,8 @@
 -- Street Legal: the calendar's rules (docs/DESIGN_CAREER_TRAVEL.md section 4). Pure, no game calls: tested by tools/luatest.js.
 -- The schedule is built from the career day, the seed and the reputation; nothing is stored except what the player entered, declined, asked
 -- to be reminded of, and what was done or missed (the store, in the save as s.calendar). Event ids are stable: kind:slot:cycle.
--- Weekend home races: days 6 and 7 of the week (the weekly ledger's week), one of the six dockyards layouts each, against a rival of the
--- player's standing. The monthly series (28 days, one at a time) are listed with their rounds; entering and travel come with T3.
+-- Weekend home races: days 6 and 7 of the week (the weekly ledger's week), one of the six dockyards layouts each, a grid race against a field
+-- of the player's class (sl_gridrace). The monthly series (28 days, one at a time) are listed with their rounds; entering and travel come with T3.
 
 local M = {}
 
@@ -210,15 +210,15 @@ function M.missed(list, st, day, hour)
   return out
 end
 
--- the race is over: done, the purse on a win; the history keeps the last HISTORY
-function M.result(st, ev, won)
-  if not ev or st.done[ev.id] then return 0 end
-  local reward = won and (ev.reward or 0) or 0
-  st.done[ev.id] = { won = won == true, day = ev.day, reward = reward }
+-- the race is over: done with the place (nil: did not finish), the purse share and the reputation of the place (sl/core/gridrace); the history keeps the last HISTORY
+function M.result(st, ev, place)
+  if not ev or st.done[ev.id] then return 0, 0 end
+  local money, rep = require('sl/core/gridrace').payout(place, ev.reward)
+  st.done[ev.id] = { won = place == 1, place = place, day = ev.day, reward = money }
   st.entered[ev.id] = nil
-  st.history[#st.history + 1] = { id = ev.id, title = ev.title, day = ev.day, won = won == true, reward = reward }
+  st.history[#st.history + 1] = { id = ev.id, title = ev.title, day = ev.day, place = place, won = place == 1, reward = money }
   while #st.history > M.HISTORY do table.remove(st.history, 1) end
-  return reward
+  return money, rep
 end
 
 -- a day is over: the store forgets what is older than KEEP days

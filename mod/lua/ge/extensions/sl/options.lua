@@ -205,6 +205,10 @@ M.defs = {
     desc = 'The cars of the nearest dealer, junkyard or scrapyard are built while the screen is black (the career start, a fast travel, a cab ride) and kept hidden until you look at the lot, so the lot opens without the freeze per car. Off: a lot builds its cars when you open it.' },
   { key = 'slLotCars', tab = 'World', group = 'Performance', title = 'Most cars on a lot', type = 'range', min = 2, max = 6, step = 1, default = 6, unit = '',
     desc = 'How many cars a lot shows at most. Fewer cars: less to build and less physics while you look.' },
+  { key = 'slGridCars', tab = 'World', group = 'Performance', title = 'Cars against you in a grid race', type = 'range', min = 3, max = 7, step = 1, default = 6, unit = '',
+    desc = 'How many AI cars line up with you in a weekend race (the calendar) and the other grid races. Fewer cars: a shorter black screen while the grid builds and less physics in the race.' },
+  { key = 'slGridCams', tab = 'World', group = 'Performance', title = 'Camera flights at a grid race', type = 'bool', default = true,
+    desc = 'The layout camera flight before the start and after the finish of a grid race. Off: straight to the countdown and the result.' },
   { key = 'slLotDents', tab = 'World', group = 'Performance', title = 'Dents on lot cars', type = 'bool', default = true,
     desc = 'Used cars on a lot are bent where their report says. Off: the row builds faster; the dents still count in the report and the price.' },
   -- the Needs part (sl_needs; its on/off switch is in Parts of the game)
@@ -239,6 +243,7 @@ local PRESETS = {
   slReplay = { performance = false, balanced = true, quality = true, max = true },
   slMarkers = { performance = false, balanced = true, quality = true, max = true },
   slLotCars = { performance = 4, balanced = 6, quality = 6, max = 6 },
+  slGridCars = { performance = 3, balanced = 5, quality = 6, max = 7 },
   slLotDents = { performance = false, balanced = true, quality = true, max = true },
 }
 -- the parts of the game that can be switched off (sl/core/features: each is gated by its extension): one bool each, on by default, listed on the Active features page

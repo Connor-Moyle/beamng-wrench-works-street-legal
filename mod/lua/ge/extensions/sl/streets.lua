@@ -316,7 +316,6 @@ local function finish(playerWon)
   local repDelta = stateLib.recordRace(s, { racer = r.racer, won = playerWon, stake = r.stake, bet = r.bet, night = night(), at = os.time() })
   if not r.roc and sl_career.afterRace then sl_career.afterRace(r.racer, playerWon, r.margin) end   -- (rematch rule, trash talk)
   extensions.hook('onStreetLegalRaceResult', playerWon, r.name, r.racer, r.stake)
-  if r.calendar then extensions.hook('onStreetLegalCalendarRace', r.calendar, playerWon) end      -- (a calendar event: sl_calendar pays the purse)
   if playerWon and r.kind and r.stake == 'money' then                    -- the kind's extra, more at high heat
     local extra = racekinds.bonus(r.kind, r.bet, phaseLib.heatLevel(s.heat))
     if extra > 0 then
@@ -1381,41 +1380,6 @@ function M.buildRacerCar(racerId, pos, rot, done)
     local veh = spawnRacer(job, s, racer, pos, rot)
     if veh then veh:queueLuaCommand('controller.setFreeze(1) input.event("parkingbrake", 1, FILTER_DIRECT)') end
     done(veh)
-  end)
-  return true
-end
-
--- a calendar race (sl_calendar: a weekend race on a dockyards layout) on the layout's circuit against a rival, the way the ROC starts: both on the grid behind
--- the first checkpoint, the rival's car built behind a fade; no bet (the entry fee and the purse are the calendar's), the result goes back as onStreetLegalCalendarRace
-function M.startCalendarRace(eventId, track, laps, rivalId)
-  local s = career()
-  local rival = s and stateLib.racer(s, rivalId)
-  local v = playerCar()
-  if not s or race or busy or not rival or not v or not track or #(track.cps or {}) < 3 then return false end
-  busy = true
-  core_jobsystem.create(function(job)
-    guihooks.trigger('slFade', { on = true })
-    job.sleep(0.6)
-    local c1, c2 = track.cps[1], track.cps[2]
-    local along = c2.pos - c1.pos
-    along.z = 0
-    along = along:length() > 1 and along:normalized() or c1.dir
-    local right = along:cross(vec3(0, 0, 1)):normalized()
-    local start = c1.pos - along * 10 - right * 2.2
-    local rot = quatFromDir(along, vec3(0, 0, 1))
-    spawn.safeTeleport(v, start + vec3(0, 0, 0.5), rot, true, nil, nil, nil, false)
-    job.sleep(0.5)
-    local veh = spawnRacer(job, s, rival, start + right * 4.4 + vec3(0, 0, 0.5), rot, true)
-    busy = false
-    guihooks.trigger('slFade', { on = false })
-    if not veh then extensions.hook('onStreetLegalCalendarRace', eventId, false) return end
-    veh:queueLuaCommand('controller.setFreeze(1)')
-    if startCircuit(rival, veh:getID(), 'money', 0, { name = track.name, cps = track.cps, laps = laps, line = track.line }) then
-      race.calendar = eventId
-      if ui_message then ui_message(strings.t('streets.calendar_race_1_against_2_3_laps', track.name, roster.displayName(rival), laps), 6, 'streetLegal') end
-    else
-      extensions.hook('onStreetLegalCalendarRace', eventId, false)
-    end
   end)
   return true
 end
