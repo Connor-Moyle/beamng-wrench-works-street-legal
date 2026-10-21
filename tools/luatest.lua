@@ -3404,7 +3404,9 @@ do -- phone skins: what a skin.json may say, what reaches the UI, and the folder
   local saved = { FS = _G.FS, log = _G.log, jsonDecode = _G.jsonDecode, buffer = _G.buffer, readTo = io.readFileToBuffer }
   local reads = {}
   _G.FS = { findFiles = function(self, root) return files[root] or {} end, fileSize = function(self, f) return bytes[f] and #bytes[f] or nil end }
-  _G.buffer = { new = function() local b = { data = '' } function b:tostring() return self.data end return b end }
+  _G.buffer = nil      -- (the game has no global `buffer`: the reader must take the 'string.buffer' module, as the game does)
+  local savedSB = package.loaded['string.buffer']
+  package.loaded['string.buffer'] = { new = function() local b = { data = '' } function b:tostring() return self.data end return b end }
   io.readFileToBuffer = function(f, buf) reads[#reads + 1] = f if not bytes[f] then return false end buf.data = bytes[f] return true end
   _G.jsonDecode = function(text) return json[text] end
   _G.log = function() end
@@ -3422,6 +3424,7 @@ do -- phone skins: what a skin.json may say, what reaches the UI, and the folder
   check('skins: a skin.json over 64 KB is never read (a look at its size first), and the list reads only skin.json files, no pictures', (function() for _, f in ipairs(listReads) do if f:find('huge', 1, true) or f:find('%.png$') then return false end end return true end)())
   check('skins: base64 of 1, 2 and 3 bytes', PK.base64('M') == 'TQ==' and PK.base64('Ma') == 'TWE=' and PK.base64('Man') == 'TWFu' and PK.base64('') == '')
   _G.FS, _G.log, _G.jsonDecode, _G.buffer, io.readFileToBuffer = saved.FS, saved.log, saved.jsonDecode, saved.buffer, saved.readTo
+  package.loaded['string.buffer'] = savedSB
   package.loaded['sl/phoneskins'] = nil
 end
 
