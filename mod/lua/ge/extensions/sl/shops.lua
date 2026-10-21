@@ -57,7 +57,7 @@ function M.open(kind, opts)
   local shop, why = rules.normalize(kind, opts)
   if not shop then return false, why end
   at = { id = tostring(type(opts) == 'table' and opts.id or shop.name), shop = shop, pos = type(opts) == 'table' and opts.pos or nil, onBuy = type(opts) == 'table' and type(opts.onBuy) == 'function' and opts.onBuy or nil }
-  if sl_phone and sl_phone.request then sl_phone.request() end
+  if sl_phone and sl_phone.requestStrings then sl_phone.requestStrings() end
   guihooks.trigger('slShopOpen', view(shop, s))
   return true
 end

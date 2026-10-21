@@ -3759,4 +3759,35 @@ do
   package.loaded['sl/shops'] = nil
 end
 
+-- shops placed on a map by a json file (sl/shops)
+do
+  local ST = require('sl/core/state')
+  local st = ST.new(1, 0)
+  st.day, st.money = 2, 900
+  local sent = {}
+  local old = { c = rawget(_G, 'sl_career'), g = rawget(_G, 'guihooks'), lv = rawget(_G, 'getCurrentLevelIdentifier'), fs = rawget(_G, 'FS'), jr = rawget(_G, 'jsonReadFile'), v = rawget(_G, 'vec3'), q = rawget(_G, 'quat'), t = rawget(_G, 'core_environment') }
+  _G.guihooks = { trigger = function(n, d) sent[#sent + 1] = { n = n, d = d } end }
+  _G.sl_career = { isActive = function() return true end, getState = function() return st end, addMoney = function(a, l) return ST.addMoney(st, a, l) end }
+  _G.core_environment = { getTimeOfDay = function() return { time = 0 } end }
+  _G.getCurrentLevelIdentifier = function() return 'west_coast_usa' end
+  _G.vec3 = function(x, y, z) return { x = x, y = y, z = z } end
+  _G.quat = function() return {} end
+  local files = { ['/levels/west_coast_usa/street_legal_shops.json'] = { shops = {
+    { kind = 'Exhaust', name = 'Pipe Dreams', pos = { 1, 2, 3 }, hours = '9-17', stock = { { id = 'a', price = 10 } } },
+    { kind = 'bakery', name = 'Nope', pos = { 1, 2, 3 } },
+    { kind = 'paint', name = 'No pos' } } } }
+  _G.FS = { fileExists = function(_, f) return files[f] ~= nil end, findFiles = function() return {} end }
+  _G.jsonReadFile = function(f) return files[f] end
+  package.loaded['sl/shops'] = nil
+  local SS = require('sl/shops')
+  local els = {}
+  SS.onGetRawPoiListForLevel('west_coast_usa', els)
+  check('sl_shops: a level file places the shops that are valid (an unknown kind and a missing pos are skipped)', #els == 1 and els[1].data.type == 'slrrShop' and els[1].data.kind == 'exhaust' and els[1].markerInfo.missionMarker.pos.x == 1)
+  local act = {}
+  SS.onActivityAcceptGatherData({ els[1].data }, act)
+  check('sl_shops: the marker offers Go in, which opens the shop with its own hours and stock', #act == 1 and act[1].heading == 'Pipe Dreams' and (act[1].buttonFun() == nil) and sent[#sent].n == 'slShopOpen' and sent[#sent].d.stock[1].id == 'a' and sent[#sent].d.closed == nil)
+  _G.sl_career, _G.guihooks, _G.getCurrentLevelIdentifier, _G.FS, _G.jsonReadFile, _G.vec3, _G.quat, _G.core_environment = old.c, old.g, old.lv, old.fs, old.jr, old.v, old.q, old.t
+  package.loaded['sl/shops'] = nil
+end
+
 print(string.format('lua tests passed: %d checks', passed))
