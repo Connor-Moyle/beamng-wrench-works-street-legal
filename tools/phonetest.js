@@ -525,6 +525,22 @@ click('mkbuy', 'c1|delivery');
 assert.ok(calls.some(function (c) { return c.indexOf('marketBuy("c1","delivery")') >= 0; }), 'a car can be bought for delivery from its detail view');
 click('back');
 assert.ok(text().includes('Pessima'), 'back to the list');
+{
+  // the used-car check: the ad tells the history; the faults stay hidden until a paid check, then the found faults and their costs show
+  const base = phone.state.data;
+  const withCheck = (extra) => Object.assign({}, base, { market: Object.assign({}, base.market, { listings: base.market.listings.map((x) => (x.id === 'c1' ? Object.assign({}, x, extra) : x)) }) });
+  phone.handle('slPhoneData', withCheck({ history: ['3 owners', 'No service history', 'No accident'], hidden: true, checkFee: 60, checked: false, faults: undefined, faultList: undefined, report: undefined }));
+  assert.ok(text().includes('3 owners') && text().includes('No service history') && text().includes('show after a mechanic'), 'the history and the hidden-faults note');
+  assert.ok(phone.root.querySelector('[data-a="mkcheck"][data-v="c1"]') && text().includes('Check the car') && text().includes('$60'), 'the check button with its fee');
+  calls.length = 0;
+  click('mkcheck', 'c1');
+  assert.ok(calls.some((c) => c.indexOf('marketCheck("c1")') >= 0), 'the button asks the game for marketCheck("c1")');
+  phone.handle('slPhoneData', withCheck({ history: ['3 owners'], hidden: undefined, checked: true, found: [{ label: 'Battery', cost: 120 }] }));
+  assert.ok(text().includes('The mechanic found') && text().includes('Battery') && text().includes('$120') && !phone.root.querySelector('[data-a="mkcheck"]'), 'after the check: the faults with their costs, no button');
+  phone.handle('slPhoneData', withCheck({ history: ['3 owners'], hidden: undefined, checked: true, found: [] }));
+  assert.ok(text().includes('found no faults'), 'a clean car says so');
+  phone.handle('slPhoneData', base);
+}
 calls.length = 0;
 click('mkcar', '3');
 assert.ok(calls.some(function (c) { return c.indexOf('listCar("3")') >= 0; }), 'listing a car calls the market');

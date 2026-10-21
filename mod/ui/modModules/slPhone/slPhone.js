@@ -642,6 +642,23 @@
         '<div class="slp-kv"><span>' + T('ui.known_faults', 'Known faults') + '</span><b>' + (arr(rp.faults).length ? esc(arr(rp.faults).join(', ')) : 'none') + '</b></div>' + secs +
         '<div class="slp-kv"><span><b>' + T('ui.repair_estimate_to_95', 'Repair estimate, to 95 %') + '</b></span><b>' + money(rp.total) + '</b></div></div></div></div>';
     }
+    // used-car checks (sl_classifieds): a private car ad tells the car's history; the faults and the report show after a paid mechanic's check
+    // (l.history = lines, l.hidden, l.checkFee, l.checked, l.found = { { label, cost } }); an ad without these shows nothing here
+    function usedCheck(l) {
+      var lines = arr(l.history);
+      if (!lines.length && !l.hidden && !l.checked) return '';
+      var html = '<div class="slp-card" style="margin:6px 0 4px 0"><h4>' + T('ui.history', 'History') + '</h4>' + lines.map(function (x) { return '<p>' + esc(x) + '</p>'; }).join('');
+      if (l.hidden) {
+        html += '<p class="slp-warn">&#9888; ' + T('ui.hidden_faults', 'The faults and the car report show after a mechanic has checked the car.') + '</p>' +
+          '<div class="slp-acts"><div class="slp-btn slp-tonal" data-a="mkcheck" data-v="' + esc(l.id) + '">' + T('ui.check_car', 'Check the car') + ' &middot; ' + money(l.checkFee) + '</div></div>';
+      } else if (l.checked) {
+        var found = arr(l.found);
+        html += found.length ? '<p>' + T('ui.faults_found', 'The mechanic found:') + '</p>' + found.map(function (f) {
+          return '<div class="slp-kv"><span>' + esc(f.label || '') + '</span><b>' + money(f.cost) + '</b></div>';
+        }).join('') : '<p>' + T('ui.no_faults_found', 'The mechanic found no faults.') + '</p>';
+      }
+      return html + '</div>';
+    }
     function carAdCard(l) {
       var tells = arr(l.tells).length ? '<p class="slp-warn">&#9888; ' + arr(l.tells).map(esc).join(' &middot; ') + '</p>' : '';
       return '<div class="slp-card">' + adPic(l) + '<h4 data-a="adview" data-v="' + esc(l.id) + '">' + (l.rare ? '&#9733; ' : '') + (l.year ? l.year + ' ' : '') + esc(l.name) + '</h4>' +
@@ -649,7 +666,7 @@
         '<p>' + esc(l.seller) + ' ' + '&#9733;'.repeat(l.rating || 0) + (l.metres != null ? T('ui.middot_1_away', ' &middot; {1} away', adDist(l.metres)) : '') + (l.hours ? T('ui.middot_delivered_in_about_1', ' &middot; delivered in about {1} h', l.hours) : '') +
         ' &middot; ' + l.condition + T('ui.condition', '% condition') + (l.faults ? T('ui.middot_1_fault_2', ' &middot; {1} fault{2}', l.faults, (l.faults > 1 ? 's' : '')) : '') + ' &middot; ' + Math.max(0, l.hoursLeft | 0) + (T('ui.h_left', ' h left') + '</p>') + tells +
         '<p><b>' + money(l.ask) + '</b>' + (l.agreed ? T('ui.agreed', ' (agreed)') : '') + ' &middot; deposit ' + money(l.deposit) + (l.delivery != null ? T('ui.middot_delivery_1', ' &middot; delivery +{1}', money(l.delivery)) : '') + '</p>' +
-        reportBlock('ad:' + l.id, l.report) +
+        usedCheck(l) + reportBlock('ad:' + l.id, l.report) +
         adButtons(l).replace('<div class="slp-acts">', '<div class="slp-acts"><div class="slp-btn slp-tonal" data-a="adview" data-v="' + esc(l.id) + ('">' + T('ui.details', 'Details') + '</div>')) + '</div>';
     }
     // the detail view: the picture, every spec, the seller and the price
@@ -663,7 +680,7 @@
         row(T('ui.brand', 'Brand'), esc(l.brand)) + row(T('ui.year', 'Year'), l.year) + row(T('ui.mileage', 'Mileage'), l.mileage != null ? Number(l.mileage).toLocaleString() + ' km' : null) + row(T('ui.condition_2', 'Condition'), l.condition + '%') +
         row(T('ui.power', 'Power'), sp.power ? Math.round(sp.power) + ' PS' : null) + row(T('ui.weight', 'Weight'), sp.weight ? Math.round(sp.weight).toLocaleString() + ' kg' : null) +
         row(T('ui.transmission', 'Transmission'), esc(sp.transmission)) + row(T('ui.drivetrain', 'Drivetrain'), esc(sp.drivetrain)) + row(T('ui.fuel', 'Fuel'), esc(sp.fuel)) + row(T('ui.body', 'Body'), esc(sp.body)) +
-        row(T('ui.top_speed', 'Top speed'), sp.topSpeed ? Math.round(sp.topSpeed * 3.6) + ' km/h' : null) + (faults.length ? row(T('ui.needs', 'Needs'), esc(faults.join(', '))) : '') + reportBlock('ad:' + l.id, l.report) + '</div>' +
+        row(T('ui.top_speed', 'Top speed'), sp.topSpeed ? Math.round(sp.topSpeed * 3.6) + ' km/h' : null) + (faults.length ? row(T('ui.needs', 'Needs'), esc(faults.join(', '))) : '') + usedCheck(l) + reportBlock('ad:' + l.id, l.report) + '</div>' +
         '<div class="slp-card">' + row(T('ui.seller', 'Seller'), esc(l.seller) + ' ' + '&#9733;'.repeat(l.rating || 0)) + row(T('ui.distance', 'Distance'), l.metres != null ? adDist(l.metres) : null) +
         row(T('ui.delivery', 'Delivery'), l.hours ? T('ui.to_your_garage_in_about', 'to your garage in about {1} h', l.hours) : null) + row(T('ui.asking', 'Asking'), money(l.ask)) + row(T('ui.deposit_pick_up', 'Deposit (pick up)'), money(l.deposit)) +
         (l.delivery != null ? row(T('ui.delivery_fee', 'Delivery fee'), money(l.delivery)) : '') + adButtons(l) + '</div></div>';
@@ -1909,6 +1926,7 @@
         case 'awatch': var aw = String(v).split('|'); lua('@sl_carauctions.watch(' + JSON.stringify(aw[0]) + ',' + (aw[1] === '1' ? 'true' : 'false') + ')'); break;
         case 'asell': var as = String(v).split('|'); lua('@sl_carauctions.sell(' + Number(as[0]) + ',' + Number(as[1]) + ')'); break;
         case 'buypaper': lua('buyPaper()'); break;
+        case 'mkcheck': lua('marketCheck(' + JSON.stringify(String(v)) + ')'); break;
         case 'mkbuy': lua('marketBuy(' + JSON.stringify(String(v).split('|')[0]) + ',' + JSON.stringify(String(v).split('|')[1]) + ')'); break;
         case 'jobquit': lua('giveUpJob()'); break;
         case 'jobway': lua('jobWay()'); toast(T('ui.the_route_is_on_your', 'The route is on your road.')); break;
