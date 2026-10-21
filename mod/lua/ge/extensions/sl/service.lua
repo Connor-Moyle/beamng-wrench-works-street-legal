@@ -31,9 +31,16 @@ local function partwear(car)
   return ok and type(r) == 'table' and r.parts or nil
 end
 
+-- the Wear rate setting now (Mods > Difficulty > Wear): 0.5, 1, 2 or 4
+local function rate()
+  return svc.rate(sl_options and sl_options.get and sl_options.get('slWearRate'))
+end
+
 local function figures(car)
   local c = sl_carcare.careOf(car)
-  local sv = svc.state(car, c.engineKm, c.abuse)
+  local k = rate()
+  local sv = svc.state(car, c.engineKm, c.abuse, k)
+  svc.sync(sv, k, c.engineKm, car.mileage, c.abuse)
   local gross = svc.gross(sv, c.engineKm, car.mileage, c.abuse)
   return c, sv, gross, svc.net(sv, gross)
 end
@@ -54,7 +61,7 @@ function M.serviceOf(carId)
   local bench = workbench(s)
   local note = bench and '' or strings.t('service.no_bench')
   local rc = market.REPAIR_CONDITION
-  return { due = svc.due(km), km_since = math.floor(km), km_interval = svc.INTERVAL, wearFactor = svc.wearFactor(km), count = sv.count,
+  return { due = svc.due(sv, km), km_since = math.floor(km), km_interval = math.floor(svc.INTERVAL / rate()), wearFactor = svc.wearFactor(sv, km), count = sv.count,
     sections = svc.sections(net, partwear(car)),
     options = {
       { id = 'basic', label = strings.t('service.basic'), cost = svc.basicCost(car.value, bench), available = true, why = note },
@@ -78,6 +85,50 @@ function M.service(carId, optionId)
   extensions.hook('onStreetLegalChanged')
   return true, strings.t('service.done', opt.label, opt.cost)
 end
+
+-- the same factor to Part Wear (setWearRate) and the CSFX tyres (setWearScale), when they are there and have the call; sent at the start, on a change, and again every few seconds
+-- until both took it (they may load later). Part off: nothing is sent.
+local sent = {}
+local function push()
+  if not require('sl/core/features').on('service') then return end
+  local k = rate()
+  for _, t in ipairs({ { 'slrr_partwear', 'setWearRate', 'getWearRate' }, { 'carSurfaceFx_tyres', 'setWearScale', 'getWearScale' } }) do
+    local mod = rawget(_G, t[1])
+    if mod and type(mod[t[2]]) == 'function' then
+      local okG, now = true, nil
+      if type(mod[t[3]]) == 'function' then okG, now = pcall(mod[t[3]]) end          -- (a module that was reloaded starts at 1 again: ask)
+      if sent[t[1]] ~= k or (okG and now ~= nil and now ~= k) then
+        if pcall(mod[t[2]], k) then sent[t[1]] = k end
+      end
+    end
+  end
+end
+-- a record for every car of the career as soon as the part is on (at the career start, a purchase, the switch turned on), so the origin of the 40x wear is when the part began to watch the
+-- car and not whenever the phone first asked
+local function ensureAll()
+  local s = career()
+  if not s then return end
+  local k = rate()
+  for _, car in ipairs(s.cars) do
+    local c = sl_carcare.careOf(car)
+    svc.sync(svc.state(car, c.engineKm, c.abuse, k), k, c.engineKm, car.mileage, c.abuse)
+  end
+end
+
+local timer = 0
+function M.onUpdate(dt)
+  timer = timer + (dt or 0)
+  if timer < 5 then return end
+  timer = 0
+  push()
+  ensureAll()
+end
+function M.onStreetLegalStarted() sent = {} push() ensureAll() end
+function M.onStreetLegalOption(key, value)
+  if key == 'slWearRate' then sent = {} push() ensureAll() end
+  if key == 'slService' and value == true then ensureAll() end
+end
+function M.onClientEndMission() sent = {} end
 
 require('sl/core/features').gate('service', M, nil, nil, { 'wearOf', 'serviceOf', 'service' })
 

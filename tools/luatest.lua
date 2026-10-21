@@ -1431,6 +1431,13 @@ do
     local function card(id) for _, c in ipairs(C.summary().listings) do if c.id == id then return c end end end
     local c3 = card('m3')
     check('used car: the ad hides the faults and the report, and shows the history and the fee', c3 and c3.hidden == true and c3.faults == nil and c3.faultList == nil and c3.report == nil and #c3.history == 3 and c3.checkFee == U.fee(2000) and c3.checked == false)
+    local function leaks(v, depth)
+      if depth > 4 then return false end
+      if type(v) == 'string' then return v == 'brakes' or v == 'engine' or v:find('Brakes', 1, true) ~= nil end
+      if type(v) == 'table' then for _, x in pairs(v) do if leaks(x, depth + 1) then return true end end end
+      return false
+    end
+    check('used car: no field of an unchecked card names a fault', not leaks(c3, 0))
     local okc = C.check('m3')
     check('used car: the check costs the fee and shows the faults with what each costs', okc == true and state.money == 500 - U.fee(2000) and card('m3').checked == true and card('m3').faults == 2 and #card('m3').found == 2 and card('m3').found[1].cost == 150 and card('m3').report ~= nil)
     local moneyAfter = state.money
@@ -2756,6 +2763,18 @@ do -- the depth of a night chase (core/chase)
   check('chase: the strip goes 150 m down a straight road, heading along it', p1 and p1.x == 150 and d1.x > 0 and d1.y == 0)
   local p2 = CH.stripSpot(line, function(pt) return pt.x >= 200 end)
   check('chase: a refused spot (a bridge) moves it on down the road', p2 and p2.x == 200)
+  do
+    local sp, dir = CH.stripPlan(line)
+    check('chase: stripPlan gives the spot and the direction together', sp ~= nil and dir ~= nil and dir.x ~= nil)
+    check('chase: stripPlan with no route, a refused route or a short one gives nothing (never a spot without a direction)', CH.stripPlan(nil) == nil and CH.stripPlan(line, function() return false end) == nil and CH.stripPlan({ { x = 0, y = 0 }, { x = 100, y = 0 } }) == nil)
+    local st, runs = { fails = 0, off = false }, 0
+    local function bad() runs = runs + 1 error('boom') end
+    for _ = 1, 10 do CH.guarded(st, bad) end
+    check('chase: a tick that fails every time runs 5 times and is then switched off', runs == CH.MAX_FAILS and st.off == true)
+    local st2, ok2 = { fails = 0, off = false }, 0
+    for i = 1, 10 do CH.guarded(st2, function() if i % 3 == 0 then error('x') end ok2 = ok2 + 1 end) end
+    check('chase: failures that do not come in a row never switch it off', st2.off == false and ok2 == 7 and CH.guarded({ fails = 0, off = false }, function() end) == true)
+  end
   check('chase: no spot when every candidate is refused or the route is short', CH.stripSpot(line, function() return false end) == nil and CH.stripSpot({ { x = 0, y = 0 }, { x = 100, y = 0 } }) == nil)
   local bend = {} for i = 0, 30 do bend[#bend + 1] = { x = i * 10, y = 0, z = 0 } end        -- straight 300 m ...
   for i = 1, 30 do bend[#bend + 1] = { x = 300, y = i * 10, z = 0 } end                         -- ... then a right-angle corner at 300 m
@@ -3496,7 +3515,7 @@ do
   local ST = require('sl/core/state')
   check('weekly: week and day of week from the day', W.week(1) == 1 and W.week(7) == 1 and W.week(8) == 2 and W.dayOfWeek(1) == 1 and W.dayOfWeek(7) == 7 and W.dayOfWeek(8) == 1)
   check('weekly: no rent in the first garage, rent above it, storage for cars beyond two',
-    #W.lines(1, 2) == 0 and W.total(W.lines(2, 2)) == 250 and W.total(W.lines(3, 5)) == 700 + 3 * 40 and W.total(W.lines(1, 3)) == 40)
+    #W.lines(1, 2) == 0 and W.total(W.lines(2, 2)) == 150 and W.total(W.lines(3, 5)) == 400 + 3 * 40 and W.total(W.lines(1, 3)) == 40)
   local r = W.settle(1000, 0, 300)
   check('weekly: bills paid in full', r.pay == 300 and r.short == 0 and r.debt == 0)
   r = W.settle(100, 50, 300)
@@ -3520,16 +3539,16 @@ do
   WK.onStreetLegalNewDay(2)
   check('weekly: the first day seen starts the first week, nothing is billed', st.money == 1000 and st.weekly.nextDue == 8 and st.weekly.debt == 0)
   WK.onStreetLegalNewDay(8)
-  check('weekly: day 8 bills rent 250 and storage 2 x 40', st.money == 1000 - 330 and #st.weekly.history == 1 and st.weekly.history[1].costs == 330 and st.weekly.nextDue == 15)
+  check('weekly: day 8 bills rent 150 and storage 2 x 40', st.money == 1000 - 230 and #st.weekly.history == 1 and st.weekly.history[1].costs == 230 and st.weekly.nextDue == 15)
   st.money = 100
   WK.onStreetLegalNewDay(15)
-  check('weekly: an unpayable week makes a debt, costs reputation once, sends one text', st.money == 0 and st.weekly.debt == 230 and #sent == 1 and WK.debt() == 230)
+  check('weekly: an unpayable week makes a debt, costs reputation once, sends one text', st.money == 0 and st.weekly.debt == 130 and #sent == 1 and WK.debt() == 130)
   st.day = 15
   local sum = WK.summary()
-  check('weekly: the summary has the week, the debt, projected bills and the history', sum.week == 3 and sum.debt == 230 and #sum.bills == 2 and sum.nextBillDay == 7 and #sum.history == 2)
+  check('weekly: the summary has the week, the debt, projected bills and the history', sum.week == 3 and sum.debt == 130 and #sum.bills == 2 and sum.nextBillDay == 7 and #sum.history == 2)
   st.money = 150
   local ok1 = WK.payDebt(1000)
-  check('weekly: payDebt pays what money allows and answers', ok1 == true and st.money == 0 and st.weekly.debt == 80)
+  check('weekly: payDebt pays what money allows and answers', ok1 == true and st.money == 20 and st.weekly.debt == 0)
   check('weekly: payDebt with no money refuses', (WK.payDebt(10)) == false)
   do
     local f = _G.sl_options
@@ -3569,13 +3588,25 @@ do
     local old = {}
     local so = S.state(old, 1300, { brakes = 10 })
     local g0 = S.gross(so, 1300, 1000, { brakes = 10 })
-    check('service: a car seen for the first time has the wear of before (300 km, 1x), not 40x, and is not due', so.origin == 1300 and math.abs(g0.brakes - W.lost(300, { brakes = 10 }).brakes) < 1e-9 and not S.due(S.since(so, 1300, 1000)))
+    check('service: a car seen for the first time has the wear of before (300 km, 1x), not 40x, and is not due', so.origin == 1300 and math.abs(g0.brakes - W.lost(300, { brakes = 10 }).brakes) < 1e-9 and not S.due(so, S.since(so, 1300, 1000)))
     local g1 = S.gross(so, 1400, 1000, { brakes = 12 })
     check('service: from then on the driving and the new abuse count 40 times', math.abs(g1.brakes - W.lost(300 + 100 * 40, { brakes = 10 + 2 * 40 }).brakes) < 1e-9)
     check('service: the record is made once', S.state(old, 9999, {}).origin == 1300)
   end
+  do -- the Wear rate setting: presets, the interval follows, a change keeps the wear already there
+    check('service: Wear rate presets', S.rate('half') == 0.5 and S.rate('normal') == 1 and S.rate('double') == 2 and S.rate('quad') == 4 and S.rate('nope') == 1 and S.rate(nil) == 1)
+    local r2 = S.state({}, 1000, {}, 2)
+    check('service: at 2x a service is due after 75 km and the wear is twice as fast', S.due(r2, 75) and not S.due(r2, 74) and math.abs(S.gross(r2, 1070, 1000, {}).brakes - 2 * S.gross(S.state({}, 1000, {}, 1), 1070, 1000, {}).brakes) < 1e-12)
+    local c = S.state({}, 1000, {}, 1)
+    local before = S.gross(c, 1100, 1000, { brakes = 5 })
+    check('service: the rate changing keeps the wear as it is, then counts at the new rate', S.sync(c, 4, 1100, 1000, { brakes = 5 }) == true and math.abs(S.gross(c, 1100, 1000, { brakes = 5 }).brakes - before.brakes) < 1e-12
+      and S.gross(c, 1200, 1000, { brakes = 5 }).brakes > before.brakes and S.sync(c, 4, 1200, 1000, { brakes = 5 }) == false)
+    local grown = S.gross(c, 1200, 1000, { brakes = 5 }).brakes - before.brakes
+    check('service: after the change 100 km wear four times the 1x scale, with the overdue part past the 37.5 km interval', math.abs(grown - W.lost((100 + 0.5 * (100 - 37.5)) * 40 * 4, {}).brakes) < 1e-9)
+    check('service: the service clock restarts at a change of the rate (the overdue wear so far is kept)', c.baseKm == 1100 and S.since(c, 1200, 1000) == 100)
+  end
   local sv = S.state({})
-  check('service: a fresh record, due once the interval is driven', sv.penalty == 0 and S.since(sv, 1000, 1000) == 0 and not S.due(149) and S.due(150) and S.wearFactor(100) == 1 and S.wearFactor(200) == 1.5)
+  check('service: a fresh record, due once the interval is driven', sv.penalty == 0 and S.since(sv, 1000, 1000) == 0 and not S.due(sv, 149) and S.due(sv, 150) and S.wearFactor(sv, 100) == 1 and S.wearFactor(sv, 200) == 1.5)
   local g0 = S.gross(sv, 1000, 1000, {})
   local g1 = S.gross(sv, 1100, 1000, {})
   check('service: wear is scaled so a few hundred km show (brakes after 100 km: 0.5*100*40/120000)', g0.brakes == 0 and math.abs(g1.brakes - 0.5 * 100 * 40 / 120000) < 1e-9)
@@ -3594,8 +3625,8 @@ do
   for _, v in pairs(net1) do if v ~= 0 then zero = false end end
   check('service: an overhaul puts all wear right, and later wear shows on top of it', zero and net0.brakes > 0 and S.net(sv, S.gross(sv, 1500, 1000, {})).brakes > 0)
   check('service: the abuse counts scale too', S.gross(S.state({}), 1000, 1000, { brakes = 100 }).brakes > 0 and S.gross(S.state({}), 1000, 1000, { brakes = 100 }).brakes == W.lost(0, { brakes = 100 * 40 }).brakes)
-  check('service: prices: basic $60 + 0.4% of the value, half as much again without a workbench; the overhaul adds the worn sections',
-    S.basicCost(10000, true) == 100 and S.basicCost(10000, false) == 150 and S.overhaulCost(10000, { brakes = 0.1 }, 3, true) == 100 + 330 and S.overhaulCost(10000, { brakes = 0.1 }, 3, false) == 150 + 500)
+  check('service: prices: basic $30 + 0.2% of the value, half as much again without a workbench; the overhaul adds the worn sections',
+    S.basicCost(10000, true) == 50 and S.basicCost(10000, false) == 80 and S.overhaulCost(10000, { brakes = 0.1 }, 3, true) == 50 + 330 and S.overhaulCost(10000, { brakes = 0.1 }, 3, false) == 80 + 500)
   local secs = S.sections({ brakes = 0.25, engine = 0 }, nil)
   check('service: sections 0..1 from the wear model', #secs == 5 and secs[1].id == 'engine' and secs[1].condition == 1 and secs[4].id == 'brakes' and secs[4].condition == 0.5)
   local pw = S.sections({ brakes = 0 }, { { section = 'brakes', condition = 0.2 }, { section = 'brakes', condition = 0.6 }, { section = 'drive', condition = 0.9 }, { section = 'exhaust', condition = 0.7 }, { section = 'flux', condition = 0.1 } })
@@ -3620,9 +3651,9 @@ do
   package.loaded['sl/service'] = nil
   local SV = require('sl/service')
   local info = SV.serviceOf(1)
-  check('service: the card says due, the km since, the interval, a factor and two options', info.due == true and info.km_since == 300 and info.km_interval == 150 and info.wearFactor == 1.5 and #info.options == 2 and info.options[1].cost == 100)
+  check('service: the card says due, the km since, the interval, a factor and two options', info.due == true and info.km_since == 300 and info.km_interval == 150 and info.wearFactor == 1.5 and #info.options == 2 and info.options[1].cost == 50)
   local okS, text = SV.service(1, 'basic')
-  check('service: a basic service charges, resets the interval and is noted', okS == true and st.money == 900 and car.service.baseKm == 1300 and SV.serviceOf(1).due == false)
+  check('service: a basic service charges, resets the interval and is noted', okS == true and st.money == 950 and car.service.baseKm == 1300 and SV.serviceOf(1).due == false)
   check('service: not enough money refuses and changes nothing', (function() st.money = 10 local ok = SV.service(1, 'full') return ok == false and st.money == 10 and car.service.count == 1 end)())
   check('service: an unknown car or service refuses', SV.service(9, 'basic') == false and SV.service(1, 'nope') == false)
   _G.slrr_partwear = { conditionsOf = function() return nil end, conditionsOfKey = function(k) return { parts = { { section = 'suspension', condition = 0.3 } } } end }
@@ -3631,6 +3662,27 @@ do
   check('service: Part Wear by key is read when the car is not spawned', sus == 0.3)
   _G.slrr_partwear = { conditionsOf = function() error('boom') end }
   check('service: a failing Part Wear query falls back to our model', #SV.serviceOf(1).sections == 5)
+  do -- the Wear rate reaches Part Wear and the tyres, and every car gets a record
+    local got = {}
+    local f0, t0 = rawget(_G, 'slrr_partwear'), rawget(_G, 'carSurfaceFx_tyres')
+    _G.slrr_partwear = { setWearRate = function(k) got.pw = k return k end }
+    _G.carSurfaceFx_tyres = { setWearScale = function(k) got.tyre = k return true end }
+    local fo = _G.sl_options
+    _G.sl_options = { get = function(k) if k == 'slWearRate' then return 'double' end end }
+    st.cars[2] = { id = 2, name = 'Other', value = 5000, mileage = 500, care = { engineKm = 800, abuse = {}, trunk = {} } }
+    SV.onUpdate(6)
+    check('service: the Wear rate is sent to Part Wear and the tyres, as a number', got.pw == 2 and got.tyre == 2)
+    check('service: every car gets a record at once, at the rate and the engine km of that moment', st.cars[2].service and st.cars[2].service.origin == 800 and st.cars[2].service.rate == 2)
+    got = {}
+    SV.onUpdate(1)
+    check('service: nothing is sent again while it is unchanged', got.pw == nil and got.tyre == nil)
+    SV.onStreetLegalOption('slWearRate', 'quad')
+    _G.sl_options = { get = function(k) if k == 'slWearRate' then return 'quad' end end }
+    SV.onStreetLegalOption('slWearRate', 'quad')
+    check('service: a change of the setting is sent at once', got.pw == 4 and got.tyre == 4 and st.cars[2].service.rate == 4)
+    _G.sl_options = fo
+    _G.slrr_partwear, _G.carSurfaceFx_tyres = f0, t0
+  end
   do
     local f = _G.sl_options
     _G.sl_options = { get = function(k) if k == 'slService' then return false end end }

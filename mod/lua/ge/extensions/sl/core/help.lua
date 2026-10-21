@@ -36,11 +36,14 @@ M.PAGES = {
     'The Car market has two tabs: the Dealers (their cars today, with pictures, power and when they arrive) and Private ads (cars sold from a kerb). A car you buy is built at your garage after a few hours; the phone tells you when.',
     'The Part market has Revline (parts from private sellers), Swap & Bid (auctions, and the swap meet), Classifieds (the paper) and the Catalog (new parts from the garage, delivered to your shelf).',
     'Used things can be worse than they look. A seller with few stars, or an ad that says "must go today", is a warning. You can make an offer, pick up in person or pay for delivery.',
+    'A private ad for a car tells you its history (previous owners, the service record, accidents) but not its faults. A mechanic\'s check, for a fee, shows the faults and the car report, and what each fault costs to put right. A patchy service record is a hint. Switch it off in Mods > Parts of the game > Used-car checks and the ads show every fault.',
+    'Servicing: with Servicing and wear on (Mods > Parts of the game), cars wear much faster than before and a service is due about every 150 km; My cars shows each car\'s sections, the km since the last service and the price. A basic service restarts the interval; a full overhaul also puts the worn sections right. Driving past the interval wears the car faster. Mods > Difficulty > Wear sets the wear rate and with it the service interval (0.5x, 1x, 2x, 4x), and tells Part Wear and the Car Surface FX tyres to wear at the same rate when they are installed.',
   } },
   { id = 'money', title = 'Money and the bank', body = {
     'By day you earn money: jobs, the track events, and selling what you do not need. Night pays in reputation instead.',
     'The Bank app shows your balance and statement. You can borrow against your reputation, your garage and the cars you own, up to a limit; a quarter of the loan is due each week, and missed payments cost reputation, then the car.',
     'Insurance costs a little every week and pays half of repair and impound bills over a deductible.',
+    'Weekly costs: every seventh day the rent of the garage you hold (the first is free, the second $150, the third $400) and $40 for each car you keep beyond two are paid, and the Bank app lists the coming bills and the last weeks. What you cannot pay becomes a debt at the bank, never a repossession; it costs 5 reputation once, is paid down first from money above $200, and the bank lends nothing while you owe it. Switch it off in Mods > Parts of the game > Weekly costs.',
     'The pace: day jobs pay about a third more than they used to. Your first garage is free; the second needs 175 reputation and $6,000, the third 1,000 reputation and $25,000. A few days of jobs and a few night wins get you the second.',
   } },
   { id = 'dealers', title = 'Dealers, factory orders and the car report', body = {
@@ -119,6 +122,10 @@ M.PAGES = {
     '- Colour-blind friendly colours: blue and orange instead of green and red on the phone, the laptop and the HUD, with a tick, a cross or an arrow beside every good or bad figure.',
     '- Show co-driver notes on screen: on rally stages what the co-driver calls is also written on screen.',
     '- Record street races: a race can be watched again (Races app, Last race) and saved as a clip.',
+    '- Phone skin (Screens and texts): Classic, or Slate, a modern look; your own skins are folders in the user folder (see docs/PHONE_SKINS.md). A phone that is already open keeps its look until you close and reopen it.',
+    '- Parts of the game (Mods > Street Legal > Parts of the game, and the Active features page): spectators, sponsor billboards, ambient sounds, puddles, achievements, tips, car and part markets, rally, street races and drag, clubs, crews, the tow truck, the taxi ride, the bank, the hospital, the HUD pill, the laptops, Maps, garage upgrades, jobs, weekly costs, servicing and wear and used-car checks. Each is on by default and can be switched off; what a part keeps in your save is not deleted.',
+    '- Street Legal in free roam (Mods > Street Legal > Free roam, all off by default): a master switch and one switch each for the phone (K) with the Maps and Cab apps, map pins, weather, the free cab, the free car wash and the dashboard. No career is started or saved and no money is spent.',
+    '- Wet roads and walls (Mods > Street Legal > Clock and weather, off by default): they can lose the graphics device at High graphics in heavy rain on BeamNG 0.40; turn it on only if you accept that.',
     'Developer: a button that gives you all the money, for testing.',
   } },
 }

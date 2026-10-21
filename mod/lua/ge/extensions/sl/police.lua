@@ -67,6 +67,7 @@ local nodeAround              -- (defined below)
 -- the chase, once a second: out of sight or under a roof the game's evade timer runs faster (core/chase), and the HUD gets the meters.
 -- chaseState is nil outside a chase; stripsHit counts the strips this chase has put under you (the escape pays for them)
 local chaseState, lastEvade, stripsHit = nil, 0, 0
+local chaseGuard = { fails = 0, off = false }
 local function chaseTick(dt)
   local v = getPlayerVehicle(0)
   local pur = v and night() and gameplay_police and gameplay_police.getPursuitData and gameplay_police.getPursuitData(v:getID())
@@ -169,7 +170,7 @@ local function placeStrip(v)
   local sv = stripVeh()
   if not sv then return end
   local pts = routeAhead(v)
-  local spot, d = pts and chaseLib.stripSpot(pts, stripOk)
+  local spot, d = chaseLib.stripPlan(pts, stripOk)
   if not spot then return end
   local pos = vec3(spot.x, spot.y, spot.z + 0.3)
   local across = vec3(-d.y, d.x, 0):normalized()
@@ -502,7 +503,12 @@ function M.onUpdate(dtReal)
   nearTimer = nearTimer + dtReal
   stripWatch()
   breakerWatch()
-  if nearTimer > 1 then chaseTick(nearTimer) nearTimer = 0 nearMiss(os.clock()) end
+  if nearTimer > 1 then
+    local ok, err, off = chaseLib.guarded(chaseGuard, chaseTick, nearTimer)
+    if err then log('E', 'street_legal', 'chase tick failed' .. (off and ', switched off for this session' or '') .. ': ' .. tostring(err)) end
+    nearTimer = 0
+    nearMiss(os.clock())
+  end
   if timer > 5 then
     timer = 0
     updatePatrols()
