@@ -3262,7 +3262,7 @@ do
   local Opt = require('sl/options')
   local defs = {}
   for _, d in ipairs(Opt.defs) do defs[d.key] = d end
-  local okDefs = #F.LIST == 20
+  local okDefs = #F.LIST == 21
   for _, f in ipairs(F.LIST) do
     local d = defs[f.opt]
     if not (d and d.type == 'bool' and d.default == true and d.feature == true and d.title == f.title and f.desc ~= '') then okDefs = false end
@@ -3461,6 +3461,53 @@ do -- phone skins: what a skin.json may say, what reaches the UI, and the folder
   _G.FS, _G.log, _G.jsonDecode, _G.buffer, io.readFileToBuffer = saved.FS, saved.log, saved.jsonDecode, saved.buffer, saved.readTo
   package.loaded['string.buffer'] = savedSB
   package.loaded['sl/phoneskins'] = nil
+end
+
+-- weekly costs and the ledger (career expansion #1)
+do
+  local W = require('sl/core/weekly')
+  local ST = require('sl/core/state')
+  check('weekly: week and day of week from the day', W.week(1) == 1 and W.week(7) == 1 and W.week(8) == 2 and W.dayOfWeek(1) == 1 and W.dayOfWeek(7) == 7 and W.dayOfWeek(8) == 1)
+  check('weekly: no rent in the first garage, rent above it, storage for cars beyond two',
+    #W.lines(1, 2) == 0 and W.total(W.lines(2, 2)) == 250 and W.total(W.lines(3, 5)) == 700 + 3 * 40 and W.total(W.lines(1, 3)) == 40)
+  local r = W.settle(1000, 0, 300)
+  check('weekly: bills paid in full', r.pay == 300 and r.short == 0 and r.debt == 0)
+  r = W.settle(100, 50, 300)
+  check('weekly: a shortfall joins the debt, money is never negative', r.pay == 100 and r.short == 200 and r.debt == 250 and r.repaid == 0)
+  r = W.settle(1000, 500, 300)
+  check('weekly: debt is repaid from money above the buffer only', r.billsPaid == 300 and r.repaid == 500 and r.debt == 0 and r.pay == 800)
+  r = W.settle(600, 500, 300)
+  check('weekly: the buffer stays after a part repayment', r.repaid == 100 and r.debt == 400 and 600 - r.pay == 200)
+
+  local st = ST.new(1, 0)
+  st.day, st.garageLevel, st.money = 1, 2, 1000
+  for i = 1, 4 do st.cars[#st.cars + 1] = { id = i } end
+  local sent = {}
+  local old = { c = rawget(_G, 'sl_career'), g = rawget(_G, 'guihooks'), e = rawget(_G, 'extensions') }
+  _G.guihooks = { trigger = function() end }
+  _G.extensions = { hook = function() end }
+  _G.sl_career = { isActive = function() return true end, getState = function() return st end,
+    addMoney = function(a, l) return ST.addMoney(st, a, l) end, sendText = function(_, t) sent[#sent + 1] = t end }
+  package.loaded['sl/weekly'] = nil
+  local WK = require('sl/weekly')
+  WK.onStreetLegalNewDay(2)
+  check('weekly: the first day seen starts the first week, nothing is billed', st.money == 1000 and st.weekly.nextDue == 8 and st.weekly.debt == 0)
+  WK.onStreetLegalNewDay(8)
+  check('weekly: day 8 bills rent 250 and storage 2 x 40', st.money == 1000 - 330 and #st.weekly.history == 1 and st.weekly.history[1].costs == 330 and st.weekly.nextDue == 15)
+  st.money = 100
+  WK.onStreetLegalNewDay(15)
+  check('weekly: an unpayable week makes a debt, costs reputation once, sends one text', st.money == 0 and st.weekly.debt == 230 and #sent == 1 and WK.debt() == 230)
+  st.day = 15
+  local sum = WK.summary()
+  check('weekly: the summary has the week, the debt, projected bills and the history', sum.week == 3 and sum.debt == 230 and #sum.bills == 2 and sum.nextBillDay == 7 and #sum.history == 2)
+  st.money = 150
+  local ok1 = WK.payDebt(1000)
+  check('weekly: payDebt pays what money allows and answers', ok1 == true and st.money == 0 and st.weekly.debt == 80)
+  check('weekly: payDebt with no money refuses', (WK.payDebt(10)) == false)
+  for d = 22, 22 + 7 * 10, 7 do WK.onStreetLegalNewDay(d) end
+  check('weekly: history keeps eight weeks', #st.weekly.history == W.KEEP)
+  _G.sl_career, _G.guihooks, _G.extensions = old.c, old.g, old.e
+  package.loaded['sl/weekly'] = nil
 end
 
 print(string.format('lua tests passed: %d checks', passed))

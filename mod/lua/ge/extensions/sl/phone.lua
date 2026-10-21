@@ -109,7 +109,7 @@ local function snapshot()
     art = sl_hud ~= nil and sl_hud.slrrArt ~= nil and sl_hud.slrrArt() or false,
     has = { clubs = sl_career.has('clubs'), crews = sl_career.has('crews'), classifieds = sl_career.has('classifieds'),
       races = require('sl/core/features').on('races'), jobs = require('sl/core/features').on('jobs'), market = require('sl/core/features').on('market'),
-      bank = require('sl/core/features').on('bank'), maps = require('sl/core/features').on('maps'), hudpill = require('sl/core/features').on('hudpill') },      -- (the parts that are switched off lose their apps)
+      bank = require('sl/core/features').on('bank'), maps = require('sl/core/features').on('maps'), hudpill = require('sl/core/features').on('hudpill'), weekly = require('sl/core/features').on('weekly') },      -- (the parts that are switched off lose their apps)
     contacts = contacts, threads = s.threads, unread = s.unread,
     challenges = challenges, ledger = ledger, places = placesOut,
     cars = #s.cars, stats = s.stats,
@@ -126,6 +126,7 @@ local function snapshot()
     tutorial = sl_tutorial and sl_tutorial.summary and sl_tutorial.summary() or nil,
     achievements = sl_achievements and sl_achievements.summary and sl_achievements.summary() or nil,
     bank = sl_bank and sl_bank.summary and sl_bank.summary() or nil,
+    weekly = sl_weekly and sl_weekly.summary and sl_weekly.summary() or nil,
     club = sl_clubs and sl_clubs.summary and sl_clubs.summary() or nil,
     replay = sl_replay and sl_replay.summary and sl_replay.summary() or nil,
     turf = sl_crews and sl_crews.summary and sl_crews.summary() or nil,
@@ -369,6 +370,7 @@ function M.watchReplay() if career() and sl_replay then answer(sl_replay.watch()
 function M.saveClip() if career() and sl_replay then answer(sl_replay.save()) end end
 function M.enterLeague(kind) if career() and sl_clubs then answer(sl_clubs.enter(tostring(kind))) end end
 function M.borrow(amount) if career() and sl_bank then answer(sl_bank.borrow(tonumber(amount))) end end
+function M.payDebt(amount) if career() and sl_weekly then answer(sl_weekly.payDebt(tonumber(amount))) end end
 function M.repay(amount) if career() and sl_bank then answer(sl_bank.repay(tonumber(amount))) end end
 function M.insure(on) if career() and sl_bank then answer(sl_bank.insure(on == true or on == 'true')) end end
 function M.takeJob(id) if career() and sl_jobs then answer(sl_jobs.take(tostring(id))) end end
