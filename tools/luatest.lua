@@ -3777,6 +3777,9 @@ do
   H.onStreetLegalBusted(300, 0, 'Covet') H.onStreetLegalBusted(300, 900, 'Covet') H.onStreetLegalPinkSlip(true, 'Dora') H.onStreetLegalPinkSlip(false, 'Dora') H.onStreetLegalHeatUp(3)
   H.onStreetLegalCarAdded({ name = 'Covet' }) H.onStreetLegalGarageMoved(1, 2, 6000) H.onStreetLegalRaceGo()
   check('banners: the career hooks choose the style (busted or impound, a slip won or lost, heat, a new car, a bigger garage, go)', table.concat(sent, ',') == 'busted,impound,pinkwin,pinklose,heat,reveal,tier,go', table.concat(sent, ','))
+  sent = {}
+  H.onWrenchWorksGarageEntered('Belasco City Garage') H.onWrenchWorksGarageLeft()
+  check('banners: the garage hooks of Wrench Works pick garage_in and garage_out', table.concat(sent, ',') == 'garage_in,garage_out', table.concat(sent, ','))
   check('banners: a hook with odd arguments does not throw', pcall(function() H.onStreetLegalBusted(nil, nil, nil) H.onStreetLegalCarAdded(nil) H.onStreetLegalGarageMoved() end))
   _G.guihooks = saved
   package.loaded['sl/scenes'] = nil
