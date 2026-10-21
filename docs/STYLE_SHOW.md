@@ -1,0 +1,46 @@
+# Style show (campaign idea #9): design, 0f, 2026-10-22
+
+Status: design, not built. For 62 and a5 to read first; ab (calendar) and 9e (scenes) have a question each at the end. Nothing here needs a new mod: the show reads other mods through guarded calls and drops a criterion when its source is missing.
+
+## What the player sees
+A show night at a meet spot, listed in the calendar as its own kind (`show`): Saturday 21:00 (the weekend races are Saturday and Sunday 15:00 and the swap meet is the weekend nights; the show takes Saturday night at a meet spot that rotates through the career's meet spots). The entry fee is $60. The player drives their current car to the show marker at the spot, parks in the bay the marker gives (meetspots.lua), and the judging runs for a minute under a short cinematic (9e's scene kit): three judges walk the line, then the result card on the phone and a podium moment.
+
+The card: the place out of the field (8 to 12 cars), the prize and the reputation, the total score of each of the first three, and a judge's line per criterion in plain words with the one thing to improve first ("Wash it", "Get the body fixed", "The worn parts show", "A respray would lift the finish", "Fit a matching set of parts"). The player can look at the card in the garage before the show too ("what would the judges say"): the same scoring, no entry, free, so the show gives the paint booth, the wash, the repair shop and the parts shop a goal.
+
+## The criteria and their weights
+Each criterion yields a score 0..1 or nil. The total is the weighted mean of the criteria that are present, the weights renormalised (a mod that is absent costs the player nothing and cannot error: every read is `pcall`-guarded).
+
+| criterion | weight | read from | score |
+|---|---|---|---|
+| Paint and finish | 25 | Wrench Works' `slrr_garageParts.getPaints()` of the player's car (the three paint slots: baseColor, metallic, roughness, clearcoat, clearcoatRoughness) and Part Wear's `paint` condition | finish = 0.45 gloss (clearcoat high, roughness low) + 0.25 metallic + 0.30 colour (saturation and a change from the factory colour: a respray counts); times 0.4 + 0.6 x paint condition (1 when Part Wear is off) |
+| Wheels | 15 | the chosen wheel and tyre parts of the car (the parts tree, core/brands.partNames), slrr_brands for the maker of the rims, Car Surface FX's tyre state (`carSurfaceFx_tyres.getTyres`) | 0.45 stock + 0.40 aftermarket rims + 0.15 tread left on the tyres (when the tyre simulation runs; else 0.15 x 0.7) |
+| Aftermarket parts | 20 | the parts tree and slrr_brands.ofPart | 0.6 x min(1, parts of an aftermarket brand / 10) + 0.4 x cohesion (the largest single brand's share of the aftermarket parts, from 3 parts up); a full kit of one brand beats a pile of mixed ones |
+| Cleanliness | 15 | Car Surface FX `carSurfaceFx.level(id)` (dirt 0..1, scratches 0..1) | 1 - dirt^0.7, minus 0.25 x scratches |
+| Body | 15 | the car report's damage (core/carreport; `car.damage` 0..1, dents) | 1 - 1.4 x damage, floor 0 |
+| Wear | 10 | Part Wear `slrr_partwear.conditionsOf(vehId)` (the parts below new) | 1 - (sum of 1 - condition over the listed parts) / 12 (twelve ruined parts is zero; a part that is not listed is new) |
+
+A criterion is nil when its source is missing: no `slrr_garageParts` (no paint data), no `slrr_brands` (no wheels brand part and no parts criterion; the wheels criterion then keeps only its stock/tread terms), no Car Surface FX (no cleanliness), no Part Wear (no wear, and paint condition 1). An unreadable car (not spawned) scores nothing and the show says so. The weights are constants in `sl/core/show.lua` (`M.WEIGHTS`), tuned by the economy sim, not settings.
+
+## The field
+`show.field(seed, week, tier, n)`: 7 to 11 rival cars (n by tier), each `{ name, car, scores = { paint, wheels, parts, clean, body, wear }, total }`. Names and cars come from the rivals the career already has (core/roster) and the car pool; the sub-scores are drawn per rival around a mean that rises with the show's tier (the player's reputation tier: mean total 0.40 at tier 1 to 0.80 at tier 5) with a per-criterion spread, so some rivals are clean and tired, some dirty and flashy. Seeded by show id and week: the same field every time that show is looked at, different next week. The player's total is ranked against it (ties go to the rival).
+
+## Prize, reputation, the ledger
+Purse by tier (tier = reputation band, as the rally's prizes): $300 at tier 1 up to $1500 at tier 5. Place 1 takes the purse, 2 half, 3 a quarter; the rest take nothing. Reputation: +R (R = 12 + 8 x tier), half, a quarter. The entry fee is $60 (it buys nothing else). A first-place at a tier unlocks a `show` achievement line (hook only, the achievements part decides). `tools/economy_sim.py` gets a `show` weekly activity (the simulated player enters when their car's expected total puts them in the top three at least a third of the time, pays the wash and fix costs they would pay anyway) and the expected weekly income of a show must stay below the Saturday dockyards race purse ($500 to $800) for the same player: if the sim shows more, the purse table is lowered, not the weights.
+
+## Where it plugs in
+- `sl/core/show.lua`: pure rules (weights, the six criterion functions, `score(inputs)`, `lines(result)`, `field`, `rank`, `prize`, `event(day, seed)`), no game calls, tested by tools/luatest.lua.
+- `sl/show.lua` (extension `sl_show`): gathers the inputs with guarded calls (`slrr_garageParts`, `slrr_brands`, `carSurfaceFx`, `carSurfaceFx_tyres`, `slrr_partwear`, `sl_carreport`), runs the rules, writes the result in the save (`s.show = { history = {...}, last = {...} }`), pays the prize, adds the reputation, and calls the scene. It is gated by the part `show` ("Style show", default on, on Active features) in core/features.lua.
+- The calendar (ab's branch `calendar`): a new event kind `show`. `core/calendar.lua` asks `show.event(day, seed)` for the Saturday-night event: `{ id = 'show:<spot>:<week>', title = 'Style show: <spot>', kind = 'show', day, hour = 21, place = <spot name>, travel = { needed = false, fee = 0, hours = 0 }, reward = '<purse text>', fee = 60, requires = nil }`. enter, decline and remind are the generic ones. On the day the show starts when the player is at the marker within START_REACH (80 m) and not later than LATE_H after the hour, as the weekend race does; the result is recorded as `st.done[id] = { won = (place <= 3), place = n }` (calendar.status reads `won ~= nil` as done, so a podium and a place are both "done", a missed show has no entry).
+- The meet spot: one of the career's meet spots (meetsocial / nightlife), the marker placed with `meetspots.pick` so the show cars stand in the bays; the rivals are shown standing in the bays (a few, like the meet cars), not driven.
+- The cinematic moment (9e's scene kit, `sl_scenes.play(style, data)`): a new style `showpodium` with `{ place, names = {1st, 2nd, 3rd}, total }`; if the style does not exist the card is shown without it. A photo of the player's car at the podium goes to the photo corner (sl/photos) when the garage has it.
+- Texts through core/strings.lua; the help page core/help.lua gets a short "Style show" entry.
+
+## Tests (tools/luatest.lua)
+Weights sum to 100; the total is renormalised and stays 0..1 whatever is missing; nothing missing raises an error (every source nil gives total nil and "no judging"); a cleaner car scores higher, a worn one lower, a damaged one lower, a respray with a clearcoat higher, a full one-brand kit higher than a mixed pile of the same size; the field is the same for the same seed and week and different next week and its totals rise with the tier; the placing, the prize table and the reputation; the event for a given day and its id; the judge's lines pick the weakest weighted criterion; the economy sim's expected income stays under the race purse.
+
+## Questions
+- ab: is the kind name `show` and the `done = { won, place }` record fine for the calendar, and may `core/calendar.lua` call `show.event(day, seed)` from `schedule`? (The show would be listed from the calendar branch; until it is merged, `sl_show` shows its own prompt at the marker.)
+- 9e: a scene style `showpodium` taking `{ place, names, total }`, about 5 s, skippable like the others.
+- a5: the part, the save key `s.show`, and the gate list entry; and whether the reputation is added through `progression` (the rally does) or the career state directly.
+- 19 (slrr_brands): is `ofPart(name)` fast enough to call for every part of the tree once per judging (about 100 parts)? I cache by name within a judging.
+- 82 / Part Wear: `conditionsOf(vehId)` is nil while part wear is off or the car is not watched: that drops the wear criterion, as designed; the show never turns Part Wear on.
