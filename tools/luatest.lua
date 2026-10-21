@@ -3308,7 +3308,7 @@ do
   local Opt = require('sl/options')
   local defs = {}
   for _, d in ipairs(Opt.defs) do defs[d.key] = d end
-  local okDefs = #F.LIST == 23
+  local okDefs = #F.LIST == 24
   for _, f in ipairs(F.LIST) do
     local d = defs[f.opt]
     if not (d and d.type == 'bool' and d.default == true and d.feature == true and d.title == f.title and f.desc ~= '') then okDefs = false end
@@ -3733,6 +3733,66 @@ do
   _G.jsonReadFile, _G.jsonWriteFile, _G.FS = svo.r, svo.w, svo.fs
   package.loaded['sl/options'] = nil
 
+end
+
+-- contracts on the job board (career expansion #4)
+do
+  local C = require('sl/core/contract')
+  local rngLib = require('sl/core/rng')
+  local job = { pay = 1000, seconds = 300 }
+  check('contract: terms raise the pay and keep the plain pay', C.apply(job, 'tight') and job.pay == 2000 and job.basePay == 1000 and job.contract.req == 'tight' and C.apply(job, 'clean') == false and C.apply({ pay = 100 }, 'nope') == false)
+  check('contract: clean needs no damage', C.met('clean', { damage = 0 }) and not C.met('clean', { damage = 0.05 }))
+  check('contract: tight needs 80% of the limit', C.met('tight', { elapsed = 240, seconds = 300 }) and not C.met('tight', { elapsed = 241, seconds = 300 }) and not C.met('tight', { elapsed = 10, seconds = 0 }))
+  check('contract: rain needs a wet road, upscale a $15,000 car', C.met('rain', { wet = true }) and not C.met('rain', { wet = false }) and C.met('upscale', { carValue = 15000 }) and not C.met('upscale', { carValue = 14990 }) and not C.met('upscale', {}))
+  local rng, gotRain = rngLib.new(5), false
+  for _ = 1, 200 do if C.pick(rng, false) == 'rain' then gotRain = true end end
+  local rng2, rainWet = rngLib.new(5), false
+  for _ = 1, 200 do if C.pick(rng2, true) == 'rain' then rainWet = true end end
+  check('contract: rain terms are offered only when it is wet', not gotRain and rainWet)
+
+  local ST = require('sl/core/state')
+  local st = ST.new(1, 0)
+  st.day, st.rep, st.garageLevel = 3, 500, 1
+  local old = { c = rawget(_G, 'sl_career'), e = rawget(_G, 'extensions'), g = rawget(_G, 'guihooks'), fs = rawget(_G, 'FS'), w = rawget(_G, 'sl_weather'), o = rawget(_G, 'sl_options'), f = rawget(_G, 'sl_fleet') }
+  local places = {}
+  for i = 1, 8 do places['p' .. i] = { name = 'Place ' .. i, kind = 'shop', pos = { x = i * 900, y = (i % 3) * 700, z = 0 } } end
+  _G.guihooks = { trigger = function() end }
+  _G.extensions = { hook = function() end }
+  _G.FS = { findFiles = function() return {} end }
+  _G.sl_weather = { wetness = function() return 0 end }
+  _G.sl_fleet = nil
+  _G.sl_career = { isActive = function() return true end, getState = function() return st end, phase = function() return 'day' end, getPlaces = function() return places end,
+    addMoney = function(a, l) return ST.addMoney(st, a, l) end, payOut = function(a, l) return ST.addMoney(st, a, l) end }
+  package.loaded['sl/jobs'] = nil
+  local okJ, JB = pcall(require, 'sl/jobs')
+  if okJ then
+    local contracts, plain, seeds = 0, 0, 0
+    for seed = 1, 12 do
+      st.seed, st.jobs, st.day = seed, nil, 3 + seed
+      local sm = JB.summary()
+      for _, o in ipairs(sm.offers) do
+        if o.contract then
+          contracts = contracts + 1
+          if not (o.pay >= o.contract.basePay * (o.contract.mult - 0.05) and o.title:find('Contract', 1, true) and (o.contract.req ~= 'rain')) then contracts = -1000 end
+        else plain = plain + 1 end
+      end
+      if #sm.offers > 0 then seeds = seeds + 1 end
+    end
+    check('contract: the board has some contracts with the higher pay, never more than two a board, and never rain on a dry day', contracts > 0 and plain > 0 and seeds >= 6, tostring(contracts) .. ' ' .. tostring(plain) .. ' ' .. tostring(seeds))
+    st.rep, st.seed, st.jobs, st.day = 50, 1, nil, 40
+    local few = 0
+    for _, o in ipairs(JB.summary().offers) do if o.contract then few = few + 1 end end
+    check('contract: none below the reputation', few == 0)
+    _G.sl_options = { get = function(k) if k == 'slContracts' then return false end end }
+    st.rep, st.jobs, st.day = 500, nil, 41
+    local off = 0
+    for _, o in ipairs(JB.summary().offers) do if o.contract then off = off + 1 end end
+    check('contract: none with the part off', off == 0)
+  else
+    check('contract: sl_jobs loads in the test', false, tostring(JB))
+  end
+  _G.sl_career, _G.extensions, _G.guihooks, _G.FS, _G.sl_weather, _G.sl_options, _G.sl_fleet = old.c, old.e, old.g, old.fs, old.w, old.o, old.f
+  package.loaded['sl/jobs'] = nil
 end
 
 print(string.format('lua tests passed: %d checks', passed))
