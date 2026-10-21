@@ -7,6 +7,12 @@
 
 - **Street Legal in free roam (new, all off by default):** ESC > Mods > Street Legal > Free roam. A master switch, "Use Street Legal features in free roam", and one switch per feature: Phone (K) with the Maps and Cab apps, Maps, Map pins (shops, garages, car washes and gas stations on the big map; meets are pins only), Weather (with wet roads and puddles, on the game's clock), Cab (free), Car wash (free), and the Dashboard. No career is started or saved, no money is spent or taken, and the career apps, shops and jobs are not part of it. Seen working in the game at Low graphics: the weather (the sky follows the clock and goes back when the switch is turned off), the dashboard (the Dashboard setting in Screens and texts must be on too), the free cab, the free car wash, and that no career save file is touched. Not yet seen in the game: the phone screen itself, the map pins, the Map app's route and the cab's "$0" message.
 
+- **Billboards, a fallback (off by default):** when the mod ships only its own five ads of each name, it can draw the game's sign atlas over them in the game, a few milliseconds a frame. Not yet seen in the game.
+
+### Changes
+- **Wet roads and walls** stays off by default (0.6.1) with its warning: five tests at High graphics lost the graphics device within a minute of heavy rain with it on, and the cause is not found; notes in docs/WET_WORLD_HIGH_CRASH.md. Two additions for whoever looks at it next: materials the game reports with no file (the lamp glass of loaded cars) are never edited by it any more (this did not stop the crashes), and a Developer row, "Log each wet-world material edit", writes the material being edited to the game log.
+- **Garage entry:** a visit the career refuses (a garage above your street cred) now says why on screen, and the car garage's enter calls return false with the reason; this needs Wrench Works 1.8.4 or later (not yet released).
+
 ## 0.6.1 (needs Wrench Works 1.8.3)
 
 Hotfix for 0.6.0.
