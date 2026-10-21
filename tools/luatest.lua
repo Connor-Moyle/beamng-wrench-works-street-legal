@@ -4015,4 +4015,21 @@ do
   package.loaded['sl/danger'] = nil
 end
 
+-- a lot's row built ahead (sl/core/lotpre): the store matches one lot, one day and one offer list; the nearest lot is picked; the count is capped
+do
+  local LP = require('sl/core/lotpre')
+  local offers = { { id = 'a' }, { id = 7 }, { id = 'c' } }
+  local st = LP.newStore('dealer1', 3, offers)
+  check('lotpre: a store is keyed by lot, day and the offer ids in order', st.placeId == 'dealer1' and st.day == 3 and #st.ids == 3 and st.ids[2] == '7' and next(st.cars) == nil)
+  check('lotpre: the same lot, day and offers match', LP.matches(st, 'dealer1', 3, offers))
+  check('lotpre: another day, lot, order or count does not', not LP.matches(st, 'dealer1', 4, offers) and not LP.matches(st, 'junk', 3, offers)
+    and not LP.matches(st, 'dealer1', 3, { offers[2], offers[1], offers[3] }) and not LP.matches(st, 'dealer1', 3, { offers[1], offers[2] }) and not LP.matches(nil, 'dealer1', 3, offers))
+  local places = { g = { id = 'g', kind = 'garage', pos = { x = 0, y = 0 } }, far = { id = 'far', kind = 'dealer', pos = { x = 900, y = 0 } },
+    near = { id = 'near', kind = 'junkyard', pos = { x = 120, y = 50 } }, stock = { id = 'stock', kind = 'place', stock = { kind = 'dealer' }, pos = { x = 100, y = 0 } } }
+  check('lotpre: the nearest lot within reach is picked (a stock dealer counts, a garage does not)', LP.pick(nil, places, { x = 0, y = 0 }, 500).id == 'stock')
+  check('lotpre: nothing within reach: nothing', LP.pick(nil, places, { x = 5000, y = 0 }, 500) == nil and LP.pick(nil, places, nil, 500) == nil)
+  check('lotpre: a lot given as the destination wins; another kind of place does not', LP.pick(places.far, places, { x = 0, y = 0 }, 500).id == 'far' and LP.pick(places.g, places, { x = 0, y = 0 }, 500).id == 'stock')
+  check('lotpre: the count is capped by the setting and never below one', LP.cap(6, 4) == 4 and LP.cap(3, 4) == 3 and LP.cap(6, nil) == 6 and LP.cap(6, 'x') == 6 and LP.cap(2, 0) == 1)
+end
+
 print(string.format('lua tests passed: %d checks', passed))

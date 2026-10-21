@@ -90,6 +90,8 @@ local function spots(place, n)
   for i = 1, n do out[i] = { pos = base + side * ((i - (n + 1) / 2) * SPACING), dir = dir } end
   return out
 end
+M.spotsFor = spots          -- (sl_lotpre builds a row ahead of time on the same spots)
+function M.isOpen() return lot ~= nil end
 
 ----------------------------------------------------------------------------------------------
 -- the screen
@@ -410,6 +412,8 @@ end
 -- every car of the lot goes, except one just bought
 local function dropCars()
   if not lot then return end
+  -- a row built ahead of time goes back into sl_lotpre's store for the day (hidden, no physics), so the lot opens again at once
+  if lot.prebuilt and sl_lotpre and sl_lotpre.give and sl_lotpre.give(lot.place, lot.offers, lot.cars, lot.soldVeh, career()) then lot.cars, lot.veh = {}, nil return end
   for _, vid in pairs(lot.cars or {}) do
     if vid ~= lot.soldVeh then
       local veh = getObjectByID(vid)
@@ -469,16 +473,22 @@ local function buildRow()
     buildingNow = os.clock()
     local function alive() mine.buildAlive, buildingNow = os.clock(), os.clock() return lot == mine and not mine.abandoned end
     local pending = {}                    -- car index -> its dents, to go on in the second round
+    -- the row built ahead of time (sl_lotpre, behind a fade): those cars are there already, dented and frozen; only what is missing is built now
+    local ready = sl_lotpre and sl_lotpre.take and sl_lotpre.take(mine.place, mine.offers, career())
+    if ready then for i, vid in pairs(ready) do mine.cars[i] = vid end mine.prebuilt = true end
+    local dentsOn = not M.NO_DENTS and not (sl_options and sl_options.get('slLotDents') == false)      -- (the Performance preset skips the dent round)
     for i, offer in ipairs(mine.offers) do
+      if not mine.cars[i] then
       local spot = mine.spots[i]
       local veh, _, dents = builder.buildOffer(j, offer, spot.pos + vec3(0, 0, 0.4), quatFromDir(spot.dir, vec3(0, 0, 1)), { deferDents = true })
       if not alive() then if veh then veh:delete() end buildingNow = nil unmuteCars() return end
       if veh then
         if not M.NO_DRIVER_CALL and slrrDrivers and slrrDrivers.setDriver then slrrDrivers.setDriver(veh:getID(), nil) end   -- a car for sale: nobody in it
         mine.cars[i] = veh:getID()
-        if dents and #dents > 0 and not M.NO_DENTS then pending[i] = dents end
+        if dents and #dents > 0 and dentsOn then pending[i] = dents end
       else
         log('W', 'street_legal', 'lot car ' .. tostring(offer.id) .. ' could not be built: left out of the row')
+      end
       end
       mine.progress.done = i
       send()
@@ -582,6 +592,7 @@ function M.offersFor(place, s, given)
   -- how many stand on the lot today: 2 to 6, the same all day
   local count = rngLib.new(rngLib.hash(place.id .. ':' .. s.day .. ':' .. s.seed)):int(M.MIN_CARS, M.MAX_CARS)
   if stock and place.displays then count = math.min(math.max(count, 4), #place.displays) end      -- (a stock dealer's cars stand on its parking spots and the slots beside them (sl/core/stockdealers): 4 to 6 where there is room)
+  count = require('sl/core/lotpre').cap(count, sl_options and sl_options.get('slLotCars'))      -- (the Performance preset shows fewer cars)
   local offers = given or {}
   local pool = M.poolOf(place, given)
   -- (A2: a dealer shows cars of its own tier. Not the used lots and the scrap yard: their tier is set by the median of a price scaled down, and
