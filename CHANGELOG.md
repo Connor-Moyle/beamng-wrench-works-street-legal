@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.8.1 (unreleased; needs Wrench Works 1.8.5)
+
+### New
+- **Barn finds (new, on by default; Mods > Street Legal > Parts of the game > Barn finds):** from 100 reputation, every three to six days a contact texts about an old car rotting in a yard far from town (the nearest place and the way from it). Drive to the spot and the car shows in the Car market as a cheap private ad (about a fifth of its value, a poor condition, a high mileage) whose faults only a mechanic's check shows; buy it like any ad and restore it. Four spots per map, chosen from the dead-end roads. Offline-tested; not yet seen in the game.
+
 ## 0.8.0 (needs Wrench Works 1.8.5)
 
 The career gets things to spend on and things to aim for. Everything marked "not yet seen in the game" is built and tested offline only.
