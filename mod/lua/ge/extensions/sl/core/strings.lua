@@ -1597,6 +1597,7 @@ M.TEXT = {
   ["phone.drag_race_at_the_test"] = "Drag race at the test track?",
   ["phone.make_it_quick_i_ve"] = "Make it quick, I've got better things to do.",
   ["phone.no_answer"] = "No answer.",
+  ["phone.trip_unavailable"] = "Trips are not available yet.",
   ["phone.nothing_much_happens_in_the"] = "Nothing much happens in the daytime. Tune the car, and race when it gets dark.",
   ["phone.pink_slips_you_and_me"] = "Pink slips. You and me.",
   ["phone.race_me_high_stakes"] = "Race me. High stakes.",

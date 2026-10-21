@@ -388,9 +388,11 @@ function M.borrow(amount) if career() and sl_bank then answer(sl_bank.borrow(ton
 function M.calendarEnter(eventId, carIds) if career() and sl_calendar and sl_calendar.enter then answer(sl_calendar.enter(tostring(eventId), type(carIds) == 'table' and carIds or nil)) end end
 function M.calendarDecline(eventId) if career() and sl_calendar and sl_calendar.decline then answer(sl_calendar.decline(tostring(eventId))) end end
 function M.calendarRemind(eventId, on) if career() and sl_calendar and sl_calendar.remind then answer(sl_calendar.remind(tostring(eventId), on == true or on == 'true')) end end
--- the trip: open the pick-cars screen for an event, confirm it (sl_series answers ok, text), close it; the paddock's two buttons
+-- the trip: open the pick-cars screen for an event, confirm it (sl_series answers ok, text), close it; the paddock's two buttons. With sl_series missing the player is told, never left with nothing
+local function tripAway() answer(false, strings.t('phone.trip_unavailable')) end
 function M.travelPick(eventId)
-  if not (career() and sl_series and sl_series.options) then return end
+  if not career() then return end
+  if not (sl_series and sl_series.options) then tripAway() return end
   local o, why = sl_series.options(tostring(eventId))
   if not o then answer(false, why) return end
   travelPick = o
@@ -398,13 +400,26 @@ function M.travelPick(eventId)
 end
 function M.travelClose() travelPick = nil wantSend = true end
 function M.travelConfirm(eventId, carIds, useLoaner)
-  if not (career() and sl_series and sl_series.confirm) then return end
-  local ok, text = sl_series.confirm(tostring(eventId), type(carIds) == 'table' and carIds or {}, useLoaner == true)
+  if not career() then return end
+  if not (sl_series and sl_series.confirm) then tripAway() return end
+  -- the phone sends ids as text: hand sl_series the ids as the options listed them (numbers stay numbers)
+  local want, ids = {}, {}
+  for _, id in ipairs(type(carIds) == 'table' and carIds or {}) do want[tostring(id)] = true end
+  for _, c in ipairs(travelPick and travelPick.cars or {}) do if want[tostring(c.id)] then ids[#ids + 1] = c.id end end
+  local ok, text = sl_series.confirm(tostring(eventId), ids, useLoaner == true)
   if ok then travelPick = nil end
   answer(ok, text)
 end
-function M.hubStart() if career() and sl_series and sl_series.startNext then answer(sl_series.startNext()) end end
-function M.hubHome() if career() and sl_career.returnHome then answer(sl_career.returnHome('forfeit')) end end
+function M.hubStart()
+  if not career() then return end
+  if not (sl_series and sl_series.startNext) then tripAway() return end
+  answer(sl_series.startNext())
+end
+function M.hubHome()
+  if not career() then return end
+  if not sl_career.returnHome then tripAway() return end
+  answer(sl_career.returnHome('forfeit'))
+end
 
 function M.calendarTravel(eventId) if career() and sl_calendar and sl_calendar.travel then answer(sl_calendar.travel(tostring(eventId))) end end
 function M.service(carId, optionId) if career() and sl_service then answer(sl_service.service(tonumber(carId), tostring(optionId))) end end

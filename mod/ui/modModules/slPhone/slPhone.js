@@ -1424,8 +1424,8 @@
       if (st.pickFor !== o.eventId) { st.pickFor = o.eventId; st.pickSel = sel = []; st.pickLoaner = false; }
       var n = sel.length + (st.pickLoaner ? 1 : 0), total = (Number(o.fee) || 0) + (Number(o.perCar) || 0) * sel.length + (st.pickLoaner && lo ? Number(lo.deposit) || 0 : 0);
       var cars = arr(o.cars).map(function (c) {
-        var on = sel.indexOf(c.id) >= 0, ok = c.fits !== false && (on || sel.length < max);
-        return '<div class="slp-card' + (c.fits === false ? ' slp-off' : '') + '"' + (ok ? ' data-a="pickcar" data-v="' + esc(c.id) + '" style="cursor:pointer"' : '') + '><h4>' + (on ? '&#10004; ' : '') + esc(c.name) + '</h4>' +
+        var cid = String(c.id), on = sel.indexOf(cid) >= 0, ok = c.fits !== false && (on || sel.length < max);
+        return '<div class="slp-card' + (c.fits === false ? ' slp-off' : '') + '"' + (ok ? ' data-a="pickcar" data-v="' + esc(cid) + '" style="cursor:pointer"' : '') + '><h4>' + (on ? '&#10004; ' : '') + esc(c.name) + '</h4>' +
           (c.fits === false ? '<p class="slp-warn">&#9888; ' + esc(c.why || T('ui.trip_no_fit', 'Does not fit this event')) + '</p>' : (c.report ? '<p>' + esc(c.report) + '</p>' : '')) + '</div>';
       }).join('');
       var loan = lo ? '<div class="slp-card" data-a="pickloaner" data-v="1" style="cursor:pointer"><h4>' + (st.pickLoaner ? '&#10004; ' : '') + T('ui.trip_loaner', 'Borrow {1}', esc(lo.name || '')) + '</h4><p>' + T('ui.trip_deposit', 'Deposit {1}', money(lo.deposit)) + '</p></div>' : '';
@@ -1778,7 +1778,8 @@
       var repScroll0 = layer.querySelector('.slp-repbody');
       var repKeep = repScroll0 ? repScroll0.scrollTop : 0;
       var page;
-      if (d.travelPick) st.app = 'pick';
+      if (!d.travelPick) st.pickDismissed = null;
+      if (d.travelPick && d.travelPick.eventId !== st.pickDismissed) st.app = 'pick';      // (Back dismisses it here too: the screen never traps the player if Lua does not answer)
       else if (st.app === 'pick') st.app = 'home';
       switch (st.app) {
         case 'pick': page = pickPage(); break;
@@ -2145,7 +2146,7 @@
         case 'calenter': lua('calendarEnter(' + JSON.stringify(String(v)) + ')'); break;
         case 'caldecline': lua('calendarDecline(' + JSON.stringify(String(v)) + ')'); st.calEvent = null; break;
         case 'calremind': var cr = String(v).split('|'); lua('calendarRemind(' + JSON.stringify(cr[0]) + ',' + (cr[1] === 'true' ? 'true' : 'false') + ')'); break;
-        case 'caltravel': lua('travelPick(' + JSON.stringify(String(v)) + ')'); break;
+        case 'caltravel': st.pickDismissed = null; lua('travelPick(' + JSON.stringify(String(v)) + ')'); break;
         case 'pickcar':
           var ps = arr(st.pickSel).slice(), pi = ps.indexOf(String(v));
           if (pi >= 0) ps.splice(pi, 1); else ps.push(String(v));
@@ -2154,7 +2155,7 @@
         case 'pickconfirm':
           if (arr(st.pickSel).length || st.pickLoaner) lua('travelConfirm(' + JSON.stringify(String(obj(st.data.travelPick).eventId)) + ',' + JSON.stringify(arr(st.pickSel)) + ',' + (st.pickLoaner ? 'true' : 'false') + ')');
           break;
-        case 'pickback': st.pickFor = null; lua('travelClose()'); break;      // (the next time starts with no cars picked)
+        case 'pickback': st.pickFor = null; st.pickDismissed = obj(st.data.travelPick).eventId; lua('travelClose()'); render(); break;      // (the next time starts with no cars picked)
         case 'hubstart': lua('hubStart()'); break;
         case 'hubhome':
           if (v === '0') st.hubHome = false;

@@ -1094,13 +1094,19 @@ assert.ok(calls.includes('routeGarage()'), 'Route to my garage on the home scree
   calls.length = 0;
   click('pickconfirm', '1');
   assert.ok(calls.length === 0, 'nothing sent with no car');
-  click('pickcar', 'c1'); click('pickcar', 'c2');
+  click('pickcar', 'c1'); click('pickcar', '2'); click('pickcar', '2'); click('pickcar', '2');      // (a numeric id: the second press takes it off again)
   tx = text();
   assert.ok(tx.includes('$800') && tx.includes('$200') && tx.includes('6 h') && tx.includes('$1,200'), 'total = fee + each car: ' + tx.slice(0, 500));
   click('pickconfirm', '1');
-  assert.ok(calls.includes('travelConfirm("utah-rally:3:r1",["c1","c2"],false)'), 'Confirm: ' + calls.join(' '));
+  assert.ok(calls.includes('travelConfirm("utah-rally:3:r1",["c1","2"],false)'), 'Confirm: ' + calls.join(' '));
   click('pickback');
   assert.ok(calls.includes('travelClose()'), 'Back closes the screen');
+  assert.ok(!text().includes('Pick up to'), 'Back leaves the screen even while the data stays (Lua did not answer)');
+  phone.handle('slPhoneData', Object.assign({}, base, { travelPick: tf.options }));
+  assert.ok(!text().includes('Pick up to'), 'a push of the same screen stays dismissed');
+  phone.handle('slPhoneData', base);
+  phone.handle('slPhoneData', Object.assign({}, base, { travelPick: tf.options }));
+  assert.ok(text().includes('Pick up to'), 'a screen opened again after the data cleared shows again');
   phone.handle('slPhoneData', Object.assign({}, base, { travelPick: Object.assign({}, tf.options, { loaner: { name: 'Rental Hatch', deposit: 300 }, cars: [] }) }));
   click('pickloaner', '1');
   assert.ok(text().includes('Borrow Rental Hatch') && text().includes('Deposit $300') && text().includes('$1,100'), 'a loaner when no car fits, with its deposit in the total');
