@@ -4220,4 +4220,18 @@ do
   package.loaded['sl/classifieds'], package.loaded['sl/barnfinds'] = nil, nil
 end
 
+-- the planned meet of a night
+do
+  local NL = require('sl/core/nightlife')
+  local rngLib = require('sl/core/rng')
+  local list = { { id = 'c' }, { id = 'a' }, { id = 'b' } }
+  local first = NL.plannedMeet(list, 5, 0, 9, rngLib)
+  check('meets: the first meet of a night is the same place however often it is asked, whatever the order of the list', first == NL.plannedMeet(list, 5, 0, 9, rngLib) and first.id == NL.plannedMeet({ { id = 'b' }, { id = 'c' }, { id = 'a' } }, 5, 0, 9, rngLib).id)
+  local a, b, c = NL.plannedMeet(list, 5, 0, 9, rngLib).id, NL.plannedMeet(list, 5, 1, 9, rngLib).id, NL.plannedMeet(list, 5, 2, 9, rngLib).id
+  check('meets: the second and third meet of the night are the other places', a ~= b and b ~= c and a ~= c)
+  local seen = {}
+  for d = 1, 20 do seen[NL.plannedMeet(list, d, 0, 9, rngLib).id] = true end
+  check('meets: other nights use other places; no places gives nothing', seen.a and seen.b and seen.c and NL.plannedMeet({}, 5, 0, 9, rngLib) == nil and NL.plannedMeet(nil, 5, 0, 9, rngLib) == nil)
+end
+
 print(string.format('lua tests passed: %d checks', passed))
