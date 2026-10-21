@@ -109,7 +109,7 @@ local function snapshot()
     art = sl_hud ~= nil and sl_hud.slrrArt ~= nil and sl_hud.slrrArt() or false,
     has = { clubs = sl_career.has('clubs'), crews = sl_career.has('crews'), classifieds = sl_career.has('classifieds'),
       races = require('sl/core/features').on('races'), jobs = require('sl/core/features').on('jobs'), market = require('sl/core/features').on('market'),
-      bank = require('sl/core/features').on('bank'), maps = require('sl/core/features').on('maps'), hudpill = require('sl/core/features').on('hudpill'), weekly = require('sl/core/features').on('weekly'), service = require('sl/core/features').on('service'), perks = require('sl/core/features').on('perks'), traps = require('sl/core/features').on('traps'), danger = require('sl/core/features').on('danger') },      -- (the parts that are switched off lose their apps)
+      bank = require('sl/core/features').on('bank'), maps = require('sl/core/features').on('maps'), hudpill = require('sl/core/features').on('hudpill'), weekly = require('sl/core/features').on('weekly'), sponsors = require('sl/core/features').on('sponsors'), service = require('sl/core/features').on('service'), perks = require('sl/core/features').on('perks'), traps = require('sl/core/features').on('traps'), danger = require('sl/core/features').on('danger') },      -- (the parts that are switched off lose their apps)
     contacts = contacts, threads = s.threads, unread = s.unread,
     challenges = challenges, ledger = ledger, places = placesOut,
     cars = #s.cars, stats = s.stats,
@@ -134,6 +134,7 @@ local function snapshot()
     achievements = sl_achievements and sl_achievements.summary and sl_achievements.summary() or nil,
     bank = sl_bank and sl_bank.summary and sl_bank.summary() or nil,
     weekly = sl_weekly and sl_weekly.summary and sl_weekly.summary() or nil,
+    sponsors = sl_sponsor and sl_sponsor.summary and sl_sponsor.summary() or nil,
     club = sl_clubs and sl_clubs.summary and sl_clubs.summary() or nil,
     replay = sl_replay and sl_replay.summary and sl_replay.summary() or nil,
     turf = sl_crews and sl_crews.summary and sl_crews.summary() or nil,
@@ -378,6 +379,9 @@ function M.saveClip() if career() and sl_replay then answer(sl_replay.save()) en
 function M.enterLeague(kind) if career() and sl_clubs then answer(sl_clubs.enter(tostring(kind))) end end
 function M.borrow(amount) if career() and sl_bank then answer(sl_bank.borrow(tonumber(amount))) end end
 function M.service(carId, optionId) if career() and sl_service then answer(sl_service.service(tonumber(carId), tostring(optionId))) end end
+function M.sponsorAccept() if career() and sl_sponsor then answer(sl_sponsor.accept()) end end
+function M.sponsorDecline() if career() and sl_sponsor then answer(sl_sponsor.decline()) end end
+function M.sponsorQuit() if career() and sl_sponsor then answer(sl_sponsor.quit()) end end
 function M.payDebt(amount) if career() and sl_weekly then answer(sl_weekly.payDebt(tonumber(amount))) end end
 function M.repay(amount) if career() and sl_bank then answer(sl_bank.repay(tonumber(amount))) end end
 function M.insure(on) if career() and sl_bank then answer(sl_bank.insure(on == true or on == 'true')) end end

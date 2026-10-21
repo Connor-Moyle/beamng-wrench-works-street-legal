@@ -725,7 +725,11 @@ function M.onStreetLegalNewDay(day)
   end
   -- sponsors: the best one your name gets you; paid weekly, as long as you win two races a week
   local best
+  if require('sl/core/features').on('sponsors') and sl_sponsor then
+    js.sponsor = nil          -- (the brand sponsorships of sl_sponsor take over: one system)
+  else
   for _, sp in ipairs(SPONSORS) do if (s.rep or 0) >= sp.rep then best = sp end end
+  end
   if best and (not js.sponsor or js.sponsor.name ~= best.name) then
     js.sponsor = { name = best.name, weekly = best.weekly, since = day }
     js.weekWins = 0
@@ -769,7 +773,7 @@ function M.summary()
   local out = { offers = {}, done = js.done, earned = js.earned, boost = boost(s, js), flip = js.flip or { target = FLIP_FIRST, best = 0, flips = 0 },
     quarter = QUARTER[js.quarter or 1] and QUARTER[js.quarter or 1][1] or nil, dyno = DYNO[js.dyno or 1] and DYNO[js.dyno or 1][1] or nil,
     crew = js.crew and not js.crew.done and { boss = js.crew.boss, tier = js.crew.tier, need = js.crew.need, won = js.crew.won, daysLeft = js.crew.untilDay - s.day, pay = js.crew.pay } or nil,
-    sponsor = js.sponsor and { name = js.sponsor.name, weekly = js.sponsor.weekly, weekWins = js.weekWins or 0 } or nil }
+    sponsor = (sl_sponsor and sl_sponsor.current and sl_sponsor.current()) or (js.sponsor and { name = js.sponsor.name, weekly = js.sponsor.weekly, weekWins = js.weekWins or 0 }) or nil }
   for _, j in ipairs(js.offers) do
     out.offers[#out.offers + 1] = { id = j.id, title = j.title, item = j.item, from = j.legs[1].name, to = j.legs[#j.legs].name,
       pay = math.floor(j.pay * boost(s, js) / 10) * 10 + (((js.kindDone or {})[j.kind] or 0) < FIRST_TIMES and FIRST_BONUS or 0), seconds = j.seconds, fragile = j.fragile, metres = j.metres,
