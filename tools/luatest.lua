@@ -3792,6 +3792,36 @@ do
   check('needs: an odd save is repaired', r.food == 100 and r.water == 100 and r.rest == 0 and type(r.told) == 'table')
   local s = N.summary(r)
   check('needs: the summary carries the meters, words and items', #s.meters == 3 and s.meters[3].word == 'exhausted' and #s.items == 4 and s.items[4].price == 12)
+  check('needs: the nudge keys resolve to text', require('sl/core/strings').t(N.TEXTS.water.nudge) ~= N.TEXTS.water.nudge and N.ITEMS.meal.name == 'Meal')
+  -- the game side: switching the part off lets the car go (the reviewer's case: a tired driver, the switch turned off at run time)
+  do
+    local old = { c = _G.sl_career, o = _G.sl_options, pv = _G.getPlayerVehicle, e = _G.extensions, g = _G.guihooks, id = _G.getObjectByID, lg = _G.log, cf = _G.ColorF, st = _G.scenetree }
+    local state = { needs = { food = 100, water = 100, rest = 5, fedHours = 0, told = {} }, money = 100, day = 1 }
+    local hour = 10
+    _G.sl_career = { isActive = function() return true end, getState = function() return state end, hour = function() return hour end, isNight = function() return false end,
+      sendText = function() end, getPlaces = function() return {} end, addMoney = function() end, skipTime = function() return true end }
+    local on = true
+    _G.sl_options = { get = function(k) if k == 'slNeeds' then return on end return nil end }
+    local cmds = {}
+    local veh = { getID = function() return 7 end, getJBeamFilename = function() return 'covet' end, queueLuaCommand = function(_, c) cmds[#cmds + 1] = c end }
+    _G.getPlayerVehicle = function() return veh end
+    _G.getObjectByID = function() return veh end
+    _G.extensions = { hook = function() end }
+    _G.guihooks = { trigger = function() end }
+    _G.log = function() end
+    package.loaded['sl/needs'] = nil
+    local G = require('sl/needs')
+    G.onUpdate(0.6) G.onUpdate(0.6)      -- two ticks: the first sets the hour, the second works the effects out
+    G.onVehicleSwitched() G.onUpdate(1.1)
+    local lagged = cmds[#cmds] and cmds[#cmds]:find('slNeeds.set%(0%.120')
+    check('needs game side: a tired driver gets the lag', lagged ~= nil, cmds[#cmds])
+    on = false
+    G.onStreetLegalStopped()
+    check('needs game side: the part switched off lets the car go', cmds[#cmds] and cmds[#cmds]:find('set%(0, 0%)') ~= nil, cmds[#cmds])
+    check('needs game side: with the part off nothing is summarised', G.summary() == nil)
+    _G.sl_career, _G.sl_options, _G.getPlayerVehicle, _G.extensions, _G.guihooks, _G.getObjectByID, _G.log, _G.ColorF, _G.scenetree = old.c, old.o, old.pv, old.e, old.g, old.id, old.lg, old.cf, old.st
+    package.loaded['sl/needs'] = nil
+  end
   local F = require('sl_needsfilter')
   local c = F.lagStep(0, 1, 0.12, 0.12)
   check('needs filter: one time constant covers 63 percent', math.abs(c - 0.632) < 0.01 and F.lagStep(0, 1, 0.1, 0) == 1 and F.lagStep(0.5, 1, 0, 0.1) == 1)

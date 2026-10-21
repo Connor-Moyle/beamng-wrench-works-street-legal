@@ -4,6 +4,8 @@
 
 local M = {}
 
+local strings = require('sl/core/strings')
+
 local function clamp(v, lo, hi) return math.max(lo, math.min(hi, v)) end
 
 M.RATES = { food = 6, water = 11, rest = 5 }             -- per awake game hour: food empty in 16 h, water in 9 h, rest in 20 h
@@ -15,10 +17,10 @@ M.TIP_BONUS = 0.04
 
 -- what you can buy and what it does (the fuel station sells all four)
 M.ITEMS = {
-  drink  = { name = 'Drink', price = 2, water = 35 },
-  snack  = { name = 'Snack', price = 3, food = 25 },
-  coffee = { name = 'Coffee', price = 3, rest = 10, water = 5 },
-  meal   = { name = 'Meal', price = 12, food = 60, water = 20 },
+  drink  = { name = strings.t('needs.item_drink'), price = 2, water = 35 },
+  snack  = { name = strings.t('needs.item_snack'), price = 3, food = 25 },
+  coffee = { name = strings.t('needs.item_coffee'), price = 3, rest = 10, water = 5 },
+  meal   = { name = strings.t('needs.item_meal'), price = 12, food = 60, water = 20 },
 }
 M.ITEM_ORDER = { 'drink', 'snack', 'coffee', 'meal' }
 -- rest per hour of sleep: a bed, a couch (the first garage), the car seat (away from a garage), a nap in the garage
@@ -66,13 +68,13 @@ local WORDS = {
 }
 function M.word(meter, v) return WORDS[meter][M.stage(v)] end
 
--- the nudge texts, once per stage per meter (told[meter] holds the stage already said)
+-- the nudge texts (strings.t keys), once per stage per meter (told[meter] holds the stage already said)
 M.TEXTS = {
-  food = { nudge = 'Your stomach rumbles. A snack would do.', handicap = 'You are hungry and your hands are not steady. Eat something.', problem = 'You have not eaten in ages. Find food.' },
-  water = { nudge = 'Dry mouth. Get a drink.', handicap = 'A headache from thirst: the edges of your sight blur. Drink something.', problem = 'You are dehydrated. Drink, now.' },
-  rest = { nudge = 'You yawn. A nap would not hurt.', handicap = 'You are tired: your reactions are slow. Sleep soon.', problem = 'You can barely keep your eyes open. Sleep.' },
+  food = { nudge = 'needs.food_nudge', handicap = 'needs.food_handicap', problem = 'needs.food_problem' },
+  water = { nudge = 'needs.water_nudge', handicap = 'needs.water_handicap', problem = 'needs.water_problem' },
+  rest = { nudge = 'needs.rest_nudge', handicap = 'needs.rest_handicap', problem = 'needs.rest_problem' },
 }
--- the text to say now, if any: the stage got worse than the one said (a meter back over its stage resets what was said)
+-- the key of the text to say now, if any: the stage got worse than the one said (a meter back over its stage resets what was said)
 function M.nudge(n)
   local out
   for _, k in ipairs({ 'food', 'water', 'rest' }) do
@@ -113,10 +115,13 @@ end
 -- eating or drinking: returns ok, the price, and a line for the player
 function M.eat(n, itemId)
   local it = M.ITEMS[itemId]
-  if not it then return false, 0, 'Nothing of that here.' end
-  for _, k in ipairs({ 'food', 'water', 'rest' }) do if it[k] then n[k] = clamp(n[k] + it[k], 0, 100) end end
+  if not it then return false, 0, strings.t('needs.nothing_of_that') end
+  local parts = {}
+  for _, k in ipairs({ 'food', 'water', 'rest' }) do
+    if it[k] then n[k] = clamp(n[k] + it[k], 0, 100) parts[#parts + 1] = strings.t('needs.meter_' .. k) .. ' ' .. math.floor(n[k]) end
+  end
   if it.food then n.lastMeal = true end
-  return true, it.price, it.name .. ': ' .. (it.food and ('food ' .. math.floor(n.food)) or '') .. (it.food and it.water and ', ' or '') .. (it.water and ('water ' .. math.floor(n.water)) or '') .. (it.rest and ('rest ' .. math.floor(n.rest)) or '')
+  return true, it.price, strings.t('needs.ate_1_2', it.name, table.concat(parts, ', '))
 end
 
 -- sleep: `hours` at `where` (bed, couch, car, nap). Returns the rest gained.

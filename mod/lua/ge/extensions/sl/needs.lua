@@ -7,8 +7,11 @@
 local M = {}
 
 local rules = require('sl/core/needs')
+local strings = require('sl/core/strings')
+local features = require('sl/core/features')
 
 local function career() return sl_career and sl_career.isActive() and sl_career.getState() or nil end
+local function partOn() return features.on('needs') end
 local function opt(key, default)
   if not (sl_options and sl_options.get) then return default end
   local v = sl_options.get(key)
@@ -56,14 +59,17 @@ local function effectOpts()
            tremor = opt('slNeedsTremor', true) ~= false, night = isNight() }
 end
 
--- ---- the clock: awake game hours pass
+-- ---- the clock: awake game hours pass. The effects of the moment are worked out here, twice a second, and kept for the frames (onPreRender reads them)
 local lastHour, tickT = nil, 0
+local NONE = { blur = 0, lag = 0, tremor = 0, sleepy = false }
+local current = NONE
 local function tick(dtReal)
   tickT = tickT + dtReal
   if tickT < 0.5 then return end
   tickT = 0
   local s = career()
-  if not s then lastHour = nil return end
+  if not s then lastHour = nil current = NONE return end
+  current = rules.effects(needsOf(s), effectOpts())
   local h = sl_career.hour()
   if lastHour == nil then lastHour = h return end
   local d = h - lastHour
@@ -72,10 +78,10 @@ local function tick(dtReal)
   if d <= 0 or d > 1 then return end         -- (a jump: a phase switch, a wait, a nap; those are handled where they happen)
   local n = needsOf(s)
   rules.tick(n, d, { busy = busy(), hot = hot(), nightHeat = nightHeat() }, tonumber(opt('slNeedsDrain', 1)) or 1)
-  local text = rules.nudge(n)
-  if text then
-    if not n.toldOnce then n.toldOnce = true sl_career.sendText('benny', 'You look rough. Grab a bite and a drink at a fuel station, and sleep when the day starts.', 2) end
-    toast(text)
+  local key = rules.nudge(n)
+  if key then
+    if not n.toldOnce then n.toldOnce = true sl_career.sendText('benny', strings.t('needs.benny_rough'), 2) end
+    toast(strings.t(key))
   end
 end
 
@@ -85,7 +91,7 @@ local function pushCar(force)
   local s = career()
   local v = getPlayerVehicle(0)
   local vid = v and v:getID()
-  local e = s and rules.effects(needsOf(s), effectOpts()) or { lag = 0, tremor = 0 }
+  local e = (s and partOn()) and rules.effects(needsOf(s), effectOpts()) or { lag = 0, tremor = 0 }      -- (the part off, or no career: the car is let go)
   if not v or v:getJBeamFilename() == 'unicycle' then e = { lag = 0, tremor = 0 } end
   local changed = force or vid ~= sent.vid or math.abs(e.lag - sent.lag) > 0.005 or math.abs(e.tremor - sent.tremor) > 0.02
   if not changed then return end
@@ -107,12 +113,12 @@ local function reduceMotion()
   local inj = rawget(_G, 'slrrInjury')
   return inj ~= nil and inj.getTune ~= nil and (inj.getTune('reduceMotion') or 0) ~= 0
 end
-local blurPhase = 0
-function M.onPreRender(dtReal)
-  local s = career()
-  if not s then return end
-  local e = rules.effects(needsOf(s), effectOpts())
+local blurPhase, preRenderFailed = 0, false
+local RECTS = { { 0, 0, 0.26, 1 }, { 0.74, 0, 1, 1 }, { 0.26, 0, 0.74, 0.22 }, { 0.26, 0.78, 0.74, 1 } }
+local function preRender(dtReal)
+  local e = current
   local a = e.blur
+  if a <= 0 and not e.sleepy then return end
   if e.sleepy then blurPhase = blurPhase + dtReal a = math.min(rules.CAP.blur, a + 0.15 * math.max(0, math.sin(blurPhase * 0.7))) end      -- (eyelid dips at night: a slow pulse)
   if a <= 0 or reduceMotion() then return end
   local inj = rawget(_G, 'slrrInjury')
@@ -120,9 +126,13 @@ function M.onPreRender(dtReal)
   if type(feel) == 'table' and (tonumber(feel.amount) or 0) >= a then return end        -- (the injury blur is already stronger: one channel, the larger wins)
   if not (ColorF and scenetree and scenetree.ScreenBlurFX and scenetree.ScreenBlurFX.obj) then return end
   local o = scenetree.ScreenBlurFX.obj
-  for _, r in ipairs({ { 0, 0, 0.26, 1 }, { 0.74, 0, 1, 1 }, { 0.26, 0, 0.74, 0.22 }, { 0.26, 0.78, 0.74, 1 } }) do
-    pcall(o.addFrameBlurRect, o, r[1], r[2], r[3], r[4], ColorF(1, 1, 1, a))
-  end
+  for _, r in ipairs(RECTS) do o:addFrameBlurRect(r[1], r[2], r[3], r[4], ColorF(1, 1, 1, a)) end
+end
+-- every frame: the blur of the moment, from the effects the tick keeps; an error is logged once and the blur stops until the next level
+function M.onPreRender(dtReal)
+  if preRenderFailed or current == NONE then return end
+  local ok, err = pcall(preRender, dtReal)
+  if not ok then preRenderFailed = true log('E', 'sl_needs', 'the blur is off after an error: ' .. tostring(err)) end
 end
 
 function M.onUpdate(dtReal)
@@ -139,35 +149,36 @@ function M.onStreetLegalPhase(phase)
   local n = needsOf(s)
   local where = nearPlace('garage', 40) and 'couch' or 'car'
   local gained = rules.sleep(n, rules.NIGHT_GAP_HOURS, where)
-  if gained > 0 then toast(string.format('You slept %d hours %s: rest %d.', rules.NIGHT_GAP_HOURS, where == 'couch' and 'on the garage couch' or 'in the car', math.floor(n.rest + 0.5))) end
+  if gained > 0 then toast(strings.t('needs.slept_1_2_rest_3', rules.NIGHT_GAP_HOURS, strings.t(where == 'couch' and 'needs.on_the_couch' or 'needs.in_the_car'), math.floor(n.rest + 0.5))) end
 end
 function M.onStreetLegalNewDay() lastHour = nil end
 
 -- a nap at the garage: the Wait app's skip (1, 3 or 6 hours; refused in a race, on a job or with the police on you, by the career), then the rest
 function M.nap(hours)
   local s = career()
-  if not s then return false, 'No career.' end
-  if not nearPlace('garage', 40) then return false, 'You can only nap at a garage.' end
+  if not s then return false, strings.t('needs.no_career') end
+  if not nearPlace('garage', 40) then return false, strings.t('needs.nap_at_garage') end
   local what = tostring(tonumber(hours) or 1)
   local ok, why = sl_career.skipTime(what)
   if not ok then return false, why end
   lastHour = nil
-  local gained = rules.sleep(needsOf(s), tonumber(what) or 1, 'nap')
-  toast(string.format('A %s hour nap: rest %d.', what, math.floor(s.needs.rest + 0.5)))
+  rules.sleep(needsOf(s), tonumber(what) or 1, 'nap')
+  local text = strings.t('needs.nap_1_rest_2', what, math.floor(s.needs.rest + 0.5))
+  toast(text)
   extensions.hook('onStreetLegalChanged')
-  return true
+  return true, text
 end
 
 -- food and drink: at a fuel station, paid from the wallet
 function M.eat(itemId)
   local s = career()
-  if not s then return false, 'No career.' end
-  if not nearPlace('gas', 40) then return false, 'Food and drink are sold at fuel stations.' end
+  if not s then return false, strings.t('needs.no_career') end
+  if not nearPlace('gas', 40) then return false, strings.t('needs.eat_at_station') end
   local it = rules.ITEMS[itemId]
-  if not it then return false, 'Nothing of that here.' end
-  if s.money < it.price then return false, string.format('It is $%d, you have $%d.', it.price, s.money) end
+  if not it then return false, strings.t('needs.nothing_of_that') end
+  if s.money < it.price then return false, strings.t('carcare.it_is_d_you_have', it.price, s.money) end
   local ok, price, text = rules.eat(needsOf(s), itemId)
-  if ok and price > 0 then sl_career.addMoney(-price, 'Food and drink') end
+  if ok and price > 0 then sl_career.addMoney(-price, strings.t('needs.food_and_drink')) end
   toast(text)
   extensions.hook('onStreetLegalChanged')
   return ok, text
