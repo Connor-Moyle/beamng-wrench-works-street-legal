@@ -666,6 +666,7 @@ M.TEXT = {
   ["shops.ui_on_order"] = "On order", ["shops.ui_hours_left"] = "{1} h", ["shops.ui_result"] = "Result", ["shops.need_csfx"] = "Car Surface FX is needed: it keeps the paint and the scratches.", ["shops.paint_done"] = "Done.", ["shops.no_such_service"] = "That cannot be done here.",
   ["shops.dyno_running"] = "The car is on the rollers.", ["shops.dyno_peak_power"] = "Peak power", ["shops.dyno_peak_torque"] = "Peak torque", ["shops.ordered"] = "Ordered: ${1} deposit paid. {2} will be on your garage shelf in about {3} hours; the balance is paid when they arrive.",
   ["shops.order_arrived"] = "Your {1} from {2} is on the garage shelf (balance ${3} paid).", ["shops.order_waiting"] = "Your {1} from {2} is ready, but the balance of ${3} is not covered yet.",
+  ["shops.order_cancelled"] = "Your {1} from {2} could not be delivered: the deposit of ${3} is back.", ["shops.order_held_up"] = "Your {1} from {2} is held up: they will try again shortly.", ["shops.dyno_no_answer"] = "The dyno did not answer: your money is back.",
   ["shops.one_set"] = "One set of tyres at a time.",
   ["shops.price_before_trade_in"] = "Price before the trade-in of your old set.",
   ["shops.refund"] = "Refund: {1}",

@@ -207,6 +207,13 @@ function M.newOrders(shopName, model, entries, lines, depositShare, now)
   end
   return out
 end
+-- the orders that have waited a week (168 game hours) past their time: they were never delivered (no garage mod), the deposit goes back
+function M.expired(orders, now)
+  local out = {}
+  for _, o in ipairs(orders or {}) do if (o.due or 0) + 168 <= now then out[#out + 1] = o end end
+  return out
+end
+
 -- the orders that are ready (due <= now), oldest first
 function M.ready(orders, now)
   local out = {}

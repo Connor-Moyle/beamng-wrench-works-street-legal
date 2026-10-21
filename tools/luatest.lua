@@ -4077,9 +4077,10 @@ do
   check('shops: a special order takes 6 hours and one more for each 300 dollars, at most 48', SH.orderHours(0) == 6 and SH.orderHours(1500) == 11 and SH.orderHours(100000) == 48)
   check('shops: the performance kind is a special-order shop, the others are not', SH.normalize('performance', {}).order == true and SH.normalize('exhaust', {}).order == false)
   local entries = { p1 = { part = 'turbo_big', name = 'Big turbo', slotId = 'turbo' } }
-  local os = SH.newOrders('Fast Automotive', 'covet', entries, { { id = 'p1', qty = 2, each = 1500 } }, 0.3, 100)
-  check('shops: an order is made for each part bought, with the deposit share paid and the due time', #os == 2 and os[1].paid == 450 and os[1].due == 111 and os[1].model == 'covet' and os[1].shop == 'Fast Automotive')
-  check('shops: the orders that are ready come oldest first', #SH.ready(os, 110) == 0 and #SH.ready(os, 111) == 2 and SH.ready({ { due = 5 }, { due = 3 } }, 9)[1].due == 3)
+  local made = SH.newOrders('Fast Automotive', 'covet', entries, { { id = 'p1', qty = 2, each = 1500 } }, 0.3, 100)
+  check('shops: an order is made for each part bought, with the deposit share paid and the due time', #made == 2 and made[1].paid == 450 and made[1].due == 111 and made[1].model == 'covet' and made[1].shop == 'Fast Automotive')
+  check('shops: orders a week past their time are expired', #SH.expired({ { due = 10 } }, 177) == 0 and #SH.expired({ { due = 10 } }, 178) == 1)
+  check('shops: the orders that are ready come oldest first', #SH.ready(made, 110) == 0 and #SH.ready(made, 111) == 2 and SH.ready({ { due = 5 }, { due = 3 } }, 9)[1].due == 3)
   package.loaded['sl/core/shops'] = nil
 
   local ST = require('sl/core/state')
@@ -4089,7 +4090,8 @@ do
   local old = {}
   for _, k in ipairs({ 'sl_career', 'guihooks', 'core_environment', 'slrr_garage', 'sl_fleet', 'sl_surfacefx', 'core_vehicle_colors', 'getObjectByID', 'extensions' }) do old[k] = rawget(_G, k) end
   _G.guihooks = { trigger = function(n, d) sent[#sent + 1] = { n = n, d = d } if n == 'slPhoneToast' then toasts[#toasts + 1] = d.text end end }
-  _G.extensions = { hook = function() end }
+  local hooked = {}
+  _G.extensions = { hook = function(n, v) hooked[#hooked + 1] = { n, v } end }
   _G.core_environment = { getTimeOfDay = function() return { time = 0 } end }
   local hour = 12
   _G.sl_career = { isActive = function() return true end, getState = function() return st end, addMoney = function(a, l) return ST.addMoney(st, a, l) end, phase = function() return 'day' end,
@@ -4113,7 +4115,9 @@ do
   check('sl_shops: a wash and a polish are paid, the car is washed and polished, nothing else changes', st.money == m0 - 15 - 80 and washed[1] == 77 and repaired[1] == 77 and #painted == 0)
   local m1 = st.money
   SS.buy('respray_c0392b:1')
-  check('sl_shops: a respray paints the car in that colour, then washes and repairs it (a paint job leaves it clean)', st.money == m1 - 450 and painted[1].v == 77 and painted[1].i == 1 and math.abs(painted[1].p.baseColor[1] - 192 / 255) < 1e-9 and #repaired == 2)
+  local painted_hook = false
+  for _, h in ipairs(hooked) do if h[1] == 'onWrenchWorksPainted' and h[2] == 77 then painted_hook = true end end
+  check('sl_shops: a respray paints the car in that colour (the career paint shape) and raises the garage paint hook, which washes and repairs it', st.money == m1 - 450 and painted[1].v == 77 and painted[1].i == 1 and math.abs(painted[1].p.baseColor[1] - 192 / 255) < 1e-9 and painted[1].p.baseColor[4] == 1 and painted[1].p.clearcoat == 1 and painted_hook)
   _G.sl_surfacefx.repair = function() return nil end
   local m2 = st.money
   SS.buy('polish:1')
@@ -4128,6 +4132,25 @@ do
   local m3 = st.money
   SS.buy('dyno:1')
   check('sl_shops: a dyno run is paid and the garage mod vehicle side is told to run it', st.money == m3 - 90 and queued[1]:find('slrrGarageVeh.dyno()', 1, true) ~= nil)
+  -- the dyno never answers: the money comes back after 20 seconds
+  local clock = 1000
+  local realClock = os.clock
+  os.clock = function() return clock end
+  SS.open('tuner', {})
+  local m3b = st.money
+  SS.buy('dyno:1')
+  check('sl_shops: the dyno is paid', st.money == m3b - 90)
+  clock = clock + 10
+  SS.onUpdate(1)
+  check('sl_shops: before 20 seconds nothing is refunded', st.money == m3b - 90)
+  clock = clock + 15
+  SS.onUpdate(1)
+  check('sl_shops: no answer after 20 seconds: refunded, and the player is told', st.money == m3b and toasts[#toasts]:find('dyno', 1, true) ~= nil)
+  SS.onWrenchWorksDyno(77, { maxPower = 99, maxPowerRPM = 1, maxTorque = 1, maxTorqueRPM = 1, power = { 1, 2 } })
+  check('sl_shops: a late answer shows nothing', sent[#sent].n ~= 'slShopResult')
+  os.clock = realClock
+  SS.open('tuner', {})
+  SS.buy('dyno:1')
   SS.onWrenchWorksDyno(5, { maxPower = 240, maxPowerRPM = 6500, maxTorque = 300, maxTorqueRPM = 4200, power = { 1, 2 } })
   check('sl_shops: a dyno result of another car is ignored', sent[#sent].n ~= 'slShopResult')
   SS.onWrenchWorksDyno(77, { maxPower = 240, maxPowerRPM = 6500, maxTorque = 300, maxTorqueRPM = 4200, power = { 1, 2 } })
@@ -4152,6 +4175,52 @@ do
   st.day = st.day + 3
   SS.onUpdate(6)
   check('sl_shops: a balance that cannot be paid waits, with one text, and nothing is taken', #st.shopOrders == 1 and st.money == 100 and #texts == 2)
+
+  -- a shelf that keeps failing: the balance goes back each time, but only after a wait that grows, with one text
+  st.money = 5000
+  local fail = true
+  _G.slrr_garage.addShelfPart = function(model, p) if fail then error('shelf') end shelf[#shelf + 1] = { model = model, p = p } end
+  local clock2 = 5000
+  os.clock = function() return clock2 end
+  local ledgerBefore = #st.ledger
+  SS.onUpdate(6)
+  local afterFirst = st.money
+  local textsAfterFirst = #texts
+  check('sl_shops: a failing shelf refunds the balance, keeps the order, tells the player once', afterFirst == 5000 and #st.shopOrders == 1 and textsAfterFirst == 3)
+  local ledgerAfterFirst = #st.ledger
+  for _ = 1, 5 do clock2 = clock2 + 6 SS.onUpdate(6) end
+  check('sl_shops: it does not try again, charge and refund within the minute', #st.ledger == ledgerAfterFirst and #texts == 3)
+  clock2 = clock2 + 61
+  SS.onUpdate(6)
+  check('sl_shops: after the wait it tries again (and again fails quietly)', #st.ledger > ledgerAfterFirst and #texts == 3)
+  fail = false
+  clock2 = clock2 + 200
+  SS.onUpdate(6)
+  check('sl_shops: when the shelf works the order arrives', #st.shopOrders == 0 and shelf[#shelf].p.part == 'turbo_big')
+  os.clock = realClock
+
+  -- the switch is off: the orders still arrive (it is the money of the player)
+  st.money = 3000
+  SS.open('performance', {})
+  SS.buy('p1:1')
+  _G.sl_options = { get = function(k) if k == 'slShops' then return false end end }
+  st.day = st.day + 2
+  local before = #shelf
+  SS.onUpdate(6)
+  check('sl_shops: with the Shops switch off a paid order is still delivered', #shelf == before + 1 and #st.shopOrders == 0)
+  _G.sl_options = nil
+
+  -- no garage mod: after a week the deposit is given back
+  st.money = 3000
+  SS.buy('p1:1')
+  local depositMoney = st.money
+  _G.slrr_garage.addShelfPart = nil
+  st.day = st.day + 3
+  SS.onUpdate(6)
+  check('sl_shops: without the garage mod an order waits', #st.shopOrders == 1 and st.money == depositMoney)
+  st.day = st.day + 8
+  SS.onUpdate(6)
+  check('sl_shops: after a week without delivery the deposit is back, with a text', #st.shopOrders == 0 and st.money == depositMoney + 450)
 
   for k, val in pairs(old) do _G[k] = val end
   package.loaded['sl/shops'] = nil

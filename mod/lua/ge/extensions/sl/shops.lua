@@ -123,16 +123,17 @@ local function perform(line)
     local veh = getObjectByID and getObjectByID(vid)
     if not veh then return false, strings.t('shops.not_here') end
     veh:queueLuaCommand('extensions.load("slrrGarageVeh") slrrGarageVeh.dyno()')
-    at.dynoVid = vid
+    at.dynoVid, at.dynoPaid, at.dynoUntil = vid, line.sum or 0, os.clock() + 20      -- (no answer in 20 s: the money comes back)
     return true, strings.t('shops.dyno_running')
   end
   local hexs, r, g, b = rules.resprayColour(id)
   if hexs then
     if not (core_vehicle_colors and core_vehicle_colors.setVehiclePaint) then return false, strings.t('shops.not_here') end
-    local paint = { baseColor = { r, g, b, 1.2 }, metallic = 0.25, roughness = 0.35, clearcoat = 0.9, clearcoatRoughness = 0.05 }
+    local paint = { baseColor = { r, g, b, 1 }, metallic = 0.2, roughness = 0.5, clearcoat = 1, clearcoatRoughness = 0.05 }      -- (the shape of the paints sl/core/builds gives the career's cars)
     local ok = pcall(core_vehicle_colors.setVehiclePaint, 1, paint, vid)
     if not ok then return false, strings.t('shops.not_here') end
-    if sl_surfacefx then pcall(sl_surfacefx.wash, vid) pcall(sl_surfacefx.repair, vid) end      -- (a paint job leaves the car clean and unscratched)
+    if extensions and extensions.hook then extensions.hook('onWrenchWorksPainted', vid) end      -- (as after a paint job in the garage: the car is washed, unscratched and its state kept)
+    if sl_fleet and sl_fleet.snapshot then pcall(sl_fleet.snapshot, false) end      -- (the car's setup, with the new paint, is saved with the car)
     return true
   end
   return false, strings.t('shops.no_such_service')
@@ -420,13 +421,23 @@ end
 
 -- walked or driven away: it closes
 local timer = 0
-local orderTimer, told = 0, {}
+local orderTimer, told, retryAt = 0, {}, {}
 local function deliverOrders(s)
-  if not (slrr_garage and slrr_garage.addShelfPart) then return end
   local list = s.shopOrders or {}
-  for _, o in ipairs(rules.ready(list, clockNow(s))) do
+  local now = clockNow(s)
+  if not (slrr_garage and slrr_garage.addShelfPart) then      -- (the garage mod is not there: after a week the deposit is given back)
+    for _, o in ipairs(rules.expired(list, now)) do
+      for i, x in ipairs(list) do if x == o then table.remove(list, i) break end end
+      if (o.paid or 0) > 0 then sl_career.addMoney(o.paid, strings.t('shops.refund', o.shop or '')) end
+      sl_career.sendText('benny', strings.t('shops.order_cancelled', o.name or '?', o.shop or '?', o.paid or 0), 2)
+    end
+    return
+  end
+  for _, o in ipairs(rules.ready(list, now)) do
     local balance = math.max(0, (o.price or 0) - (o.paid or 0))
-    if (s.money or 0) < balance then
+    if retryAt[o] and os.clock() < retryAt[o].at then
+      -- (a shelf that failed: wait before trying again)
+    elseif (s.money or 0) < balance then
       if not told[o] then
         told[o] = true
         sl_career.sendText('benny', strings.t('shops.order_waiting', o.name or '?', o.shop or '?', balance), 2)
@@ -436,8 +447,13 @@ local function deliverOrders(s)
       if ok then
         for i, x in ipairs(list) do if x == o then table.remove(list, i) break end end
         sl_career.sendText('benny', strings.t('shops.order_arrived', o.name or '?', o.shop or '?', balance), 2)
-      elseif balance > 0 then
-        sl_career.addMoney(balance, strings.t('shops.refund', o.shop or ''))
+      else      -- the shelf failed: the balance goes back, the order stays, and it is tried again after a wait that grows (a minute, two, four, at most ten), with one text
+        if balance > 0 then sl_career.addMoney(balance, strings.t('shops.refund', o.shop or '')) end
+        local r = retryAt[o] or { n = 0 }
+        r.n = r.n + 1
+        r.at = os.clock() + math.min(600, 60 * 2 ^ (r.n - 1))
+        if r.n == 1 then sl_career.sendText('benny', strings.t('shops.order_held_up', o.name or '?', o.shop or '?'), 2) end
+        retryAt[o] = r
       end
     end
   end
@@ -460,6 +476,13 @@ function M.onUpdate(dtReal)
     if s and s.shopOrders and #s.shopOrders > 0 then pcall(deliverOrders, s) end
   end
   if not at then return end
+  if at.dynoVid and at.dynoUntil and os.clock() > at.dynoUntil then      -- the dyno never answered: paid for nothing, so it is refunded
+    at.dynoVid, at.dynoUntil = nil, nil
+    if (at.dynoPaid or 0) > 0 then sl_career.addMoney(at.dynoPaid, strings.t('shops.refund', at.shop.name)) end
+    at.dynoPaid = nil
+    toast(strings.t('shops.dyno_no_answer'))
+    if career() then guihooks.trigger('slShopOpen', view(at.shop, career())) end
+  end
   timer = timer + (dtReal or 0)
   if timer < 1 then return end
   timer = 0
@@ -477,6 +500,6 @@ M.onStreetLegalStarted = function() refresh() setOverride(true) end
 M.onStreetLegalStopped = function() refresh() setOverride(false) M.close() end
 M.onClientStartMission = function() dealerBrands = nil end
 
-require('sl/core/features').gate('shops', M, nil, nil, { 'open', 'buy' }, { 'onStreetLegalStarted' })
+require('sl/core/features').gate('shops', M, nil, { 'onUpdate' }, { 'open', 'buy' }, { 'onStreetLegalStarted' })      -- (onUpdate always runs: the orders of a player who paid a deposit arrive whatever the switch says)
 
 return M
