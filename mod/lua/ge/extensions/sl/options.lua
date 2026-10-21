@@ -197,6 +197,21 @@ M.defs = {
     desc = 'How many cars a lot shows at most. Fewer cars: less to build and less physics while you look.' },
   { key = 'slLotDents', tab = 'World', group = 'Performance', title = 'Dents on lot cars', type = 'bool', default = true,
     desc = 'Used cars on a lot are bent where their report says. Off: the row builds faster; the dents still count in the report and the price.' },
+  -- the Needs part (sl_needs; its on/off switch is in Parts of the game)
+  { key = 'slNeedsDrain', tab = 'Needs', group = 'Needs', title = 'Drain speed', type = 'range', min = 0.25, max = 2, step = 0.25, default = 1, unit = 'x',
+    desc = 'How fast hunger, thirst and tiredness grow (1 is the normal speed: food lasts about 16 hours of play, water 9, rest 20).' },
+  { key = 'slNeedsStrength', tab = 'Needs', group = 'Needs', title = 'Effect strength', type = 'range', min = 0, max = 100, step = 10, default = 100, unit = '%',
+    desc = 'How strong the blur, the slower reactions and the shaky hands get at the worst. They are capped so a run is never lost to them.' },
+  { key = 'slNeedsBlur', tab = 'Needs', group = 'Effects', title = 'Blur when thirsty or tired', type = 'bool', default = true,
+    desc = 'The edges of the screen blur a little when you are parched or very tired, and pulse at night when you are exhausted.' },
+  { key = 'slNeedsLag', tab = 'Needs', group = 'Effects', title = 'Slower reactions when tired', type = 'bool', default = true,
+    desc = 'Steering and pedals follow your input with a small lag (60 to 120 ms) when you are tired.' },
+  { key = 'slNeedsTremor', tab = 'Needs', group = 'Effects', title = 'Shaky hands when hungry', type = 'bool', default = true,
+    desc = 'A faint shake on the steering when you are hungry.' },
+  { key = 'slNeedsReduceMotion', tab = 'Needs', group = 'Effects', title = 'Reduce motion', type = 'bool', default = false,
+    desc = 'No screen blur from needs (the Driver Injuries add-on has its own Reduce motion switch, which also counts).' },
+  { key = 'slNeedsShow', tab = 'Needs', group = 'Needs', title = 'Show the meters always', type = 'bool', default = false,
+    desc = 'The three meters on the phone pill at all times, not only when one is low.' },
 }
 -- where each setting is on the Mods menu page: { tab, group }
 local PLACE = {
@@ -218,7 +233,7 @@ local PRESETS = {
 }
 -- the parts of the game that can be switched off (sl/core/features: each is gated by its extension): one bool each, on by default, listed on the Active features page
 for _, f in ipairs(require('sl/core/features').LIST) do
-  M.defs[#M.defs + 1] = { key = f.opt, feature = true, title = f.title, type = 'bool', default = true, tab = 'Parts of the game', group = 'Parts of the game', desc = f.desc }
+  M.defs[#M.defs + 1] = { key = f.opt, feature = true, title = f.title, type = 'bool', default = f.default ~= false, tab = 'Parts of the game', group = 'Parts of the game', desc = f.desc }      -- (a part may ship off: features.LIST default = false)
 end
 -- Street Legal in free roam (sl/core/mode, sl_mode): the master switch and one per feature, all off by default; a feature needs the master and its own switch
 for _, f in ipairs(require('sl/core/mode').FEATURES()) do
