@@ -3309,7 +3309,7 @@ do
   local Opt = require('sl/options')
   local defs = {}
   for _, d in ipairs(Opt.defs) do defs[d.key] = d end
-  local okDefs = #F.LIST == 32
+  local okDefs = #F.LIST == 33
   local offByDefault = 0
   for _, f in ipairs(F.LIST) do
     local d = defs[f.opt]
@@ -4309,6 +4309,276 @@ do
     check('lotpre game side: a good build stores the row hidden', G.status():find('2 cars') ~= nil and hidden.o1 == 0 and hidden.o2 == 0, G.status())
     _G.sl_career, _G.sl_lot, _G.sl_options, _G.getPlayerVehicle, _G.getObjectByID, _G.log, _G.vec3, _G.quatFromDir = old.c, old.l, old.o, old.pv, old.id, old.lg, old.v3, old.q
     package.loaded['sl/carBuilder'], package.loaded['sl/lotpre'] = old.cb, nil
+  end
+end
+
+-- the calendar (sl/core/calendar): the weekend home races, the swap meet and the series from the day and the seed; the store; the actions; reminders; a dockyards layout as a circuit
+do
+  local C = require('sl/core/calendar')
+  local W = require('sl/core/weekly')
+  local st = C.newStore()
+  -- day 40 is day 5 of week 6 (the fixture's today): the weekend is days 41 and 42
+  check('calendar: the week counter is the weekly ledger one', W.week(40) == 6 and W.dayOfWeek(40) == 5)
+  check('calendar: no home race on a weekday, one on each weekend day, the same for the same day and seed', C.homeFor(40, 9) == nil and C.homeFor(41, 9) ~= nil and C.homeFor(42, 9) ~= nil and C.homeFor(41, 9).slot == C.homeFor(41, 9).slot and C.homeFor(41, 9).slot ~= C.homeFor(42, 9).slot)
+  local list = C.schedule(40, 17.5, 9, 700, st)
+  local ids, byKind = {}, {}
+  for _, ev in ipairs(list) do ids[ev.id] = ev byKind[ev.kind] = (byKind[ev.kind] or 0) + 1 end
+  local home = C.homeFor(41, 9)
+  local sat = ids['weekend:' .. home.slot .. ':6']
+  check('calendar: the weekend race of day 41 is listed as kind:slot:week, open, at 15:00 at the dockyards, no travel, three laps', sat ~= nil and sat.status == 'open' and sat.hour == 15 and sat.place == C.HOME_PLACE and sat.travel.needed == false and sat.laps == 3 and sat.layer == home.layer and sat.requires.met == true)
+  check('calendar: the swap meet is on the weekend nights', ids['swap:meet:6:6'] ~= nil and ids['swap:meet:6:6'].hour == 20 and ids['swap:meet:6:7'] ~= nil)
+  check('calendar: past open events are not listed; the list is in day order', list[1].day >= 40 and (function() for i = 2, #list do if list[i].day < list[i - 1].day then return false end end return true end)())
+  -- the series: cycle 1 (days 29-56) is the second in the rotation (Johnson Valley) from the 15th day: days 43-47; the rally needs 600, the cup 450
+  check('calendar: the 28-day cycle rotates the three series', C.seriesFor(0, 1000).id == 'utah-rally' and C.seriesFor(1, 1000).id == 'jv-offroad' and C.seriesFor(2, 1000).id == 'hirochi-cup' and C.seriesFor(3, 1000).id == 'utah-rally')
+  check('calendar: a series below your reputation is not offered', C.seriesFor(0, 599) == nil and C.seriesFor(0, 600) ~= nil)
+  local r1 = ids['jv-offroad:2:r1']
+  check('calendar: the series rounds are listed with travel, the round of rounds, a purse text and days to go', r1 ~= nil and r1.day == 43 and r1.kind == 'series' and r1.travel.needed == true and r1.travel.fee == 600 and r1.series.round == 1 and r1.series.rounds == 5 and r1.expiresIn == 3 and type(r1.reward) == 'string' and ids['jv-offroad:2:r5'] ~= nil and ids['jv-offroad:2:r5'].day == 47)
+  -- the phone's shape (tools/calendar_fixture.js)
+  local sum = C.summary(40, 17.5, 9, 700, st)
+  local shapeOk = sum.today.day == 40 and sum.today.hour == 17.5 and sum.today.week == 6 and sum.today.dayOfWeek == 5 and type(sum.events) == 'table' and type(sum.series) == 'table' and type(sum.invites) == 'table'
+  for _, ev in ipairs(sum.events) do
+    for _, k in ipairs({ 'id', 'title', 'kind', 'day', 'status', 'travel' }) do if ev[k] == nil then shapeOk = false end end
+    if type(ev.travel.needed) ~= 'boolean' or type(ev.travel.fee) ~= 'number' or type(ev.travel.hours) ~= 'number' or type(ev.reminder) ~= 'boolean' then shapeOk = false end
+    if ev.series ~= nil and (type(ev.series.id) ~= 'string' or type(ev.series.round) ~= 'number') then shapeOk = false end
+    if ev.requires ~= nil and (type(ev.requires.label) ~= 'string' or type(ev.requires.met) ~= 'boolean') then shapeOk = false end
+    if ev.layer ~= nil or ev.fee ~= nil then shapeOk = false end      -- (the rules' own fields stay out of the phone's shape)
+  end
+  check('calendar: summary() has the fixture shape (today, events with id/title/kind/day/status/travel/reminder, series, invites)', shapeOk)
+  -- the actions
+  local ok, text, fee = C.enter(st, sat, 50, 40, 17.5)
+  check('calendar: entering with too little money is refused', not ok and fee == nil)
+  ok, text, fee = C.enter(st, sat, 500, 40, 17.5)
+  check('calendar: entering a home race takes the fee, sets the reminder and says where to be', ok and fee == sat.fee and st.entered[sat.id] ~= nil and st.remind[sat.id] == true and text:find('day 41') ~= nil and text:find('15:00') ~= nil)
+  check('calendar: entered twice is refused; declining an entered race is refused', not C.enter(st, sat, 500, 40, 17.5) and not C.decline(st, sat))
+  check('calendar: a series round answers not yet; the swap meet has nothing to enter', (select(2, C.enter(st, r1, 5000, 40, 17.5))):find('not open') ~= nil and not C.enter(st, ids['swap:meet:6:6'], 500, 40, 17.5))
+  local sun = ids['weekend:' .. C.homeFor(42, 9).slot .. ':6']
+  check('calendar: decline and remind are recorded and show in the list', C.decline(st, sun) and C.remind(st, r1, true) and C.schedule(40, 17.5, 9, 700, st) and C.find(C.schedule(40, 17.5, 9, 700, st), sun.id).status == 'declined' and C.find(C.schedule(40, 17.5, 9, 700, st), r1.id).reminder == true)
+  -- reminders: 24 h and 1 h before, each once; the entered race is day 41 15:00
+  local due = C.reminders(C.schedule(40, 17.5, 9, 700, st), st, 40, 17.5)
+  check('calendar: at 17:30 the day before, the 24 h reminder of the entered race fires once', #due == 1 and due[1].event.id == sat.id and due[1].hoursLeft == 24 and #C.reminders(C.schedule(40, 17.5, 9, 700, st), st, 40, 18) == 0)
+  due = C.reminders(C.schedule(41, 14.5, 9, 700, st), st, 41, 14.5)
+  check('calendar: half an hour before, the 1 h reminder fires', #due == 1 and due[1].hoursLeft == 1)
+  -- due and missed: on the grid at the hour it runs; too late it is missed
+  local far = function() return 500 end
+  local near = function() return 20 end
+  check('calendar: the race is due only at the hour, within reach of the grid, up to an hour and a half late', C.due(C.schedule(41, 14.9, 9, 700, st), st, 41, 14.9, near) == nil and C.due(C.schedule(41, 15.2, 9, 700, st), st, 41, 15.2, far) == nil and C.due(C.schedule(41, 15.2, 9, 700, st), st, 41, 15.2, near).id == sat.id and C.due(C.schedule(41, 16.6, 9, 700, st), st, 41, 16.6, near) == nil)
+  local missed = C.missed(C.schedule(41, 16.6, 9, 700, st), st, 41, 16.6)
+  check('calendar: past the window an entered race is missed, once, and listed as missed', #missed == 1 and missed[1].id == sat.id and #C.missed(C.schedule(41, 16.6, 9, 700, st), st, 41, 16.6) == 0 and C.find(C.schedule(41, 17, 9, 700, st), sat.id).status == 'missed')
+  -- a result: done with the purse, in the history
+  local st2 = C.newStore()
+  C.enter(st2, sat, 500, 40, 17.5)
+  local money, rep = C.result(st2, sat, 1)
+  check('calendar: a win is done with the purse and 40 rep and kept in the history; a second result changes nothing', money == sat.reward and rep == 40 and st2.done[sat.id].won == true and st2.done[sat.id].place == 1 and #st2.history == 1 and C.result(st2, sat, 1) == 0 and C.find(C.schedule(41, 17, 9, 700, st2), sat.id).status == 'done' and C.find(C.schedule(41, 17, 9, 700, st2), sat.id).reward == sat.reward)
+  local st3 = C.newStore()
+  C.enter(st3, sat, 500, 40, 17.5)
+  money, rep = C.result(st3, sat, nil)
+  check('calendar: a DNF is done without a purse or rep', money == 0 and rep == 0 and st3.done[sat.id].won == false and st3.entered[sat.id] == nil)
+  local st4 = C.newStore()
+  C.enter(st4, sat, 500, 40, 17.5)
+  money, rep = C.result(st4, sat, 2)
+  check('calendar: second place takes half the purse and 20 rep', money == sat.reward / 2 and rep == 20 and st4.done[sat.id].won == false and st4.done[sat.id].place == 2)
+  C.sweep(st2, 60)
+  check('calendar: a sweep forgets results older than a week', st2.done[sat.id] == nil and #C.schedule(60, 10, 9, 700, st2) > 0)
+  check('calendar: a done or missed event stays a week, then goes', C.find(C.schedule(47, 10, 9, 700, st3), sat.id) ~= nil and C.find(C.schedule(49, 10, 9, 700, st3), sat.id) == nil)
+  check('calendar: the parts switched off leave the list empty', #C.schedule(40, 17.5, 9, 700, C.newStore(), { home = false, swap = false, series = false }) == 0)
+  -- a dockyards layout as a circuit: the nodes in lap order from the start node, a loop, the grid spot
+  local v3 = function(x, y, z) return { x = x, y = y, z = z } end
+  local layer = { startNode = 3, defaultStartPosition = 2, pathnodes = { { oldId = 5, pos = { 10, 10, 0 }, radius = 5 }, { oldId = 3, pos = { 0, 0, 0 }, radius = 6 }, { oldId = 4, pos = { 10, 0, 0 }, radius = 3 } },
+    segments = { { from = 3, to = 4 }, { from = 4, to = 5 }, { from = 5, to = 3 } }, startPositions = { { oldId = 2, pos = { -1, 0, 0 }, rot = { 0, 0, 0, 1 } }, { oldId = 9, pos = { 5, 5, 5 } } } }
+  local tr = C.trackFromLayer(layer, 'Test', v3)
+  check('calendar: a layout gives the checkpoints in lap order from the start node, dir to the next, half width at least 4, and the default grid spot', tr ~= nil and #tr.cps == 3 and tr.cps[1].pos.x == 0 and tr.cps[2].pos.x == 10 and tr.cps[2].pos.y == 0 and tr.cps[3].pos.y == 10 and tr.cps[1].dir.x == 10 and tr.cps[3].half == 5 and tr.cps[2].half == 4 and tr.start.pos.x == -1 and tr.name == 'Test')
+  layer.segments[3] = nil
+  check('calendar: an open path or a bad file is no circuit', C.trackFromLayer(layer, 'x', v3) == nil and C.trackFromLayer(nil, 'x', v3) == nil and C.trackFromLayer({ pathnodes = {} }, 'x', v3) == nil)
+  check('calendar: the clock text', C.clock(15) == '15:00' and C.clock(8.5) == '08:30' and C.clock(nil) == '00:00')
+  -- the game side: the part off answers nothing; the reminders and the race start go through the stubs
+  do
+    local old = { c = _G.sl_career, s = _G.sl_streets, g = _G.sl_gridrace, o = _G.sl_options, pv = _G.getPlayerVehicle, gh = _G.guihooks, ex = _G.extensions, jr = _G.jsonReadFile, v3 = _G.vec3 }
+    local state = { day = 41, seed = 9, rep = 700, money = 1000, racers = { { id = 'ra', rep = 650, name = 'Ra' }, { id = 'rb', rep = 9000, name = 'Rb' } }, calendar = nil }
+    local hourNow, texts, hooks, started, paid, finish, busyWhy, chargeOk = 14.5, {}, {}, nil, {}, nil, nil, true
+    _G.sl_career = { isActive = function() return true end, getState = function() return state end, hour = function() return hourNow end, LEVEL = 'west_coast_usa', has = function() return true end,
+      freeToStart = function() return busyWhy end,
+      addMoney = function(a, l) if not chargeOk then return false end state.money = state.money + a paid[#paid + 1] = l return true end, payOut = function(a, l) state.money = state.money + a paid[#paid + 1] = l return true end, sendText = function(_, t) texts[#texts + 1] = t end }
+    _G.sl_streets = { isRacing = function() return false end }
+    _G.sl_gridrace = { running = function() return started ~= nil and finish == nil end, start = function(spec, done) started = spec finish = done return true end }
+    local on = true
+    _G.sl_options = { get = function(k) if k == 'slCalendar' then return on end return nil end }
+    _G.guihooks = { trigger = function(name, data) if name == 'slPhoneToast' then texts[#texts + 1] = data.text end end }
+    _G.extensions = { hook = function(name, ...) hooks[#hooks + 1] = { name = name, ... } end }
+    _G.vec3 = _G.vec3 or v3
+    local v3g = _G.vec3
+    _G.vec3 = function(x, y, z) return setmetatable(v3g(x, y, z), { __sub = function(a, b) return _G.vec3(a.x - b.x, a.y - b.y, a.z - b.z) end, __index = { length = function(p) return math.sqrt(p.x * p.x + p.y * p.y + p.z * p.z) end } }) end
+    _G.getPlayerVehicle = function() return { getPosition = function() return _G.vec3(-5, 0, 0) end } end
+    _G.jsonReadFile = function() return layer end
+    layer.segments[3] = { from = 5, to = 3 }
+    package.loaded['sl/calendar'] = nil
+    local G = require('sl/calendar')
+    local sum = G.summary()
+    local home = C.homeFor(41, 9)
+    local evId = 'weekend:' .. home.slot .. ':6'
+    check('calendar game side: the summary lists the weekend race of the day', sum ~= nil and sum.today.day == 41 and C.find(sum.events, evId) ~= nil)
+    chargeOk = false
+    local ok, text = G.enter(evId)
+    check('calendar game side: a charge that fails leaves no entry on the books (the reviewer case)', not ok and state.calendar.entered[evId] == nil and state.money == 1000)
+    chargeOk = true
+    ok, text = G.enter(evId)
+    check('calendar game side: entering pays the fee from the wallet and says so', ok and state.money == 1000 - home.fee and paid[1] == 'Entry fee' and text:find('day 41') ~= nil)
+    G.onUpdate(2.5)
+    check('calendar game side: half an hour before, the 1 h reminder is a toast and the banner hook', texts[#texts] ~= nil and texts[#texts]:find('in 1 h') ~= nil and hooks[#hooks].name == 'onStreetLegalCalendarReminder' and hooks[#hooks][2] == 1 and started == nil)
+    hourNow = 15.1
+    busyWhy = 'a chase'
+    G.onUpdate(2.5)
+    check('calendar game side: a due race waits while the career says busy (a chase, a job, a fade, a scene)', started == nil)
+    busyWhy = nil
+    G.onUpdate(2.5)
+    check('calendar game side: at the hour, on the grid, the grid runner is started with the layout, the title, three laps and the purse', started ~= nil and started.layer == home.layer and started.name == home.title and started.laps == 3 and started.purse == home.purse)
+    local rep0 = state.rep
+    finish({ place = 1, time = 180, grid = 6 })
+    check('calendar game side: a win pays the purse and 40 rep and is done', state.money == 1000 - home.fee + home.purse and paid[#paid]:find('Purse') ~= nil and state.calendar.done[evId].won == true and state.rep == rep0 + 40 and texts[#texts]:find('1st') ~= nil)
+    -- the series engine's side: event() hands the rules' fields; a round result marks the round's event done or missed and pays nothing
+    local evt = G.event(evId)
+    check('calendar game side: event(id) gives the event with its fee, laps and travel', evt ~= nil and evt.fee == home.fee and evt.laps == 3 and evt.travel.needed == false and G.event('nope') == nil)
+    local money0 = state.money
+    state.rep = 1000
+    G.onStreetLegalRoundResult({ seriesId = 'jv-offroad:2', round = 1, place = 1 })
+    G.onStreetLegalRoundResult({ seriesId = 'jv-offroad:2', round = 2, missed = true })
+    check('calendar game side: a series round result marks the event done (or missed) without paying', state.calendar.done['jv-offroad:2:r1'] ~= nil and state.calendar.done['jv-offroad:2:r1'].won == true and state.calendar.done['jv-offroad:2:r2'].won == nil and state.money == money0)
+    on = false
+    check('calendar game side: the part off: no summary, the actions answer nothing', G.summary() == nil and G.enter(evId) == nil)
+    on = true
+    -- the tick guard: an error in the tick is logged, five in a row switch it off, the app still answers
+    local logged = 0
+    local oldLog = _G.log
+    _G.log = function() logged = logged + 1 end
+    local goodHour = _G.sl_career.hour
+    _G.sl_career.hour = function() error('clock broke') end
+    for i = 1, 7 do G.onUpdate(2.5) end
+    _G.sl_career.hour = goodHour
+    G.onUpdate(2.5)
+    check('calendar game side: a tick that throws is logged and the tick is off after five failures; summary() still works', logged == 5 and G.summary() ~= nil)
+    _G.log = oldLog
+    _G.sl_career, _G.sl_streets, _G.sl_gridrace, _G.sl_options, _G.getPlayerVehicle, _G.guihooks, _G.extensions, _G.jsonReadFile, _G.vec3 = old.c, old.s, old.g, old.o, old.pv, old.gh, old.ex, old.jr, old.v3
+    package.loaded['sl/calendar'] = nil
+  end
+end
+
+-- the grid runner (sl/core/gridrace): the grid size, the field by class, the aggression, the payout, the camera length, the flares; and a stubbed run of sl/gridrace
+do
+  local GR = require('sl/core/gridrace')
+  local rngLib = require('sl/core/rng')
+  check('gridrace: the grid size is the setting within 3..7 and the slots less one', GR.gridSize(6, 10) == 6 and GR.gridSize(9, 10) == 7 and GR.gridSize(1, 10) == 3 and GR.gridSize(6, 4) == 3 and GR.gridSize(nil, 8) == 7 and GR.gridSize(5, 1) == 0)
+  local cands = {}
+  for i, c in ipairs({ 'D', 'C', 'C', 'B', 'B', 'B', 'A', 'A', 'S' }) do cands[i] = { model = 'm' .. (i % 4), config = 'c' .. i, class = c } end
+  local f = GR.field(cands, 'B', 5, rngLib.new(3))
+  local classes = {}
+  for _, c in ipairs(f) do classes[#classes + 1] = c.class end
+  check('gridrace: the field takes the player class first, then the classes next to it', #f == 5 and classes[1] == 'B' and classes[2] == 'B' and classes[3] == 'B' and (classes[4] == 'C' or classes[4] == 'A') and (classes[5] == 'C' or classes[5] == 'A'))
+  local f2 = GR.field(cands, 'B', 3, rngLib.new(3))
+  local models = {}
+  for _, c in ipairs(f2) do models[c.model] = (models[c.model] or 0) + 1 end
+  local distinct = true
+  for _, n in pairs(models) do if n > 1 then distinct = false end end
+  check('gridrace: distinct models come first; an unknown class falls back; no candidates gives an empty field', distinct and #GR.field(cands, 'Z', 2, rngLib.new(1)) == 2 and #GR.field({}, 'B', 5, rngLib.new(1)) == 0 and #GR.field(cands, 'S', 20, rngLib.new(1)) == 9)
+  check('gridrace: the aggression grows with reputation and is capped', GR.aggression(0) == 0.55 and GR.aggression(1000) == 0.75 and GR.aggression(5000) == 0.95)
+  local m1, r1 = GR.payout(1, 800)
+  local m2, r2 = GR.payout(2, 800)
+  local m3, r3 = GR.payout(3, 800)
+  local m5, r5 = GR.payout(5, 800)
+  local m0, r0 = GR.payout(nil, 800)
+  check('gridrace: the purse by place (all, half, a quarter, nothing) and the rep (40, 20, 10, 5; a DNF nothing)', m1 == 800 and r1 == 40 and m2 == 400 and r2 == 20 and m3 == 200 and r3 == 10 and m5 == 0 and r5 == 5 and m0 == 0 and r0 == 0)
+  check('gridrace: a camera path plays for its last marker time, capped', GR.camSeconds({ markers = { { time = 0 }, { time = 23 } } }, 8) == 8 and GR.camSeconds({ markers = { { time = 0 }, { time = 4 } } }, 8) == 4 and GR.camSeconds(nil, 8) == 0)
+  local cps = GR.cps({ { pos = 1, normal = 'n1', radius = 6 }, { pos = 2, normal = 'n2', radius = 2 } })
+  check('gridrace: the flares get the nodes with their normal and half width at least 4', #cps == 2 and cps[1].dir == 'n1' and cps[1].half == 6 and cps[2].half == 4)
+  check('gridrace: place words', GR.placeWord(1) == '1st' and GR.placeWord(2) == '2nd' and GR.placeWord(3) == '3rd' and GR.placeWord(4) == '4th')
+  local off = GR.candidatesFor('offroad', function() return { { model = 'x', config = 'y', class = 'B' } } end)
+  check('gridrace: a named roster is the candidates (a copy), else the pool; a series track is a missions folder', #off == #GR.ROSTERS.offroad and off[1].model == 'pickup' and off ~= GR.ROSTERS.offroad and #GR.candidatesFor(nil, function() return { { model = 'x', config = 'y', class = 'B' } } end) == 1 and #GR.candidatesFor('nope', nil) == 0 and GR.roundDir('johnson_valley/timeTrial/006-ShortcourseA') == '/gameplay/missions/johnson_valley/timeTrial/006-ShortcourseA/')
+  local offField = GR.field(GR.candidatesFor('offroad'), 'A', 5, rngLib.new(2))
+  local okOff = #offField == 5
+  for _, c in ipairs(offField) do if c.class ~= 'A' and c.class ~= 'B' then okOff = false end end
+  check('gridrace: the off-road field of five for a class A car is A and B trucks', okOff and offField[1].class == 'A' and offField[2].class == 'A' and offField[3].class == 'A' and offField[4].class == 'A' and offField[5].class == 'B')
+  -- the game side with a stubbed race object and world: the build (prefab, the grid, the field under the budget), the start, the laps, the finish and the cleanup
+  do
+    local old = { c = _G.sl_career, o = _G.sl_options, pv = _G.getPlayerVehicle, id = _G.getObjectByID, gh = _G.guihooks, lg = _G.log, v3 = _G.vec3, sp = _G.spawnPrefab, rp = _G.removePrefab, vp = _G.gameplay_vehiclePerformance,
+      js = _G.core_jobsystem, um = _G.ui_message, cb = package.loaded['sl/carBuilder'], mk = _G.sl_markers, cp = _G.core_paths, cc = _G.core_camera, sd = _G.slrrDrivers }
+    local events, prefabs, built, deleted = {}, {}, {}, {}
+    local function ev(e) events[#events + 1] = e end
+    local function car(id) return { getID = function() return id end, queueLuaCommand = function(_, c) ev('cmd ' .. id .. ' ' .. c:sub(1, 22)) end, delete = function() deleted[#deleted + 1] = id end } end
+    local v3 = function(x, y, z) return setmetatable({ x = x, y = y, z = z }, { __add = function(a, b) return { x = a.x + b.x, y = a.y + b.y, z = a.z + b.z } end }) end
+    _G.vec3 = v3
+    local sps = {}
+    for i = 1, 4 do sps[i] = { pos = v3(i, 0, 0), rot = {}, missing = false, moveResetVehicleTo = function(_, vid) ev('grid ' .. vid .. ' slot ' .. i) end } end
+    local raceObj = { states = {}, path = { startPositions = { sorted = sps, objects = { [2] = sps[1] } }, defaultStartPosition = 2, config = { linearPathnodes = { 1, 2 } }, pathnodes = { objects = { { pos = 1, radius = 5 }, { pos = 2, radius = 5 } } } } }
+    function raceObj:setPathFile() end
+    function raceObj:setVehicleIds(ids) self.ids = ids ev('ids ' .. #ids) end
+    function raceObj:startRace() ev('startRace') for _, id in ipairs(self.ids) do self.states[id] = { complete = false } end end
+    function raceObj:startAiVehicle(id, a) ev('ai ' .. id .. ' ' .. a) end
+    function raceObj:stopRace() ev('stopRace') end
+    function raceObj:onUpdate(dt) self.ticks = (self.ticks or 0) + 1 if self.ticks == 3 then self.states[100].complete = true self.states[100].placement = 2 self.states[100].endTime = 180 end end
+    package.preload['/lua/ge/extensions/gameplay/race/race'] = function() return function() return raceObj end end
+    _G.sl_career = { isActive = function() return true end, getState = function() return { day = 41, seed = 9, rep = 1000 } end, LEVEL = 'west_coast_usa' }
+    _G.sl_options = { get = function(k) if k == 'slGridCars' then return 3 end return nil end }
+    old.fs = _G.FS
+    _G.FS = { fileExists = function() return true end }
+    _G.getPlayerVehicle = function() return car(100) end
+    _G.getObjectByID = function(id) return car(id) end
+    _G.guihooks = { trigger = function(name, d) if name == 'slFade' then ev('fade ' .. tostring(d.on)) end end }
+    _G.log = function() end
+    _G.ui_message = function(t) ev('say ' .. tostring(t)) end
+    _G.spawnPrefab = function(name, file) prefabs[#prefabs + 1] = name return {} end
+    _G.removePrefab = function(name) prefabs[#prefabs] = nil ev('prefab removed') end
+    _G.gameplay_vehiclePerformance = { getClassFromVehId = function() return { class = { name = 'A' } } end, getClassFromConfig = function(m, c) return { class = { name = c:sub(1, 1) } } end }
+    _G.core_jobsystem = { create = function(f) f({ sleep = function() end }) end }
+    _G.core_paths = { loadPath = function() return { markers = { { time = 0 }, { time = 3 } } } end, playPath = function() ev('cam') end, stopCurrentPath = function() end }
+    _G.core_camera = { setByName = function() end }
+    _G.sl_markers = { flareCircuit = function(cps) ev('flares ' .. #cps) end, clear = function() ev('flares cleared') end }
+    _G.slrrDrivers = nil
+    local nextId = 200
+    package.loaded['sl/carBuilder'] = { aiPool = function() return { { model = 'm1', config = 'A1' }, { model = 'm2', config = 'A2' }, { model = 'm3', config = 'B1' }, { model = 'm4', config = 'S1' } } end,
+      spawn = function(_, model, config) nextId = nextId + 1 built[#built + 1] = model .. '/' .. config return car(nextId) end }
+    package.loaded['sl/gridrace'] = nil
+    local G = require('sl/gridrace')
+    local result
+    local ok = G.start({ layer = '003', name = 'Test', laps = 3, purse = 800 }, function(r) result = r end)
+    local log = table.concat(events, '|')
+    check('gridrace game side: start builds the prefab, puts the player on the default spot, builds 3 AI of the class and the next, flares, the camera, the countdown, the start', ok and #prefabs == 1 and log:find('grid 100 slot 1') ~= nil and #built == 3 and built[1]:find('/A') ~= nil and built[2]:find('/A') ~= nil and log:find('ids 4') ~= nil and log:find('startRace') ~= nil and log:find('ai 201 0.75') ~= nil and log:find('flares 2') ~= nil and log:find('cam') ~= nil and log:find('say 3') ~= nil and G.running() ~= nil, log)
+    G.onUpdate(0.1) G.onUpdate(0.1)
+    check('gridrace game side: the race runs until the player is complete', result == nil and G.running() ~= nil)
+    G.onUpdate(0.1)
+    check('gridrace game side: the finish: the place and time go to done, the AI cars are deleted, the prefab removed, the flares cleared, nothing runs', result ~= nil and result.place == 2 and result.time == 180 and result.grid == 4 and #deleted == 3 and #prefabs == 0 and G.running() == nil and table.concat(events, '|'):find('stopRace') ~= nil)
+    -- an abort mid-race cleans up and tells the caller
+    events, built, deleted, result = {}, {}, {}, nil
+    raceObj.ticks, raceObj.states = 0, {}
+    G.start({ layer = '003', name = 'Test', laps = 3 }, function(r) result = r end)
+    G.onStreetLegalStopped()
+    check('gridrace game side: a career stop aborts: done gets aborted, the cars and the prefab go', result ~= nil and result.aborted == true and result.place == nil and #deleted == 3 and #prefabs == 0 and G.running() == nil)
+    -- a series round (section 11.2): the missions folder, the off-road roster capped by ctx.rivals, the report to sl_series once
+    events, built, deleted, result = {}, {}, {}, nil
+    raceObj.ticks, raceObj.states = 0, {}
+    local reported, aborted = nil, nil
+    _G.sl_series = { report = function(series, round, r) reported = { series = series, round = round, r = r } end, abort = function(series, round, why) aborted = why end }
+    local okr = G.startRound({ series = 'jv-offroad:2', round = 2, def = { runner = 'grid', track = 'johnson_valley/timeTrial/006-ShortcourseA', laps = 3, field = 'offroad', title = 'Short course A' }, vehId = 100, seed = 1, rivals = 2 })
+    local okBuilt = #built == 2
+    for _, b in ipairs(built) do if not (b:find('^pickup/') or b:find('^hopper/') or b:find('^utv/') or b:find('^rockbouncer/') or b:find('^burnside/')) then okBuilt = false end end
+    check('gridrace game side: a series round starts on the mission folder with the off-road roster, capped by the rivals count', okr and G.running() ~= nil and G.running().dir == '/gameplay/missions/johnson_valley/timeTrial/006-ShortcourseA/' and okBuilt and G.running().laps == 3, table.concat(built, ','))
+    G.onUpdate(0.1) G.onUpdate(0.1) G.onUpdate(0.1)
+    check('gridrace game side: the round reports place, time, dnf and racers to sl_series once', reported ~= nil and reported.series == 'jv-offroad:2' and reported.round == 2 and reported.r.place == 2 and reported.r.time == 180 and reported.r.dnf == false and reported.r.racers == 3 and aborted == nil and G.running() == nil)
+    raceObj.ticks, raceObj.states, reported = 0, {}, nil
+    G.startRound({ series = 'jv-offroad:2', round = 3, def = { track = 'johnson_valley/timeTrial/005-dunerace', laps = 2, field = 'offroad' }, rivals = 2 })
+    G.onVehicleSwitched(100, 7)
+    check('gridrace game side: a vehicle change in a round aborts it to sl_series', aborted == 'aborted' and reported == nil and G.running() == nil)
+    _G.sl_series = nil
+    -- the class scan runs in the background from the career start (the reviewer's case: not inside the first race's fade)
+    package.loaded['sl/gridrace'] = nil
+    G = require('sl/gridrace')
+    local slept = 0
+    _G.core_jobsystem = { create = function(f) f({ sleep = function() slept = slept + 1 end }) end }
+    local reads = 0
+    _G.gameplay_vehiclePerformance.getClassFromConfig = function(m, c) reads = reads + 1 return { class = { name = c:sub(1, 1) } } end
+    G.onStreetLegalStarted()
+    check('gridrace game side: the career start scans the AI pool classes in a job, each config once', reads == 4 and G.onStreetLegalStarted() == nil and reads == 4)
+    _G.FS = old.fs
+    _G.sl_career, _G.sl_options, _G.getPlayerVehicle, _G.getObjectByID, _G.guihooks, _G.log, _G.vec3, _G.spawnPrefab, _G.removePrefab, _G.gameplay_vehiclePerformance = old.c, old.o, old.pv, old.id, old.gh, old.lg, old.v3, old.sp, old.rp, old.vp
+    _G.core_jobsystem, _G.ui_message, _G.sl_markers, _G.core_paths, _G.core_camera, _G.slrrDrivers = old.js, old.um, old.mk, old.cp, old.cc, old.sd
+    package.loaded['sl/carBuilder'], package.loaded['sl/gridrace'], package.preload['/lua/ge/extensions/gameplay/race/race'] = old.cb, nil, nil
   end
 end
 
