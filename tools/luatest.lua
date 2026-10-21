@@ -4746,4 +4746,62 @@ do
   for _, n in ipairs(names) do _G[n] = saved[n] end
 end
 
+-- the rules of a race series on a visited map (core/series)
+do
+  local SR = require('sl/core/series')
+  local rngLib = require('sl/core/rng')
+  local def = SR.DEFS['hirochi-cup']
+  local d2, cycle = SR.def('hirochi-cup:3')
+  check('series: a calendar series id of a cycle finds its definition and the cycle; an unknown one finds nothing', d2 == def and cycle == 3 and SR.def('nope:1') == nil and SR.def('utah-rally') == SR.DEFS['utah-rally'])
+  check('series: the three definitions have rounds that match the calendar (utah 4, jv 5, hirochi 4) and a loaner', #SR.DEFS['utah-rally'].rounds == 4 and #SR.DEFS['jv-offroad'].rounds == 5 and #def.rounds == 4
+    and SR.DEFS['utah-rally'].loaner.config == 'rally_am_gravel')
+  check('series: points by place, none past the table or for no place', SR.pointsFor(def, 1) == 10 and SR.pointsFor(def, 6) == 1 and SR.pointsFor(def, 7) == 0 and SR.pointsFor(def, nil) == 0)
+
+  -- place scoring
+  local st = SR.newState(1)
+  local ctx = { roster = { 'Ana', 'Ben', 'Cy', 'Di', 'Ed' }, seed = 5, you = 'You' }
+  local r1 = SR.record(st, def, 1, { place = 2, racers = 4, time = 120 }, ctx)
+  local r2 = SR.record(st, def, 2, { place = 1, racers = 4 }, ctx)
+  local r3 = SR.record(st, def, 3, { dnf = true, racers = 4 }, ctx)
+  check('series: a round gives the points of its place, a retirement none', r1.points == 7 and r2.points == 10 and r3.points == 0 and r3.dnf and st.results[3] == r3)
+  local list = SR.standings(st, def, ctx)
+  local you
+  for _, e in ipairs(list) do if e.you then you = e end end
+  check('series: the table has the player with 17 points and the rivals from the roster, sorted, with positions', you and you.points == 17 and you.pos >= 1 and you.pos <= #list and list[1].pos == 1 and #list >= 4 and list[2].points <= list[1].points)
+  local again = SR.standings(st, def, ctx)
+  check('series: the same rounds give the same table', #again == #list and again[2].name == list[2].name and again[2].points == list[2].points)
+  check('series: not finished until every round has a result; the next round is the first without one', not SR.finished(st, def) and SR.nextRound(st, def) == 4 and (function()
+    SR.record(st, def, 4, { missed = true }, ctx)
+    return SR.finished(st, def) and SR.nextRound(st, def) == nil and st.results[4].points == 0 and st.results[4].missed end)())
+  do local final = SR.standings(st, def, ctx) local mine for _, e in ipairs(final) do if e.you then mine = e end end check('series: the position is the place of the player in the table', mine and SR.position(final) == mine.pos) end
+
+  -- time scoring: the field of the game's rally config
+  local cfg = { competitors = { { name = 'Fast', skill = 1.0, consistency = 0.9, risk = 0 }, { name = 'Mid', skill = 0.5, consistency = 0.5, risk = 0 }, { name = 'Slow', skill = 0.0, consistency = 0.5, risk = 0 },
+    { name = 'Wild', skill = 0.6, consistency = 0.3, risk = 1.0 } } }
+  local stage = { goldTime = 162.5, bronzeTime = 264.1 }
+  local f1, f2 = SR.fieldTimes(cfg, stage, 9, 1), SR.fieldTimes(cfg, stage, 9, 1)
+  check('series: the stage field is the same for the same seed and round, and a different stage gives other times', #f1 == 4 and f1[1].time == f2[1].time and SR.fieldTimes(cfg, stage, 9, 2)[2].time ~= f1[2].time)
+  check('series: skill orders the field: the best is near the gold time, the worst past the bronze time', f1[1].time < f1[2].time and f1[2].time < f1[3].time and f1[1].time >= 162.5 * 0.97 - 1e-9 and f1[3].time <= 264.1 * 1.1 + 1e-9 + 20 and f1[3].time > 200)
+  check('series: the player\'s place in a field counts the faster competitors; no time is last', SR.placeInField(f1, 1) == 1 and SR.placeInField(f1, 1e6) == 1 + (function() local n = 0 for _, f in ipairs(f1) do if f.time then n = n + 1 end end return n end)() and SR.placeInField(f1, nil) == #f1 + 1)
+  local udef = SR.DEFS['utah-rally']
+  local ust = SR.newState(1)
+  local uctx = { field = function(r) return SR.fieldTimes(cfg, stage, 9, r) end, seed = 9, you = 'You' }
+  local rec = SR.record(ust, udef, 1, { time = f1[1].time - 1 }, uctx)
+  check('series: a stage time faster than the whole field wins the stage: 25 points and place 1 of 5', rec.place == 1 and rec.points == 25 and rec.racers == 5)
+  local rec2 = SR.record(ust, udef, 2, { time = 1e6 }, uctx)
+  check('series: a very slow stage is last of the finishers and scores the last place points', rec2.place >= 4 and rec2.points == SR.pointsFor(udef, rec2.place))
+  local rec3 = SR.record(ust, udef, 3, { dnf = true }, uctx)
+  check('series: a retired stage scores nothing and has no place', rec3.points == 0 and rec3.place == nil and rec3.dnf)
+  local utable = SR.standings(ust, udef, uctx)
+  local me
+  for _, e in ipairs(utable) do if e.you then me = e end end
+  check('series: the rally table has the competitors with their points and total time, the player among them', me and #utable == 5 and me.points == 25 + rec2.points and me.time and utable[1].time ~= nil)
+
+  -- prize and loaner
+  local p1, p2, p9 = SR.prize(def, 1, 2000), SR.prize(def, 2, 2000), SR.prize(def, 9, 2000)
+  check('series: the prize is a share of the purse and reputation by position, none past the table', p1.money == 2000 and p1.rep == 30 and p2.money == 1100 and p2.rep == 20 and p9.money == 0 and p9.rep == 0)
+  local loan = SR.loaner(udef, 21400)
+  check('series: the loaner is the series car, worth nothing, with a deposit of a twentieth of its price', loan.model == 'sunburst2' and loan.config == 'rally_am_gravel' and loan.loaner and loan.value == 0 and loan.deposit == 1070)
+end
+
 print(string.format('lua tests passed: %d checks', passed))
