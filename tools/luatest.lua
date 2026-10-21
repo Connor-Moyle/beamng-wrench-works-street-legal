@@ -4095,6 +4095,13 @@ do
     local s2, d2 = sc2.seriesBanner({ name = 'Utah Rally', pos = 1, points = 70 })
     check('banners: a series win says so', sc2.banner(s2, d2, false, t2).title == 'Series won' and sc2.banner(s2, d2, false, t2).subtitle == 'Utah Rally: 70 points')
   end
+  do
+    local sc3, t3 = require('sl/core/scenes'), require('sl/core/strings').t
+    local st3, d3 = sc3.showBanner({ place = 2, names = { 'Ava', 'You', 'Cy' }, total = 5 })
+    local b3 = sc3.banner(st3, d3, false, t3)
+    check('banners: the show podium has a title by place and the three names', b3.title == '2nd place' and b3.subtitle == '1. Ava   2. You   3. Cy')
+    check('banners: the show podium: place 1 is the winner, 3 is third, 6 is a plain place, no place is nothing', select(1, sc3.showBanner({ place = 1 })) == 'show_win' and select(1, sc3.showBanner({ place = 3 })) == 'show_3' and select(1, sc3.showBanner({ place = 6 })) == 'show_other' and sc3.showBanner({}) == nil)
+  end
   check('banners: a hook with odd arguments does not throw', pcall(function() H.onStreetLegalBusted(nil, nil, nil) H.onStreetLegalCarAdded(nil) H.onStreetLegalGarageMoved() end))
   _G.guihooks = saved
   package.loaded['sl/scenes'] = nil

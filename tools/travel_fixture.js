@@ -11,14 +11,21 @@ const options = {
   ],
   loaner: null,
 };
+// sl_series.hub() as a5 wrote it (sl/series.lua): the event, the standings (top 8 plus you), the schedule, the cars brought, whether Start works and why not; the trip's end day is on the phone's `visit`
 const hub = {
-  name: 'NGRC Utah Rally', place: 'Utah paddock', round: 2, rounds: 4, day: 42, untilDay: 44,
+  event: { id: 'utah-rally:3:r2', title: 'NGRC Utah Rally', mapName: 'Utah', series: 'utah-rally', round: 2, rounds: 4, rules: ['Stage times: fastest wins, 25-18-15 points.'], startHour: 10, status: 'ready' },
   standings: [
     { pos: 1, name: 'K. Ward', points: 25, you: false, time: '4:12.3' },
     { pos: 2, name: 'You', points: 18, you: true, time: '4:15.9' },
     { pos: 3, name: 'R. Santos', points: 15, you: false, time: '4:16.4' },
   ],
-  next: { name: 'SS2 Canyon', when: 'Day 43 08:00', startable: true, why: null },
-  cars: [{ id: 'c1', name: 'Subaru Impreza GC8' }, { id: 'c2', name: 'Ibishu Pessima' }],
+  schedule: [
+    { day: 42, hour: 10, title: 'SS1 River', status: 'done' },
+    { day: 43, hour: 10, title: 'SS2 Canyon', status: 'next' },
+    { day: 44, hour: 10, title: 'SS3 River reverse', status: 'later' },
+    { day: 45, hour: 10, title: 'SS4 Canyon reverse', status: 'later' },
+  ],
+  cars: [{ id: 1, name: 'Subaru Impreza GC8' }, { id: 2, name: 'Ibishu Pessima' }],
+  canStart: true, startWhy: null, leaveNote: 'Go home now? The rounds you have not run count as missed.',
 };
-module.exports = { options, hub, visit: { name: hub.name, round: hub.round, rounds: hub.rounds, untilDay: hub.untilDay } };
+module.exports = { options, hub, visit: { level: 'utah', round: 2, rounds: 4, untilDay: 45 } };

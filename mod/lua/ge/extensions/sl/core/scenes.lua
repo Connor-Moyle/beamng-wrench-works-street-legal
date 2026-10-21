@@ -31,6 +31,11 @@ M.BANNERS = {
   series_win = { hold = 4.0, title = 'scenes.series_win', sub = 'scenes.series_sub', tone = 'good', cues = { { at = 0, event = 'event:>UI>Career>EndScreen_Receive_XP' }, { at = 1.0, event = 'event:>UI>Career>EndScreen_Receive_Money' } } },
   series_podium = { hold = 3.4, title = 'scenes.series_podium', sub = 'scenes.series_sub', tone = 'good', cues = { { at = 0, event = 'event:>UI>Career>EndScreen_Receive_Money' } } },
   series_end = { hold = 3.0, title = 'scenes.series_end', sub = 'scenes.series_sub', tone = 'plain', cues = { { at = 0, event = 'event:>UI>Missions>Info_Open' } } },
+  -- the style show's podium (sl_scenes.play('showpodium', { place, names = { first, second, third } })): the style follows the place, the subtitle lists the three names
+  show_win = { hold = 5.0, title = 'scenes.show_win', sub = 'scenes.show_sub', tone = 'good', cues = { { at = 0, event = 'event:>UI>Career>EndScreen_Receive_XP' }, { at = 1.0, event = 'event:>UI>Career>EndScreen_Receive_Money' } } },
+  show_2 = { hold = 5.0, title = 'scenes.show_2', sub = 'scenes.show_sub', tone = 'good', cues = { { at = 0, event = 'event:>UI>Career>EndScreen_Receive_Money' } } },
+  show_3 = { hold = 5.0, title = 'scenes.show_3', sub = 'scenes.show_sub', tone = 'good', cues = { { at = 0, event = 'event:>UI>Career>EndScreen_Receive_Money' } } },
+  show_other = { hold = 4.0, title = 'scenes.show_other', sub = 'scenes.show_sub', tone = 'plain', cues = { { at = 0, event = 'event:>UI>Missions>Info_Open' } } },
   go = { hold = 1.0, title = 'scenes.go', tone = 'good', cues = { { at = 0, event = 'event:>UI>Missions>Checkpoint' } } },
 }
 
@@ -60,6 +65,14 @@ function M.seriesBanner(r)
   local pos = tonumber(r.pos)
   local style = not pos and 'series_end' or pos == 1 and 'series_win' or pos <= 3 and 'series_podium' or 'series_end'
   return style, { name = r.name, n = pos, level = tonumber(r.points) or 0, extra = pos }
+end
+
+-- the show podium: data = { place, names = { first, second, third }, total } -> style and data; nil with no place
+function M.showBanner(d)
+  if type(d) ~= 'table' or not tonumber(d.place) then return nil end
+  local place, names = tonumber(d.place), {}
+  for i = 1, 3 do local n = type(d.names) == 'table' and d.names[i] or nil if n ~= nil then names[#names + 1] = i .. '. ' .. tostring(n) end end
+  return place == 1 and 'show_win' or place == 2 and 'show_2' or place == 3 and 'show_3' or 'show_other', { name = table.concat(names, '   '), n = place }
 end
 
 M.FADE_IN = 0.5          -- the screen goes dark under the scene this long before the game changes anything behind it

@@ -1438,19 +1438,29 @@
           '<div class="slp-acts"><div class="slp-btn' + (n ? '' : ' slp-off') + '" data-a="pickconfirm" data-v="1">' + T('ui.trip_confirm', 'Confirm and go') + '</div></div></div>';
       return bar(o.name || T('app.event', 'Event')).replace('data-a="back"', 'data-a="pickback"') + '<div class="slp-body">' + body + '</div>';
     }
+    // the paddock = sl_series.hub(): { event = { title, mapName, round, rounds, rules = { text }, status 'ready'|'running'|'done' }, standings = { { pos, name, points, you, time } }, schedule = { { day, hour, title, status 'done'|'missed'|'next'|'later' } },
+    // cars = { { id, name } }, canStart, startWhy, leaveNote }; the trip's end day comes from the phone's `visit`
     function hubPage() {
-      var h = obj(st.data.hub), nx = h.next;
+      var h = obj(st.data.hub), ev = obj(h.event), vis = obj(st.data.visit), over = ev.status === 'done';
       var rows = arr(h.standings).map(function (r) {
         return '<div class="slp-kv"><span>' + (Number(r.pos) || 0) + '. ' + (r.you ? '<b>' + esc(r.name) + '</b>' : esc(r.name)) + '</span><b>' + (Number(r.points) || 0) + ' ' + T('ui.trip_pts', 'pts') + (r.time ? ' &middot; ' + esc(r.time) : '') + '</b></div>';
       }).join('');
-      var home = '<div class="slp-card">' + (st.hubHome ? '<p class="slp-warn">' + T('ui.trip_home_sure', 'Go home now? The rest of this series counts as missed and the entry fee is gone.') + '</p>' : '') +
+      var MARK = { done: '&#10004; ', missed: '&#9660; ', next: '&#9654; ', later: '' };
+      var sched = arr(h.schedule).map(function (x) {
+        return '<div class="slp-kv"><span>' + (MARK[x.status] || '') + esc(x.title || '') + '</span><b>' + T('ui.trip_day_hour', 'Day {1} {2}:00', Number(x.day) || 0, two(Number(x.hour) || 0)) + '</b></div>';
+      }).join('');
+      var home = '<div class="slp-card">' + (st.hubHome ? '<p class="slp-warn">' + esc(h.leaveNote || T('ui.trip_home_sure', 'Go home now? The rest of this series counts as missed and the entry fee is gone.')) + '</p>' : '') +
         '<div class="slp-acts"><div class="slp-btn slp-text" data-a="hubhome" data-v="1">' + (st.hubHome ? T('ui.trip_home_yes', 'Yes, go home') : T('ui.trip_home', 'Go home')) + '</div>' +
         (st.hubHome ? '<div class="slp-btn slp-text" data-a="hubhome" data-v="0">' + T('ui.cancel', 'Cancel') + '</div>' : '') + '</div></div>';
-      return bar(h.name || T('app.event', 'Event')) + '<div class="slp-body">' +
-        '<div class="slp-card"><h4>' + esc(h.name || '') + '</h4><div class="slp-kv"><span>' + esc(h.place || '') + '</span><b>' + T('ui.trip_round', 'Round {1} of {2}', Number(h.round) || 1, Number(h.rounds) || 1) + '</b></div>' +
-        (h.untilDay != null ? '<p>' + T('ui.trip_until', 'You can stay until day {1}', Number(h.untilDay) || 0) + '</p>' : '') + '</div>' +
-        (nx ? '<div class="slp-card"><h4>' + T('ui.trip_next', 'Next: {1}', esc(nx.name || '')) + '</h4><p>' + esc(nx.when || '') + '</p>' + (nx.startable === false && nx.why ? '<p class="slp-warn">' + esc(nx.why) + '</p>' : '') +
-          '<div class="slp-acts"><div class="slp-btn' + (nx.startable === false ? ' slp-off' : '') + '" data-a="hubstart" data-v="1">' + T('ui.trip_start', 'Start') + '</div></div></div>' : '') +
+      var go = over ? '<div class="slp-card"><h4>' + T('ui.trip_over', 'The series is over') + '</h4></div>'
+        : '<div class="slp-card"><h4>' + T('ui.trip_next', 'Next: {1}', esc(((arr(h.schedule).filter(function (x) { return x.status === 'next'; })[0]) || {}).title || '')) + '</h4>' +
+          (h.canStart === false && h.startWhy ? '<p class="slp-warn">' + esc(h.startWhy) + '</p>' : '') +
+          '<div class="slp-acts"><div class="slp-btn' + (h.canStart === false ? ' slp-off' : '') + '" data-a="hubstart" data-v="1">' + T('ui.trip_start', 'Start') + '</div></div></div>';
+      return bar(ev.title || T('app.event', 'Event')) + '<div class="slp-body">' +
+        '<div class="slp-card"><h4>' + esc(ev.title || '') + '</h4><div class="slp-kv"><span>' + esc(ev.mapName || '') + '</span><b>' + T('ui.trip_round', 'Round {1} of {2}', Number(ev.round) || 1, Number(ev.rounds) || 1) + '</b></div>' +
+        arr(ev.rules).map(function (x) { return '<p>' + esc(x) + '</p>'; }).join('') +
+        (vis.untilDay != null ? '<p>' + T('ui.trip_until', 'You can stay until day {1}', Number(vis.untilDay) || 0) + '</p>' : '') + '</div>' + go +
+        (sched ? '<div class="slp-card"><h4>' + T('ui.trip_schedule', 'Schedule') + '</h4>' + sched + '</div>' : '') +
         (rows ? '<div class="slp-card"><h4>' + T('ui.trip_standings', 'Standings') + '</h4>' + rows + '</div>' : '') +
         (arr(h.cars).length ? '<div class="slp-card"><h4>' + T('ui.trip_cars', 'Your cars here') + '</h4>' + arr(h.cars).map(function (c) { return '<p>' + esc(c.name) + '</p>'; }).join('') + '</div>' : '') + home + '</div>';
     }

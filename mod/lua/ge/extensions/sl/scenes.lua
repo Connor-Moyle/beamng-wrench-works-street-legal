@@ -87,6 +87,7 @@ function M.play(style, data)
   local ok, shown = pcall(function()
     if not features.on('scenes') or not guihooks then return false end
     if active then return false end                           -- (not over a full-screen scene)
+    if style == 'showpodium' then style, data = scenes.showBanner(data) if not style then return false end end
     local spec = scenes.banner(style, data, reduced(), strings.t)
     if not spec then return false end
     guihooks.trigger('slScene', spec)

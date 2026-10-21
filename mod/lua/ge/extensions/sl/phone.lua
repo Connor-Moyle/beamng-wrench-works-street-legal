@@ -418,7 +418,7 @@ end
 function M.hubHome()
   if not career() then return end
   if not sl_career.returnHome then tripAway() return end
-  answer(sl_career.returnHome('forfeit'))
+  answer(sl_career.returnHome())      -- (the core closes the series: the rounds left count as missed)
 end
 
 function M.calendarTravel(eventId) if career() and sl_calendar and sl_calendar.travel then answer(sl_calendar.travel(tostring(eventId))) end end

@@ -1123,17 +1123,19 @@ assert.ok(calls.includes('routeGarage()'), 'Route to my garage on the home scree
     phone.root.querySelector('[data-a="open"][data-v="garage"]') && phone.root.querySelector('[data-a="open"][data-v="bank"]') && phone.root.querySelector('[data-a="open"][data-v="messages"]'), 'on a trip: the Event app, the cars, money, talk; no races, home garage or cab');
   phone.act('open', 'event');
   tx = text();
-  assert.ok(tx.includes('Round 2 of 4') && tx.includes('You can stay until day 44') && tx.includes('Next: SS2 Canyon') && tx.includes('Day 43 08:00') && tx.includes('K. Ward') && tx.includes('25 pts') && tx.includes('4:15.9') && tx.includes('Standings') && tx.includes('Subaru Impreza GC8'), 'the hub: ' + tx.slice(0, 500));
+  assert.ok(tx.includes('Round 2 of 4') && tx.includes('Utah') && tx.includes('You can stay until day 45') && tx.includes('Stage times: fastest wins') && tx.includes('Next: SS2 Canyon') && tx.includes('Day 43 10:00') && tx.includes('\u2714 SS1 River') && tx.includes('K. Ward') && tx.includes('25 pts') && tx.includes('4:15.9') && tx.includes('Standings') && tx.includes('Subaru Impreza GC8'), 'the hub: ' + tx.slice(0, 600));
   calls.length = 0;
   click('hubstart', '1');
   assert.ok(calls.includes('hubStart()'), 'Start');
   click('hubhome', '1');
-  assert.ok(!calls.includes('hubHome()') && text().includes('The rest of this series counts as missed'), 'Go home asks first, in plain words');
+  assert.ok(!calls.includes('hubHome()') && text().includes('The rounds you have not run count as missed'), 'Go home asks first, in plain words (the core\u2019s own note)');
   click('hubhome', '0'); assert.ok(!text().includes('counts as missed'), 'Cancel closes it');
   click('hubhome', '1'); click('hubhome', '1');
   assert.ok(calls.includes('hubHome()'), 'the second press goes home');
-  phone.handle('slPhoneData', Object.assign({}, base, { visit: tf.visit, hub: Object.assign({}, tf.hub, { next: { name: 'SS3', when: 'Day 44 08:00', startable: false, why: 'Not before 08:00' } }) }));
-  assert.ok(phone.root.querySelector('.slp-btn.slp-off[data-a="hubstart"]') && text().includes('Not before 08:00'), 'a round that cannot start yet says why');
+  phone.handle('slPhoneData', Object.assign({}, base, { visit: tf.visit, hub: Object.assign({}, tf.hub, { canStart: false, startWhy: 'Not before 10:00' }) }));
+  assert.ok(phone.root.querySelector('.slp-btn.slp-off[data-a="hubstart"]') && text().includes('Not before 10:00'), 'a round that cannot start yet says why');
+  phone.handle('slPhoneData', Object.assign({}, base, { visit: tf.visit, hub: Object.assign({}, tf.hub, { event: Object.assign({}, tf.hub.event, { status: 'done' }) }) }));
+  assert.ok(text().includes('The series is over') && !phone.root.querySelector('[data-a="hubstart"]') && phone.root.querySelector('[data-a="hubhome"]'), 'a finished series: no Start, Go home stays');
   phone.act('home');
   phone.handle('slPhoneData', data);
 }
