@@ -3280,7 +3280,7 @@ do -- 0.6.0: a saved Wet roads and walls "on" is reset to off once, and the defa
   local def
   for _, d in ipairs(O.defs) do if d.key == 'slWetWorld' then def = d end end
   check('wet world: off by default and in every preset, with the warning in its description', def and def.default == false and def.presets.performance == false and def.presets.balanced == false and def.presets.quality == false and def.presets.max == false
-    and def.desc:find('crash the graphics driver', 1, true) ~= nil)
+    and def.desc:find('lost the graphics driver', 1, true) ~= nil)
 end
 
 do -- the migration never overwrites a file it could not read
