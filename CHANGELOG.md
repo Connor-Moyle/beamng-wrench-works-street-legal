@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.2 (needs Wrench Works 1.8.5)
+
+Hotfix for 0.7.1 and every release since the spike strip came in.
+
+### Fixes
+- **A spike strip no longer freezes the game:** at heat 3 and above, when a chase placed a spike strip ahead of you, the placing code failed every frame, filled the log with thousands of error lines and could hang the game. Fixed, and the chase check now switches itself off for the session after five failures in a row instead of failing every frame. Found by the tester in the chase regression; offline-tested; not yet seen in the game.
+- A car delivered from a factory order could be built with no direction when the forecourt lookup answered with a position only. Fixed in the same sweep (the same mistake in the code, now caught by a check that fails on it).
+
 ## 0.7.1 (needs Wrench Works 1.8.5)
 
 Fix release for 0.7.0.

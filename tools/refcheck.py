@@ -184,6 +184,23 @@ def main():
                 if ext in exports and field not in exports[ext] and (ext, field) not in seen:
                     seen.add((ext, field))
                     problems.append('%s:%d: %s.%s: %s does not export it' % (os.path.relpath(f, repo), line_of(src, m.start()), ext, field, ext))
+        # "local a, b = x and f(...)" keeps only the first value of f(): the others are nil (the spike-strip bug). Write "local a, b; if x then a, b = f(...) end".
+        for f in lua_files(os.path.join(repo, 'mod')):
+            src = read(f)
+            for mm in re.finditer(r'^[ \t]*local[ \t]+(\w+(?:[ \t]*,[ \t]*\w+)+)[ \t]*=[ \t]*([^\n]+)$', src, re.M):
+                rhs = re.sub(r'--.*$', '', mm.group(2))
+                depth, top_comma = 0, False
+                for ch in rhs:
+                    if ch in '([{': depth += 1
+                    elif ch in ')]}': depth -= 1
+                    elif depth == 0 and ch == ',': top_comma = True
+                if top_comma or depth != 0:               # (a call that goes on over the next lines is not judged here)
+                    continue
+                tail = rhs
+                for _ in range(6):                      # collapse bracketed groups so only the top level is left
+                    tail = re.sub(r'\([^()]*\)|\[[^\[\]]*\]|\{[^{}]*\}', '#', tail)
+                if re.search(r'\b(?:and|or)\b\s+[\w.:]+#', tail) and not tail.strip().startswith('function'):
+                    problems.append('%s:%d: "local %s = ... and f()" keeps only the first value of the call' % (os.path.relpath(f, repo), line_of(src, mm.start()), mm.group(1)))
         # settings keys read must be defined (sl_options in Street Legal, slrr/garageSettings in Wrench Works)
         for opt, getter in ((os.path.join(repo, 'mod', 'lua', 'ge', 'extensions', 'sl', 'options.lua'), r'sl_options\.get'),
                             (os.path.join(repo, 'mod', 'lua', 'ge', 'extensions', 'slrr', 'garageSettings.lua'), r'\bsettings\.get')):
