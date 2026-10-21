@@ -44,11 +44,26 @@ M.base64 = base64
 
 -- A file's bytes through the game's own reader (the virtual file system: a path inside a mod zip works, io.open would not), after a look at its size so a huge file is never read.
 -- nil when it is missing, empty or bigger than max.
+-- the game's LuaJIT string buffer is a module ('string.buffer'), not a global (the game's own utils.lua requires it); without it nothing can be read
+local okSB, SB = pcall(require, 'string.buffer')
+-- a swallowed failure is said once in the log (a silent fallback to Classic hid a missing module): key = what failed
+M.warned = {}
+local function warnOnce(key, text)
+  if M.warned[key] then return end
+  M.warned[key] = true
+  if log then log('W', 'sl_phoneskins', text) end      -- (options.lua asks for the list at load, also where there is no log)
+end
+local function newBuffer()
+  if okSB and type(SB) == 'table' then return SB.new() end
+  warnOnce('buffer', 'no string.buffer module: phone skins cannot be read')
+  return nil
+end
 local function readBytes(path, max)
   local ok, size = pcall(function() return FS:fileSize(path) end)
-  if not ok or type(size) ~= 'number' or size <= 0 or size > max then return nil end
-  local buf = buffer.new()
-  if not io.readFileToBuffer(path, buf) then return nil end
+  if not ok or type(size) ~= 'number' or size <= 0 or size > max then warnOnce('size:' .. tostring(path), 'phone skin file not readable (missing, empty or too big): ' .. tostring(path) .. (ok and '' or (' - ' .. tostring(size)))) return nil end
+  local buf = newBuffer()
+  if not buf then return nil end
+  if not io.readFileToBuffer(path, buf) then warnOnce('read:' .. tostring(path), 'phone skin file could not be read: ' .. tostring(path)) return nil end
   return buf:tostring()
 end
 M.MAX_JSON = 65536
@@ -58,6 +73,8 @@ local function folders()
   local found = {}
   for _, root in ipairs(M.DIRS) do
     local ok, files = pcall(function() return FS:findFiles(root, 'skin.json', 1, true, false) end)
+    if not ok then warnOnce('find:' .. root, 'phone skins: searching ' .. root .. ' failed: ' .. tostring(files)) end
+    if ok and #files == 0 and root == M.DIRS[1] then warnOnce('none:' .. root, 'phone skins: no skin.json found in ' .. root .. ' (the mod ships Slate there)') end
     for _, f in ipairs(ok and files or {}) do
       local id = f:match('/([^/]+)/skin%.json$')
       if id then found[id] = f:gsub('skin%.json$', '') end
@@ -97,6 +114,7 @@ function M.choices()
     end
     return rules.choices(names)
   end)
+  if not ok then warnOnce('list', 'the phone skin list could not be read, only Classic is offered: ' .. tostring(list)) end
   return ok and list or { { id = rules.CLASSIC, label = 'Classic' } }
 end
 
