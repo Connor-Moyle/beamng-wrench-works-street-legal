@@ -1,0 +1,12 @@
+{
+  "domElement": "<sl-maps></sl-maps>",
+  "name": "Street Legal Maps",
+  "description": "The phone sideways with a live road map: you, the road network, the route and the places.",
+  "author": "Connor",
+  "version": "1.0",
+  "directive": "slMaps",
+  "category": "Gameplay",
+  "isAuxiliary": true,
+  "interactive": "no",
+  "css": { "left": "10px", "bottom": "10px", "width": "480px", "height": "250px", "min-width": "240px", "min-height": "130px" }
+}

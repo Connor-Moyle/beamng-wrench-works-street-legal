@@ -780,12 +780,52 @@ assert.strictEqual(Array.from(phone.root.querySelectorAll('[data-a="contact"] b'
 calls.length = 0;
 click('route', 'd1');
 assert.ok(calls.includes('routeTo("d1")'), 'Route to sets the route');
+// the tyres of a car: a diagram with four tyres and a line per axle (sl_tyrecare.card); the Swap tyres panel at a meet
+phone.act('home');
+if (!phone.state.open) phone.handle('slPhoneToggle');
+const tyreCard = { compound: 'road', replace: false, rows: [{ idx: 0, axle: 'front', side: 'left', frac: 0.9, stage: 'new', flat: false, blown: false }, { idx: 1, axle: 'front', side: 'right', frac: 0.5, stage: 'good', flat: true, blown: false },
+  { idx: 2, axle: 'rear', side: 'left', frac: 0.1, stage: 'low', flat: false, blown: false }, { idx: 3, axle: 'rear', side: 'right', frac: 0, stage: 'blown', flat: false, blown: true }],
+  axles: [{ axle: 'front', compound: 'road', frac: 0.5, stage: 'good', flat: true, replace: false }, { axle: 'rear', compound: 'road', frac: 0, stage: 'blown', flat: false, replace: true }],
+  offers: [{ id: 'road', price: 0, current: false }, { id: 'slick', price: 640, current: false }, { id: 'performance', price: 420, current: true }] };
+phone.handle('slPhoneData', Object.assign({}, phone.state.data, { active: true, fleet: [{ id: 7, name: 'Covet', where: 'Out on the street', seated: true, out: true, condition: 0.9, care: { battery: 0.9, oilLevel: 0.9, coolantLevel: 0.9, fuelLevel: 0.5, fuel: 'Regular', engineKm: 100, performance: 1, history: {} }, tyres: tyreCard }] }));
+phone.act('open', 'garage');
+assert.ok(phone.root.querySelectorAll('.slp-tyrecar rect[fill="#4caf7d"]').length === 1 && /Tyres/.test(phone.root.textContent), 'the tyre diagram with a coloured tyre');
+assert.ok(/Front/.test(phone.root.textContent) && /Rear/.test(phone.root.textContent) && /50% tread/.test(phone.root.textContent) && /flat spot/.test(phone.root.textContent) && /blown/.test(phone.root.textContent), 'a line per axle with the tread, the stage and the flags');
+assert.ok(/Tyre changes: at a garage or a track/.test(phone.root.textContent) && !phone.root.querySelector('[data-a="tyreswap"]'), 'away from a track the card says where tyre changes are');
+tyreCard.swapAt = 'Pier';
+phone.handle('slPhoneData', Object.assign({}, phone.state.data, { fleet: [{ id: 7, name: 'Covet', where: 'Out on the street', seated: true, out: true, condition: 0.9, care: { history: {} }, tyres: tyreCard }] }));
+assert.ok(phone.root.querySelectorAll('[data-a="tyreswap"]').length === 2 && /Swap tyres/.test(phone.root.textContent), 'at a track or a meet place My cars offers the swap');
+delete tyreCard.swapAt;
+phone.handle('slPhoneData', Object.assign({}, phone.state.data, { fleet: [{ id: 9, name: 'Nameless', seated: true, out: true, condition: 1, care: { history: {} }, tyres: { compound: 'road', rows: [{ idx: 0, frac: 0.8, stage: 'new' }, { idx: 3, frac: 0.2, stage: 'worn' }], axles: [] } }] }));
+assert.ok(phone.root.querySelectorAll('.slp-tyrecar rect[fill="#4caf7d"]').length === 1 && !/undefined|null|NaN/.test(phone.root.querySelector('.slp-tyres').textContent), 'a wheel without an axle or a side is drawn by its number');
+phone.handle('slPhoneData', Object.assign({}, phone.state.data, { fleet: [{ id: 10, name: 'Hubs', seated: true, out: true, condition: 1, care: { history: {} }, tyres: { tracked: false, reason: 'no_tyres' } }] }));
+assert.ok(/No tyres fitted/.test(phone.root.textContent) && !phone.root.querySelector('.slp-tyrecar') && !phone.root.querySelector('[data-a="tyreswap"]') && !/Tyre changes: at a garage/.test(phone.root.textContent), 'a car on bare rims says so, with no diagram and no swap');
+calls.length = 0;
+click('pcatalog', '1');
+assert.ok(calls.includes('catalog()') || calls.some((c) => /catalog/.test(c)), 'Fit tyres opens the catalog');
+phone.handle('slPhoneData', Object.assign({}, phone.state.data, { fleet: [{ id: 8, name: 'Other', where: 'Garage', condition: 1, care: { history: {} } }] }));
+assert.ok(!phone.root.querySelector('.slp-tyrecar'), 'a car without tyre data shows no tyres');
+phone.handle('slPhoneData', Object.assign({}, phone.state.data, { fleet: [{ id: 7, name: 'Covet', seated: true, out: true, condition: 0.9, tyres: tyreCard }] }));
+phone.handle('slMeet', { open: true, name: 'Pier', owners: [], racers: [], money: 1000 });
+assert.ok(/Swap tyres/.test(phone.root.textContent) && phone.root.querySelectorAll('[data-a="tyreswap"]').length === 2 && !phone.root.querySelector('[data-a="tyreswap"][data-v="performance"]'), 'the meet offers the other sets, not the one on the car');
+assert.ok(/\$640/.test(phone.root.textContent), 'with the price');
+calls.length = 0;
+click('tyreswap', 'slick');
+assert.ok(calls.includes('@sl_tyrecare.swap("slick")'), 'a tap swaps the tyres through sl_tyrecare');
+phone.handle('slMeet', { open: false });
 // Map: groups with distances, a tap sets the route, the home shortcut, clear route
 phone.act('home');
 if (!phone.state.open) phone.handle('slPhoneToggle');
 calls.length = 0;
 phone.act('open', 'map');
 assert.ok(calls.includes('mapPlaces()'), 'opening the Map asks for the places');
+assert.ok(phone.root.querySelector('.slp-mapcv') && calls.includes('@sl_mapsfeed.use("phone", true)'), 'the Map opens on the live map and turns the feed on');
+assert.ok(phone.root.querySelector('.slp-device.slp-land'), 'the Map tab turns the phone to landscape');
+calls.length = 0;
+click('mtab', 'map|list');
+assert.ok(calls.includes('@sl_mapsfeed.use("phone", false)') && !phone.root.querySelector('.slp-mapcv'), 'the List tab turns the feed off');
+assert.ok(phone.root.querySelector('[data-a="mtab"]'), 'the List tab keeps the tab bar, so the Map tab can be reached again');
+assert.ok(!phone.root.querySelector('.slp-device.slp-land'), 'the List tab is portrait again');
 assert.ok(/no places yet/.test(phone.root.textContent), 'an empty map says so');
 phone.handle('slMap', { groups: [{ kind: 'garage', places: [{ id: 'g1', name: 'Home', dist: 120 }] }, { kind: 'meet', places: [{ id: 'm1', name: 'Pier meet', dist: 2300 }, { id: 'm2', name: 'Far meet' }] }], route: null });
 assert.strictEqual(phone.root.querySelectorAll('[data-a="route"]').length, 3, 'a row for each place');
@@ -844,6 +884,98 @@ if (out > 0) {
   const css = require('fs').readFileSync(require('path').join(__dirname, '..', 'mod', 'ui', 'modModules', 'slPhone', 'slPhone.js'), 'utf8');
   assert.ok(!/\.slp-bar\s*\{[^}]*position:\s*absolute/.test(css) && /\.slp-bar\{[^}]*z-index:2/.test(css) && /\.slp-body\{[^}]*overflow-y:auto/.test(css), 'the header is fixed above a scroll body');
   console.log('phone header test passed');
+}
+// K with the Maps HUD app on screen: the phone slides out of the app and back (Web Animations stubbed, no layout in jsdom); any problem leaves the plain open and close
+{
+  const P = win.HTMLElement.prototype, origRect = P.getBoundingClientRect, origW = Object.getOwnPropertyDescriptor(P, 'offsetWidth'), origH = Object.getOwnPropertyDescriptor(P, 'offsetHeight');
+  P.getBoundingClientRect = function () { return this.classList && this.classList.contains('slp-device') ? { left: 900, top: 100, right: 1260, bottom: 860, width: 360, height: 760 } : origRect.call(this); };
+  Object.defineProperty(P, 'offsetWidth', { configurable: true, get() { return this.classList && this.classList.contains('slp-device') ? 360 : 0; } });
+  Object.defineProperty(P, 'offsetHeight', { configurable: true, get() { return this.classList && this.classList.contains('slp-device') ? 760 : 0; } });
+  const anims = [], hid = [];
+  P.animate = function (frames, opts) { const a = { frames, opts, onfinish: null, cancelled: false, cancel() { this.cancelled = true; } }; anims.push(a); return a; };
+  const hudRect = { left: 100, top: 500, width: 500, height: 250 };
+  win.slMapsHud = { rect: () => hudRect, setHidden: (b) => hid.push(b) };
+  const close = () => { if (phone.root.querySelector('.slp-device:not(.slp-away)')) phone.handle('slPhoneToggle'); };
+  close(); while (anims.length) anims.pop(); advance(600); hid.length = 0;
+  phone.handle('slPhoneToggle');
+  assert.ok(anims.length === 1 && /rotate\(-90deg\)/.test(anims[0].frames[0].transform) && /^translate\(/.test(anims[0].frames[1].transform) && hid[hid.length - 1] === true, 'opening with the app on screen turns the phone out of it and hides the app');
+  anims[0].onfinish();
+  phone.handle('slPhoneToggle');
+  assert.ok(anims.length === 2 && anims[1].opts.fill === 'forwards' && phone.root.querySelector('.slp-device:not(.slp-away)'), 'closing plays the animation back first, the phone stays until it ends');
+  anims[1].onfinish();
+  assert.ok(phone.root.querySelector('.slp-device.slp-away') && hid[hid.length - 1] === false, 'when it ends the phone closes and the app shows again');
+  // a game side that ends the phone (data.active false) while it is open must show the app again
+  phone.handle('slPhoneToggle');
+  assert.ok(hid[hid.length - 1] === true && phone.root.querySelector('.slp-device:not(.slp-away)'), 'open again, the app hidden');
+  phone.handle('slPhoneData', Object.assign({}, data, { active: false }));
+  assert.ok(hid[hid.length - 1] === false && !phone.root.querySelector('.slp-device:not(.slp-away)'), 'the game closed the phone: the app is shown again, not left hidden');
+  phone.handle('slPhoneData', data);
+  const isOpen = () => !!phone.root.querySelector('.slp-device:not(.slp-away)');
+  const finishAll = () => { for (let k = 0; k < 4; k++) { anims.forEach((a) => { if (a.onfinish) { const f = a.onfinish; a.onfinish = null; f(); } }); advance(600); } };
+  finishAll();
+  if (isOpen()) { phone.handle('slPhoneToggle'); finishAll(); }
+  assert.ok(!isOpen() && hid[hid.length - 1] === false, 'closed and the app shown, ready for the presses');
+  // K, K, K from closed: three toggles leave it OPEN (the last press counts: presses during a slide are queued)
+  let before = anims.length;
+  phone.handle('slPhoneToggle'); phone.handle('slPhoneToggle'); phone.handle('slPhoneToggle');
+  finishAll();
+  assert.ok(isOpen() && hid[hid.length - 1] === true && anims.length === before + 1, 'three presses from closed end open, with no extra slide: ' + isOpen() + ' ' + (anims.length - before));
+  // K, K, K from open: closed
+  phone.handle('slPhoneToggle'); phone.handle('slPhoneToggle'); phone.handle('slPhoneToggle');
+  finishAll();
+  assert.ok(!isOpen() && hid[hid.length - 1] === false, 'three presses from open end closed');
+  // K, K from closed: closed again; two presses from open: open again
+  phone.handle('slPhoneToggle'); phone.handle('slPhoneToggle'); finishAll();
+  assert.ok(!isOpen(), 'two presses from closed end closed');
+  phone.handle('slPhoneToggle'); finishAll();
+  assert.ok(isOpen(), 'open');
+  before = anims.length;
+  phone.handle('slPhoneToggle'); phone.handle('slPhoneToggle'); finishAll();
+  assert.ok(isOpen() && hid[hid.length - 1] === true, 'two presses from open end open: the close was pressed again while it ran');
+  const cancelled = anims.filter((a) => a.cancelled).length;
+  assert.ok(cancelled >= 1, 'the closing slide was cancelled and the phone slid in again');
+  // an old slide's callback does nothing once a newer one runs
+  const old = anims[anims.length - 1];
+  if (old.onfinish) old.onfinish();
+  advance(600);
+  assert.ok(isOpen(), 'a stale finish leaves the open phone alone');
+  phone.handle('slPhoneToggle'); finishAll();
+  assert.ok(!isOpen(), 'closed for the next cases');
+  // a second close while one is running, a cut-short animation, no app, the switch off, reduced motion
+  phone.handle('slPhoneToggle'); advance(600);                     // open (the slide in never reports: the guard timer ends it)
+  phone.handle('slPhoneToggle'); advance(600);                     // close (the slide out never reports either)
+  assert.ok(phone.root.querySelector('.slp-device.slp-away'), 'an animation that never reports back still closes (500 ms)');
+  const n = anims.length;
+  delete win.slMapsHud; phone.handle('slPhoneToggle'); phone.handle('slPhoneToggle');
+  assert.ok(anims.length === n && phone.root.querySelector('.slp-device.slp-away'), 'no Maps app on screen: the plain open and close');
+  win.slMapsHud = { rect: () => hudRect, setHidden: (b) => hid.push(b) };
+  phone.handle('slMapsOptions', { style: 'street', slide: false });
+  phone.handle('slPhoneToggle'); phone.handle('slPhoneToggle');
+  assert.ok(anims.length === n && phone.root.querySelector('.slp-device.slp-away'), 'the Mods switch off: the plain open and close');
+  phone.handle('slMapsOptions', { style: 'street', slide: true });
+  win.slMapsHud = { rect: () => { throw new Error('gone'); }, setHidden: () => {} };
+  phone.handle('slPhoneToggle'); phone.handle('slPhoneToggle');
+  assert.ok(phone.root.querySelector('.slp-device.slp-away'), 'an app that throws leaves the plain close');
+  delete win.slMapsHud; delete P.animate; P.getBoundingClientRect = origRect;
+  if (origW) Object.defineProperty(P, 'offsetWidth', origW); if (origH) Object.defineProperty(P, 'offsetHeight', origH);
+  console.log('phone K slide test passed');
+}
+// the parts of the game that are switched off lose their apps and the HUD pill (the data says what is on)
+{
+  const off = { races: false, jobs: false, market: false, bank: false, maps: false, hudpill: false };
+  phone.handle('slPhoneData', Object.assign({}, data, { has: off }));
+  assert.ok(/display:none/.test((phone.root.querySelector('.slp-pill') || { getAttribute: () => '' }).getAttribute('style') || ''), 'the HUD pill is hidden with the HUD pill switched off');
+  if (!phone.root.querySelector('.slp-device:not(.slp-away)')) phone.handle('slPhoneToggle');
+  phone.act('home');
+  const apps = Array.from(phone.root.querySelectorAll('.slp-app')).map((a) => a.getAttribute('data-v'));
+  for (const id of ['races', 'jobs', 'carmarket', 'partmarket', 'bank', 'map']) assert.ok(!apps.includes(id), id + ' is not shown while its part is off');
+  assert.ok(apps.includes('garage') && apps.includes('me') && apps.includes('cab'), 'the other apps stay');
+  phone.handle('slPhoneData', Object.assign({}, data, { has: Object.assign({}, off, { races: true, jobs: true, market: true, bank: true, maps: true, hudpill: true, classifieds: true }) }));
+  phone.act('home');
+  const on = Array.from(phone.root.querySelectorAll('.slp-app')).map((a) => a.getAttribute('data-v'));
+  for (const id of ['races', 'jobs', 'carmarket', 'bank', 'map']) assert.ok(on.includes(id), id + ' is back when its part is on');
+  phone.handle('slPhoneData', data);
+  console.log('phone parts off test passed');
 }
 // the home grid scrolls (wheel) and the dock never leaves the screen: the grid shrinks, the dock does not; the phone is scaled to fit the window height
 {

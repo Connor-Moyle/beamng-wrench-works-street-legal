@@ -32,6 +32,7 @@ end
 
 -- no racing or jobs at the wheel while the injuries say no driving
 function M.canDrive()
+  if not require('sl/core/features').on('hospital') then return true end      -- (the hospital is off: injuries stop nothing)
   local st = slrrInjury and slrrInjury.getState and slrrInjury.getState() or nil
   return not (st and st.injured and st.limits and st.limits.noDriving)
 end
@@ -94,5 +95,8 @@ function M.onSlrrDriverDied(vehId, cause, detail)
   if sl_career.endCareer then sl_career.endCareer() end
   guihooks.trigger('slGameOver', data)
 end
+
+-- (the Mods menu's Parts of the game: with this part off, the hooks above do nothing)
+require('sl/core/features').gate('hospital', M, nil, nil, nil, { 'onStreetLegalStarted' })
 
 return M

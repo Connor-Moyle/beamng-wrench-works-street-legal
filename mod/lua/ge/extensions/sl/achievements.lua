@@ -56,4 +56,7 @@ function M.summary()
   return { earned = #earned, total = #ach.LIST, list = all, bests = bests }
 end
 
+-- (the Mods menu's Parts of the game: with this part off, the hooks above do nothing)
+require('sl/core/features').gate('achievements', M, nil, nil, { 'summary' })
+
 return M

@@ -66,4 +66,7 @@ function M.onStreetLegalStopped()
   if slrrPedestrians and slrrPedestrians.clearSpectatorZones then slrrPedestrians.clearSpectatorZones() end
 end
 
+-- (the Mods menu's Parts of the game: with this part off, the hooks above do nothing)
+require('sl/core/features').gate('spectators', M)
+
 return M

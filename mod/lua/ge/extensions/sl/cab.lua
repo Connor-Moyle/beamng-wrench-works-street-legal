@@ -164,4 +164,7 @@ end
 function M.onStreetLegalStopped() clear() end
 function M.onClientEndMission() ride, leaving = nil, {} end
 
+-- (the Mods menu's Parts of the game: with this part off, the hooks above do nothing)
+require('sl/core/features').gate('cab', M, nil, nil, { 'call' })
+
 return M

@@ -421,7 +421,7 @@ do
     check('a colour factor given as the word White is read (it was skipped: walls and roads stayed dry-looking)', ww.parseColor('White')[1] == 1 and #ww.parseColor('White') == 4 and ww.parseColor('0.5 0.5 0.5 1')[1] == 0.5 and ww.parseColor('nonsense') == nil)
   check('materials are edited in three levels', ww.materialStep(0) == 0 and ww.materialStep(2) == 0 and ww.materialStep(3) == 3 and ww.materialStep(5) == 3 and ww.materialStep(6) == 6)
   end
-  check('wet terrain tiers: dry 0, light 1, rain 2, heavy 3, in order over the steps', ww.terrainTier(0) == 0 and ww.terrainTier(1) == 0 and ww.terrainTier(2) == 1 and ww.terrainTier(4) == 2 and ww.terrainTier(ww.STEPS) == 3 and ww.terrainTier(nil) == 0)
+  check('wet terrain: dry 0, one wet tier (2) from step 2 on, so a rain swaps the terrain once', ww.terrainTier(0) == 0 and ww.terrainTier(1) == 0 and ww.terrainTier(2) == 2 and ww.terrainTier(4) == 2 and ww.terrainTier(ww.STEPS) == 2 and ww.terrainTier(nil) == 0)
   check('wet: roads are asphalt first, cars and tunnels and lights are left alone', ww.classify('road_asphalt_01') == 'asphalt' and ww.classify('sidewalk_concrete') == 'concrete' and ww.classify('palm_leaves') == 'foliage'
     and ww.classify('tunnel_wall') == nil and ww.classify('street_lamp_glass') == nil and ww.classify('road_x', '/vehicles/pickup/x.json') == nil and ww.classify('sl_puddle') == nil and ww.classify('') == nil)
   check('wet: the step follows the wetness and the strength', ww.step(0, 1) == 0 and ww.step(1, 1) == ww.STEPS and ww.step(1, 0.5) == ww.STEPS / 2 and ww.step(1, 0) == 0)
@@ -432,7 +432,7 @@ do
   check('wet: colour text round trips and the alpha is untouched', c and #c == 4 and ww.formatColor(c, 0.5) == '0.4000 0.3500 0.3000 1.0000' and ww.parseColor('x') == nil)
   local plan = ww.plan({ { name = 'grass_a' }, { name = 'road_b' }, { name = 'tunnel_road' }, { name = 'wall_c' }, { name = 'road_a' }, { name = 'ui_x' } }, 3)
   check('wet: the plan is road first, the rest by kind, capped, with the skipped left out', #plan == 3 and plan[1].name == 'road_a' and plan[2].name == 'road_b' and plan[3].name == 'wall_c')
-  check('wet: the batch is small when edits are slow and never above the maximum', ww.batch(nil) == 2 and ww.batch(10) == 1 and ww.batch(0.1, 3, 8) == 8 and ww.batch(1, 3, 8) == 3)
+  check('wet: the batch is small when edits are slow and never above the maximum', ww.batch(nil) == 2 and ww.batch(nil, 3, 1) == 1 and ww.batch(10) == 1 and ww.batch(0.1, 3, 8) == 8 and ww.batch(1, 3, 8) == 3)
   -- the kinds of standing water: the odds add to one, every kind is sane, the long ones lie along the road, and over many draws every kind comes
   local total = 0
   for _, o in ipairs(wx.POOL_ODDS) do total = total + o[2] end
@@ -1216,6 +1216,36 @@ do
   check('the help covers the first hour, day and night, races, heat, clubs, crews', helpLib.page('first') and helpLib.page('daynight') and helpLib.page('races') and helpLib.page('heat') and helpLib.page('clubs') and helpLib.page('crews') and helpLib.page('nothing') == nil)
   local md = helpLib.markdown()
   check('a part whose jbeam name is an unfilled template shows its id in words, never the template', (function() local PI = require('sl/core/partinfo') local n = PI.displayName('{{ size }} {{ type }}', 'vivace_wheel_01a', 'vivace') return not n:find('{{', 1, true) and n:lower():find('wheel') ~= nil and PI.text('{{ x }}') == nil and PI.text('Wheel') == 'Wheel' end)())
+  check('a translated part name with a brand placeholder shows without the placeholder', (function() local old = translateLanguage translateLanguage = function() return '{{brand1 | translate}} A11 Rear Hubcaps' end local n = require('sl/core/partinfo').displayName('ui.part.hubcaps', 'x_hubcap', 'x') translateLanguage = old return n == 'A11 Rear Hubcaps' end)())
+  do
+    local MF = require('sl/core/mapfeed')
+    local A, B = { pos = { x = 0, y = 0 }, radius = 1.75 }, { pos = { x = 100, y = 0 }, radius = 1.75 }
+    check('maps: a plain lane link is a minor road', MF.classify({}, A, B) == 'minor')
+    check('maps: width alone gives the class when there is no speed limit', MF.classify({}, { radius = 5 }, B) == 'arterial' and MF.classify({ lanes = '++---' }, A, B) == 'highway' and MF.classify({}, { radius = 3 }, B) == 'street')
+    check('maps: a high speed limit is a highway, a dirt track never a main road', MF.classify({ speedLimit = 30 }, A, B) == 'highway' and MF.classify({ speedLimit = 30, drivability = 0.2 }, A, B) == 'minor')
+    local nodes = { a = { pos = { x = 10, y = 10 }, links = { b = {}, c = { speedLimit = 20 } } }, b = { pos = { x = 300, y = 10 }, links = { a = {} } }, c = { pos = { x = 10, y = 600 }, links = { a = { speedLimit = 20 } } } }
+    local bl = MF.builder(nodes)
+    while not bl:step(os.clock, 1) do end
+    local n = 0 for _, t in pairs(bl.tiles) do n = n + #t end
+    check('maps: every link is in one tile once, in the tile of its middle', bl.count == 2 and n == 2 and bl.tiles['0,0'] ~= nil and bl.tiles['0,1'] ~= nil)
+    check('maps: the speed limit of a road, either way round, nothing when there is none', MF.limitOf(nodes, 'a', 'c') == 20 and MF.limitOf(nodes, 'c', 'a') == 20 and MF.limitOf(nodes, 'a', 'b') == nil and MF.limitOf(nil, 'a', 'b') == nil)
+    check('maps: the Mods rows with their defaults and bad values mended', (function() local o = MF.mapOptions(function() return nil end) local p = MF.mapOptions(function(k) return ({ slMapStyle = 'nope', slMapZoom = 'far', slMapHeadingUp = true, slMapSpeed = false })[k] end) return o.style == 'street' and o.zoom == 'normal' and o.mpp == 2 and o.speed == true and o.headingUp == false and p.style == 'street' and p.mpp == 4 and p.headingUp == true and p.speed == false end)())
+    check('maps: an unlimited road (math.huge, 100 m/s or more) has no limit to show', MF.limitOf({ a = { links = { b = { speedLimit = math.huge } } }, b = { links = {} } }, 'a', 'b') == nil and MF.limitOf({ a = { links = { b = { speedLimit = 99.9 } } } }, 'a', 'b') == 99.9 and MF.limitOf({ a = { links = { b = { speedLimit = 100 } } } }, 'a', 'b') == nil)
+    check('maps: tiles around a point cover the square', #MF.tilesAround(10, 10, 200) == 4 and MF.key(-1, -1) == '-1,-1')
+    local bad = { a = { pos = { x = 0, y = 0 }, links = { b = {}, c = {}, d = 5 } }, b = { links = {} }, c = 'nope', d = { pos = { x = 'x' }, links = 3 }, e = { pos = { x = 5, y = 5 }, links = 'x' } }
+    local bb = MF.builder(bad)
+    check('maps: malformed nodes and links are skipped, never thrown on', select(1, pcall(function() while not bb:step(os.clock, 1) do end end)) and bb.count == 0)
+    local vec = function(x, y) return setmetatable({}, { __index = function(_, k) if k == 'x' then return x elseif k == 'y' then return y end end }) end
+    local vn = { a = { pos = vec(0, 0), links = { b = {} } }, b = { pos = vec(100, 0), links = { a = {} } }, c = { pos = 5, links = { a = {} } } }
+    local vb = MF.builder(vn)
+    while not vb:step(os.clock, 1) do end
+    check('maps: positions that are not plain tables (the game vec3) are read, a number position is skipped', vb.count == 1)
+    check('maps: a route point without a position is skipped', #MF.routePoints({ { pos = { x = 0, y = 0 } }, {}, { pos = 'x' }, { pos = { x = 40, y = 0 } } }, 6) == 4)
+    local cu = MF.consumers()
+    check('maps: the feed runs while any consumer needs it, and a new consumer is told to be sent the route', cu.use('hud', true) == true and cu.any() and cu.use('phone', true) == true and cu.use('phone', false) == false and cu.any() and cu.use('hud', false) == false and not cu.any())
+    local rp = MF.routePoints({ { pos = { x = 0, y = 0 } }, { pos = { x = 1, y = 0 } }, { pos = { x = 50, y = 0 } }, { pos = { x = 51, y = 0 } } }, 6)
+    check('maps: a route is thinned and keeps its last point', #rp == 6 and rp[5] == 51)
+  end
   check('a part named by a game translation key is shown by its id in words, never as the key', (function() local n = require('sl/core/partinfo').displayName('ui.vehicleconfig.generic.wheelName', 'vivace_wheel_01a', 'vivace') return not n:find('ui%.') and n:lower():find('wheel') ~= nil end)())
   check('the help covers the new features and its economy numbers are the real ones', (function()
     for _, id in ipairs({ 'dealers', 'weather', 'carcare', 'carmeets', 'graphics', 'extras' }) do if not helpLib.page(id) then return false end end
@@ -1712,6 +1742,43 @@ do
   check('drag: none dry or when standing, grows with speed and depth, capped', pr.drag(20, 0) == 0 and pr.drag(0.5, 1) == 0 and pr.drag(20, 1) > pr.drag(10, 1) and pr.drag(20, 1) > pr.drag(20, 0.5) and pr.drag(200, 1) == 500)
   check('spray and mist: spray only in water and with speed; mist only on a wet road (> 0.3) and with speed', pr.splash(20, 0) == 0 and pr.splash(20, 1) == 1 and pr.splash(5, 1) < pr.splash(15, 1)
     and pr.mist(0.3, 20) == 0 and pr.mist(1, 3) == 0 and pr.mist(1, 26) == 1 and pr.mist(0.65, 26) > 0 and pr.mist(0.65, 26) < 1)
+  do -- a puddle's plane: dropped under 0.04, made only from 0.08 (no flicker at the edge of view), capped
+    local w = require('sl/core/weather')
+    check('planeAction: a standing plane is kept between 0.04 and 0.08 and dropped under 0.04; a missing one is made from 0.08 only',
+      w.planeAction(true, 0.06, 1) == 'keep' and w.planeAction(true, 0.03, 1) == 'drop' and w.planeAction(false, 0.06, 1) == 'none' and w.planeAction(false, 0.08, 1) == 'make')
+    check('planeAction: only the nearest 60 get a plane; one that has it keeps it until 10 places further out (no swap at the boundary)',
+      w.planeAction(false, 1, 60) == 'make' and w.planeAction(false, 1, 61) == 'none' and w.planeAction(true, 1, 61) == 'keep' and w.planeAction(true, 1, 70) == 'keep' and w.planeAction(true, 1, 71) == 'drop')
+  end
+  do -- slPuddles with and without Car Surface FX's tyre module owning the water's grip
+    local sv = { obj = rawget(_G, 'obj'), wheels = rawget(_G, 'wheels'), v = rawget(_G, 'v'), slCar = rawget(_G, 'slCar'), slPuddles = rawget(_G, 'slPuddles'), tyres = rawget(_G, 'carSurfaceFxTyres') }
+    local fric, water = {}, {}
+    _G.slCar, _G.slPuddles = nil, nil
+    _G.obj = { getVelocity = function() return { length = function() return 40 end, x = 40, y = 0 } end, getPosition = function() return setmetatable({ x = 0, y = 0, z = 0 }, { __add = function(l, r) return { x = l.x + r.x, y = l.y + r.y, z = l.z + r.z } end }) end,
+      getNodePosition = function() return { x = 10, y = 20, z = 0 } end, getId = function() return 1 end, queueGameEngineLua = function() end,
+      applyForceVectorTime = function() end, setNodeFrictionSlidingCoefs = function(_, id, a, b) fric[#fric + 1] = a end }
+    _G.wheels = { wheels = { [0] = { node1 = 1, treadNodes = { 5 } } } }
+    _G.v = { data = { nodes = { [5] = { frictionCoef = 1 } } } }
+    package.loaded['slPuddles'] = nil
+    local sp = require('slPuddles')
+    local function run() fric, water = {}, {} sp.setPuddles({ { x = 10, y = 20, sx = 4, sy = 2, dx = 1, dy = 0, k = 1 } }, 0, { physics = true }) sp.updateGFX(0.06) end
+    _G.carSurfaceFxTyres = nil
+    run()
+    check('slPuddles: without the tyre module it scales the friction itself', fric[1] and fric[1] < 0.3 and sp.wheelFactor(0) < 0.3)
+    _G.carSurfaceFxTyres = { active = function() return true end, setWheelWater = function(w, d) water[#water + 1] = { w, d } return true end }
+    package.loaded['slPuddles'] = nil sp = require('slPuddles')
+    run()
+    check('slPuddles: with the tyre module on it is told the depth per wheel and writes no friction', #fric == 0 and water[1] and water[1][1] == 0 and water[1][2] == 1 and sp.wheelFactor(0) == 1)
+    _G.carSurfaceFxTyres.active = function() return false end
+    package.loaded['slPuddles'] = nil sp = require('slPuddles')
+    run()
+    check('slPuddles: the tyre module present but off changes nothing', #water == 0 and fric[1] and fric[1] < 0.3)
+    _G.carSurfaceFxTyres.active = function() error('boom') end
+    package.loaded['slPuddles'] = nil sp = require('slPuddles')
+    run()
+    check('slPuddles: an error in the tyre module falls back to the own friction', fric[1] and fric[1] < 0.3)
+    _G.obj, _G.wheels, _G.v, _G.slCar, _G.slPuddles, _G.carSurfaceFxTyres = sv.obj, sv.wheels, sv.v, sv.slCar, sv.slPuddles, sv.tyres
+    package.loaded['slPuddles'] = nil
+  end
   local fx = require('sl/puddlefx')
   local dae = fx.gridDae({ 0, 0.01, 0, 0, 0, 0, 0, 0.02, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.05 })
   check('the puddle grid: 5 x 5 corners on two skins, 64 triangles, uv for each corner, ground heights in', dae:find('count="150"', 1, true) and dae:find('count="50"', 1, true) and dae:find('<triangles material="sl_puddle" count="64"', 1, true)
@@ -2838,6 +2905,306 @@ do -- Street Legal in free roam (sl/core/mode)
   check('mode: career-only features are off in free roam whatever is set', not Mo.enabled(false, sw, 'rivals') and not Mo.enabled(false, sw, 'rep') and not Mo.enabled(false, sw, 'freeroam'))
   local f = Mo.FEATURES()
   check('mode: the menu list has the master first, then every feature, all off by default', f[1].id == 'freeroam' and #f == #Mo.IDS + 1 and f[2].id == 'phone' and f[2].default == false and f[2].title ~= '' and Mo.key('freeroam') == 'freeroam' and Mo.key('cab') == 'freeroam_cab')
+end
+
+-- sl_tyrecare: the career's tyres against a stub of carSurfaceFx_tyres (absent, off, on)
+do
+  local saved = { sl_career = rawget(_G, 'sl_career'), sl_fleet = rawget(_G, 'sl_fleet'), carSurfaceFx_tyres = rawget(_G, 'carSurfaceFx_tyres'), guihooks = rawget(_G, 'guihooks'),
+    extensions = rawget(_G, 'extensions'), getObjectByID = rawget(_G, 'getObjectByID'), ui_message = rawget(_G, 'ui_message') }
+  local T = require('sl/core/tyres')
+  local rows = T.carRows({ compound = 'road', wheels = { { idx = 0, stage = 1 }, { idx = 1, stage = 2, flat = 0.5 }, { idx = 2, stage = 4 }, { idx = 3, stage = 5 } } })
+  check('tyrecare: the wheel rows read the stage when there is no fraction, the worst tyre says replace', #rows.rows == 4 and rows.rows[1].stage == 'new' and rows.rows[2].stage == 'good' and rows.rows[2].flat
+    and rows.rows[3].stage == 'low' and rows.rows[4].stage == 'bald' and rows.worst.idx == 3 and rows.replace and T.carRows(nil) == nil and T.carRows({ wheels = {} }) == nil)
+  check('tyrecare: a fraction wins over the stage and a blow-out is blown', T.wheelRow({ idx = 0, frac = 0.9, stage = 5 }).stage == 'new' and T.wheelRow({ idx = 0, frac = 0.9, blown = true }).stage == 'blown' and T.wheelRow({ idx = 0, blown = true }).replace)
+  local p = T.plan('slick', 'track', { compound = 'road', frac = 0.5 }, 5000, false)
+  check('tyrecare: a change plan has the track fee and the trade-in', p.ok and p.price == 1430 - 27 and p.parts.fee == 330)
+  check('tyrecare: a plan is refused moving, when poor, or for a compound that does not exist', not T.plan('slick', 'garage', nil, 5000, true).ok and not T.plan('slick', 'garage', nil, 10, false).ok and not T.plan('moon', 'garage', nil, 5000, false).ok)
+
+  local state = { money = 5000, cars = {} }
+  local car = { id = 1, name = 'Covet' }
+  state.cars[1] = car
+  local spent, hooks, toasts, calls = {}, {}, {}, {}
+  _G.sl_career = { isActive = function() return true end, getState = function() return state end, addMoney = function(n, why) if state.money + n < 0 then return false end state.money = state.money + n spent[#spent + 1] = n return true end }
+  _G.sl_fleet = { currentCar = function() return car end, vehicleOf = function(id) return { getID = function() return 77 end } end, carOfVehicle = function(vid) return vid == 77 and 1 or nil end }
+  _G.getObjectByID = function() return { getVelocity = function() return { length = function() return 0 end } end } end
+  _G.guihooks = { trigger = function(n, t) toasts[#toasts + 1] = t.text end }
+  _G.extensions = { hook = function(n) hooks[#hooks + 1] = n end }
+  _G.ui_message = nil
+  package.loaded['sl/tyrecare'] = nil
+  _G.carSurfaceFx_tyres = nil
+  local tc = require('sl/tyrecare')
+  local list = {}
+  tc.onWrenchWorksServices(list)
+  check('tyrecare: without the tyre module nothing is offered, changed or saved', not tc.available() and #list == 0 and tc.changeNow('slick', 'garage') == false and tc.save(77, car) == nil and tc.restore(77, car) == nil and tc.info(car, 77) == nil)
+
+  local mod = { enabled = false }
+  _G.carSurfaceFx_tyres = {
+    getConfig = function() return { enabled = mod.enabled } end,
+    getTyres = function() return { wheels = { { idx = 0, stage = 3 }, { idx = 1, stage = 2 } } } end,
+    setCompound = function(id, axle, name) calls[#calls + 1] = 'compound:' .. id .. ':' .. name return true end,
+    setTread = function(id, w, f) calls[#calls + 1] = 'tread:' .. id .. ':' .. tostring(w) .. ':' .. f return true end,
+    snapshot = function(id) return { [0] = { h = 4 } } end,
+    restore = function(id, blob) calls[#calls + 1] = 'restore:' .. id return true end,
+    attach = function(id) calls[#calls + 1] = 'attach:' .. id end,
+  }
+  check('tyrecare: the tyre module switched off in its Mods page hides everything', not tc.available())
+  mod.enabled = true
+  list = {}
+  tc.onWrenchWorksServices(list)
+  local info, slick
+  for _, e in ipairs(list) do if e.id == 'tyres:info' then info = e end if e.id == 'tyre:slick' then slick = e end end
+  check('tyrecare: the drawer shows the tyres state and a change for each other compound, priced with the trade-in', info and info.disabled and info.label:find('Road') and slick and slick.price == 1100 - math.floor(T.COMPOUNDS.road.set * 0.15 * 0.4 + 0.5)
+    and slick.group == 'Tyres')
+  local ok, text = tc.changeNow('slick', 'garage')
+  check('tyrecare: a change pays, sets the compound and a fresh tread, and keeps the compound with the car', ok and text:find('Slick') and state.money == 5000 - (1100 - math.floor(T.COMPOUNDS.road.set * 0.15 * 0.4 + 0.5)) and calls[1] == 'compound:77:slick'
+    and calls[2] == 'tread:77:nil:1' and car.tyres.compound == 'slick' and car.tyres.blob == nil and hooks[#hooks] == 'onStreetLegalChanged')
+  state.money = 100
+  local before = #calls
+  ok, text = tc.changeNow('slicksoft', 'track')
+  check('tyrecare: too poor, nothing is sold and nothing is sent to the car', not ok and #calls == before and car.tyres.compound == 'slick')
+  state.money = 5000
+  _G.getObjectByID = function() return { getVelocity = function() return { length = function() return 20 end } end } end
+  ok = tc.changeNow('road', 'garage')
+  check('tyrecare: not while the car is moving', ok == false and car.tyres.compound == 'slick')
+  _G.getObjectByID = function() return { getVelocity = function() return { length = function() return 0 end } end } end
+
+  car.tyres = { compound = 'slick' }
+  do -- fitting other tyre parts in the garage makes a new set
+    local function tree(tire) return { children = { { path = '/body/', chosenPartName = 'body', children = { { path = '/wheels/tire_F/', chosenPartName = tire, children = {} }, { path = '/wheels/rim_F/', chosenPartName = 'rim' } } } } } end
+    local sa, sb = T.signature(tree('tire_a')), T.signature(tree('tire_b'))
+    check('tyrecare: the tyre signature names the fitted tyre parts only, "" for bare rims', sa:find('tire_a', 1, true) and not sa:find('rim', 1, true) and sa ~= sb and T.signature({ children = { { path = '/wheels/rim_F/', chosenPartName = 'rim' } } }) == '' and T.signature(nil) == '')
+    local c2 = { id = 1, tyres = { compound = 'slick', blob = { [0] = { h = 1 } } } }
+    state.cars[1] = c2
+    tc.onWrenchWorksDriveOut(77, { partsTree = tree('tire_a') })
+    check('tyrecare: a car saved before signatures keeps its wear when it first drives out, and gets its signature', c2.tyres.blob and c2.tyres.compound == 'slick' and c2.tyres.sig == sa)
+    tc.onWrenchWorksDriveOut(77, { partsTree = tree('tire_a') })
+    check('tyrecare: the same tyres at the next drive-out keep the wear', c2.tyres.blob and c2.tyres.compound == 'slick')
+    tc.onWrenchWorksDriveOut(77, { partsTree = tree('tire_b') })
+    check('tyrecare: other tyre parts fitted: a new set, the old wear and compound are dropped', c2.tyres.blob == nil and c2.tyres.compound == nil and c2.tyres.sig == sb)
+    tc.onWrenchWorksDriveOut(77, { partsTree = { children = {} } })
+    check('tyrecare: tyres taken off leave bare rims with no wear', c2.tyres.sig == '' and c2.tyres.blob == nil)
+    c2.tyres = { compound = 'slick', blob = { [0] = { h = 1 } }, sig = sb }
+    tc.onWrenchWorksPartBought(77, '/wheels/rim_F/', 'rim', 50)
+    check('tyrecare: buying a part that is not a tyre keeps the wear', c2.tyres and c2.tyres.blob)
+    tc.onWrenchWorksPartBought(77, '/wheels/tire_F/', 'tire_b', 90)
+    check('tyrecare: buying a tyre part, even the same one, drops the old wear (a new set)', c2.tyres == nil)
+    state.cars[1] = car
+  end
+  check('tyrecare: the wear is snapshotted into the car record', tc.save(77, car) == true and car.tyres.blob[0].h == 4 and car.tyres.compound == 'slick')
+  calls = {}
+  tc.restore(78, car)
+  check('tyrecare: a car that comes out gets the module and its wear back (the blob has the compound)', calls[1] == 'attach:78' and calls[2] == 'restore:78' and #calls == 2)
+  tc.onUpdate(1)
+  check('tyrecare: the blob is not sent again before the retry time', #calls == 2)
+  tc.onUpdate(1.5)
+  check('tyrecare: the restore is sent once more after 2 s (a car whose module was not loaded yet), and then no more', calls[#calls] == 'restore:78' and #calls == 4 and (function() tc.onUpdate(5) return #calls == 4 end)())
+  calls = {}
+  tc.restore(78, { tyres = { compound = 'slick' } })
+  check('tyrecare: a compound with no wear saved is set again', calls[2] == 'compound:78:slick' and #calls == 2)
+  calls = {}
+  tc.restore(78, { tyres = { compound = 'road' } })
+  check('tyrecare: a road-tyre car with no wear saved is left alone', #calls == 1 and calls[1] == 'attach:78')
+  calls = {}
+  tc.onVehicleResetted(77)
+  check('tyrecare: after a reset (R) the wear is put back', calls[1] == 'attach:77' and calls[2] == 'restore:77')
+  do -- the test aid
+    local sv = { fleet = _G.sl_fleet, gp = rawget(_G, 'getPlayerVehicle') }
+    local made
+    _G.getPlayerVehicle = function() return { getID = function() return 90 end } end
+    _G.sl_fleet = { carOfVehicle = function(v) return v == 77 and 1 or nil end, registerVehicle = function(v, info) made = { v = v, info = info } return { id = 5 } end }
+    local ok1, t1 = tc.devRegister()
+    check('tyrecare: devRegister makes the car under the player a career car', ok1 and made.v == 90 and made.info.name == 'QA tyre car' and t1:find('career car 5'))
+    _G.getPlayerVehicle = function() return { getID = function() return 77 end } end
+    made = nil
+    check('tyrecare: devRegister leaves a car that is already a career car alone', tc.devRegister() == false and made == nil)
+    _G.sl_fleet, _G.getPlayerVehicle = sv.fleet, sv.gp
+  end
+  tc.onCsfxTyreBlown(77) tc.onCsfxTyreBlown(99)
+  check('tyrecare: a blow-out of the player\'s own car is a toast, any other car is not', #toasts >= 1 and toasts[#toasts] == 'A tyre has blown.' and (function() local n = 0 for _, t in ipairs(toasts) do if t == 'A tyre has blown.' then n = n + 1 end end return n == 1 end)())
+  -- a car on bare rims (the starter car): the module reports no wheels, so nothing is followed, sold or snapshotted; once tyres are fitted it is followed
+  local snaps, bareCalls = 0, {}
+  local wheelsNow = {}
+  _G.carSurfaceFx_tyres = { getConfig = function() return { enabled = true } end, getTyres = function() return { wheels = wheelsNow } end,
+    setCompound = function() bareCalls[#bareCalls + 1] = 'compound' return true end, setTread = function() bareCalls[#bareCalls + 1] = 'tread' return true end,
+    snapshot = function() snaps = snaps + 1 return { [0] = { h = 1 } } end, restore = function() bareCalls[#bareCalls + 1] = 'restore' end }
+  local bare = { id = 2, name = 'Autobello' }
+  local cardB = tc.card(bare, 77, true)
+  check('tyrecare: a car on bare rims is not tracked: the card says no_tyres and has no offers', tc.noTyres(77) and cardB and cardB.tracked == false and cardB.reason == 'no_tyres' and cardB.offers == nil)
+  local bareList = {}
+  tc.onWrenchWorksServices(bareList)
+  local okB, textB = tc.changeNow('slick', 'garage')
+  check('tyrecare: bare rims: the drawer says so, no change is sold, nothing is sent to the car, nothing is snapshotted', #bareList == 1 and bareList[1].id == 'tyres:none' and okB == false and textB ~= nil and #bareCalls == 0
+    and tc.save(77, bare) == nil and snaps == 0 and bare.tyres == nil)
+  wheelsNow = { { idx = 0, frac = 1, axle = 'front', side = 'left' }, { idx = 1, frac = 1, axle = 'front', side = 'right' } }
+  local fitted = tc.card(bare, 77, true)
+  check('tyrecare: once tyres are fitted (the car respawned with the part) it is followed: rows, offers, and its wear is snapshotted', not tc.noTyres(77) and #fitted.rows == 2 and fitted.offers ~= nil and tc.save(77, bare) == true and snaps == 1 and bare.tyres.blob ~= nil)
+  _G.carSurfaceFx_tyres = { getConfig = function() error('boom') end, getTyres = function() error('boom') end, setCompound = function() error('boom') end }
+  check('tyrecare: an error inside the tyre module never reaches the career', tc.info(car, 77) == nil)
+  _G.sl_career, _G.sl_fleet, _G.carSurfaceFx_tyres, _G.guihooks, _G.extensions, _G.getObjectByID, _G.ui_message = saved.sl_career, saved.sl_fleet, saved.carSurfaceFx_tyres, saved.guihooks, saved.extensions, saved.getObjectByID, saved.ui_message
+  package.loaded['sl/tyrecare'] = nil
+end
+
+do -- the GPU gate between the wet world's reloads and the puddle planes
+  local G = require('sl/core/gpugate')
+  G.reset()
+  check('gate: with nothing happening both sides may work', G.planesMayChange(100) and G.wetMayBatch(100))
+  G.reloaded(100)
+  check('gate: after a wet world batch the planes wait 1 s, then may go', not G.planesMayChange(100.5) and not G.planesMayChange(100.99) and G.planesMayChange(101) and G.wetMayBatch(100.1))
+  G.planesTouched(200)
+  check('gate: after a plane was made the wet world waits 0.5 s, then may go', not G.wetMayBatch(200.2) and G.wetMayBatch(200.5))
+  G.reset()
+  local l1 = G.waited('wet', 300)
+  local l2 = G.waited('wet', 301)
+  local l3 = G.waited('planes', 301)
+  local l4 = G.waited('wet', 306)
+  G.reset()
+  G.reloaded(0)
+  for t = 0.2, 11, 0.2 do G.waited('planes', t) end
+  check('gate: planes that waited over 10 s without a plane made get a window: the wet world pauses 1.5 s, then goes on', not G.wetMayBatch(11) and not G.wetMayBatch(12.4) and G.wetMayBatch(12.6) and G.planesMayChange(12.6))
+  G.reset()
+  G.waited('planes', 0) G.waited('planes', 5) G.planesTouched(6) G.waited('planes', 12)
+  check('gate: a plane made, or a pause in the waiting, starts a new spell, so no window opens', G.wetMayBatch(13))
+  G.reset()
+  check('gate: terrain height edits wait 10 s after a swap and 1 s after a wet reload', (function() G.reset() G.terrainSwapped(100) local a = not G.terrainEditOk(105) and G.terrainEditOk(110) G.reloaded(200) local b = a and not G.terrainEditOk(200.5) and G.terrainEditOk(201) G.reset() return b end)())
+  check('gate: a terrain edit holds the wet world for 0.5 s but does not clear a planes wait', (function() G.reset() G.waited('planes', 0) G.waited('planes', 6) G.waited('planes', 11) G.terrainEdited(11.2) local held = not G.wetMayBatch(11.4) local ok = G.wetMayBatch(11.8) G.reset() return held and ok end)())
+  check('gate: terrain material lookups are held for 60 s after a terrain swap, and free before one', G.terrainLookupsOk(5) and (function() G.terrainSwapped(100) return not G.terrainLookupsOk(159) and G.terrainLookupsOk(160) end)())
+  G.reset()
+  check('gate: a wait is logged once per 5 s per side, with the count since, and the sides are separate', l1 and l1:find('1 time') and l2 == nil and l3 and l3:find('planes waited') and l4 and l4:find('2 time'))
+  G.reset()
+end
+
+do -- 0.5.2: a saved Wet tarmac "on" is reset to off once
+  local O = require('sl/options')
+  local a = { slWetTarmac = true }
+  local changed = O.migrate052(a)
+  check('wet tarmac migration: a saved on becomes off, once, and the flag is stored', changed and a.slWetTarmac == false and a.slWetTarmacReset052 == true)
+  a.slWetTarmac = true
+  check('wet tarmac migration: a player who turned it back on afterwards keeps it', O.migrate052(a) == false and a.slWetTarmac == true)
+  local b = {}
+  O.migrate052(b)
+  check('wet tarmac migration: nothing saved stays unset (the default applies), and a saved off stays off', b.slWetTarmac == nil and b.slWetTarmacReset052 == true and O.migrate052({ slWetTarmac = false }) == true)
+end
+
+do -- the migration never overwrites a file it could not read
+  local sv = { r = rawget(_G, 'jsonReadFile'), w = rawget(_G, 'jsonWriteFile') }
+  local reads, writes = nil, 0
+  _G.jsonReadFile = function() return reads end
+  _G.jsonWriteFile = function() writes = writes + 1 return true end
+  local function fresh() package.loaded['sl/options'] = nil return require('sl/options') end
+  reads = nil
+  local O = fresh()
+  O.get('slWetTarmac')
+  check('wet tarmac migration: a file that could not be read (nil) is not overwritten', writes == 0 and O.get('slWetTarmac') == false)
+  O.set('slPerf', O.get('slPerf'))
+  check('wet tarmac migration: the next normal save carries the flag, so a later "on" is kept', writes == 1)
+  reads = { slWetTarmac = true, slClock = false }
+  O = fresh()
+  O.get('slWetTarmac')
+  check('wet tarmac migration: a readable file with on is reset and rewritten with the other options kept', writes == 2 and O.get('slWetTarmac') == false)
+  _G.jsonReadFile, _G.jsonWriteFile = sv.r, sv.w
+  package.loaded['sl/options'] = nil
+end
+
+-- the parts of the game that can be switched off (sl/core/features)
+do
+  local F = require('sl/core/features')
+  local Opt = require('sl/options')
+  local defs = {}
+  for _, d in ipairs(Opt.defs) do defs[d.key] = d end
+  local okDefs = #F.LIST == 20
+  for _, f in ipairs(F.LIST) do
+    local d = defs[f.opt]
+    if not (d and d.type == 'bool' and d.default == true and d.feature == true and d.title == f.title and f.desc ~= '') then okDefs = false end
+  end
+  check('parts: every part has an option, one bool, on by default, tagged for the Active features page', okDefs)
+  local off = { slJobs = false }
+  local function get(k) return off[k] end
+  check('parts: on unless the option is false; a missing option system is on', F.on('jobs', get) == false and F.on('races', get) == true and F.on('jobs', function() return nil end) == true and F.on('nope', get) == true)
+  local calls = {}
+  local m = { onUpdate = function(dt) calls[#calls + 1] = 'update' return 'u' end, onStreetLegalNewDay = function() calls[#calls + 1] = 'day' end,
+    onStreetLegalBeforeSave = function() calls[#calls + 1] = 'save' end, onStreetLegalStarted = function() calls[#calls + 1] = 'started' end,
+    onStreetLegalStopped = function() calls[#calls + 1] = 'stopped' end, onClientEndMission = function() calls[#calls + 1] = 'end' end,
+    summary = function() calls[#calls + 1] = 'summary' return { x = 1 } end, list = function() return { 1 } end }
+  F.gate('jobs', m, get, { 'onStreetLegalStarted' }, { 'summary' })
+  local r = m.onUpdate(0.1) m.onStreetLegalNewDay(2) local sm = m.summary()
+  check('parts: an off part ignores updates, new days and its summary', r == nil and sm == nil and #calls == 0)
+  m.onStreetLegalBeforeSave() m.onStreetLegalStarted() m.onClientEndMission()
+  check('parts: saving, a kept start hook and cleanup always run; a call not named stays', #calls == 3 and calls[1] == 'save' and calls[2] == 'started' and calls[3] == 'end' and m.list()[1] == 1)
+  calls = {}
+  off.slJobs = nil
+  check('parts: switched on again the hooks run', m.onUpdate(0.1) == 'u' and m.summary().x == 1 and #calls == 2)
+  calls = {}
+  m.onStreetLegalOption('slJobs', false)
+  check('parts: switching the part off stops it once (the cleanup hook)', #calls == 1 and calls[1] == 'stopped')
+  calls = {}
+  m.onStreetLegalOption('slRaces', false) m.onStreetLegalOption('slJobs', true)
+  check('parts: another option, or switching on, stops nothing', #calls == 0)
+  -- clubs: days that went by while the part was off make the season stale; it closes with no reward when the part is back
+  do
+    local CL = require('sl/core/clubs')
+    check('clubs: a season is stale only when days passed that were not simulated', CL.unsimulated({ simDay = 3 }, 8) == true and CL.unsimulated({ simDay = 7 }, 8) == false and CL.unsimulated({ simDay = 8 }, 8) == false and CL.unsimulated({}, 8) == false and CL.unsimulated(nil, 8) == false)
+    local sent, paid = {}, {}
+    local oldC, oldG, oldF = rawget(_G, 'sl_career'), rawget(_G, 'guihooks'), rawget(_G, 'sl_fleet')
+    _G.guihooks = { trigger = function() end }
+    _G.sl_fleet = nil
+    _G.sl_career = { isActive = function() return true end, has = function() return true end, getState = function() return nil end,
+      sendText = function(who, text) sent[#sent + 1] = text end, payOut = function(m) paid[#paid + 1] = m end, racesList = function() return {} end }
+    local okLoad, CE = pcall(require, 'sl/clubs')
+    if okLoad then
+      local st = { day = 8, garageLevel = 1, seed = 1, rep = 0, club = { club = 1, start = 1, season = 1, simDay = 3, standings = { player = 99 }, raced = {}, calendar = {} } }
+      local okE = pcall(CE.ensureSeason, st)
+      check('clubs: a season the clubs did not simulate pays nothing and a new one starts', okE and #paid == 0 and st.club.season == 2 and st.club.start == 8 and st.club.simDay == 8 and sent[1] ~= nil and sent[1]:find('not raced', 1, true) ~= nil, tostring(okE) .. ' paid=' .. #paid .. ' sent=' .. tostring(sent[1]))
+      local st2 = { day = 12, garageLevel = 1, seed = 1, rep = 0, club = { club = 1, start = 1, season = 1, simDay = 12, standings = { player = 99, other = 0 }, raced = {}, calendar = {} } }
+      paid = {}
+      pcall(CE.ensureSeason, st2)
+      check('clubs: a season that was simulated to the end still pays its reward as before', st2.club.season == 2 and #sent >= 2)
+    else
+      check('clubs: the extension loads in the test', false, tostring(CE))
+    end
+    _G.sl_career, _G.guihooks, _G.sl_fleet = oldC, oldG, oldF
+  end
+  -- the bank cannot be switched off while a loan is open; the hospital off lets an injured driver drive
+  do
+    local oldBank, oldInj = rawget(_G, 'sl_bank'), rawget(_G, 'slrrInjury')
+    local oldR, oldW, oldExt = rawget(_G, 'jsonReadFile'), rawget(_G, 'jsonWriteFile'), rawget(_G, 'extensions')
+    local store = {}
+    _G.jsonReadFile = function() return store end
+    _G.jsonWriteFile = function() return true end
+    _G.extensions = { hook = function() end }
+    _G.sl_bank = { hasLoan = function() return true end }
+    local okRefused, msg = pcall(Opt.set, 'slBank', false)
+    check('parts: the bank will not switch off with a loan open, and says why', okRefused == false and msg == 'Pay back the loan first')
+    _G.sl_bank = { hasLoan = function() return false end }
+    local okFree, errFree = pcall(Opt.set, 'slBank', false)
+    check('parts: with no loan open the bank switches off', okFree == true, tostring(errFree))
+    pcall(Opt.set, 'slBank', true)
+    _G.sl_bank = oldBank
+    local H = require('sl/hospital')
+    _G.slrrInjury = { getState = function() return { injured = true, limits = { noDriving = true } } end }
+    local was = H.canDrive()
+    local offOpt = Opt.get
+    Opt.set('slHospital', false)
+    _G.sl_options = Opt
+    local offNow = H.canDrive()
+    Opt.set('slHospital', true)
+    check('parts: an injured driver cannot drive with the hospital on, and can with it off', was == false and offNow == true and H.canDrive() == false)
+    -- a hardcore career cannot switch the hospital off
+    local oldCareer = rawget(_G, 'sl_career')
+    _G.sl_career = { isActive = function() return true end, getState = function() return { options = { slHardcore = true } } end }
+    local okH, msgH = pcall(Opt.set, 'slHospital', false)
+    check('parts: a hardcore career cannot switch the hospital off, and is told why', okH == false and msgH == 'Hardcore careers need the hospital')
+    _G.sl_career = { isActive = function() return true end, getState = function() return { options = { slHardcore = false } } end }
+    check('parts: a normal career can', pcall(Opt.set, 'slHospital', false) == true)
+    Opt.set('slHospital', true)
+    _G.sl_career = oldCareer
+    _G.slrrInjury = oldInj
+    _G.sl_options = nil
+    _G.jsonReadFile, _G.jsonWriteFile, _G.extensions = oldR, oldW, oldExt
+  end
+  local g = { onStreetLegalOption = function(k) calls[#calls + 1] = 'old:' .. k end }
+  F.gate('races', g, get)
+  g.onStreetLegalOption('slRaces', false)
+  check('parts: an own option hook of the extension still runs', calls[#calls] == 'old:slRaces')
 end
 
 print(string.format('lua tests passed: %d checks', passed))

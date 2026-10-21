@@ -92,11 +92,63 @@ function M.summary(info)
   return out
 end
 
+-- the game's stage of a tyre (carSurfaceFx tyre rules: 0 fresh .. 5 worn to the belts) as a tread fraction, for a tyre module that does not give one
+M.STAGE_FRAC = { [0] = 1, 0.8, 0.6, 0.4, 0.15, 0 }
+
+-- one wheel of carSurfaceFx_tyres.getTyres: { idx, frac or stage, flat, blown } -> { idx, frac, stage (word), flat (felt), blown, replace }
+function M.wheelRow(w)
+  local frac = tonumber(w.frac)
+  if frac == nil and tonumber(w.stage) then frac = M.STAGE_FRAC[math.max(0, math.min(5, math.floor(w.stage)))] end
+  frac = clamp(frac or 1, 0, 1)
+  local blown = w.blown == true
+  local word = M.stage(frac, blown)
+  return { idx = w.idx, frac = frac, stage = word, flat = (tonumber(w.flat) or 0) >= M.FLAT_SPOT, blown = blown, replace = blown or word == 'bald' or word == 'low',
+    axle = w.axle, side = w.side, compound = w.compound, mm = tonumber(w.tread) }
+end
+
+-- the car's tyres for the garage and the phone: { compound, rows = { wheelRow... }, worst = the row with the least tread, replace = any tyre to replace }; nil without tyre data
+function M.carRows(info)
+  if type(info) ~= 'table' or type(info.wheels) ~= 'table' or #info.wheels == 0 then return nil end
+  local rows, worst, replace = {}, nil, false
+  for _, w in ipairs(info.wheels) do
+    local r = M.wheelRow(w)
+    rows[#rows + 1] = r
+    if not worst or r.frac < worst.frac or r.blown then worst = r end
+    replace = replace or r.replace
+  end
+  return { compound = info.compound or (worst and worst.compound), rows = rows, worst = worst, replace = replace, axles = M.summary(info) }
+end
+
 -- why a change cannot go ahead (nil: it can)
 function M.refusal(price, money, carMoving)
   if carMoving then return strings.t('tyres.stop_the_car_first') end
   if (money or 0) < (price or 0) then return strings.t('tyres.you_cannot_afford_that') end
   return nil
+end
+
+-- the tyre parts a Wrench Works parts tree has fitted, as one text ('' = none fitted: bare rims): the same text means the same tyres, so a part swapped in the garage is a new set
+-- whatever wear was saved for the old one
+function M.signature(partsTree)
+  local out = {}
+  local function walk(node)
+    local chosen = node.chosenPartName ~= nil and node.chosenPartName ~= ''
+    local path = node.path and tostring(node.path):lower()
+    if path and chosen and (path:find('tire', 1, true) or path:find('tyre', 1, true)) then out[#out + 1] = path .. '=' .. tostring(node.chosenPartName) end
+    if node.path == nil or chosen then for _, c in pairs(node.children or {}) do walk(c) end end
+  end
+  walk(type(partsTree) == 'table' and partsTree or {})
+  table.sort(out)
+  return table.concat(out, ';')
+end
+
+-- a change of the whole car's tyres: compound id, where ('garage' | 'track'), the set now on { compound, frac } (frac = the worst tyre's tread), money, whether the car is moving
+-- -> { ok, price, parts = { gross, fee, credit } } or { ok = false, why = text }
+function M.plan(compound, where, current, money, moving)
+  local price, parts = M.quote(compound, nil, where, current)
+  if not price then return { ok = false, why = strings.t('tyres.not_here') } end
+  local why = M.refusal(price, money, moving)
+  if why then return { ok = false, why = why, price = price, parts = parts } end
+  return { ok = true, price = price, parts = parts }
 end
 
 return M
