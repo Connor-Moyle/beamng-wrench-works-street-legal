@@ -636,6 +636,8 @@ M.TEXT = {
   ["bank.loan_payment"] = "Loan payment",
   ["bank.loan_repayment"] = "Loan repayment",
   ["weekly.rent"] = "Garage rent",
+  ["danger.drift_zone"] = "Drift zone {1}", ["danger.drift_result"] = "{1}: {2} drift points (target {3}).", ["danger.drift_label"] = "Drift zone",
+  ["danger.jump"] = "Jump: {1} m.", ["danger.jump_label"] = "Jump prize", ["danger.prize"] = "Prize: ${1}.",
   ["traps.trap"] = "Speed trap {1}", ["traps.zone"] = "Speed zone {1}",
   ["traps.trap_result"] = "{1}: {2} km/h (target {3}).", ["traps.zone_result"] = "{1}: {2} km/h on average (target {3}).",
   ["traps.paid"] = "{1}", ["traps.target_met"] = "Target met: ${1}.", ["traps.new_best"] = "A new personal best.",
