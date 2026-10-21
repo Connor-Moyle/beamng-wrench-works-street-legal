@@ -2925,6 +2925,56 @@ do -- the free-roam switches in the Mods menu list (sl/options) and the game sid
   package.loaded['sl/mode'] = nil
 end
 
+do -- free-roam weather (sl/weather) against a fake sky and clock: no career, the master and the weather switch on
+  local names = { 'log', 'getObjectsByClass', 'createObject', 'scenetree', 'core_environment', 'extensions', 'getPlayerVehicle', 'sl_options', 'sl_mode', 'sl_career', 'sl_weather' }
+  local saved = {}
+  for _, n in ipairs(names) do saved[n] = rawget(_G, n) end
+  local savedTime = os.time
+  local RW = require('sl/core/weather')
+  local seed
+  for sd = 1, 200 do if not seed and RW.forecast(sd, 1, 'day') == 'rain' and RW.forecast(sd, 1, 'night') ~= 'rain' then seed = sd end end
+  local calls, tod, on = {}, { time = 0 }, { freeroam = true, freeroam_weather = true }
+  local rainObj = { numOfDrops = 0, minSpeed = 0.3, maxSpeed = 0.4, setField = function() end, isHidden = function() return false end }
+  _G.log = function() end
+  _G.getObjectsByClass = function(c) if c == 'Precipitation' then return { rainObj } end return {} end
+  _G.createObject = function() return {} end
+  _G.scenetree = { findObject = function() return nil end, findClassObjects = function() return {} end }
+  _G.core_environment = { getTimeOfDay = function() return tod end, setCloudCover = function() end, setFogDensity = function() end,
+    setPrecipitation = function(n) calls[#calls + 1] = n end }
+  _G.extensions = { hook = function() end }
+  _G.getPlayerVehicle = function() return nil end
+  _G.sl_career, _G.sl_weather = nil, nil
+  _G.sl_options = { get = function(k) return on[k] end }
+  os.time = function() return seed end
+  package.loaded['sl/weather'], package.loaded['sl/mode'] = nil, nil
+  local okw, W = pcall(require, 'sl/weather')
+  check('free-roam weather: sl/weather loads against the fake sky and a rainy day-one seed exists', okw and seed ~= nil)
+  if okw and seed then
+    _G.sl_mode = require('sl/mode')
+    tod.time = 0      -- the game clock at midday
+    W.onUpdate(0.1)
+    W.onUpdate(6)
+    local sb = _G.sl_mode.state('weather')
+    check('free-roam weather: it follows the sandbox (rain on day one by day) and the sandbox has no money or cars', W.state() == 'rain' and sb and sb.sandbox and sb.money == nil and sb.cars == nil and sb.phase == 'day')
+    local rained = false
+    for _, n in ipairs(calls) do if n > 0 then rained = true end end
+    check('free-roam weather: the rain is applied to the sky', rained)
+    tod.time = 0.5      -- the game clock reaches midnight ((0.5 * 24 + 12) % 24 = 0)
+    W.onUpdate(6)
+    check('free-roam weather: the phase changes with the clock (the night forecast is used)', _G.sl_mode.state('weather').phase == 'night' and W.state() == RW.forecast(seed, 1, 'night'))
+    on.freeroam_weather = false
+    local before = #calls
+    W.onUpdate(1)
+    check('free-roam weather: switching it off puts the original sky back (no drops) and stops', #calls > before and calls[#calls] == 0 and _G.sl_mode.state('weather') == nil)
+    local n2 = #calls
+    W.onUpdate(1) W.onUpdate(6)
+    check('free-roam weather: once off it touches the sky no more', #calls == n2)
+  end
+  for _, n in ipairs(names) do _G[n] = saved[n] end
+  os.time = savedTime
+  package.loaded['sl/weather'], package.loaded['sl/mode'] = nil, nil
+end
+
 do -- free roam never writes a career: with no career started (free roam, every switch on) nothing the career module does touches a save file
   local saved = { FS = rawget(_G, 'FS'), jsonWriteFile = rawget(_G, 'jsonWriteFile'), jsonReadFile = rawget(_G, 'jsonReadFile'), extensions = rawget(_G, 'extensions'), log = rawget(_G, 'log'),
     sl_options = rawget(_G, 'sl_options'), sl_career = rawget(_G, 'sl_career') }
