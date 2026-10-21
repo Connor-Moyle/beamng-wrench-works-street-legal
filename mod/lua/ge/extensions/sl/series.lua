@@ -57,6 +57,32 @@ local function current()
   return v.series, def, st, s, v
 end
 
+-- a loaner: a car of the career that exists for the visit only (rules.loaner: the series' car, value 0, a deposit of a twentieth of its list price). Returns the car record.
+function M.addLoaner(seriesId, listPrice)
+  local s = career()
+  local def = rules.def(seriesId)
+  if not (s and def) then return nil end
+  local rec = rules.loaner(def, listPrice)
+  if (s.money or 0) < rec.deposit then return nil end
+  if rec.deposit > 0 then stateLib.addMoney(s, -rec.deposit, strings.t('series.loaner_name', rec.model), os.time()) end
+  rec.visit, rec.out = true, true
+  return stateLib.addCar(s, rec)
+end
+
+-- the visit is over: a loaner that comes back undamaged gives its deposit back
+function M.onStreetLegalVisitEnded(visit, how, loaners)
+  M.running = nil
+  local s = career()
+  if not s then return end
+  for _, car in ipairs(loaners or {}) do
+    if (car.deposit or 0) > 0 then
+      local dented = type(car.damage) == 'table' and type(car.damage.nodes) == 'table' and next(car.damage.nodes) ~= nil
+      if dented then toast(strings.t('series.loaner_damaged'))
+      else sl_career.addMoney(car.deposit, strings.t('series.loaner_back', car.deposit)) toast(strings.t('series.loaner_back', car.deposit)) end
+    end
+  end
+end
+
 -- the entry: a series state for the cycle, with the car that goes (called when the trip is confirmed)
 function M.enter(seriesId, carId)
   local s = career()
@@ -225,9 +251,6 @@ function M.onStreetLegalNewDay(day)
   if v and v.untilDay and (tonumber(day) or 0) > v.untilDay then sl_career.returnHome(M.closeVisit() > 0 and 'missed' or 'done') end
 end
 
-function M.onStreetLegalVisitEnded()
-  M.running = nil
-end
 function M.onClientEndMission() M.running = nil end
 
 require('sl/core/features').gate('travel', M, nil, nil, { 'enter', 'standings', 'nextRound', 'report', 'abort', 'startNext', 'hub' })

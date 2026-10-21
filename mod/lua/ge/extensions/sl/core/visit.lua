@@ -59,11 +59,18 @@ end
 -- the visit is over (back home, or recovered): every car goes to the garage, the visit is gone. Returns the visit that was.
 function M.finish(s)
   local was = s.visit
-  for _, car in ipairs(s.cars or {}) do
-    car.visit, car.out, car.where = nil, false, nil
+  local loaners = {}
+  for i = #(s.cars or {}), 1, -1 do
+    local car = s.cars[i]
+    if car.loaner then
+      table.insert(loaners, 1, table.remove(s.cars, i))          -- (a loaner exists only for the visit)
+      if s.activeCar == car.id then s.activeCar = nil end
+    else
+      car.visit, car.out, car.where = nil, false, nil
+    end
   end
   s.visit = nil
-  return was
+  return was, loaners
 end
 
 -- the paddock: where the visit's cars stand on arrival, in a row beside the player; pos = { x, y, z }, dir = { x, y } the way the player faces. Returns { { pos, rot } } for n cars (rot: x, y, z, w)

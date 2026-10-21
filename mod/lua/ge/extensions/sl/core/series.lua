@@ -179,7 +179,7 @@ end
 -- the loaner for a series: a stock record that exists only for the visit; deposit = list price / 20 (the player's money back when it returns undamaged)
 function M.loaner(def, listPrice)
   local l = def.loaner
-  return { model = l.model, config = l.config, name = strings.t('series.loaner_name', l.model), loaner = true, value = 0, deposit = math.floor((listPrice or 0) / 20 / 10 + 0.5) * 10 }
+  return { model = l.model, config = l.config, pcPath = 'vehicles/' .. l.model .. '/' .. l.config .. '.pc', name = strings.t('series.loaner_name', l.model), loaner = true, value = 0, condition = 1, faults = {}, mileage = 0, deposit = math.floor((listPrice or 0) / 20 / 10 + 0.5) * 10 }
 end
 
 return M

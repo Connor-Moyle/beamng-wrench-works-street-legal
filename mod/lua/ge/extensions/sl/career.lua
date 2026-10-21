@@ -829,7 +829,7 @@ local function begin()
   writeSave()
   extensions.hook('onStreetLegalStarted', fresh)
   if visitEnded then
-    extensions.hook('onStreetLegalVisitEnded', visitEnded.was, visitEnded.how)
+    extensions.hook('onStreetLegalVisitEnded', visitEnded.was, visitEnded.how, visitEnded.loaners)
     visitEnded = nil
   end
   log('I', logTag, fresh and 'new career started' or 'career continued')
@@ -890,7 +890,8 @@ function M.start(fresh, n, level, choice)
   if s.visit and s.visit.active then
     local verdict = visitLib.recover(s.visit, s.day or 1, levelInstalled(s.visit.level))
     if verdict == 'home' or (verdict == 'ask' and choice == 'home') then
-      visitEnded = { was = visitLib.finish(s), how = 'missed' }          -- (the round that was running counts as missed; the cars are in the garage)
+      local was, loaners = visitLib.finish(s)
+      visitEnded = { was = was, how = 'missed', loaners = loaners }          -- (the round that was running counts as missed; the cars are in the garage)
     else
       target = s.visit.level
     end
@@ -1590,7 +1591,8 @@ function M.returnHome(how)
   if sl_series and sl_series.closeVisit and (sl_series.closeVisit() or 0) > 0 and (how == nil or how == 'done') then how = 'missed' end      -- (rounds left: the visit ends as missed)
   if how == 'forfeit' then how = 'missed' end
   stop()                                   -- (saves where the cars stand on the visited map; they are put in the garage now)
-  visitEnded = { was = visitLib.finish(s), how = how or 'done' }
+  local was, loaners = visitLib.finish(s)
+  visitEnded = { was = was, how = how or 'done', loaners = loaners }
   writeSave()
   M.start(false, slot)
   return true, strings.t('visit.home')
