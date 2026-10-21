@@ -1414,6 +1414,33 @@ do
   require('sl/classifieds').buy('m2', 'delivery')
   skip('morning')                                   -- across 06:00: the day counter moves, the order is still due
   check('and a wait until the morning across the day change delivers it too', #state.orders == 0 and #built == builtBefore + 2)
+
+  -- used-car checks: a private car ad shows its history but not its faults until a mechanic has looked
+  do
+    local U = require('sl/core/usedcar')
+    state.money = 500
+    state.market.refreshed = 1e9
+    state.market.listings = {}
+    state.market.listings[1] = { id = 'm3', kind = 'car', channel = 'app', expires = 1e9, rating = 4, ask = 2000, condition = 0.7, seller = 'Sam', where = { x = 3000, y = 0, z = 0 },
+      item = { name = 'Covet', model = 'covet' }, offer = { id = 'used-0-3', name = 'Covet', model = 'covet', config = 'vehicles/covet/z.pc', price = 2000, value = 3000, condition = 0.7,
+        faults = { 'brakes', 'engine' }, mileage = 90000, kind = 'used' } }
+    local C = require('sl/classifieds')
+    for _, c in ipairs(state.cars) do c.model = c.model or 'covet' end
+    local oldPV = rawget(_G, 'getPlayerVehicle')
+    _G.getPlayerVehicle = function() return nil end
+    local function card(id) for _, c in ipairs(C.summary().listings) do if c.id == id then return c end end end
+    local c3 = card('m3')
+    check('used car: the ad hides the faults and the report, and shows the history and the fee', c3 and c3.hidden == true and c3.faults == nil and c3.faultList == nil and c3.report == nil and #c3.history == 3 and c3.checkFee == U.fee(2000) and c3.checked == false)
+    local okc = C.check('m3')
+    check('used car: the check costs the fee and shows the faults with what each costs', okc == true and state.money == 500 - U.fee(2000) and card('m3').checked == true and card('m3').faults == 2 and #card('m3').found == 2 and card('m3').found[1].cost == 150 and card('m3').report ~= nil)
+    local moneyAfter = state.money
+    C.check('m3')
+    check('used car: checking twice charges once', state.money == moneyAfter)
+    state.money = 0
+    state.market.listings[1].checked = false
+    check('used car: not enough money refuses and shows nothing', (C.check('m3')) == false and card('m3').hidden == true)
+    _G.getPlayerVehicle = oldPV
+  end
 end
 
 -- a lot's marker prompt (T33, junkyard/scrapyard): a lot that shows cars always has "look"; a driver in a fleet car also gets "sell" after it; a dealer never buys
@@ -3262,7 +3289,7 @@ do
   local Opt = require('sl/options')
   local defs = {}
   for _, d in ipairs(Opt.defs) do defs[d.key] = d end
-  local okDefs = #F.LIST == 22
+  local okDefs = #F.LIST == 23
   for _, f in ipairs(F.LIST) do
     local d = defs[f.opt]
     if not (d and d.type == 'bool' and d.default == true and d.feature == true and d.title == f.title and f.desc ~= '') then okDefs = false end
@@ -3514,6 +3541,24 @@ do
   check('weekly: history keeps eight weeks', #st.weekly.history == W.KEEP)
   _G.sl_career, _G.guihooks, _G.extensions = old.c, old.g, old.e
   package.loaded['sl/weekly'] = nil
+end
+
+-- used-car checks: the rules (career expansion #3)
+do
+  local U = require('sl/core/usedcar')
+  check('usedcar: the fee is $40 + 0.5% of the ask, in tens', U.fee(0) == 40 and U.fee(2000) == 50 and U.fee(20000) == 140)
+  local h1, h2 = U.history('m3', 90000, { 'brakes' }, 0.7), U.history('m3', 90000, { 'brakes' }, 0.7)
+  check('usedcar: the history is the same every time for a listing, with three lines and at least the owners the mileage implies', h1.lines[1] == h2.lines[1] and h1.lines[2] == h2.lines[2] and h1.lines[3] == h2.lines[3] and #h1.lines == 3 and h1.owners >= 1)
+  local none, patchy = 0, 0
+  for i = 1, 300 do
+    local h = U.history('x' .. i, 50000, { 'a', 'b', 'c' }, 0.5)
+    if h.lines[2]:find('none') then none = none + 1 elseif h.lines[2]:find('patchy') then patchy = patchy + 1 end
+  end
+  local cleanBad = 0
+  for i = 1, 300 do if not U.history('y' .. i, 50000, {}, 0.9).lines[2]:find('complete') then cleanBad = cleanBad + 1 end end
+  check('usedcar: a faulty car more often has a poor service record than a clean one', none + patchy > cleanBad * 1.5)
+  local f = U.faultCosts({ 'brakes', 'engine' }, 3000, 0.05)
+  check('usedcar: the check lists each fault with its cost', #f == 2 and f[1].cost == 150 and f[1].label == 'Brakes')
 end
 
 -- servicing and wear (career expansion #2)

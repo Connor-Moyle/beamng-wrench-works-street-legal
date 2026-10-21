@@ -5,6 +5,7 @@
 -- shelf through slrr_garage.addShelfPart, valued at what was paid.
 
 local carreport = require('sl/core/carreport')
+local usedcar = require('sl/core/usedcar')
 local M = {}
 
 local strings = require('sl/core/strings')
@@ -332,6 +333,7 @@ function M.summary()
   local s = career()
   if not s then return nil end
   refresh(s)
+  local checks = require('sl/core/features').on('usedcheck')
   local m = state(s)
   local edition = m.edition or 0
   local out = { listings = {}, auctions = {}, deliveries = #m.deliveries, meet = { listings = {}, place = (meetPlace() or {}).name or strings.t('classifieds.tuning_shop_lot'), night = sl_career.has('nightMeet') or nil },
@@ -349,6 +351,12 @@ function M.summary()
         card.preview, card.year, card.specs, card.brand = info.preview, info.year, info.specs, info.brand
         card.faultList = l.offer.faults
         card.report = carreport.build(l.offer)          -- 'Show full car report' (#58)
+        if checks and l.channel ~= 'auction' and l.channel ~= 'meet' then          -- used-car checks: the ad tells the history, the faults and the report cost a mechanic's check
+          local h = usedcar.history(l.id, l.offer.mileage, l.offer.faults, l.condition)
+          card.history, card.checkFee, card.checked = h.lines, usedcar.fee(l.agreed or l.ask), l.checked == true
+          if l.checked then card.found = usedcar.faultCosts(l.offer.faults, l.offer.value or l.value, carreport.FAULT_COST)
+          else card.faults, card.faultList, card.report, card.hidden = nil, nil, nil, true end
+        end
         local v = getPlayerVehicle(0)
         local yard = sl_fleet and sl_fleet.forecourt(s, 0)
         if v and l.where then
@@ -424,6 +432,21 @@ function M.offer(id, amount)
   if r == 'counter' then l.ask = price return true, string.format(strings.t('classifieds.s_can_do_d_no'), l.seller, price) end
   if r == 'walk' then l.expires = now(s) return false, strings.t('classifieds.1_stopped_answering', (l.seller)) end
   return false, string.format(strings.t('classifieds.s_no_chance'), l.seller)
+end
+
+-- a mechanic checks a private ad's car: the faults and the report show from now on. Returns ok, text.
+function M.check(id)
+  if not require('sl/core/features').on('usedcheck') then return nil end
+  local s = career()
+  if not s then return false, strings.t('bank.no_career_running') end
+  local l = find(state(s), id)
+  if not l or l.taken or l.kind ~= 'car' or not l.offer or l.channel == 'auction' or l.channel == 'meet' then return false, strings.t('classifieds.that_listing_is_gone') end
+  if l.checked then return true, strings.t('usedcar.already_checked') end
+  local fee = usedcar.fee(l.agreed or l.ask)
+  if not sl_career.addMoney(-fee, strings.t('usedcar.check_label')) then return false, strings.t('career.not_enough_money') end
+  l.checked = true
+  extensions.hook('onStreetLegalChanged')
+  return true, strings.t('usedcar.checked', #(l.offer.faults or {}), fee)
 end
 
 -- buy: 'delivery' (pay it all now plus delivery; on the shelf in a few hours) or 'pickup' (a deposit now,
