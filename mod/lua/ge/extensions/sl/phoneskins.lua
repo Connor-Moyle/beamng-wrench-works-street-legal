@@ -46,7 +46,7 @@ M.base64 = base64
 -- nil when it is missing, empty or bigger than max.
 -- the game's LuaJIT string buffer is a module ('string.buffer'), not a global (the game's own utils.lua requires it); a global `buffer` only exists in the tests
 local okSB, SB = pcall(require, 'string.buffer')
-local function newBuffer() if okSB and type(SB) == 'table' then return SB.new() end return buffer.new() end
+local function newBuffer() if okSB and type(SB) == 'table' then return SB.new() end return rawget(_G, 'buffer').new() end
 local function readBytes(path, max)
   local ok, size = pcall(function() return FS:fileSize(path) end)
   if not ok or type(size) ~= 'number' or size <= 0 or size > max then return nil end
