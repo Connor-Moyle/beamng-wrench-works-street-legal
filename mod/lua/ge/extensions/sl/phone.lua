@@ -109,11 +109,12 @@ local function snapshot()
     art = sl_hud ~= nil and sl_hud.slrrArt ~= nil and sl_hud.slrrArt() or false,
     has = { clubs = sl_career.has('clubs'), crews = sl_career.has('crews'), classifieds = sl_career.has('classifieds'),
       races = require('sl/core/features').on('races'), jobs = require('sl/core/features').on('jobs'), market = require('sl/core/features').on('market'),
-      bank = require('sl/core/features').on('bank'), maps = require('sl/core/features').on('maps'), hudpill = require('sl/core/features').on('hudpill'), weekly = require('sl/core/features').on('weekly'), service = require('sl/core/features').on('service'), perks = require('sl/core/features').on('perks') },      -- (the parts that are switched off lose their apps)
+      bank = require('sl/core/features').on('bank'), maps = require('sl/core/features').on('maps'), hudpill = require('sl/core/features').on('hudpill'), weekly = require('sl/core/features').on('weekly'), service = require('sl/core/features').on('service'), perks = require('sl/core/features').on('perks'), needs = require('sl/core/features').on('needs') },      -- (the parts that are switched off lose their apps)
     contacts = contacts, threads = s.threads, unread = s.unread,
     challenges = challenges, ledger = ledger, places = placesOut,
     cars = #s.cars, stats = s.stats,
     perks = sl_perks and sl_perks.perks and sl_perks.perks() or nil,
+    needs = sl_needs and sl_needs.summary and sl_needs.summary() or nil,      -- (the Health page and the pill icons: nil with the part off or no career)
     fleet = (function()      -- each car with its service card (sl_service.serviceOf: nil with the part off or for an unknown car)
       local list = sl_fleet and sl_fleet.list() or {}
       if sl_service and sl_service.serviceOf then for _, c in ipairs(list) do c.service = sl_service.serviceOf(c.id) end end
@@ -375,6 +376,8 @@ function M.watchReplay() if career() and sl_replay then answer(sl_replay.watch()
 function M.saveClip() if career() and sl_replay then answer(sl_replay.save()) end end
 function M.enterLeague(kind) if career() and sl_clubs then answer(sl_clubs.enter(tostring(kind))) end end
 function M.borrow(amount) if career() and sl_bank then answer(sl_bank.borrow(tonumber(amount))) end end
+function M.eat(itemId) if career() and sl_needs and sl_needs.eat then sl_needs.eat(tostring(itemId)) wantSend = true end end      -- (sl_needs shows its own toast)
+function M.nap(hours) if career() and sl_needs and sl_needs.nap then sl_needs.nap(tonumber(hours)) wantSend = true end end
 function M.service(carId, optionId) if career() and sl_service then answer(sl_service.service(tonumber(carId), tostring(optionId))) end end
 function M.payDebt(amount) if career() and sl_weekly then answer(sl_weekly.payDebt(tonumber(amount))) end end
 function M.repay(amount) if career() and sl_bank then answer(sl_bank.repay(tonumber(amount))) end end

@@ -332,6 +332,10 @@
     flag: svg('M14.4 6 14 4H5v17h2v-7h5.6l.4 2h7V6z'),
     bank: svg('M4 10v7h3v-7zm6 0v7h3v-7zM2 22h19v-3H2zm14-12v7h3v-7zM11.5 1 2 6v2h19V6z'),
     house: svg('M12 3 2 12h3v8h5v-6h4v6h5v-8h3z'),
+    health: svg('M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z'),
+    food: svg('M11 9H9V2H7v7H5V2H3v7c0 2.12 1.66 3.84 3.75 3.97V22h2.5v-9.03C11.34 12.84 13 11.12 13 9V2h-2v7zm5-3v8h2.5v8H21V2c-2.76 0-5 2.24-5 4z'),
+    water: svg('M12 2c-5.33 4.55-8 8.48-8 11.8 0 4.98 3.8 8.2 8 8.2s8-3.22 8-8.2c0-3.32-2.67-7.25-8-11.8z'),
+    rest: svg('M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z'),
     cab: svg('M18.9 6c-.2-.6-.8-1-1.4-1h-11c-.7 0-1.2.4-1.4 1L3 12v8a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-1h12v1a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-8zM6.5 16A1.5 1.5 0 1 1 8 14.5 1.5 1.5 0 0 1 6.5 16zm11 0a1.5 1.5 0 1 1 1.5-1.5 1.5 1.5 0 0 1-1.5 1.5zM5 11l1.5-4.5h11L19 11z'),
     me: svg('M12 2 4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5zm-1.5 14.5-4-4 1.4-1.4 2.6 2.6 6.1-6.1 1.4 1.4z'),
     back: svg('M20 11H7.8l5.6-5.6L12 4l-8 8 8 8 1.4-1.4L7.8 13H20z'),
@@ -458,6 +462,7 @@
           { id: 'garagekit', title: T('app.garagekit', 'Garage'), icon: I.house },
           { id: 'bank', title: T('app.bank', 'Bank'), icon: I.bank, hide: has.bank === false },
           { id: 'me', title: T('app.me', 'Street cred'), icon: I.me },
+          { id: 'health', title: T('app.health', 'Health'), icon: I.health, hide: !d.needs || has.needs === false },
           { id: 'jobs', title: T('app.jobs', 'Jobs'), icon: I.jobs, badge: d.jobs && d.jobs.active ? 1 : 0, hide: has.jobs === false },
           { id: 'wait', title: T('app.wait', 'Wait'), icon: I.wait },
           { id: 'help', title: T('app.help', 'Help'), icon: I.help },
@@ -1268,6 +1273,48 @@
       }).join('') + '</div>';
     }
 
+    // the needs part (sl_needs.summary(): { meters = { { id: food|water|rest, value 0..100, stage: ok|nudge|handicap|problem, word } }, wellFed, effects = { blur, lag, tremor, sleepy },
+    // items = { { id, name, price } }, canEat, canNap, showMeters }): the stage is a mark as well as a colour (never colour alone)
+    var NEED_LABEL = { food: T('ui.need_food', 'Food'), water: T('ui.need_water', 'Water'), rest: T('ui.need_rest', 'Rest') };
+    var NEED_WORDS = { fed: T('ui.need_fed', 'fed'), peckish: T('ui.need_peckish', 'peckish'), hungry: T('ui.need_hungry', 'hungry'), starving: T('ui.need_starving', 'starving'),
+      fine: T('ui.need_fine', 'fine'), thirsty: T('ui.need_thirsty', 'thirsty'), parched: T('ui.need_parched', 'parched'), dehydrated: T('ui.need_dehydrated', 'dehydrated'),
+      rested: T('ui.need_rested', 'rested'), yawning: T('ui.need_yawning', 'yawning'), tired: T('ui.need_tired', 'tired'), exhausted: T('ui.need_exhausted', 'exhausted') };
+    var STAGE_MARK = { ok: '', nudge: '&middot; ', handicap: '&#9888; ', problem: '&#9660; ' };
+    var STAGE_COLOUR = { ok: '#6dd58c', nudge: '#a8c7fa', handicap: '#ffd54f', problem: '#f2b8b5' };
+    function needMeters() { var n = st.data.needs; return n && obj(st.data.has).needs !== false ? arr(n.meters) : []; }
+    function healthPage() {
+      var n = obj(st.data.needs), ef = obj(n.effects);
+      var bars = arr(n.meters).map(function (m) {
+        var stage = STAGE_MARK[m.stage] !== undefined ? m.stage : 'ok', v = Math.max(0, Math.min(100, Math.round(Number(m.value) || 0)));
+        return '<div class="slp-kv" style="display:block;padding:8px 0"><div style="display:flex;align-items:center;gap:10px"><span style="width:22px;height:22px;display:block">' + (I[m.id] || '') + '</span><b style="flex:1">' + esc(NEED_LABEL[m.id] || m.id) + '</b>' +
+          '<span style="color:' + STAGE_COLOUR[stage] + '">' + STAGE_MARK[stage] + esc(NEED_WORDS[m.word] || m.word || '') + ' &middot; ' + v + '</span></div>' +
+          '<div class="slp-meter"><i style="width:' + v + '%;background:' + STAGE_COLOUR[stage] + '"></i></div></div>';
+      }).join('');
+      var fx = [];
+      if (Number(ef.blur) > 0.02) fx.push(T('ui.need_fx_blur', 'blurred sight'));
+      if (Number(ef.lag) > 0.005) fx.push(T('ui.need_fx_lag', 'slow reactions'));
+      if (Number(ef.tremor) > 0.02) fx.push(T('ui.need_fx_tremor', 'shaky hands'));
+      if (ef.sleepy) fx.push(T('ui.need_fx_sleepy', 'heavy eyelids'));
+      var eat = n.canEat ? '<div class="slp-acts" style="flex-wrap:wrap">' + arr(n.items).map(function (it) {
+        return '<div class="slp-btn slp-tonal" data-a="eat" data-v="' + esc(it.id) + '">' + esc(it.name) + '<br><small>' + money(it.price) + '</small></div>';
+      }).join('') + '</div>' : '<p>' + T('ui.need_eat_where', 'Food and drink are sold at fuel stations.') + '</p>';
+      var nap = n.canNap ? '<div class="slp-acts">' + [1, 3, 6].map(function (h) {
+        return '<div class="slp-btn slp-tonal" data-a="nap" data-v="' + h + '">' + T('ui.need_nap_hours', 'Nap {1} h', h) + '</div>';
+      }).join('') + '</div>' : '<p>' + T('ui.need_nap_where', 'You can nap at a garage.') + '</p>';
+      return bar(T('app.health', 'Health')) + '<div class="slp-body"><div class="slp-card"><h4>' + T('ui.need_you', 'You') + (n.wellFed ? ' &middot; <span style="color:#6dd58c">&#10004; ' + T('ui.need_well_fed', 'well fed') + '</span>' : '') + '</h4>' + bars +
+        (fx.length ? '<p class="slp-warn">&#9888; ' + T('ui.need_affecting', 'Affecting you now: {1}', fx.join(', ')) + '</p>' : '') + '</div>' +
+        '<div class="slp-card"><h4>' + T('ui.need_eat', 'Eat and drink') + '</h4>' + eat + '</div><div class="slp-card"><h4>' + T('ui.need_nap', 'Sleep') + '</h4>' + nap + '</div></div>';
+    }
+    // the small icons of the pill: a meter under 40, or all three when the player asked for them (showMeters)
+    function needsPill() {
+      var n = st.data.needs;
+      if (!n) return '';
+      return needMeters().filter(function (m) { return n.showMeters || Number(m.value) < 40; }).map(function (m) {
+        var stage = STAGE_MARK[m.stage] !== undefined ? m.stage : 'ok';
+        return '<span style="display:inline-flex;align-items:center;gap:3px;color:' + STAGE_COLOUR[stage] + '"><span style="width:14px;height:14px;display:block">' + (I[m.id] || '') + '</span>' + (stage === 'problem' ? '&#9660;' : stage === 'handicap' ? '&#9888;' : '') + '</span>';
+      }).join('');
+    }
+
     function mePage() {
       var d = st.data, s = obj(d.stats);
       var from = d.titleRep || 0, to = d.nextRep, pct = to ? Math.max(0, Math.min(100, ((d.rep || 0) - from) / (to - from) * 100)) : 100;
@@ -1601,6 +1648,7 @@
         case 'bid': page = bidPage(); break;
         case 'ad': page = adPage(); break;
         case 'bank': page = bankPage(); break;
+        case 'health': page = healthPage(); break;
         case 'cab': page = cabPage(); break;
         case 'me': page = mePage(); break;
         case 'garage': page = garagePage(); break;
@@ -1622,7 +1670,7 @@
         (hu ? avatar({ id: hu.thread, name: hu.name }) + ('<div><small>' + T('ui.messages', 'Messages ') + '&middot;' + ' now' + '</small><b>') + esc(hu.name) + '</b><span>' + esc(hu.text) + '</span></div>' : '') + '</div>';
       var html =
         '<div class="slp-pill"' + (st.open || lotHides() || obj(d.has).hudpill === false ? ' style="display:none"' : '') + '><b>' + money(d.money) + '</b><span>' + esc(d.title) + '</span>' +
-          (d.phase ? '<span>' + (d.phase === 'night' ? '&#9790;' : '&#9728;') + '</span>' : '') + (d.heat > 0 ? '<span style="color:#ff6a4a">' + '&#9650;'.repeat(d.heat) + '</span>' : '') + (d.phase === 'night' && d.atRisk > 0 ? '<span style="color:#ffb74a">+' + d.atRisk + (T('ui.at_risk', ' at risk') + '</span>') : '') + '<span>' + two(d.hour || 0) + ':' + two(d.minute || 0) + '</span></div>' +
+          (d.phase ? '<span>' + (d.phase === 'night' ? '&#9790;' : '&#9728;') + '</span>' : '') + needsPill() + (d.heat > 0 ? '<span style="color:#ff6a4a">' + '&#9650;'.repeat(d.heat) + '</span>' : '') + (d.phase === 'night' && d.atRisk > 0 ? '<span style="color:#ffb74a">+' + d.atRisk + (T('ui.at_risk', ' at risk') + '</span>') : '') + '<span>' + two(d.hour || 0) + ':' + two(d.minute || 0) + '</span></div>' +
         '<div class="slp-device@@LAND@@' + (st.open ? '' : ' slp-away') + '" style="transform:' + (st.open ? '' : 'translateY(70%) ') + 'scale(' + scale() + ')">' + screen + '</div>' +
         lotView() + garageView() + stationView() + meetView() + raceView() +
         huHtml + reportModal() +
@@ -1924,6 +1972,8 @@
         case 'borrow': lua('borrow(' + Number(v) + ')'); break;
         case 'repay': lua('repay(' + Number(v) + ')'); break;
         case 'paydebt': lua('payDebt(' + Number(v) + ')'); break;
+        case 'eat': lua('eat(' + JSON.stringify(String(v)) + ')'); break;
+        case 'nap': lua('nap(' + Number(v) + ')'); break;
         case 'service': var sp = String(v).split('|'); lua('service(' + Number(sp[0]) + ',' + JSON.stringify(sp[1] || '') + ')'); break;
         case 'insure': lua('insure(' + (v === 'true' ? 'true' : 'false') + ')'); break;
         case 'tutskip': lua('@sl_tutorial.skip()'); break;
