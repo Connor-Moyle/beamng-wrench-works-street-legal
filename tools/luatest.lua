@@ -3504,6 +3504,12 @@ do
   local ok1 = WK.payDebt(1000)
   check('weekly: payDebt pays what money allows and answers', ok1 == true and st.money == 0 and st.weekly.debt == 80)
   check('weekly: payDebt with no money refuses', (WK.payDebt(10)) == false)
+  do
+    local f = _G.sl_options
+    _G.sl_options = { get = function(k) if k == 'slWeekly' then return false end end }
+    check('weekly: with the part off the debt reads nil and payDebt does nothing', WK.debt() == nil and WK.payDebt(10) == nil and WK.summary() == nil)
+    _G.sl_options = f
+  end
   for d = 22, 22 + 7 * 10, 7 do WK.onStreetLegalNewDay(d) end
   check('weekly: history keeps eight weeks', #st.weekly.history == W.KEEP)
   _G.sl_career, _G.guihooks, _G.extensions = old.c, old.g, old.e

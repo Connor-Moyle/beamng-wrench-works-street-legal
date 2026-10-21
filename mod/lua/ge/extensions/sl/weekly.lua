@@ -10,7 +10,6 @@ local rules = require('sl/core/weekly')
 local bank = require('sl/core/bank')
 
 local function career() return sl_career and sl_career.isActive() and sl_career.getState() or nil end
-local function toast(text) guihooks.trigger('slPhoneToast', { text = text }) end
 
 local function weeklyState(s)
   if not s.weekly then
@@ -82,6 +81,6 @@ function M.summary()
   return { enabled = true, week = rules.week(s.day), dayOfWeek = rules.dayOfWeek(s.day), nextBillDay = left, debt = w.debt, bills = bills, history = w.history }
 end
 
-require('sl/core/features').gate('weekly', M, nil, nil, { 'summary', 'payDebt' })
+require('sl/core/features').gate('weekly', M, nil, nil, { 'summary', 'payDebt', 'debt' })      -- (debt reads nil while the part is off: no weekly bills, so no weekly debt to block a loan)
 
 return M
