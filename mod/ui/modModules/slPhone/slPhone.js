@@ -1328,7 +1328,9 @@
         sponsorTerms(cur.terms, cur.weekWins, cur.carRaces).map(function (x) { return '<p>' + esc(x) + '</p>'; }).join('') +
         '<div class="slp-kv"><span>' + T('ui.spn_strikes', 'Strikes') + '</span><b' + (strikes ? ' class="slp-warn"' : '') + '>' + (strikes ? '&#9888; ' : '&#10004; ') + strikes + ' / 2</b></div>' +
         (cur.daysToReview != null ? '<p>' + T('ui.spn_review', 'Review in {1} d', Number(cur.daysToReview) || 0) + '</p>' : '') +
-        '<div class="slp-acts"><div class="slp-btn slp-text" data-a="spnquit" data-v="1">' + T('ui.spn_quit', 'Leave this deal') + '</div></div></div>'
+        (st.spnQuit ? '<p class="slp-warn">' + T('ui.spn_quit_sure', 'Leave {1}? You will not get the old sponsor back; new offers come when brands know you.', esc(cur.name || cur.brand || '')) + '</p>' : '') +
+        '<div class="slp-acts"><div class="slp-btn slp-text" data-a="spnquit" data-v="1">' + (st.spnQuit ? T('ui.spn_quit_yes', 'Yes, leave') : T('ui.spn_quit', 'Leave this deal')) + '</div>' +
+        (st.spnQuit ? '<div class="slp-btn slp-text" data-a="spnquit" data-v="0">' + T('ui.cancel', 'Cancel') + '</div>' : '') + '</div></div>'
         : (off ? '' : '<div class="slp-empty">' + T('ui.spn_none', 'No sponsor yet. Win races and brands notice you.') + '</div>');
       var standing = arr(sp.standing).map(function (b) {
         var v = Math.max(0, Math.min(100, Math.round(Number(b.standing) || 0))), at = Number(b.nextAt) || 100;
@@ -2087,7 +2089,11 @@
         case 'paydebt': lua('payDebt(' + Number(v) + ')'); break;
         case 'spnaccept': lua('sponsorAccept()'); break;
         case 'spndecline': lua('sponsorDecline()'); break;
-        case 'spnquit': lua('sponsorQuit()'); break;
+        case 'spnquit':
+          if (v === '0') st.spnQuit = false;
+          else if (!st.spnQuit) st.spnQuit = true;      // (the deal does not come back: ask once more)
+          else { st.spnQuit = false; lua('sponsorQuit()'); }
+          render(); break;
         case 'caltab': st.calTab = String(v); st.calDay = null; render(); break;
         case 'calday': st.calDay = v === '' ? null : Number(v); render(); break;
         case 'calopen': st.calEvent = String(v); render(); break;

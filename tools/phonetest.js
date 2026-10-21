@@ -1007,6 +1007,9 @@ assert.ok(calls.includes('routeGarage()'), 'Route to my garage on the home scree
   assert.ok(tx.includes('72 / 100') && tx.includes('40 / 100') && tx.includes('Brands that know you'), 'the standing list');
   calls.length = 0;
   click('spnaccept', '1'); click('spndecline', '1'); click('spnquit', '1');
+  assert.ok(!calls.includes('sponsorQuit()') && text().includes('Leave Ironline Racing? You will not get the old sponsor back'), 'the first press only asks, in plain words');
+  click('spnquit', '0'); assert.ok(!text().includes('You will not get'), 'Cancel closes the question');
+  click('spnquit', '1'); click('spnquit', '1');
   assert.ok(calls.includes('sponsorAccept()') && calls.includes('sponsorDecline()') && calls.includes('sponsorQuit()'), 'the three actions: ' + calls.join(' '));
   phone.handle('slPhoneData', Object.assign({}, data, { sponsors: { current: null, offer: null, standing: [] } }));
   assert.ok(text().includes('No sponsor yet'), 'no deal, no offer: it says so');
