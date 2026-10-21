@@ -4,8 +4,10 @@ local M = {}
 
 -- seconds the scene holds the screen: the full one, and the reduced-motion one (a still title card)
 M.KINDS = {
-  night = { hold = 3.4, reduce = 1.4, title = 'scenes.night', sub = 'scenes.night_sub', sound = 'night' },
-  day = { hold = 3.0, reduce = 1.2, title = 'scenes.day', sub = 'scenes.day_sub', sound = 'day' },
+  night = { hold = 3.4, reduce = 1.4, title = 'scenes.night', sub = 'scenes.night_sub',
+    cues = { { at = 0, event = 'event:>UI>Bigmap>Whoosh_In' }, { at = 1.3, event = 'event:>UI>Missions>Info_Open' } }, reduceCues = { { at = 0.1, event = 'event:>UI>Missions>Info_Open' } } },
+  day = { hold = 3.0, reduce = 1.2, title = 'scenes.day', sub = 'scenes.day_sub',
+    cues = { { at = 0, event = 'event:>UI>Bigmap>Whoosh_In' }, { at = 1.3, event = 'event:>UI>Missions>Checkpoint' } }, reduceCues = { { at = 0.1, event = 'event:>UI>Missions>Checkpoint' } } },
 }
 
 M.FADE_IN = 0.5          -- the screen goes dark under the scene this long before the game changes anything behind it
@@ -20,6 +22,7 @@ function M.spec(kind, data, reduce, t)
   return {
     kind = kind, reduce = reduce == true, hold = reduce and k.reduce or k.hold, fadeIn = M.FADE_IN, fadeOut = M.FADE_OUT,
     title = t(k.title), subtitle = t(k.sub, day), skipHint = t('scenes.skip'), day = day,
+    cues = reduce and k.reduceCues or k.cues,      -- the game's own UI sounds, played by sl/scenes at their time (seconds since the scene began)
   }
 end
 

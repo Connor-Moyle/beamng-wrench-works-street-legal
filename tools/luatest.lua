@@ -3744,8 +3744,41 @@ do
   local d = sc.spec('day', { day = 5 }, true, strings.t)
   check('scenes: reduce motion shortens the hold and is passed on to the UI', d.kind == 'day' and d.hold == 1.2 and d.reduce == true and d.subtitle == 'Day 5 begins')
   check('scenes: an unknown kind has no scene, a missing day is day 1', sc.spec('nope', {}, false, strings.t) == nil and sc.spec('day', nil, false, strings.t).day == 1)
+  check('scenes: the cues are the games own UI events, a start whoosh and a title chime; reduce motion has only the chime', #n.cues == 2 and n.cues[1].at == 0 and n.cues[2].at == 1.3 and n.cues[1].event:find('^event:>UI>') and #d.cues == 1)
   check('scenes: a scene cannot be skipped in its first moments, then it can', not sc.canSkip(0) and not sc.canSkip(0.39) and sc.canSkip(0.4) and sc.canSkip(2))
   check('scenes: every kind has its texts in the table', (function() for _, k in pairs(sc.KINDS) do if strings.TEXT[k.title] == nil or strings.TEXT[k.sub] == nil then return false end end return true end)())
+end
+
+-- sl_scenes.run: the scene around a change of the world; the caller's lock is released whatever fails inside, the screen is always cleared
+do
+  local saved = { jobs = _G.core_jobsystem, gui = _G.guihooks }
+  local sent, order = {}, {}
+  _G.guihooks = { trigger = function(name, d) sent[#sent + 1] = name .. ':' .. tostring(d.kind or d.on) end }
+  _G.core_jobsystem = { create = function(fn) fn({ sleep = function() end }) end }       -- (a job that runs at once)
+  package.loaded['sl/scenes'] = nil
+  local Sc = require('sl/scenes')
+  local function run(move, release)
+    sent, order = {}, {}
+    return Sc.run('night', { day = 3 }, move or function() order[#order + 1] = 'move' end, release or function() order[#order + 1] = 'release' end)
+  end
+  check('scenes.run: a scene runs, the world moves, the lock is released, the scene is cleared', run() == true and table.concat(order, ',') == 'move,release' and sent[1] == 'slScene:night' and sent[#sent] == 'slScene:end')
+  check('scenes.run: a failing move still releases and clears the screen', (function() local ok = run(function() error('boom') end) return ok == true and order[1] == 'release' and sent[#sent] == 'slScene:end' end)())
+  check('scenes.run: a failing release does not leave the screen covered', (function() run(nil, function() error('boom') end) return sent[#sent] == 'slScene:end' end)())
+  local realBegin = Sc.begin
+  Sc.begin = function() error('boom') end
+  check('scenes.run: a begin that throws is no scene: false, nothing covered, nothing moved (the caller does the plain fade)', (function() local r = run() return r == false and #order == 0 end)())
+  Sc.begin = realBegin
+  local realHold, realFinish = Sc.hold, Sc.finish
+  Sc.hold = function() error('boom') end
+  check('scenes.run: a hold that throws still moves, releases and finishes', (function() local r = run() return r == true and table.concat(order, ',') == 'move,release' and sent[#sent] == 'slScene:end' end)())
+  Sc.hold = realHold
+  Sc.finish = function() error('boom') end
+  check('scenes.run: a finish that throws does not break the caller', (function() local r = run() return r == true and table.concat(order, ',') == 'move,release' end)())
+  Sc.finish = realFinish
+  _G.core_jobsystem = nil
+  check('scenes.run: without a job system there is no scene', run() == false)
+  _G.core_jobsystem, _G.guihooks = saved.jobs, saved.gui
+  package.loaded['sl/scenes'] = nil
 end
 
 print(string.format('lua tests passed: %d checks', passed))
