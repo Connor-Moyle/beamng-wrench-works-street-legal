@@ -828,6 +828,27 @@ click('pcatalog', '1');
 assert.ok(calls.includes('catalog()') || calls.some((c) => /catalog/.test(c)), 'Fit tyres opens the catalog');
 phone.handle('slPhoneData', Object.assign({}, phone.state.data, { fleet: [{ id: 8, name: 'Other', where: 'Garage', condition: 1, care: { history: {} } }] }));
 assert.ok(!phone.root.querySelector('.slp-tyrecar'), 'a car without tyre data shows no tyres');
+{
+  // the service card (sl_service.serviceOf): due or not, the wear factor, the sections, the two services; nothing when the part is off or no card came
+  const car = (extra) => ({ id: 8, name: 'Other', where: 'Garage', condition: 1, care: { history: {} }, service: Object.assign({ due: true, km_since: 6200, km_interval: 5000, wearFactor: 1.4, count: 1,
+    sections: [{ id: 'engine', label: 'Engine', condition: 0.3 }, { id: 'brakes', label: 'Brakes', condition: 0.8 }],
+    options: [{ id: 'basic', label: 'Basic service', cost: 120, available: true, why: '' }, { id: 'full', label: 'Full overhaul', cost: 900, available: false, why: 'needs a workbench garage' }] }, extra) });
+  phone.handle('slPhoneData', Object.assign({}, phone.state.data, { fleet: [car()] }));
+  let t = phone.root.textContent;
+  assert.ok(t.includes('Service due') && t.includes('6200 km since the last service (every 5000 km)') && t.includes('parts wear 1.4 times as fast'), 'due, the km and the wear factor: ' + t.slice(0, 300));
+  assert.ok(t.includes('Engine') && t.includes('30%') && t.includes('Brakes') && t.includes('80%') && phone.root.querySelector('.slp-warn'), 'the sections, the low one marked');
+  assert.ok(phone.root.querySelector('[data-a="service"][data-v="8|basic"]') && !phone.root.querySelector('[data-a="service"][data-v="8|full"]') && t.includes('$900'), 'an available service has a button, an unavailable one is shown without');
+  calls.length = 0;
+  click('service', '8|basic');
+  assert.ok(calls.includes('service(8,"basic")'), 'the button asks the game for service(8,"basic"): ' + calls.join(' '));
+  phone.handle('slPhoneData', Object.assign({}, phone.state.data, { fleet: [car({ due: false, wearFactor: 1 })] }));
+  t = phone.root.textContent;
+  assert.ok(!t.includes('Service due') && !t.includes('times as fast') && t.includes('Service'), 'not due: no warning');
+  phone.handle('slPhoneData', Object.assign({}, phone.state.data, { fleet: [car()], has: Object.assign({}, phone.state.data.has, { service: false }) }));
+  assert.ok(!phone.root.textContent.includes('since the last service'), 'the part switched off: no card');
+  phone.handle('slPhoneData', Object.assign({}, phone.state.data, { fleet: [{ id: 8, name: 'Other', where: 'Garage', condition: 1, care: { history: {} } }], has: Object.assign({}, phone.state.data.has, { service: true }) }));
+  assert.ok(!phone.root.textContent.includes('since the last service'), 'no card from the game: nothing shown');
+}
 phone.handle('slPhoneData', Object.assign({}, phone.state.data, { fleet: [{ id: 7, name: 'Covet', seated: true, out: true, condition: 0.9, tyres: tyreCard }] }));
 phone.handle('slMeet', { open: true, name: 'Pier', owners: [], racers: [], money: 1000 });
 assert.ok(/Swap tyres/.test(phone.root.textContent) && phone.root.querySelectorAll('[data-a="tyreswap"]').length === 2 && !phone.root.querySelector('[data-a="tyreswap"][data-v="performance"]'), 'the meet offers the other sets, not the one on the car');

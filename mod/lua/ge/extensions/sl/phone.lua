@@ -109,11 +109,15 @@ local function snapshot()
     art = sl_hud ~= nil and sl_hud.slrrArt ~= nil and sl_hud.slrrArt() or false,
     has = { clubs = sl_career.has('clubs'), crews = sl_career.has('crews'), classifieds = sl_career.has('classifieds'),
       races = require('sl/core/features').on('races'), jobs = require('sl/core/features').on('jobs'), market = require('sl/core/features').on('market'),
-      bank = require('sl/core/features').on('bank'), maps = require('sl/core/features').on('maps'), hudpill = require('sl/core/features').on('hudpill'), weekly = require('sl/core/features').on('weekly') },      -- (the parts that are switched off lose their apps)
+      bank = require('sl/core/features').on('bank'), maps = require('sl/core/features').on('maps'), hudpill = require('sl/core/features').on('hudpill'), weekly = require('sl/core/features').on('weekly'), service = require('sl/core/features').on('service') },      -- (the parts that are switched off lose their apps)
     contacts = contacts, threads = s.threads, unread = s.unread,
     challenges = challenges, ledger = ledger, places = placesOut,
     cars = #s.cars, stats = s.stats,
-    fleet = sl_fleet and sl_fleet.list() or {},
+    fleet = (function()      -- each car with its service card (sl_service.serviceOf: nil with the part off or for an unknown car)
+      local list = sl_fleet and sl_fleet.list() or {}
+      if sl_service and sl_service.serviceOf then for _, c in ipairs(list) do c.service = sl_service.serviceOf(c.id) end end
+      return list
+    end)(),
     onOrder = (function()      -- the factory orders of the high-end dealers, then the stock dealers' and private sellers' cars on their way
       local out = sl_lot and sl_lot.ordersList and sl_lot.ordersList() or {}
       for _, o in ipairs(sl_dealers and sl_dealers.ordersList and sl_dealers.ordersList() or {}) do out[#out + 1] = o end
@@ -370,6 +374,7 @@ function M.watchReplay() if career() and sl_replay then answer(sl_replay.watch()
 function M.saveClip() if career() and sl_replay then answer(sl_replay.save()) end end
 function M.enterLeague(kind) if career() and sl_clubs then answer(sl_clubs.enter(tostring(kind))) end end
 function M.borrow(amount) if career() and sl_bank then answer(sl_bank.borrow(tonumber(amount))) end end
+function M.service(carId, optionId) if career() and sl_service then answer(sl_service.service(tonumber(carId), tostring(optionId))) end end
 function M.payDebt(amount) if career() and sl_weekly then answer(sl_weekly.payDebt(tonumber(amount))) end end
 function M.repay(amount) if career() and sl_bank then answer(sl_bank.repay(tonumber(amount))) end end
 function M.insure(on) if career() and sl_bank then answer(sl_bank.insure(on == true or on == 'true')) end end

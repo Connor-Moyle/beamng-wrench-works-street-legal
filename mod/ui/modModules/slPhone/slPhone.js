@@ -1136,6 +1136,26 @@
         '<div class="slp-acts" style="flex-wrap:wrap">' + offers + '</div></div>';
     }
 
+    // a car's service card (sl_service.serviceOf: { due, km_since, km_interval, wearFactor, count, sections = { { id, label, condition } }, options = { { id, label, cost, available, why } } });
+    // nothing when the part is off or the game sent none
+    function serviceCard(c) {
+      var sv = c.service;
+      if (!sv || obj(st.data.has).service === false) return '';
+      var secs = arr(sv.sections).map(function (x) {
+        var v = Math.max(0, Math.min(1, Number(x.condition) || 0));
+        return '<div class="slp-kv"><span>' + esc(x.label || x.id || '') + '</span><b' + (v < 0.4 ? ' class="slp-warn"' : '') + '>' + (v < 0.4 ? '&#9888; ' : '') + Math.round(v * 100) + '%</b></div>';
+      }).join('');
+      var opts = arr(sv.options).map(function (o) {
+        var ok = o.available !== false;
+        return '<div class="slp-btn slp-tonal' + (ok ? '' : ' slp-off') + '"' + (ok ? ' data-a="service" data-v="' + c.id + '|' + esc(o.id) + '"' : '') + '>' + esc(o.label || o.id) + '<br><small>' + money(o.cost) + (o.why ? ' &middot; ' + esc(o.why) : '') + '</small></div>';
+      }).join('');
+      var factor = Number(sv.wearFactor) || 1;
+      return '<div class="slp-card" style="margin:6px 0 4px 0"><h4>' + (sv.due ? '&#9888; ' + T('ui.service_due', 'Service due') : T('ui.service', 'Service')) + '</h4><p>' +
+        T('ui.service_km', '{1} km since the last service (every {2} km)', Math.round(Number(sv.km_since) || 0), Math.round(Number(sv.km_interval) || 0)) +
+        (factor > 1.001 ? ' &middot; ' + T('ui.service_wear_faster', 'parts wear {1} times as fast until it is serviced', factor.toFixed(1)) : '') + '</p>' + secs +
+        (opts ? '<div class="slp-acts" style="flex-wrap:wrap">' + opts + '</div>' : '') + '</div>';
+    }
+
     // a car's health, its trunk (use what is in it) and its history
     var ITEM_NAMES = { fuelCan: T('ui.fuel_can', 'Fuel can'), oil: T('ui.engine_oil', 'Engine oil'), coolant: T('ui.coolant', 'Coolant'), battery: T('ui.12_v_battery', '12 V battery') };
     function careView(c) {
@@ -1158,7 +1178,7 @@
       var h = k.history || {};
       var hist = ('<div class="slp-kv" style="border:none"><span>' + T('ui.history', 'History') + '</span><b>') + (h.owners || 0) + T('ui.owners_before_you_middot', ' owners before you &middot; ') + (h.wins || 0) + '/' + (h.races || 0) + T('ui.races_won', ' races won') +
         (h.wrecks ? T('ui.middot_wrecked_1_times', ' &middot; wrecked {1}&times;', h.wrecks) : '') + '</b></div>';
-      return '<div class="slp-carcare">' + rows + tyresView(c.tyres) + tyreSwapCard(c) + (trunk ? ('<div class="slp-trunk">' + T('ui.trunk', 'Trunk') + '</div>') + trunk : '') + hist + reportBlock('car:' + c.id, c.report) + '</div>';
+      return '<div class="slp-carcare">' + rows + tyresView(c.tyres) + tyreSwapCard(c) + (trunk ? ('<div class="slp-trunk">' + T('ui.trunk', 'Trunk') + '</div>') + trunk : '') + hist + serviceCard(c) + reportBlock('car:' + c.id, c.report) + '</div>';
     }
 
     function garagePage() {
@@ -1871,6 +1891,7 @@
         case 'borrow': lua('borrow(' + Number(v) + ')'); break;
         case 'repay': lua('repay(' + Number(v) + ')'); break;
         case 'paydebt': lua('payDebt(' + Number(v) + ')'); break;
+        case 'service': var sp = String(v).split('|'); lua('service(' + Number(sp[0]) + ',' + JSON.stringify(sp[1] || '') + ')'); break;
         case 'insure': lua('insure(' + (v === 'true' ? 'true' : 'false') + ')'); break;
         case 'tutskip': lua('@sl_tutorial.skip()'); break;
         case 'jobtake': lua('takeJob(' + JSON.stringify(v) + ')'); break;
