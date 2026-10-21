@@ -13,9 +13,10 @@ often the player wins against each tier with a car of a given class.
 """
 import math, os, random, sys, statistics
 
-PLAYERS, HOURS = 45, 12   # simulated players, hours of play each
+PLAYERS, HOURS = int(os.environ.get('PLAYERS', '45')), 12   # simulated players, hours of play each
 DAY_PAY = float(os.environ.get('DAY_PAY', '1.35'))     # = core/jobs.lua DAY_PAY
 CARS_KEPT = int(sys.argv[sys.argv.index('--cars') + 1]) if '--cars' in sys.argv else 1      # cars stored for the weekly storage bill (the sim plays one)
+WEAR_SCALE = float(os.environ.get("WEAR_SCALE", "40"))   # core/service.lua SCALE
 WEAR = '--nowear' not in sys.argv          # core/service.lua: wear x40 paid back as repairs, and a basic service every 150 km
 WEEKLY = '--noweekly' not in sys.argv      # the weekly costs of core/weekly.lua
 BOOST = '--noboost' not in sys.argv     # the early-game boost in sl_jobs
@@ -120,11 +121,11 @@ class Player:
         if WEAR and self.car is not None:           # 70 % of the time is driving, at 40 km/h; wear per minute = 0.5 x 26.7 km-eq x sum(1/LIFE of 5 sections) = 4.6e-4 of the value / REPAIR_CONDITION 3
             km = minutes * 0.7 * 40 / 60
             value = CARS[self.car][0]
-            self.money -= min(self.money, 4.6e-4 * value / 3 * minutes * 0.7 + (60 + 0.004 * value) * km / 150)
+            self.money -= min(self.money, WEAR_SCALE / 40 * 4.6e-4 * value / 3 * minutes * 0.7 + (30 + 0.002 * value) * km / 150)
         if self.day() != before:
             self.heat *= 0.7                            # police: heat cools daily
             if WEEKLY and self.day() % 7 == 0:          # core/weekly: garage rent (storage of cars beyond two is not simulated: the sim holds one car)
-                bill = {1: 0, 2: 250, 3: 700}.get(self.garage, 700)
+                bill = {1: 0, 2: int(os.environ.get("RENT2", "150")), 3: int(os.environ.get("RENT3", "400"))}.get(self.garage, 700)
                 bill += 40 * max(0, CARS_KEPT - 2)       # core/weekly STORAGE for each car beyond two
                 self.money -= min(self.money, bill)     # (a shortfall is a debt in the game; here it is just not paid, the floor check shows who runs dry)
             if self.loan:                               # core/bank: interest, the weekly quarter, two warnings
