@@ -258,11 +258,12 @@ local function liveRoute()
 end
 
 function M.mapPlaces()
-  if not career() then return end
+  local inCareer = career() ~= nil
+  if not inCareer and not freeRoam() then return end
   liveRoute()
   local list = {}
   for id, p in pairs(sl_career.allPlaces() or {}) do
-    if p.pos then list[#list + 1] = { id = id, name = p.name, kind = p.kind, x = p.pos.x, y = p.pos.y } end
+    if p.pos and (inCareer or M.FREE_KINDS[p.kind]) then list[#list + 1] = { id = id, name = p.name, kind = p.kind, x = p.pos.x, y = p.pos.y } end
   end
   guihooks.trigger('slMap', { groups = mapLib.groups(list, playerAt()), route = route and { id = route.id, name = route.name } or nil })
 end
@@ -292,9 +293,8 @@ function M.people()
 end
 
 function M.routeTo(id)
-  local s = career()
-  local p = s and core_groundMarkers and sl_career.allPlaces()[tostring(id)]
-  if not p then return end
+  local p = (career() or freeRoam()) and core_groundMarkers and sl_career.allPlaces()[tostring(id)]
+  if not p or (not career() and not M.FREE_KINDS[p.kind]) then return end
   core_groundMarkers.setPath(p.pos)
   route = { id = tostring(id), name = p.name, x = p.pos.x, y = p.pos.y }
   answer(true, strings.t('phone.route_set', p.name))

@@ -117,6 +117,17 @@ local opened = {}
 _G.guihooks = { trigger = function(name, t) if name == 'slPhoneGo' then opened[#opened + 1] = t.app end end }
 ph.go('bank') ph.go('jobs') ph.go('garage') ph.go('map')
 check('audit: phone.go opens a hidden app as home and a free app as itself', opened[1] == 'home' and opened[2] == 'home' and opened[3] == 'home' and opened[4] == 'map')
+local mapSent
+_G.guihooks = { trigger = function(name, t) if name == 'slMap' then mapSent = t end end }
+sl_career.allPlaces = function() return { junk = { name = 'Junkyard', kind = 'junkyard', pos = { x = 1, y = 1, z = 0 } }, shop1 = { name = 'Parts', kind = 'shop', pos = { x = 2, y = 2, z = 0 } }, lot1 = { name = 'Lot', kind = 'lot', pos = { x = 3, y = 3, z = 0 } } } end
+local oldGpv = rawget(_G, 'getPlayerVehicle')
+_G.getPlayerVehicle = function() return { getPosition = function() return { x = 0, y = 0, z = 0 } end } end
+local okm, errm = pcall(ph.mapPlaces)
+_G.getPlayerVehicle = oldGpv
+local seen = {}
+local function walk(t) if type(t) == 'table' then for k, v in pairs(t) do if k == 'id' and type(v) == 'string' then seen[v] = true end walk(v) end end end
+walk(mapSent)
+check('audit: the free-roam Map app lists the shop and not the junkyard or a lot (' .. tostring(okm) .. ' ' .. tostring(errm) .. ')', mapSent ~= nil and seen.shop1 and not seen.junk and not seen.lot1)
 _G.guihooks = { trigger = function() end }
 local before2, w0 = #calls, #wallet
 for k, fn in pairs(ph) do
