@@ -3496,7 +3496,7 @@ do
   local ST = require('sl/core/state')
   check('weekly: week and day of week from the day', W.week(1) == 1 and W.week(7) == 1 and W.week(8) == 2 and W.dayOfWeek(1) == 1 and W.dayOfWeek(7) == 7 and W.dayOfWeek(8) == 1)
   check('weekly: no rent in the first garage, rent above it, storage for cars beyond two',
-    #W.lines(1, 2) == 0 and W.total(W.lines(2, 2)) == 250 and W.total(W.lines(3, 5)) == 700 + 3 * 40 and W.total(W.lines(1, 3)) == 40)
+    #W.lines(1, 2) == 0 and W.total(W.lines(2, 2)) == 150 and W.total(W.lines(3, 5)) == 400 + 3 * 40 and W.total(W.lines(1, 3)) == 40)
   local r = W.settle(1000, 0, 300)
   check('weekly: bills paid in full', r.pay == 300 and r.short == 0 and r.debt == 0)
   r = W.settle(100, 50, 300)
@@ -3520,16 +3520,16 @@ do
   WK.onStreetLegalNewDay(2)
   check('weekly: the first day seen starts the first week, nothing is billed', st.money == 1000 and st.weekly.nextDue == 8 and st.weekly.debt == 0)
   WK.onStreetLegalNewDay(8)
-  check('weekly: day 8 bills rent 250 and storage 2 x 40', st.money == 1000 - 330 and #st.weekly.history == 1 and st.weekly.history[1].costs == 330 and st.weekly.nextDue == 15)
+  check('weekly: day 8 bills rent 150 and storage 2 x 40', st.money == 1000 - 230 and #st.weekly.history == 1 and st.weekly.history[1].costs == 230 and st.weekly.nextDue == 15)
   st.money = 100
   WK.onStreetLegalNewDay(15)
-  check('weekly: an unpayable week makes a debt, costs reputation once, sends one text', st.money == 0 and st.weekly.debt == 230 and #sent == 1 and WK.debt() == 230)
+  check('weekly: an unpayable week makes a debt, costs reputation once, sends one text', st.money == 0 and st.weekly.debt == 130 and #sent == 1 and WK.debt() == 130)
   st.day = 15
   local sum = WK.summary()
-  check('weekly: the summary has the week, the debt, projected bills and the history', sum.week == 3 and sum.debt == 230 and #sum.bills == 2 and sum.nextBillDay == 7 and #sum.history == 2)
+  check('weekly: the summary has the week, the debt, projected bills and the history', sum.week == 3 and sum.debt == 130 and #sum.bills == 2 and sum.nextBillDay == 7 and #sum.history == 2)
   st.money = 150
   local ok1 = WK.payDebt(1000)
-  check('weekly: payDebt pays what money allows and answers', ok1 == true and st.money == 0 and st.weekly.debt == 80)
+  check('weekly: payDebt pays what money allows and answers', ok1 == true and st.money == 20 and st.weekly.debt == 0)
   check('weekly: payDebt with no money refuses', (WK.payDebt(10)) == false)
   do
     local f = _G.sl_options
@@ -3594,8 +3594,8 @@ do
   for _, v in pairs(net1) do if v ~= 0 then zero = false end end
   check('service: an overhaul puts all wear right, and later wear shows on top of it', zero and net0.brakes > 0 and S.net(sv, S.gross(sv, 1500, 1000, {})).brakes > 0)
   check('service: the abuse counts scale too', S.gross(S.state({}), 1000, 1000, { brakes = 100 }).brakes > 0 and S.gross(S.state({}), 1000, 1000, { brakes = 100 }).brakes == W.lost(0, { brakes = 100 * 40 }).brakes)
-  check('service: prices: basic $60 + 0.4% of the value, half as much again without a workbench; the overhaul adds the worn sections',
-    S.basicCost(10000, true) == 100 and S.basicCost(10000, false) == 150 and S.overhaulCost(10000, { brakes = 0.1 }, 3, true) == 100 + 330 and S.overhaulCost(10000, { brakes = 0.1 }, 3, false) == 150 + 500)
+  check('service: prices: basic $30 + 0.2% of the value, half as much again without a workbench; the overhaul adds the worn sections',
+    S.basicCost(10000, true) == 50 and S.basicCost(10000, false) == 80 and S.overhaulCost(10000, { brakes = 0.1 }, 3, true) == 50 + 330 and S.overhaulCost(10000, { brakes = 0.1 }, 3, false) == 80 + 500)
   local secs = S.sections({ brakes = 0.25, engine = 0 }, nil)
   check('service: sections 0..1 from the wear model', #secs == 5 and secs[1].id == 'engine' and secs[1].condition == 1 and secs[4].id == 'brakes' and secs[4].condition == 0.5)
   local pw = S.sections({ brakes = 0 }, { { section = 'brakes', condition = 0.2 }, { section = 'brakes', condition = 0.6 }, { section = 'drive', condition = 0.9 }, { section = 'exhaust', condition = 0.7 }, { section = 'flux', condition = 0.1 } })
@@ -3620,9 +3620,9 @@ do
   package.loaded['sl/service'] = nil
   local SV = require('sl/service')
   local info = SV.serviceOf(1)
-  check('service: the card says due, the km since, the interval, a factor and two options', info.due == true and info.km_since == 300 and info.km_interval == 150 and info.wearFactor == 1.5 and #info.options == 2 and info.options[1].cost == 100)
+  check('service: the card says due, the km since, the interval, a factor and two options', info.due == true and info.km_since == 300 and info.km_interval == 150 and info.wearFactor == 1.5 and #info.options == 2 and info.options[1].cost == 50)
   local okS, text = SV.service(1, 'basic')
-  check('service: a basic service charges, resets the interval and is noted', okS == true and st.money == 900 and car.service.baseKm == 1300 and SV.serviceOf(1).due == false)
+  check('service: a basic service charges, resets the interval and is noted', okS == true and st.money == 950 and car.service.baseKm == 1300 and SV.serviceOf(1).due == false)
   check('service: not enough money refuses and changes nothing', (function() st.money = 10 local ok = SV.service(1, 'full') return ok == false and st.money == 10 and car.service.count == 1 end)())
   check('service: an unknown car or service refuses', SV.service(9, 'basic') == false and SV.service(1, 'nope') == false)
   _G.slrr_partwear = { conditionsOf = function() return nil end, conditionsOfKey = function(k) return { parts = { { section = 'suspension', condition = 0.3 } } } end }

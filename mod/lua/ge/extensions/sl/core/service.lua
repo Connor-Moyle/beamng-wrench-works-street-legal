@@ -11,7 +11,7 @@ local wear = require('sl/core/wear')
 M.SCALE = 40            -- a km driven is this many km of wear
 M.INTERVAL = 150        -- km between services (about one in-game week of driving)
 M.OVERDUE = 0.5         -- extra km of wear per km driven past the interval
-M.BASIC = { base = 60, share = 0.004 }       -- price: $60 + 0.4 % of the car's value
+M.BASIC = { base = 30, share = 0.002 }       -- price: $30 + 0.2 % of the car value
 M.NO_BENCH = 1.5        -- no workbench in the garage: the mobile mechanic's factor (core/progression MOBILE_MECHANIC)
 
 -- a car's record, made on first sight: the wear it had up to now counts once (as before this part), only the driving from now counts SCALE times. origin = the engine km and

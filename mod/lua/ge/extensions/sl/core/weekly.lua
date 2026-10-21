@@ -7,7 +7,7 @@ local M = {}
 local strings = require('sl/core/strings')
 
 M.DAYS = 7
-M.RENT = { [1] = 0, [2] = 250, [3] = 700 }       -- a week of the garage you hold (the first one is the starter lock-up)
+M.RENT = { [1] = 0, [2] = 150, [3] = 400 }       -- a week of the garage you hold (the first one is the starter lock-up)
 M.FREE_CARS = 2                                   -- cars kept free of charge
 M.STORAGE = 40                                    -- a week for each car beyond those
 M.BUFFER = 200                                    -- debt is paid down only from money above this
