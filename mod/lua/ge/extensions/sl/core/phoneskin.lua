@@ -1,12 +1,14 @@
--- Street Legal: phone skins (pure, tested by tools/luatest.js). A skin is a folder with a skin.json (and images next to it): colours and shapes of the phone, a colour for each app,
--- the app icons, a little extra CSS. The classic look is the phone as it is, with no skin. sl/phoneskins finds the folders and reads the files; this file only checks what a skin.json
--- says and turns it into what the UI needs: { id, css, appColors, icons = { app = '<svg ...>' | '<img ...>' } }. Nothing from a skin.json reaches the UI unchecked: a colour is #rgb or
--- #rrggbb, a number is clamped, an icon path may only hold path characters, the extra CSS may not load anything but data: pictures.
+-- Street Legal: phone skins (pure, tested by tools/luatest.js). A skin is a folder with a skin.json (and pictures next to it): colours and shapes of the phone, a colour for each app,
+-- the app icons. The classic look is the phone as it is, with no skin. sl/phoneskins finds the folders and reads the files; this file only checks what a skin.json says and turns it
+-- into what the UI needs: { id, css, appColors, icons = { app = '<svg ...>' | '<img ...>' } }.
+-- A skin.json carries NO CSS of its own: the css the UI gets is written here from a fixed list of checked variables (a colour is #rgb or #rrggbb, a number is clamped), so nothing a
+-- skin says can reach the page except through those. An icon path may only hold path characters; a picture is a data: image the loader has already checked.
 
 local M = {}
 
 M.ID_PATTERN = '^[a-z0-9][a-z0-9_%-]*$'
-M.MAX_ID, M.MAX_NAME, M.MAX_PATH, M.MAX_CSS = 32, 40, 4000, 8000
+M.MAX_ID, M.MAX_NAME, M.MAX_PATH = 32, 40, 4000
+M.MAX_ENTRIES, M.MAX_PAYLOAD = 40, 300000      -- app colours kept at most this many, icons twice this many; the icons together at most this many bytes
 M.CLASSIC = 'classic'
 
 local function colour(v)
@@ -27,20 +29,7 @@ local function text(v, max)
   return v
 end
 
--- the extra CSS: nothing that loads or runs anything but a data: picture
-function M.safeCss(css)
-  if type(css) ~= 'string' or #css > M.MAX_CSS then return nil, 'css missing or too long' end
-  local low = css:lower()
-  if low:find('@import', 1, true) or low:find('javascript:', 1, true) or low:find('expression(', 1, true) or low:find('</', 1, true)
-    or low:find('<', 1, true) or low:find('behavior:', 1, true) or low:find('-moz-binding', 1, true) then return nil, 'css not allowed' end
-  for u in low:gmatch('url%s*%(%s*([^%)]*)') do
-    local arg = u:gsub('^["\']', '')
-    if not arg:find('^data:image/') then return nil, 'css url() other than data:image' end
-  end
-  return css
-end
-
--- an app icon from its skin.json entry: { path, viewBox, stroke } drawn by the UI as an svg (filled, or an outline when stroke is set), or { file } resolved to a data uri by the caller
+-- an app icon from its skin.json entry: { path, viewBox, stroke } drawn by the UI as an svg (filled, or an outline when stroke is set); { file } is resolved by the caller
 function M.icon(spec)
   if type(spec) ~= 'table' then return nil end
   if spec.path ~= nil then
@@ -57,7 +46,7 @@ function M.icon(spec)
   return nil
 end
 
-local VAR_COLOURS = { 'frame', 'rim', 'screen', 'text', 'accent' }
+local VAR_COLOURS = { 'frame', 'rim', 'screen', 'text', 'accent', 'iconColor' }
 
 -- The CSS of the variables. Every rule is under .slp-root so a skin cannot touch anything else on the page.
 function M.cssOf(vars)
@@ -76,6 +65,9 @@ function M.cssOf(vars)
   end
   if vars.text then add('.slp-root .slp-app span,.slp-root .slp-clock,.slp-root .slp-date{color:' .. vars.text .. '}') end
   if vars.iconRadius then add('.slp-root .slp-ico{border-radius:' .. vars.iconRadius .. 'px}') end
+  if vars.iconColor then add('.slp-root .slp-ico{color:' .. vars.iconColor .. '}') end
+  if vars.iconSize then add('.slp-root .slp-ico svg{width:' .. vars.iconSize .. 'px;height:' .. vars.iconSize .. 'px}') end
+  if vars.tileShadow then add('.slp-root .slp-ico{box-shadow:0 2px 6px rgba(0,0,0,.35)}') end
   if vars.gloss then add('.slp-root .slp-ico{background-image:linear-gradient(160deg,rgba(255,255,255,.30),rgba(255,255,255,0) 55%)}') end
   if vars.accent then add('.slp-root .slp-ib svg,.slp-root .slp-act i svg,.slp-root .slp-pbadge svg{fill:' .. vars.accent .. '}') end
   if vars.notch == 'pill' then
@@ -97,28 +89,29 @@ function M.validate(raw, dir, files)
   vars.frameRadius = number(v.frameRadius, 0, 70)
   vars.screenRadius = number(v.screenRadius, 0, 60)
   vars.iconRadius = number(v.iconRadius, 0, 40)
+  vars.iconSize = number(v.iconSize, 16, 44)
   vars.gloss = v.gloss == true
+  vars.tileShadow = v.tileShadow == true
   vars.notch = v.notch == 'pill' and 'pill' or nil
   local css = M.cssOf(vars)
-  if raw.css ~= nil then
-    local extra, why = M.safeCss(raw.css)
-    if not extra then return nil, why end
-    css = css .. '\n' .. extra
-  end
   local appColors, icons, dropped = {}, {}, 0
+  local count, bytes = 0, #css
   for app, c in pairs(type(raw.appColors) == 'table' and raw.appColors or {}) do
-    if type(app) == 'string' and app:match('^[%w_]+$') and colour(c) then appColors[app] = colour(c) else dropped = dropped + 1 end
+    count = count + 1
+    if count <= M.MAX_ENTRIES and type(app) == 'string' and #app <= 24 and app:match('^[%w_]+$') and colour(c) then appColors[app] = colour(c) else dropped = dropped + 1 end
   end
+  count = 0
   for app, spec in pairs(type(raw.icons) == 'table' and raw.icons or {}) do
     local html
-    if type(app) == 'string' and app:match('^[%w_]+$') then
+    count = count + 1
+    if type(app) == 'string' and #app <= 24 and app:match('^[%w_]+$') then
       html = M.icon(spec)
       if not html and type(spec) == 'table' and type(spec.file) == 'string' and files then
         local uri = files(spec.file)
         if uri then html = '<img class="slp-skinimg" src="' .. uri .. '" alt="">' end
       end
     end
-    if html then icons[app] = html else dropped = dropped + 1 end
+    if html and count <= 2 * M.MAX_ENTRIES and bytes + #html <= M.MAX_PAYLOAD then icons[app] = html bytes = bytes + #html else dropped = dropped + 1 end
   end
   return { id = id, name = name, author = text(raw.author, M.MAX_NAME), css = css, appColors = appColors, icons = icons, dropped = dropped }
 end

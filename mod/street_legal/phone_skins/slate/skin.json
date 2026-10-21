@@ -12,9 +12,11 @@
   "screenRadius": 46,
   "iconRadius": 17,
   "gloss": true,
-  "notch": "pill"
+  "notch": "pill",
+  "iconColor": "#ffffff",
+  "iconSize": 26,
+  "tileShadow": true
  },
- "css": ".slp-root .slp-ico{color:#fff;box-shadow:0 2px 6px rgba(0,0,0,.35)}.slp-root .slp-ico svg{width:26px;height:26px}.slp-root .slp-app span{font-weight:500;letter-spacing:.2px}",
  "appColors": {
   "races": "#ff6a3d",
   "garage": "#4f7cff",

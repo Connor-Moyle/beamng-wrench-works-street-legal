@@ -3205,9 +3205,12 @@ do -- phone skins: what a skin.json may say, what reaches the UI, and the folder
   check('skin: numbers are clamped and a wrong colour is dropped', clamped.css:find('border-radius:70px', 1, true) and not clamped.css:find('javascript', 1, true) and not clamped.css:find('background', 1, true))
   check('skin: the id comes from the folder when the file has none; bad ids and classic are refused', PS.validate({}, 'mine').id == 'mine' and PS.validate({}, 'Bad Id') == nil and PS.validate({ id = 'classic' }, 'x') == nil and PS.validate('x', 'a') == nil
     and PS.validate({}, string.rep('a', 33)) == nil)
-  check('skin: extra css may use a data picture and nothing else that loads', PS.safeCss('.a{background:url(data:image/png;base64,AAAA)}') and not PS.safeCss('@import "x";') and not PS.safeCss('.a{background:url(http://x/y.png)}')
-    and not PS.safeCss('.a{background:url("/ui/x.png")}') and not PS.safeCss('.a{width:expression(1)}') and not PS.safeCss('</style><script>') and not PS.safeCss(string.rep('a', 9000)) and not PS.safeCss(5))
-  check('skin: a skin whose css is refused is refused', PS.validate({ css = '@import url(x);' }, 'a1') == nil)
+  local noCss = PS.validate({ css = '@import url(http://x/y.css); body{display:none}', vars = { frame = '#111111' } }, 'a1')
+  check('skin: a css field in a skin.json is not read: the css is only what the variables write', noCss and noCss.css:find('@', 1, true) == nil and noCss.css:find('body', 1, true) == nil and noCss.css:find('#111111', 1, true) ~= nil)
+  local every = PS.validate({ vars = { frame = '#111', rim = '#222', screen = '#333', text = '#444', accent = '#555', iconColor = '#666', frameRadius = 1, screenRadius = 2, iconRadius = 3, iconSize = 20, gloss = true, tileShadow = true, notch = 'pill' } }, 'v1').css
+  local allSelectors = true
+  for rule in (every .. '\n'):gmatch('([^\n]*)\n') do if rule ~= '' and not rule:find('^%.slp%-root ') then allSelectors = false end end
+  check('skin: every rule the variables write is under .slp-root (a skin cannot touch the rest of the page)', allSelectors and every:find('background:#111', 1, true) and every:find('width:20px', 1, true))
   local withFile = PS.validate({ icons = { map = { file = 'map.svg' }, camera = { file = 'nope.svg' } } }, 'pics', function(n) if n == 'map.svg' then return 'data:image/svg+xml;base64,AAAA' end end)
   check('skin: a picture icon is an img with the data uri the caller gave; a picture it could not read is dropped', withFile.icons.map == '<img class="slp-skinimg" src="data:image/svg+xml;base64,AAAA" alt="">' and withFile.icons.camera == nil and withFile.dropped == 1)
   local list = PS.choices({ b = { id = 'b', name = 'Zed' }, a = { id = 'a', name = 'alpha' } })
@@ -3226,23 +3229,34 @@ do -- phone skins: what a skin.json may say, what reaches the UI, and the folder
   -- the folders (sl/phoneskins) with a stand-in for the game's files
   local files = { ['/street_legal/phone_skins/'] = { '/street_legal/phone_skins/slate/skin.json', '/street_legal/phone_skins/_template/skin.json' },
     ['/settings/street_legal/phone_skins/'] = { '/settings/street_legal/phone_skins/mine/skin.json', '/settings/street_legal/phone_skins/slate/skin.json' } }
-  local json = { ['/street_legal/phone_skins/slate/skin.json'] = { name = 'Slate (mod)' }, ['/settings/street_legal/phone_skins/slate/skin.json'] = { name = 'Slate (mine)', css = '.slp-root{color:#abc}' },
-    ['/settings/street_legal/phone_skins/mine/skin.json'] = { name = 'Mine', icons = { map = { file = 'm.png' }, cab = { file = '../x.png' } }, css = '.a{color:red}' }, ['/street_legal/phone_skins/_template/skin.json'] = { name = 'Template' } }
-  local saved = { FS = _G.FS, json = _G.jsonReadFile, log = _G.log, open = io.open }
-  _G.FS = { findFiles = function(self, root) return files[root] or {} end }
-  _G.jsonReadFile = function(f) return json[f] end
+  local json = { ['/street_legal/phone_skins/slate/skin.json'] = { name = 'Slate (mod)' }, ['/settings/street_legal/phone_skins/slate/skin.json'] = { name = 'Slate (mine)', vars = { text = '#abc' } },
+    ['/settings/street_legal/phone_skins/mine/skin.json'] = { name = 'Mine', icons = { map = { file = 'm.png' }, cab = { file = '../x.png' }, bank = { file = 'big.png' }, jobs = { file = 'fake.png' }, wait = { file = 's.svg' }, help = { file = 'evil.svg' }, me = { file = 'j.jpg' } } }, ['/street_legal/phone_skins/_template/skin.json'] = { name = 'Template' } }
+  local function png(w, h) return string.char(137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13) .. 'IHDR' .. string.char(0, 0, math.floor(w / 256), w % 256, 0, 0, math.floor(h / 256), h % 256) .. 'xxxx' end
+  local bytes = { ['/settings/street_legal/phone_skins/mine/m.png'] = png(16, 16), ['/settings/street_legal/phone_skins/mine/big.png'] = png(512, 512), ['/settings/street_legal/phone_skins/mine/fake.png'] = 'not a png at all, but long enough to pass a size check', ['/settings/street_legal/phone_skins/mine/s.svg'] = '<svg viewBox="0 0 1 1"><path d="M0 0"/></svg>', ['/settings/street_legal/phone_skins/mine/evil.svg'] = '<svg><script>x</script></svg>' }
+  for path in pairs(json) do bytes[path] = path end                                -- (the "file" of a skin.json is its own path: jsonDecode looks it up again)
+  bytes['/settings/street_legal/phone_skins/huge/skin.json'] = string.rep('x', 70000)
+  files['/settings/street_legal/phone_skins/'][#files['/settings/street_legal/phone_skins/'] + 1] = '/settings/street_legal/phone_skins/huge/skin.json'
+  local saved = { FS = _G.FS, log = _G.log, jsonDecode = _G.jsonDecode, buffer = _G.buffer, readTo = io.readFileToBuffer }
+  local reads = {}
+  _G.FS = { findFiles = function(self, root) return files[root] or {} end, fileSize = function(self, f) return bytes[f] and #bytes[f] or nil end }
+  _G.buffer = { new = function() local b = { data = '' } function b:tostring() return self.data end return b end }
+  io.readFileToBuffer = function(f, buf) reads[#reads + 1] = f if not bytes[f] then return false end buf.data = bytes[f] return true end
+  _G.jsonDecode = function(text) return json[text] end
   _G.log = function() end
-  io.open = function(path, mode) if path == '/settings/street_legal/phone_skins/mine/m.png' then local d = 'ab' return { read = function() return d end, close = function() end } end return saved.open(path, mode) end
   package.loaded['sl/phoneskins'] = nil
   local PK = require('sl/phoneskins')
   local names = {}
   for _, c in ipairs(PK.choices()) do names[#names + 1] = c.id .. '=' .. c.label end
+  local listReads = {}
+  for _, f in ipairs(reads) do listReads[#listReads + 1] = f end
   check('skins: the list holds Classic and the skins of the mod and the user folder (the user folder wins an id; a folder name that is no id is skipped)', table.concat(names, ',') == 'classic=Classic,mine=Mine,slate=Slate (mine)', table.concat(names, ','))
   check('skins: Classic and unknown ids send nothing', PK.payload('classic') == nil and PK.payload(nil) == nil and PK.payload('nobody') == nil and PK.payload('Bad Id') == nil)
   local mine = PK.payload('mine')
-  check('skins: a picture icon is read from the skin folder and sent as a data uri; one outside the folder is not', mine.icons.map == '<img class="slp-skinimg" src="data:image/png;base64,YWI=" alt="">' and mine.icons.cab == nil)
+  check('skins: a picture icon is read from the skin folder and sent as a data uri; one outside the folder is not', mine.icons.map and mine.icons.map:find('^<img class="slp%-skinimg" src="data:image/png;base64,iVBORw0KGgo') and mine.icons.cab == nil)
+  check('skins: a png over 256 pixels, a file that is no png, a svg with a script and a jpg are all dropped; a plain svg is kept', mine.icons.bank == nil and mine.icons.jobs == nil and mine.icons.help == nil and mine.icons.me == nil and mine.icons.wait and mine.icons.wait:find('data:image/svg+xml;base64,', 1, true))
+  check('skins: a skin.json over 64 KB is never read (a look at its size first), and the list reads only skin.json files, no pictures', (function() for _, f in ipairs(listReads) do if f:find('huge', 1, true) or f:find('%.png$') then return false end end return true end)())
   check('skins: base64 of 1, 2 and 3 bytes', PK.base64('M') == 'TQ==' and PK.base64('Ma') == 'TWE=' and PK.base64('Man') == 'TWFu' and PK.base64('') == '')
-  _G.FS, _G.jsonReadFile, _G.log, io.open = saved.FS, saved.json, saved.log, saved.open
+  _G.FS, _G.log, _G.jsonDecode, _G.buffer, io.readFileToBuffer = saved.FS, saved.log, saved.jsonDecode, saved.buffer, saved.readTo
   package.loaded['sl/phoneskins'] = nil
 end
 

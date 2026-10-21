@@ -1,5 +1,5 @@
 {
- "_help": "A phone skin. Copy this folder (not starting with an underscore) to the user folder settings/street_legal/phone_skins/<your id>/ , change what you like, restart the game and pick it in ESC > Mods > Street Legal > Screens and texts > Phone skin. See docs/PHONE_SKINS.md. Everything is optional.",
+ "_help": "A phone skin. Copy this folder (not starting with an underscore) to the user folder settings/street_legal/phone_skins/<your id>/ , change what you like, restart the game and pick it in ESC > Mods > Street Legal > Screens and texts > Phone skin. See docs/PHONE_SKINS.md. Everything is optional. There is no CSS field: the look comes from the vars, the colours and the icons only.",
  "id": "my_skin",
  "name": "My skin",
  "author": "You",
@@ -13,7 +13,10 @@
   "screenRadius": 30,
   "iconRadius": 12,
   "gloss": false,
-  "notch": "none"
+  "notch": "none",
+  "iconColor": "#ffffff",
+  "iconSize": 26,
+  "tileShadow": false
  },
  "appColors": {
   "map": "#2a7f62",
@@ -28,6 +31,5 @@
   "camera": {
    "file": "camera.svg"
   }
- },
- "css": ""
+ }
 }
