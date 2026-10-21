@@ -3790,4 +3790,23 @@ do
   package.loaded['sl/shops'] = nil
 end
 
+-- sl_shops.placeHere writes a shop file at the player's position
+do
+  local old = { v = rawget(_G, 'getPlayerVehicle'), w = rawget(_G, 'jsonWriteFile'), fs = rawget(_G, 'FS'), c = rawget(_G, 'sl_career') }
+  local written = {}
+  _G.getPlayerVehicle = function() return { getPosition = function() return { x = 1.234, y = -5.678, z = 9.0 } end } end
+  _G.jsonWriteFile = function(f, d) written[f] = d return true end
+  _G.FS = { fileExists = function(_, f) return written[f] ~= nil end }
+  package.loaded['sl/shops'] = nil
+  local SS = require('sl/shops')
+  local ok = SS.placeHere('tyre', 'Torres')
+  local ok2 = SS.placeHere('tyre')
+  local bad, why = SS.placeHere('bakery')
+  local f1, f2 = written['/settings/street_legal/shops/placed_1.json'], written['/settings/street_legal/shops/placed_2.json']
+  check('sl_shops: placeHere writes the shop at the player\'s position (rounded), the next one to the next file, and refuses an unknown kind',
+    ok and ok2 and f1 and f2 and f1.shops[1].kind == 'tyre' and f1.shops[1].name == 'Torres' and f1.shops[1].pos[1] == 1.23 and f1.shops[1].pos[2] == -5.68 and f2.shops[1].name == 'Tyre shop' and bad == false and why:find('bakery', 1, true))
+  _G.getPlayerVehicle, _G.jsonWriteFile, _G.FS, _G.sl_career = old.v, old.w, old.fs, old.c
+  package.loaded['sl/shops'] = nil
+end
+
 print(string.format('lua tests passed: %d checks', passed))

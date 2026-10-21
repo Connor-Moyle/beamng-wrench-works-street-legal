@@ -134,6 +134,22 @@ local function readPlaced()
   end
 end
 
+-- a tool for map makers and testers: stand where the shop should be and call sl_shops.placeHere('tyre', 'Torres on 5th'); the shop is written to
+-- settings/street_legal/shops/placed_<n>.json at your position and its marker appears at once (delete the file to remove it). Returns true, or false and the reason
+function M.placeHere(kind, name)
+  if not rules.type(kind) then return false, 'unknown shop kind: ' .. tostring(kind) end
+  local v = getPlayerVehicle and getPlayerVehicle(0)
+  if not (v and jsonWriteFile) then return false, 'no vehicle to stand at' end
+  local p = v:getPosition()
+  local n = 1
+  while FS and FS:fileExists('/settings/street_legal/shops/placed_' .. n .. '.json') do n = n + 1 end
+  local file = '/settings/street_legal/shops/placed_' .. n .. '.json'
+  local ok = jsonWriteFile(file, { shops = { { kind = kind, name = name or rules.type(kind).title, pos = { math.floor(p.x * 100 + 0.5) / 100, math.floor(p.y * 100 + 0.5) / 100, math.floor(p.z * 100 + 0.5) / 100 } } } }, true)
+  if not ok then return false, 'could not write ' .. file end
+  if gameplay_rawPois and gameplay_rawPois.clear then gameplay_rawPois.clear() end
+  return true, file
+end
+
 function M.placed() return placed end
 
 -- the game asks every extension for its markers once per level (cached)

@@ -72,6 +72,8 @@ sl_shops.close()
 function M.onStreetLegalShopBought(shopId, kind, lines, total) end
 ```
 
+Map makers: stand where the shop should be and call `sl_shops.placeHere('tyre', 'Torres on 5th')` in the console; it writes a file under `settings/street_legal/shops/` at your position and the marker appears (delete the file to remove it).
+
 Other calls: `sl_shops.kinds()` (the kinds known), `sl_shops.isOpen()`, `sl_shops.placed()` (the shops from files), `sl_shops.define(kind, def)`.
 
 ## 3. Add your own kind
