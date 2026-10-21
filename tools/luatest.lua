@@ -3988,6 +3988,15 @@ do
   SS.buy('p1:1')
   check('sl_shops: a shelf that fails gives the money back', st.money == money and toasts[#toasts] ~= nil)
   shelfFails = false
+  -- the second part cannot be put on the shelf: the first stays and is paid for, only the second is refunded
+  local calls = 0
+  local realAdd = _G.slrr_garage.addShelfPart
+  _G.slrr_garage.addShelfPart = function(model, p) calls = calls + 1 if calls == 2 then error('shelf') end return realAdd(model, p) end
+  st.money = 2000
+  local m0, s0 = st.money, #shelf
+  SS.buy('p1:1,p2:1')
+  check('sl_shops: if the second part cannot be shelved the first stays and is paid, only the second is refunded', st.money == m0 - 572 and #shelf == s0 + 1 and shelf[#shelf].p.part == 'covet_exhaust_sport')
+  _G.slrr_garage.addShelfPart = realAdd
 
   -- the dealer parts counter: the brands of the sign, a car of those brands, and a clear note otherwise
   _G.getCurrentLevelIdentifier = function() return 'west_coast_usa' end

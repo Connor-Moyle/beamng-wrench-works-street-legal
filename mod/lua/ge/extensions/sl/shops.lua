@@ -183,15 +183,21 @@ function M.buy(text)
   -- the money first, then the goods: a refusal or an error in onBuy gives the money back
   if total > 0 and not sl_career.addMoney(-total, shop.name) then return toast(strings.t('shops.cannot_afford')) end
   if at.entries then      -- parts for the player's car go on the shelf of its model
-    local ok = pcall(function()
-      for _, l in ipairs(lines) do
-        local e = at.entries[l.id]
-        for _ = 1, l.qty do slrr_garage.addShelfPart(at.model, { part = e.part, name = e.name, slotId = e.slotId, value = l.each }) end
+    local paid, failed = 0, false      -- what is on the shelf is kept and paid for; only the parts that did not get there are refunded
+    for _, l in ipairs(lines) do
+      local e = at.entries[l.id]
+      for _ = 1, l.qty do
+        if not failed then
+          local ok = pcall(slrr_garage.addShelfPart, at.model, { part = e.part, name = e.name, slotId = e.slotId, value = l.each })
+          if ok then paid = paid + l.each else failed = true end
+        end
       end
-    end)
-    if not ok then
-      if total > 0 then sl_career.addMoney(total, strings.t('shops.refund', shop.name)) end
-      return toast(strings.t('shops.not_here'))
+    end
+    if failed then
+      if total - paid > 0 then sl_career.addMoney(total - paid, strings.t('shops.refund', shop.name)) end
+      toast(strings.t('shops.not_here'))
+      if paid == 0 then return end
+      total = paid
     end
     toast(strings.t('shops.on_the_shelf', total))
   elseif at.onBuy then
