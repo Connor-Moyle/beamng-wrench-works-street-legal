@@ -1577,14 +1577,23 @@ function M.switchPhase()
   end
   if core_jobsystem and core_jobsystem.create and guihooks then
     switching = true
-    guihooks.trigger('slFade', { on = true })
+    -- a cinematic moment (sl_scenes, docs/TRANSITIONS.md) takes the place of the plain fade when it is on: the scene darkens the screen, the clock moves behind it, the scene ends
+    local scene = sl_scenes and sl_scenes.begin(plan.phase == 'day' and 'day' or 'night', { day = s.day })
+    if not scene then guihooks.trigger('slFade', { on = true }) end
     core_jobsystem.create(function(job)
-      job.sleep(0.6)
+      job.sleep(scene and 0.5 or 0.6)
       moveClock(plan.to, job)
       lastHour = hour()
-      switching = false
-      job.sleep(0.3)
-      guihooks.trigger('slFade', { on = false })
+      if scene then
+        sl_scenes.hold(job, math.max(0, scene - 0.5 - 0.7))      -- (the fade in and the clock jump are already part of the hold)
+        sl_scenes.finish()
+        job.sleep(0.4)
+        switching = false
+      else
+        switching = false
+        job.sleep(0.3)
+        guihooks.trigger('slFade', { on = false })
+      end
     end)
   else
     setHour(plan.to)
