@@ -3289,7 +3289,7 @@ do
   local Opt = require('sl/options')
   local defs = {}
   for _, d in ipairs(Opt.defs) do defs[d.key] = d end
-  local okDefs = #F.LIST == 23
+  local okDefs = #F.LIST == 24
   for _, f in ipairs(F.LIST) do
     local d = defs[f.opt]
     if not (d and d.type == 'bool' and d.default == true and d.feature == true and d.title == f.title and f.desc ~= '') then okDefs = false end
@@ -3681,6 +3681,19 @@ do
   _G.jsonReadFile, _G.jsonWriteFile, _G.FS = svo.r, svo.w, svo.fs
   package.loaded['sl/options'] = nil
 
+end
+
+-- cinematic moments (sl/core/scenes): what the UI is told, the reduced-motion hold, the skip guard
+do
+  local sc = require('sl/core/scenes')
+  local strings = require('sl/core/strings')
+  local n = sc.spec('night', { day = 4 }, false, strings.t)
+  check('scenes: the night scene has its title, its day in the subtitle, the full hold and the fades', n.kind == 'night' and n.title == 'Night' and n.subtitle == 'Day 4: the street is awake' and n.hold == 3.4 and n.fadeIn == 0.5 and n.fadeOut == 0.6 and n.reduce == false)
+  local d = sc.spec('day', { day = 5 }, true, strings.t)
+  check('scenes: reduce motion shortens the hold and is passed on to the UI', d.kind == 'day' and d.hold == 1.2 and d.reduce == true and d.subtitle == 'Day 5 begins')
+  check('scenes: an unknown kind has no scene, a missing day is day 1', sc.spec('nope', {}, false, strings.t) == nil and sc.spec('day', nil, false, strings.t).day == 1)
+  check('scenes: a scene cannot be skipped in its first moments, then it can', not sc.canSkip(0) and not sc.canSkip(0.39) and sc.canSkip(0.4) and sc.canSkip(2))
+  check('scenes: every kind has its texts in the table', (function() for _, k in pairs(sc.KINDS) do if strings.TEXT[k.title] == nil or strings.TEXT[k.sub] == nil then return false end end return true end)())
 end
 
 print(string.format('lua tests passed: %d checks', passed))

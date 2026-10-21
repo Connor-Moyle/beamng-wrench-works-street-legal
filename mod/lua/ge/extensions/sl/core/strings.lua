@@ -8,6 +8,9 @@ local M = {}
 
 M.TEXT = {
   -- the phone's apps and pages
+  ['scenes.night'] = 'Night', ['scenes.night_sub'] = 'Day {1}: the street is awake', ['scenes.day'] = 'Morning', ['scenes.day_sub'] = 'Day {1} begins', ['scenes.skip'] = 'Press any key to skip',
+  ['settings.reduceMotion'] = 'Reduce motion', ['settings.reduceMotionDesc'] = 'Cinematic moments (the start of the night and of the day) show a still title card instead of the moving sky and city. Shorter, and nothing flies across the screen.',
+  ['options.cinematic_moments'] = 'Cinematic moments', ['options.cinematic_moments_text'] = 'A short full-screen scene when the night starts or the day starts (the sky, the city lights, a title card); any key skips it. Off: the plain fade to black.',
   ['app.races'] = 'Races', ['app.garage'] = 'My cars', ['app.garagekit'] = 'Garage', ['app.bank'] = 'Bank', ['app.me'] = 'Street cred', ['app.jobs'] = 'Jobs', ['app.wait'] = 'Wait',
   ['app.settings'] = 'Settings', ['app.help'] = 'Help', ['app.club'] = 'Club', ['app.turf'] = 'Turf', ['app.carmarket'] = 'Car market',
   ['app.partmarket'] = 'Part market', ['app.phone'] = 'Phone', ['app.messages'] = 'Messages', ['app.contacts'] = 'Contacts', ['app.cab'] = 'Cab',
