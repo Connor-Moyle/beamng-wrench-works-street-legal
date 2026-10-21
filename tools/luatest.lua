@@ -3308,12 +3308,14 @@ do
   local Opt = require('sl/options')
   local defs = {}
   for _, d in ipairs(Opt.defs) do defs[d.key] = d end
-  local okDefs = #F.LIST == 23
+  local okDefs = #F.LIST == 24
+  local offByDefault = 0
   for _, f in ipairs(F.LIST) do
     local d = defs[f.opt]
-    if not (d and d.type == 'bool' and d.default == true and d.feature == true and d.title == f.title and f.desc ~= '') then okDefs = false end
+    if not (d and d.type == 'bool' and d.default == (f.default ~= false) and d.feature == true and d.title == f.title and f.desc ~= '') then okDefs = false end
+    if f.default == false then offByDefault = offByDefault + 1 end
   end
-  check('parts: every part has an option, one bool, on by default, tagged for the Active features page', okDefs)
+  check('parts: every part has an option, one bool, on by default unless the part says off (needs), tagged for the Active features page', okDefs and offByDefault == 1 and F.get('needs').default == false)
   local off = { slJobs = false }
   local function get(k) return off[k] end
   check('parts: on unless the option is false; a missing option system is on', F.on('jobs', get) == false and F.on('races', get) == true and F.on('jobs', function() return nil end) == true and F.on('nope', get) == true)
@@ -3733,6 +3735,69 @@ do
   _G.jsonReadFile, _G.jsonWriteFile, _G.FS = svo.r, svo.w, svo.fs
   package.loaded['sl/options'] = nil
 
+end
+
+-- needs (sl/core/needs): the meters drain per awake hour, stages and texts, effects capped, food and sleep put them back
+do
+  local N = require('sl/core/needs')
+  local n = N.newState()
+  check('needs: a new state is full', n.food == 100 and n.water == 100 and n.rest == 100)
+  N.tick(n, 12, {}, 1)
+  check('needs: a 12 hour day: food 28, water 0, rest 40', n.food == 28 and n.water == 0 and n.rest == 40, n.food .. ',' .. n.water .. ',' .. n.rest)
+  local m = N.newState()
+  N.tick(m, 1, { busy = true, hot = true, nightHeat = true }, 1)
+  check('needs: racing, heat and a hot day drain faster', math.abs(m.food - 92.2) < 1e-6 and math.abs(m.water - 83.5) < 1e-6 and math.abs(m.rest - 93.5) < 1e-6)
+  local half = N.newState()
+  N.tick(half, 1, {}, 0.5)
+  check('needs: the drain setting scales it', half.food == 97 and half.water == 94.5)
+  check('needs: stages by value', N.stage(40) == 'ok' and N.stage(39.9) == 'nudge' and N.stage(20) == 'nudge' and N.stage(19) == 'handicap' and N.stage(8) == 'handicap' and N.stage(7) == 'problem')
+  check('needs: words', N.word('food', 100) == 'fed' and N.word('water', 10) == 'parched' and N.word('rest', 0) == 'exhausted')
+  local t = N.newState()
+  check('needs: no nudge while fine', N.nudge(t) == nil)
+  t.water = 30
+  check('needs: the first nudge says it once', N.nudge(t) == N.TEXTS.water.nudge and N.nudge(t) == nil)
+  t.water = 10
+  check('needs: a worse stage says its text', N.nudge(t) == N.TEXTS.water.handicap)
+  t.water = 90 N.nudge(t) t.water = 30
+  check('needs: back over the line and under again: said again', N.nudge(t) == N.TEXTS.water.nudge)
+  local e = N.effects({ food = 100, water = 100, rest = 100 }, {})
+  check('needs: full: no effects', e.blur == 0 and e.lag == 0 and e.tremor == 0 and not e.sleepy)
+  e = N.effects({ food = 30, water = 30, rest = 30 }, {})
+  check('needs: a nudge is text only', e.blur == 0 and e.lag == 0 and e.tremor == 0)
+  e = N.effects({ food = 100, water = 100, rest = 19 }, {})
+  check('needs: tired just under 20: about 60 ms lag and a light blur', e.lag > 0.06 and e.lag < 0.07 and math.abs(e.blur - 0.15) < 1e-6, e.lag)
+  e = N.effects({ food = 100, water = 100, rest = 8 }, {})
+  check('needs: tired at 8: 120 ms', math.abs(e.lag - 0.12) < 1e-6)
+  e = N.effects({ food = 0, water = 0, rest = 0 }, { night = true })
+  check('needs: the worst is capped and never more', e.blur == N.CAP.blur and e.lag == N.CAP.lag and e.tremor == 0.5 and e.sleepy)
+  e = N.effects({ food = 0, water = 0, rest = 0 }, { strength = 0.5, night = false })
+  check('needs: strength halves it, sleepy only at night', math.abs(e.lag - 0.06) < 1e-6 and e.tremor == 0.25 and not e.sleepy)
+  e = N.effects({ food = 0, water = 0, rest = 0 }, { blur = false, lag = false, tremor = false, night = true })
+  check('needs: every effect has its switch', e.blur == 0 and e.lag == 0 and e.tremor == 0 and not e.sleepy)
+  local f = { food = 10, water = 10, rest = 10, fedHours = 0, told = {} }
+  local ok, price, text = N.eat(f, 'meal')
+  check('needs: a meal costs 12 and feeds', ok and price == 12 and f.food == 70 and f.water == 30 and text:find('Meal'))
+  check('needs: an unknown item is refused', N.eat(f, 'cake') == false)
+  N.eat(f, 'drink') N.eat(f, 'drink') N.eat(f, 'drink')
+  check('needs: a meter never goes over 100', f.water == 100)
+  check('needs: sleep per hour by where, capped', N.sleep({ rest = 10 }, 3, 'couch') == 54 and N.sleep({ rest = 10 }, 3, 'bed') == 81 and N.sleep({ rest = 10 }, 3, 'car') == 27 and N.sleep({ rest = 95 }, 3, 'bed') == 5)
+  local w = N.newState()
+  N.tick(w, 1.9, {}, 1)
+  check('needs: well fed takes two hours over 70', not N.wellFed(w) and N.tipBonus(w) == 0)
+  N.tick(w, 0.2, {}, 1)
+  check('needs: well fed after two hours', N.wellFed(w) and N.tipBonus(w) == N.TIP_BONUS)
+  w.water = 60 N.tick(w, 0.1, {}, 1)
+  check('needs: a meter under 70 ends it', not N.wellFed(w))
+  local r = N.repair({ food = 'x', water = 150, rest = -5 })
+  check('needs: an odd save is repaired', r.food == 100 and r.water == 100 and r.rest == 0 and type(r.told) == 'table')
+  local s = N.summary(r)
+  check('needs: the summary carries the meters, words and items', #s.meters == 3 and s.meters[3].word == 'exhausted' and #s.items == 4 and s.items[4].price == 12)
+  local F = require('sl_needsfilter')
+  local c = F.lagStep(0, 1, 0.12, 0.12)
+  check('needs filter: one time constant covers 63 percent', math.abs(c - 0.632) < 0.01 and F.lagStep(0, 1, 0.1, 0) == 1 and F.lagStep(0.5, 1, 0, 0.1) == 1)
+  local big = 0
+  for i = 0, 200 do big = math.max(big, math.abs(F.tremor(i * 0.01, 1))) end
+  check('needs filter: the tremor stays within 3 percent of the steering', big <= F.TREMOR_DEG + 1e-9 and big > 0.02 and F.tremor(1, 0) == 0)
 end
 
 print(string.format('lua tests passed: %d checks', passed))

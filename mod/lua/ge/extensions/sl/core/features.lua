@@ -29,6 +29,7 @@ M.LIST = {
   { id = 'service', opt = 'slService', title = 'Servicing and wear', desc = 'Cars wear much faster, a service is due about every 150 km, and skipping it wears the car more. A basic service and an overhaul are bought on the phone. Off: wear stays as slow as it was and there is no service.' },
   { id = 'weekly', opt = 'slWeekly', title = 'Weekly costs', desc = 'Each week the garage rent and the storage of the cars beyond two are paid, with a ledger on the phone. What you cannot pay becomes a debt at the bank (never a repossession). Off: no weekly bills.' },
   { id = 'jobs', opt = 'slJobs', title = 'Jobs', desc = 'Courier and workshop jobs, their markers and the Jobs app. Off: no jobs.' },
+  { id = 'needs', opt = 'slNeeds', default = false, title = 'Needs: hunger, thirst and sleep', desc = 'Three meters drain while you are awake. Low: a nudge on the phone, then a blur, slower reactions or shaky hands, never a game over. Food and drink at fuel stations, sleep when the day starts or a nap at the garage. Off (the default): nothing ticks and nothing shows.' },
 }
 local byId = {}
 for _, f in ipairs(M.LIST) do byId[f.id] = f end
