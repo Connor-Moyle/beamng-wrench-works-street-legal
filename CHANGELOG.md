@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.6.0 (unreleased)
+## 0.6.0 (needs Wrench Works 1.8.3)
 
 ### New
 - **Parts of the game you can switch off** (Mods > Street Legal > Parts of the game, and the Active features page; all on by default): spectators, sponsor billboards, ambient sounds, puddles and splashes, achievements, getting-started tips, car and part markets (classifieds and auctions), rally stages, street races and drag racing, clubs, crews and turf, the tow truck, the taxi ride, and jobs. A part that is off does nothing and loses its phone app; switched on again it carries on from your save (nothing is deleted). Six more core parts have a switch too: the bank (cannot be switched off while a loan is open: "Pay back the loan first"), the hospital (off: injuries cost and stop nothing; hardcore death needs it on), the HUD phone pill, the laptops, Maps and garage upgrades (off: the garage has every tool). The phone itself has no off switch. The bank switch is global: a loan open in another career is frozen (no interest, no payments) while the bank is off. A hardcore career cannot switch the hospital off. When the clubs come back on, a season that was not simulated while they were off is closed with no reward and a new one starts. Off for the tow truck: a car left out is brought round without a truck; off for the taxi: the Cab app still takes you there, at once.
@@ -11,6 +11,7 @@
 
 ### Changes
 - **Wet roads and walls** now change one material at a time instead of several, so getting wet takes longer (about a minute and a half in a sudden downpour). This is a crash-prevention change for BeamNG 0.40.
+- **Wet world and ground hollows:** the wet world takes turns with Car Surface FX's ground hollows (tested at Low graphics).
 - **Wet tarmac:** off by default (as in 0.5.2). It waits for puddles (a 60-second hold); with it, in one heavy-rain test with wet tarmac on, it no longer crashed. It may still crash some cards.
 
 ### Known issue
