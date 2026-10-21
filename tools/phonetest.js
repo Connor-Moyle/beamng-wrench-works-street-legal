@@ -964,6 +964,33 @@ assert.ok(calls.includes('routeGarage()'), 'Route to my garage on the home scree
   assert.ok(!phone.root.querySelector('[data-a="open"][data-v="traps"]'), 'the part off: no app');
   phone.handle('slPhoneData', data);
 }
+{
+  // brand sponsorships (sl_sponsor.summary()): the offer with Accept / Decline, the deal with its terms and strikes, the standing bars; nothing with the part off or no data
+  const sponsors = { current: { brand: 'ironline', name: 'Ironline Racing', kind: 'maker', since: 30, retainer: 300, discount: 0.1, terms: { wins: 2, car: true }, weekWins: 1, carRaces: 3, strikes: 1, daysToReview: 4 },
+    offer: { brand: 'revline', name: 'Revline Parts', retainer: 450, discount: 0.15, terms: { wins: 2 }, expiresIn: 2 },
+    standing: [{ brand: 'ironline', name: 'Ironline Racing', kind: 'maker', standing: 72, nextAt: 100 }, { brand: 'revline', name: 'Revline Parts', kind: 'aftermarket', standing: 40, nextAt: 100 }] };
+  phone.handle('slPhoneData', Object.assign({}, data, { sponsors }));
+  phone.act('home');
+  assert.strictEqual(phone.root.querySelector('[data-a="open"][data-v="sponsors"] .slp-badge').textContent, '1', 'the Sponsors app shows a badge for an offer');
+  phone.act('open', 'sponsors');
+  let tx = text();
+  assert.ok(tx.includes('Offer: Revline Parts') && tx.includes('$450 a week') && tx.includes('15 %') && tx.includes('Win 2 races a week') && tx.includes('Expires in 2 d'), 'the offer: ' + tx.slice(0, 300));
+  assert.ok(phone.root.querySelector('[data-a="spnaccept"]') && phone.root.querySelector('[data-a="spndecline"]'), 'Accept and Decline');
+  assert.ok(tx.includes('Ironline Racing') && tx.includes('Maker') && tx.includes('$300 a week') && tx.includes('10 %') && tx.includes('Win 2 races a week (1 of 2)') && tx.includes('Race in a car with their parts (3)'), 'the deal with this week\u2019s progress');
+  assert.ok(tx.includes('\u26A0 1 / 2') && tx.includes('Review in 4 d'), 'strikes with a mark, and the review');
+  assert.ok(tx.includes('72 / 100') && tx.includes('40 / 100') && tx.includes('Brands that know you'), 'the standing list');
+  calls.length = 0;
+  click('spnaccept', '1'); click('spndecline', '1'); click('spnquit', '1');
+  assert.ok(calls.includes('sponsorAccept()') && calls.includes('sponsorDecline()') && calls.includes('sponsorQuit()'), 'the three actions: ' + calls.join(' '));
+  phone.handle('slPhoneData', Object.assign({}, data, { sponsors: { current: null, offer: null, standing: [] } }));
+  assert.ok(text().includes('No sponsor yet'), 'no deal, no offer: it says so');
+  phone.act('home');
+  assert.ok(!phone.root.querySelector('[data-a="open"][data-v="sponsors"] .slp-badge'), 'no badge without an offer');
+  phone.handle('slPhoneData', Object.assign({}, data, { sponsors, has: Object.assign({}, data.has, { sponsors: false }) }));
+  assert.ok(!phone.root.querySelector('[data-a="open"][data-v="sponsors"]'), 'the part off: no app');
+  phone.handle('slPhoneData', data);
+  assert.ok(!phone.root.querySelector('[data-a="open"][data-v="sponsors"]'), 'no data: no app');
+}
 console.log('phone test passed');
 
 // a page to look at: the phone in several states side by side
