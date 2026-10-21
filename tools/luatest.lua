@@ -4080,6 +4080,9 @@ do
   sent = {}
   H.onWrenchWorksGarageEntered('Belasco City Garage') H.onWrenchWorksGarageLeft()
   check('banners: the garage hooks of Wrench Works pick garage_in and garage_out', table.concat(sent, ',') == 'garage_in,garage_out', table.concat(sent, ','))
+  sent = {}
+  H.onStreetLegalCalendarReminder({ title = 'Utah Rally' }, 24) H.onStreetLegalCalendarReminder(nil, nil)
+  check('banners: the calendar reminder is a banner, with odd arguments too', sent[1] == 'reminder' and sent[2] == 'reminder' and require('sl/core/scenes').banner('reminder', { name = 'Utah Rally', level = 1 }, false, require('sl/core/strings').t).subtitle == 'Utah Rally in 1 h')
   check('banners: a hook with odd arguments does not throw', pcall(function() H.onStreetLegalBusted(nil, nil, nil) H.onStreetLegalCarAdded(nil) H.onStreetLegalGarageMoved() end))
   _G.guihooks = saved
   package.loaded['sl/scenes'] = nil

@@ -1017,6 +1017,67 @@ assert.ok(calls.includes('routeGarage()'), 'Route to my garage on the home scree
   phone.handle('slPhoneData', data);
   assert.ok(!phone.root.querySelector('[data-a="open"][data-v="sponsors"]'), 'no data: no app');
 }
+{
+  // the Calendar app (sl_calendar.summary(), tools/calendar_fixture.js is the contract): tabs, the agenda with its cards, the week strip, the series, the event page and its actions
+  const fixture = require('./calendar_fixture.js');
+  phone.handle('slPhoneData', Object.assign({}, data, { calendar: fixture }));
+  phone.act('home');
+  assert.ok(phone.root.querySelector('[data-a="open"][data-v="calendar"]'), 'the Calendar app is on the home screen');
+  assert.strictEqual(phone.root.querySelector('[data-a="open"][data-v="calendar"] .slp-badge').textContent, '1', 'its badge is the open invitations');
+  phone.act('open', 'calendar');
+  let tx = text();
+  assert.ok(tx.includes('Agenda') && tx.includes('Week') && tx.includes('Series'), 'three tabs');
+  assert.ok(tx.includes('Benny') && tx.includes('Bring a car for gravel') && tx.includes('Expires in 2 d'), 'the invitation on top');
+  assert.ok(tx.indexOf('Johnson Valley off-road, round 2') < tx.indexOf('Dockyards night heat') && tx.indexOf('Dockyards night heat') < tx.indexOf('NGRC Utah Rally: SS1 River'), 'events in day order');
+  assert.ok(tx.includes('Tomorrow 15:00') && tx.includes('Dockyards 3-lap sprint'), 'when: Tomorrow with the time: ' + tx.slice(0, 500));
+  assert.ok(/Sun, day 42 08:00/.test(tx) || /Sat, day 42 08:00/.test(tx) || /day 42 08:00/.test(tx), 'a weekday and the day number: ' + tx.slice(0, 500));
+  assert.ok(tx.includes('Travel to Utah: $800 and 6 h') && tx.includes('round 1 of 4') && tx.includes('Purse by place, up to $3,000') && tx.includes('$800'), 'travel, round, reward as text and as money');
+  assert.ok(tx.includes('A gravel or rally car') && tx.includes('\u26A0'), 'an unmet requirement is marked');
+  assert.ok(tx.includes('Entered') && tx.includes('Done') && tx.includes('Missed'), 'status words');
+  click('caltab', 'week');
+  assert.strictEqual(phone.root.querySelectorAll('[data-a="calday"]').length, 7, 'seven days');
+  click('calday', '41');
+  tx = text();
+  assert.ok(tx.includes('Dockyards 3-lap sprint') && tx.includes('Swap meet') && !tx.includes('NGRC Utah Rally: SS1 River') && tx.includes('Show all days'), 'a day shows its events only');
+  click('calday', '');
+  assert.ok(text().includes('NGRC Utah Rally: SS1 River'), 'all days again');
+  click('caltab', 'series');
+  tx = text();
+  assert.ok(tx.includes('Johnson Valley off-road') && tx.includes('2 / 5') && tx.includes('17') && tx.includes('Next round: day 44'), 'the series card');
+  click('caltab', 'agenda');
+  click('calopen', 'utah-rally:3:r1');
+  tx = text();
+  assert.ok(tx.includes('NGRC Utah Rally: SS1 River') && phone.root.querySelector('[data-a="caltravel"][data-v="utah-rally:3:r1"]') && tx.includes('Go there') && tx.includes('You cannot enter yet'), 'a travel event offers Go there, refused while the requirement is unmet, with the reason');
+  assert.ok(phone.root.querySelector('.slp-btn.slp-off[data-a="caltravel"]'), 'the Go there button is dimmed');
+  calls.length = 0;
+  click('calremind', 'utah-rally:3:r1|false');
+  assert.ok(calls.some((c) => c.indexOf('calendarRemind("utah-rally:3:r1",false)') >= 0), 'Reminder: on turns it off: ' + calls.join(' '));
+  click('caldecline', 'utah-rally:3:r1');
+  assert.ok(calls.some((c) => c.indexOf('calendarDecline("utah-rally:3:r1")') >= 0), 'Decline asks the game');
+  phone.handle('slPhoneData', Object.assign({}, data, { calendar: Object.assign({}, fixture, { events: fixture.events.map((e) => (e.id === 'utah-rally:3:r1' ? Object.assign({}, e, { requires: { label: 'A gravel or rally car', met: true } }) : e)) }) }));
+  click('calopen', 'utah-rally:3:r1');
+  calls.length = 0;
+  click('caltravel', 'utah-rally:3:r1');
+  assert.ok(calls.some((c) => c.indexOf('calendarTravel("utah-rally:3:r1")') >= 0), 'with the requirement met, Go there asks the game to travel');
+  click('back');
+  click('calopen', 'weekend:dock-3:5');
+  assert.ok(phone.root.querySelector('[data-a="calenter"][data-v="weekend:dock-3:5"]'), 'a home event is entered directly');
+  calls.length = 0;
+  click('calenter', 'weekend:dock-3:5');
+  assert.ok(calls.some((c) => c.indexOf('calendarEnter("weekend:dock-3:5")') >= 0), 'Enter asks the game');
+  click('back');
+  assert.ok(text().includes('Dockyards night heat'), 'back to the agenda');
+  phone.act('home');
+  phone.handle('slPhoneData', Object.assign({}, data, { calendar: fixture, has: Object.assign({}, data.has, { calendar: false }) }));
+  assert.ok(!phone.root.querySelector('[data-a="open"][data-v="calendar"]'), 'the part off: no app');
+  phone.handle('slPhoneData', Object.assign({}, data, { calendar: { today: fixture.today, events: [], series: [], invites: [] } }));
+  phone.act('open', 'calendar');
+  assert.ok(text().includes('Nothing planned.'), 'an empty calendar says so');
+  click('caltab', 'series');
+  assert.ok(text().includes('No series running'), 'no series says so');
+  phone.act('home');
+  phone.handle('slPhoneData', data);
+}
 console.log('phone test passed');
 
 // a page to look at: the phone in several states side by side

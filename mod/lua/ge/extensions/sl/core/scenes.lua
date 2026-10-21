@@ -21,6 +21,7 @@ M.BANNERS = {
   tier = { hold = 3.0, title = 'scenes.tier', sub = 'scenes.tier_sub', tone = 'good', cues = { { at = 0, event = 'event:>UI>Career>EndScreen_Receive_XP' } } },
   garage_in = { hold = 1.6, title = 'scenes.garage_in', sub = 'scenes.garage_sub', tone = 'plain', cues = {} },
   garage_out = { hold = 1.4, title = 'scenes.garage_out', sub = 'scenes.garage_out_sub', tone = 'plain', cues = {} },
+  reminder = { hold = 3.0, title = 'scenes.reminder', sub = 'scenes.reminder_sub', tone = 'warn', cues = { { at = 0, event = 'event:>UI>Missions>Info_Open' } } },
   count = { hold = 0.9, title = 'scenes.count', tone = 'warn', cues = { { at = 0, event = 'event:>UI>Main>Click_Tonal_01' } } },
   go = { hold = 1.0, title = 'scenes.go', tone = 'good', cues = { { at = 0, event = 'event:>UI>Missions>Checkpoint' } } },
 }
