@@ -3308,7 +3308,7 @@ do
   local Opt = require('sl/options')
   local defs = {}
   for _, d in ipairs(Opt.defs) do defs[d.key] = d end
-  local okDefs = #F.LIST == 25
+  local okDefs = #F.LIST == 26
   for _, f in ipairs(F.LIST) do
     local d = defs[f.opt]
     if not (d and d.type == 'bool' and d.default == true and d.feature == true and d.title == f.title and f.desc ~= '') then okDefs = false end
@@ -3827,6 +3827,104 @@ do
     package.loaded['sl/perks'], package.loaded['sl/bank'] = nil, nil
     return ok
   end)())
+end
+
+-- speed traps and zones (campaign idea #1)
+do
+  local TR = require('sl/core/traps')
+  local rngLib = require('sl/core/rng')
+  -- a map of straight roads: 30 links of 400 m in a grid of lines 1000 m apart, plus short ones and a hidden one
+  local nodes = {}
+  for i = 1, 30 do
+    nodes['a' .. i] = { pos = { x = 0, y = i * 1000, z = 0 }, links = { ['b' .. i] = { drivability = 1, speedLimit = 25 } } }
+    nodes['b' .. i] = { pos = { x = 400, y = i * 1000, z = 5 }, links = { ['a' .. i] = { drivability = 1, speedLimit = 25 } } }
+  end
+  nodes.s1 = { pos = { x = 9000, y = 0, z = 0 }, links = { s2 = { drivability = 1, speedLimit = 25 } } }
+  nodes.s2 = { pos = { x = 9100, y = 0, z = 0 }, links = { s1 = { drivability = 1, speedLimit = 25 } } }
+  nodes.h1 = { pos = { x = 7000, y = 0, z = 0 }, links = { h2 = { drivability = 1, speedLimit = 25, hiddenInNavi = true } } }
+  nodes.h2 = { pos = { x = 7400, y = 0, z = 0 }, links = {} }
+  local list1 = TR.select(nodes, rngLib.new(7))
+  local list2 = TR.select(nodes, rngLib.new(7))
+  local nTrap, nZone, ok = 0, 0, true
+  for _, t in ipairs(list1) do if t.kind == 'trap' then nTrap = nTrap + 1 else nZone = nZone + 1 end end
+  for i = 1, #list1 do for j = i + 1, #list1 do if (list1[i].x - list1[j].x) ^ 2 + (list1[i].y - list1[j].y) ^ 2 < TR.APART ^ 2 then ok = false end end end
+  check('traps: six traps and two zones, spaced apart, from the long links only', nTrap == 6 and nZone == 2 and ok and #list1 == 8)
+  check('traps: the same map and seed give the same traps; another seed gives others', (function()
+    local same = true
+    for i = 1, #list1 do if list1[i].x ~= list2[i].x or list1[i].y ~= list2[i].y then same = false end end
+    local other = TR.select(nodes, rngLib.new(8))
+    local diff = false
+    for i = 1, #list1 do if other[i].y ~= list1[i].y then diff = true end end
+    return same and diff
+  end)())
+  local t1 = list1[#list1]
+  check('traps: a trap has one gate and a target in km/h; a zone has two gates inside its link', t1.kind == 'trap' and t1.g1 and not t1.g2 and t1.target >= 110 and list1[1].kind == 'zone' and list1[1].g2 and list1[1].len > 200)
+  local hidden = true
+  for _, t in ipairs(list1) do if t.y == 0 then hidden = false end end
+  check('traps: a short link and a hidden one never hold a trap', hidden)
+  local gate, d = { x = 100, y = 100 }, { dx = 1, dy = 0 }
+  check('traps: a car crossing the gate counts, one that passes beside or stops before it does not',
+    TR.crossed({ x = 95, y = 100 }, { x = 105, y = 100 }, gate, d) and TR.crossed({ x = 105, y = 103 }, { x = 95, y = 97 }, gate, d)
+    and not TR.crossed({ x = 90, y = 100 }, { x = 99, y = 100 }, gate, d) and not TR.crossed({ x = 95, y = 120 }, { x = 105, y = 120 }, gate, d))
+  local rec, info = TR.score(nil, { target = 150 }, 140.9)
+  check('traps: a score below the target is a best but pays nothing', rec.best == 140 and rec.count == 1 and not rec.paid and not info.first and info.best)
+  local rec2, info2 = TR.score(rec, { target = 150 }, 151)
+  local rec3, info3 = TR.score(rec2, { target = 150 }, 170)
+  check('traps: the target pays once, a later better run only records', info2.first and rec2.paid and not info3.first and info3.best and rec3.best == 170 and rec3.count == 3)
+
+  -- the extension: a car driven through a trap and a zone
+  local ST = require('sl/core/state')
+  local st = ST.new(1, 0)
+  st.seed = 3
+  local old = { c = rawget(_G, 'sl_career'), e = rawget(_G, 'extensions'), g = rawget(_G, 'guihooks'), pv = rawget(_G, 'getPlayerVehicle'), map = rawget(_G, 'map'), lv = rawget(_G, 'getCurrentLevelIdentifier'), um = rawget(_G, 'ui_message') }
+  local paid, toasts = 0, {}
+  _G.guihooks = { trigger = function(_, d) toasts[#toasts + 1] = d and d.text end }
+  _G.ui_message = nil
+  _G.extensions = { hook = function() end }
+  _G.map = { getMap = function() return { nodes = nodes } end }
+  _G.getCurrentLevelIdentifier = function() return 'test_level' end
+  _G.sl_career = { isActive = function() return true end, getState = function() return st end, payOut = function(a) paid = paid + a return ST.addMoney(st, a, 'x') end }
+  local pos, vel = { x = 0, y = 0, z = 0 }, 0
+  _G.getPlayerVehicle = function() return { getPosition = function() return { x = pos.x, y = pos.y, z = 0 } end, getVelocity = function() return { length = function() return vel end } end } end
+  package.loaded['sl/traps'] = nil
+  local TX = require('sl/traps')
+  TX.onUpdate(0.2)
+  local sm = TX.summary()
+  check('traps: the career gets its list in the save, on first sight', sm and #sm.list == 8 and st.traps.level == 'test_level' and #st.traps.list == 8)
+  local trap
+  for _, t in ipairs(st.traps.list) do if t.kind == 'trap' then trap = t break end end
+  local function drive(from, to, speed)
+    pos = { x = from.x + 500, y = from.y + 500 } TX.onUpdate(0.2)         -- (away first: the jump forgets the last place)
+    pos = from vel = speed TX.onUpdate(0.2)
+    pos = to TX.onUpdate(0.2)
+  end
+  local offs = trap.dx * 10
+  drive({ x = trap.x - trap.dx * 6, y = trap.y - trap.dy * 6 }, { x = trap.x + trap.dx * 6, y = trap.y + trap.dy * 6 }, 200 / 3.6)
+  check('traps: driving through a trap at 200 km/h records it and pays the target once', st.traps.rec[trap.id] and st.traps.rec[trap.id].best == 200 and paid == 250 and st.rep >= 5)
+  local before = paid
+  drive({ x = trap.x - trap.dx * 6, y = trap.y - trap.dy * 6 }, { x = trap.x + trap.dx * 6, y = trap.y + trap.dy * 6 }, 210 / 3.6)
+  check('traps: the second run only records', st.traps.rec[trap.id].best == 210 and paid == before and st.traps.rec[trap.id].count == 2)
+  pos = { x = 0, y = 0 }
+  TX.onUpdate(0.2)
+  drive({ x = trap.x + 5000, y = trap.y }, { x = trap.x - 5000, y = trap.y }, 300 / 3.6)
+  check('traps: a jump of more than 80 m between samples (a teleport) counts as no crossing', st.traps.rec[trap.id].count == 2)
+  do -- a zone: the average speed between its two gates
+    local zone
+    for _, t in ipairs(st.traps.list) do if t.kind == 'zone' then zone = t break end end
+    local realClock, clk = os.clock, 100
+    os.clock = function() return clk end
+    local function at(g, sp, dt) clk = clk + dt local p0 = { x = g.x - zone.dx * 6, y = g.y - zone.dy * 6 } pos = { x = p0.x + 500, y = p0.y + 500 } TX.onUpdate(0.2) pos = p0 vel = sp TX.onUpdate(0.2) pos = { x = g.x + zone.dx * 6, y = g.y + zone.dy * 6 } TX.onUpdate(0.2) end
+    local length = zone.len
+    at(zone.g1, 30, 0.5)
+    at(zone.g2, 30, length / (160 / 3.6))
+    local r = st.traps.rec[zone.id]
+    check('traps: a zone records the average speed from the first gate to the second (160 km/h) and pays at the target', r and r.best == 159 or r and r.best == 160)
+    at(zone.g2, 30, 1)
+    check('traps: the second gate alone, with no first gate, records nothing', st.traps.rec[zone.id].count == 1)
+    os.clock = realClock
+  end
+  _G.sl_career, _G.extensions, _G.guihooks, _G.getPlayerVehicle, _G.map, _G.getCurrentLevelIdentifier, _G.ui_message = old.c, old.e, old.g, old.pv, old.map, old.lv, old.um
+  package.loaded['sl/traps'] = nil
 end
 
 print(string.format('lua tests passed: %d checks', passed))
