@@ -457,19 +457,21 @@ return function(check, rngLib)
     end
     files[BB.ORIGINAL] = { w = 8, h = 4, px = { ['0,0'] = 7 } }
     for n = 1, 5 do files[pl.tiles[n]] = { w = 2, h = 1, px = { ['0,0'] = 10 * n, ['1,0'] = 10 * n + 1 } } end
-    local step = BB.composer(bitmap, function() return {} end, BB.ORIGINAL, pl, 3)
+    local tick, prepared = 0, {}
+    local opts = { budget = 3, every = 1, clock = function() tick = tick + 1 return tick end, prepare = function(f) prepared[#prepared + 1] = f end }
+    local step = BB.composer(bitmap, function() return {} end, BB.ORIGINAL, pl, opts)
     local frames, done, ok = 0, false, nil
     while not done do done, ok = step() frames = frames + 1 if frames > 50 then break end end
     local out = saved[pl.out]
     check('billboards overlay: the tiles are drawn into the atlas at their places (column, row) and the rest is left alone',
       done and ok and out and out.px['0,0'] == 7 and out.px['3,0'] == nil and out.px['6,3'] == 10 and out.px['7,3'] == 11 and out.px['0,3'] == 20 and out.px['2,3'] == 30 and out.px['4,3'] == 40 and out.px['4,0'] == 50)
-    check('billboards overlay: the work is spread over frames (3 pixels a frame for 5 tiles of 2)', frames == 4)
+    check('billboards overlay: the work is spread over frames by the time budget, and the folder is prepared before the save', frames > 1 and frames < 12 and #prepared == 1 and prepared[1] == pl.out)
     files[pl.tiles[2]] = nil
-    local s2 = BB.composer(bitmap, function() return {} end, BB.ORIGINAL, pl, 3)
+    local s2 = BB.composer(bitmap, function() return {} end, BB.ORIGINAL, pl, opts)
     local d2, ok2, why2 = false, nil, nil
     while not d2 do d2, ok2, why2 = s2() end
     check('billboards overlay: a missing tile ends the work with a reason and nothing saved', ok2 == false and tostring(why2):find('no tile') and true)
-    check('billboards overlay: no readable atlas, no composer', BB.composer(bitmap, function() return {} end, '/nowhere.png', pl, 3) == nil)
+    check('billboards overlay: no readable atlas, no composer', BB.composer(bitmap, function() return {} end, '/nowhere.png', pl, opts) == nil)
   end
 
   -- #24: rally stages

@@ -45,7 +45,8 @@ local function sync()
   if name and not plan then log('W', 'sl_billboards', 'no atlas ' .. tostring(rules.file(name))) return end
   if plan and plan.kind == 'tiles' then
     -- overlay mode: no atlas in the mod, so the game's own is drawn on with our five ads (a few frames' work)
-    local ok, step, why = pcall(rules.composer, function() return GBitmap() end, function() return ColorI(0, 0, 0, 255) end, original or rules.ORIGINAL, plan, 60000)
+    local ok, step, why = pcall(rules.composer, function() return GBitmap() end, function() return ColorI(0, 0, 0, 255) end, original or rules.ORIGINAL, plan,
+      { budget = 0.003, clock = os.clock, prepare = function() if FS.directoryCreate then FS:directoryCreate(rules.TEMP, true) end end })
     if not ok or not step then
       failed = failed or {}
       failed[name] = true

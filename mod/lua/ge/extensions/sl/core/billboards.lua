@@ -44,13 +44,15 @@ function M.plan(name, exists)
   return { kind = 'tiles', tiles = tiles, out = M.TEMP .. 'billboards_' .. M.SLUGS[name] .. '.png' }
 end
 
--- Draws the tiles of a plan into the game's atlas, perStep pixels at a time. newBitmap() makes a GBitmap, newColour() a ColorI. Returns a function to call
--- once a frame: it returns done, ok, why. nil, why when the atlas cannot be read.
-function M.composer(newBitmap, newColour, baseFile, plan, perStep)
+-- Draws the tiles of a plan into the game's atlas, a slice of opts.budget seconds (by opts.clock, os.clock in the game) a frame, the clock looked at every opts.every pixels.
+-- newBitmap() makes a GBitmap, newColour() a ColorI; opts.prepare(file) runs before the save (the game makes the /temp folder there). Returns a function to call once a frame:
+-- it returns done, ok, why. nil, why when the atlas cannot be read.
+function M.composer(newBitmap, newColour, baseFile, plan, opts)
+  local budget, clock, every = opts.budget or 0.003, opts.clock or os.clock, opts.every or 512
   local atlas = newBitmap()
   if atlas:loadFile(baseFile) == false then return nil, 'no atlas ' .. baseFile end
   local co = coroutine.create(function()
-    local col, n = newColour(), 0
+    local col, n, from = newColour(), 0, clock()
     for i, file in ipairs(plan.tiles) do
       local tile = newBitmap()
       if tile:loadFile(file) == false then error('no tile ' .. file, 0) end
@@ -62,10 +64,14 @@ function M.composer(newBitmap, newColour, baseFile, plan, perStep)
           tile:getColor(x, y, col)
           atlas:setColor(ox + x, oy + y, col)
           n = n + 1
-          if n >= perStep then n = 0 coroutine.yield() end
+          if n >= every then
+            n = 0
+            if clock() - from >= budget then coroutine.yield() from = clock() end
+          end
         end
       end
     end
+    if opts.prepare then opts.prepare(plan.out) end
     if atlas:saveFile(plan.out) == false then error('cannot save ' .. plan.out, 0) end
   end)
   return function()
