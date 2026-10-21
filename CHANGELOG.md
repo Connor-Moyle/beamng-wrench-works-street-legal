@@ -12,7 +12,7 @@
 ### Changes
 - **Wet roads and walls** now change one material at a time instead of several, so getting wet takes longer (about a minute and a half in a sudden downpour). It did not stop the High-graphics crash (see the known issue).
 - **Wet world and ground hollows:** the wet world takes turns with Car Surface FX's ground hollows (tested at Low graphics).
-- **Wet tarmac:** off by default (as in 0.5.2). It waits for puddles (a 60-second hold); with it, in one heavy-rain test with wet tarmac on, it no longer crashed. It may still crash some cards.
+- **Wet tarmac:** off by default (as in 0.5.2). It waits for puddles (a 60-second hold); with it, in one heavy-rain test at Low graphics with wet tarmac on, it no longer crashed. It may still crash some cards.
 
 ### Known issue
 - At High graphics a heavy-rain crash (the graphics driver stops) can still happen, also with the slower wet-road pace above; it was not seen at Low graphics. Workaround: turn "Wet roads and walls" off, or lower the graphics quality in heavy rain.
