@@ -1553,6 +1553,18 @@
       }).join('') + '</div>';
     }
 
+    function askOf(n) { return arr(st.menu && st.menu.slots).filter(function (c) { return c.slot === n && c.visit; })[0]; }
+    function lastSlot() { var l = arr(st.menu && st.menu.slots); return l.filter(function (c) { return c.last; })[0] || l[0]; }
+
+    // a career left on a trip (slotVisit: { name, round, rounds, verdict 'ask' }): go back to it, or go home and count the rest as missed
+    function visitAskHtml(c) {
+      var v = obj(c.visit);
+      return '<div class="slp-slot"><b>' + esc(c.name) + '</b><span>' + T('ui.visit_left', 'You left this career at {1}, round {2} of {3}.', esc(v.name || ''), Number(v.round) || 1, Number(v.rounds) || 1) + '</span>' +
+        '<div class="slp-btn slp-go" data-a="visitgo" data-v="' + c.slot + '|resume">' + T('ui.visit_back', 'Go back to {1} (round {2} of {3})', esc(v.name || ''), Number(v.round) || 1, Number(v.rounds) || 1) + '</div>' +
+        '<div class="slp-btn slp-tonal" data-a="visitgo" data-v="' + c.slot + '|home">' + T('ui.visit_home', 'Go home: the rest counts as missed') + '</div>' +
+        '<div class="slp-btn slp-text" data-a="visitgo" data-v="0|cancel">' + T('ui.back', 'Back') + '</div></div>';
+    }
+
     // the map a new career is on (W1): the installed ones as chips, the first picked unless the player picked another
     function installedMaps(m) { return arr(m && m.maps).filter(function (x) { return x.installed; }); }
     function newMapId() {
@@ -1573,12 +1585,14 @@
     function menuView() {
       var m = st.menu;
       if (!m || !m.show || !st.chooser) return '';
+      var askSlot = arr(m.slots).filter(function (c) { return c.slot === st.visitAsk && c.visit; })[0];
       var sl = !m.installed
         ? ('<div class="slp-chcard slp-chsl slp-off"><b>' + T('menuTile.wrench_works_street_legal', 'Wrench Works: Street Legal') + '</b><span>' + T('ui.needs_the_wrench_works_valo', 'Needs the West Coast USA map (west_coast_usa).') + '</span></div>')
         : ('<div class="slp-chcard slp-chsl"><b>' + T('menuTile.wrench_works_street_legal', 'Wrench Works: Street Legal') + '</b>') + (st.slrrArt ? slrrIcon(m.summary ? 'load_career_a.png' : 'new_career_a.png', 'slp-chimg') : '') + '<span>' + (m.summary ? T('ui.your_career_1', 'Your career: {1}', esc(m.summary)) : T('ui.no_car_5_000_and', 'No car, $5,000 and a name nobody knows. Junkyard wrecks, street racers, pink slips and the top garage.')) + '</span>' +
-          (m.summary ? ('<div class="slp-btn slp-go" data-a="menustart" data-v="continue">' + T('ui.continue', 'Continue') + '</div>') : '') +
-          slotsHtml(m) +
-          (arr(m.slots).length < (m.maxSlots || 6)
+          (askSlot ? visitAskHtml(askSlot) : '') +
+          (m.summary && !askSlot ? ('<div class="slp-btn slp-go" data-a="menustart" data-v="continue">' + T('ui.continue', 'Continue') + '</div>') : '') +
+          (askSlot ? '' : slotsHtml(m)) +
+          (askSlot ? '' : arr(m.slots).length < (m.maxSlots || 6)
             ? mapsHtml(m) + '<div class="slp-btn' + (m.summary ? ' slp-tonal' : ' slp-go') + ('" data-a="menustart" data-v="new">' + T('ui.new_career', 'New career') + '</div>') +
               ('<div class="slp-btn slp-tonal" data-a="menustart" data-v="newskip">' + T('ui.new_career_no_tutorial', 'New career, no tutorial') + '</div>')
             : ('<span>' + T('ui.every_career_slot_is_taken', 'Every career slot is taken: delete one to start another.') + '</span>')) + '</div>';
@@ -2034,7 +2048,14 @@
           st.gameOver = null; render();
           if (v === 'new') lua('@sl_menuTile.startFromMenu(true' + newMapArg() + ')'); else lua('@sl_menuTile.toMainMenu()');
           break;
-        case 'slotplay': lua('@sl_menuTile.startFromMenu(false,' + Number(v) + ')'); st.menu = null; st.chooser = false; render(); break;
+        case 'visitgo':
+          var vg = String(v).split('|');
+          if (vg[1] === 'cancel') { st.visitAsk = null; render(); break; }
+          lua('@sl_menuTile.startFromMenu(false,' + Number(vg[0]) + ',nil,' + JSON.stringify(vg[1]) + ')'); st.visitAsk = null; st.menu = null; st.chooser = false; render();
+          break;
+        case 'slotplay':
+          if (askOf(Number(v))) { st.visitAsk = Number(v); render(); break; }
+          lua('@sl_menuTile.startFromMenu(false,' + Number(v) + ')'); st.menu = null; st.chooser = false; render(); break;
         case 'slotname':
           var inp = root.querySelector('.slp-slotname[data-slot="' + Number(v) + '"]');
           if (inp) lua('@sl_menuTile.renameSlot(' + Number(v) + ',' + JSON.stringify(String(inp.value || '')) + ')');
@@ -2045,6 +2066,7 @@
           break;
         case 'newmap': st.newMap = v; render(); break;
         case 'menustart':
+          if (v === 'continue') { var lastC = lastSlot(); if (lastC && lastC.visit) { st.visitAsk = lastC.slot; render(); break; } }
           if (v === 'newskip') lua('@sl_tutorial.skipNextCareer()');
           lua('@sl_menuTile.startFromMenu(' + (v === 'new' || v === 'newskip' ? 'true' + newMapArg() : 'false') + ')');
           st.menu = null; st.chooser = false; render();

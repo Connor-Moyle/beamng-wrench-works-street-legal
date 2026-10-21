@@ -74,6 +74,32 @@ calls.length = 0;
 assert.ok(text().includes('Test') && text().includes('last played'), 'the careers are listed');
 click('menustart', 'new');
 assert.ok(calls.includes('@sl_menuTile.startFromMenu(true)'), 'a new career goes in a free slot, nothing is lost');
+// T4: a career left on a trip asks first (Continue and Play both): go back, or go home and count the rest as missed
+{
+  const visit = { level: 'west_coast_usa', name: 'West Coast USA', round: 2, rounds: 4, verdict: 'ask' };
+  const slotsV = { show: true, installed: true, summary: 'Day 4', maxSlots: 6, slots: [{ slot: 1, name: 'Career 1', summary: 'Day 4', last: true, visit }, { slot: 2, name: 'Test', summary: 'Day 1' }] };
+  phone.handle('slMenu', slotsV);
+  pressCareer();
+  calls.length = 0;
+  click('menustart', 'continue');
+  assert.ok(calls.length === 0, 'Continue on a visit starts nothing yet');
+  assert.ok(text().includes('round 2 of 4') && text().includes('Go back to West Coast USA (round 2 of 4)') && text().includes('Go home: the rest counts as missed'), 'the question: ' + text().slice(0, 300));
+  click('visitgo', '0|cancel');
+  assert.ok(!text().includes('Go home: the rest'), 'Back closes the question');
+  click('slotplay', '2');
+  assert.ok(calls.some((c) => c.indexOf('startFromMenu(false,2)') >= 0), 'a career without a visit plays straight away');
+  phone.handle('slMenu', slotsV);
+  pressCareer();
+  click('slotplay', '1');
+  assert.ok(text().includes('Go home: the rest'), 'Play on the career with a visit asks too');
+  click('visitgo', '1|home');
+  assert.ok(calls.includes('@sl_menuTile.startFromMenu(false,1,nil,"home")'), 'Go home: ' + calls.join(' '));
+  phone.handle('slMenu', slotsV);
+  pressCareer();
+  click('slotplay', '1');
+  click('visitgo', '1|resume');
+  assert.ok(calls.includes('@sl_menuTile.startFromMenu(false,1,nil,"resume")'), 'Go back');
+}
 // W1: with two maps installed the card offers both; the one picked goes with the new career
 const maps = [{ id: 'slrr_valo_city', name: 'Valo City', installed: true }, { id: 'west_coast_usa', name: 'West Coast USA', installed: true }];
 phone.handle('slMenu', { show: true, installed: true, maps, maxSlots: 6, slots: [] });
