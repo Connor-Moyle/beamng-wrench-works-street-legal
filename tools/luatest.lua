@@ -3586,4 +3586,46 @@ do
   package.loaded['sl/service'] = nil
 end
 
+-- review items 4-6 (ab, 2026-10-22): the race log is not rewritten on every line, the options file is never written over when it did not read, car commands guard their callbacks
+do
+  local sv = { w = rawget(_G, 'writeFile'), log = rawget(_G, 'log') }
+  local writes, t = 0, 0
+  _G.writeFile = function() writes = writes + 1 return true end
+  _G.log = _G.log or function() end
+  package.loaded['sl/racelog'] = nil
+  local RL = require('sl/racelog')
+  RL.clock = function() return t end
+  _G.FS = _G.FS or { fileExists = function() return false end }
+  RL.add('sprint', 'setup', {})
+  local first = writes
+  for i = 1, 50 do t = t + 0.01 RL.add('sprint', 'pos', { i = i }) end
+  check('racelog: the first line writes, fifty more inside a second write nothing', first == 1 and writes == 1)
+  t = t + 2 RL.add('sprint', 'pos', {})
+  check('racelog: a line after a second writes again', writes == 2)
+  RL.add('sprint', 'finish', {})
+  check('racelog: the end of an event writes at once', writes == 3)
+  RL.add('sprint', 'pos', {}) RL.flush() RL.flush()
+  check('racelog: flush writes what waits, once', writes == 4)
+  _G.writeFile, _G.log = sv.w, sv.log
+  package.loaded['sl/racelog'] = nil
+
+  local svo = { r = rawget(_G, 'jsonReadFile'), w = rawget(_G, 'jsonWriteFile'), fs = rawget(_G, 'FS') }
+  local nw, exists = 0, true
+  _G.jsonReadFile = function() return nil end
+  _G.jsonWriteFile = function() nw = nw + 1 return true end
+  _G.FS = { fileExists = function() return exists end }
+  package.loaded['sl/options'] = nil
+  local O = require('sl/options')
+  O.set('slPerf', O.get('slPerf'))
+  check('options: a file that is there but did not read is not written over by a changed setting', nw == 0 and O.get('slPerf') == O.get('slPerf'))
+  exists = false
+  package.loaded['sl/options'] = nil
+  O = require('sl/options')
+  O.set('slPerf', O.get('slPerf'))
+  check('options: a missing file is written on the first change', nw == 1)
+  _G.jsonReadFile, _G.jsonWriteFile, _G.FS = svo.r, svo.w, svo.fs
+  package.loaded['sl/options'] = nil
+
+end
+
 print(string.format('lua tests passed: %d checks', passed))

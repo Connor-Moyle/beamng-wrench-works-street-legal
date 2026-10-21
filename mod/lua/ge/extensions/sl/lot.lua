@@ -213,7 +213,7 @@ local hoods = {}              -- vehicle id -> { state = 'open' | 'closing', t }
 local HOOD_SHUT = 4           -- s from the shut command until the car is frozen again (the latch retries take up to this long)
 function M.onLatches(vid, names) latches[vid] = names end
 local function askLatches(veh)
-  veh:queueLuaCommand([[local n = {} for k, c in pairs(controller.getAllControllers and controller.getAllControllers() or {}) do if type(c) == 'table' and c.detachGroup and c.getGroupState then n[#n + 1] = "'" .. tostring(k):gsub("'", "") .. "'" end end obj:queueGameEngineLua('sl_lot.onLatches(' .. obj:getID() .. ',{' .. table.concat(n, ',') .. '})')]])
+  veh:queueLuaCommand([[local n = {} for k, c in pairs(controller.getAllControllers and controller.getAllControllers() or {}) do if type(c) == 'table' and c.detachGroup and c.getGroupState then n[#n + 1] = "'" .. tostring(k):gsub("'", "") .. "'" end end obj:queueGameEngineLua('if sl_lot then sl_lot.onLatches(' .. obj:getID() .. ',{' .. table.concat(n, ',') .. '}) end')]])
 end
 -- 'front' (a hood), 'rear' (an engine lid) or nil for a car whose lid we cannot open (or do not know yet)
 local function lidOf(vid)
