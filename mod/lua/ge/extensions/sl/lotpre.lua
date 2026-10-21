@@ -66,7 +66,10 @@ function M.onStreetLegalFade(kind, job, place)
   if not target then return end
   if store and rules.matches(store, target.id, s.day, sl_lot.offersFor(target, s)) then return end
   dropStore()
-  build(job, s, target)
+  -- (inside the fade's job: an error here must not reach the career's job nor leave `building` set, so the build runs under pcall and a failure drops the store)
+  local ok, err = pcall(build, job, s, target)
+  building = false
+  if not ok then log('E', 'street_legal', 'lot row ahead failed: ' .. tostring(err)) dropStore() end
 end
 
 -- the lot opens: its cars from the store, active again (index -> vid), or nil. A partial store gives what it has; the lot builds the rest.

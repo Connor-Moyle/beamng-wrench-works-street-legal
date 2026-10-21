@@ -4030,6 +4030,40 @@ do
   check('lotpre: nothing within reach: nothing', LP.pick(nil, places, { x = 5000, y = 0 }, 500) == nil and LP.pick(nil, places, nil, 500) == nil)
   check('lotpre: a lot given as the destination wins; another kind of place does not', LP.pick(places.far, places, { x = 0, y = 0 }, 500).id == 'far' and LP.pick(places.g, places, { x = 0, y = 0 }, 500).id == 'stock')
   check('lotpre: the count is capped by the setting and never below one', LP.cap(6, 4) == 4 and LP.cap(3, 4) == 3 and LP.cap(6, nil) == 6 and LP.cap(6, 'x') == 6 and LP.cap(2, 0) == 1)
+  -- the game side under the fade: a build that throws leaves nothing behind (the reviewer's case): building is false afterwards and the store is dropped
+  do
+    local old = { c = _G.sl_career, l = _G.sl_lot, o = _G.sl_options, pv = _G.getPlayerVehicle, id = _G.getObjectByID, lg = _G.log, v3 = _G.vec3, q = _G.quatFromDir, cb = package.loaded['sl/carBuilder'] }
+    local state = { day = 2 }
+    local lotPlace = { id = 'lot1', kind = 'dealer', pos = { x = 10, y = 0, z = 0 }, name = 'Lot' }
+    _G.sl_career = { isActive = function() return true end, getState = function() return state end, getPlaces = function() return { lot1 = lotPlace } end }
+    _G.sl_lot = { isOpen = function() return false end, offersFor = function() return { { id = 'o1' }, { id = 'o2' } } end,
+      spotsFor = function(_, n) local t = {} for i = 1, n do t[i] = { pos = { x = i, y = 0, z = 0 }, dir = { x = 0, y = 1, z = 0 } } end return t end }
+    _G.sl_options = { get = function() return nil end }
+    _G.getPlayerVehicle = function() return { getPosition = function() return { x = 0, y = 0, z = 0 } end } end
+    local deleted = 0
+    _G.getObjectByID = function() return { delete = function() deleted = deleted + 1 end } end
+    _G.log = function() end
+    _G.vec3 = _G.vec3 or function(x, y, z) return { x = x, y = y, z = z } end
+    _G.quatFromDir = function() return {} end
+    local v3 = _G.vec3
+    _G.vec3 = function(x, y, z) local t = v3(x, y, z) return setmetatable(t, { __add = function(a, b) return v3(a.x + b.x, a.y + b.y, a.z + b.z) end }) end
+    package.loaded['sl/carBuilder'] = { buildOffer = function() error('boom') end }
+    package.loaded['sl/lotpre'] = nil
+    local G = require('sl/lotpre')
+    local job = { sleep = function() end }
+    local ok = pcall(G.onStreetLegalFade, 'start', job)
+    check('lotpre game side: a build that throws does not reach the fade job', ok)
+    check('lotpre game side: after the failure nothing is in the store and a later fade may build again', G.status() == 'no row in store')
+    -- and the control: a build that works stores its cars hidden
+    local hidden = {}
+    package.loaded['sl/carBuilder'] = { buildOffer = function(_, offer) return { getID = function() return offer.id end, queueLuaCommand = function() end, setActive = function(_, a) hidden[offer.id] = a end } end }
+    package.loaded['sl/lotpre'] = nil
+    G = require('sl/lotpre')
+    G.onStreetLegalFade('start', job)
+    check('lotpre game side: a good build stores the row hidden', G.status():find('2 cars') ~= nil and hidden.o1 == 0 and hidden.o2 == 0, G.status())
+    _G.sl_career, _G.sl_lot, _G.sl_options, _G.getPlayerVehicle, _G.getObjectByID, _G.log, _G.vec3, _G.quatFromDir = old.c, old.l, old.o, old.pv, old.id, old.lg, old.v3, old.q
+    package.loaded['sl/carBuilder'], package.loaded['sl/lotpre'] = old.cb, nil
+  end
 end
 
 print(string.format('lua tests passed: %d checks', passed))
