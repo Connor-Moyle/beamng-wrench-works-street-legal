@@ -3309,7 +3309,7 @@ do
   local Opt = require('sl/options')
   local defs = {}
   for _, d in ipairs(Opt.defs) do defs[d.key] = d end
-  local okDefs = #F.LIST == 32
+  local okDefs = #F.LIST == 33
   local offByDefault = 0
   for _, f in ipairs(F.LIST) do
     local d = defs[f.opt]
@@ -4916,6 +4916,108 @@ do
   _G.sl_career, _G.extensions, _G.guihooks, _G.sl_fleet, _G.getPlayerVehicle, _G.gameplay_missions_missions, _G.gameplay_missions_missionManager, _G.core_jobsystem, _G.ui_message, _G.sl_gridrace =
     old.c, old.e, old.g, old.f, old.pv, old.mi, old.mm, old.cj, old.um, old.gr
   package.loaded['sl/series'] = nil
+end
+
+-- the Style show (sl/core/show): the six criteria, the renormalised total, the field, the placing, the prize, the event, the judges' words
+do
+  local S = require('sl/core/show')
+  local wsum = 0
+  for _, id in ipairs(S.ORDER) do wsum = wsum + S.WEIGHTS[id] end
+  check('show: six criteria and the weights add up to 100', #S.ORDER == 6 and wsum == 100)
+  local glossy = { { baseColor = { 0.9, 0.1, 0.1, 1 }, metallic = 0.8, roughness = 0.1, clearcoat = 1, clearcoatRoughness = 0.05 } }
+  local dull = { { baseColor = { 0.5, 0.5, 0.5, 1 }, metallic = 0, roughness = 0.9, clearcoat = 0, clearcoatRoughness = 0.9 } }
+  local full = { paint = { paints = glossy, condition = 1, changed = true }, wheels = { aftermarket = true, tread = 1 }, parts = { acme = 10 }, clean = { dirt = 0, scratches = 0 }, body = 0, wear = {} }
+  local res = S.score(full)
+  check('show: a perfect car scores close to 100 with nothing missing', res.total and res.total > 95 and #res.missing == 0, res.total)
+  local bad = S.score({ paint = { paints = dull, condition = 0.2 }, wheels = { aftermarket = false, tread = 0 }, parts = {}, clean = { dirt = 1, scratches = 1 }, body = 1, wear = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } })
+  check('show: a wrecked, dirty, worn car scores near zero', bad.total and bad.total < 15, bad.total)
+  local base = { paint = { paints = glossy, condition = 1 }, wheels = { aftermarket = false, tread = 0.7 }, parts = { acme = 4 }, clean = { dirt = 0.4, scratches = 0.1 }, body = 0.1, wear = { 0.8 } }
+  local function total(mod) local c = {} for k, v in pairs(base) do c[k] = v end for k, v in pairs(mod) do c[k] = v end return S.score(c).total end
+  local t0 = total({})
+  check('show: a cleaner car scores higher', total({ clean = { dirt = 0, scratches = 0 } }) > t0 and total({ clean = { dirt = 0.9, scratches = 0.1 } }) < t0)
+  check('show: a damaged car scores lower and a repaired one higher', total({ body = 0.6 }) < t0 and total({ body = 0 }) > t0)
+  check('show: worn parts score lower', total({ wear = { 0.2, 0.3, 0.1 } }) < t0 and total({ wear = {} }) > t0)
+  check('show: a better paint condition scores higher and glossy paint beats dull paint', total({ paint = { paints = glossy, condition = 0.3 } }) < t0 and total({ paint = { paints = dull, condition = 1 } }) < t0)
+  check('show: aftermarket rims score higher', total({ wheels = { aftermarket = true, tread = 0.7 } }) > t0)
+  check('show: a full kit of one maker beats a pile of the same size from several', S.partsScore({ acme = 8 }) > S.partsScore({ a = 2, b = 2, c = 2, d = 2 }) and S.partsScore({ acme = 3 }) > S.partsScore({}))
+  check('show: a missing source drops its criterion and the weights renormalise to 100', (function()
+    local r = S.score({ paint = { paints = glossy }, clean = { dirt = 0.2 } })
+    local sum = 0
+    for _, w in pairs(r.used) do sum = sum + w end
+    return #r.missing == 4 and math.abs(sum - 100) < 1e-9 and r.total ~= nil and r.criteria.wheels == nil
+  end)())
+  check('show: nothing at all answers no total and no error', (function()
+    local r = S.score(nil)
+    local r2 = S.score({})
+    local r3 = S.score({ paint = {}, wheels = 5, parts = 'x', clean = {}, body = 'a', wear = true })
+    return r.total == nil and r2.total == nil and r3.total == nil and #r.missing == 6
+  end)())
+  check('show: garbage values are clamped, never an error or a value outside 0..1', (function()
+    local r = S.score({ paint = { paints = { { baseColor = { 9, -4, 'x' }, metallic = 99, clearcoat = -3 } }, condition = 7 }, wheels = { tread = -5 }, parts = { a = -4, b = 1e9 }, clean = { dirt = 5, scratches = 9 }, body = -2, wear = { -3, 'x', 40 } })
+    for _, id in ipairs(S.ORDER) do local x = r.criteria[id] if x ~= nil and (x < 0 or x > 1 or x ~= x) then return false end end
+    return r.total ~= nil and r.total >= 0 and r.total <= 100
+  end)())
+
+  -- the field and the placing
+  local f1, f2 = S.field(42, 3, 2), S.field(42, 3, 2)
+  check('show: the field is the same for the same seed and week', #f1 == #f2 and f1[1].name == f2[1].name and f1[5].scores.paint == f2[5].scores.paint)
+  local f3 = S.field(42, 4, 2)
+  check('show: next week it is another field', f3[1].name ~= f1[1].name or f3[2].name ~= f1[2].name)
+  local function mean(field) local m = 0 for _, r in ipairs(field) do for _, id in ipairs(S.ORDER) do m = m + r.scores[id] / #S.ORDER end end return m / #field end
+  local m1, m5 = 0, 0
+  for seed = 1, 12 do m1 = m1 + mean(S.field(seed, 1, 1)) / 12 m5 = m5 + mean(S.field(seed, 1, 5)) / 12 end
+  check('show: the field gets better with the tier and is bigger', m5 > m1 + 0.25 and #S.field(1, 1, 5) > #S.field(1, 1, 1) and #S.field(1, 1, 1) >= 7 and #S.field(1, 1, 5) <= 11, string.format('%.2f %.2f', m1, m5))
+  local names, dup = {}, false
+  for _, r in ipairs(S.field(7, 2, 5)) do if names[r.name] then dup = true end names[r.name] = true end
+  check('show: no two rivals share a name', not dup)
+  local rres = S.score(full)
+  local place1 = S.rank(rres.total, rres.used, S.field(5, 1, 1), 'Me')
+  local place5 = S.rank(rres.total, rres.used, S.field(5, 1, 5), 'Me')
+  check('show: a perfect car wins a low-tier show and does well in a top-tier one', place1 == 1 and place5 <= 3, place1 .. ' ' .. place5)
+  local worstPlace = S.rank(bad.total, bad.used, S.field(5, 1, 1), 'Me')
+  check('show: a wrecked car comes last', worstPlace == #S.field(5, 1, 1) + 1, worstPlace)
+  local tieField = { { name = 'Rival', car = 'x', scores = { paint = 0.5, wheels = 0.5, parts = 0.5, clean = 0.5, body = 0.5, wear = 0.5 } } }
+  local tieRes = S.score({ paint = { paints = glossy }, clean = { dirt = 0.2 } })
+  local rivalTotal = S.rivalTotal(tieField[1], tieRes.used)
+  check('show: a tie goes to the rival', S.rank(rivalTotal, tieRes.used, tieField, 'Me') == 2)
+  local pl, top3 = S.rank(rres.total, rres.used, S.field(5, 1, 3), 'Me')
+  check('show: the top three come back in order with the player marked', #top3 == 3 and top3[1].total >= top3[2].total and top3[2].total >= top3[3].total and (pl > 3 or top3[pl].you))
+  check('show: the rivals are judged on the same criteria as the player', (function()
+    local only = S.score({ clean = { dirt = 0 } })
+    local fld = S.field(3, 3, 2)
+    return S.rivalTotal(fld[1], only.used) == math.floor(100 * fld[1].scores.clean * 10 + 0.5) / 10
+  end)())
+
+  -- prize, tier, event
+  local m1p, r1p = S.prize(1, 1)
+  local m2p, r2p = S.prize(1, 2)
+  local m3p, r3p = S.prize(1, 3)
+  local m4p, r4p = S.prize(1, 4)
+  check('show: the prize is the purse, half and a quarter, nothing past the third; the reputation likewise', m1p == 300 and m2p == 150 and m3p == 80 and m4p == 0 and r1p == 20 and r2p == 10 and r3p == 5 and r4p == 0, m3p .. ' ' .. r3p)
+  check('show: the purse and the reputation grow with the tier', S.prize(5, 1) == 1500 and select(2, S.prize(5, 1)) == 52 and S.prize(99, 1) == 1500 and S.prize(0, 1) == 300)
+  check('show: the tier follows the reputation', S.tierOf(0) == 1 and S.tierOf(149) == 1 and S.tierOf(150) == 2 and S.tierOf(9999) == 5 and S.tierOf(nil) == 1)
+  local ev = S.event(6, 11, { 'Marina', 'Hilltop' }, 0)
+  check('show: a Saturday has an event of its own kind at nine in the evening', ev and ev.kind == 'show' and ev.hour == 21 and ev.fee == S.FEE and ev.travel.needed == false and ev.id:find('^show:') ~= nil and ev.place ~= nil)
+  check('show: other days have none', S.event(1, 11, { 'Marina' }) == nil and S.event(5, 11, { 'Marina' }) == nil and S.event(7, 11, { 'Marina' }) == nil and S.event(13, 11, { 'Marina' }) ~= nil)
+  check('show: the event id is stable and changes with the week; no spots still answers', S.event(6, 11, { 'A', 'B' }).id == S.event(6, 11, { 'A', 'B' }).id and S.event(6, 11, { 'A', 'B' }).id ~= S.event(13, 11, { 'A', 'B' }).id and S.event(6, 1, nil) ~= nil and S.event(6, 1, {}) ~= nil)
+
+  -- the judges' words
+  local lines = S.lines(S.score(base))
+  check('show: a line per judged criterion, in order, with words', #lines == 6 and lines[1].id == 'paint' and lines[6].id == 'wear' and lines[1].text ~= '' and not lines[1].text:find('^show%.'))
+  local dirty = S.score({ paint = { paints = glossy, condition = 1, changed = true }, wheels = { aftermarket = true, tread = 1 }, parts = { acme = 10 }, clean = { dirt = 1, scratches = 1 }, body = 0, wear = {} })
+  local _, tip2, worst2 = S.lines(dirty)
+  check('show: the one thing to do first is the criterion that loses the most points', worst2 == 'clean' and tip2 and not tip2:find('^show%.'))
+  local _, tip3 = S.lines(res)
+  check('show: a near-perfect car has nothing to improve', tip3 == nil)
+  check('show: every band and tip of every criterion has a text', (function()
+    local strings = require('sl/core/strings')
+    for _, id in ipairs(S.ORDER) do
+      for b = 1, 4 do if strings.t('show.' .. id .. '_' .. b):find('^show%.') then return false end end
+      if strings.t('show.' .. id .. '_tip'):find('^show%.') then return false end
+    end
+    return true
+  end)())
+  check('show: the bands', S.band(0) == 1 and S.band(0.34) == 1 and S.band(0.35) == 2 and S.band(0.55) == 3 and S.band(0.75) == 4 and S.band(1) == 4)
 end
 
 print(string.format('lua tests passed: %d checks', passed))
