@@ -113,4 +113,7 @@ function M.onStreetLegalStopped()
 end
 function M.onClientEndMission() call, leaving = nil, {} end
 
+-- (the Mods menu's Parts of the game: with this part off, the hooks above do nothing)
+require('sl/core/features').gate('tow', M, nil, nil, { 'send' })
+
 return M

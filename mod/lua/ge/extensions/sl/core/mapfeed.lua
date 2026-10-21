@@ -49,6 +49,27 @@ local function xy(pos)
 end
 M.xy = xy
 
+-- the Maps rows of the Mods menu, with defaults: get(key) -> value or nil
+local STYLES = { street = true, cruise = true, atlas = true }
+local ZOOMS = { close = 1, normal = 2, far = 4 }          -- metres per pixel when the map opens
+function M.mapOptions(get)
+  local style, zoom = get('slMapStyle'), get('slMapZoom')
+  if not STYLES[style] then style = 'street' end
+  if not ZOOMS[zoom] then zoom = 'normal' end
+  return { style = style, headingUp = get('slMapHeadingUp') == true, speed = get('slMapSpeed') ~= false, slide = get('slMapKSlide') ~= false, zoom = zoom, mpp = ZOOMS[zoom] }
+end
+
+-- the speed limit (m/s) of the road between two nodes (either direction), or nil when the link has none
+function M.limitOf(nodes, a, b)
+  local function of(i, j)
+    local n = nodes and nodes[i]
+    local l = n and n.links and n.links[j]
+    local v = l and tonumber(l.speedLimit)
+    return v and v > 0 and v < 100 and v or nil      -- (an unlimited road, math.huge or 999, has no sign)
+  end
+  return of(a, b) or of(b, a)
+end
+
 -- a builder that walks the nodes a few at a time: b = M.builder(nodes); repeat until b:step(clock, seconds) is true; b.tiles is the result.
 function M.builder(nodes)
   local self = { tiles = {}, count = 0, done = false }

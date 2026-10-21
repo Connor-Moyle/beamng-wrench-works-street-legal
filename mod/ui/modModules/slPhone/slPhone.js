@@ -433,21 +433,21 @@
         '<div><span class="slp-chip">' + esc(d.title || '') + ' &middot; ' + (d.rep || 0) + ' rep &middot; ' + money(d.money) + '</span>' +
           '<span class="slp-chip" data-a="routegarage" data-v="1" style="cursor:pointer">' + T('ui.route_to_my_garage', 'Route to my garage') + '</span></div>' +
         tut + '<div class="slp-grid">' + appsHtml([
-          { id: 'races', title: T('app.races', 'Races'), icon: I.flag, badge: arranged || 0 },
+          { id: 'races', title: T('app.races', 'Races'), icon: I.flag, badge: arranged || 0, hide: has.races === false },
           { id: 'garage', title: T('app.garage', 'My cars'), icon: I.cab },
           { id: 'garagekit', title: T('app.garagekit', 'Garage'), icon: I.house },
-          { id: 'bank', title: T('app.bank', 'Bank'), icon: I.bank },
+          { id: 'bank', title: T('app.bank', 'Bank'), icon: I.bank, hide: has.bank === false },
           { id: 'me', title: T('app.me', 'Street cred'), icon: I.me },
-          { id: 'jobs', title: T('app.jobs', 'Jobs'), icon: I.jobs, badge: d.jobs && d.jobs.active ? 1 : 0 },
+          { id: 'jobs', title: T('app.jobs', 'Jobs'), icon: I.jobs, badge: d.jobs && d.jobs.active ? 1 : 0, hide: has.jobs === false },
           { id: 'wait', title: T('app.wait', 'Wait'), icon: I.wait },
           { id: 'help', title: T('app.help', 'Help'), icon: I.help },
-          { id: 'map', title: T('app.map', 'Map'), icon: I.map },
+          { id: 'map', title: T('app.map', 'Map'), icon: I.map, hide: has.maps === false },
           { id: 'camera', title: T('app.camera', 'Camera'), icon: I.camera },
           { id: 'gallery', title: T('app.gallery', 'Gallery'), icon: I.gallery },
           { id: 'club', title: T('app.club', 'Club'), icon: I.club, hide: has.clubs === false },
           { id: 'turf', title: T('app.turf', 'Turf'), icon: I.turf, hide: has.crews === false },
-          { id: 'carmarket', title: T('app.carmarket', 'Car market'), icon: I.cab },
-          { id: 'partmarket', title: T('app.partmarket', 'Part market'), icon: I.market, badge: (d.market && d.market.deliveries || 0) + (d.market ? arr(d.market.auctions).filter(function (l) { return l.high === 'you'; }).length : 0), hide: has.classifieds === false },
+          { id: 'carmarket', title: T('app.carmarket', 'Car market'), icon: I.cab, hide: has.market === false },
+          { id: 'partmarket', title: T('app.partmarket', 'Part market'), icon: I.market, badge: (d.market && d.market.deliveries || 0) + (d.market ? arr(d.market.auctions).filter(function (l) { return l.high === 'you'; }).length : 0), hide: has.classifieds === false || has.market === false },
         ]) + '</div>' +
         '<div class="slp-dock">' + appsHtml([
           { id: 'phone', title: T('app.phone', 'Phone'), icon: I.phone },
@@ -956,7 +956,7 @@
     function distText(m) { return m == null ? '' : (m < 1000 ? m + ' m' : (m / 1000).toFixed(1) + ' km'); }
     // the live map (a canvas drawn by the global module slMapsDraw from the tiles of sl_mapsfeed): the Map tab; the places by kind stay as the List tab
     var lastLand = false;
-    var MV = { tiles: {}, asked: {}, pose: null, route: [], places: [], on: false, last: 0, roads: [], key: '', mpp: 2 };
+    var MV = { tiles: {}, asked: {}, pose: null, route: [], places: [], on: false, last: 0, roads: [], key: '', mpp: 2, opts: { style: 'street', headingUp: false, speed: true }, zoomed: false };
     function mapWanted() { return !!(st.open && st.app === 'map' && st.tab.map === 'map'); }
     function syncMapFeed() {
       var w = mapWanted();
@@ -981,7 +981,7 @@
       if (want.length) { want.forEach(function (k) { MV.asked[k] = true; }); lua('@sl_mapsfeed.tiles({' + want.map(function (k) { return '"' + k + '"'; }).join(',') + '})'); }      // (a Lua table: tile keys are digits, commas and minus signs)
       var key = keys.join(';');
       if (key !== MV.key) { MV.key = key; MV.roads = []; keys.forEach(function (k) { if (MV.tiles[k]) MV.roads = MV.roads.concat(Array.isArray(MV.tiles[k]) ? MV.tiles[k] : []); }); }
-      D.draw(ctx, w, h, { roads: MV.roads, route: MV.route, pins: MV.places, player: p }, { cx: p.x, cy: p.y, mpp: MV.mpp, rot: 0, skin: 'street', night: obj(st.data).phase === 'night' });
+      D.draw(ctx, w, h, { roads: MV.roads, route: MV.route, pins: MV.places, player: p, speed: MV.opts.speed === false ? null : { now: p.speed || 0, limit: p.limit || null, mph: !!p.mph, sign: p.mph ? 'us' : 'round' } }, { cx: p.x, cy: p.y, mpp: MV.mpp, rot: MV.opts.headingUp ? -(p.heading || 0) : 0, skin: MV.opts.style || 'street', night: obj(st.data).phase === 'night' });
     }
     function mapPage() {
       var m = obj(st.map), groups = arr(m.groups), r = m.route;
@@ -1519,10 +1519,10 @@
         (st.call ? callPage() : '') +
         '<div class="slp-nav"><div data-a="back">' + NAV.back + '</div><div data-a="home">' + NAV.home + '</div><div data-a="away">' + NAV.recent + '</div></div></div>';
       var hu = st.hu;
-      var huHtml = '<div class="slp-hu' + (hu && !st.open && !lotHides() ? '' : ' slp-gone') + '" data-a="openthread" data-v="' + esc(hu ? hu.thread : '') + '">' +
+      var huHtml = '<div class="slp-hu' + (hu && !st.open && !lotHides() && obj(d.has).hudpill !== false ? '' : ' slp-gone') + '" data-a="openthread" data-v="' + esc(hu ? hu.thread : '') + '">' +
         (hu ? avatar({ id: hu.thread, name: hu.name }) + ('<div><small>' + T('ui.messages', 'Messages ') + '&middot;' + ' now' + '</small><b>') + esc(hu.name) + '</b><span>' + esc(hu.text) + '</span></div>' : '') + '</div>';
       var html =
-        '<div class="slp-pill"' + (st.open || lotHides() ? ' style="display:none"' : '') + '><b>' + money(d.money) + '</b><span>' + esc(d.title) + '</span>' +
+        '<div class="slp-pill"' + (st.open || lotHides() || obj(d.has).hudpill === false ? ' style="display:none"' : '') + '><b>' + money(d.money) + '</b><span>' + esc(d.title) + '</span>' +
           (d.phase ? '<span>' + (d.phase === 'night' ? '&#9790;' : '&#9728;') + '</span>' : '') + (d.heat > 0 ? '<span style="color:#ff6a4a">' + '&#9650;'.repeat(d.heat) + '</span>' : '') + (d.phase === 'night' && d.atRisk > 0 ? '<span style="color:#ffb74a">+' + d.atRisk + (T('ui.at_risk', ' at risk') + '</span>') : '') + '<span>' + two(d.hour || 0) + ':' + two(d.minute || 0) + '</span></div>' +
         '<div class="slp-device@@LAND@@' + (st.open ? '' : ' slp-away') + '" style="transform:' + (st.open ? '' : 'translateY(70%) ') + 'scale(' + scale() + ')">' + screen + '</div>' +
         lotView() + garageView() + stationView() + meetView() + raceView() +
@@ -1680,12 +1680,82 @@
       Array.prototype.forEach.call(layer.querySelectorAll('.slp-screen, .slp-home, .slp-grid, .slp-page'), function (e) { e.scrollTop = 0; });
     }
     function home() { st.stack = []; st.app = 'home'; lua('@sl_carauctions.view(false)'); toTop(); render(); }
-    function setOpen(open) {
+    // K with the Maps HUD app on screen: the phone turns out of the landscape app and slides to its place at the right edge (and back when it closes).
+    // The app tells us where it is (window.slMapsHud = { rect(), setHidden(b) }); a missing app, no layout, reduced motion, the Mods switch off or any error in here
+    // leaves the plain open and close. The animation is a Web Animations transform on the phone's own element (centre origin), so when it ends or is cut short the
+    // phone is at rest where the style puts it.
+    // slide: 'in' | 'out' while the animation runs; intent: the last K press during it (true open, false close, applied when the slide ends: three presses are three toggles);
+    // slideSeq makes the callbacks of an older slide harmless
+    var slide = null, intent = null, slideSeq = 0;
+    function hudApp() {
+      var h = win.slMapsHud;
+      if (!h || typeof h.rect !== 'function' || MV.opts.slide === false) return null;
+      try { if (win.matchMedia && win.matchMedia('(prefers-reduced-motion: reduce)').matches) return null; } catch (e) { return null; }
+      return h;
+    }
+    function slideFrames(dv, A) {
+      var R = dv.getBoundingClientRect(), w = dv.offsetWidth, h = dv.offsetHeight;
+      if (!(R.width > 0 && w > 0 && h > 0 && A && A.width > 40 && A.height > 40 && typeof dv.animate === 'function')) return null;
+      var s = R.width / w, cx = R.right - w / 2, cy = R.bottom - h / 2;                 // (the phone is scaled about its bottom right corner)
+      var k = Math.min(A.width / h, A.height / w);                                      // (turned a quarter, it fits the app's rectangle)
+      var from = 'translate(' + (A.left + A.width / 2 - cx) + 'px,' + (A.top + A.height / 2 - cy) + 'px) rotate(-90deg) scale(' + k + ')';
+      var to = 'translate(' + (1 - s) * w / 2 + 'px,' + (1 - s) * h / 2 + 'px) scale(' + s + ')';
+      return [{ transform: from, transformOrigin: '50% 50%', opacity: 0.85 }, { transform: to, transformOrigin: '50% 50%', opacity: 1 }];
+    }
+    function hudShow() { try { var h = win.slMapsHud; if (h && h.setHidden) h.setHidden(false); } catch (e) { /* the app is gone */ } }
+    function slideIn() {
+      var h = hudApp();
+      if (!h) return;
+      try {
+        var dv = layer.querySelector('.slp-device'), fr = dv && slideFrames(dv, h.rect());
+        if (!fr) return;
+        h.setHidden(true);
+        var seq = ++slideSeq, a = dv.animate(fr, { duration: 420, easing: 'cubic-bezier(.2,.9,.25,1)' }), done = false;
+        slide = 'in';
+        var end = function () { if (done || seq !== slideSeq) return; done = true; endSlide(); };
+        if ('onfinish' in a) a.onfinish = end;
+        clock.set(end, 520);                                                            // (an animation that never reports back must not hold the phone)
+      } catch (e) { slide = null; hudShow(); }
+    }
+    // a slide is over: a press made during it is applied now
+    function endSlide() {
+      var want = intent;
+      intent = null; slide = null;
+      if (want !== null && want !== st.open) setOpen(want);
+    }
+    // closing: the phone turns back into the app first, then the normal close; false when it cannot (the caller closes at once)
+    function slideOut(then) {
+      var h = hudApp();
+      if (!h || slide) return false;
+      try {
+        var dv = layer.querySelector('.slp-device'), fr = dv && slideFrames(dv, h.rect());
+        if (!fr) return false;
+        var seq = ++slideSeq;
+        slide = 'out';
+        var a = dv.animate(fr.slice().reverse(), { duration: 360, easing: 'cubic-bezier(.4,0,.6,1)', fill: 'forwards' }), done = false;
+        var finish = function () {
+          if (done || seq !== slideSeq) return;
+          done = true;
+          var want = intent;
+          intent = null; slide = null;
+          if (want === true) { try { a.cancel(); } catch (e) { /* no animation left */ } slideIn(); return; }      // (pressed again while it closed: the phone stays up)
+          then();
+        };
+        if ('onfinish' in a) a.onfinish = finish; else { slide = null; return false; }
+        clock.set(finish, 500);                                                         // (an animation that never reports back must not keep the phone open)
+        return true;
+      } catch (e) { slide = null; hudShow(); return false; }
+    }
+    function setOpen(open, plain) {
+      if (slide && !plain) { intent = (open === (slide === 'in')) ? null : open; return; }      // (during a slide only the last press counts: it is applied when the slide ends)
+      if (!open && st.open && !plain && slideOut(function () { setOpen(false, true); })) return;
       st.open = open;
       lua('uiOpen("phone", ' + (open ? 'true' : 'false') + ')');      // (the game side sends the phone's data faster while it is open)
       if (open && !TABLE) lua('requestStrings()');
+      if (!open && !slide) hudShow();
       if (open) lua('request()'); else { st.stack = []; st.app = 'home'; lua('@sl_carauctions.view(false)'); }      // (B68: closed, it opens on the home screen next time)
       render();
+      if (open) slideIn();
     }
     function startCall(id) {
       st.call = { id: id, phase: 'ringing', started: clock.now(), result: null };
@@ -1730,7 +1800,7 @@
         case 'workon': lua('workOn(' + Number(v) + ')'); st.garage = null; break;
         case 'despawn': lua('despawn(' + Number(v) + ')'); break;
         case 'garageclose': lua('closeGarage()'); st.garage = null; render(); break;
-        case 'mapzoom': MV.mpp = Math.max(0.5, Math.min(12, MV.mpp * (v === 'in' ? 0.7 : 1.43))); MV.last = 0; paintMap(); break;
+        case 'mapzoom': MV.zoomed = true; MV.mpp = Math.max(0.5, Math.min(12, MV.mpp * (v === 'in' ? 0.7 : 1.43))); MV.last = 0; paintMap(); break;
         case 'tyreswap': lua('@sl_tyrecare.swap(' + JSON.stringify(String(v)) + ')'); break;
         case 'route': lua('routeTo(' + JSON.stringify(String(v)) + ')'); break;
         case 'routegarage': lua('routeGarage()'); break;
@@ -1864,18 +1934,20 @@
     // ---------------------------------------------------------------- what Lua says
     function handle(name, data) {
       data = data || {};
+      if (!st.open && slide !== 'out') hudShow();                                  // (never leave the Maps app hidden behind a closed phone)
       switch (name) {
         case 'slMapsTiles': Object.keys(data.tiles || {}).forEach(function (k) { MV.tiles[k] = data.tiles[k]; }); MV.key = ''; paintMap(); break;
         case 'slMapsPose': MV.pose = data; paintMap(); break;
         case 'slMapsRoute': MV.route = data.route || []; paintMap(); break;
+        case 'slMapsOptions': MV.opts = data || MV.opts; if (data && data.mpp && !MV.zoomed) MV.mpp = data.mpp; MV.key = ''; paintMap(); break;
         case 'slMapsPlaces': MV.places = data.places || []; break;
         case 'slPhoneData':
           st.data = data;
-          if (!data.active) { st.open = false; st.call = null; st.hu = null; }
+          if (!data.active) { st.open = false; st.call = null; st.hu = null; slide = null; intent = null; slideSeq++; hudShow(); }
           if (st.open && st.app === 'map' && Date.now() - (st.mapAt || 0) > 4000) { st.mapAt = Date.now(); lua('mapPlaces()'); }      // (the distances follow the car)
           render();
           break;
-        case 'slPhoneToggle': setOpen(!st.open); break;
+        case 'slPhoneToggle': setOpen(!(intent !== null ? intent : (slide === 'out' ? false : st.open))); break;
         case 'slPhoneGo': if (!st.open) setOpen(true); st.stack = []; st.app = 'home'; if (data.app && data.app !== 'home') go(data.app); else render();
           if (data.tabs) { Object.keys(data.tabs).forEach(function (k) { st.tab[k] = data.tabs[k]; }); render(); }
           break;      // (a game test: open this app; the yard auction opens the Car auctions tab)
@@ -1941,10 +2013,16 @@
       });
       window.__slPhone = phone;
       // SLRR's art, when the player has copied it from their SLRR (tools/slrr_ui.py)
-      var probe = new Image();
-      probe.onload = function () { phone.handle('slArt'); };
-      probe.src = '/ui/modModules/slHud/slrr/icons/cup.png';
-      ['slPhoneData', 'slPhoneToggle', 'slPhoneGo', 'slPhoneCall', 'slPhoneCallReply', 'slPhoneNotify', 'slPhoneToast', 'slFade', 'slLotBars', 'slLotData', 'slMeet', 'slRace', 'slMenu', 'slStation', 'slGarage', 'slPhotos', 'slMap', 'slPeople', 'slLaptopDealers', 'slAuctions', 'slRivals', 'slLaptopOffers', 'slHelp', 'slStrings', 'slMapsTiles', 'slMapsPose', 'slMapsRoute', 'slMapsPlaces'].forEach(function (name) {
+      // (asked for only when the game side says the art is there: the released pack has none, and a missing picture is a 404 in the log)
+      var probed = false;
+      $rootScope.$on('slPhoneData', function (ev, data) {
+        if (probed || !data || data.art !== true) return;
+        probed = true;
+        var probe = new Image();
+        probe.onload = function () { phone.handle('slArt'); };
+        probe.src = '/ui/modModules/slHud/slrr/icons/cup.png';
+      });
+      ['slPhoneData', 'slPhoneToggle', 'slPhoneGo', 'slPhoneCall', 'slPhoneCallReply', 'slPhoneNotify', 'slPhoneToast', 'slFade', 'slLotBars', 'slLotData', 'slMeet', 'slRace', 'slMenu', 'slStation', 'slGarage', 'slPhotos', 'slMap', 'slPeople', 'slLaptopDealers', 'slAuctions', 'slRivals', 'slLaptopOffers', 'slHelp', 'slStrings', 'slMapsTiles', 'slMapsPose', 'slMapsRoute', 'slMapsPlaces', 'slMapsOptions'].forEach(function (name) {
         $rootScope.$on(name, function (ev, data) { phone.handle(name, data); });
       });
       if (window.bngApi) window.bngApi.engineLua('if sl_phone then sl_phone.request() end if sl_menuTile then sl_menuTile.request() end');

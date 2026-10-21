@@ -305,4 +305,7 @@ M.onStreetLegalStopped = drop
 M.onClientEndMission = function() drop() list, listLevel = nil, nil end
 M.onExtensionUnloaded = drop
 
+-- (the Mods menu's Parts of the game: with this part off, the hooks above do nothing)
+require('sl/core/features').gate('races', M)
+
 return M

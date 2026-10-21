@@ -12,7 +12,7 @@ local GROUP = strings.t('options.street_legal')
 
 local LEVELS = { { id = 'all', label = strings.t('options.every_text') }, { id = 'important', label = strings.t('options.racers_only') }, { id = 'off', label = 'None' } }
 M.defs = {
-  { key = 'slPolice', career = true, title = 'Police', type = 'bool', default = true,
+  { key = 'slPolice', feature = true, career = true, title = 'Police', type = 'bool', default = true,
     desc = strings.t('options.patrols_at_night_heat_from') },
   { key = 'slPoliceLevel', career = true, title = strings.t('options.police_aggression'), type = 'range', min = 0.5, max = 2, step = 0.25, default = 1, unit = 'x',
     desc = strings.t('options.how_many_patrols_and_how') },
@@ -20,21 +20,21 @@ M.defs = {
     desc = strings.t('options.what_jobs_purses_and_season') },
   { key = 'slHardcore', career = true, title = 'Hardcore', type = 'bool', default = false,
     desc = strings.t('options.no_paid_pull_back_to') },
-  { key = 'slRaids', career = true, title = strings.t('options.crew_raids'), type = 'bool', default = true,
+  { key = 'slRaids', feature = true, career = true, title = strings.t('options.crew_raids'), type = 'bool', default = true,
     desc = strings.t('options.a_crew_you_took_a') },
   { key = 'slRaceTraffic', title = strings.t('options.traffic_in_street_races'), type = 'choice', default = 'normal',
     options = { { id = 'normal', label = strings.t('options.as_usual') }, { id = 'light', label = 'Light' }, { id = 'none', label = 'None' } },
     desc = strings.t('options.thins_out_the_town_s') },
-  { key = 'slMarkers', title = strings.t('options.race_flares_and_start_lines'), type = 'bool', default = true,
+  { key = 'slMarkers', feature = true, title = strings.t('options.race_flares_and_start_lines'), type = 'bool', default = true,
     desc = strings.t('options.the_flares_along_a_race') },
   { key = 'slNotify', title = strings.t('options.text_pop_ups'), type = 'choice', default = 'all', options = LEVELS,
     desc = strings.t('options.which_new_texts_pop_up') },
   { key = 'slClock', title = strings.t('options.clock_speed'), type = 'choice', default = 'slow',
     options = { { id = 'slow', label = strings.t('options.slow_2_5_min_an') }, { id = 'normal', label = strings.t('options.normal_1_25_min_an') }, { id = 'fast', label = strings.t('options.fast_0_6_min_an') } },
     desc = strings.t('options.how_fast_the_in_game') },
-  { key = 'slDashboard', title = strings.t('options.slrr_dashboard'), type = 'bool', default = false,
+  { key = 'slDashboard', feature = true, title = strings.t('options.slrr_dashboard'), type = 'bool', default = false,
     desc = strings.t('options.the_slrr_gauges_map_and') },
-  { key = 'slReplay', title = strings.t('options.record_street_races'), type = 'bool', default = true,
+  { key = 'slReplay', feature = true, title = strings.t('options.record_street_races'), type = 'bool', default = true,
     desc = strings.t('options.records_a_street_race_with') },
   { key = 'slTextScale', title = strings.t('settings.textSize'), type = 'choice', default = 'normal',
     options = { { id = 'normal', label = strings.t('settings.textNormal') }, { id = 'large', label = strings.t('settings.textLarge') }, { id = 'huge', label = strings.t('settings.textHuge') } },
@@ -48,30 +48,40 @@ M.defs = {
   { key = 'slWallpaper', title = strings.t('options.laptop_wallpaper'), type = 'choice', default = 'windows',
     options = { { id = 'windows', label = strings.t('options.my_windows_wallpaper') }, { id = 'builtin', label = 'Built-in' } },
     desc = strings.t('options.the_laptop_s_desktop_your') },
-  { key = 'slAutoPhoto', title = strings.t('options.photo_of_a_new_car'), type = 'bool', default = true,
+  { key = 'slAutoPhoto', feature = true, title = strings.t('options.photo_of_a_new_car'), type = 'bool', default = true,
     desc = strings.t('options.a_new_car_is_photographed') },
   { key = 'slPuddleCount', title = strings.t('options.puddles_in_the_rain'), type = 'range', min = 10, max = 300, step = 10, unit = '', default = 120,
     tab = 'Clock and weather', group = 'Rain on the ground', presets = { performance = 40, balanced = 90, quality = 150, max = 250 },
     desc = strings.t('options.how_many_puddles_stand_on') },
   { key = 'slSplashSize', title = strings.t('options.splash_size'), type = 'range', min = 0.1, max = 1.5, step = 0.05, unit = 'x', default = 0.4,
     tab = 'Clock and weather', group = 'Rain on the ground', presets = { performance = 0.25, balanced = 0.4, quality = 0.5, max = 0.6 }, desc = strings.t('options.how_high_the_water_a') },
-  { key = 'slWetWorld', title = strings.t('options.wet_world'), type = 'bool', default = true, tab = 'Clock and weather', group = 'Rain on the ground',
+  { key = 'slWetWorld', feature = true, title = strings.t('options.wet_world'), type = 'bool', default = true, tab = 'Clock and weather', group = 'Rain on the ground',
     presets = { performance = false, balanced = true, quality = true, max = true }, desc = strings.t('options.in_the_rain_roads_walls_and') },
-  { key = 'slWetTarmac', title = strings.t('options.wet_tarmac'), type = 'bool', default = false, tab = 'Clock and weather', group = 'Rain on the ground',
+  { key = 'slMapStyle', title = 'Map style', type = 'choice', default = 'street', tab = 'Maps', group = 'Maps',
+    options = { { id = 'street', label = 'Street' }, { id = 'cruise', label = 'Cruise' }, { id = 'atlas', label = 'Atlas' } }, desc = 'How the Maps app is drawn: the light road map, the bold cruising look or the thin-line atlas.' },
+  { key = 'slMapHeadingUp', title = 'Map turns with the car', type = 'bool', default = false, tab = 'Maps', group = 'Maps',
+    desc = 'The map turns so the way you are heading is always up. Off: north is up.' },
+  { key = 'slMapSpeed', feature = true, title = 'Speed and speed limit on the map', type = 'bool', default = true, tab = 'Maps', group = 'Maps',
+    desc = 'Your speed and the limit of the road you are on, bottom left of the map.' },
+  { key = 'slMapKSlide', feature = true, title = 'Phone slides out of the Maps app', type = 'bool', default = true, tab = 'Maps', group = 'Maps',
+    desc = 'Press K with the Maps app on screen and the phone turns upright and slides in from it (and back when you close it). Off: the phone just appears.' },
+  { key = 'slMapZoom', title = 'Map zoom when it opens', type = 'choice', default = 'normal', tab = 'Maps', group = 'Maps',
+    options = { { id = 'close', label = 'Close' }, { id = 'normal', label = 'Normal' }, { id = 'far', label = 'Far' } }, desc = 'How much of the town the map shows at first (the phone map also has its own zoom buttons).' },
+  { key = 'slWetTarmac', feature = true, title = strings.t('options.wet_tarmac'), type = 'bool', default = false, tab = 'Clock and weather', group = 'Rain on the ground',
     presets = { performance = false, balanced = false, quality = false, max = false }, desc = strings.t('options.wet_tarmac_text') },
   { key = 'slWetStrength', title = strings.t('options.wet_world_strength'), type = 'range', min = 0, max = 1, step = 0.05, scale = 100, unit = '%', default = 0.8,
     tab = 'Clock and weather', group = 'Rain on the ground', presets = { quality = 0.9, max = 1 }, desc = strings.t('options.how_dark_and_shiny_the') },
   { key = 'slRainBox', title = strings.t('options.rain_around_you'), type = 'range', min = 40, max = 150, step = 10, unit = 'm', default = 70,
     tab = 'Clock and weather', group = 'Rain on the ground', presets = { performance = 50, balanced = 70, quality = 90, max = 110 }, desc = strings.t('options.rain_only_falls_in_a') },
-  { key = 'slWeather', needs = 'weather', title = 'Weather', type = 'bool', default = true,
+  { key = 'slWeather', feature = true, needs = 'weather', title = 'Weather', type = 'bool', default = true,
     desc = strings.t('options.rain_wet_roads_and_night') },
-  { key = 'slPoliceStrips', career = true, tab = 'Police chase', group = strings.t('options.spike_strips'), title = strings.t('options.spike_strips'), type = 'bool', default = true,
+  { key = 'slPoliceStrips', feature = true, career = true, tab = 'Police chase', group = strings.t('options.spike_strips'), title = strings.t('options.spike_strips'), type = 'bool', default = true,
     desc = strings.t('options.at_heat_3_and_above') },
-  { key = 'slPoliceBreakers', career = true, tab = 'Police chase', group = strings.t('options.pursuit_breakers'), title = strings.t('options.pursuit_breakers'), type = 'bool', default = true,
+  { key = 'slPoliceBreakers', feature = true, career = true, tab = 'Police chase', group = strings.t('options.pursuit_breakers'), title = strings.t('options.pursuit_breakers'), type = 'bool', default = true,
     desc = strings.t('options.marked_spots_on_straight_roads') },
   { key = 'slPoliceStripYaw', advanced = true, tab = 'Developer', group = 'Police chase', title = strings.t('options.chase_prop_turn'), type = 'choice', default = '0',
     options = { { id = '0', label = '0' }, { id = '90', label = '90' } }, desc = strings.t('options.turns_the_strip_and_the') },
-  { key = 'slNightRaceKinds', tab = 'Night traffic', group = strings.t('options.race_kinds'), title = strings.t('options.race_kinds'), type = 'bool', default = true,
+  { key = 'slNightRaceKinds', feature = true, tab = 'Night traffic', group = strings.t('options.race_kinds'), title = strings.t('options.race_kinds'), type = 'bool', default = true,
     desc = strings.t('options.night_races_go_to_a') },
   { key = 'slMaxCruisers', tab = 'Night traffic', group = strings.t('options.racers_cruising_at_night'), title = strings.t('options.racers_cruising_at_night'), type = 'range', min = 0, max = 6, step = 1, default = 3, unit = '',
     desc = strings.t('options.how_many_street_racers_cruise') },
@@ -88,7 +98,7 @@ M.defs = {
   { key = 'slRain', needs = 'weather', title = 'Rain', type = 'range', min = 0, max = 0.5, step = 0.02, default = 0.12, unit = '/h',
     desc = strings.t('options.how_often_a_shower_starts') },
   -- the rivals and the car auctions (sl_rivals, sl_carauctions): shown in the Mods menu only (tab / group), never on the phone or the laptop; the game's balance, per player, for every career
-  { key = 'slRivals', tab = 'Rivals', group = 'Rivals', title = 'Named rivals', type = 'bool', default = true,
+  { key = 'slRivals', feature = true, tab = 'Rivals', group = 'Rivals', title = 'Named rivals', type = 'bool', default = true,
     desc = 'Six racers with names, personalities and cars who text you and challenge you. Off: no rival texts and no tier gate; the street races work as they did before.' },
   { key = 'slRivalEscalate', tab = 'Rivals', group = 'How often', title = 'Bigger bet offers', type = 'range', min = 0, max = 1, step = 0.05, unit = '%', scale = 100, default = 0.35,
     desc = 'The chance each night that a rival you have raced a few times offers a higher stake. Lower means fewer offers.' },
@@ -186,6 +196,10 @@ local PRESETS = {
   slReplay = { performance = false, balanced = true, quality = true, max = true },
   slMarkers = { performance = false, balanced = true, quality = true, max = true },
 }
+-- the parts of the game that can be switched off (sl/core/features: each is gated by its extension): one bool each, on by default, listed on the Active features page
+for _, f in ipairs(require('sl/core/features').LIST) do
+  M.defs[#M.defs + 1] = { key = f.opt, feature = true, title = f.title, type = 'bool', default = true, tab = 'Parts of the game', group = 'Parts of the game', desc = f.desc }
+end
 local byKey = {}
 for _, d in ipairs(M.defs) do
   local own = d.group                          -- (a def of another module names its own group: it is its sub-heading on the Mods menu page)
@@ -244,6 +258,8 @@ local function set(key, value)
   local d = byKey[key]
   if not d then return false end
   value = sanitize(d, value)
+  if key == 'slHospital' and value == false and M.get('slHardcore') == true then error('Hardcore careers need the hospital', 0) end      -- (hardcore death is a hospital rule)
+  if key == 'slBank' and value == false and sl_bank and sl_bank.hasLoan and sl_bank.hasLoan() then error('Pay back the loan first', 0) end      -- (the Mods menu shows this; the loan stays in the save)
   if d.needs == 'weather' then
     if not slrrValoWeather then return false end
     if key == 'slWeather' and slrrValoWeather.setEnabled then slrrValoWeather.setEnabled(value) end

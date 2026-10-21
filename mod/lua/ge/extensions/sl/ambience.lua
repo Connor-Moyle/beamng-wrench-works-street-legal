@@ -163,4 +163,7 @@ function M.onStreetLegalStopped() dropAll() nodeCache, waterZ, stockOk = nil, ni
 function M.onClientEndMission() dropAll() nodeCache, waterZ = nil, nil tracks = nil end
 function M.onExtensionUnloaded() dropAll() end
 
+-- (the Mods menu's Parts of the game: with this part off, the hooks above do nothing)
+require('sl/core/features').gate('ambience', M)
+
 return M

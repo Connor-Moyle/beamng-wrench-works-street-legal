@@ -80,19 +80,21 @@
     }
     ctx.restore();
   }
-  function drawPin(ctx, C, q) {
+  // pins by kind (a garage, a parts shop, a meet, a gas station...): the colour; any other kind keeps the skin's own
+  var PIN_KIND = { garage: '#3b82f6', shop: '#f59e0b', meet: '#8b5cf6', gas: '#10b981', race: '#ef4444', track: '#ef4444', dealer: '#14b8a6' };
+  function drawPin(ctx, C, q, color) {
     ctx.beginPath();
     if (C.pin === 'bubble') { ctx.arc(q[0], q[1] - 14, 11, 0, Math.PI * 2); }
     else if (C.pin === 'flag') { ctx.rect(q[0] - 1, q[1] - 28, 2, 28); ctx.moveTo(q[0] + 1, q[1] - 28); ctx.lineTo(q[0] + 15, q[1] - 22); ctx.lineTo(q[0] + 1, q[1] - 16); ctx.closePath(); }
     else { ctx.moveTo(q[0], q[1]); ctx.bezierCurveTo(q[0] - 13, q[1] - 14, q[0] - 11, q[1] - 30, q[0], q[1] - 30); ctx.bezierCurveTo(q[0] + 11, q[1] - 30, q[0] + 13, q[1] - 14, q[0], q[1]); ctx.closePath(); }
-    ctx.fillStyle = C.pinColor; ctx.fill(); ctx.strokeStyle = C.pinDark; ctx.lineWidth = 1; ctx.stroke();
+    ctx.fillStyle = color || C.pinColor; ctx.fill(); ctx.strokeStyle = C.pinDark; ctx.lineWidth = 1; ctx.stroke();
     if (C.pin !== 'flag') { ctx.beginPath(); ctx.arc(q[0], q[1] - (C.pin === 'bubble' ? 14 : 20), 4, 0, Math.PI * 2); ctx.fillStyle = '#ffffff'; ctx.fill(); }
   }
 
   // the speed limit sign and the speed bubble, bottom left of the map. speed = { now, limit, mph, sign }; speeds in m/s, shown in the player's unit
   function drawSpeed(ctx, w, h, C, speed) {
     if (!speed) return;
-    var k = speed.mph ? 2.23694 : 3.6, now = Math.round((speed.now || 0) * k), lim = speed.limit ? Math.round(speed.limit * k / 5) * 5 : null;
+    var k = speed.mph ? 2.23694 : 3.6, now = Math.round((speed.now || 0) * k), lim = (isFinite(speed.limit) && speed.limit > 0 && speed.limit < 100) ? Math.round(speed.limit * k / 5) * 5 : null;      // (no sign for none or an unlimited road)
     var over = lim !== null && now > lim, x = 14, y = h - 14, round = speed.sign === 'round';
     // the sign
     ctx.save(); ctx.translate(x, y - 66);
@@ -146,7 +148,11 @@
     (data.pins || []).forEach(function (p) {
       var q = pt(p.x, p.y);
       if (q[0] < -20 || q[1] < -30 || q[0] > w + 20 || q[1] > h + 20) return;
-      drawPin(ctx, C, q);
+      drawPin(ctx, C, q, PIN_KIND[p.kind]);
+      if (p.name && view.mpp <= 3) {                           // the name under the pin when zoomed in
+        ctx.font = C.labelFont; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+        ctx.lineWidth = 3; ctx.strokeStyle = C.labelHalo; ctx.strokeText(p.name, q[0], q[1] + 3); ctx.fillStyle = C.label; ctx.fillText(p.name, q[0], q[1] + 3);
+      }
     });
     if (data.player) drawMarker(ctx, C, pt(data.player.x, data.player.y), (data.player.heading || 0) + (view.rot || 0));
     drawSpeed(ctx, w, h, C, data.speed);

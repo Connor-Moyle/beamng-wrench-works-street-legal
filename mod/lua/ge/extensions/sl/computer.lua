@@ -156,4 +156,7 @@ local function refresh() if gameplay_rawPois and gameplay_rawPois.clear then gam
 M.onStreetLegalStarted = refresh
 M.onStreetLegalStopped = function() refresh() M.close() end
 
+-- (the Mods menu's Parts of the game: with this part off, the hooks above do nothing)
+require('sl/core/features').gate('laptop', M, nil, nil, { 'open', 'enterGarage' }, { 'onStreetLegalStarted' })
+
 return M

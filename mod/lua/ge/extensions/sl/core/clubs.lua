@@ -131,6 +131,11 @@ function M.placeOf(standings, id)
 end
 
 -- what a season pays at its end: by the player's final place in the club
+-- days went by without the clubs simulating them (the part was switched off): the season's table is stale, so it earns nothing
+function M.unsimulated(c, day)
+  return c ~= nil and c.simDay ~= nil and (tonumber(day) or 0) - c.simDay > 1
+end
+
 function M.seasonReward(club, place)
   local def = M.CLUBS[club] or M.CLUBS[1]
   if place == 1 then return def.purse * 2, def.seasonRep, true end

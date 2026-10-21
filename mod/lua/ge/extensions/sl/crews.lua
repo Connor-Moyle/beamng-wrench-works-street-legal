@@ -381,4 +381,7 @@ end
 
 function M.onStreetLegalStarted() local s = career() if s then M.ensure(s) end end
 
+-- (the Mods menu's Parts of the game: with this part off, the hooks above do nothing)
+require('sl/core/features').gate('crews', M, nil, { 'onStreetLegalStarted' })
+
 return M

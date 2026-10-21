@@ -74,4 +74,7 @@ function M.onStreetLegalStopped()
 end
 function M.onStreetLegalStarted() sent = nil push() end
 
+-- (the Mods menu's Parts of the game: with this part off, the hooks above do nothing)
+require('sl/core/features').gate('upgrades', M, nil, nil, { 'buy', 'summary' }, { 'onStreetLegalStarted' })
+
 return M

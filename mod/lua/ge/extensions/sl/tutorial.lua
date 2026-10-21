@@ -142,4 +142,7 @@ function M.summary()
   return { step = t.step, total = #STEPS, title = step.title, text = step.text }
 end
 
+-- (the Mods menu's Parts of the game: with this part off, the hooks above do nothing)
+require('sl/core/features').gate('tutorial', M, nil, nil, { 'summary' })
+
 return M

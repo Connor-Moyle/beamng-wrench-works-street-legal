@@ -20,6 +20,9 @@ local function fleetValue(s)
   return v
 end
 
+-- is a loan open (the Mods menu will not switch the bank off while one is)
+function M.hasLoan() local s = career() local b = s and s.bank return b ~= nil and b.loan ~= nil end
+
 function M.borrow(amount)
   local s = career()
   if not s then return false, strings.t('bank.no_career_running') end
@@ -142,5 +145,8 @@ function M.summary()
   if b.policy and b.policy.active then out.policy = { from = b.policy.from, startsIn = math.max(0, b.policy.from - s.day) } end
   return out
 end
+
+-- (the Mods menu's Parts of the game: with this part off, the hooks above do nothing)
+require('sl/core/features').gate('bank', M, nil, nil, { 'borrow', 'insure', 'summary' })
 
 return M

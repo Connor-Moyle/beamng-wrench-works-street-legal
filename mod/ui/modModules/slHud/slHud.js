@@ -444,8 +444,18 @@
     angular.module('slHud', []).run(['$rootScope', function ($rootScope) {
       if (window.__slHud) return;
       var base = '/ui/modModules/slHud/slrr/';
-      var img = function (name) { var i = new Image(); i.src = base + name; return i; };
-      var hud = createHud(document, { gauge: img('general_gauge.png'), osd: img('osd.png') });
+      var hud;
+      // SLRR's art is only asked for when the game side says it is there (settings.art): the released pack does not carry it, and a missing picture would be a 404 in the log
+      var made = {};
+      var img = function (name) {
+        if (!(hud && hud.settings && hud.settings.art === true)) return undefined;
+        if (!made[name]) { made[name] = new Image(); made[name].src = base + name; }
+        return made[name];
+      };
+      var assets = {};
+      Object.defineProperty(assets, 'gauge', { get: function () { return img('general_gauge.png'); } });
+      Object.defineProperty(assets, 'osd', { get: function () { return img('osd.png'); } });
+      hud = createHud(document, assets);
       window.__slHud = hud;
       ['slHud', 'slHudMap', 'slHudSettings', 'slPerf'].forEach(function (name) {
         $rootScope.$on(name, function (ev, data) { hud.handle(name, data); });

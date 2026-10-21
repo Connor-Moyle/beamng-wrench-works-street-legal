@@ -769,6 +769,7 @@ M.TEXT = {
   ["clubs.s_s_against_s_for"] = "%s: %s against %s for $%d. It is in your Races app.",
   ["clubs.s_season_d_day_d"] = "%s, season %d, day %d%s: %s. Class %s. It is on the Club app; skip it if you are busy.",
   ["clubs.s_season_d_is_over"] = "%s season %d is over: you finished %s.",
+  ["clubs.season_unraced"] = "%s season %d was not raced (the clubs were switched off), so it pays nothing. A new season starts.",
   ["clubs.the_day_league_runs_by"] = "The day league runs by day.",
   ["clubs.the_finale_double_points"] = " (the finale, double points)",
   ["clubs.the_track_events_open_soon"] = "The track events open soon. The drags run today.",
