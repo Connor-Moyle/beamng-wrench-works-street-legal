@@ -462,6 +462,6 @@ function M.onStreetLegalStopped()
   reset()
 end
 
-function M.onClientEndMission() reset() end
+function M.onClientEndMission() reset() freeActive, freeTimer = false, 0 end      -- (a level that ends has no sky of ours to put back: the new level must not get a restore)
 
 return M
