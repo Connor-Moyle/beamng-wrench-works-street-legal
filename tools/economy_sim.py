@@ -16,6 +16,7 @@ import math, os, random, sys, statistics
 PLAYERS, HOURS = 45, 12   # simulated players, hours of play each
 DAY_PAY = float(os.environ.get('DAY_PAY', '1.35'))     # = core/jobs.lua DAY_PAY
 CARS_KEPT = int(sys.argv[sys.argv.index('--cars') + 1]) if '--cars' in sys.argv else 1      # cars stored for the weekly storage bill (the sim plays one)
+WEAR = '--nowear' not in sys.argv          # core/service.lua: wear x40 paid back as repairs, and a basic service every 150 km
 WEEKLY = '--noweekly' not in sys.argv      # the weekly costs of core/weekly.lua
 BOOST = '--noboost' not in sys.argv     # the early-game boost in sl_jobs
 DAY_MIN = 30.0            # real minutes per in-game day (BeamNG's TimeOfDay dayLength; verify in game)
@@ -116,6 +117,10 @@ class Player:
     def spend(self, minutes):
         before = self.day()
         self.t += minutes
+        if WEAR and self.car is not None:           # 70 % of the time is driving, at 40 km/h; wear per minute = 0.5 x 26.7 km-eq x sum(1/LIFE of 5 sections) = 4.6e-4 of the value / REPAIR_CONDITION 3
+            km = minutes * 0.7 * 40 / 60
+            value = CARS[self.car][0]
+            self.money -= min(self.money, 4.6e-4 * value / 3 * minutes * 0.7 + (60 + 0.004 * value) * km / 150)
         if self.day() != before:
             self.heat *= 0.7                            # police: heat cools daily
             if WEEKLY and self.day() % 7 == 0:          # core/weekly: garage rent (storage of cars beyond two is not simulated: the sim holds one car)

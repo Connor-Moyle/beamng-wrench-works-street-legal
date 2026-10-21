@@ -3520,6 +3520,15 @@ end
 do
   local S = require('sl/core/service')
   local W = require('sl/core/wear')
+  do -- a save that already has cars: what they drove before counts once, only the driving from first sight counts 40 times
+    local old = {}
+    local so = S.state(old, 1300, { brakes = 10 })
+    local g0 = S.gross(so, 1300, 1000, { brakes = 10 })
+    check('service: a car seen for the first time has the wear of before (300 km, 1x), not 40x, and is not due', so.origin == 1300 and math.abs(g0.brakes - W.lost(300, { brakes = 10 }).brakes) < 1e-9 and not S.due(S.since(so, 1300, 1000)))
+    local g1 = S.gross(so, 1400, 1000, { brakes = 12 })
+    check('service: from then on the driving and the new abuse count 40 times', math.abs(g1.brakes - W.lost(300 + 100 * 40, { brakes = 10 + 2 * 40 }).brakes) < 1e-9)
+    check('service: the record is made once', S.state(old, 9999, {}).origin == 1300)
+  end
   local sv = S.state({})
   check('service: a fresh record, due once the interval is driven', sv.penalty == 0 and S.since(sv, 1000, 1000) == 0 and not S.due(149) and S.due(150) and S.wearFactor(100) == 1 and S.wearFactor(200) == 1.5)
   local g0 = S.gross(sv, 1000, 1000, {})
@@ -3554,6 +3563,7 @@ do
   local st = ST.new(1, 0)
   st.day, st.money, st.garageLevel = 3, 1000, 1
   local car = { id = 1, name = 'Test', value = 10000, mileage = 1000, condition = 0.8, care = { engineKm = 1300, abuse = {}, trunk = {} } }
+  car.service = { penalty = 0, credit = {}, count = 0, origin = 1000, abuse0 = {} }       -- (a car this part has seen since it was bought)
   st.cars[1] = car
   local old = { c = rawget(_G, 'sl_career'), cc = rawget(_G, 'sl_carcare'), e = rawget(_G, 'extensions'), f = rawget(_G, 'sl_fleet'), u = rawget(_G, 'sl_upgrades'), p = rawget(_G, 'slrr_partwear') }
   _G.extensions = { hook = function() end }

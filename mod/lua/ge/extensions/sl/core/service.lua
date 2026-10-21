@@ -14,16 +14,22 @@ M.OVERDUE = 0.5         -- extra km of wear per km driven past the interval
 M.BASIC = { base = 60, share = 0.004 }       -- price: $60 + 0.4 % of the car's value
 M.NO_BENCH = 1.5        -- no workbench in the garage: the mobile mechanic's factor (core/progression MOBILE_MECHANIC)
 
-function M.state(car)
-  if type(car.service) ~= 'table' then car.service = { penalty = 0, credit = {}, count = 0 } end
+-- a car's record, made on first sight: the wear it had up to now counts once (as before this part), only the driving from now counts SCALE times. origin = the engine km and
+-- abuse counters at that moment (nothing is held against a save that already has cars).
+function M.state(car, engineKm, abuse)
+  if type(car.service) ~= 'table' then
+    local a0 = {}
+    for k, v in pairs(type(abuse) == 'table' and abuse or {}) do a0[k] = tonumber(v) or 0 end
+    car.service = { penalty = 0, credit = {}, count = 0, origin = tonumber(engineKm), abuse0 = a0 }
+  end
   local sv = car.service
-  sv.penalty, sv.credit, sv.count = sv.penalty or 0, sv.credit or {}, sv.count or 0
+  sv.penalty, sv.credit, sv.count, sv.abuse0 = sv.penalty or 0, sv.credit or {}, sv.count or 0, sv.abuse0 or {}
   return sv
 end
 
 -- km driven since the last service (the whole time you have had the car if never serviced)
 function M.since(sv, engineKm, mileage)
-  return math.max(0, (tonumber(engineKm) or 0) - (sv.baseKm or tonumber(mileage) or 0))
+  return math.max(0, (tonumber(engineKm) or 0) - (sv.baseKm or sv.origin or tonumber(mileage) or 0))
 end
 function M.due(km) return km >= M.INTERVAL end
 local function over(km) return M.OVERDUE * math.max(0, km - M.INTERVAL) end
@@ -31,9 +37,16 @@ function M.wearFactor(km) return M.due(km) and 1 + M.OVERDUE or 1 end
 
 -- the wear since you bought the car, per section (the same ids as core/wear, 0..MAX_LOSS), before any credit
 function M.gross(sv, engineKm, mileage, abuse)
-  local km = (wear.kmSince(engineKm, mileage) + sv.penalty + over(M.since(sv, engineKm, mileage))) * M.SCALE
+  local origin = sv.origin or tonumber(mileage) or 0
+  local before = wear.kmSince(origin, mileage)                                       -- (driven before this part saw the car: counted once)
+  local after = math.max(0, (tonumber(engineKm) or 0) - origin)
+  local km = before + (after + sv.penalty + over(M.since(sv, engineKm, mileage))) * M.SCALE
   local scaled = {}
-  for k, v in pairs(type(abuse) == 'table' and abuse or {}) do scaled[k] = (tonumber(v) or 0) * M.SCALE end
+  for k, v in pairs(type(abuse) == 'table' and abuse or {}) do
+    local a0 = sv.abuse0[k] or 0
+    local now = tonumber(v) or 0
+    scaled[k] = a0 + math.max(0, now - a0) * M.SCALE
+  end
   return wear.lost(km, scaled)
 end
 

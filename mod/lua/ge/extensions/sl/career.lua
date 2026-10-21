@@ -885,6 +885,7 @@ stop = function()
   active = false
   if core_groundMarkers then core_groundMarkers.setPath(nil) end
   extensions.hook('onStreetLegalStopped')
+  pcall(function() require('sl/racelog').flush() end)       -- (the race log writes at most once a second: what waits goes out now)
   M.onTrafficOrParkingReady()           -- (no loading screen left up)
 end
 
@@ -1486,6 +1487,7 @@ end
 
 local function onClientEndMission()
   stop()
+  pcall(function() require('sl/racelog').flush() end)
   raceList, places = nil, nil
 end
 
