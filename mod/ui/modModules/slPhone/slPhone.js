@@ -1418,7 +1418,7 @@
       return bar(T('app.calendar', 'Calendar')) + '<div class="slp-tabs" style="padding:0 16px 8px">' + tabs + '</div><div class="slp-body">' + body + '</div>';
     }
 
-    // the trip (docs/DESIGN_CAREER_TRAVEL.md): the pick-cars screen over everything while sl_series.options(eventId) is open, the paddock hub (sl_series.hub()) while on a visit
+    // the trip (docs/DESIGN_CAREER_TRAVEL.md): the pick-cars screen over everything while the series module’s options for the event is open, the paddock hub (sl_series.hub()) while on a visit
     function pickPage() {
       var o = obj(st.data.travelPick), sel = arr(st.pickSel), max = Number(o.max) || 3, lo = o.loaner;
       if (st.pickFor !== o.eventId) { st.pickFor = o.eventId; st.pickSel = sel = []; st.pickLoaner = false; }
