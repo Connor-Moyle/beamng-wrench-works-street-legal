@@ -359,7 +359,7 @@ local function updateCamera(dt)
       local aspect = okW and w and h and h > 0 and w / h or 16 / 9
       lotcam.setView(fovDeg, aspect)
       local L = cam.L or 4.5
-      log('I', 'street_legal', string.format('lot camera: scriptedFree fov %s, camera fov %s, window %sx%s (aspect %.2f), half-width tangent %.3f: the side shot stands %.2f m from the centre line of a %.2f m car', tostring(sf0.fov), tostring(fovNow), tostring(w), tostring(h), aspect, lotcam.viewTan, math.max((cam.W or 1.9) / 2 + 1.2, L / (2 * lotcam.SIDE_FILL * lotcam.viewTan)), L))
+      log('I', 'street_legal', string.format('lot camera: scriptedFree fov %s, camera fov %s, window %sx%s (aspect %.2f), half-width tangent %.3f: the side shot stands %.2f m from the centre line of a %.2f m car', tostring(sf0.fov), okC and tostring(fovNow) or 'not read yet', tostring(w), tostring(h), aspect, lotcam.viewTan, math.max((cam.W or 1.9) / 2 + 1.2, L / (2 * lotcam.SIDE_FILL * lotcam.viewTan)), L))
     end
     local drift = lotfx.fovDrift(ch, lotcam.SHOT_TIME)
     if cam.baseFov and (drift ~= 0 or cam.fovDrifted) then pcall(sf0.setFOV, sf0, cam.baseFov - drift) end
