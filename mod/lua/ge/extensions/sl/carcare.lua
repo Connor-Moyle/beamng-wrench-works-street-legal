@@ -49,7 +49,7 @@ function M.reportOf(car)
   local dents = car.damage and car.damage.nodes and next(car.damage.nodes) ~= nil
   local view = { name = car.name, value = car.value, condition = car.condition, damage = dents and 0.2 or 0, mileage = c.engineKm or car.mileage,
     faults = car.faults, fixed = car.fixed, repaired = car.repaired,
-    wear = wear.lost(wear.kmSince(c.engineKm, car.mileage), c.abuse) }
+    wear = sl_service and sl_service.wearOf(car) or wear.lost(wear.kmSince(c.engineKm, car.mileage), c.abuse) }      -- (servicing and wear: the faster wear less what overhauls put right)
   return require('sl/core/carreport').build(view)
 end
 
