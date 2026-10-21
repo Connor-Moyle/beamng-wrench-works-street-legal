@@ -56,6 +56,7 @@ local function extras(it, out)
       end
     end
   end
+  if it.brand ~= nil then out.brand = tostring(it.brand):sub(1, 40) end      -- (a part brand: wrench works slrr_brands)
   if isHex(it.swatch) then out.swatch = it.swatch end
   if type(it.curve) == 'table' then
     out.curve = {}

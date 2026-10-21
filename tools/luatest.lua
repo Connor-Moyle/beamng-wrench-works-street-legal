@@ -3899,4 +3899,12 @@ do
   package.loaded['sl/core/shops'] = nil
 end
 
+-- shops: a part brand rides on the item
+do
+  local SH = require('sl/core/shops')
+  local s = SH.normalize('accessories', { stock = { { id = 'a', price = 5, brand = 'Vexaro' }, { id = 'b', price = 5 } } })
+  check('shops: an item keeps the brand it is given', s.stock[1].brand == 'Vexaro' and s.stock[2].brand == nil)
+  package.loaded['sl/core/shops'] = nil
+end
+
 print(string.format('lua tests passed: %d checks', passed))

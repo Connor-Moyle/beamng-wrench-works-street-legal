@@ -50,7 +50,7 @@ local function view(shop, s)
         specs = rules.tyreSpecs(it.id, csfx) }
     else
       out.stock[#out.stock + 1] = { id = it.id, name = it.name, group = it.group, desc = it.desc, cond = it.cond, count = it.count, price = rules.price(it, c), was = it.price,
-        specs = it.specs, swatch = it.swatch, curve = it.curve, curveLabel = it.curveLabel }
+        specs = it.specs, swatch = it.swatch, curve = it.curve, curveLabel = it.curveLabel, brand = it.brand }
     end
   end
   for _, sv in ipairs(shop.services) do

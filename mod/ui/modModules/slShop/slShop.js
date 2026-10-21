@@ -58,6 +58,7 @@
     '.slsh-toast{position:absolute;left:50%;bottom:28px;transform:translateX(-50%);padding:10px 18px;border-radius:20px;background:var(--sl-surface3);border:1px solid var(--sl-accent);font-size:15px}',
     '.slsh-root [data-a]:focus,.slsh-root [tabindex]:focus{outline:3px solid var(--sl-focus)!important;outline-offset:2px;box-shadow:0 0 0 2px var(--sl-deep)}',
     '.slsh-main::-webkit-scrollbar,.slsh-rail::-webkit-scrollbar,.slsh-cart::-webkit-scrollbar{width:6px}.slsh-main::-webkit-scrollbar-thumb,.slsh-rail::-webkit-scrollbar-thumb,.slsh-cart::-webkit-scrollbar-thumb{background:var(--sl-outline);border-radius:4px}',
+    '.slsh-card small.slsh-brand,.slsh-brand{color:var(--sl-accent-l);font-size:13px}',
     '.slsh-count{float:right;color:var(--sl-muted);font-size:13px;font-variant-numeric:tabular-nums}',
     '@media (prefers-reduced-motion:no-preference){.slsh-card,.slsh-btn,.slsh-cat{transition:border-color .15s,background .15s}.slsh-root.slsh-open{animation:slsh-in .18s ease-out}@keyframes slsh-in{from{opacity:0}to{opacity:1}}}',
   ].join('\n');
@@ -129,12 +130,12 @@
   function priceTag(it) { return '<span class="slsh-price">' + money(it.price) + '</span>' + (it.was && it.was > it.price ? '<span class="slsh-was">' + money(it.was) + '</span>' : ''); }
   function card(it, selected, inCart) {
     return '<button class="slsh-card' + (selected ? ' slsh-sel' : '') + '" data-a="pick" data-v="' + esc(it.id) + '" bng-nav-item><b>' + esc(it.name) + '</b>' +
-      (it.group ? '<small>' + esc(it.group) + '</small>' : '') + condBar(it.cond) +
+      (it.brand ? '<small class="slsh-brand">' + esc(it.brand) + '</small>' : '') + (it.group ? '<small>' + esc(it.group) + '</small>' : '') + condBar(it.cond) +
       '<span>' + priceTag(it) + '</span>' + (inCart ? '<small class="slsh-good">' + esc(T('shops.ui_in_basket', 'In the basket')) + ' x' + inCart + '</small>' : '') + '</button>';
   }
   function detail(it, canAdd, words) {
     if (!it) return '<div class="slsh-detail"><p class="slsh-muted">' + esc(T('shops.ui_pick', 'Pick something to see it here.')) + '</p></div>';
-    return '<div class="slsh-detail"><h3>' + esc(it.name) + '</h3>' + (it.desc ? '<p>' + esc(it.desc) + '</p>' : '') +
+    return '<div class="slsh-detail"><h3>' + esc(it.name) + '</h3>' + (it.brand ? '<p class="slsh-brand">' + esc(it.brand) + '</p>' : '') + (it.desc ? '<p>' + esc(it.desc) + '</p>' : '') +
       (it.cond !== undefined && it.cond !== null ? '<p>' + esc(T('shops.ui_condition', 'Condition')) + ': ' + Math.round(it.cond * 100) + '%</p>' + condBar(it.cond) : '') +
       (it.swatch ? '<p><span class="slsh-swatch" style="background:' + esc(it.swatch) + '"></span></p>' : '') + specRows(it.specs) + (it.curve ? curveSvg(it.curve, 'slsh-curve') + (it.curveLabel ? '<small class="slsh-muted">' + esc(it.curveLabel) + '</small>' : '') : '') +
       '<p>' + priceTag(it) + '</p><button class="slsh-btn slsh-pri" data-a="add" data-v="' + esc(it.id) + '" bng-nav-item' + (canAdd ? '' : ' disabled') + '>' + esc((words && words.add) || T('shops.ui_add', 'Add to basket')) + '</button></div>';

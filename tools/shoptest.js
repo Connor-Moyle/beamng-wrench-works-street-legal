@@ -101,10 +101,15 @@ click('add', 'dyno');
 assert(/Pay and reserve/.test($(sel('buy')).textContent), 'and for the pay button');
 assert(shop.root.classList.contains('slsh-rm'), 'the reduce-motion option is on the root');
 shop.handle('slShopOpen', Object.assign(JSON.parse(JSON.stringify(tyreShop)), { stock: [{ id: 'road', name: 'Road', group: 'road', price: 357, specs: [{ label: 'Dry grip', text: '1.00', bar: 0.4 }, { label: 'Tread', text: '8 mm' }] }] }));
+assert(!$('.slsh-brand'), 'no brand line without a brand');
 click('pick', 'road');
 assert.strictEqual($$('.slsh-detail .slsh-spec').length, 2, 'the detail pane shows the specs');
 assert($('.slsh-detail .slsh-spec .slsh-bar i').getAttribute('style').indexOf('40%') >= 0, 'a bar spec has its bar');
 assert(!shop.root.classList.contains('slsh-rm'), 'and the option is off again');
+
+shop.handle('slShopOpen', Object.assign(JSON.parse(JSON.stringify(tyreShop)), { stock: [{ id: 'cat', name: 'Cat-back', group: 'Cat-back', price: 420, brand: 'Vexaro' }] }));
+click('pick', 'cat');
+assert($('.slsh-card .slsh-brand') && /Vexaro/.test($('.slsh-card .slsh-brand').textContent) && /Vexaro/.test($('.slsh-detail .slsh-brand').textContent), 'a part brand shows on the card and in the detail pane');
 
 // ---- text on an accent fill: --sl-deep on a light accent, white on a dark one, at least 4.5:1 for every built-in accent (and the ones in the sample data)
 const core = fs.readFileSync(path.join(__dirname, '..', 'mod/lua/ge/extensions/sl/core/shops.lua'), 'utf8');
