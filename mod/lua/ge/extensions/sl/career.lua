@@ -1572,7 +1572,7 @@ function M.depart(spec)
   if not ok then return false, why end
   local fee = visitLib.fee(spec.entry, #spec.cars)
   if not stateLib.addMoney(s, -fee, strings.t('visit.fee_label', mapOf(spec.level).name), now()) then return false, strings.t('visit.cannot_afford', fee) end
-  local visit = visitLib.new({ level = spec.level, event = spec.event, cars = spec.cars, day = s.day, untilDay = spec.untilDay or (s.day + 7), rounds = spec.rounds, round = 1, home = s.level })
+  local visit = visitLib.new({ level = spec.level, event = spec.event, cars = spec.cars, day = s.day, untilDay = spec.untilDay or (s.day + 7), rounds = spec.rounds, round = 1, home = s.level, series = spec.series, firstDay = spec.firstDay })
   stop()                                   -- (the cars out at home are noted in the save first, then dropped below)
   visitLib.depart(s, visit)
   local h = (s.hour or 12) + visitLib.TRAVEL_HOURS                   -- the trip takes hours; the day hooks catch up by date (bills, reviews)
@@ -1587,6 +1587,8 @@ end
 function M.returnHome(how)
   if not active then return false, strings.t('bank.no_career_running') end
   if not (s.visit and s.visit.active) then return false, strings.t('visit.not_on_a_trip') end
+  if sl_series and sl_series.closeVisit and (sl_series.closeVisit() or 0) > 0 and (how == nil or how == 'done') then how = 'missed' end      -- (rounds left: the visit ends as missed)
+  if how == 'forfeit' then how = 'missed' end
   stop()                                   -- (saves where the cars stand on the visited map; they are put in the garage now)
   visitEnded = { was = visitLib.finish(s), how = how or 'done' }
   writeSave()
@@ -1595,6 +1597,7 @@ function M.returnHome(how)
 end
 
 function M.visit() return s and s.visit and s.visit.active and s.visit or nil end
+function M.isBusy() if not s then return false end local b = busyState() return (b.racing or b.job or (b.heat or 0) > 0) and true or false end
 function M.homeLevel() return s and progression.levelOf(s) or nil end
 -- for the main menu: the visit a saved career holds, { level, name, round, rounds, untilDay, expired }, or nil
 function M.slotVisit(n)
@@ -1652,9 +1655,35 @@ end
 
 -- "Start the night" / "Start the day" (a garage computer, the phone's Wait app): the phase turns over, the clock jumps to its first hour behind a
 -- short fade (the day counter goes up with a new day) and runs on. false and the reason when it cannot be done now.
+-- on a visit the day is slept: the next morning at 07:00, the day counter up by one and the day hooks fired (bills, reviews, the next round of a series)
+local function visitSleep()
+  local why = progression.skipRefusal(busyState())
+  if why then return false, why end
+  s.day = s.day + 1
+  extensions.hook('onStreetLegalNewDay', s.day)
+  if core_jobsystem and core_jobsystem.create and guihooks then
+    switching = true
+    guihooks.trigger('slFade', { on = true })
+    core_jobsystem.create(function(job)
+      job.sleep(0.6)
+      moveClock(7, job)
+      lastHour = hour()
+      switching = false
+      job.sleep(0.3)
+      guihooks.trigger('slFade', { on = false })
+    end)
+  else
+    setHour(7)
+    lastHour = hour()
+  end
+  changed()
+  return true, strings.t('phase.newDay', s.day)
+end
+
 function M.switchPhase()
   if not s then return false, strings.t('bank.no_career_running') end
   if switching then return false, strings.t('career.one_moment') end
+  if s.visit and s.visit.active then return visitSleep() end
   local plan, why = phaseLib.switchPlan(s.phase or 'day', busyState())
   if not plan then return false, why end
   s.phase = plan.phase
@@ -1694,7 +1723,7 @@ end
 function M.skipTime(what)
   if not s then return false, strings.t('bank.no_career_running') end
   what = tostring(what)
-  if what == 'switch' then return M.switchPhase() end
+  if what == 'switch' or (s.visit and s.visit.active and what == 'morning') then return M.switchPhase() end
   local why = progression.skipRefusal(busyState())
   if why then return false, why end
   local plan, reason = phaseLib.waitPlan(s.phase or 'day', hour(), what)

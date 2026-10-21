@@ -3309,7 +3309,7 @@ do
   local Opt = require('sl/options')
   local defs = {}
   for _, d in ipairs(Opt.defs) do defs[d.key] = d end
-  local okDefs = #F.LIST == 31
+  local okDefs = #F.LIST == 32
   local offByDefault = 0
   for _, f in ipairs(F.LIST) do
     local d = defs[f.opt]
@@ -4802,6 +4802,120 @@ do
   check('series: the prize is a share of the purse and reputation by position, none past the table', p1.money == 2000 and p1.rep == 30 and p2.money == 1100 and p2.rep == 20 and p9.money == 0 and p9.rep == 0)
   local loan = SR.loaner(udef, 21400)
   check('series: the loaner is the series car, worth nothing, with a deposit of a twentieth of its price', loan.model == 'sunburst2' and loan.config == 'rally_am_gravel' and loan.loaner and loan.value == 0 and loan.deposit == 1070)
+end
+
+-- the series of a visit, the game side (sl/series): reporting, the table, the prize, starting a round, the hub
+do
+  local ST = require('sl/core/state')
+  local SR = require('sl/core/series')
+  local st = ST.new(1, 0)
+  st.day, st.seed, st.rep = 20, 7, 900
+  st.racers = { { id = 'a', name = 'Ana' }, { id = 'b', name = 'Ben' }, { id = 'c', name = 'Cy' }, { id = 'd', name = 'Di' } }
+  st.cars = { { id = 1, name = 'Covet', visit = true, out = true } }
+  local visit = { active = true, level = 'hirochi_raceway', event = 'hirochi-cup:1:r1', series = 'hirochi-cup:1', firstDay = 20, cars = { 1 }, fromDay = 19, untilDay = 30 }
+  local old = { c = rawget(_G, 'sl_career'), e = rawget(_G, 'extensions'), g = rawget(_G, 'guihooks'), f = rawget(_G, 'sl_fleet'), pv = rawget(_G, 'getPlayerVehicle'), mi = rawget(_G, 'gameplay_missions_missions'),
+    mm = rawget(_G, 'gameplay_missions_missionManager'), cj = rawget(_G, 'core_jobsystem'), um = rawget(_G, 'ui_message'), gr = rawget(_G, 'sl_gridrace'), jr = rawget(_G, 'jsonReadFile') }
+  local paid, events, started, toasts = 0, {}, {}, {}
+  _G.guihooks = { trigger = function(_, d) toasts[#toasts + 1] = d and d.text end }
+  _G.ui_message = nil
+  _G.extensions = { hook = function(name, a) events[#events + 1] = { name, a } end }
+  _G.core_jobsystem = { create = function(fn) fn({ sleep = function() end }) end }
+  _G.sl_career = { isActive = function() return true end, getState = function() return st end, visit = function() return visit end, mapName = function() return 'Hirochi Raceway' end,
+    payOut = function(a) paid = paid + a return ST.addMoney(st, a, 'x') end, isBusy = function() return false end }
+  _G.sl_fleet = { currentCar = function() return st.cars[1] end }
+  _G.getPlayerVehicle = function() return { getID = function() return 55 end } end
+  local missions = { ['hirochi_raceway/aiRace/001-Short'] = { id = 'hirochi_raceway/aiRace/001-Short', setupModules = { vehicles = { vehicles = {} } } } }
+  _G.gameplay_missions_missions = { getMissionById = function(id) return missions[id] end }
+  _G.gameplay_missions_missionManager = { startWithFade = function(m, user) started[#started + 1] = { m.id, user.setupModuleVehicles } end }
+  package.loaded['sl/series'] = nil
+  local SX = require('sl/series')
+  check('series game: the series of a cycle is entered once, and an unknown series is refused', SX.enter('hirochi-cup:1', 1) == true and SX.enter('hirochi-cup:1', 1) == true and st.series['hirochi-cup:1'].car == 1 and SX.enter('nope:1', 1) == false)
+  check('series game: the next round is the first, and the standings have the player on 0', SX.nextRound() == 1 and #SX.standings() >= 1 and SX.standings()[1].you)
+  st.day = 19
+  local ok, why = SX.startNext()
+  check('series game: round 1 cannot start before its day, and says when', ok == false and why:find('20', 1, true) ~= nil and #started == 0)
+  st.day = 20
+  ok = SX.startNext()
+  check('series game: round 1 starts the game mission with the player\'s own car (the index after the mission cars)', ok == true and started[1][1] == 'hirochi_raceway/aiRace/001-Short' and started[1][2] == 1)
+  check('series game: while a round runs a second cannot start', SX.startNext() == false)
+  SX.onMissionAttemptAggregated({ place = 2, time = 130, type = 'completed' }, { id = 'hirochi_raceway/aiRace/001-Short' })
+  local rec = st.series['hirochi-cup:1'].results[1]
+  check('series game: the mission result is the round: place 2 gives 7 points, the round hook is fired, the next round is 2', rec and rec.place == 2 and rec.points == 7 and SX.nextRound() == 2 and (function()
+    for _, e in ipairs(events) do if e[1] == 'onStreetLegalRoundResult' and e[2].round == 1 and e[2].points == 7 and e[2].you then return true end end end)())
+  check('series game: a result for another mission, or a second one for the same round, changes nothing', (function()
+    SX.onMissionAttemptAggregated({ place = 1 }, { id = 'other' })
+    SX.report('hirochi-cup:1', 1, { place = 1 })
+    return st.series['hirochi-cup:1'].results[1].place == 2 end)())
+  -- a runner of ours for the next round
+  local rr
+  SX.report('hirochi-cup:1', 2, { place = 1, racers = 4 })
+  SX.report('hirochi-cup:1', 3, { dnf = true, racers = 4 })
+  check('series game: a retired round scores nothing', st.series['hirochi-cup:1'].results[3].dnf and st.series['hirochi-cup:1'].results[3].points == 0)
+  local before = paid
+  local rounds0 = #events
+  SX.abort('hirochi-cup:1', 4, 'left')
+  local sr = st.series['hirochi-cup:1']
+  local fin
+  for _, e in ipairs(events) do if e[1] == 'onStreetLegalSeriesFinished' then fin = e[2] end end
+  check('series game: the last round (missed) finishes the series: the position, the prize paid once, the podium of three and the finished hook', sr.finished and sr.paid and fin and fin.series == 'hirochi-cup' and fin.position and #fin.podium == 3
+    and (fin.position > 4 and paid == before or paid >= before))
+  local paidAfter = paid
+  SX.abort('hirochi-cup:1', 4, 'again')
+  SX.report('hirochi-cup:1', 4, { place = 1 })
+  check('series game: nothing is paid twice and a finished round does not change', paid == paidAfter and sr.results[4].missed)
+  local hub = SX.hub()
+  check('series game: the hub has the event, the table with the player, a schedule of four rounds, the cars at the paddock and the leave note', hub and hub.event.rounds == 4 and hub.event.status == 'done' and #hub.schedule == 4
+    and hub.schedule[1].status == 'done' and hub.schedule[4].status == 'missed' and #hub.cars == 1 and hub.cars[1].name == 'Covet' and (function() for _, e in ipairs(hub.standings) do if e.you then return true end end end)()
+    and hub.canStart == false and hub.leaveNote ~= nil)
+  -- a gridrace round through its runner
+  st.series['jv-offroad:1'] = SR.newState(1)
+  visit.series, visit.event, visit.firstDay = 'jv-offroad:1', 'jv-offroad:1:r1', 20
+  st.series['jv-offroad:1'].results[1] = { place = 3, points = 5 }
+  local ctxSeen
+  _G.sl_gridrace = { startRound = function(ctx) ctxSeen = ctx return true end }
+  SX.running = nil
+  st.day = 21
+  local okg = SX.startNext()
+  check('series game: a round of a runner calls sl_<runner>.startRound with the series, the round, the definition and the car on the grid', okg == true and ctxSeen and ctxSeen.series == 'jv-offroad:1' and ctxSeen.round == 2 and ctxSeen.def.track == 'johnson_valley/timeTrial/006-ShortcourseA' and ctxSeen.vehId == 55)
+  SX.abort('jv-offroad:1', 2, 'x')
+  check('series game: an aborted round is missed and frees the runner', st.series['jv-offroad:1'].results[2].missed and SX.running == nil)
+  _G.sl_gridrace = nil
+  SX.running = nil
+  check('series game: a runner that is not there refuses', SX.startNext() == false)
+  -- closing a visit: the rounds left are missed and the series is closed; the days running out sends the career home
+  do
+    st.series['utah-rally:1'] = SR.newState(1)
+    visit.series, visit.event, visit.firstDay, visit.untilDay = 'utah-rally:1', 'utah-rally:1:r1', 20, 25
+    local returned = {}
+    _G.sl_career.returnHome = function(how) returned[#returned + 1] = how or 'nil' return true end
+    local n = SX.closeVisit()
+    local us = st.series['utah-rally:1']
+    check('series game: closing a visit marks the four rounds missed, closes the series and returns the count', n == 4 and us.finished and us.results[1].missed and us.results[4].missed)
+    check('series game: closing a closed series changes nothing', SX.closeVisit() == 0)
+    st.series['utah-rally:1'] = SR.newState(1)
+    SX.onStreetLegalNewDay(25)
+    check('series game: the last day of the visit sends nobody home', #returned == 0)
+    SX.onStreetLegalNewDay(26)
+    check('series game: the day after the visit ends sends the career home as missed (rounds were left)', returned[1] == 'missed')
+    local twice = #returned
+    st.series['utah-rally:1'] = SR.newState(1)
+    for r = 1, 4 do SX.report('utah-rally:1', r, { time = 400 }) end
+    SX.onStreetLegalNewDay(27)
+    check('series game: when every round was run it ends as done', returned[#returned] == 'done')
+    local fin2
+    for _, e in ipairs(events) do if e[1] == 'onStreetLegalRoundResult' and e[2].name == 'NGRC Utah Rally' then fin2 = e[2] end end
+    check('series game: the hook shapes carry the series name for the banners, the points and the flags', fin2 and fin2.round and fin2.points ~= nil and fin2.name == 'NGRC Utah Rally' and fin2.series == 'utah-rally')
+    local fin3
+    for _, e in ipairs(events) do if e[1] == 'onStreetLegalSeriesFinished' and e[2].series == 'utah-rally' then fin3 = e[2] end end
+    check('series game: the finished hook has name, pos, position, points, prize, champion and a podium', fin3 and fin3.name == 'NGRC Utah Rally' and fin3.pos == fin3.position and fin3.pos ~= nil and fin3.podium and #fin3.podium >= 1)
+  end
+  local fo = _G.sl_options
+  _G.sl_options = { get = function(k) if k == 'slTravel' then return false end end }
+  check('series game: with the part off nothing answers', SX.hub() == nil and SX.standings() == nil and SX.startNext() == nil)
+  _G.sl_options = fo
+  _G.sl_career, _G.extensions, _G.guihooks, _G.sl_fleet, _G.getPlayerVehicle, _G.gameplay_missions_missions, _G.gameplay_missions_missionManager, _G.core_jobsystem, _G.ui_message, _G.sl_gridrace =
+    old.c, old.e, old.g, old.f, old.pv, old.mi, old.mm, old.cj, old.um, old.gr
+  package.loaded['sl/series'] = nil
 end
 
 print(string.format('lua tests passed: %d checks', passed))

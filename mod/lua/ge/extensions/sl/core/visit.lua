@@ -31,7 +31,8 @@ end
 
 -- a new visit
 function M.new(spec)
-  return { active = true, level = spec.level, event = spec.event, cars = spec.cars, fromDay = spec.day, untilDay = spec.untilDay, round = spec.round or 1, rounds = spec.rounds or 1, home = spec.home }
+  return { active = true, level = spec.level, event = spec.event, series = spec.series, firstDay = spec.firstDay or spec.day, cars = spec.cars, fromDay = spec.day, untilDay = spec.untilDay, round = spec.round or 1,
+    rounds = spec.rounds or 1, home = spec.home }
 end
 
 -- the start of a career whose save holds a visit: 'none' (no visit), 'home' (it is over or its map is gone: go home by itself, the event counts as missed) or 'ask' (the player chooses)

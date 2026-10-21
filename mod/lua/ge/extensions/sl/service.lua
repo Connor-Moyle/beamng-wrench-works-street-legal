@@ -12,6 +12,7 @@ local function career() return sl_career and sl_career.isActive() and sl_career.
 local function carById(s, id) for _, c in ipairs(s.cars) do if c.id == id then return c end end end
 
 local function workbench(s)
+  if sl_career.visit and sl_career.visit() then return sl_rallyservice ~= nil and sl_rallyservice.atStall ~= nil and sl_rallyservice.atStall() == true end      -- (on a visit only a service stall is a bench)
   local f = sl_upgrades and sl_upgrades.features and sl_upgrades.features(s)
   return f == nil or f.workbench == true
 end
