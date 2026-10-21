@@ -47,8 +47,8 @@ local function travelFunction(a)
   end
 end
 
-function M.onGetRawPoiListForLevel(level, elements)
-  if not careerOn() or stockCareerOn() then return end
+-- the career's own pins: the car meets' owners and the career's places (lots, the junkyard, garages of the story)
+local function careerPins(level, elements)
   -- the owners of a car meet: a walk-up marker beside each parked car, its prompt is sl_streets' (Talk to <name>)
   for _, o in ipairs(sl_streets and sl_streets.meetOwnerPois and sl_streets.meetOwnerPois() or {}) do
     elements[#elements + 1] = {
@@ -89,6 +89,14 @@ function M.onGetRawPoiListForLevel(level, elements)
     end
     elements[#elements + 1] = el
   end
+end
+
+function M.onGetRawPoiListForLevel(level, elements)
+  -- in a career as before; in free roam only the shops, garages and gas stations, and only when the 'places' switch of Street Legal's free-roam page is on
+  local career = careerOn()
+  if career then if stockCareerOn() then return end
+  elseif not (sl_mode and sl_mode.enabled('places')) then return end
+  if career then careerPins(level, elements) end
   -- the map's own gas stations (their pump prompt opens sl_station): the game lists them for its career or with its freeroam setting only
   local gs = freeroam_gasStations
   local listed = settings and settings.getValue and settings.getValue('enableGasStationsInFreeroam')
