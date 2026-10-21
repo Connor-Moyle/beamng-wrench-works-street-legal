@@ -37,7 +37,7 @@ local function freeSnapshot()
   local sb = sl_mode.state('phone') or {}
   local h = sb.hour or 12
   local placesOut = {}
-  for id, p in pairs(sl_career and sl_career.allPlaces and sl_career.allPlaces() or {}) do
+  for id, p in pairs(sl_career and (sl_career.freeRoamPlaces or sl_career.allPlaces) and (sl_career.freeRoamPlaces or sl_career.allPlaces)() or {}) do
     if M.FREE_KINDS[p.kind] then placesOut[#placesOut + 1] = { id = id, name = p.name, kind = p.kind } end
   end
   table.sort(placesOut, function(a, b) return a.name < b.name end)
@@ -48,6 +48,7 @@ local function freeSnapshot()
     colorBlind = sl_options ~= nil and sl_options.get ~= nil and sl_options.get('slColorBlind') == true,
     has = { clubs = false, crews = false, classifieds = false, races = false, jobs = false, market = false, bank = false, maps = sl_mode.enabled('maps'), hudpill = false },
     places = placesOut, contacts = {}, threads = {}, fleet = {}, cars = 0,
+    mapName = (function() local lvl = getCurrentLevelIdentifier and getCurrentLevelIdentifier() local m = lvl and progression.MAPS and progression.MAPS[lvl] return m and m.name or lvl end)(),
   }
 end
 M.freeSnapshot = freeSnapshot
@@ -262,7 +263,7 @@ function M.mapPlaces()
   if not inCareer and not freeRoam() then return end
   liveRoute()
   local list = {}
-  for id, p in pairs(sl_career.allPlaces() or {}) do
+  for id, p in pairs((inCareer and sl_career.allPlaces or sl_career.freeRoamPlaces or sl_career.allPlaces)() or {}) do
     if p.pos and (inCareer or M.FREE_KINDS[p.kind]) then list[#list + 1] = { id = id, name = p.name, kind = p.kind, x = p.pos.x, y = p.pos.y } end
   end
   guihooks.trigger('slMap', { groups = mapLib.groups(list, playerAt()), route = route and { id = route.id, name = route.name } or nil })
@@ -293,7 +294,7 @@ function M.people()
 end
 
 function M.routeTo(id)
-  local p = (career() or freeRoam()) and core_groundMarkers and sl_career.allPlaces()[tostring(id)]
+  local p = (career() or freeRoam()) and core_groundMarkers and (career() and sl_career.allPlaces or sl_career.freeRoamPlaces or sl_career.allPlaces)()[tostring(id)]
   if not p or (not career() and not M.FREE_KINDS[p.kind]) then return end
   core_groundMarkers.setPath(p.pos)
   route = { id = tostring(id), name = p.name, x = p.pos.x, y = p.pos.y }
