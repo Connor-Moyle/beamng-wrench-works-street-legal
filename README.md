@@ -2,16 +2,18 @@
 
 A street-racing career for BeamNG.drive on **West Coast USA**, in the spirit of *Street Legal Racing: Redline*. You start on foot with a few thousand dollars and no car. Buy something that runs, fix it up in the garage, earn money by day, race the streets by night, keep ahead of the police and build a name: from a beater to the best in town.
 
-Part of the **Wrench Works** family. BeamNG.drive 0.39.
+Part of the **Wrench Works** family. BeamNG.drive 0.40.
 
 ## What you need
 
-- BeamNG.drive 0.39 and its map **West Coast USA** (it comes with the game).
-- **Wrench Works: Garage 1.7.0** (`wrench_works.zip`): the garage this career works in. Required.
-- **Wrench Works: Drivers & Pedestrians 1.4.0** (`slrr_drivers.zip`): a driver in every car and people on the sidewalks. Optional, recommended.
+- BeamNG.drive 0.40 and its map **West Coast USA** (it comes with the game).
+- **Wrench Works: Garage 1.8.5 or newer** (`wrench_works.zip`): the garage this career works in. Required.
+- **Wrench Works: Drivers & Pedestrians** (`slrr_drivers.zip`): a driver in every car and people on the sidewalks. Optional, recommended.
 - **Wrench Works: Driver Injuries** (`slrr_injury.zip`, an add-on to Drivers): optional.
+- **Car Surface FX** (`car_surface_fx.zip`): dirt, scratches, rain, tyre wear and more on the car. Optional; the career works without it.
+- **Wrench Works: Part Wear** (`part_wear.zip`): parts that wear and look worn. Optional; the career reads its part conditions when it is installed.
 
-The download **Wrench Works Street Legal - West Coast** (`wrench_works_street_legal_west_coast.zip`) holds all four mods with the versions each one needs of the others, and a checksum list. You can also install the single zips.
+The download **Wrench Works Street Legal - West Coast** holds the mods with the versions each one needs of the others, and a checksum list. You can also install the single zips. Each mod checks the versions of the others when a level loads and says if one is too old or missing.
 
 ## Install
 
@@ -64,9 +66,23 @@ At night, walk up to the owner of a parked car at a meet and press **Talk to <na
 
 The phone (K) has Races, My cars, Bank, Street cred, Jobs, Wait, Settings, Club, Turf, Car market, Part market and Help, with Messages, Contacts, Phone and Cab in the dock. Garage computers (and the other computers on the map) open a Windows-style laptop with the same markets, your cars, the bank and Help, and the garage's own tools.
 
+## Money, wear and used cars
+
+- **Weekly costs** (on by default): every seventh day the garage rent (the first garage is free, the second $150, the third $400) and $40 for each car beyond two are paid. What you cannot pay becomes a debt at the bank, never a repossession; the bank lends nothing while you owe it. The Bank app lists the coming bills and the last weeks.
+- **Servicing and wear** (on by default): cars wear much faster than in the base model, a service is due about every 150 km, and driving past it wears the car faster. A basic service restarts the interval; a full overhaul also puts the worn sections right. **Mods > Difficulty > Wear** sets the wear rate and with it the service interval (0.5x to 4x), and tells Part Wear and the Car Surface FX tyres to wear at the same rate.
+- **Used-car checks** (on by default): a private ad shows the history of a car but not its faults; a mechanic's check for a fee shows them and what each costs to fix.
+
+## Street Legal in free roam (all off by default)
+
+ESC > Mods > Street Legal > Free roam: a master switch and one per feature. The phone (K) with the Map and Cab apps, map pins (shops, garages, car washes, gas stations), weather on the game's clock, a free cab, a free car wash and the dashboard. No career is started or saved, no money is spent or taken.
+
+## Phone skins
+
+ESC > Mods > Street Legal > Screens and texts > Phone skin: **Classic** (default) or **Slate**. Your own skins are folders with a `skin.json`; see `docs/PHONE_SKINS.md`.
+
 ## Settings
 
-The phone's **Settings** app: police and how hard they are, pay, hardcore mode (no pull-outs, no insurance, no free cab), the clock's speed, traffic in street races, the laptop wallpaper, the **Street Legal dashboard** (off: BeamNG's own HUD is used), a **performance overlay** for reporting stutters and **Record street races** (watch a race again from the Races app and keep a clip).
+All settings are in the pause menu: **ESC > Mods**. The Street Legal page has tabs: Difficulty (police, pay, hardcore mode, wear rate), Street racing, Clock and weather (the clock speed, weather and the wet roads), Screens and texts (the **Street Legal dashboard**, the phone skin, text size), Accessibility, Free roam, Parts of the game and Developer (a **performance overlay** for reporting stutters). Nothing is set on the phone, the laptop or the game's Options page. **Parts of the game** also lists, on the Active features page, what is switched on: spectators, billboards, ambient sounds, puddles, achievements, tips, car and part markets, rally, races and drag, clubs, crews, the tow truck, the taxi ride, the bank, the hospital, the HUD pill, the laptops, Maps, garage upgrades, jobs, weekly costs, servicing and wear and used-car checks; each is on by default and can be switched off without losing anything in the save.
 
 ## Multiplayer (BeamMP)
 
@@ -80,6 +96,8 @@ Detection is BeamMP's own: `MPCoreNetwork.isMPSession()` or `MPGameNetwork.conne
 
 ## Known issues
 
+- **Wet roads and walls is off by default.** With it on, a long heavy-rain drive at High graphics lost the graphics device in five tests on BeamNG 0.40 (notes in `docs/WET_WORLD_HIGH_CRASH.md`); with it off the weather, puddles and rain work. Turn it on in Mods > Street Legal > Clock and weather only if you accept the risk.
+- Servicing and wear, weekly costs, used-car checks and the Wear rate setting have been tested offline; check the changelog for what has been seen in the game.
 - A few stock models (the midtruck) are kept off the lots: they can crash the game on a second lot build.
 - Some pedestrians stand still; frame time rises in the busy parts of the map with traffic and pedestrians on.
 - The Valo City map and the original cars and traffic of Street Legal Racing Redline are on hold and not part of this release.
