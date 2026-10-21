@@ -2911,7 +2911,12 @@ do -- the free-roam switches in the Mods menu list (sl/options) and the game sid
   local on = {}
   _G.sl_options = { get = function(k) return on[k] end }
   on.freeroam, on.freeroam_phone = true, true
-  check('free roam: master and feature switch enable it, the state is still nil (sandbox comes later)', M.kind() == 'freeroam' and M.enabled('phone') and not M.enabled('maps') and M.state('phone') == nil)
+  local sb = M.state('phone')
+  check('free roam: master and feature switch enable it, the state is the sandbox (no money, no cars), and a feature that is off gets nothing', M.kind() == 'freeroam' and M.enabled('phone') and not M.enabled('maps') and M.state('maps') == nil and sb and sb.sandbox == true and sb.money == nil and sb.cars == nil and M.state('phone') == sb)
+  local Cm = require('sl/core/mode')
+  local t = Cm.sandbox(nil, 23, 5)
+  Cm.sandbox(t, 2) local d2 = t.day Cm.sandbox(t, 12)
+  check('free roam: the sandbox has the phase of the hour and counts a new day past midnight, and keeps its seed', t.phase == 'day' and t.seed == 5 and d2 == 2 and Cm.sandbox(t, 22).phase == 'night' and Cm.sandbox(t, 3).phase == 'night' and Cm.sandbox(t, 4).phase == 'day')
   local st = { cars = {} }
   _G.sl_career = { isActive = function() return true end, getState = function() return st end }
   on.freeroam, on.freeroam_phone = nil, nil
@@ -2939,7 +2944,7 @@ do -- free roam never writes a career: with no career started (free roam, every 
     _G.sl_options = { get = function(k) return on[k] end }
     package.loaded['sl/mode'] = nil
     local M = require('sl/mode')
-    check('free roam: every switch on, still no career: kind is freeroam and the state is no career state', M.kind() == 'freeroam' and M.enabled('phone') and M.state('phone') == C.getState())
+    check('free roam: every switch on, still no career: kind is freeroam and the state is no career state', M.kind() == 'freeroam' and M.enabled('phone') and M.state('phone') ~= nil and M.state('phone').sandbox == true and C.getState() == nil)
     local called = 0
     for k, fn in pairs(C) do
       if type(fn) == 'function' and k:sub(1, 2) == 'on' then called = called + 1 pcall(fn, 60, 60) pcall(fn, 60) pcall(fn) end

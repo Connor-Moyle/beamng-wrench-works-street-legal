@@ -38,4 +38,17 @@ function M.enabled(careerActive, sw, feature)
   return M.kind(false, sw) == 'freeroam' and known[feature] == true and feature ~= M.MASTER and sw(M.key(feature)) == true
 end
 
+-- The sandbox state of a free-roam session: only what the features need to run (a seed for the weather, the day, the phase and the hour from the game's clock). No money, no cars, no
+-- rep: nothing a wallet or a garage could be asked for. Never saved, never the career's. `sb` is the table kept by the caller; hour = the game's hour of day (0-24) or nil.
+function M.sandbox(sb, hour, seed)
+  sb = sb or { seed = math.floor(tonumber(seed) or 1), day = 1, phase = 'day', hour = 12, sandbox = true }
+  if type(hour) == 'number' then
+    if hour < sb.hour - 12 then sb.day = sb.day + 1 end      -- (the clock went past midnight)
+    sb.hour = hour
+    local dark = hour >= 21 or hour < 4
+    sb.phase = dark and 'night' or 'day'
+  end
+  return sb
+end
+
 return M

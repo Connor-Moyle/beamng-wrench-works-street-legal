@@ -39,6 +39,8 @@ local tintBase = {}              -- the sky colours the game's own gradients set
 local tintTimer = 0
 
 local function career() return sl_career and sl_career.isActive() and sl_career.getState() or nil end
+-- what the weather runs on: the career's state, or in free roam (the master and the 'weather' switch on) the sandbox state of sl_mode (a seed, the day, the phase from the game's clock; never saved)
+local function source() return career() or (sl_mode and sl_mode.state('weather')) or nil end
 
 local function objects(className)
   local ok, list = pcall(getObjectsByClass, className)
@@ -226,10 +228,10 @@ end
 -- the state of this phase of this day; a new one is blended in
 local function sync()
   if forced then return end
-  local s = career()
+  local s = source()
   if not s then return end
   readBaseline()
-  local phase = sl_career.phase() or 'day'
+  local phase = s.phase or 'day'
   local key = tostring(s.day) .. ':' .. phase
   if key == lastKey then return end
   lastKey = key
@@ -253,10 +255,11 @@ function M.level() return levelId end
 function M.wetness() return wet end
 function M.bonus() return career() and rules.pay(stateId) or 1 end
 -- the grip factor now: fog's own, or what the wet road leaves (whichever is less)
-function M.grip() return career() and math.min(current and current.grip or 1, rules.wetGrip(wet, lastRain)) or 1 end
+function M.grip() return source() and math.min(current and current.grip or 1, rules.wetGrip(wet, lastRain)) or 1 end
 function M.forecast()
-  if not career() then return nil end
-  return { state = stateId, level = levelId, name = rules.state(stateId).name, text = rules.text(sl_career.phase() or 'day', stateId, nextId, levelId), wet = stateId == 'rain' }
+  local s = source()
+  if not s then return nil end
+  return { state = stateId, level = levelId, name = rules.state(stateId).name, text = rules.text(s.phase or 'day', stateId, nextId, levelId), wet = stateId == 'rain' }
 end
 
 -- the car's tyres take the grip (the player's own car; a car swapped in is told at the next look)
@@ -337,9 +340,19 @@ local function lap(name)
   prof.parts[name] = (prof.parts[name] or 0) + (now - lapAt) * 1000
   lapAt = now
 end
+local freeActive, freeTimer = false, 0
 local function update(dtReal)
   if prof then lapAt = os.clock() end
-  if not career() and not forced then return end
+  local s = source()
+  if not s and not forced then
+    if freeActive then freeActive = false M.onStreetLegalStopped() end        -- (the free-roam switch went off: the level's own sky comes back)
+    return
+  end
+  if s and s.sandbox then
+    freeActive = true
+    freeTimer = freeTimer + (dtReal or 0)
+    if freeTimer > 5 then freeTimer = 0 sync() end                          -- (a career is told of a new phase or day by hooks; the sandbox is looked at every few seconds)
+  end
   if not baseline or not lastKey then sync() end
   dtReal = dtReal or 0
   if target and blendT < 1 then
