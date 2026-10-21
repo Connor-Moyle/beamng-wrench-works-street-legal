@@ -10,12 +10,12 @@
 - **Tyres keep their wear with the car** (needs Car Surface FX with its tyre simulation switched on): a car's tyre set and how worn it is are saved with the car, and put back when the car comes out of the garage or you reset it. Buying a different tyre part, or the same one again, gives a new set; a car sold on bare rims shows no tyres until a tyre part is fitted. Tested in game with a bought car on a reset, a respawn and a career save (the Wrench Works garage fitting itself was not tested in game).
 
 ### Changes
-- **Wet roads and walls** now change one material at a time instead of several, so getting wet takes longer (about a minute and a half in a sudden downpour). This is a crash-prevention change for BeamNG 0.40.
+- **Wet roads and walls** now change one material at a time instead of several, so getting wet takes longer (about a minute and a half in a sudden downpour). It did not stop the High-graphics crash (see the known issue).
 - **Wet world and ground hollows:** the wet world takes turns with Car Surface FX's ground hollows (tested at Low graphics).
 - **Wet tarmac:** off by default (as in 0.5.2). It waits for puddles (a 60-second hold); with it, in one heavy-rain test with wet tarmac on, it no longer crashed. It may still crash some cards.
 
 ### Known issue
-- At High graphics a heavy-rain crash has still been seen with 0.5.2. The slower wet-road pace above is meant to fix it but has not yet been proven at High. Workaround if it happens: turn "Wet roads and walls" off, or lower the graphics quality.
+- At High graphics a heavy-rain crash (the graphics driver stops) can still happen, also with the slower wet-road pace above; it was not seen at Low graphics. Workaround: turn "Wet roads and walls" off, or lower the graphics quality in heavy rain.
 
 ## 0.5.2 (needs Wrench Works 1.8.0)
 
