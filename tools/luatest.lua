@@ -3890,9 +3890,9 @@ do
   local TX = require('sl/traps')
   TX.onUpdate(0.2)
   local sm = TX.summary()
-  check('traps: the career gets its list in the save, on first sight', sm and #sm.list == 8 and st.traps.level == 'test_level' and #st.traps.list == 8)
+  check('traps: the career gets its list in the save, on first sight', sm and #sm.list == 8 and st.traps.levels.test_level and #st.traps.levels.test_level.list == 8)
   local trap
-  for _, t in ipairs(st.traps.list) do if t.kind == 'trap' then trap = t break end end
+  for _, t in ipairs(st.traps.levels.test_level.list) do if t.kind == 'trap' then trap = t break end end
   local function drive(from, to, speed)
     pos = { x = from.x + 500, y = from.y + 500 } TX.onUpdate(0.2)         -- (away first: the jump forgets the last place)
     pos = from vel = speed TX.onUpdate(0.2)
@@ -3900,27 +3900,43 @@ do
   end
   local offs = trap.dx * 10
   drive({ x = trap.x - trap.dx * 6, y = trap.y - trap.dy * 6 }, { x = trap.x + trap.dx * 6, y = trap.y + trap.dy * 6 }, 200 / 3.6)
-  check('traps: driving through a trap at 200 km/h records it and pays the target once', st.traps.rec[trap.id] and st.traps.rec[trap.id].best == 200 and paid == 250 and st.rep >= 5)
+  check('traps: driving through a trap at 200 km/h records it and pays the target once', st.traps.levels.test_level.rec[trap.id] and st.traps.levels.test_level.rec[trap.id].best == 200 and paid == 250 and st.rep >= 5)
   local before = paid
   drive({ x = trap.x - trap.dx * 6, y = trap.y - trap.dy * 6 }, { x = trap.x + trap.dx * 6, y = trap.y + trap.dy * 6 }, 210 / 3.6)
-  check('traps: the second run only records', st.traps.rec[trap.id].best == 210 and paid == before and st.traps.rec[trap.id].count == 2)
+  check('traps: the second run only records', st.traps.levels.test_level.rec[trap.id].best == 210 and paid == before and st.traps.levels.test_level.rec[trap.id].count == 2)
   pos = { x = 0, y = 0 }
   TX.onUpdate(0.2)
   drive({ x = trap.x + 5000, y = trap.y }, { x = trap.x - 5000, y = trap.y }, 300 / 3.6)
-  check('traps: a jump of more than 80 m between samples (a teleport) counts as no crossing', st.traps.rec[trap.id].count == 2)
+  check('traps: a jump of more than 80 m between samples (a teleport) counts as no crossing', st.traps.levels.test_level.rec[trap.id].count == 2)
+  do -- another map and back: the records and what was paid stay with their map
+    local before0 = paid
+    _G.getCurrentLevelIdentifier = function() return 'other_level' end
+    TX.onUpdate(0.2)
+    check('traps: another map gets its own traps; the first map keeps its records', st.traps.levels.other_level and #st.traps.levels.other_level.list == 8 and st.traps.levels.test_level.rec[trap.id].paid == true)
+    _G.getCurrentLevelIdentifier = function() return 'test_level' end
+    pos = { x = trap.x - trap.dx * 506, y = trap.y - trap.dy * 506 } TX.onUpdate(0.2)
+    pos = { x = trap.x - trap.dx * 6, y = trap.y - trap.dy * 6 } vel = 220 / 3.6 TX.onUpdate(0.2)
+    pos = { x = trap.x + trap.dx * 6, y = trap.y + trap.dy * 6 } TX.onUpdate(0.2)
+    check('traps: back on the first map the trap does not pay a second time, and the better speed is the record', paid == before0 and st.traps.levels.test_level.rec[trap.id].best == 220)
+    -- a save from the first shape of the part (one level at the top) is read as that level's entry
+    local old1 = st.traps
+    st.traps = { level = 'test_level', list = old1.levels.test_level.list, rec = { [trap.id] = { best = 150, count = 1, paid = true } } }
+    local sm2 = TX.summary()
+    check('traps: an older save is read as the entry of its map', st.traps.levels and st.traps.levels.test_level.rec[trap.id].best == 150 and st.traps.level == nil and sm2 and #sm2.list == 8)
+  end
   do -- a zone: the average speed between its two gates
     local zone
-    for _, t in ipairs(st.traps.list) do if t.kind == 'zone' then zone = t break end end
+    for _, t in ipairs(st.traps.levels.test_level.list) do if t.kind == 'zone' then zone = t break end end
     local realClock, clk = os.clock, 100
     os.clock = function() return clk end
     local function at(g, sp, dt) clk = clk + dt local p0 = { x = g.x - zone.dx * 6, y = g.y - zone.dy * 6 } pos = { x = p0.x + 500, y = p0.y + 500 } TX.onUpdate(0.2) pos = p0 vel = sp TX.onUpdate(0.2) pos = { x = g.x + zone.dx * 6, y = g.y + zone.dy * 6 } TX.onUpdate(0.2) end
     local length = zone.len
     at(zone.g1, 30, 0.5)
     at(zone.g2, 30, length / (160 / 3.6))
-    local r = st.traps.rec[zone.id]
+    local r = st.traps.levels.test_level.rec[zone.id]
     check('traps: a zone records the average speed from the first gate to the second (160 km/h) and pays at the target', r and r.best == 159 or r and r.best == 160)
     at(zone.g2, 30, 1)
-    check('traps: the second gate alone, with no first gate, records nothing', st.traps.rec[zone.id].count == 1)
+    check('traps: the second gate alone, with no first gate, records nothing', st.traps.levels.test_level.rec[zone.id].count == 1)
     os.clock = realClock
   end
   _G.sl_career, _G.extensions, _G.guihooks, _G.getPlayerVehicle, _G.map, _G.getCurrentLevelIdentifier, _G.ui_message = old.c, old.e, old.g, old.pv, old.map, old.lv, old.um
@@ -3987,14 +4003,14 @@ do
   local DX = require('sl/danger')
   DX.onUpdate(0.2)
   local sm = DX.summary()
-  check('danger: the career gets two drift zones in the save and a jump record', sm and #sm.drift == 2 and sm.jump.next == 20 and st0.danger.level == 'test_level')
+  check('danger: the career gets two drift zones in the save and a jump record', sm and #sm.drift == 2 and sm.jump.next == 20 and st0.danger.levels.test_level ~= nil)
   -- a jump of 50 m: in the air for 0.8 s
   pos = { x = 500, y = 500, z = 0 } ground = 0.5 DX.onUpdate(0.2)
   ground = 3 for i = 1, 4 do pos = { x = 500 + i * 12, y = 500, z = 0 } DX.onUpdate(0.2) end
   ground = 0.5 pos = { x = 560, y = 500, z = 0 } DX.onUpdate(0.2)
   check('danger: a 50 m jump is recorded, pays the 20 and 40 m rungs and nothing more', st0.danger.jump.best > 40 and st0.danger.jump.paid == 2 and paid == 450 and DX.summary().jump.next == 70)
   -- a drift run through the first zone
-  local zone = st0.danger.drift.list[1]
+  local zone = st0.danger.levels.test_level.list[1]
   local clock = 100
   os.clock = function() return clock end
   vel, face = { x = 25, y = 0 }, { x = 0.7071, y = 0.7071 }          -- 45 degrees of slip at 25 m/s
@@ -4008,7 +4024,7 @@ do
   for i = 1, 31 do pos = { x = pos.x + zone.dx * 9, y = pos.y + zone.dy * 9 } DX.onUpdate(0.1) end
   pos = { x = zone.g2.x - zone.dx * 6, y = zone.g2.y - zone.dy * 6 } DX.onUpdate(0.2)
   pos = { x = zone.g2.x + zone.dx * 6, y = zone.g2.y + zone.dy * 6 } DX.onUpdate(0.2)
-  local rec = st0.danger.drift.rec[zone.id]
+  local rec = st0.danger.levels.test_level.rec[zone.id]
   check('danger: a drift run between the gates scores points, and a score under the target pays nothing', rec and rec.best > 0 and rec.count == 1 and not rec.paid and paid == 450)
   os.clock = old.clock
   _G.sl_career, _G.extensions, _G.guihooks, _G.getPlayerVehicle, _G.map, _G.getCurrentLevelIdentifier, _G.ui_message, _G.castRayStatic, _G.vec3 = old.c, old.e, old.g, old.pv, old.map, old.lv, old.um, old.ray, old.v3

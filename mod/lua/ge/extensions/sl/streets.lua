@@ -372,6 +372,7 @@ local function updateRace(dt)
     race.countdown = race.countdown - dt
     if race.countdown <= 0 then
       race.countdown = nil
+      extensions.hook('onStreetLegalRaceGo')            -- (the green light: the screen banner)
       if race.circuit then
         -- round the track on its AI roads (the checkpoints alone are too far apart: a line through
         -- them cut a bend and stuck the car - seen in game); a scripted line if there are none
