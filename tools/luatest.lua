@@ -4439,7 +4439,8 @@ do
   local old = { c = rawget(_G, 'sl_career'), e = rawget(_G, 'extensions'), b = rawget(_G, 'slrr_brands'), g = rawget(_G, 'slrr_garage'), fl = rawget(_G, 'sl_fleet'), sh = rawget(_G, 'sl_shops') }
   local sent, factorFn, shopFn, paid = {}, nil, nil, 0
   _G.extensions = { hook = function() end }
-  _G.slrr_brands = { list = function() return { { id = 'ibishu', name = 'Ibishu', kind = 'maker' }, { id = 'velox', name = 'Velox', kind = 'aftermarket' } } end,
+  local listCalls = 0
+  _G.slrr_brands = { list = function() listCalls = listCalls + 1 return { { id = 'ibishu', name = 'Ibishu', kind = 'maker' }, { id = 'velox', name = 'Velox', kind = 'aftermarket' } } end,
     ofCar = function(m) return m == 'covet' and 'ibishu' or nil end, ofPart = ofPart, nameOf = function(id) return id == 'ibishu' and 'Ibishu' or 'Velox' end }
   _G.slrr_garage = { setPriceFactor = function(f) factorFn = f end }
   _G.sl_shops = { setPriceFactor = function(id, f) shopFn = f end }
@@ -4479,6 +4480,7 @@ do
   SP.onStreetLegalNewDay(s.day + 20)
   check('sponsor: an offer can be declined, which starts the cooldown', SP.decline() == true and SP.summary().offer == nil and s.brands.cooldown.ibishu > s.day)
   check('sponsor: accept and decline with no offer say so', SP.accept() == false and SP.decline() == false and SP.quit() == false)
+  check('sponsor: the brand list is read once, however often the kinds are asked', listCalls == 1, tostring(listCalls))
   -- the part off: nothing runs, the shops are left alone
   do
     local fo = _G.sl_options

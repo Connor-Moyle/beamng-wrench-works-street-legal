@@ -12,9 +12,15 @@ local stateLib = require('sl/core/state')
 local function career() return sl_career and sl_career.isActive() and sl_career.getState() or nil end
 local function api() local b = rawget(_G, 'slrr_brands') return b and type(b.ofCar) == 'function' and type(b.ofPart) == 'function' and b or nil end
 local function brandName(id) local b = api() return b and b.nameOf and b.nameOf(id) or tostring(id) end
+local kinds                       -- brand id -> 'maker' | 'aftermarket': slrr_brands.list() walks the game's whole model list and every pool, so it is read once a session
 local function brandKind(id)
-  local b = api()
-  for _, x in ipairs(b and b.list and b.list() or {}) do if x.id == id then return x.kind end end
+  if not kinds then
+    local b = api()
+    if not (b and b.list) then return nil end
+    kinds = {}
+    for _, x in ipairs(b.list() or {}) do kinds[x.id] = x.kind end
+  end
+  return kinds[id]
 end
 
 local function brandsState(s)
@@ -208,7 +214,7 @@ end
 
 function M.onStreetLegalStarted() refreshShops() end
 function M.onStreetLegalOption(key) if key == 'slSponsors' then refreshShops() end end
-function M.onStreetLegalStopped() register(false) end
+function M.onStreetLegalStopped() register(false) kinds = nil end
 
 require('sl/core/features').gate('sponsors', M, nil, { 'onStreetLegalStarted' }, { 'summary', 'current', 'accept', 'decline', 'quit' })
 
