@@ -29,6 +29,9 @@ ${code}
   var extra = ${extra};
   Object.keys(extra).forEach(function (k) { data[k] = extra[k]; });
   var hash = (location.hash.slice(1) || 'home').split(':'), app = hash[0];
+  var trip = ${JSON.stringify(require('./travel_fixture.js'))};
+  if (app === 'event') { data.visit = trip.visit; data.hub = trip.hub; }
+  if (app === 'pick') data.travelPick = trip.options;
   var clock = { now: function () { return Date.now(); }, set: function (f, ms) { return setTimeout(f, ms); }, clear: function (t) { clearTimeout(t); } };
   var phone = window.__slPhoneCreate(document, function () {}, clock);
   document.body.appendChild(phone.root);
