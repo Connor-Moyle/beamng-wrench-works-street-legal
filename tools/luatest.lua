@@ -5464,4 +5464,50 @@ do
   package.loaded['sl/shops'] = nil
 end
 
+-- needs batch 2: the rules (diner, motel, fridge, bed, meal plan, ledger line, micro-sleeps)
+do
+  local N = require('sl/core/needs')
+  local n = N.repair({ food = 20, water = 20, rest = 20 })
+  check('needs: a repaired save has the new fields', n.spentWeek == 0 and n.plan == false and n.fridgeDay == nil)
+  check('needs: the diner sells drink, coffee, meal and big meal; the fuel station does not sell the big meal', N.DINER_ORDER[4] == 'bigmeal' and N.ITEMS.bigmeal.price == 25 and N.ITEM_ORDER[4] ~= 'bigmeal')
+  check('needs: a meal costs 12, on the plan nothing, a drink always 2', N.price('meal', false) == 12 and N.price('meal', true) == 0 and N.price('bigmeal', true) == 0 and N.price('drink', true) == 2 and N.price('zzz', false) == 0)
+  local ok, price = N.eatAt(n, 'bigmeal', false)
+  check('needs: a big meal fills food and adds water, and is added to the week', ok and price == 25 and n.food == 100 and n.water == 60 and n.spentWeek == 25)
+  ok, price = N.eatAt(n, 'meal', true)
+  check('needs: a meal on the plan costs nothing and adds nothing to the week', ok and price == 0 and n.spentWeek == 25)
+  local bad, p0 = N.eatAt(n, 'nothing', false)
+  check('needs: a thing the counter does not have changes nothing', bad == false and p0 == 0 and n.spentWeek == 25)
+  local m = N.repair({ food = 100, water = 10, rest = 10 })
+  check('needs: the fridge fills water, tops food to 60, once a day', N.fridge(m, 5) == true and m.water == 100 and m.food == 100 and N.fridge(m, 5) == false and N.fridge(m, 6) == true)
+  local low = N.repair({ food = 10, water = 10, rest = 100 })
+  N.fridge(low, 1)
+  check('needs: the fridge tops food to 60 when it was lower', low.food == 60 and low.water == 100)
+  check('needs: sleep is in a bed at a garage that has one, on the couch at one that has not, in the car elsewhere', N.sleepPlace(true, true) == 'bed' and N.sleepPlace(true, false) == 'couch' and N.sleepPlace(false, true) == 'car')
+  local tired = N.repair({ food = 100, water = 100, rest = 5 })
+  check('needs: a motel room is a full sleep', N.motel(tired) > 90 and tired.rest == 100 and N.MOTEL.price == 40)
+  local w = N.repair({ spentWeek = 137.4 })
+  local line = N.takeWeek(w)
+  check('needs: the ledger takes the week\'s food and drink as a line and starts the week again', line.amount == 137 and w.spentWeek == 0 and N.takeWeek(w) == nil)
+  check('needs: the meal plan bills 60 a week while it is on', N.planBill({ plan = true }) == 60 and N.planBill({ plan = false }) == 0)
+
+  -- micro-sleeps
+  local seq = { 0.0, 0.0, 0.5, 1.0 }
+  local i = 0
+  local function rnd() i = i + 1 return seq[(i - 1) % #seq + 1] end
+  local st = {}
+  local ctx = { on = true, rest = 3, speed = 20, blocked = false }
+  local out = N.microStep(st, 1, ctx, rnd)
+  check('micro: the first step only sets the wait (25 s at the shortest)', out == nil and st.wait == 24)
+  for _ = 1, 23 do N.microStep(st, 1, ctx, rnd) end
+  check('micro: nothing before the wait is over', st.wait == 1)
+  local nod = N.microStep(st, 1, ctx, rnd)
+  check('micro: then a nod of half a second to a second, and a new wait is set', nod ~= nil and nod >= N.MICRO.secMin and nod <= N.MICRO.secMax and st.wait >= N.MICRO.gapMin)
+  local st2 = { wait = 0.5 }
+  check('micro: never with the switch off', N.microStep(st2, 5, { on = false, rest = 3, speed = 20 }, rnd) == nil and st2.wait == 0.5)
+  check('micro: never when rest is only low (not the problem stage)', N.microStep(st2, 5, { on = true, rest = 15, speed = 20 }, rnd) == nil and st2.wait == 0.5)
+  check('micro: never when the car is slow', N.microStep(st2, 5, { on = true, rest = 3, speed = 3 }, rnd) == nil and st2.wait == 0.5)
+  check('micro: never when blocked (a race, a job, just after a spawn), and the wait does not run down', N.microStep(st2, 5, { on = true, rest = 3, speed = 20, blocked = true }, rnd) == nil and st2.wait == 0.5)
+  package.loaded['sl/core/needs'] = nil
+end
+
 print(string.format('lua tests passed: %d checks', passed))
