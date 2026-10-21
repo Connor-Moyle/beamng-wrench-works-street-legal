@@ -367,4 +367,13 @@ assert.ok(text().includes('Tuning: You have no car yet.'), 'and the icon says wh
   const css = [...win.document.querySelectorAll('style')].map((e) => e.textContent).join(' ');
   assert.ok(css.includes('.sll-cb .sll-plus:before') && css.includes('#56b4e9') && css.includes('#ffb454'), 'colour-blind CSS: marks and blue/orange');
   assert.ok(css.includes('[bng-nav-item]:focus') && css.includes('outline:3px solid #ffd54f'), 'the pad focus ring is always visible'); }
+{
+  // the UI style kit: Reduce motion and the focus band
+  laptop.handle('slPhoneData', Object.assign({}, laptop.state.data || {}, { reduceMotion: true }));
+  assert.ok(laptop.root.classList.contains('sll-rm') || $('.sll-rm'), 'Reduce motion puts the sll-rm class on the laptop');
+  laptop.handle('slPhoneData', Object.assign({}, laptop.state.data || {}, { reduceMotion: false }));
+  assert.ok(!laptop.root.classList.contains('sll-rm') && !$('.sll-rm'), 'and takes it off');
+  const css = [...win.document.querySelectorAll('style')].map((e) => e.textContent).join(' ');
+  assert.ok(/\.sll-rm \*[^}]*transition:none!important/.test(css) && /prefers-reduced-motion:reduce\)\{\.sll-root \*,\.sll-root \*:before/.test(css) && /outline:3px solid #ffd54f!important;outline-offset:2px;box-shadow:0 0 0 2px #0d0b12/.test(css), 'the laptop stops motion for both settings and has the focus band');
+}
 console.log('laptop test passed');

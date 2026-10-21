@@ -964,6 +964,18 @@ assert.ok(calls.includes('routeGarage()'), 'Route to my garage on the home scree
   assert.ok(!phone.root.querySelector('[data-a="open"][data-v="traps"]'), 'the part off: no app');
   phone.handle('slPhoneData', data);
 }
+{
+  // the UI style kit: Reduce motion (option slReduceMotion, data.reduceMotion) and the focus band
+  const layer = () => phone.root.querySelector('.slp-layer') || phone.root;
+  phone.handle('slPhoneData', Object.assign({}, data, { reduceMotion: true }));
+  assert.ok(phone.root.classList.contains('slp-rm') || phone.root.querySelector('.slp-rm'), 'Reduce motion puts the slp-rm class on the phone');
+  phone.handle('slPhoneData', Object.assign({}, data, { reduceMotion: false }));
+  assert.ok(!phone.root.classList.contains('slp-rm') && !phone.root.querySelector('.slp-rm'), 'and takes it off');
+  const css = win.document.querySelector('style').textContent;
+  assert.ok(/\.slp-rm \.slp-device,\.slp-rm \*[^}]*transition:none!important;animation:none!important/.test(css) && /prefers-reduced-motion:reduce\)\{.*\.slp-root \*,\.slp-root \*:before/.test(css), 'both the option and the system setting stop every transition and animation');
+  assert.ok(/outline:3px solid #ffd54f!important;outline-offset:2px;box-shadow:0 0 0 2px #0d0b12/.test(css), 'the focus ring is 3 px with a dark band');
+  assert.ok(/reduceMotion\)\) return null/.test(code), 'with Reduce motion the K slide is the plain open and close');
+}
 console.log('phone test passed');
 
 // a page to look at: the phone in several states side by side

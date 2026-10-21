@@ -99,6 +99,7 @@ local function snapshot()
     atRisk = sl_career.atRisk and sl_career.atRisk() or 0,
     textScale = require('sl/core/strings').textScale(sl_options and sl_options.get and sl_options.get('slTextScale')),
     colorBlind = sl_options ~= nil and sl_options.get ~= nil and sl_options.get('slColorBlind') == true,      -- (#51)
+    reduceMotion = sl_options ~= nil and sl_options.get ~= nil and sl_options.get('slReduceMotion') == true,      -- (UI style kit: no movement, only instant changes)
     wall = sl_photos and sl_photos.wallpapers and sl_photos.wallpapers().phone or nil,      -- (a photo as the home screen's wallpaper)
     heat = phaseLib.heatLevel(sl_police and sl_police.heat and sl_police.heat() or 0),
     phase = sl_career.phase and sl_career.phase() or nil, phaseSwitch = phaseLib.switchLabel(sl_career.phase and sl_career.phase() or nil),
