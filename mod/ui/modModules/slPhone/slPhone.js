@@ -766,11 +766,17 @@
     function jobsPage() {
       var j = obj(st.data.jobs), a = j.active;
       var mmss = function (sec) { sec = Math.max(0, sec | 0); return Math.floor(sec / 60) + ':' + two(sec % 60); };
-      var activeCard = a ? '<div class="slp-card"><h4>' + esc(a.title) + ': ' + esc(a.item || '') + (a.fragile ? ' &middot; fragile' : '') + '</h4>' +
+      var activeCard = a ? '<div class="slp-card"><h4>' + esc(a.title) + ': ' + esc(a.item || '') + (a.fragile ? ' &middot; fragile' : '') + '</h4>' + (a.contract ? '<p><span class="slp-chip" style="margin:0 6px 0 0">' + T('ui.contract', 'Contract') + '</span>' + esc(a.contract.label || '') + '</p>' : '') +
         ('<p>' + T('ui.next_stop', 'Next stop: ')) + esc(a.next) + (a.timeLeft != null ? ' &middot; ' + (a.timeLeft > 0 ? mmss(a.timeLeft) + ' left' : 'late') : '') + ' &middot; ' + money(a.pay) + '</p>' +
         ('<div class="slp-acts"><div class="slp-btn" data-a="jobway" data-v="1">' + T('ui.show_the_way', 'Show the way') + '</div><div class="slp-btn slp-text" data-a="jobquit" data-v="1">' + T('ui.give_up', 'Give up') + '</div></div></div>') : '';
+      // a contract (sl_jobs: an offer with terms, o.contract = { req, label, mult, basePay }): a tag, the terms, and the normal pay as small text
+      var contractLines = function (c, pay) {
+        if (!c) return '';
+        return '<p><span class="slp-chip" style="margin:0 6px 0 0">' + T('ui.contract', 'Contract') + '</span>' + esc(c.label || '') + '</p>' +
+          (c.basePay != null ? '<p style="font-size:12px;color:#cac4d0">' + T('ui.contract_pay', 'Pays {1} if you keep the terms, {2} if you miss them', money(pay), money(c.basePay)) + '</p>' : '');
+      };
       var cards = arr(j.offers).map(function (o) {
-        return '<div class="slp-card"><h4>' + esc(o.title) + ': ' + esc(o.item || '') + (o.fragile ? ' &middot; fragile' : '') + '</h4>' +
+        return '<div class="slp-card"><h4>' + esc(o.title) + ': ' + esc(o.item || '') + (o.fragile ? ' &middot; fragile' : '') + '</h4>' + contractLines(o.contract, o.pay) +
           '<p>' + esc(o.from) + ' &rarr; ' + esc(o.to) + ' &middot; ' + (o.metres ? (o.metres / 1000).toFixed(1) + ' km &middot; ' : '') + (o.seconds ? mmss(o.seconds) + ' &middot; ' : '') + '<b>' + money(o.pay) + '</b></p>' +
           (a ? '' : '<div class="slp-acts"><div class="slp-btn" data-a="jobtake" data-v="' + esc(o.id) + ('">' + T('ui.take_it', 'Take it') + '</div></div>')) + '</div>';
       }).join('');
@@ -1252,6 +1258,16 @@
       }).join('');
     }
 
+    // tier perks (sl_perks.perks(): { tier, list = { { id, label, text, unlocked, tier } } }): what each rank has opened, the next ones dimmed; nothing when the part is off
+    function perksCard() {
+      var pk = st.data.perks;
+      if (!pk || obj(st.data.has).perks === false || !arr(pk.list).length) return '';
+      return '<div class="slp-card"><h4>' + T('ui.tier_perks', 'Tier perks') + '</h4>' + arr(pk.list).map(function (x) {
+        return '<div class="slp-kv"' + (x.unlocked ? '' : ' style="opacity:.6"') + '><span>' + esc(x.label || '') + '<br><small>' + esc(x.text || '') + '</small></span><b' + (x.unlocked ? ' class="slp-on"' : '') + '>' +
+          (x.unlocked ? '&#10004; ' + T('ui.perk_open', 'Open') : T('ui.perk_rank', 'Rank {1}', Number(x.tier) || 0)) + '</b></div>';
+      }).join('') + '</div>';
+    }
+
     function mePage() {
       var d = st.data, s = obj(d.stats);
       var from = d.titleRep || 0, to = d.nextRep, pct = to ? Math.max(0, Math.min(100, ((d.rep || 0) - from) / (to - from) * 100)) : 100;
@@ -1260,7 +1276,7 @@
       if (d.nextGarage && d.nextGarage.canMove) acts.push(('<div class="slp-btn" data-a="move">' + T('ui.move_to', 'Move to ')) + esc(d.nextGarage.name) + '</div>');
       if (d.roc && !d.rocChampion) acts.push('<div class="slp-btn" data-a="roc">' + (d.rocRound ? T('ui.roc_round_1_of_3', 'ROC round {1} of 3', (d.rocRound + 1)) : T('ui.enter_the_roc_middot_1', 'Enter the ROC &middot; {1}', money(d.rocEntry))) + '</div>');
       return bar(T('app.me', 'Street cred')) + '<div class="slp-body"><div class="slp-card"><h4>' + esc(d.title) + '</h4><p>' + (d.rep || 0) + ' reputation' + (to ? T('ui.middot_next_title_at_1', ' &middot; next title at {1}', to) : '') + '</p>' +
-        '<div class="slp-meter"><i style="width:' + pct.toFixed(1) + '%"></i></div></div>' +
+        '<div class="slp-meter"><i style="width:' + pct.toFixed(1) + '%"></i></div></div>' + perksCard() +
         ('<div class="slp-card"><div class="slp-kv"><span>' + T('ui.garage', 'Garage') + '</span><b>') + esc(d.garage || '') + '</b></div>' + next +
         (d.hasRoc === false ? '' : ('<div class="slp-kv"><span>' + T('activityrules.race_of_champions', 'Race of Champions') + '</span><b>') + (d.roc ? T('ui.open_to_you', 'Open to you') : T('ui.not_yet', 'Not yet')) + '</b></div>') +
         ('<div class="slp-kv"><span>' + T('ui.cars', 'Cars') + '</span><b>') + (d.cars || 0) + '</b></div>' +

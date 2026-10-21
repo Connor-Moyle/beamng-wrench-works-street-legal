@@ -264,6 +264,17 @@ click('mtab', 'cab|dealer'); click('mtab', 'cabtier|all'); click('mtab', 'cab|al
 click('home');
 click('open', 'me');
 assert.ok(text().includes('Street kid') && text().includes('needs 1500 reputation'), 'street cred page');
+{
+  // tier perks (sl_perks.perks()): the rank, what each opened, the next ones dimmed; nothing with the part off or no data
+  const perks = { tier: 2, list: [{ id: 'garage', label: 'Garage discount', text: '10 % off garage upgrades', unlocked: true, tier: 1 }, { id: 'dealer', label: 'Dealer tier', text: 'The second dealer sells to you', unlocked: true, tier: 2 }, { id: 'sponsor', label: 'Sponsor slot', text: 'A sponsor can pay you weekly', unlocked: false, tier: 3 }] };
+  phone.handle('slPhoneData', Object.assign({}, phone.state.data, { perks }));
+  let tx = text();
+  assert.ok(tx.includes('Tier perks') && tx.includes('Garage discount') && tx.includes('10 % off garage upgrades') && tx.includes('Open') && tx.includes('Rank 3') && tx.includes('Sponsor slot'), 'the perks, open and locked: ' + tx.slice(0, 200));
+  phone.handle('slPhoneData', Object.assign({}, phone.state.data, { perks, has: Object.assign({}, phone.state.data.has, { perks: false }) }));
+  assert.ok(!text().includes('Tier perks'), 'the part off: no card');
+  phone.handle('slPhoneData', Object.assign({}, phone.state.data, { perks: undefined, has: Object.assign({}, phone.state.data.has, { perks: true }) }));
+  assert.ok(!text().includes('Tier perks'), 'no data: no card');
+}
 phone.handle('slRivals', { rank: 2, rivals: [ { id: 'r05', name: 'Viktor "Nitro" Halasz', tier: 1, boss: true, crew: 'Ring Road Ghosts', car: 'Covet "Dodger"', meter: -80, word: 'blood', beaten: 3, youLost: 1 }, { id: 'r20', name: 'Dora Kovacs', tier: 3, crew: 'Riverbed Runners', car: 'Pickup', meter: 40, word: 'respect', beaten: 0, youLost: 2, locked: 'Viktor Halasz' } ] });
 assert.ok(text().includes('Rivals') && text().includes('Boss 1') && text().includes('Bad blood') && text().includes('Won 3, lost 1') && text().includes('Respect') && text().includes('Beat Viktor Halasz to move up') && text().includes('Ring Road Ghosts'), 'the rivals show with crew, car, the meter word, the record and the lock');
 phone.handle('slRivals', { rank: 2, rivals: [ { id: 'r05', name: 'Viktor Halasz', tier: 4, boss: true, crew: 'Ring Road Ghosts', meter: -80, word: 'blood', beaten: 3, youLost: 1, offer: { stake: 'pink', myCar: 'Covet 1.5', theirCar: 'Scintilla' } } ] });
@@ -416,6 +427,19 @@ phone.handle('slPhoneData', Object.assign({}, data, { jobs: { done: 2, earned: 6
 phone.act('home');
 phone.act('open', 'jobs');
 assert.ok(text().includes('Part run: turbocharger') && text().includes('Redline Speed Shop') && text().includes('2 jobs done'), 'the board lists the offer and the record');
+{
+  // a contract is an offer with terms (o.contract = { req, label, mult, basePay }): a tag, the terms, the normal pay as small text; the job you are on shows its terms
+  const withContract = { jobs: { done: 2, earned: 640, offers: [{ id: 'k1', title: 'Contract: Courier', item: 'parcel', from: 'A', to: 'B', pay: 500, seconds: 200, contract: { req: 'rain', label: 'Deliver it in the rain', mult: 1.9, basePay: 260 } }] } };
+  phone.handle('slPhoneData', Object.assign({}, data, withContract));
+  let tx = text();
+  assert.ok(tx.includes('Contract: Courier') && tx.includes('Deliver it in the rain') && tx.includes('Pays $500 if you keep the terms, $260 if you miss them'), 'the contract card: ' + tx.slice(0, 200));
+  assert.ok(phone.root.querySelector('.slp-chip') && /Contract/.test(phone.root.querySelector('.slp-chip').textContent) && phone.root.querySelector('[data-a="jobtake"][data-v="k1"]'), 'a Contract tag and the usual Take it button');
+  phone.handle('slPhoneData', Object.assign({}, data, { jobs: { done: 2, earned: 640, offers: [], active: { title: 'Contract: Courier', item: 'parcel', next: 'B', to: 'B', pay: 500, timeLeft: 95, contract: { req: 'rain', label: 'Deliver it in the rain', mult: 1.9 } } } }));
+  assert.ok(text().includes('Deliver it in the rain') && text().includes('1:35 left'), 'the job you are on shows its terms');
+  phone.handle('slPhoneData', Object.assign({}, data, { jobs: { done: 2, earned: 640, offers: [{ id: 'k2', title: 'Courier', item: 'parcel', from: 'A', to: 'B', pay: 100 }] } }));
+  assert.ok(!text().includes('Pays $') && !phone.root.querySelector('.slp-chip.contract'), 'a plain job has no terms line');
+  phone.handle('slPhoneData', Object.assign({}, data, { jobs: { done: 2, earned: 640, offers: [{ id: '5d:1', title: 'Part run', item: 'turbocharger', from: 'Redline Speed Shop', to: 'Club Garage 1', pay: 380, seconds: 240, metres: 2100, fragile: true }] } }));
+}
 calls.length = 0;
 click('jobtake', '5d:1');
 assert.ok(calls.some(function (c) { return c.indexOf('takeJob("5d:1")') >= 0; }), 'Take it calls takeJob');
