@@ -332,6 +332,7 @@
     flag: svg('M14.4 6 14 4H5v17h2v-7h5.6l.4 2h7V6z'),
     bank: svg('M4 10v7h3v-7zm6 0v7h3v-7zM2 22h19v-3H2zm14-12v7h3v-7zM11.5 1 2 6v2h19V6z'),
     house: svg('M12 3 2 12h3v8h5v-6h4v6h5v-8h3z'),
+    sponsors: svg('M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14 2 9.27l6.91-1.01z'),
     traps: svg('M20.38 8.57l-1.23 1.85a8 8 0 0 1-.22 7.58H5.07A8 8 0 0 1 15.58 6.85l1.85-1.23A10 10 0 0 0 3.35 19a2 2 0 0 0 1.72 1h13.85a2 2 0 0 0 1.74-1 10 10 0 0 0-.27-10.44zm-9.79 6.84a2 2 0 0 0 2.83 0l5.66-8.49-8.49 5.66a2 2 0 0 0 0 2.83z'),
     cab: svg('M18.9 6c-.2-.6-.8-1-1.4-1h-11c-.7 0-1.2.4-1.4 1L3 12v8a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-1h12v1a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-8zM6.5 16A1.5 1.5 0 1 1 8 14.5 1.5 1.5 0 0 1 6.5 16zm11 0a1.5 1.5 0 1 1 1.5-1.5 1.5 1.5 0 0 1-1.5 1.5zM5 11l1.5-4.5h11L19 11z'),
     me: svg('M12 2 4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5zm-1.5 14.5-4-4 1.4-1.4 2.6 2.6 6.1-6.1 1.4 1.4z'),
@@ -355,7 +356,7 @@
   var SLRR_ART = '/ui/modModules/slHud/slrr/icons/';
   var SLRR_ICON = { races: 'cup.png', garage: 'garage.png', bank: 'dollar.png', cab: 'city.png', me: 'roc.png' };
   function slrrIcon(name, cls) { return '<img class="slp-slrr ' + (cls || '') + '" src="' + SLRR_ART + name + '" alt="">'; }
-  var APP_COLORS = { map: '#3a7d6e', camera: '#3b6fa0', gallery: '#a05a8a', carmarket: '#2e7d4f', partmarket: '#a3322c', settings: '#5c6474', wait: '#4a5d7a', market: '#a3322c', paper: '#5b5346', bid: '#b5651d', club: '#6a2e7a', jobs: '#3d7a2e', phone: '#2e7d4f', messages: '#2f5fb3', contacts: '#7b4fb0', races: '#c2541e', bank: '#1f7a70', cab: '#b58a12', me: '#5c6474', garage: '#8a3b8f', garagekit: '#6b5b2e' };
+  var APP_COLORS = { map: '#3a7d6e', camera: '#3b6fa0', gallery: '#a05a8a', carmarket: '#2e7d4f', partmarket: '#a3322c', settings: '#5c6474', wait: '#4a5d7a', market: '#a3322c', paper: '#5b5346', bid: '#b5651d', club: '#6a2e7a', jobs: '#3d7a2e', phone: '#2e7d4f', messages: '#2f5fb3', contacts: '#7b4fb0', races: '#c2541e', bank: '#1f7a70', cab: '#b58a12', me: '#5c6474', garage: '#8a3b8f', garagekit: '#6b5b2e', sponsors: '#9a6b12' };
   var AV_COLORS = ['#a8c7fa', '#f2b8b5', '#c3e7c6', '#ffd8a8', '#d0bcff', '#9fe0e8', '#ffb4ab', '#e8def8'];
   var CLASS_NAMES = { beater: T('ui.beaters', 'Beaters'), compact: T('ui.compacts', 'Compacts'), muscle: T('ui.muscle', 'Muscle'), tuner: T('ui.tuners', 'Tuners'), sport: T('ui.sports_cars', 'Sports cars'), super: T('ui.supercars', 'Supercars') };
 
@@ -459,6 +460,7 @@
           { id: 'garagekit', title: T('app.garagekit', 'Garage'), icon: I.house },
           { id: 'bank', title: T('app.bank', 'Bank'), icon: I.bank, hide: has.bank === false },
           { id: 'me', title: T('app.me', 'Street cred'), icon: I.me },
+          { id: 'sponsors', title: T('app.sponsors', 'Sponsors'), icon: I.sponsors, badge: d.sponsors && d.sponsors.offer ? 1 : 0, hide: !d.sponsors || has.sponsors === false },
           { id: 'traps', title: T('app.traps', 'Speed traps'), icon: I.traps, hide: !(d.traps && has.traps !== false) && !(d.danger && has.danger !== false) },
           { id: 'jobs', title: T('app.jobs', 'Jobs'), icon: I.jobs, badge: d.jobs && d.jobs.active ? 1 : 0, hide: has.jobs === false },
           { id: 'wait', title: T('app.wait', 'Wait'), icon: I.wait },
@@ -1301,6 +1303,40 @@
         (hasDanger ? '<div class="slp-card"><h4>' + T('ui.danger_title', 'Danger zones') + '</h4><p>' + T('ui.danger_intro', 'A jump ladder and drift zones: each prize is paid once.') + '</p></div>' + jumpCard + drift : '') + '</div>';
     }
 
+    // brand sponsorships (sl_sponsor.summary(): { current = { brand, name, kind: maker|aftermarket, since, retainer, discount, terms = { wins, car }, weekWins, carRaces, strikes 0..2, daysToReview },
+    // offer = { brand, name, retainer, discount, terms = { wins, car }, expiresIn }, standing = { { brand, name, kind, standing, nextAt } } }): the offer on top, the deal, the standing bars
+    function sponsorTerms(t, wins, carRaces) {
+      t = obj(t);
+      var out = [T('ui.spn_term_wins', 'Win {1} races a week', Number(t.wins) || 0) + (wins != null ? ' (' + T('ui.spn_progress', '{1} of {2}', Number(wins) || 0, Number(t.wins) || 0) + ')' : '')];
+      if (t.car) out.push(T('ui.spn_term_car', 'Race in a car with their parts') + (carRaces != null ? ' (' + (Number(carRaces) || 0) + ')' : ''));
+      return out;
+    }
+    function sponsorsPage() {
+      var sp = obj(st.data.sponsors), cur = sp.current, off = sp.offer;
+      var offerCard = off ? '<div class="slp-card"><h4>&#9993; ' + T('ui.spn_offer', 'Offer: {1}', esc(off.name || off.brand || '')) + '</h4>' +
+        '<div class="slp-kv"><span>' + T('ui.spn_retainer', 'Retainer') + '</span><b>' + money(off.retainer) + ' ' + T('ui.spn_a_week', 'a week') + '</b></div>' +
+        '<div class="slp-kv"><span>' + T('ui.spn_discount', 'Discount') + '</span><b>' + Math.round((Number(off.discount) || 0) * 100) + ' %</b></div>' +
+        sponsorTerms(off.terms).map(function (x) { return '<p>' + esc(x) + '</p>'; }).join('') +
+        (off.expiresIn != null ? '<p class="slp-warn">' + T('ui.spn_expires', 'Expires in {1} d', Number(off.expiresIn) || 0) + '</p>' : '') +
+        '<div class="slp-acts"><div class="slp-btn" data-a="spnaccept" data-v="1">' + T('ui.spn_accept', 'Accept') + '</div><div class="slp-btn slp-text" data-a="spndecline" data-v="1">' + T('ui.spn_decline', 'Decline') + '</div></div></div>' : '';
+      var strikes = cur ? Math.max(0, Math.min(2, Number(cur.strikes) || 0)) : 0;
+      var curCard = cur ? '<div class="slp-card"><h4>' + esc(cur.name || cur.brand || '') + ' <span class="slp-chip" style="margin:0 0 0 6px">' + (cur.kind === 'aftermarket' ? T('ui.spn_aftermarket', 'Aftermarket') : T('ui.spn_maker', 'Maker')) + '</span></h4>' +
+        '<div class="slp-kv"><span>' + T('ui.spn_retainer', 'Retainer') + '</span><b>' + money(cur.retainer) + ' ' + T('ui.spn_a_week', 'a week') + '</b></div>' +
+        '<div class="slp-kv"><span>' + T('ui.spn_discount', 'Discount') + '</span><b>' + Math.round((Number(cur.discount) || 0) * 100) + ' %</b></div>' +
+        sponsorTerms(cur.terms, cur.weekWins, cur.carRaces).map(function (x) { return '<p>' + esc(x) + '</p>'; }).join('') +
+        '<div class="slp-kv"><span>' + T('ui.spn_strikes', 'Strikes') + '</span><b' + (strikes ? ' class="slp-warn"' : '') + '>' + (strikes ? '&#9888; ' : '&#10004; ') + strikes + ' / 2</b></div>' +
+        (cur.daysToReview != null ? '<p>' + T('ui.spn_review', 'Review in {1} d', Number(cur.daysToReview) || 0) + '</p>' : '') +
+        '<div class="slp-acts"><div class="slp-btn slp-text" data-a="spnquit" data-v="1">' + T('ui.spn_quit', 'Leave this deal') + '</div></div></div>'
+        : (off ? '' : '<div class="slp-empty">' + T('ui.spn_none', 'No sponsor yet. Win races and brands notice you.') + '</div>');
+      var standing = arr(sp.standing).map(function (b) {
+        var v = Math.max(0, Math.min(100, Math.round(Number(b.standing) || 0))), at = Number(b.nextAt) || 100;
+        return '<div class="slp-kv" style="display:block;padding:8px 0"><div style="display:flex;justify-content:space-between"><b>' + esc(b.name || b.brand || '') + '</b><span>' + v + ' / ' + at + '</span></div>' +
+          '<div class="slp-meter"><i style="width:' + Math.round(v / at * 100) + '%"></i></div></div>';
+      }).join('');
+      return bar(T('app.sponsors', 'Sponsors')) + '<div class="slp-body">' + offerCard + curCard +
+        (standing ? '<div class="slp-card"><h4>' + T('ui.spn_standing', 'Brands that know you') + '</h4>' + standing + '</div>' : '') + '</div>';
+    }
+
     function mePage() {
       var d = st.data, s = obj(d.stats);
       var from = d.titleRep || 0, to = d.nextRep, pct = to ? Math.max(0, Math.min(100, ((d.rep || 0) - from) / (to - from) * 100)) : 100;
@@ -1634,6 +1670,7 @@
         case 'bid': page = bidPage(); break;
         case 'ad': page = adPage(); break;
         case 'bank': page = bankPage(); break;
+        case 'sponsors': page = sponsorsPage(); break;
         case 'traps': page = trapsPage(); break;
         case 'cab': page = cabPage(); break;
         case 'me': page = mePage(); break;
@@ -1958,6 +1995,9 @@
         case 'borrow': lua('borrow(' + Number(v) + ')'); break;
         case 'repay': lua('repay(' + Number(v) + ')'); break;
         case 'paydebt': lua('payDebt(' + Number(v) + ')'); break;
+        case 'spnaccept': lua('sponsorAccept()'); break;
+        case 'spndecline': lua('sponsorDecline()'); break;
+        case 'spnquit': lua('sponsorQuit()'); break;
         case 'service': var sp = String(v).split('|'); lua('service(' + Number(sp[0]) + ',' + JSON.stringify(sp[1] || '') + ')'); break;
         case 'insure': lua('insure(' + (v === 'true' ? 'true' : 'false') + ')'); break;
         case 'tutskip': lua('@sl_tutorial.skip()'); break;
