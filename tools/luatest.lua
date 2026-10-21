@@ -4032,6 +4032,21 @@ do
   package.loaded['sl/danger'] = nil
 end
 
+-- barn-find rumours on the map: an area, never the spot (core/mapapp.rumourArea)
+do
+  local mapapp = require('sl/core/mapapp')
+  local ok = true
+  for i = 1, 40 do
+    local x, y = i * 137 % 1000 - 500, i * 71 % 1000 - 500
+    local a = mapapp.rumourArea('barn' .. i, x, y)
+    local d = math.sqrt((a.x - x) ^ 2 + (a.y - y) ^ 2)
+    local again = mapapp.rumourArea('barn' .. i, x, y)
+    if not (a.r == mapapp.RUMOUR_RADIUS and d > 0.3 * a.r and d < 0.75 * a.r and again.x == a.x and again.y == a.y) then ok = false end
+  end
+  check('rumours: the circle holds the spot but is not centred on it, and it is the same every time', ok)
+  check('rumours: different rumours get different circles', mapapp.rumourArea('a', 0, 0).x ~= mapapp.rumourArea('b', 0, 0).x or mapapp.rumourArea('a', 0, 0).y ~= mapapp.rumourArea('b', 0, 0).y)
+end
+
 -- cinematic moments (sl/core/scenes): what the UI is told, the reduced-motion hold, the skip guard
 do
   local sc = require('sl/core/scenes')

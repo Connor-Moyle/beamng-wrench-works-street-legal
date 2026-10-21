@@ -81,7 +81,20 @@
     ctx.restore();
   }
   // pins by kind (a garage, a parts shop, a meet, a gas station...): the colour; any other kind keeps the skin's own
-  var PIN_KIND = { garage: '#3b82f6', shop: '#f59e0b', meet: '#8b5cf6', gas: '#10b981', race: '#ef4444', track: '#ef4444', dealer: '#14b8a6' };
+  var PIN_KIND = { garage: '#3b82f6', shop: '#f59e0b', meet: '#8b5cf6', gas: '#10b981', race: '#ef4444', track: '#ef4444', dealer: '#14b8a6', rumour: '#938f99' };
+  // a rumour: an area (a dashed circle of p.r metres, never the exact spot) with a question mark, in the muted grey of the style kit (the mark, not only the colour, says what it is)
+  function drawRumour(ctx, C, q, p, view) {
+    var r = Math.max(12, (p.r || 200) / (view.mpp || 1));
+    ctx.save();
+    ctx.beginPath(); ctx.arc(q[0], q[1], r, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(147,143,153,0.16)'; ctx.fill();
+    if (ctx.setLineDash) ctx.setLineDash([6, 5]);
+    ctx.strokeStyle = PIN_KIND.rumour; ctx.lineWidth = 2; ctx.stroke();
+    if (ctx.setLineDash) ctx.setLineDash([]);
+    ctx.beginPath(); ctx.arc(q[0], q[1], 9, 0, Math.PI * 2); ctx.fillStyle = '#211f26'; ctx.fill(); ctx.strokeStyle = '#e6e1e5'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.fillStyle = '#e6e1e5'; ctx.font = '700 12px ' + FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('?', q[0], q[1] + 0.5);
+    ctx.restore();
+  }
   function drawPin(ctx, C, q, color) {
     ctx.beginPath();
     if (C.pin === 'bubble') { ctx.arc(q[0], q[1] - 14, 11, 0, Math.PI * 2); }
@@ -148,6 +161,7 @@
     (data.pins || []).forEach(function (p) {
       var q = pt(p.x, p.y);
       if (q[0] < -20 || q[1] < -30 || q[0] > w + 20 || q[1] > h + 20) return;
+      if (p.kind === 'rumour') { drawRumour(ctx, C, q, p, view); return; }
       drawPin(ctx, C, q, PIN_KIND[p.kind]);
       if (p.name && view.mpp <= 3) {                           // the name under the pin when zoomed in
         ctx.font = C.labelFont; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
