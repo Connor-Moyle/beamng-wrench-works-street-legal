@@ -766,6 +766,7 @@ do
   local dir = debug.getinfo(1, 'S').source:match('^@(.*[/\\])') or ''
   assert(loadfile(dir .. 'wwjobs_test.lua'))()(check, rngLib)
   assert(loadfile(dir .. 'listings_test.lua'))()(check, rngLib)      -- the used parts and cars market
+  assert(loadfile(dir .. 'wetworld_test.lua'))()(check)      -- the wet world: terrain layers only unless the experiment key is on
 end
 
 -- achievements and personal bests

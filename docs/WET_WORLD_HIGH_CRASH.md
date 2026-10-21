@@ -49,3 +49,17 @@ Wet roads and walls off (default). Puddles and rain are unchanged.
 
 ## How to reproduce
 SL branch worker-a-wettrace (63fb2a8) has a Developer row "Log each wet-world material edit": one "wet start" line before each edit, one "wet edit" line after. Turn it on, Wet roads and walls on, High graphics, force clear 5 s, then `sl_weather.debugForce('rain', 'heavy')`, reset a car onto a street and drive; the last "wet start" before the silence names the material. A standing car did not crash.
+
+## Closing finding (2026-10-23): terrain layers only survived at High
+A run of the branch wet-terrain-only-ba (the wet world changes only the terrain layers: a texture swap, no Material reload; the 300-odd material edits only run when the options key slWetMaterials is true): Connor's High/Custom settings, QA career on west_coast_usa, Autobello bought at the junkyard, Wet roads and walls ON, Wet tarmac ON, forced heavy rain, 6 legs of reset + engine start + 16 s cruise (up to 11.6 m/s) on the street.
+- **No crash and no hang in 366 s of heavy rain** (every earlier run with the material edits on lost the device 52 to 96 s into the rain). No `device is gone` / 0x887a line, no error from sl_wetworld or Car Surface FX. The profile stayed `step 6/6, terrain tier 2, 0 materials planned, 0 edits`.
+- VRAM (Engine.Render.getVRAMUsage) went 4.12 GB to 4.31 GB in the first minute and then stayed flat.
+- Car Surface FX asked for 25 material reloads in the whole run (the car and driver paint rung walk, at the start of the rain), none afterwards, and no glass canvas; slotStats() was identical at 11 samples.
+- Frame time was not recorded in this run.
+
+What this settles:
+- The reload-leak hypothesis (every material reload takes a slot of the 8192-slot material cbv array) is **disproved**: 900 reloads of one static material (concrete_plain, one per 0.1 s, Low, no rain) never produced the `bindless| material cbv array exhausted` line and never hung (frame costs flat).
+- The `bindless| material cbv array exhausted (8192 slots), using raw material loads for overflow blocks` warning is a **separate event on the car/career spawn side**: in the High terrain run it came once at 368.9 s, 50 s before the rain started, right after the junkyard lot visit and the car purchase, and nothing bad followed. It is not what lost the device in the older runs (it was only in 3 of the 5 crash logs).
+- What is still not proven: that the material edits were the whole cause of the old crashes (the run changes one thing, the 300-odd reloads, and the crash is gone), and that terrain-only is safe over longer or repeated runs (one run, 366 s). Walls, roofs, pavements and foliage no longer get wet; any cheap look for them must not reload materials.
+- Next: a second High run on the merged build; if it is clean too, "Wet roads and walls" may go back to on by default (62's call).
+
