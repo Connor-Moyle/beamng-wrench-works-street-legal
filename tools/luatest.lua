@@ -2920,6 +2920,41 @@ do -- the free-roam switches in the Mods menu list (sl/options) and the game sid
   package.loaded['sl/mode'] = nil
 end
 
+do -- free roam never writes a career: with no career started (free roam, every switch on) nothing the career module does touches a save file
+  local saved = { FS = rawget(_G, 'FS'), jsonWriteFile = rawget(_G, 'jsonWriteFile'), jsonReadFile = rawget(_G, 'jsonReadFile'), extensions = rawget(_G, 'extensions'), log = rawget(_G, 'log'),
+    sl_options = rawget(_G, 'sl_options'), sl_career = rawget(_G, 'sl_career') }
+  local writes, events = {}, {}
+  _G.log = function() end
+  _G.FS = setmetatable({}, { __index = function(_, k) return function() writes[#writes + 1] = 'FS:' .. k return false end end })
+  _G.jsonWriteFile = function(path) writes[#writes + 1] = 'json:' .. tostring(path) return true end
+  _G.jsonReadFile = function() return nil end
+  _G.extensions = { hook = function(name) events[#events + 1] = name end }
+  package.loaded['sl/career'] = nil
+  local okc, C = pcall(require, 'sl/career')
+  check('free roam: the career module loads without a career', okc and type(C) == 'table' and C.isActive() == false and C.getState() == nil)
+  if okc then
+    _G.sl_career = C
+    local on = { freeroam = true }
+    for _, id in ipairs(require('sl/core/mode').IDS) do on['freeroam_' .. id] = true end
+    _G.sl_options = { get = function(k) return on[k] end }
+    package.loaded['sl/mode'] = nil
+    local M = require('sl/mode')
+    check('free roam: every switch on, still no career: kind is freeroam and the state is no career state', M.kind() == 'freeroam' and M.enabled('phone') and M.state('phone') == C.getState())
+    local called = 0
+    for k, fn in pairs(C) do
+      if type(fn) == 'function' and k:sub(1, 2) == 'on' then called = called + 1 pcall(fn, 60, 60) pcall(fn, 60) pcall(fn) end
+    end
+    local bad = {}
+    for _, w in ipairs(writes) do bad[#bad + 1] = w end
+    check('free roam: ' .. called .. ' career hooks run with no career wrote nothing (saves, slots, places): ' .. table.concat(bad, ','), called > 3 and #writes == 0)
+    local heat = false
+    for _, e in ipairs(events) do if e:find('Rival') or e:find('Heat') or e:find('Wanted') or e == 'onStreetLegalStarted' or e == 'onStreetLegalBeforeSave' then heat = true end end
+    check('free roam: no career, rival, heat or save event is fired', not heat)
+  end
+  package.loaded['sl/career'], package.loaded['sl/mode'] = nil, nil
+  _G.FS, _G.jsonWriteFile, _G.jsonReadFile, _G.extensions, _G.log, _G.sl_options, _G.sl_career = saved.FS, saved.jsonWriteFile, saved.jsonReadFile, saved.extensions, saved.log, saved.sl_options, saved.sl_career
+end
+
 do -- Street Legal in free roam (sl/core/mode)
   local Mo = require('sl/core/mode')
   local on = {}
