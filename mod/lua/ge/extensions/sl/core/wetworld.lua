@@ -81,6 +81,12 @@ function M.formatColor(c, mul)
   return table.concat(t, ' ')
 end
 
+-- the file a material reports: a vehicle-side material gives '' or nil (getFilename returned nothing), both mean "not the level's"; nil only when the call itself failed
+function M.fileOf(ok, file)
+  if not ok then return nil end
+  return file or ''
+end
+
 -- order materials: the road surfaces first, then the rest by kind (a stable order by name inside a kind), at most `cap`
 function M.plan(list, cap)
   local out = {}
