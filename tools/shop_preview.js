@@ -20,7 +20,10 @@ exhaust.words = { add: 'Add to basket', buy: 'Pay' }; exhaust.sel = 'headers'; e
 exhaust.stock.forEach((it, i) => { it.specs = [{ label: 'Sound', text: ['Mild', 'Loud', 'Mild', 'Very loud'][i], bar: [0.3, 0.7, 0.35, 0.95][i] }, { label: 'Flow', text: ['+6%', '+11%', '+6%', '+9%'][i], bar: [0.4, 0.8, 0.4, 0.65][i] }, { label: 'Weight', text: ['-4 kg', '-2 kg', '-4 kg', '-6 kg'][i] }]; });
 const tuner = { kind: 'tuner', title: 'Tuner', name: 'Dyno Dan', tagline: 'Dyno and setup', goods: 'services', screen: 'services', money: 940, theme: { accent: '#5fb7e6', pattern: 'dyno', icon: 'gauge' }, words: { add: 'Reserve', buy: 'Pay and reserve' }, stock: [],
   services: [{ id: 'dyno', name: 'Dyno run', price: 90, minutes: 20, desc: 'Power and torque of your car on the rollers.', curve: [20, 55, 90, 125, 150, 160, 148, 120] }, { id: 'align', name: 'Alignment', price: 70, minutes: 40, desc: 'Toe, camber and caster set to your numbers.' }, { id: 'tune', name: 'Engine map', price: 260, minutes: 90, desc: 'A map written for your parts.', curve: [30, 70, 110, 150, 170, 175, 160, 130] }] };
-const kinds = { tyre, paint, exhaust, tuner };
+const dealer = { kind: 'dealerparts', title: 'Dealer parts', name: 'Jefferson Motors', tagline: 'Genuine parts', goods: 'catalog', screen: 'catalogue', money: 2400, theme: { accent: '#8ab4f8', pattern: 'badge', icon: 'badge' }, words: { add: 'Add to basket', buy: 'Order' }, sel: 'p2', cart: { p2: 1 },
+  stock: [['p1', 'Sport exhaust, cat-back', 'Exhaust', 572], ['p2', 'Front bumper, factory', 'Front bumper', 640], ['p3', 'Hood, factory', 'Hood', 780], ['p4', 'Rear spoiler', 'Wing', 450]].map((r) => ({ id: r[0], name: r[1], group: r[2], price: r[3], brand: 'Ibishu', count: 4 })), services: [] };
+const dealerNone = Object.assign(JSON.parse(JSON.stringify(dealer)), { stock: [], sel: undefined, cart: undefined, note: 'Nothing fits your Pickup: this counter sells parts of Bruckell, Gavril, Ibishu only.' });
+const kinds = { tyre, paint, exhaust, tuner, dealer, dealer_none: dealerNone };
 for (const k of Object.keys(kinds)) {
   const d = kinds[k];
   const html = '<!doctype html><meta charset="utf-8"><body style="margin:0;background:#0d0b12"><script>window.__slShopTest=true;</script><script>' + code.replace(/<\/script/g, '<\/script') + '</script><script>' +
