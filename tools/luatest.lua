@@ -2890,6 +2890,151 @@ do -- the career's tyres (sl/core/tyres)
   check('tyres: a change is refused moving or when short of money, never otherwise', T.refusal(100, 500, true) ~= nil and T.refusal(100, 50, false) ~= nil and T.refusal(100, 100, false) == nil)
 end
 
+do -- the free-roam switches in the Mods menu list (sl/options) and the game side (sl/mode)
+  local Op = require('sl/options')
+  local Mo = require('sl/core/mode')
+  local oldR, oldW = rawget(_G, 'jsonReadFile'), rawget(_G, 'jsonWriteFile')
+  _G.jsonReadFile, _G.jsonWriteFile = function() return {} end, function() return true end
+  local all = true
+  for _, f in ipairs(Mo.FEATURES()) do
+    local k = Mo.key(f.id)
+    local d for _, x in ipairs(Op.defs) do if x.key == k then d = x end end
+    all = all and d ~= nil and d.type == 'bool' and d.default == false and d.tab == 'Free roam' and Op.get(k) == false
+  end
+  check('free roam: the master and every feature switch are Mods-menu bools, off by default', all)
+  _G.jsonReadFile, _G.jsonWriteFile = oldR, oldW
+  local saved = { sl_career = rawget(_G, 'sl_career'), sl_options = rawget(_G, 'sl_options') }
+  package.loaded['sl/mode'] = nil
+  local M = require('sl/mode')
+  _G.sl_career, _G.sl_options = nil, nil
+  check('free roam: with no career and the switches off nothing runs and there is no state', M.kind() == nil and not M.enabled('phone') and M.state('phone') == nil)
+  local on = {}
+  _G.sl_options = { get = function(k) return on[k] end }
+  on.freeroam, on.freeroam_phone = true, true
+  local sb = M.state('phone')
+  check('free roam: master and feature switch enable it, the state is the sandbox (no money, no cars), and a feature that is off gets nothing', M.kind() == 'freeroam' and M.enabled('phone') and not M.enabled('maps') and M.state('maps') == nil and sb and sb.sandbox == true and sb.money == nil and sb.cars == nil and M.state('phone') == sb)
+  local Cm = require('sl/core/mode')
+  local t = Cm.sandbox(nil, 23, 5)
+  Cm.sandbox(t, 2) local d2 = t.day Cm.sandbox(t, 12)
+  check('free roam: the sandbox has the phase of the hour and counts a new day past midnight, and keeps its seed', t.phase == 'day' and t.seed == 5 and d2 == 2 and Cm.sandbox(t, 22).phase == 'night' and Cm.sandbox(t, 3).phase == 'night' and Cm.sandbox(t, 4).phase == 'day')
+  local st = { cars = {} }
+  _G.sl_career = { isActive = function() return true end, getState = function() return st end }
+  on.freeroam, on.freeroam_phone = nil, nil
+  check('free roam: in a career everything runs with the career state, whatever the switches', M.kind() == 'career' and M.enabled('rivals') and M.state('phone') == st)
+  _G.sl_career, _G.sl_options = saved.sl_career, saved.sl_options
+  package.loaded['sl/mode'] = nil
+end
+
+do -- free-roam weather (sl/weather) against a fake sky and clock: no career, the master and the weather switch on
+  local names = { 'log', 'getObjectsByClass', 'createObject', 'scenetree', 'core_environment', 'extensions', 'getPlayerVehicle', 'sl_options', 'sl_mode', 'sl_career', 'sl_weather' }
+  local saved = {}
+  for _, n in ipairs(names) do saved[n] = rawget(_G, n) end
+  local savedTime = os.time
+  local RW = require('sl/core/weather')
+  local seed
+  for sd = 1, 200 do if not seed and RW.forecast(sd, 1, 'day') == 'rain' and RW.forecast(sd, 1, 'night') ~= 'rain' then seed = sd end end
+  local calls, tod, on = {}, { time = 0 }, { freeroam = true, freeroam_weather = true }
+  local rainObj = { numOfDrops = 0, minSpeed = 0.3, maxSpeed = 0.4, setField = function() end, isHidden = function() return false end }
+  _G.log = function() end
+  _G.getObjectsByClass = function(c) if c == 'Precipitation' then return { rainObj } end return {} end
+  _G.createObject = function() return {} end
+  _G.scenetree = { findObject = function() return nil end, findClassObjects = function() return {} end }
+  _G.core_environment = { getTimeOfDay = function() return tod end, setCloudCover = function() end, setFogDensity = function() end,
+    setPrecipitation = function(n) calls[#calls + 1] = n end }
+  _G.extensions = { hook = function() end }
+  local vcmds = {}
+  _G.getPlayerVehicle = function() return { getJBeamFilename = function() return 'covet' end, queueLuaCommand = function(_, c) vcmds[#vcmds + 1] = c end } end
+  _G.sl_career, _G.sl_weather = nil, nil
+  _G.sl_options = { get = function(k) return on[k] end }
+  os.time = function() return seed end
+  package.loaded['sl/weather'], package.loaded['sl/mode'] = nil, nil
+  local okw, W = pcall(require, 'sl/weather')
+  check('free-roam weather: sl/weather loads against the fake sky and a rainy day-one seed exists', okw and seed ~= nil)
+  if okw and seed then
+    _G.sl_mode = require('sl/mode')
+    tod.time = 0      -- the game clock at midday
+    W.onUpdate(0.1)
+    W.onUpdate(6)
+    local sb = _G.sl_mode.state('weather')
+    check('free-roam weather: it follows the sandbox (rain on day one by day) and the sandbox has no money or cars', W.state() == 'rain' and sb and sb.sandbox and sb.money == nil and sb.cars == nil and sb.phase == 'day')
+    local rained = false
+    for _, n in ipairs(calls) do if n > 0 then rained = true end end
+    check('free-roam weather: the rain is applied to the sky', rained)
+    tod.time = 0.5      -- the game clock reaches midnight ((0.5 * 24 + 12) % 24 = 0)
+    W.onUpdate(6)
+    check('free-roam weather: the phase changes with the clock (the night forecast is used)', _G.sl_mode.state('weather').phase == 'night' and W.state() == RW.forecast(seed, 1, 'night'))
+    on.freeroam_weather = false
+    local before = #calls
+    W.onUpdate(1)
+    check('free-roam weather: switching it off puts the original sky back (no drops) and stops', #calls > before and calls[#calls] == 0 and _G.sl_mode.state('weather') == nil)
+    local n2 = #calls
+    W.onUpdate(1) W.onUpdate(6)
+    check('free-roam weather: once off it touches the sky no more', #calls == n2)
+    on.freeroam_weather = true
+    W.onUpdate(0.1) W.onUpdate(6)
+    local n3, v3 = #calls, #vcmds
+    W.onClientEndMission()
+    on.freeroam_weather = false
+    W.onUpdate(1) W.onUpdate(6)
+    check('free-roam weather: after a level ends with the switch off, the new level gets no restore write (sky or car)', #calls == n3 and #vcmds == v3)
+  end
+  for _, n in ipairs(names) do _G[n] = saved[n] end
+  os.time = savedTime
+  package.loaded['sl/weather'], package.loaded['sl/mode'] = nil, nil
+end
+
+do -- free roam never writes a career: with no career started (free roam, every switch on) nothing the career module does touches a save file
+  local saved = { FS = rawget(_G, 'FS'), jsonWriteFile = rawget(_G, 'jsonWriteFile'), jsonReadFile = rawget(_G, 'jsonReadFile'), extensions = rawget(_G, 'extensions'), log = rawget(_G, 'log'),
+    sl_options = rawget(_G, 'sl_options'), sl_career = rawget(_G, 'sl_career') }
+  local writes, events = {}, {}
+  _G.log = function() end
+  _G.FS = setmetatable({}, { __index = function(_, k) return function() writes[#writes + 1] = 'FS:' .. k return false end end })
+  _G.jsonWriteFile = function(path) writes[#writes + 1] = 'json:' .. tostring(path) return true end
+  _G.jsonReadFile = function() return nil end
+  _G.extensions = { hook = function(name) events[#events + 1] = name end }
+  package.loaded['sl/career'] = nil
+  local okc, C = pcall(require, 'sl/career')
+  check('free roam: the career module loads without a career', okc and type(C) == 'table' and C.isActive() == false and C.getState() == nil)
+  if okc then
+    _G.sl_career = C
+    local on = { freeroam = true }
+    for _, id in ipairs(require('sl/core/mode').IDS) do on['freeroam_' .. id] = true end
+    _G.sl_options = { get = function(k) return on[k] end }
+    package.loaded['sl/mode'] = nil
+    local M = require('sl/mode')
+    check('free roam: every switch on, still no career: kind is freeroam and the state is no career state', M.kind() == 'freeroam' and M.enabled('phone') and M.state('phone') ~= nil and M.state('phone').sandbox == true and C.getState() == nil)
+    local called = 0
+    for k, fn in pairs(C) do
+      if type(fn) == 'function' and k:sub(1, 2) == 'on' then called = called + 1 pcall(fn, 60, 60) pcall(fn, 60) pcall(fn) end
+    end
+    local bad = {}
+    for _, w in ipairs(writes) do bad[#bad + 1] = w end
+    check('free roam: ' .. called .. ' career hooks run with no career wrote nothing (saves, slots, places): ' .. table.concat(bad, ','), called > 3 and #writes == 0)
+    local heat = false
+    for _, e in ipairs(events) do if e:find('Rival') or e:find('Heat') or e:find('Wanted') or e == 'onStreetLegalStarted' or e == 'onStreetLegalBeforeSave' then heat = true end end
+    check('free roam: no career, rival, heat or save event is fired', not heat)
+  end
+  package.loaded['sl/career'], package.loaded['sl/mode'] = nil, nil
+  _G.FS, _G.jsonWriteFile, _G.jsonReadFile, _G.extensions, _G.log, _G.sl_options, _G.sl_career = saved.FS, saved.jsonWriteFile, saved.jsonReadFile, saved.extensions, saved.log, saved.sl_options, saved.sl_career
+end
+
+do -- Street Legal in free roam (sl/core/mode)
+  local Mo = require('sl/core/mode')
+  local on = {}
+  local function sw(k) return on[k] == true end
+  check('mode: free roam is off by default and a career is always on', not Mo.enabled(false, sw, 'phone') and Mo.kind(false, sw) == nil and Mo.enabled(true, sw, 'rivals') and Mo.kind(true, sw) == 'career')
+  on.freeroam_phone = true
+  check('mode: a feature switch alone enables nothing (the master is needed)', not Mo.enabled(false, sw, 'phone'))
+  on = { freeroam = true }
+  check('mode: the master alone enables nothing', Mo.kind(false, sw) == 'freeroam' and not Mo.enabled(false, sw, 'phone'))
+  on.freeroam_phone = true
+  check('mode: master and the feature switch enable it, other features stay off', Mo.enabled(false, sw, 'phone') and not Mo.enabled(false, sw, 'maps'))
+  on.freeroam_rivals, on.freeroam_rep = true, true
+  check('mode: career-only features are off in free roam whatever is set', not Mo.enabled(false, sw, 'rivals') and not Mo.enabled(false, sw, 'rep') and not Mo.enabled(false, sw, 'freeroam'))
+  local f = Mo.FEATURES()
+  check('mode: the menu list has the master first, then every feature, all off by default', f[1].id == 'freeroam' and #f == #Mo.IDS + 1 and f[2].id == 'phone' and f[2].default == false and f[2].title ~= '' and Mo.key('freeroam') == 'freeroam' and Mo.key('cab') == 'freeroam_cab')
+end
+
 -- sl_tyrecare: the career's tyres against a stub of carSurfaceFx_tyres (absent, off, on)
 do
   local saved = { sl_career = rawget(_G, 'sl_career'), sl_fleet = rawget(_G, 'sl_fleet'), carSurfaceFx_tyres = rawget(_G, 'carSurfaceFx_tyres'), guihooks = rawget(_G, 'guihooks'),

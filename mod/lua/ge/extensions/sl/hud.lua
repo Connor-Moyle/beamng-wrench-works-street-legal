@@ -197,7 +197,7 @@ local function wanted()
   if not v or v:getJBeamFilename() == 'unicycle' then return nil end
   if sl_lot and sl_lot.uiHidden and sl_lot.uiHidden() then return nil end           -- (a lot is open: only its own menu shows)
   local career = sl_career and sl_career.isActive and sl_career.isActive()
-  if not career and not s.freeroam then return nil end
+  if not career and not s.freeroam and not (sl_mode and sl_mode.enabled('hud')) then return nil end
   local cam = core_camera and core_camera.getActiveCamName and core_camera.getActiveCamName(0)
   if cam == 'slrrGarage' or cam == 'free' then return nil end           -- in the garage or looking round a lot
   if freeroam_bigMapMode and freeroam_bigMapMode.bigMapActive and freeroam_bigMapMode.bigMapActive() then return nil end
