@@ -33,11 +33,31 @@ local function asVec(p)
   return vec3(x, y, z)
 end
 
-local function ctx(s) return { repDiscount = true, tier = tierOf(s), wearPriced = true, favour = 0 } end
+-- price modifiers other mods register (a sponsor's discount): id -> fn(item, shop) -> factor (1 = the price as it is); the factors multiply
+local factors = {}
+function M.setPriceFactor(id, fn)
+  if type(id) ~= 'string' or id == '' then return false, 'an id is needed' end
+  if fn ~= nil and type(fn) ~= 'function' then return false, 'a function (or nil to remove it) is needed' end
+  factors[id] = fn
+  return true
+end
+
+local function ctx(s, shop)
+  return { repDiscount = true, tier = tierOf(s), wearPriced = true, favour = 0,
+    factorOf = function(item)
+      local f = 1
+      for _, fn in pairs(factors) do
+        local ok, v = pcall(fn, item, shop and { kind = shop.kind, name = shop.name, brand = shop.brand })
+        v = ok and tonumber(v) or nil
+        if v and v == v then f = f * v end
+      end
+      return f
+    end }
+end
 
 -- the record the screen gets: the shop, its day's stock with the player's prices, the money, and why it is closed (nil: open)
 local function view(shop, s)
-  local c = ctx(s)
+  local c = ctx(s, shop)
   local out = { kind = shop.kind, title = shop.title, name = shop.name, brand = shop.brand, theme = shop.theme, screen = shop.screen, keeper = shop.keeper, goods = shop.goods, sections = shop.sections, reduceMotion = sl_options ~= nil and sl_options.get ~= nil and sl_options.get('slReduceMotion') == true,
     money = s.money or 0, stock = {}, services = {}, colorBlind = sl_options ~= nil and sl_options.get ~= nil and sl_options.get('slColorBlind') == true }
   local words = rules.WORDS[shop.kind]
@@ -108,7 +128,7 @@ function M.buy(text)
   for _, it in ipairs(rules.dayStock(shop, s.day)) do day[#day + 1] = it end
   local priced = { kind = shop.kind, name = shop.name, goods = shop.goods, stock = day, services = shop.services }
   local tyres = shop.goods == 'tyres'
-  local lines, total = rules.checkout(priced, parseCart(text), tyres and math.huge or s.money or 0, ctx(s))      -- (tyres: the counter charges its own price, with the trade-in, and checks the money itself)
+  local lines, total = rules.checkout(priced, parseCart(text), tyres and math.huge or s.money or 0, ctx(s, shop))      -- (tyres: the counter charges its own price, with the trade-in, and checks the money itself)
   if not lines then return toast(total) end
   if tyres then
     local ok, msg = false, strings.t('shops.not_here')

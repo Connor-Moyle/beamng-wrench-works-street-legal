@@ -180,7 +180,13 @@ function M.price(item, ctx)
   local off = 0
   if ctx.repDiscount then off = off + clamp((ctx.tier or 0) * 0.01, 0, 0.08) end
   off = off + clamp((ctx.favour or 0) * 0.05, 0, 0.05)
-  return math.max(0, math.floor(base * (1 - off) + 0.5))
+  local factor = 1
+  if type(ctx.factorOf) == 'function' then      -- a modifier chain (a sponsor's discount): nil-safe, an error or a nonsense number is list price, held between 0.05 and 3
+    local ok, f = pcall(ctx.factorOf, item)
+    f = ok and tonumber(f) or nil
+    if f and f == f then factor = clamp(f, 0.05, 3) end
+  end
+  return math.max(0, math.floor(base * (1 - off) * factor + 0.5))
 end
 
 -- the stock for a day: a seeded, repeatable pick of the shop's goods (a shop never stocks everything; shelves differ day to day and between shops). `keep` lines always stay

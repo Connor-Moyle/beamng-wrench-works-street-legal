@@ -80,6 +80,10 @@ Map makers: stand where the shop should be and call `sl_shops.placeHere('tyre', 
 
 Other calls: `sl_shops.kinds()` (the kinds known), `sl_shops.isOpen()`, `sl_shops.placed()` (the shops from files), `sl_shops.define(kind, def)`.
 
+### Price modifiers
+
+`sl_shops.setPriceFactor(id, fn)` registers a function `fn(item, shop)` that returns a factor (1 = the price as it is, 0.8 = twenty per cent off); `fn = nil` removes it. `item` is the line as the shop shows it (`id`, `name`, `brand`, `price`, `group`...) and `shop` is `{ kind, name, brand }`. Several mods may register, each under its own `id`; the factors multiply. It is nil-safe: an error, or a result that is not a number, counts as 1, and the total factor is held between 0.05 and 3. It applies to the price shown (the list price is struck out) and to what is charged. Tyre shops charge their own counter price and ignore it.
+
 ## 3. Add your own kind
 
 ```lua

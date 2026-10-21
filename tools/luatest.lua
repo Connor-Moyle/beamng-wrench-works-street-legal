@@ -3907,4 +3907,35 @@ do
   package.loaded['sl/core/shops'] = nil
 end
 
+-- shops: price modifiers other mods register (a sponsor discount)
+do
+  local SH = require('sl/core/shops')
+  check('shops: a price factor multiplies the price, an error or a bad number is list price, the limits hold',
+    SH.price({ price = 100 }, { factorOf = function() return 0.9 end }) == 90 and SH.price({ price = 100 }, { factorOf = function() error('x') end }) == 100
+    and SH.price({ price = 100 }, { factorOf = function() return 'a' end }) == 100 and SH.price({ price = 100 }, { factorOf = function() return -3 end }) == 5 and SH.price({ price = 100 }, { factorOf = function() return 99 end }) == 300)
+  package.loaded['sl/core/shops'] = nil
+  local ST = require('sl/core/state')
+  local st = ST.new(1, 0)
+  st.day, st.money, st.rep = 3, 1000, 0
+  local sent = {}
+  local old = { c = rawget(_G, 'sl_career'), g = rawget(_G, 'guihooks'), t = rawget(_G, 'core_environment') }
+  _G.guihooks = { trigger = function(n, d) sent[#sent + 1] = { n = n, d = d } end }
+  _G.core_environment = { getTimeOfDay = function() return { time = 0 } end }
+  _G.sl_career = { isActive = function() return true end, getState = function() return st end, addMoney = function(a, l) return ST.addMoney(st, a, l) end }
+  package.loaded['sl/shops'] = nil
+  local SS = require('sl/shops')
+  check('sl_shops: a price modifier needs an id and a function (or nil)', SS.setPriceFactor('', function() end) == false and SS.setPriceFactor('a', 5) == false and SS.setPriceFactor('sponsor', function(item) return item.brand == 'Vexaro' and 0.8 or 1 end) == true)
+  SS.open('accessories', { name = 'Trim', stock = { { id = 'a', name = 'Pipe', price = 100, brand = 'Vexaro' }, { id = 'b', name = 'Lamp', price = 100, brand = 'Other' } } })
+  local v = sent[#sent].d.stock
+  check('sl_shops: the screen shows the discounted price and the list price struck out', v[1].price == 80 and v[1].was == 100 and v[2].price == 100)
+  SS.setPriceFactor('other', function() error('boom') end)
+  SS.buy('a:1,b:1')
+  check('sl_shops: what is charged is what is shown (a failing modifier is ignored)', st.money == 1000 - 180)
+  SS.setPriceFactor('sponsor', nil)
+  SS.open('accessories', { stock = { { id = 'a', price = 100, brand = 'Vexaro' } } })
+  check('sl_shops: removing the modifier gives the list price back', sent[#sent].d.stock[1].price == 100)
+  _G.sl_career, _G.guihooks, _G.core_environment = old.c, old.g, old.t
+  package.loaded['sl/shops'] = nil
+end
+
 print(string.format('lua tests passed: %d checks', passed))
