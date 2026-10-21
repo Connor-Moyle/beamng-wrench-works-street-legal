@@ -17,6 +17,7 @@ local roster = require('sl/core/roster')
 local rngLib = require('sl/core/rng')
 local stockLib = require('sl/core/stockdealers')
 local phaseLib = require('sl/core/phase')
+local visitLib = require('sl/core/visit')
 local heatLib = require('sl/core/heat')
 local strings = require('sl/core/strings')
 
@@ -37,6 +38,7 @@ local USER_PLACES = SAVE_DIR .. 'places.json'       -- and the player can add th
 local s                   -- the save, while a career is played
 local active = false
 local pending             -- 'start' while the level loads for a career
+local visitEnded          -- { was, how }: a visit that ended at this start; the hook goes out once the career is up
 local dirty, saveTimer = false, 0
 local syncTimer = 0
 local lastHour
@@ -758,12 +760,31 @@ function M.onTrafficOrParkingReady()
   if core_gamestate and core_gamestate.requestExitLoadingScreen then pcall(core_gamestate.requestExitLoadingScreen, 'traffic') end
 end
 
+-- on arrival the visit's cars stand in a row beside the player (the paddock); a car that already has a place (the game was restarted on the trip) keeps it. fleet.restore builds them.
+local function visitArrive()
+  local v = getPlayerVehicle(0)
+  if not (v and s.visit) then return end
+  local p, f = v:getPosition(), v:getDirectionVector()
+  local slots = visitLib.paddock({ x = p.x, y = p.y, z = p.z }, { x = f.x, y = f.y }, #s.visit.cars)
+  for i, id in ipairs(s.visit.cars) do
+    for _, car in ipairs(s.cars) do
+      if car.id == id and not car.where then
+        local sl = slots[i]
+        local q = quatFromDir(vec3(sl.face.x, sl.face.y, 0), vec3(0, 0, 1))
+        car.where = { pos = { sl.pos.x, sl.pos.y, sl.pos.z }, rot = { q.x, q.y, q.z, q.w } }
+      end
+    end
+  end
+  if s.visit.cars[1] then s.activeCar = s.visit.cars[1] end
+end
+
 local function begin()
   pending = nil
   active = true
   connectWallet(true)
   places = nil
-  loadPlaces()
+  local visiting = s.visit and s.visit.active == true
+  if visiting then places = {} else loadPlaces() end          -- (no place of the home world exists on the visited map)
   ensureCelestial()
   ensureBigMap()
   local fresh = not s.begun
@@ -775,8 +796,8 @@ local function begin()
   else
     setHour(s.hour or progression.START_HOUR)
   end
-  -- (D1) an old save has no phase (state.migrate guesses it from the hour); the clock is put inside it
-  local fitted = phaseLib.fit(s.phase or 'day', hour())
+  -- (D1) an old save has no phase (state.migrate guesses it from the hour); the clock is put inside it (a visit has no day and night halves)
+  local fitted = visiting and hour() or phaseLib.fit(s.phase or 'day', hour())
   setHour(fitted)
   lastHour = hour()
   -- Night set while the level is still loading leaves the picture all white (seen in game: only a
@@ -803,10 +824,14 @@ local function begin()
     -- game: the main menu drawn over the garage, taking the keys): on to the play screen
     if ui_router and ui_router.navigate then ui_router.navigate('play') end
   end)
-  placeInGarage()
+  if visiting then visitArrive() else placeInGarage() end
   changed()
   writeSave()
   extensions.hook('onStreetLegalStarted', fresh)
+  if visitEnded then
+    extensions.hook('onStreetLegalVisitEnded', visitEnded.was, visitEnded.how)
+    visitEnded = nil
+  end
   log('I', logTag, fresh and 'new career started' or 'career continued')
 end
 
@@ -818,7 +843,7 @@ local stop                                 -- (defined below)
 local mpLib = require('sl/core/multiplayer')
 function M.inMultiplayer() return mpLib.inSession(rawget(_G, 'MPCoreNetwork'), rawget(_G, 'MPGameNetwork')) end
 
-function M.start(fresh, n, level)
+function M.start(fresh, n, level, choice)
   if M.inMultiplayer() then tell(mpLib.NOTE, 9) return false end
   if active then stop() end              -- (B26: the career being played is saved and stopped first, so nothing of it carries over)
   local m = slotsMeta()
@@ -837,6 +862,13 @@ function M.start(fresh, n, level)
   if not fresh then
     local data = readSave(slotFile(n))
     if data and data.ended then tell(strings.t('career.that_career_is_over_it', (tostring(data.ended.day))), 6) return false end
+    -- a saved visit (the game was quit or crashed on a trip): ask first, before any level loads, unless it is over or its map is gone (then it ends by itself below)
+    if data and data.visit and data.visit.active and choice ~= 'resume' and choice ~= 'home' then
+      if visitLib.recover(data.visit, data.day or 1, levelInstalled(data.visit.level)) == 'ask' then
+        tell(strings.t('visit.choose', mapOf(data.visit.level).name, data.visit.round or 1, data.visit.rounds or 1), 9)
+        return false, 'visit'
+      end
+    end
     -- a career on a map that is not here is not loaded (it would open on the wrong map): the slot list says which map it needs
     if data and not qa and not levelInstalled(progression.levelOf(data)) then
       tell(strings.t('career.this_career_is_on_1_map', mapOf(progression.levelOf(data)).name), 8)
@@ -851,10 +883,19 @@ function M.start(fresh, n, level)
   s = (not fresh) and readSave() or nil
   if not s then
     s = stateLib.new((os.time() % 1000000) * 31 + math.random(1, 997), now())
-    s.level = progression.MAPS[level] and level or progression.DEFAULT_MAP
+    s.level = progression.MAPS[level] and not progression.isVisit(level) and level or progression.DEFAULT_MAP
   end
   s.level = progression.levelOf(s)      -- (a save from before the maps has no level and is Valo City: it is written into the save the next time the game saves it)
-  useMap(s.level)
+  local target = s.level
+  if s.visit and s.visit.active then
+    local verdict = visitLib.recover(s.visit, s.day or 1, levelInstalled(s.visit.level))
+    if verdict == 'home' or (verdict == 'ask' and choice == 'home') then
+      visitEnded = { was = visitLib.finish(s), how = 'missed' }          -- (the round that was running counts as missed; the cars are in the garage)
+    else
+      target = s.visit.level
+    end
+  end
+  useMap(target)
   pending = 'start'
   if getCurrentLevelIdentifier and getCurrentLevelIdentifier() == M.LEVEL then
     begin()
@@ -1444,7 +1485,7 @@ local switching = false          -- a phase switch is moving the clock behind a 
 local function updateClock()
   local h = hour()
   if switching then lastHour = h return end
-  if s.phase and phaseLib.ended(s.phase, h) then
+  if s.phase and not (s.visit and s.visit.active) and phaseLib.ended(s.phase, h) then
     if not clockHeld then
       clockHeld = true
       setHour(phaseLib.fit(s.phase, h))
@@ -1518,10 +1559,56 @@ local function busyState()
     heat = (sl_police and sl_police.inPursuit and sl_police.inPursuit()) and 1 or 0 }      -- (D3: heat is a level that fades; only a chase on you stops the clock)
 end
 
+-- the trip: spec = { level (a visit map), cars = { carId }, event, entry (the fee of the event), untilDay, rounds, fits = function(car) -> bool }. The way out costs the entry and
+-- VISIT.FEE_PER_CAR a car; the career is saved, stopped and started again on the other map. Returns ok, text.
+function M.depart(spec)
+  if not active then return false, strings.t('bank.no_career_running') end
+  if s.visit and s.visit.active then return false, strings.t('visit.already') end
+  if M.inMultiplayer() then return false, mpLib.NOTE end
+  if not progression.isVisit(spec.level) or not levelInstalled(spec.level) then return false, strings.t('visit.map_missing') end
+  local busy = busyState()
+  if busy.racing or busy.job or (busy.heat or 0) > 0 then return false, strings.t('visit.not_now') end
+  local ok, why = visitLib.validate(s, spec.cars, spec.fits)
+  if not ok then return false, why end
+  local fee = visitLib.fee(spec.entry, #spec.cars)
+  if not stateLib.addMoney(s, -fee, strings.t('visit.fee_label', mapOf(spec.level).name), now()) then return false, strings.t('visit.cannot_afford', fee) end
+  local visit = visitLib.new({ level = spec.level, event = spec.event, cars = spec.cars, day = s.day, untilDay = spec.untilDay or (s.day + 7), rounds = spec.rounds, round = 1, home = s.level })
+  stop()                                   -- (the cars out at home are noted in the save first, then dropped below)
+  visitLib.depart(s, visit)
+  local h = (s.hour or 12) + visitLib.TRAVEL_HOURS                   -- the trip takes hours; the day hooks catch up by date (bills, reviews)
+  if h >= 24 then s.day = s.day + 1 h = h - 24 end
+  s.hour, s.phase = h, 'day'
+  writeSave()
+  M.start(false, slot, nil, 'resume')           -- (the player has chosen: no question about the visit)
+  return true, strings.t('visit.departed', mapOf(spec.level).name)
+end
+
+-- the way home (always possible): the visit's cars go to the garage, the career starts again on the home map
+function M.returnHome(how)
+  if not active then return false, strings.t('bank.no_career_running') end
+  if not (s.visit and s.visit.active) then return false, strings.t('visit.not_on_a_trip') end
+  stop()                                   -- (saves where the cars stand on the visited map; they are put in the garage now)
+  visitEnded = { was = visitLib.finish(s), how = how or 'done' }
+  writeSave()
+  M.start(false, slot)
+  return true, strings.t('visit.home')
+end
+
+function M.visit() return s and s.visit and s.visit.active and s.visit or nil end
+function M.homeLevel() return s and progression.levelOf(s) or nil end
+-- for the main menu: the visit a saved career holds, { level, name, round, rounds, untilDay, expired }, or nil
+function M.slotVisit(n)
+  local data = readSave(slotFile(n))
+  local v = data and data.visit
+  if not (v and v.active) then return nil end
+  return { level = v.level, name = mapOf(v.level).name, round = v.round or 1, rounds = v.rounds or 1, untilDay = v.untilDay,
+    verdict = visitLib.recover(v, data.day or 1, levelInstalled(v.level)) }
+end
+
 -- (D1) the phase API, for every module that depends on the time of the game:
 --   sl_career.phase() -> 'day' | 'night' (nil with no career)      the hook onStreetLegalPhase(phase, day) when it is switched
 --   onStreetLegalPhaseEnded(phase) when the clock has run out and stood still
-function M.phase() return s and (s.phase or 'day') or nil end
+function M.phase() return s and ((s.visit and s.visit.active) and 'day' or s.phase or 'day') or nil end
 -- the night is a phase now, not a clock range (D2): everything that was 'after dark' asks this
 function M.isNight() return M.phase() == 'night' end
 

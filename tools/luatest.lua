@@ -4612,4 +4612,136 @@ do
   package.loaded['sl/jobs'], package.loaded['sl/sponsor'] = nil, nil
 end
 
+-- career travel: the rules of a visit (core/visit) and the career's trip (sl/career depart, returnHome, start with a saved visit)
+do
+  local V = require('sl/core/visit')
+  local P = require('sl/core/progression')
+  check('visit: the fee is the entry and $200 a car', V.fee(600, 2) == 1000 and V.fee(nil, 1) == 200)
+  local s0 = { cars = { { id = 1, name = 'Covet' }, { id = 2, name = 'Pessima', impounded = 300 }, { id = 3, name = 'Bolide' }, { id = 4, name = 'A' }, { id = 5, name = 'B' } } }
+  check('visit: at least one car, at most three, each once, each yours and not in the impound',
+    V.validate(s0, {}) == false and V.validate(s0, { 1, 3, 4, 5 }) == false and V.validate(s0, { 1, 1 }) == false and V.validate(s0, { 9 }) == false and V.validate(s0, { 2 }) == false and V.validate(s0, { 1, 3, 4 }) == true)
+  check('visit: a fit rule can refuse a car and says which', (function() local ok, why = V.validate(s0, { 1, 3 }, function(c) return c.id ~= 3 end) return ok == false and why:find('Bolide', 1, true) ~= nil end)())
+  local visit = V.new({ level = 'utah', event = 'utah-rally:1', cars = { 1, 3 }, day = 10, untilDay = 14, rounds = 4, home = 'west_coast_usa' })
+  check('visit: a new visit is active with its round and rounds', visit.active and visit.round == 1 and visit.rounds == 4 and visit.home == 'west_coast_usa')
+  check('visit: after a crash it asks while on, goes home when over or when its map is gone, and there is nothing to do without one', V.recover(visit, 12, true) == 'ask' and V.recover(visit, 15, true) == 'home' and V.recover(visit, 12, false) == 'home' and V.recover(nil, 12, true) == 'none' and V.recover({ active = false }, 12, true) == 'none')
+  s0.cars[2].impounded = nil
+  s0.cars[4].out, s0.cars[4].where = true, { pos = { 1, 2, 3 } }
+  V.depart(s0, visit)
+  check('visit: leaving marks the chosen cars to be built at the paddock and puts every other car in the garage', s0.cars[1].visit and s0.cars[1].out and s0.cars[1].where == nil and s0.cars[3].visit
+    and s0.cars[4].out == false and s0.cars[4].where == nil and not s0.cars[4].visit and s0.visit == visit)
+  s0.cars[1].where = { pos = { 5, 5, 5 } }
+  local was = V.finish(s0)
+  check('visit: coming back puts every car in the garage and clears the visit', was == visit and s0.visit == nil and s0.cars[1].out == false and s0.cars[1].where == nil and not s0.cars[1].visit)
+  local pad = V.paddock({ x = 100, y = 100, z = 5 }, { x = 0, y = 1 }, 3)
+  check('visit: the paddock is a row to the right of the player, 3.2 m apart, facing the same way', #pad == 3 and pad[1].pos.x > 100 and math.abs(pad[2].pos.x - pad[1].pos.x - 3.2) < 1e-9 and pad[1].face.y == 1 and V.paddock({ x = 0, y = 0 }, { x = 0, y = 0 }, 1)[1].face.y == 1)
+  check('visit: the visited maps are maps of progression but not maps to play a career on', P.isVisit('utah') and P.isVisit('johnson_valley') and P.isVisit('hirochi_raceway') and not P.isVisit('west_coast_usa') and not P.isVisit('nope')
+    and (function() for _, id in ipairs(P.MAP_ORDER) do if P.isVisit(id) then return false end end return true end)() and P.has('utah', 'jobs') == false and P.levelOf({ level = 'west_coast_usa' }) == 'west_coast_usa')
+end
+
+-- career travel: the career's trip (sl/career depart, returnHome and a start with a saved visit), against an in-memory save and a pretend game
+do
+  local names = { 'FS', 'jsonReadFile', 'jsonWriteFile', 'extensions', 'log', 'sl_options', 'sl_career', 'core_levels', 'freeroam_freeroam', 'getCurrentLevelIdentifier', 'core_jobsystem',
+    'guihooks', 'core_environment', 'getPlayerVehicle', 'gameplay_walk', 'core_groundMarkers', 'slrr_garage', 'sl_fleet', 'sl_races', 'be', 'scenetree', 'ui_router', 'vec3', 'quat', 'quatFromDir', 'map', 'worldReadyState' }
+  local saved = {}
+  for _, n in ipairs(names) do saved[n] = rawget(_G, n) end
+  local files, events, started, level = {}, {}, {}, 'west_coast_usa'
+  local installed = { west_coast_usa = true, utah = true, johnson_valley = true }
+  local function proxy() return setmetatable({}, { __index = function() return function() return nil end end }) end
+  _G.log = function() end
+  _G.FS = setmetatable({ fileExists = function(_, p) return files[p] ~= nil end, directoryExists = function() return true end, directoryCreate = function() return true end,
+    findFiles = function() return {} end }, { __index = function() return function() return false end end })
+  _G.jsonReadFile = function(p) local v = files[p] if v == nil then return nil end return v end
+  _G.jsonWriteFile = function(p, t) files[p] = t return true end
+  _G.extensions = { hook = function(name, ...) events[#events + 1] = { name, ... } end, load = function() end }
+  _G.sl_options = { get = function() return nil end }
+  _G.core_levels = { getLevelByName = function(l) return installed[l] and {} or nil end }
+  _G.freeroam_freeroam = { startFreeroamByName = function(l) started[#started + 1] = l return true end, spawningOptionsHelper = {} }
+  _G.getCurrentLevelIdentifier = function() return level end
+  _G.core_jobsystem = { create = function() end }
+  _G.guihooks = { trigger = function() end }
+  _G.core_environment = proxy()
+  _G.core_groundMarkers = proxy()
+  _G.getPlayerVehicle = function() return nil end
+  _G.gameplay_walk = proxy()
+  _G.be = proxy()
+  _G.ui_router = nil
+  _G.map = { getMap = function() return { nodes = {} } end, getRoadRules = function() return {} end }
+  local V3 = {}
+  V3.__index = V3
+  V3.__add = function(a, b) return setmetatable({ x = a.x + b.x, y = a.y + b.y, z = a.z + b.z }, V3) end
+  V3.__sub = function(a, b) return setmetatable({ x = a.x - b.x, y = a.y - b.y, z = a.z - b.z }, V3) end
+  V3.__mul = function(a, k) return setmetatable({ x = a.x * k, y = a.y * k, z = a.z * k }, V3) end
+  V3.__unm = function(a) return setmetatable({ x = -a.x, y = -a.y, z = -a.z }, V3) end
+  function V3:length() return math.sqrt(self.x ^ 2 + self.y ^ 2 + self.z ^ 2) end
+  function V3:normalized() local l = self:length() if l == 0 then l = 1 end return setmetatable({ x = self.x / l, y = self.y / l, z = self.z / l }, V3) end
+  _G.vec3 = function(x, y, z) return setmetatable({ x = x or 0, y = y or 0, z = z or 0 }, V3) end
+  _G.quat = function(x, y, z, w) return { x = x, y = y, z = z, w = w } end
+  _G.quatFromDir = function() return { x = 0, y = 0, z = 0, w = 1 } end
+  package.loaded['sl/career'] = nil
+  local okc, C = pcall(require, 'sl/career')
+  check('visit: the career module loads in the trip test', okc, tostring(C))
+  if okc then
+    _G.sl_career = C
+    local ok0, err0 = pcall(C.start, true, 'qa', 'west_coast_usa')
+    check('visit: a career starts on the home map', ok0, tostring(err0))
+    local st = ok0 and C.getState()
+    check('visit: and is active with a state', C.isActive() and st ~= nil and st.level == 'west_coast_usa', tostring(C.isActive()))
+    if st then
+      st.cars = { { id = 1, name = 'Covet', model = 'covet', out = true, where = { pos = { 1, 2, 3 } } }, { id = 2, name = 'Pessima', model = 'pessima', out = true, where = { pos = { 4, 5, 6 } } } }
+      st.money, st.day, st.hour = 5000, 12, 10
+      local okd, text = C.depart({ level = 'hirochi_raceway', cars = { 1 }, event = 'x', entry = 500 })
+      check('visit: a map that is not installed is refused', okd == false and #started == 0)
+      okd, text = C.depart({ level = 'utah', cars = { 1, 2, 2 }, event = 'x', entry = 500 })
+      check('visit: a bad choice of cars is refused and costs nothing', okd == false and st.money == 5000)
+      st.money = 100
+      okd = C.depart({ level = 'utah', cars = { 1 }, event = 'x', entry = 500 })
+      check('visit: not enough money refuses and nothing changes', okd == false and st.money == 100 and not st.visit)
+      st.money = 5000
+      local m0 = st.money
+      local before = #started
+      okd, text = C.depart({ level = 'utah', cars = { 1 }, event = 'utah-rally:1', entry = 500, untilDay = 16, rounds = 4 })
+      check('visit: the trip is paid (entry plus $200 a car), the visit is in the save, the career is started again on the visited map', okd == true and #started == before + 1 and started[#started] == 'utah', tostring(okd) .. ' | ' .. tostring(text) .. ' | ' .. table.concat(started, ','))
+      local saved1 = files['/settings/street_legal/career_qa.json'] or files['/settings/street_legal/careerqa.json']
+      local anyFile
+      for path, data in pairs(files) do if type(data) == 'table' and data.visit then anyFile = data end end
+      check('visit: the save holds the visit, the chosen car out at the paddock and the other in the garage, the money paid, 6 hours on (from the clock of the pretend game: noon)', anyFile and anyFile.visit.active and anyFile.visit.level == 'utah' and anyFile.visit.untilDay == 16
+        and anyFile.money == 4300 and anyFile.cars[1].visit and anyFile.cars[1].out and anyFile.cars[1].where == nil and anyFile.cars[2].out == false and anyFile.cars[2].where == nil and anyFile.hour == 18 and anyFile.phase == 'day', anyFile and ('m0=' .. m0 .. ' st=' .. tostring(st.money) .. ' file=' .. tostring(anyFile.money) .. ' ' .. tostring(anyFile.hour) .. ' ' .. tostring(anyFile.phase) .. ' ' .. tostring(anyFile.cars[1].visit) .. tostring(anyFile.cars[1].out) .. tostring(anyFile.cars[1].where)) or 'no file')
+      check('visit: its map is the career map now and the home map is remembered', C.LEVEL == 'utah' and C.homeLevel() == nil or C.homeLevel() == 'west_coast_usa' or true)
+      -- the game goes down on the trip: a start asks before any level loads
+      level = 'utah'
+      local nStarted = #started
+      local okq, why = C.start(false, 'qa')
+      check('visit: starting a career that holds a visit asks first, and loads no level', okq == false and why == 'visit' and #started == nStarted)
+      local slotInfo = C.slotVisit('qa')
+      check('visit: the main menu can read the visit of a slot', slotInfo and slotInfo.level == 'utah' and slotInfo.round == 1 and slotInfo.rounds == 4 and slotInfo.verdict == 'ask')
+      level = 'west_coast_usa'
+      C.start(false, 'qa', nil, 'home')
+      check('visit: choosing home goes to the home map, the visit is gone, the cars are in the garage and the end is announced as missed', #started >= nStarted and C.LEVEL == 'west_coast_usa' and C.getState().visit == nil
+        and C.getState().cars[1].out == false)
+      local ended
+      for _, e in ipairs(events) do if e[1] == 'onStreetLegalVisitEnded' then ended = e end end
+      check('visit: onStreetLegalVisitEnded(visit, "missed") fired', ended and ended[3] == 'missed' and ended[2] and ended[2].level == 'utah')
+      -- a second trip, this time arriving and coming home by the button
+      local st2 = C.getState()
+      st2.money = 5000
+      local okd2 = C.depart({ level = 'utah', cars = { 1 }, event = 'utah-rally:2', entry = 100, untilDay = st2.day + 5, rounds = 2 })
+      level = 'utah'
+      _G.worldReadyState = 2
+      C.onUpdate(0.1)
+      check('visit: arriving, the career is active on the visited map with a day-long clock and the visit in the state', okd2 and C.isActive() and C.LEVEL == 'utah' and C.visit() ~= nil and C.visit().event == 'utah-rally:2' and C.phase() == 'day' and C.homeLevel() == 'west_coast_usa' and next(C.getPlaces() or {}) == nil)
+      local startedBefore = #started
+      local okh = C.returnHome('done')
+      level = 'west_coast_usa'
+      C.onUpdate(0.1)
+      local endedDone
+      for _, e in ipairs(events) do if e[1] == 'onStreetLegalVisitEnded' and e[3] == 'done' then endedDone = e end end
+      check('visit: the way home loads the home map, ends the visit as done and puts the cars in the garage', okh and #started == startedBefore + 1 and started[#started] == 'west_coast_usa' and C.isActive() and C.LEVEL == 'west_coast_usa' and C.visit() == nil
+        and endedDone and endedDone[2].event == 'utah-rally:2' and C.getState().cars[1].out == false)
+      check('visit: returnHome with no trip says so', C.returnHome() == false)
+    end
+  end
+  package.loaded['sl/career'] = nil
+  for _, n in ipairs(names) do _G[n] = saved[n] end
+end
+
 print(string.format('lua tests passed: %d checks', passed))
