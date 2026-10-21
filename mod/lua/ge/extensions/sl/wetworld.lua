@@ -13,7 +13,7 @@ local TAG = 'sl_wetworld'
 
 M.MAX_MATERIALS = 400          -- at most this many materials are touched
 M.TICK = 0.3                   -- seconds between batches
-M.MAX_BATCH = 3                -- every edit reloads a material (a shader recompile on the GPU): at most about 10 a second, so 300 materials take 30 s, not a few
+M.MAX_BATCH = 1                -- every edit reloads a material (a shader recompile on the GPU): one per tick, so about 3 a second and 300 materials take 100 s. 3 per tick held at Low but hung the GPU at High, 2 s in (shown on the Custom preset, so it is not read)
 M.BUDGET_MS = 3                -- what a batch may cost
 
 local plan                     -- { { name, kind } } in edit order, or false when the level has none
