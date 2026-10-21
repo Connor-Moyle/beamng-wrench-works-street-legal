@@ -2942,7 +2942,8 @@ do -- free-roam weather (sl/weather) against a fake sky and clock: no career, th
   _G.core_environment = { getTimeOfDay = function() return tod end, setCloudCover = function() end, setFogDensity = function() end,
     setPrecipitation = function(n) calls[#calls + 1] = n end }
   _G.extensions = { hook = function() end }
-  _G.getPlayerVehicle = function() return nil end
+  local vcmds = {}
+  _G.getPlayerVehicle = function() return { getJBeamFilename = function() return 'covet' end, queueLuaCommand = function(_, c) vcmds[#vcmds + 1] = c end } end
   _G.sl_career, _G.sl_weather = nil, nil
   _G.sl_options = { get = function(k) return on[k] end }
   os.time = function() return seed end
@@ -2969,6 +2970,13 @@ do -- free-roam weather (sl/weather) against a fake sky and clock: no career, th
     local n2 = #calls
     W.onUpdate(1) W.onUpdate(6)
     check('free-roam weather: once off it touches the sky no more', #calls == n2)
+    on.freeroam_weather = true
+    W.onUpdate(0.1) W.onUpdate(6)
+    local n3, v3 = #calls, #vcmds
+    W.onClientEndMission()
+    on.freeroam_weather = false
+    W.onUpdate(1) W.onUpdate(6)
+    check('free-roam weather: after a level ends with the switch off, the new level gets no restore write (sky or car)', #calls == n3 and #vcmds == v3)
   end
   for _, n in ipairs(names) do _G[n] = saved[n] end
   os.time = savedTime
