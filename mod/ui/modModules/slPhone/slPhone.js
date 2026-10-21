@@ -818,6 +818,31 @@
         ('<div class="slp-card"><h4>' + T('ui.standings', 'Standings') + '</h4>') + table + '</div></div>';
     }
 
+    // the weekly costs (sl_weekly.summary(): { enabled, week, dayOfWeek, nextBillDay, debt, bills = { { id, label, amount, due } }, history = { { week, income, costs, net } } }, any part may be
+    // missing or empty). Bills are paid by themselves on the billing day; what is short becomes debt, which the only button here pays.
+    function weeklyCard() {
+      var wk = st.data.weekly;
+      if (!wk || wk.enabled === false || obj(st.data.has).weekly === false) return '';
+      var left = Number(wk.nextBillDay) || 0, bills = arr(wk.bills), hist = arr(wk.history).slice(0, 4), debt = Math.round(Number(wk.debt) || 0);
+      var html = '<div class="slp-card"><h4>' + T('ui.weekly_costs', 'Weekly costs') + '</h4><p>' + T('ui.week_day', 'Week {1}, day {2} of 7', Number(wk.week) || 1, Number(wk.dayOfWeek) || 1) + ' &middot; ' +
+        (left <= 0 ? T('ui.bills_tonight', 'bills are paid tonight') : left === 1 ? T('ui.bills_in_one_day', 'bills are paid in 1 day') : T('ui.bills_in_days', 'bills are paid in {1} days', left)) + '</p>';
+      html += bills.length ? bills.map(function (b) {
+        return '<div class="slp-row" style="min-height:40px;cursor:default"><div class="slp-rt"><b>' + esc(b.label || '') + '</b><small>' + (Number(b.due) <= 0 ? T('ui.due_tonight', 'tonight') : T('ui.due_in_days', 'in {1} d', Number(b.due) || 0)) +
+          '</small></div><div class="slp-amt slp-minus">' + money(-(Number(b.amount) || 0)) + '</div></div>';
+      }).join('') : '<p>' + T('ui.no_bills_yet', 'No bills yet: rent starts with a second garage or more than two cars.') + '</p>';
+      if (debt > 0) {
+        var pay = Math.min(debt, Math.max(0, Math.floor(st.data.money || 0)));
+        html += '<p class="slp-pink">' + T('ui.weekly_debt', 'Debt: {1}. The bank will not lend until it is paid.', money(debt)) + '</p>' +
+          (pay > 0 ? '<div class="slp-acts"><div class="slp-btn" data-a="paydebt" data-v="' + pay + '">' + T('ui.pay', 'Pay ') + money(pay) + '</div></div>' : '');
+      }
+      html += hist.map(function (h) {
+        var net = Number(h.net) || 0;
+        return '<div class="slp-row" style="min-height:40px;cursor:default"><div class="slp-rt"><b>' + T('ui.week_n', 'Week {1}', Number(h.week) || 0) + '</b><small>' + T('ui.week_in_out', 'in {1} &middot; out {2}', money(h.income), money(h.costs)) +
+          '</small></div><div class="slp-amt ' + (net >= 0 ? 'slp-plus' : 'slp-minus') + '">' + (net >= 0 ? '+' : '') + money(net) + '</div></div>';
+      }).join('');
+      return html + '</div>';
+    }
+
     function bankPage() {
       var rows = arr(st.data.ledger).map(function (e) {
         return '<div class="slp-row" style="min-height:52px;cursor:default"><div class="slp-rt"><b>' + esc(e.label || '') + '</b></div><div class="slp-amt ' + (e.amount >= 0 ? 'slp-plus' : 'slp-minus') + '">' +
@@ -840,7 +865,7 @@
           : ('<div class="slp-card"><h4>' + T('ui.insurance', 'Insurance') + '</h4><p>') + money(bk.premium) + T('ui.a_week_half_of_repairs', ' a week: half of repairs and impound bills over ') + money(bk.deductible) + (T('ui.from_the_next_day', ', from the next day') + '</p>') + (bk.premiumWhy ? '<p class="slp-sub">' + esc(bk.premiumWhy) + '</p>' : '') +
             ('<div class="slp-acts"><div class="slp-btn slp-tonal" data-a="insure" data-v="true">' + T('ui.insure', 'Insure') + '</div></div></div>');
       }
-      return bar(T('app.bank', 'Bank')) + ('<div class="slp-body"><div class="slp-bal"><small>' + T('ui.balance', 'Balance') + '</small><div>') + money(st.data.money) + '</div></div>' + cards +
+      return bar(T('app.bank', 'Bank')) + ('<div class="slp-body"><div class="slp-bal"><small>' + T('ui.balance', 'Balance') + '</small><div>') + money(st.data.money) + '</div></div>' + weeklyCard() + cards +
         (rows.join('') || ('<div class="slp-empty">' + T('ui.no_transactions_yet', 'No transactions yet.') + '</div>')) + '</div>';
     }
 
@@ -1845,6 +1870,7 @@
         case 'wait': lua('wait(' + JSON.stringify(String(v)) + ')'); break;
         case 'borrow': lua('borrow(' + Number(v) + ')'); break;
         case 'repay': lua('repay(' + Number(v) + ')'); break;
+        case 'paydebt': lua('payDebt(' + Number(v) + ')'); break;
         case 'insure': lua('insure(' + (v === 'true' ? 'true' : 'false') + ')'); break;
         case 'tutskip': lua('@sl_tutorial.skip()'); break;
         case 'jobtake': lua('takeJob(' + JSON.stringify(v) + ')'); break;
