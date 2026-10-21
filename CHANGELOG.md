@@ -1,15 +1,20 @@
 # Changelog
 
-## Unreleased
+## 0.6.0 (unreleased)
 
+### New
 - **Parts of the game you can switch off** (Mods > Street Legal > Parts of the game, and the Active features page; all on by default): spectators, sponsor billboards, ambient sounds, puddles and splashes, achievements, getting-started tips, car and part markets (classifieds and auctions), rally stages, street races and drag racing, clubs, crews and turf, the tow truck, the taxi ride, and jobs. A part that is off does nothing and loses its phone app; switched on again it carries on from your save (nothing is deleted). Six more core parts have a switch too: the bank (cannot be switched off while a loan is open: "Pay back the loan first"), the hospital (off: injuries cost and stop nothing; hardcore death needs it on), the HUD phone pill, the laptops, Maps and garage upgrades (off: the garage has every tool). The phone itself has no off switch. The bank switch is global: a loan open in another career is frozen (no interest, no payments) while the bank is off. A hardcore career cannot switch the hospital off. When the clubs come back on, a season that was not simulated while they were off is closed with no reward and a new one starts. Off for the tow truck: a car left out is brought round without a truck; off for the taxi: the Cab app still takes you there, at once.
 
 - The main switches (police, crew raids, race flares, dashboard, race recording, weather, wet world and tarmac, spike strips, pursuit breakers, night race kinds, rivals, photo of a new car, the Maps speed and the phone's K slide) are tagged for the Active features page of the Mods menu.: Wrench Works: Street Legal (the career)
 
-## 0.6.0 (unreleased)
+- **Tyres keep their wear with the car** (needs Car Surface FX with its tyre simulation switched on): a car's tyre set and how worn it is are saved with the car, and put back when the car comes out of the garage or you reset it. Buying a different tyre part, or the same one again, gives a new set; a car sold on bare rims shows no tyres until a tyre part is fitted. Tested in game with a bought car on a reset, a respawn and a career save (the Wrench Works garage fitting itself was not tested in game).
 
 ### Changes
-- **Wet tarmac:** the road darkening now waits for puddles (a 60-second hold); with it, in one heavy-rain test with wet tarmac on, it no longer crashed. Still off by default, and it may still crash some cards.
+- **Wet roads and walls** now change one material at a time instead of several, so getting wet takes longer (about a minute and a half in a sudden downpour). This is a crash-prevention change for BeamNG 0.40.
+- **Wet tarmac:** off by default (as in 0.5.2). It waits for puddles (a 60-second hold); with it, in one heavy-rain test with wet tarmac on, it no longer crashed. It may still crash some cards.
+
+### Known issue
+- At High graphics a heavy-rain crash has still been seen with 0.5.2. The slower wet-road pace above is meant to fix it but has not yet been proven at High. Workaround if it happens: turn "Wet roads and walls" off, or lower the graphics quality.
 
 ## 0.5.2 (needs Wrench Works 1.8.0)
 
