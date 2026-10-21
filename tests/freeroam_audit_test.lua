@@ -79,6 +79,21 @@ for _ = 1, 2 do
     end
   end
 end
+-- a free-roam cab ride and a wash: the cab's fare is settled and a wash is done with every wallet call recorded; neither asks a wallet, a career is charged as before (the control)
+local wallet = {}
+local careerCalls = { chargeFare = sl_career.chargeFare, addMoney = sl_career.addMoney }
+sl_career.chargeFare = function(fee) wallet[#wallet + 1] = 'chargeFare ' .. tostring(fee) return fee end
+sl_career.addMoney = function(n) wallet[#wallet + 1] = 'addMoney ' .. tostring(n) return true end
+local washed = {}
+_G.sl_surfacefx = { washOff = function(id) washed[#washed + 1] = id return true end, wash = function() end }
+local freePaid = mods.cab.settle({ free = true, fee = 50, place = { name = 'Somewhere' } })
+local before = #wallet
+mods.station.freeWash({ getID = function() return 77 end })
+check('audit: a free-roam cab ride is not charged and asks no wallet', freePaid == 0 and before == 0)
+check('audit: a free-roam wash cleans the car and asks no wallet', #washed == 1 and washed[1] == 77 and #wallet == 0, table.concat(wallet, ','))
+check('audit: the control: a career ride is still charged', mods.cab.settle({ fee = 50, place = { name = 'Somewhere' } }) == 50 and wallet[1] == 'chargeFare 50')
+sl_career.chargeFare, sl_career.addMoney = careerCalls.chargeFare, careerCalls.addMoney
+_G.sl_surfacefx = nil
 setmetatable(_G, nil)
 check('audit: the hooks ran (' .. hooks .. ')', hooks > 100)
 if MUTATION then slrr_garage.addShelfPart('x', {}) end

@@ -159,9 +159,35 @@ local function updateWash(dt)
   end
 end
 
+-- free roam (the master and the 'wash' switch of sl_mode): the same bays, free, for whatever car you drive. No career, no money, no record of the wash.
+local freeInBay, freeTimer = nil, 0
+function M.freeWash(v)
+  if surfaceFXBody and surfaceFXBody.wash then surfaceFXBody.wash() end
+  if sl_surfacefx then if not sl_surfacefx.washOff(v:getID()) then sl_surfacefx.wash(v:getID()) end end
+  toast(strings.t('station.washed_free'))
+end
+local function updateFreeWash(dt)
+  freeTimer = freeTimer + dt
+  if freeTimer < 0.25 then return end
+  freeTimer = 0
+  local v = getPlayerVehicle(0)
+  if not v or v:getJBeamFilename() == 'unicycle' then freeInBay = nil return end
+  local here, bay = v:getPosition(), nil
+  for id, p in pairs(sl_career and sl_career.getPlaces and sl_career.getPlaces() or {}) do
+    if p.kind == 'carwash' and p.pos and (here - vec3(p.pos.x, p.pos.y, p.pos.z)):length() < WASH_RADIUS then bay = id end
+  end
+  if bay and bay ~= freeInBay and v:getVelocity():length() < WASH_SPEED then
+    freeInBay = bay
+    M.freeWash(v)
+  elseif not bay then
+    freeInBay = nil
+  end
+end
+
 function M.onStreetLegalStarted() patch() end
 function M.onUpdate(dtReal) if career() and not patched then patch() end
-  if career() then updateWash(dtReal or 0) end
+  if career() then updateWash(dtReal or 0)
+  elseif sl_mode and sl_mode.enabled('wash') then updateFreeWash(dtReal or 0) end
   -- driven off: the pump closes
   if open then
     local v = getPlayerVehicle(0)
@@ -173,7 +199,7 @@ function M.onStreetLegalStopped()
   if patched and freeroam_gasStations then freeroam_gasStations.refuelCar = original end
   patched = false
 end
-function M.onClientEndMission() open, patched, inBay = nil, false, nil end
+function M.onClientEndMission() open, patched, inBay, freeInBay = nil, false, nil, nil end
 function M.request() send() end
 
 return M

@@ -81,6 +81,25 @@ end
 
 local function drop(id) local v = getObjectByID(id) if v then v:delete() end end
 
+-- the fare at the end of a ride: a career's is charged (what it can pay), a free-roam ride (ride.free) is never charged and asks no wallet
+function M.settle(r)
+  if r.free then return 0 end
+  return sl_career and sl_career.chargeFare and sl_career.chargeFare(r.fee, r.place.name) or 0
+end
+
+-- free roam (the master and the 'cab' switch of sl_mode): a cab to a place of the map, free. No career, no money: nothing is charged and no wallet is asked.
+-- Returns ok, text. The phone's Cab app (a career phone) calls this when there is no career; to try it from the console: sl_cab.callFree('<place id>')
+function M.callFree(placeId)
+  if not (sl_mode and sl_mode.enabled('cab')) or (sl_career and sl_career.isActive()) then return false, strings.t('career.the_cab_does_not_know') end
+  local place = sl_career and sl_career.allPlaces and sl_career.allPlaces()[placeId]
+  if not place then return false, strings.t('cab.free_unknown_place') end
+  if not onFoot() then return false, strings.t('cab.free_not_on_foot') end
+  if ride then return false, strings.t('career.a_cab_is_already_waiting') end
+  if not M.call(place, 0) then return false, strings.t('career.the_cab_does_not_know') end
+  ride.free = true
+  return true, strings.t('cab.free_ride')
+end
+
 -- in the cab: fade, both to the destination's lane, you out beside it, and it drives off
 local function board()
   local r = ride
@@ -103,7 +122,7 @@ local function board()
     end
     job.sleep(0.6)
     guihooks.trigger('slFade', { on = false })
-    local paid = sl_career and sl_career.chargeFare and sl_career.chargeFare(r.fee, r.place.name) or 0
+    local paid = M.settle(r)
     toast(string.format(strings.t('cab.s_that_was_d'), r.place.name, paid))
     if cab and c then
       job.sleep(1.5)

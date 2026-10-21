@@ -350,7 +350,10 @@ function M.giveUpJob() if career() and sl_jobs then answer(sl_jobs.giveUp()) end
 function M.jobWay() if career() and sl_jobs then sl_jobs.showWay() end end
 
 function M.taxi(placeId)
-  if not career() then return end
+  if not career() then
+    if sl_cab and sl_cab.callFree then local ok, text = sl_cab.callFree(placeId) guihooks.trigger('slPhoneToast', { text = text }) end      -- (free roam: free; sl_cab checks the switch)
+    return
+  end
   local ok, why = sl_career.taxi(placeId)
   guihooks.trigger('slPhoneToast', { text = ok and strings.t('phone.your_cab_is_on_its') or why })
 end
