@@ -3309,7 +3309,7 @@ do
   local Opt = require('sl/options')
   local defs = {}
   for _, d in ipairs(Opt.defs) do defs[d.key] = d end
-  local okDefs = #F.LIST == 30
+  local okDefs = #F.LIST == 31
   local offByDefault = 0
   for _, f in ipairs(F.LIST) do
     local d = defs[f.opt]
@@ -4403,6 +4403,91 @@ do
   local big = 0
   for i = 0, 200 do big = math.max(big, math.abs(F.tremor(i * 0.01, 1))) end
   check('needs filter: the tremor stays within 3 percent of the steering', big <= F.TREMOR_DEG + 1e-9 and big > 0.02 and F.tremor(1, 0) == 0)
+end
+
+-- brand standing and sponsorships (docs/DESIGN_SPONSORSHIPS.md)
+do
+  local BR = require('sl/core/brands')
+  local tree = { chosenPartName = 'covet', children = { engine = { chosenPartName = 'covet_engine', children = { turbo = { chosenPartName = 'velox_turbo' } } },
+    exhaust = { chosenPartName = 'velox_exhaust' }, intake = { chosenPartName = 'velox_intake' }, brake = { chosenPartName = 'stoppa_pads' } } }
+  local names = BR.partNames(tree)
+  table.sort(names)
+  check('brands: the chosen part names of a parts tree', #names == 6 and names[1] == 'covet' and BR.partNames(nil)[1] == nil)
+  local function ofPart(n) return n:match('^velox') and 'velox' or (n:match('^covet') and 'ibishu' or (n:match('^stoppa') and 'stoppa' or nil)) end
+  local counts = BR.partCounts(names, ofPart)
+  check('brands: parts counted per brand', counts.velox == 3 and counts.ibishu == 2 and counts.stoppa == 1)
+  local cr = BR.credits('ibishu', counts)
+  check('brands: a win credits the maker and an aftermarket brand with three parts, not the maker twice', #cr == 2 and cr[1].brand == 'ibishu' and cr[1].points == 10 and cr[2].brand == 'velox' and cr[2].points == 4)
+  check('brands: no maker known still credits the parts brand', #BR.credits(nil, counts) == 1 and BR.credits(nil, counts)[1].brand == 'velox' and #BR.credits('x', {}) == 1)
+  local st = {}
+  BR.add(st, 'velox', 60, 1) BR.add(st, 'velox', 60, 2)
+  check('brands: standing adds up', st.velox.standing == 120 and st.velox.day == 2)
+  BR.decay(st, 12)
+  check('brands: standing decays one a day, never below zero, and the brand disappears at zero', st.velox.standing == 110 and (function() BR.decay(st, 500) return st.velox == nil end)())
+  local st2 = { a = { standing = 150, day = 1 }, b = { standing = 400, day = 1 }, c = { standing = 90, day = 1 } }
+  check('brands: the offer goes to the highest standing past the threshold that is not on cooldown', BR.best(st2, 1, {}) == 'b' and BR.best(st2, 1, { b = 10 }) == 'a' and BR.best(st2, 1, { a = 10, b = 10 }) == nil and BR.best(st2, 11, { b = 10 }) == 'b')
+  local t1, t2 = BR.terms(120, 'aftermarket'), BR.terms(500, 'maker')
+  check('brands: terms grow with standing, a maker wants its cars driven', t1.wins == 2 and t1.discount == 0.10 and t1.car == nil and t1.retainer == 210 and t2.wins == 3 and t2.discount == 0.15 and t2.car == true and BR.terms(99999, 'maker').retainer == 1500)
+  local sp = { terms = { wins = 2 }, strikes = 0 }
+  check('brands: a week with the wins is ok; misses give a warning, a strike, then the end; a good week resets', BR.review(sp, 2, 0) == 'ok' and BR.review(sp, 1, 0) == 'warning' and BR.review(sp, 0, 0) == 'strike' and BR.review(sp, 0, 0) == 'lost' and (function() sp.strikes = 2 return BR.review(sp, 5, 0) == 'ok' and sp.strikes == 0 end)())
+  check('brands: a maker also wants a race in its car in the week', BR.review({ terms = { wins = 2, car = true }, strikes = 0 }, 3, 0) == 'warning' and BR.review({ terms = { wins = 2, car = true }, strikes = 0 }, 3, 1) == 'ok')
+
+  -- the extension with a stub of Wrench Works' brands
+  local ST = require('sl/core/state')
+  local s = ST.new(1, 0)
+  s.day, s.rep = 10, 500
+  local old = { c = rawget(_G, 'sl_career'), e = rawget(_G, 'extensions'), b = rawget(_G, 'slrr_brands'), g = rawget(_G, 'slrr_garage'), fl = rawget(_G, 'sl_fleet'), sh = rawget(_G, 'sl_shops') }
+  local sent, factorFn, shopFn, paid = {}, nil, nil, 0
+  _G.extensions = { hook = function() end }
+  _G.slrr_brands = { list = function() return { { id = 'ibishu', name = 'Ibishu', kind = 'maker' }, { id = 'velox', name = 'Velox', kind = 'aftermarket' } } end,
+    ofCar = function(m) return m == 'covet' and 'ibishu' or nil end, ofPart = ofPart, nameOf = function(id) return id == 'ibishu' and 'Ibishu' or 'Velox' end }
+  _G.slrr_garage = { setPriceFactor = function(f) factorFn = f end }
+  _G.sl_shops = { setPriceFactor = function(id, f) shopFn = f end }
+  _G.sl_fleet = { currentCar = function() return { model = 'covet', config = { partsTree = tree } } end }
+  _G.sl_career = { isActive = function() return true end, getState = function() return s end, sendText = function(_, t) sent[#sent + 1] = t end,
+    payOut = function(a) paid = paid + a return ST.addMoney(s, a, 'x') end }
+  package.loaded['sl/sponsor'] = nil
+  local SP = require('sl/sponsor')
+  for i = 1, 11 do SP.onStreetLegalRaceResult(true) end
+  local sm = SP.summary()
+  check('sponsor: eleven wins in a Covet with three Velox parts give Ibishu 110 and Velox 44 standing', sm.standing[1].brand == 'ibishu' and sm.standing[1].standing == 110 and sm.standing[2].brand == 'velox' and sm.standing[2].standing == 44)
+  SP.onStreetLegalRaceResult(false)
+  check('sponsor: a lost race gives nothing', SP.summary().standing[1].standing == 110)
+  SP.onStreetLegalNewDay(11)
+  check('sponsor: past 100 the brand offers by text, once', #sent == 1 and sent[1]:find('Ibishu', 1, true) and SP.summary().offer.brand == 'ibishu' and SP.summary().offer.retainer == 200)
+  SP.onStreetLegalNewDay(12)
+  check('sponsor: the offer is not repeated while it stands', #sent == 1)
+  local okA = SP.accept()
+  local cur = SP.summary().current
+  check('sponsor: accepting makes a sponsorship with the discount and the terms, and hands the discount to the shops', okA and cur.brand == 'ibishu' and cur.discount == 0.10 and cur.terms.car == true and factorFn ~= nil and shopFn ~= nil)
+  check('sponsor: the discount applies to the brand parts only', math.abs(factorFn('covet_engine') - 0.9) < 1e-9 and factorFn('velox_turbo') == 1 and factorFn(nil) == 1 and math.abs(shopFn({ brand = 'ibishu' }) - 0.9) < 1e-9 and shopFn({ brand = 'x' }) == 1)
+  check('sponsor: the billboards and jobs summary see the sponsor', SP.current().name == 'Ibishu' and SP.current().weekly == 200)
+  SP.onStreetLegalRaceResult(true) SP.onStreetLegalRaceResult(true)
+  s.day = s.sponsorship.nextReview
+  SP.onStreetLegalNewDay(s.day)
+  check('sponsor: a week with two wins, one in its car, pays the retainer', paid == 200 and s.sponsorship.strikes == 0 and s.sponsorship.nextReview == s.day + 7)
+  s.day = s.sponsorship.nextReview SP.onStreetLegalNewDay(s.day)
+  s.day = s.sponsorship.nextReview SP.onStreetLegalNewDay(s.day)
+  check('sponsor: two empty weeks give a warning and a strike and nothing is paid', paid == 200 and s.sponsorship.strikes == 2 and #sent >= 3)
+  s.day = s.sponsorship.nextReview SP.onStreetLegalNewDay(s.day)
+  check('sponsor: the third empty week ends the deal, takes standing and the discount goes', s.sponsorship == nil and factorFn == nil and s.brands.cooldown.ibishu > s.day)
+  SP.onStreetLegalNewDay(s.day + 1)
+  check('sponsor: no offer from that brand during the cooldown', SP.summary().offer == nil)
+  -- decline and quit
+  s.brands.cooldown.ibishu = nil
+  s.brands.standing.ibishu = { standing = 200, day = s.day + 20 }
+  SP.onStreetLegalNewDay(s.day + 20)
+  check('sponsor: an offer can be declined, which starts the cooldown', SP.decline() == true and SP.summary().offer == nil and s.brands.cooldown.ibishu > s.day)
+  check('sponsor: accept and decline with no offer say so', SP.accept() == false and SP.decline() == false and SP.quit() == false)
+  -- the part off: nothing runs, the shops are left alone
+  do
+    local fo = _G.sl_options
+    _G.sl_options = { get = function(k) if k == 'slSponsors' then return false end end }
+    check('sponsor: with the part off the summary and the actions give nothing', SP.summary() == nil and SP.accept() == nil)
+    _G.sl_options = fo
+  end
+  _G.sl_career, _G.extensions, _G.slrr_brands, _G.slrr_garage, _G.sl_fleet, _G.sl_shops = old.c, old.e, old.b, old.g, old.fl, old.sh
+  package.loaded['sl/sponsor'] = nil
 end
 
 print(string.format('lua tests passed: %d checks', passed))
