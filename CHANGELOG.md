@@ -8,6 +8,14 @@
 - **Wear rate and service interval (new setting; Mods > Street Legal > Difficulty > Wear):** 0.5x (parts last twice as long, service every 300 km), 1x (service every 150 km, the default), 2x or 4x. It sets the wear of the career's own model and, when they are installed, tells Part Wear (a version with `setWearRate`) and the Car Surface FX tyres (a version with `setWearScale`) to wear at the same rate. Wear already there stays as it is; changing the setting restarts the service clock. Offline-tested; not yet seen in the game, and the Part Wear and tyre calls have only been tested against stand-ins until those mods ship them.
 - **Used-car checks (new, on by default; Mods > Street Legal > Parts of the game > Used-car checks):** a private ad for a car shows its history (owners, service record, accidents) but not its faults or the car report; a mechanic check ($40 plus 0.5% of the price) shows both and what each fault costs to fix. A patchy service record is a hint. Dealers, auctions and the swap meet are unchanged. Off: the ads show every fault, as before. Offline-tested; not yet seen in the game.
 
+## 0.7.2 (needs Wrench Works 1.8.5)
+
+Hotfix for 0.7.1 and every release since the spike strip came in.
+
+### Fixes
+- **A spike strip no longer freezes the game:** at heat 3 and above, when a chase placed a spike strip ahead of you, the placing code failed every frame, filled the log with thousands of error lines and could hang the game. Fixed, and the chase check now switches itself off for the session after five failures in a row instead of failing every frame. Found by the tester in the chase regression; offline-tested; not yet seen in the game.
+- A car delivered from a factory order could be built with no direction when the forecourt lookup answered with a position only. Fixed in the same sweep (the same mistake in the code, now caught by a check that fails on it).
+
 ## 0.7.1 (needs Wrench Works 1.8.5)
 
 Fix release for 0.7.0.

@@ -2763,6 +2763,18 @@ do -- the depth of a night chase (core/chase)
   check('chase: the strip goes 150 m down a straight road, heading along it', p1 and p1.x == 150 and d1.x > 0 and d1.y == 0)
   local p2 = CH.stripSpot(line, function(pt) return pt.x >= 200 end)
   check('chase: a refused spot (a bridge) moves it on down the road', p2 and p2.x == 200)
+  do
+    local sp, dir = CH.stripPlan(line)
+    check('chase: stripPlan gives the spot and the direction together', sp ~= nil and dir ~= nil and dir.x ~= nil)
+    check('chase: stripPlan with no route, a refused route or a short one gives nothing (never a spot without a direction)', CH.stripPlan(nil) == nil and CH.stripPlan(line, function() return false end) == nil and CH.stripPlan({ { x = 0, y = 0 }, { x = 100, y = 0 } }) == nil)
+    local st, runs = { fails = 0, off = false }, 0
+    local function bad() runs = runs + 1 error('boom') end
+    for _ = 1, 10 do CH.guarded(st, bad) end
+    check('chase: a tick that fails every time runs 5 times and is then switched off', runs == CH.MAX_FAILS and st.off == true)
+    local st2, ok2 = { fails = 0, off = false }, 0
+    for i = 1, 10 do CH.guarded(st2, function() if i % 3 == 0 then error('x') end ok2 = ok2 + 1 end) end
+    check('chase: failures that do not come in a row never switch it off', st2.off == false and ok2 == 7 and CH.guarded({ fails = 0, off = false }, function() end) == true)
+  end
   check('chase: no spot when every candidate is refused or the route is short', CH.stripSpot(line, function() return false end) == nil and CH.stripSpot({ { x = 0, y = 0 }, { x = 100, y = 0 } }) == nil)
   local bend = {} for i = 0, 30 do bend[#bend + 1] = { x = i * 10, y = 0, z = 0 } end        -- straight 300 m ...
   for i = 1, 30 do bend[#bend + 1] = { x = 300, y = i * 10, z = 0 } end                         -- ... then a right-angle corner at 300 m

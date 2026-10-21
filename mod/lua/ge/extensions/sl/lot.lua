@@ -992,7 +992,8 @@ local function deliverOrders(s)
   local pv = getPlayerVehicle(0)
   if pv and pv:getVelocity():length() > 6 then return end         -- (a spawn freezes the game for about a second: not while the player drives fast; tried again in 5 s)
   local o = s.factoryOrders[factoryLib.nextDue(s.factoryOrders, (s.day or 0) * 24 + math.floor(sl_career.hour and sl_career.hour() or 12)) or 0]
-  local pos, rot = o and sl_fleet.forecourt(s, 1)
+  local pos, rot
+  if o then pos, rot = sl_fleet.forecourt(s, 1) end
   if not pos then return end
   delivering = true
   core_jobsystem.create(function(j)

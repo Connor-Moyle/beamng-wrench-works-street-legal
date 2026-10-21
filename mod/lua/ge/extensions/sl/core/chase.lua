@@ -71,6 +71,25 @@ function M.stripSpot(pts, okFn)
   return nil
 end
 
+-- the spot of a spike strip on the route ahead and the way the route runs there, or nil. (A call like "pts and f()" gives one value only, which once left the way nil: this one gives both or none.)
+function M.stripPlan(pts, okFn)
+  if not pts then return nil end
+  local spot, dir = M.stripSpot(pts, okFn)
+  if spot and dir then return spot, dir end
+  return nil
+end
+
+-- a tick that must not fail every frame: run fn(...) under pcall; after MAX_FAILS failures in a row it is switched off (state.off) for the rest of the session. state = { fails = 0, off = false }
+M.MAX_FAILS = 5
+function M.guarded(state, fn, ...)
+  if state.off then return false end
+  local ok, err = pcall(fn, ...)
+  if ok then state.fails = 0 return true end
+  state.fails = state.fails + 1
+  if state.fails >= M.MAX_FAILS then state.off = true end
+  return false, err, state.off
+end
+
 -- why you were stopped: no fuel, a spike strip this chase, a roadblock within 40 m, two or more patrols round you; nil when none of them (and the cop count)
 function M.bustCause(i)
   if i.fuelLitres and i.fuelLitres < 0.5 then return 'fuel' end
