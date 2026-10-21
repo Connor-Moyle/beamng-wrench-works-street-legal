@@ -9,6 +9,7 @@ local M = {}
 local strings = require('sl/core/strings')
 
 local jobsLib = require('sl/core/jobs')
+local contractLib = require('sl/core/contract')
 local rngLib = require('sl/core/rng')
 local progression = require('sl/core/progression')
 local stateLib = require('sl/core/state')
@@ -312,6 +313,19 @@ local function refresh(s, force)
       js.offers[#js.offers + 1] = j
     end
   end
+  -- contracts: a few of the part runs and courier parcels come with terms and pay more when they are kept
+  if require('sl/core/features').on('contracts') and (s.rep or 0) >= contractLib.MIN_REP then
+    local crng = rngLib.new(rngLib.hash('contracts:' .. key .. ':' .. tostring(s.seed)))
+    local wet = sl_weather and sl_weather.wetness and (sl_weather.wetness() or 0) >= 0.3
+    local made = 0
+    for _, j in ipairs(js.offers) do
+      if made >= contractLib.COUNT then break end
+      if (j.kind == 'part' or j.kind == 'courier') and not j.contract and crng:chance(0.5) and contractLib.apply(j, contractLib.pick(crng, wet)) then
+        j.title = strings.t('contract.title', j.title)
+        made = made + 1
+      end
+    end
+  end
 end
 
 local function playerCarId()
@@ -460,6 +474,13 @@ local function finish(s, js, j, v)
     local l = sl_surfacefx.level(j.carVid)
     if l and (tonumber(l.scratches) or 0) > (j.scratches0 or 0) + 0.001 then damage = 1 end
   end
+  local kept
+  if j.contract then          -- the terms are checked at the drop; missed (or the part switched off since): the normal pay
+    local car = sl_fleet and sl_fleet.currentCar and sl_fleet.currentCar()
+    kept = require('sl/core/features').on('contracts') and contractLib.met(j.contract.req, { damage = damage, elapsed = elapsed, seconds = j.seconds,
+      wet = sl_weather and sl_weather.wetness and (sl_weather.wetness() or 0) >= 0.3 or false, carValue = car and car.value })
+    if not kept then j.pay = j.basePay or j.pay end
+  end
   local pay, verdict = jobsLib.settle(j, elapsed, damage)
   pay = M.bonusPay(s, js, j, pay)
   local tip = 0
@@ -482,6 +503,10 @@ local function finish(s, js, j, v)
     verdict == 'broken' and string.format(strings.t('jobs.the_s_is_broken_no'), j.item or 'load')
     or string.format(strings.t('jobs.s_delivered_s_d'), j.item or 'Delivery', verdict == 'late' and strings.t('jobs.late') or '', pay)
       .. (tip > 0 and ' ' .. string.format(strings.t('jobs.tip_d_for_a_smooth_ride'), tip) or ''))
+  if j.contract and pay > 0 then
+    if kept then stateLib.addRep(s, contractLib.BONUS_REP) toast(strings.t('contract.kept', contractLib.label(j.contract.req), pay))
+    else toast(strings.t('contract.missed', contractLib.label(j.contract.req), pay)) end
+  end
 end
 
 -- passengers (taxi fares): a walker waits at the first stop and is gone when you pull up; during the ride the car's pushes are counted
@@ -746,12 +771,14 @@ function M.summary()
     sponsor = js.sponsor and { name = js.sponsor.name, weekly = js.sponsor.weekly, weekWins = js.weekWins or 0 } or nil }
   for _, j in ipairs(js.offers) do
     out.offers[#out.offers + 1] = { id = j.id, title = j.title, item = j.item, from = j.legs[1].name, to = j.legs[#j.legs].name,
-      pay = math.floor(j.pay * boost(s, js) / 10) * 10 + (((js.kindDone or {})[j.kind] or 0) < FIRST_TIMES and FIRST_BONUS or 0), seconds = j.seconds, fragile = j.fragile, metres = j.metres }
+      pay = math.floor(j.pay * boost(s, js) / 10) * 10 + (((js.kindDone or {})[j.kind] or 0) < FIRST_TIMES and FIRST_BONUS or 0), seconds = j.seconds, fragile = j.fragile, metres = j.metres,
+      contract = j.contract and { req = j.contract.req, label = contractLib.label(j.contract.req), mult = j.contract.mult, basePay = j.basePay } or nil }
   end
   local a = js.active
   if a then
     out.active = { title = a.title, item = a.item, next = a.legs[a.leg].name, to = a.legs[#a.legs].name, pay = a.pay, fragile = a.fragile,
-      timeLeft = a.startedAt and (a.seconds or 0) > 0 and math.floor(a.seconds - (os.clock() - a.startedAt)) or nil }
+      timeLeft = a.startedAt and (a.seconds or 0) > 0 and math.floor(a.seconds - (os.clock() - a.startedAt)) or nil,
+      contract = a.contract and { req = a.contract.req, label = contractLib.label(a.contract.req), mult = a.contract.mult } or nil }
   end
   return out
 end
