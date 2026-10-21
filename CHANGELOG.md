@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.8.0 (unreleased; needs Wrench Works 1.8.5)
+
+### New
+- **Weekly costs (new, on by default; ESC > Mods > Street Legal > Parts of the game > Weekly costs):** every 7th day the garage rent (garage 1 free, garage 2 $250, garage 3 $700) and the storage of cars beyond two ($40 a week each) are paid. What you cannot pay becomes a debt at the bank (never a repossession), costs 5 reputation once, and is paid down first from money above $200; the bank lends nothing while you owe it. A ledger on the phone shows the coming bills and the last eight weeks. A save that already exists starts its first week the day it loads, nothing is billed backwards. Offline-tested; not yet seen in the game.
+
 ## 0.7.1 (needs Wrench Works 1.8.5)
 
 Fix release for 0.7.0.

@@ -15,6 +15,7 @@ import math, os, random, sys, statistics
 
 PLAYERS, HOURS = 45, 12   # simulated players, hours of play each
 DAY_PAY = float(os.environ.get('DAY_PAY', '1.35'))     # = core/jobs.lua DAY_PAY
+CARS_KEPT = int(sys.argv[sys.argv.index('--cars') + 1]) if '--cars' in sys.argv else 1      # cars stored for the weekly storage bill (the sim plays one)
 WEEKLY = '--noweekly' not in sys.argv      # the weekly costs of core/weekly.lua
 BOOST = '--noboost' not in sys.argv     # the early-game boost in sl_jobs
 DAY_MIN = 30.0            # real minutes per in-game day (BeamNG's TimeOfDay dayLength; verify in game)
@@ -119,6 +120,7 @@ class Player:
             self.heat *= 0.7                            # police: heat cools daily
             if WEEKLY and self.day() % 7 == 0:          # core/weekly: garage rent (storage of cars beyond two is not simulated: the sim holds one car)
                 bill = {1: 0, 2: 250, 3: 700}.get(self.garage, 700)
+                bill += 40 * max(0, CARS_KEPT - 2)       # core/weekly STORAGE for each car beyond two
                 self.money -= min(self.money, bill)     # (a shortfall is a debt in the game; here it is just not paid, the floor check shows who runs dry)
             if self.loan:                               # core/bank: interest, the weekly quarter, two warnings
                 self.loan[1] = min(self.loan[0] * 1.5, round(self.loan[1] * 1.03))
