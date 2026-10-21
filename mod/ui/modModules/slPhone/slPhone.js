@@ -437,7 +437,7 @@
       var d = st.data;
       var has = obj(d.has);      // what the map can host: an app of a feature it lacks is not shown
       var appsHtml = function (list) {
-        return list.filter(function (a) { return !a.hide; }).map(function (a) {
+        return list.filter(function (a) { return !a.hide && inFreeroam(a.id); }).map(function (a) {
           var badge = a.badge ? '<div class="slp-badge">' + a.badge + '</div>' : '';
           var ico = skinIcons[a.id] || (st.slrrArt && SLRR_ICON[a.id] ? slrrIcon(SLRR_ICON[a.id], 'slp-appimg') : a.icon);
           return '<div class="slp-app" data-a="open" data-v="' + a.id + '"><div class="slp-ico" style="background:' + APP_COLORS[a.id] + '">' + ico + '</div>' + badge + '<span>' + a.title + '</span></div>';
@@ -450,9 +450,9 @@
         '<div class="slp-clock">' + two(d.hour || 0) + ':' + two(d.minute || 0) + '</div>' +
         ('<div class="slp-date">' + T('ui.day_2', 'Day ')) + (d.day || 1) + ' &middot; ' + esc(d.mapName || T('progression.valo_city', 'Valo City')) + (d.night ? ' &middot; night' : '') + '</div>' +
         (d.weather ? '<div class="slp-date" style="opacity:.85">' + (d.weather.wet ? '&#127783; ' : '') + esc(d.weather.text) + '</div>' : '') +
-        '<div><span class="slp-chip">' + esc(d.title || '') + ' &middot; ' + (d.rep || 0) + ' rep &middot; ' + money(d.money) + '</span>' +
-          '<span class="slp-chip" data-a="routegarage" data-v="1" style="cursor:pointer">' + T('ui.route_to_my_garage', 'Route to my garage') + '</span></div>' +
-        tut + '<div class="slp-grid">' + appsHtml([
+        (d.freeroam ? '' :         '<div><span class="slp-chip">' + esc(d.title || '') + ' &middot; ' + (d.rep || 0) + ' rep &middot; ' + money(d.money) + '</span>' +
+          '<span class="slp-chip" data-a="routegarage" data-v="1" style="cursor:pointer">' + T('ui.route_to_my_garage', 'Route to my garage') + '</span></div>') +
+        (d.freeroam ? '' : tut) + '<div class="slp-grid">' + appsHtml([
           { id: 'races', title: T('app.races', 'Races'), icon: I.flag, badge: arranged || 0, hide: has.races === false },
           { id: 'garage', title: T('app.garage', 'My cars'), icon: I.cab },
           { id: 'garagekit', title: T('app.garagekit', 'Garage'), icon: I.house },
@@ -1667,8 +1667,15 @@
       return Math.max(0.4, Math.min(1.2, (h - 40) / 760, h * 0.78 / 760)).toFixed(3);
     }
 
+    // Free roam (a phone outside a career: data.freeroam, data.apps = the app ids it has, e.g. map and cab): only those apps are shown, and anything that opens another one lands on the home screen
+    var TOP_APPS = ['races', 'garage', 'garagekit', 'bank', 'me', 'jobs', 'wait', 'help', 'map', 'camera', 'gallery', 'club', 'turf', 'carmarket', 'partmarket', 'phone', 'messages', 'contacts', 'cab'];
+    function inFreeroam(id) {
+      var d = st.data;
+      return !(d && d.freeroam === true) || arr(d.apps).indexOf(id) >= 0;
+    }
     // ---------------------------------------------------------------- what the buttons do
     function go(app, params) {
+      if (TOP_APPS.indexOf(app) >= 0 && !inFreeroam(app)) { st.stack = []; st.app = 'home'; render(); return; }       // (free roam: an app this phone does not have)
       st.stack.push({ app: st.app, contact: st.contact, thread: st.thread });
       st.app = app;
       if (app === 'gallery') lua('photos()');
