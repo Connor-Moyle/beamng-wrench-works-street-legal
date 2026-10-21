@@ -3309,7 +3309,7 @@ do
   local Opt = require('sl/options')
   local defs = {}
   for _, d in ipairs(Opt.defs) do defs[d.key] = d end
-  local okDefs = #F.LIST == 31
+  local okDefs = #F.LIST == 32
   local offByDefault = 0
   for _, f in ipairs(F.LIST) do
     local d = defs[f.opt]
@@ -4309,6 +4309,119 @@ do
     check('lotpre game side: a good build stores the row hidden', G.status():find('2 cars') ~= nil and hidden.o1 == 0 and hidden.o2 == 0, G.status())
     _G.sl_career, _G.sl_lot, _G.sl_options, _G.getPlayerVehicle, _G.getObjectByID, _G.log, _G.vec3, _G.quatFromDir = old.c, old.l, old.o, old.pv, old.id, old.lg, old.v3, old.q
     package.loaded['sl/carBuilder'], package.loaded['sl/lotpre'] = old.cb, nil
+  end
+end
+
+-- the calendar (sl/core/calendar): the weekend home races, the swap meet and the series from the day and the seed; the store; the actions; reminders; a dockyards layout as a circuit
+do
+  local C = require('sl/core/calendar')
+  local W = require('sl/core/weekly')
+  local st = C.newStore()
+  -- day 40 is day 5 of week 6 (the fixture's today): the weekend is days 41 and 42
+  check('calendar: the week counter is the weekly ledger one', W.week(40) == 6 and W.dayOfWeek(40) == 5)
+  check('calendar: no home race on a weekday, one on each weekend day, the same for the same day and seed', C.homeFor(40, 9) == nil and C.homeFor(41, 9) ~= nil and C.homeFor(42, 9) ~= nil and C.homeFor(41, 9).slot == C.homeFor(41, 9).slot and C.homeFor(41, 9).slot ~= C.homeFor(42, 9).slot)
+  local list = C.schedule(40, 17.5, 9, 700, st)
+  local ids, byKind = {}, {}
+  for _, ev in ipairs(list) do ids[ev.id] = ev byKind[ev.kind] = (byKind[ev.kind] or 0) + 1 end
+  local home = C.homeFor(41, 9)
+  local sat = ids['weekend:' .. home.slot .. ':6']
+  check('calendar: the weekend race of day 41 is listed as kind:slot:week, open, at 15:00 at the dockyards, no travel, three laps', sat ~= nil and sat.status == 'open' and sat.hour == 15 and sat.place == C.HOME_PLACE and sat.travel.needed == false and sat.laps == 3 and sat.layer == home.layer and sat.requires.met == true)
+  check('calendar: the swap meet is on the weekend nights', ids['swap:meet:6:6'] ~= nil and ids['swap:meet:6:6'].hour == 20 and ids['swap:meet:6:7'] ~= nil)
+  check('calendar: past open events are not listed; the list is in day order', list[1].day >= 40 and (function() for i = 2, #list do if list[i].day < list[i - 1].day then return false end end return true end)())
+  -- the series: cycle 1 (days 29-56) is the second in the rotation (Johnson Valley) from the 15th day: days 43-47; the rally needs 600, the cup 450
+  check('calendar: the 28-day cycle rotates the three series', C.seriesFor(0, 1000).id == 'utah-rally' and C.seriesFor(1, 1000).id == 'jv-offroad' and C.seriesFor(2, 1000).id == 'hirochi-cup' and C.seriesFor(3, 1000).id == 'utah-rally')
+  check('calendar: a series below your reputation is not offered', C.seriesFor(0, 599) == nil and C.seriesFor(0, 600) ~= nil)
+  local r1 = ids['jv-offroad:2:r1']
+  check('calendar: the series rounds are listed with travel, the round of rounds, a purse text and days to go', r1 ~= nil and r1.day == 43 and r1.kind == 'series' and r1.travel.needed == true and r1.travel.fee == 600 and r1.series.round == 1 and r1.series.rounds == 5 and r1.expiresIn == 3 and type(r1.reward) == 'string' and ids['jv-offroad:2:r5'] ~= nil and ids['jv-offroad:2:r5'].day == 47)
+  -- the phone's shape (tools/calendar_fixture.js)
+  local sum = C.summary(40, 17.5, 9, 700, st)
+  local shapeOk = sum.today.day == 40 and sum.today.hour == 17.5 and sum.today.week == 6 and sum.today.dayOfWeek == 5 and type(sum.events) == 'table' and type(sum.series) == 'table' and type(sum.invites) == 'table'
+  for _, ev in ipairs(sum.events) do
+    for _, k in ipairs({ 'id', 'title', 'kind', 'day', 'status', 'travel' }) do if ev[k] == nil then shapeOk = false end end
+    if type(ev.travel.needed) ~= 'boolean' or type(ev.travel.fee) ~= 'number' or type(ev.travel.hours) ~= 'number' or type(ev.reminder) ~= 'boolean' then shapeOk = false end
+    if ev.series ~= nil and (type(ev.series.id) ~= 'string' or type(ev.series.round) ~= 'number') then shapeOk = false end
+    if ev.requires ~= nil and (type(ev.requires.label) ~= 'string' or type(ev.requires.met) ~= 'boolean') then shapeOk = false end
+    if ev.layer ~= nil or ev.fee ~= nil then shapeOk = false end      -- (the rules' own fields stay out of the phone's shape)
+  end
+  check('calendar: summary() has the fixture shape (today, events with id/title/kind/day/status/travel/reminder, series, invites)', shapeOk)
+  -- the actions
+  local ok, text, fee = C.enter(st, sat, 50, 40, 17.5)
+  check('calendar: entering with too little money is refused', not ok and fee == nil)
+  ok, text, fee = C.enter(st, sat, 500, 40, 17.5)
+  check('calendar: entering a home race takes the fee, sets the reminder and says where to be', ok and fee == sat.fee and st.entered[sat.id] ~= nil and st.remind[sat.id] == true and text:find('day 41') ~= nil and text:find('15:00') ~= nil)
+  check('calendar: entered twice is refused; declining an entered race is refused', not C.enter(st, sat, 500, 40, 17.5) and not C.decline(st, sat))
+  check('calendar: a series round answers not yet; the swap meet has nothing to enter', (select(2, C.enter(st, r1, 5000, 40, 17.5))):find('not open') ~= nil and not C.enter(st, ids['swap:meet:6:6'], 500, 40, 17.5))
+  local sun = ids['weekend:' .. C.homeFor(42, 9).slot .. ':6']
+  check('calendar: decline and remind are recorded and show in the list', C.decline(st, sun) and C.remind(st, r1, true) and C.schedule(40, 17.5, 9, 700, st) and C.find(C.schedule(40, 17.5, 9, 700, st), sun.id).status == 'declined' and C.find(C.schedule(40, 17.5, 9, 700, st), r1.id).reminder == true)
+  -- reminders: 24 h and 1 h before, each once; the entered race is day 41 15:00
+  local due = C.reminders(C.schedule(40, 17.5, 9, 700, st), st, 40, 17.5)
+  check('calendar: at 17:30 the day before, the 24 h reminder of the entered race fires once', #due == 1 and due[1].event.id == sat.id and due[1].hoursLeft == 24 and #C.reminders(C.schedule(40, 17.5, 9, 700, st), st, 40, 18) == 0)
+  due = C.reminders(C.schedule(41, 14.5, 9, 700, st), st, 41, 14.5)
+  check('calendar: half an hour before, the 1 h reminder fires', #due == 1 and due[1].hoursLeft == 1)
+  -- due and missed: on the grid at the hour it runs; too late it is missed
+  local far = function() return 500 end
+  local near = function() return 20 end
+  check('calendar: the race is due only at the hour, within reach of the grid, up to an hour and a half late', C.due(C.schedule(41, 14.9, 9, 700, st), st, 41, 14.9, near) == nil and C.due(C.schedule(41, 15.2, 9, 700, st), st, 41, 15.2, far) == nil and C.due(C.schedule(41, 15.2, 9, 700, st), st, 41, 15.2, near).id == sat.id and C.due(C.schedule(41, 16.6, 9, 700, st), st, 41, 16.6, near) == nil)
+  local missed = C.missed(C.schedule(41, 16.6, 9, 700, st), st, 41, 16.6)
+  check('calendar: past the window an entered race is missed, once, and listed as missed', #missed == 1 and missed[1].id == sat.id and #C.missed(C.schedule(41, 16.6, 9, 700, st), st, 41, 16.6) == 0 and C.find(C.schedule(41, 17, 9, 700, st), sat.id).status == 'missed')
+  -- a result: done with the purse, in the history
+  local st2 = C.newStore()
+  C.enter(st2, sat, 500, 40, 17.5)
+  check('calendar: a win is done with the purse and kept in the history; a second result changes nothing', C.result(st2, sat, true) == sat.reward and st2.done[sat.id].won == true and #st2.history == 1 and C.result(st2, sat, true) == 0 and C.find(C.schedule(41, 17, 9, 700, st2), sat.id).status == 'done' and C.find(C.schedule(41, 17, 9, 700, st2), sat.id).reward == sat.reward)
+  local st3 = C.newStore()
+  C.enter(st3, sat, 500, 40, 17.5)
+  check('calendar: a loss is done without a purse', C.result(st3, sat, false) == 0 and st3.done[sat.id].won == false and st3.entered[sat.id] == nil)
+  C.sweep(st2, 60)
+  check('calendar: a sweep forgets results older than a week', st2.done[sat.id] == nil and #C.schedule(60, 10, 9, 700, st2) > 0)
+  check('calendar: a done or missed event stays a week, then goes', C.find(C.schedule(47, 10, 9, 700, st3), sat.id) ~= nil and C.find(C.schedule(49, 10, 9, 700, st3), sat.id) == nil)
+  check('calendar: the parts switched off leave the list empty', #C.schedule(40, 17.5, 9, 700, C.newStore(), { home = false, swap = false, series = false }) == 0)
+  -- a dockyards layout as a circuit: the nodes in lap order from the start node, a loop, the grid spot
+  local v3 = function(x, y, z) return { x = x, y = y, z = z } end
+  local layer = { startNode = 3, defaultStartPosition = 2, pathnodes = { { oldId = 5, pos = { 10, 10, 0 }, radius = 5 }, { oldId = 3, pos = { 0, 0, 0 }, radius = 6 }, { oldId = 4, pos = { 10, 0, 0 }, radius = 3 } },
+    segments = { { from = 3, to = 4 }, { from = 4, to = 5 }, { from = 5, to = 3 } }, startPositions = { { oldId = 2, pos = { -1, 0, 0 }, rot = { 0, 0, 0, 1 } }, { oldId = 9, pos = { 5, 5, 5 } } } }
+  local tr = C.trackFromLayer(layer, 'Test', v3)
+  check('calendar: a layout gives the checkpoints in lap order from the start node, dir to the next, half width at least 4, and the default grid spot', tr ~= nil and #tr.cps == 3 and tr.cps[1].pos.x == 0 and tr.cps[2].pos.x == 10 and tr.cps[2].pos.y == 0 and tr.cps[3].pos.y == 10 and tr.cps[1].dir.x == 10 and tr.cps[3].half == 5 and tr.cps[2].half == 4 and tr.start.pos.x == -1 and tr.name == 'Test')
+  layer.segments[3] = nil
+  check('calendar: an open path or a bad file is no circuit', C.trackFromLayer(layer, 'x', v3) == nil and C.trackFromLayer(nil, 'x', v3) == nil and C.trackFromLayer({ pathnodes = {} }, 'x', v3) == nil)
+  check('calendar: the clock text', C.clock(15) == '15:00' and C.clock(8.5) == '08:30' and C.clock(nil) == '00:00')
+  -- the game side: the part off answers nothing; the reminders and the race start go through the stubs
+  do
+    local old = { c = _G.sl_career, s = _G.sl_streets, o = _G.sl_options, pv = _G.getPlayerVehicle, gh = _G.guihooks, ex = _G.extensions, jr = _G.jsonReadFile, v3 = _G.vec3 }
+    local state = { day = 41, seed = 9, rep = 700, money = 1000, racers = { { id = 'ra', rep = 650, name = 'Ra' }, { id = 'rb', rep = 9000, name = 'Rb' } }, calendar = nil }
+    local hourNow, texts, hooks, started, paid = 14.5, {}, {}, nil, {}
+    _G.sl_career = { isActive = function() return true end, getState = function() return state end, hour = function() return hourNow end, LEVEL = 'west_coast_usa', has = function() return true end,
+      addMoney = function(a, l) state.money = state.money + a paid[#paid + 1] = l return true end, payOut = function(a, l) state.money = state.money + a paid[#paid + 1] = l return true end, sendText = function(_, t) texts[#texts + 1] = t end }
+    _G.sl_streets = { isRacing = function() return false end, startCalendarRace = function(id, track, laps, rival) started = { id = id, laps = laps, rival = rival, cps = #track.cps } return true end }
+    local on = true
+    _G.sl_options = { get = function(k) if k == 'slCalendar' then return on end return nil end }
+    _G.guihooks = { trigger = function(name, data) if name == 'slPhoneToast' then texts[#texts + 1] = data.text end end }
+    _G.extensions = { hook = function(name, ...) hooks[#hooks + 1] = { name = name, ... } end }
+    _G.vec3 = _G.vec3 or v3
+    local v3g = _G.vec3
+    _G.vec3 = function(x, y, z) return setmetatable(v3g(x, y, z), { __sub = function(a, b) return _G.vec3(a.x - b.x, a.y - b.y, a.z - b.z) end, __index = { length = function(p) return math.sqrt(p.x * p.x + p.y * p.y + p.z * p.z) end } }) end
+    _G.getPlayerVehicle = function() return { getPosition = function() return _G.vec3(-5, 0, 0) end } end
+    _G.jsonReadFile = function() return layer end
+    layer.segments[3] = { from = 5, to = 3 }
+    package.loaded['sl/calendar'] = nil
+    local G = require('sl/calendar')
+    local sum = G.summary()
+    local home = C.homeFor(41, 9)
+    local evId = 'weekend:' .. home.slot .. ':6'
+    check('calendar game side: the summary lists the weekend race of the day', sum ~= nil and sum.today.day == 41 and C.find(sum.events, evId) ~= nil)
+    local ok, text = G.enter(evId)
+    check('calendar game side: entering pays the fee from the wallet and says so', ok and state.money == 1000 - home.fee and paid[1] == 'Entry fee' and text:find('day 41') ~= nil)
+    G.onUpdate(2.5)
+    check('calendar game side: half an hour before, the 1 h reminder is a toast and the banner hook', texts[#texts] ~= nil and texts[#texts]:find('in 1 h') ~= nil and hooks[#hooks].name == 'onStreetLegalCalendarReminder' and hooks[#hooks][2] == 1 and started == nil)
+    hourNow = 15.1
+    G.onUpdate(2.5)
+    check('calendar game side: at the hour, on the grid, the race starts on the layout against a rival of your standing, three laps', started ~= nil and started.id == evId and started.laps == 3 and started.rival == 'ra' and started.cps == 3)
+    G.onStreetLegalCalendarRace(evId, true)
+    check('calendar game side: a win pays the purse and is done', state.money == 1000 - home.fee + home.purse and paid[#paid]:find('Purse') ~= nil and state.calendar.done[evId].won == true)
+    on = false
+    check('calendar game side: the part off: no summary, the actions answer nothing', G.summary() == nil and G.enter(evId) == nil)
+    on = true
+    _G.sl_career, _G.sl_streets, _G.sl_options, _G.getPlayerVehicle, _G.guihooks, _G.extensions, _G.jsonReadFile, _G.vec3 = old.c, old.s, old.o, old.pv, old.gh, old.ex, old.jr, old.v3
+    package.loaded['sl/calendar'] = nil
   end
 end
 
