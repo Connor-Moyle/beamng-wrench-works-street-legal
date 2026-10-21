@@ -4490,4 +4490,73 @@ do
   package.loaded['sl/sponsor'] = nil
 end
 
+-- the police's first batch (sl/core/chase): levels by heat, cops at the finish, hiding spots and the cool-down, the radio lines, the units by heat; and the free-roam police
+do
+  local C = require('sl/core/chase')
+  check('police: the pursuit mode follows the heat (1 at 0-2, 2 at 3-4, 3 at 5)', C.modeFor(0) == 1 and C.modeFor(2) == 1 and C.modeFor(3) == 2 and C.modeFor(4) == 2 and C.modeFor(5) == 3 and C.modeFor(9) == 3)
+  check('police: the patrols that join grow with the heat', C.joiners(0) == 1 and C.joiners(3) == 2 and C.joiners(5) == 4)
+  local s0, s5 = C.scoreLevels(0), C.scoreLevels(5)
+  check('police: the score levels are the game ones at heat 0 and half at heat 5', s0[1] == 100 and s0[3] == 2000 and s5[1] == 50 and s5[2] == 250 and s5[3] == 1000)
+  local near = C.nearest({ a = 50, b = 10, c = 30 }, 2)
+  check('police: the nearest patrols come first', #near == 2 and near[1] == 'b' and near[2] == 'c' and #C.nearest({}, 3) == 0 and #C.nearest({ a = 1 }, 0) == 0)
+  check('police: cops at the finish only at night, more with heat and aggression, capped', C.finishChance('day', 5, 2) == 0 and math.abs(C.finishChance('night', 0, 1) - 0.1) < 1e-9
+    and math.abs(C.finishChance('night', 2, 1) - 0.4) < 1e-9 and C.finishChance('night', 5, 2) == 0.9)
+  local places = { g = { kind = 'garage', pos = { x = 0, y = 0 } }, d = { kind = 'dealer', pos = { x = 5, y = 5 } }, s = { kind = 'gas', pos = { x = 100, y = 0 } } }
+  check('police: a hiding spot is a garage or a fuel station within 20 m, parked', C.atHideSpot(places, { x = 10, y = 0 }, 0.5) == places.g and C.atHideSpot(places, { x = 10, y = 0 }, 3) == nil
+    and C.atHideSpot(places, { x = 95, y = 0 }, 0) == places.s and C.atHideSpot(places, { x = 50, y = 0 }, 0) == nil and C.atHideSpot(places, nil, 0) == nil)
+  check('police: hidden at a spot the timer runs x3, else the base rate', C.hideRate(1.25, true, true) == 3 and C.hideRate(2, true, true) == 3 and C.hideRate(1.25, false, true) == 1.25 and C.hideRate(1.25, true, false) == 1.25)
+  check('police: the cool-down cools five times as fast', C.coolingMinutes(0.1, true) == 0.5 and C.coolingMinutes(0.1, false) == 0.1)
+  check('police: headings', C.heading(0, 1) == 'north' and C.heading(1, 0) == 'east' and C.heading(0, -1) == 'south' and C.heading(-1, 1) == 'north-west' and C.heading(0, 0) == nil)
+  local key, unit, car, where, heading = C.chatter('start', { car = 'Covet', district = 'Downtown', vx = 0, vy = 1, unit = 2 })
+  check('police: a radio event gives its key and fills', key == 'police.radio_start' and unit == 2 and car == 'Covet' and where == 'Downtown' and heading == 'north' and C.chatter('nope') == nil)
+  check('police: the radio texts resolve', require('sl/core/strings').t(key, unit, car, where, heading):find('Covet') ~= nil and require('sl/core/strings').t('police.radio_evade') ~= 'police.radio_evade')
+  check('police: units by heat: 3 at heat 0, 5 at heat 3, 7 at heat 4 and 5', #C.configsFor(0) == 3 and #C.configsFor(2) == 3 and #C.configsFor(3) == 5 and #C.configsFor(4) == 7 and #C.configsFor(5) == 7)
+  local Mo = require('sl/core/mode')
+  local function sw(on) return function(k) return on[k] == true end end
+  check('police: free-roam police needs the master and its own switch', Mo.enabled(false, sw({ freeroam = true, freeroam_police = true }), 'police') and not Mo.enabled(false, sw({ freeroam = true }), 'police')
+    and not Mo.enabled(false, sw({ freeroam_police = true }), 'police') and Mo.enabled(true, sw({}), 'police'))
+  check('police: the sandbox carries a heat that starts at 0', Mo.sandbox(nil, 23, 1).heat == 0)
+  -- the game side in free roam: a bust is heat and a message, no money and no career event
+  do
+    local old = { c = _G.sl_career, m = _G.sl_mode, o = _G.sl_options, pv = _G.getPlayerVehicle, e = _G.extensions, um = _G.ui_message, gp = _G.gameplay_police, gt = _G.gameplay_traffic, lg = _G.log, id = _G.getObjectByID }
+    local sandbox = { phase = 'night', heat = 0.3, sandbox = true, day = 1, hour = 23 }
+    _G.sl_career = { isActive = function() return false end, getState = function() return nil end }
+    _G.sl_mode = { state = function() return sandbox end }
+    _G.sl_options = { get = function() return nil end }
+    _G.getPlayerVehicle = function() return { getID = function() return 1 end, getVelocity = function() return { x = 0, y = 1, length = function() return 1 end } end, getPosition = function() return { x = 0, y = 0, z = 0 } end, getJBeamFilename = function() return 'covet' end } end
+    _G.getObjectByID = function() return nil end
+    local events, said = {}, {}
+    _G.extensions = { hook = function(n) events[#events + 1] = n end }
+    _G.ui_message = function(t) said[#said + 1] = t end
+    _G.gameplay_police = { getPoliceVehicles = function() return {} end }
+    local traffic = { [1] = {}, [2] = {} }
+    _G.gameplay_traffic = { getTrafficData = function() return traffic end }
+    _G.log = function() end
+    package.loaded['sl/police'] = nil
+    local P = require('sl/police')
+    P.onPursuitAction(1, 'arrest', { offensesList = { 'speeding' } })
+    local heatEvents = 0
+    for _, e in ipairs(events) do if e:find('Heat') then heatEvents = heatEvents + 1 end end
+    check('police free roam: a bust raises the sandbox heat and says so, fires no career event', sandbox.heat > 0.3 and said[#said]:find('Busted') ~= nil and heatEvents == 0, said[#said])
+    local h = sandbox.heat
+    P.onPursuitAction(1, 'evade')
+    check('police free roam: an escape is heat and the cool-down', sandbox.heat > h and P.inCooldown() and said[#said]:find('lost them') ~= nil)
+    check('police free roam: the radio spoke', #P.radio() >= 2 and P.radio()[#P.radio()]:find('back to patrol') ~= nil)
+    check('police: the cool-down flags the player car for the game', traffic[1].ignorePursuit == true)
+    -- (the reviewer's case) a stop during the cool-down must clear the flag, else the police never chase that car again until the level reloads
+    P.onStreetLegalStopped()
+    check('police: a stop during the cool-down clears the flag', traffic[1].ignorePursuit == nil and not P.inCooldown())
+    P.onPursuitAction(1, 'evade')
+    local pv = _G.getPlayerVehicle
+    _G.getPlayerVehicle = function() return { getID = function() return 2 end, getVelocity = function() return { x = 0, y = 1, length = function() return 1 end } end, getPosition = function() return { x = 0, y = 0, z = 0 } end, getJBeamFilename = function() return 'covet' end } end
+    P.onVehicleSwitched(1, 2)
+    check('police: a vehicle change in the cool-down moves the flag to the new car and clears the old', traffic[1].ignorePursuit == nil and traffic[2].ignorePursuit == true)
+    P.onClientEndMission()
+    check('police: a level end clears the flag', traffic[2].ignorePursuit == nil)
+    _G.getPlayerVehicle = pv
+    _G.sl_career, _G.sl_mode, _G.sl_options, _G.getPlayerVehicle, _G.extensions, _G.ui_message, _G.gameplay_police, _G.gameplay_traffic, _G.log, _G.getObjectByID = old.c, old.m, old.o, old.pv, old.e, old.um, old.gp, old.gt, old.lg, old.id
+    package.loaded['sl/police'] = nil
+  end
+end
+
 print(string.format('lua tests passed: %d checks', passed))

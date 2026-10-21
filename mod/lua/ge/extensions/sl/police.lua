@@ -30,24 +30,28 @@ local lastBuild = -1e9    -- os.clock() of our last patrol build (the racers' bu
 local nearTimer = 0
 
 local function career() return sl_career and sl_career.isActive() and sl_career.getState() or nil end
-local function night() return sl_career and sl_career.isNight and sl_career.isNight() end
+-- the state the police run on: the career's, or in free roam (Mods > Street Legal > Free roam > Police) the sandbox of sl_mode (its heat goes with the session, nothing is saved)
+local function state() local m = rawget(_G, 'sl_mode') return career() or (m and m.state and m.state('police')) or nil end
+local function phase() local s = state() return s and s.phase or 'day' end
+local function night() return phase() == 'night' end
 local function opt(key) return not sl_options or sl_options.get(key) ~= false end      -- (a Mods menu switch; on without the options)
 local function propYaw(default) return sl_options and tonumber(sl_options.get('slPoliceStripYaw')) or default end
+local function toast(text) if ui_message then ui_message(text, 4, 'streetLegal') end end
 
 -- heat is the night's: by day it is nothing
 function M.heat()
-  local s = career()
+  local s = state()
   return s and night() and (s.heat or 0) or 0
 end
 function M.level() return heatLib.level(M.heat()) end
 
 local function addHeat(x)
-  local s = career()
+  local s = state()
   if s and night() then
     local before = heatLib.level(s.heat or 0)
     s.heat = heatLib.raised(s.heat, x)
     local now = heatLib.level(s.heat)
-    if now > before then extensions.hook('onStreetLegalHeatUp', now, before) end      -- (for the screen banners)
+    if now > before and career() then extensions.hook('onStreetLegalHeatUp', now, before) end      -- (for the screen banners; a career only: free roam fires no career events)
   end
 end
 
@@ -62,34 +66,74 @@ local appliedVars
 local function applyVars()
   if not (gameplay_police and gameplay_police.setPoliceVars) then return end
   local level = M.level()
-  local key = tostring(sl_career.phase()) .. level
+  local levels = opt('slPoliceLevels')
+  local key = tostring(phase()) .. level .. tostring(levels)
   if key == appliedVars then return end
   appliedVars = key
-  gameplay_police.setPoliceVars(chaseLib.vars(sl_career.phase(), level))
+  local vars = chaseLib.vars(phase(), level)
+  if levels and phase() == 'night' then vars.scoreLevels = chaseLib.scoreLevels(level) end      -- (P1: the hotter, the sooner the game's chase climbs a level)
+  gameplay_police.setPoliceVars(vars)
 end
+
+-- ---- P6: radio chatter (text): the game's message line, and the last lines for the dashboard (chaseState.chatter)
+local radio = {}
+local function say(event, ctx)
+  if not opt('slPoliceChatter') then return end
+  local v = getPlayerVehicle(0)
+  ctx = ctx or {}
+  if v and not ctx.vx then local vel = v:getVelocity() ctx.vx, ctx.vy = vel.x, vel.y end
+  if v and not ctx.district then
+    local d = sl_crews and sl_crews.districtAt and career() and sl_crews.districtAt(v:getPosition())
+    ctx.district = d and d.name or strings.t('police.radio_the_area')
+  end
+  if not ctx.car then
+    local car = career() and sl_fleet and sl_fleet.currentCar and sl_fleet.currentCar()
+    ctx.car = car and car.name or (v and v:getJBeamFilename()) or strings.t('police.radio_the_suspect')
+  end
+  local key, unit, car, where, heading = chaseLib.chatter(event, ctx)
+  if not key then return end
+  local text = strings.t(key, unit, car, where, heading)
+  radio[#radio + 1] = text
+  while #radio > 3 do table.remove(radio, 1) end
+  if ui_message then ui_message(text, 4, 'slPoliceRadio') end
+end
+function M.radio() return radio end
 
 local nodeAround              -- (defined below)
 -- the chase, once a second: out of sight or under a roof the game's evade timer runs faster (core/chase), and the HUD gets the meters.
 -- chaseState is nil outside a chase; stripsHit counts the strips this chase has put under you (the escape pays for them)
 local chaseState, lastEvade, stripsHit = nil, 0, 0
 local chaseGuard = { fails = 0, off = false }
+local seen = {}                 -- what the radio has said this chase: { lostAt, roadblocks, units }
+local cooldownUntil = -1e9      -- (P3) after an escape: the patrols leave you alone and the heat cools fast until then
 local function chaseTick(dt)
   local v = getPlayerVehicle(0)
   local pur = v and night() and gameplay_police and gameplay_police.getPursuitData and gameplay_police.getPursuitData(v:getID())
   if not (pur and (pur.mode or 0) >= 1 and pur.timers) then
     if chaseState and M.stripReset then M.stripReset() end
-    chaseState, lastEvade, stripsHit = nil, 0, 0
+    chaseState, lastEvade, stripsHit, seen = nil, 0, 0, {}
     return
   end
   local up = castRayStatic and castRayStatic(v:getPosition() + vec3(0, 0, 1), vec3(0, 0, 1), 30) or 30
   local covered, hidden = chaseLib.covered(up), pur.policeVisible == false
   local rate = chaseLib.evadeRate(hidden, covered)
+  -- (P3) parked out of sight at a garage or a fuel station: the timer runs x3
+  local spot = opt('slPoliceHide') and sl_career.getPlaces and chaseLib.atHideSpot(sl_career.getPlaces(), v:getPosition(), v:getVelocity():length()) or nil
+  rate = chaseLib.hideRate(rate, hidden, spot ~= nil)
   local tm = pur.timers
   if rate > 1 and (tm.evade or 0) > lastEvade then tm.evade = tm.evade + (rate - 1) * dt end      -- (only while the game is counting: patrols far enough off)
   lastEvade = tm.evade or 0
-  chaseState = { evade = tm.evadeValue or 0, arrest = tm.arrestValue or 0, hidden = hidden, covered = covered, rate = rate, strip = M.stripWarning and M.stripWarning() or false }
+  chaseState = { evade = tm.evadeValue or 0, arrest = tm.arrestValue or 0, hidden = hidden, covered = covered, rate = rate, strip = M.stripWarning and M.stripWarning() or false,
+                 hiding = spot ~= nil and hidden, mode = pur.mode, chatter = radio }
   if M.stripTick then M.stripTick(v) end
-  if rate > 1 then log('D', 'street_legal', string.format('chase: hidden=%s covered=%s rate=%.2f evade=%.2f', tostring(hidden), tostring(covered), rate, lastEvade)) end
+  -- (P6) the radio: lost and regained sight, a roadblock going up, more units
+  if hidden and not seen.lost then seen.lost = true say('lost') elseif not hidden and seen.lost then seen.lost = nil say('visual') end
+  if (pur.roadblocks or 0) > (seen.roadblocks or 0) then seen.roadblocks = pur.roadblocks say('roadblock') end
+  local n = 0
+  for _ in pairs(gameplay_police.getPoliceVehicles and gameplay_police.getPoliceVehicles() or {}) do n = n + 1 end
+  if seen.units and n > seen.units then say('backup', { unit = n }) end
+  seen.units = n
+  if rate > 1 then log('D', 'street_legal', string.format('chase: hidden=%s covered=%s hiding=%s rate=%.2f evade=%.2f', tostring(hidden), tostring(covered), tostring(spot ~= nil), rate, lastEvade)) end
 end
 function M.chaseHud() return chaseState end
 function M.stripsSurvived() return stripsHit end
@@ -204,7 +248,7 @@ end
 function M.stripWarning() return stripPos ~= nil and not stripPassed end
 function M.stripReset() parkStrip() if M.breakerReset then M.breakerReset() end end
 function M.stripTick(v)       -- (from the chase tick)
-  if M.STRIP and opt('slPoliceStrips') and not stripPos and stripVeh() and chaseLib.stripDue(sl_career.phase(), M.level(), true, os.clock() - lastStrip) then placeStrip(v) end
+  if M.STRIP and opt('slPoliceStrips') and not stripPos and stripVeh() and chaseLib.stripDue(phase(), M.level(), true, os.clock() - lastStrip) then placeStrip(v) say('strip') end
 end
 -- a build gate for the chase props (the strip, the wall): the patrol rule, but heat 4-5 is urgent (as for the patrols: at 15 m/s with cruisers
 -- being built the rule held the strip back for minutes). The reason it said no is logged, at most once in 30 s.
@@ -378,7 +422,7 @@ local function updatePatrols()
     if (slrrValoNight.getState and slrrValoNight.getState() or {}).police ~= want then slrrValoNight.setPolice(want) end
   end
   local target = (policeOn() and not (slrrValoNight and slrrValoNight.setPolice)) and math.floor((sl_options and sl_options.get('slPatrols') or PATROLS) * level() + 0.5) or 0
-  if policeOn() then target = target + math.floor(heatLib.extraPatrols(sl_career.phase(), M.level()) * level() + 0.5) end      -- (D3) one more a heat level, on top of the map's own
+  if policeOn() then target = target + math.floor(heatLib.extraPatrols(phase(), M.level()) * level() + 0.5) end      -- (D3) one more a heat level, on top of the map's own
   for i = #units, 1, -1 do
     local u = getObjectByID(units[i])
     if not u or (u:getPosition() - v:getPosition()):length() > 1600 or not night() or i > target then
@@ -394,7 +438,8 @@ local function updatePatrols()
   local since = math.min(sSince or 1e9, os.clock() - lastBuild)
   local speed = v:getVelocity():length()
   if not spawnplan.patrolOk(speed, since, busy or sBusy, M.inPursuit() or M.level() >= 4) then return end      -- (not lost: the next tick looks again)
-  local cfg = CONFIGS[math.random(#CONFIGS)]
+  local pool = opt('slPoliceUnits') and chaseLib.configsFor(M.level()) or CONFIGS      -- (P4: highway patrol from heat 3, an unmarked car and the van from heat 4)
+  local cfg = pool[math.random(#pool)]
   busy = true
   lastBuild = os.clock()
   if sl_streets and sl_streets.noteBuild then sl_streets.noteBuild() end
@@ -433,6 +478,22 @@ function M.debugChase()
   return 'building a patrol, the chase starts in about 3 s'
 end
 
+-- a chase on the player: the nearest patrols within `reach` m join (how many and at which mode by the heat: core/chase P1). Returns true when one started.
+local function startChase(v, reach)
+  local lvl = M.level()
+  local cops, p = {}, v:getPosition()
+  for cid in pairs(gameplay_police.getPoliceVehicles and gameplay_police.getPoliceVehicles() or {}) do
+    local c = getObjectByID(cid)
+    local d = c and cid ~= v:getID() and (c:getPosition() - p):length()
+    if d and d <= reach then cops[cid] = d end
+  end
+  local levels = opt('slPoliceLevels')
+  local ids = chaseLib.nearest(cops, levels and chaseLib.joiners(lvl) or 1)
+  if #ids == 0 then return false end
+  gameplay_police.setPursuitMode(levels and chaseLib.modeFor(lvl) or 1, v:getID(), ids)
+  return true
+end
+
 -- a street race has started: heat, and maybe a patrol on your tail
 function M.onRaceStart()
   local s = career()
@@ -443,22 +504,75 @@ function M.onRaceStart()
   local v = getPlayerVehicle(0)
   if not v then return end
   playerInTraffic()
-  local copId = gameplay_police.getNearestPoliceVehicle and gameplay_police.getNearestPoliceVehicle(v:getID(), false, true)
-  if copId then
-    gameplay_police.setPursuitMode(1, v:getID(), { copId })
-    if ui_message then ui_message(strings.t('police.police_lose_them_or_lose'), 4, 'streetLegal') end
-  end
+  if startChase(v, chaseLib.FINISH_REACH * 10) then toast(strings.t('police.police_lose_them_or_lose')) end
 end
 
 M.onStreetLegalRaceStarted = M.onRaceStart
 M.onSlrrRaceStarted = M.onRaceStart
 
+-- (P13) cops at the finish: when a street race ends, a patrol that was near the route may be waiting; the chance by heat and aggression
+function M.onStreetLegalRaceResult()
+  local s = career()
+  if not s or not policeOn() or not opt('slPoliceFinish') or not gameplay_police or M.inPursuit() then return end
+  if math.random() > chaseLib.finishChance(phase(), M.level(), level()) then return end
+  local v = getPlayerVehicle(0)
+  if v then playerInTraffic() if startChase(v, chaseLib.FINISH_REACH) then toast(strings.t('police.finish_cops')) end end
+end
+
+-- (P3) after an escape the patrols leave you alone for a while (the game's ignorePursuit flag on the player's traffic entry) and the heat cools fast
+local ignoredVid               -- the vehicle whose traffic entry carries the flag: cleared by that id (a stop or a vehicle change must never leave it set: the game's police skip a flagged entry for good)
+local function setIgnore(on)
+  local data = gameplay_traffic and gameplay_traffic.getTrafficData and gameplay_traffic.getTrafficData()
+  if ignoredVid then
+    local t = data and data[ignoredVid]
+    if t then t.ignorePursuit = nil end
+    ignoredVid = nil
+  end
+  if not on then return end
+  local v = getPlayerVehicle(0)
+  local t = v and data and data[v:getID()]
+  if t then t.ignorePursuit = true ignoredVid = v:getID() end
+end
+function M.inCooldown() return os.clock() < cooldownUntil end
+function M.onVehicleSwitched() if M.inCooldown() then setIgnore(true) else setIgnore(false) end end      -- (the flag follows the player's car)
+-- the game's pursuit events for the player: the career settles money and reputation itself (sl_career.onPursuitAction); here the cool-down, the radio,
+-- and in free roam (no career) the whole bust: heat and a message, no money (the sandbox has no wallet)
+function M.onPursuitAction(id, action, pursuit)
+  local v = getPlayerVehicle(0)
+  if not v or v:getID() ~= id or not state() then return end
+  if action == 'start' then seen = {} say('start')
+  elseif action == 'evade' then
+    say('evade')
+    if opt('slPoliceHide') then cooldownUntil = os.clock() + chaseLib.COOLDOWN_S setIgnore(true) end
+    if not career() then addHeat(heatLib.ESCAPE) toast(strings.t('police.free_lost_them')) end
+  elseif action == 'arrest' then
+    say('arrest')
+    if not career() then
+      local offences = type(pursuit) == 'table' and type(pursuit.offensesList) == 'table' and #pursuit.offensesList or 1
+      local fine = math.floor(heatLib.fine(require('sl/core/progression').policeFine(offences, false), phase(), M.level()) + 0.5)
+      addHeat(heatLib.BUST)
+      toast(strings.t('police.free_busted_1', fine))
+    end
+  end
+end
+-- (P3) a repaint at night: the patrols know the car less; one level off the heat, once a night
+local repainted = false
+function M.onWrenchWorksPainted(vid)
+  local v = getPlayerVehicle(0)
+  if not (opt('slPoliceHide') and v and v:getID() == vid and night() and not repainted) then return end
+  local s = state()
+  if not s or (s.heat or 0) <= 0 then return end
+  repainted = true
+  s.heat = math.max(0, (s.heat or 0) - chaseLib.REPAINT_DROP)
+  toast(strings.t('police.repainted'))
+end
+
 function M.onStreetLegalNewDay() local s = career() if s then s.heat = (s.heat or 0) * 0.7 end end
 
 -- a phase switch: the day clears the heat (the career did), the police's rules and our extra patrols follow
-function M.onStreetLegalPhase(phase)
-  appliedVars = nil
-  if phase ~= 'night' then
+function M.onStreetLegalPhase(ph)
+  appliedVars, repainted = nil, false
+  if ph ~= 'night' then
     for i = #units, 1, -1 do despawn(units[i]) units[i] = nil end
     if stripId then despawn(stripId) stripId, stripPos = nil, nil end
     if wallId then despawn(wallId) wallId, wallOut, spots = nil, false, nil end
@@ -498,12 +612,13 @@ local function bankAtGarage()
 end
 
 function M.onUpdate(dtReal)
-  if not career() then
+  if not state() then
     if #units > 0 then for _, id in ipairs(units) do despawn(id) end units = {} end
     if stripId then despawn(stripId) stripId, stripPos = nil, nil end
     if wallId then despawn(wallId) wallId, wallOut, spots = nil, false, nil end
     return
   end
+  if cooldownUntil > -1e9 and not M.inCooldown() then cooldownUntil = -1e9 setIgnore(false) end      -- (the cool-down is over: the patrols see you again)
   timer = timer + dtReal
   nearTimer = nearTimer + dtReal
   stripWatch()
@@ -519,16 +634,16 @@ function M.onUpdate(dtReal)
     updatePatrols()
     local pv = getPlayerVehicle(0)
     if pv then updateStrip(pv) updateBreakers(pv) end
-    local s = career()
+    local s = state()
     if night() then
-      if not M.inPursuit() then s.heat = heatLib.cooled(s.heat, 5 / 60) end      -- heat cools as time passes while nobody is after you
-      bankAtGarage()
+      if not M.inPursuit() then s.heat = heatLib.cooled(s.heat, chaseLib.coolingMinutes(5 / 60, M.inCooldown())) end      -- heat cools as time passes while nobody is after you (five times as fast in the cool-down)
+      if career() then bankAtGarage() end
     end
     applyVars()
   end
 end
 
-function M.onStreetLegalStopped() for _, id in ipairs(units) do despawn(id) end units = {} if stripId then despawn(stripId) stripId, stripPos = nil, nil end if wallId then despawn(wallId) wallId, wallOut, spots = nil, false, nil end end
-function M.onClientEndMission() units = {} busy = false stripId, stripPos, stripBusy = nil, nil, false wallId, wallOut, wallBusy, spots = nil, false, false, nil end
+function M.onStreetLegalStopped() for _, id in ipairs(units) do despawn(id) end units = {} if stripId then despawn(stripId) stripId, stripPos = nil, nil end if wallId then despawn(wallId) wallId, wallOut, spots = nil, false, nil end cooldownUntil, radio, repainted = -1e9, {}, false setIgnore(false) end
+function M.onClientEndMission() units = {} busy = false stripId, stripPos, stripBusy = nil, nil, false wallId, wallOut, wallBusy, spots = nil, false, false, nil cooldownUntil, radio, seen = -1e9, {}, {} pcall(setIgnore, false) end
 
 return M
