@@ -25,6 +25,7 @@ M.LIST = {
   { id = 'laptop', opt = 'slLaptop', title = 'Laptops', desc = 'The computers of the map open the laptop for the career. Off: no laptop prompts.' },
   { id = 'maps', opt = 'slMaps', title = 'Maps', desc = 'The Map app on the phone and the Maps HUD app. Off: no Map app and no map feed (the route buttons of the phone still work).' },
   { id = 'upgrades', opt = 'slUpgrades', title = 'Garage upgrades', desc = 'The lift, bench, dyno, paint booth, shelving and photo corner are bought for the garage. Off: the garage has all of them from the start and nothing is for sale.' },
+  { id = 'weekly', opt = 'slWeekly', title = 'Weekly costs', desc = 'Each week the garage rent and the storage of the cars beyond two are paid, with a ledger on the phone. What you cannot pay becomes a debt at the bank (never a repossession). Off: no weekly bills.' },
   { id = 'jobs', opt = 'slJobs', title = 'Jobs', desc = 'Courier and workshop jobs, their markers and the Jobs app. Off: no jobs.' },
 }
 local byId = {}
