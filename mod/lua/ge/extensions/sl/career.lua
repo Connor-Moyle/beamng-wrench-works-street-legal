@@ -718,6 +718,8 @@ local function placeInGarage()
     spawn.safeTeleport(v, pos, rot, true)                 -- already on foot: just walk in
   elseif gameplay_walk and gameplay_walk.setWalkingMode then
     gameplay_walk.setWalkingMode(true, pos, rot, true)    -- out of whatever car, or out of nothing
+    -- the free-roam car the player was in stays where it stood (the default Vivace at its spawn) and overlaps cars delivered or teleported there: it goes (it is no car of the career)
+    if v and not (sl_fleet and sl_fleet.carOfVehicle and sl_fleet.carOfVehicle(v:getID())) then v:delete() end
   end
 end
 
