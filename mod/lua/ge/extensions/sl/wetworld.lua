@@ -36,7 +36,7 @@ local function materials()
   for _, o in ipairs(ok and objs or {}) do
     local okN, name = pcall(function() return o:getName() end)
     local okF, file = pcall(function() return o:getFilename() end)
-    if okN and name then list[#list + 1] = { name = name, file = okF and file or '' } end
+    if okN and name then list[#list + 1] = { name = name, file = okF and file or nil } end      -- (nil when the file cannot be read: classify goes by the name; '' is the game saying vehicle-side)
   end
   return list
 end

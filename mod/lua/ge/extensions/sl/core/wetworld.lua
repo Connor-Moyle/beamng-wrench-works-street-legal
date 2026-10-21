@@ -85,7 +85,8 @@ end
 function M.plan(list, cap)
   local out = {}
   for _, m in ipairs(list) do
-    local kind = M.classify(m.name, m.file)
+    -- a material the game reports with an EMPTY file is a vehicle-side one (the lamp glass of every model loaded with a car, 20 of them with one car; they stay registered after it is gone): never the level's
+    local kind = m.file ~= '' and M.classify(m.name, m.file) or nil
     if kind then out[#out + 1] = { name = m.name, kind = kind } end
   end
   table.sort(out, function(a, b)
