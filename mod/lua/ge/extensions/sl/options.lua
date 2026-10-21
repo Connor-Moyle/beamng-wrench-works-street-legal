@@ -55,8 +55,8 @@ M.defs = {
     desc = strings.t('options.how_many_puddles_stand_on') },
   { key = 'slSplashSize', title = strings.t('options.splash_size'), type = 'range', min = 0.1, max = 1.5, step = 0.05, unit = 'x', default = 0.4,
     tab = 'Clock and weather', group = 'Rain on the ground', presets = { performance = 0.25, balanced = 0.4, quality = 0.5, max = 0.6 }, desc = strings.t('options.how_high_the_water_a') },
-  { key = 'slWetWorld', feature = true, title = strings.t('options.wet_world'), type = 'bool', default = true, tab = 'Clock and weather', group = 'Rain on the ground',
-    presets = { performance = false, balanced = true, quality = true, max = true }, desc = strings.t('options.in_the_rain_roads_walls_and') },
+  { key = 'slWetWorld', feature = true, title = strings.t('options.wet_world'), type = 'bool', default = false, tab = 'Clock and weather', group = 'Rain on the ground',
+    presets = { performance = false, balanced = false, quality = false, max = false }, desc = strings.t('options.in_the_rain_roads_walls_and') },
   { key = 'slMapStyle', title = strings.t('options.map_style'), type = 'choice', default = 'street', tab = 'Maps', group = 'Maps',
     options = { { id = 'street', label = strings.t('options.map_style_street') }, { id = 'cruise', label = strings.t('options.map_style_cruise') }, { id = 'atlas', label = strings.t('options.map_style_atlas') } }, desc = strings.t('options.map_style_text') },
   { key = 'slMapHeadingUp', title = strings.t('options.map_heading_up'), type = 'bool', default = false, tab = 'Maps', group = 'Maps',
@@ -236,12 +236,21 @@ function M.migrate052(data)
   return true
 end
 
+-- 0.6.0: Wet roads and walls can crash the graphics driver at High graphics in heavy rain (BeamNG 0.40), so it is off by default; a saved "on" is reset to off once (turned on again, it stays)
+function M.migrate060(data)
+  if data.slWetWorldReset060 then return false end
+  data.slWetWorldReset060 = true
+  if data.slWetWorld == true then data.slWetWorld = false log('I', 'sl_options', 'Wet roads and walls reset to off (0.6.0); it can be turned on again in the Mods menu') end
+  return true
+end
+
 local function loadGlobal()
   if global then return global end
   local data = jsonReadFile(FILE)
   global = type(data) == 'table' and data or {}
   -- (the flag is set in memory always, so the next normal save carries it; the file is rewritten here only when it was read as a table: a missing, locked or corrupt file is never overwritten by a migration)
-  if M.migrate052(global) and type(data) == 'table' then jsonWriteFile(FILE, global, true) end
+  local m52, m60 = M.migrate052(global), M.migrate060(global)
+  if (m52 or m60) and type(data) == 'table' then jsonWriteFile(FILE, global, true) end
   return global
 end
 

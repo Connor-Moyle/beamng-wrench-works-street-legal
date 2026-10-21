@@ -1,17 +1,38 @@
 # Changelog
 
-## Unreleased
+## 0.7.0 (unreleased)
 
+### New
 - **Phone skins (new, off by default):** ESC > Mods > Street Legal > Screens and texts > Phone skin. Classic is the default and the phone is unchanged. **Slate** is a modern look of our own (squircle tiles, outline icons, a pill camera island). You can add your own skins as folders in the user folder (`settings/street_legal/phone_skins/<id>/skin.json`); see docs/PHONE_SKINS.md. Offline-tested; not yet seen in the game.
 
-- **Parts of the game you can switch off** (Mods > Street Legal > Parts of the game, and the Active features page; all on by default): spectators, sponsor billboards, ambient sounds, puddles and splashes, achievements, getting-started tips, car and part markets (classifieds and auctions), rally stages, street races and drag racing, clubs, crews and turf, the tow truck, the taxi ride, and jobs. A part that is off does nothing and loses its phone app; switched on again it carries on from your save (nothing is deleted). Six more core parts have a switch too: the bank (cannot be switched off while a loan is open: "Pay back the loan first"), the hospital (off: injuries cost and stop nothing; hardcore death needs it on), the HUD phone pill, the laptops, Maps and garage upgrades (off: the garage has every tool). The phone itself has no off switch. The bank switch is global: a loan open in another career is frozen (no interest, no payments) while the bank is off. A hardcore career cannot switch the hospital off. When the clubs come back on, a season that was not simulated while they were off is closed with no reward and a new one starts. Off for the tow truck: a car left out is brought round without a truck; off for the taxi: the Cab app still takes you there, at once.
+- **Street Legal in free roam (new, all off by default):** ESC > Mods > Street Legal > Free roam. A master switch, "Use Street Legal features in free roam", and one switch per feature: Phone (K) with the Maps and Cab apps, Maps, Map pins (shops, garages, car washes and gas stations on the big map; meets are pins only), Weather (with wet roads and puddles, on the game's clock), Cab (free), Car wash (free), and the Dashboard. No career is started or saved, no money is spent or taken, and the career apps, shops and jobs are not part of it. Not yet tested in the game.
 
-- The main switches (police, crew raids, race flares, dashboard, race recording, weather, wet world and tarmac, spike strips, pursuit breakers, night race kinds, rivals, photo of a new car, the Maps speed and the phone's K slide) are tagged for the Active features page of the Mods menu.: Wrench Works: Street Legal (the career)
+## 0.6.1 (needs Wrench Works 1.8.3)
 
-## 0.6.0 (unreleased)
+Hotfix for 0.6.0.
 
 ### Changes
-- **Wet tarmac:** the road darkening now waits for puddles (a 60-second hold); with it, in one heavy-rain test with wet tarmac on, it no longer crashed. Still off by default, and it may still crash some cards.
+- **Wet roads and walls** is now off by default and switched off once for everyone, because it is what crashes the graphics driver at High graphics in heavy rain on BeamNG 0.40. You can turn it back on in Mods > Street Legal (the row carries the warning); a player who turns it back on keeps it. Puddles, rain and the rest of the weather are unchanged.
+
+### Known issue
+- With Wet roads and walls on, a heavy-rain crash can still happen at High graphics. With it off it was not seen (a 10-minute High-graphics heavy-rain test with it off, and puddles on, did not crash).
+
+## 0.6.0 (needs Wrench Works 1.8.3)
+
+### New
+- **Parts of the game you can switch off** (Mods > Street Legal > Parts of the game, and the Active features page; all on by default): spectators, sponsor billboards, ambient sounds, puddles and splashes, achievements, getting-started tips, car and part markets (classifieds and auctions), rally stages, street races and drag racing, clubs, crews and turf, the tow truck, the taxi ride, and jobs. A part that is off does nothing and loses its phone app; switched on again it carries on from your save (nothing is deleted). Six more core parts have a switch too: the bank (cannot be switched off while a loan is open: "Pay back the loan first"), the hospital (off: injuries cost and stop nothing; hardcore death needs it on), the HUD phone pill, the laptops, Maps and garage upgrades (off: the garage has every tool). The phone itself has no off switch. The bank switch is global: a loan open in another career is frozen (no interest, no payments) while the bank is off. A hardcore career cannot switch the hospital off. When the clubs come back on, a season that was not simulated while they were off is closed with no reward and a new one starts. Off for the tow truck: a car left out is brought round without a truck; off for the taxi: the Cab app still takes you there, at once. Bank and Hospital switches seen in the game; the other switches are not yet tested.
+
+- The main switches (police, crew raids, race flares, dashboard, race recording, weather, wet world and tarmac, spike strips, pursuit breakers, night race kinds, rivals, photo of a new car, the Maps speed and the phone's K slide) are tagged for the Active features page of the Mods menu.
+
+- **Tyres keep their wear with the car** (needs Car Surface FX with its tyre simulation switched on): a car's tyre set and how worn it is are saved with the car, and put back when the car comes out of the garage or you reset it. Buying a different tyre part, or the same one again, gives a new set; a car sold on bare rims shows no tyres until a tyre part is fitted. Tested in game with a bought car on a reset, a respawn and a career save (the Wrench Works garage fitting itself was not tested in game).
+
+### Changes
+- **Wet roads and walls** now change one material at a time instead of several, so getting wet takes longer (about a minute and a half in a sudden downpour). It did not stop the High-graphics crash (see the known issue).
+- **Wet world and ground hollows:** the wet world takes turns with Car Surface FX's ground hollows (tested at Low graphics).
+- **Wet tarmac:** off by default (as in 0.5.2). It waits for puddles (a 60-second hold); with it, in one heavy-rain test at Low graphics with wet tarmac on, it no longer crashed. It may still crash some cards.
+
+### Known issue
+- At High graphics a heavy-rain crash (the graphics driver stops) can still happen, also with the slower wet-road pace above; it was not seen at Low graphics. Workaround: turn "Wet roads and walls" off, or lower the graphics quality in heavy rain.
 
 ## 0.5.2 (needs Wrench Works 1.8.0)
 
