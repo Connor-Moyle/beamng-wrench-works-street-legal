@@ -28,7 +28,7 @@ function M.borrow(amount)
   if not s then return false, strings.t('bank.no_career_running') end
   local b = bankState(s)
   if b.loan then return false, strings.t('bank.pay_off_the_loan_you') end
-  if sl_weekly and sl_weekly.debt and sl_weekly.debt() > 0 then return false, strings.t('weekly.clear_debt_first') end      -- (unpaid weekly bills: no new loan)
+  if sl_weekly and sl_weekly.debt and (sl_weekly.debt() or 0) > 0 then return false, strings.t('weekly.clear_debt_first') end      -- (unpaid weekly bills: no new loan)
   amount = math.floor((tonumber(amount) or 0) / 100) * 100
   local limit = bank.loanLimit(s.rep, s.garageLevel, fleetValue(s))
   if amount < 100 or amount > limit then return false, string.format(strings.t('bank.the_bank_lends_up_to'), limit) end
