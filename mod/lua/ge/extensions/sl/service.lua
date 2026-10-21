@@ -33,7 +33,7 @@ end
 
 local function figures(car)
   local c = sl_carcare.careOf(car)
-  local sv = svc.state(car)
+  local sv = svc.state(car, c.engineKm, c.abuse)
   local gross = svc.gross(sv, c.engineKm, car.mileage, c.abuse)
   return c, sv, gross, svc.net(sv, gross)
 end
