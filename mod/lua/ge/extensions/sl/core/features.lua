@@ -28,6 +28,7 @@ M.LIST = {
   { id = 'usedcheck', opt = 'slUsedCheck', title = 'Used-car checks', desc = 'A private car ad shows the history of the car (owners, service record, accidents) but not its faults: a mechanic check, for a fee, shows them and what each costs to fix. Off: the ads show every fault, as before.' },
   { id = 'service', opt = 'slService', title = 'Servicing and wear', desc = 'Cars wear much faster, a service is due about every 150 km, and skipping it wears the car more. A basic service and an overhaul are bought on the phone. Off: wear stays as slow as it was and there is no service.' },
   { id = 'weekly', opt = 'slWeekly', title = 'Weekly costs', desc = 'Each week the garage rent and the storage of the cars beyond two are paid, with a ledger on the phone. What you cannot pay becomes a debt at the bank (never a repossession). Off: no weekly bills.' },
+  { id = 'shops', opt = 'slShops', title = 'Shops', desc = 'Shops with their own screens (tyre shop, exhaust shop and others), opened at a shop marker or by another mod. Off: no shop screens and no shop markers.' },
   { id = 'jobs', opt = 'slJobs', title = 'Jobs', desc = 'Courier and workshop jobs, their markers and the Jobs app. Off: no jobs.' },
 }
 local byId = {}

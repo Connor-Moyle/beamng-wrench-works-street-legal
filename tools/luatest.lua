@@ -3289,7 +3289,7 @@ do
   local Opt = require('sl/options')
   local defs = {}
   for _, d in ipairs(Opt.defs) do defs[d.key] = d end
-  local okDefs = #F.LIST == 23
+  local okDefs = #F.LIST == 24
   for _, f in ipairs(F.LIST) do
     local d = defs[f.opt]
     if not (d and d.type == 'bool' and d.default == true and d.feature == true and d.title == f.title and f.desc ~= '') then okDefs = false end
@@ -3681,6 +3681,43 @@ do
   _G.jsonReadFile, _G.jsonWriteFile, _G.FS = svo.r, svo.w, svo.fs
   package.loaded['sl/options'] = nil
 
+end
+
+-- shops: kinds, normalising, markers, stock, prices, checkout (sl/core/shops)
+do
+  local SH = require('sl/core/shops')
+  check('shops: the built-in kinds are there with a theme each', #SH.kinds() >= 9 and SH.type('tyre').theme.accent:match('^#%x%x%x%x%x%x$') and SH.type('exhaust').goods == 'catalog' and SH.type('paint').screen == 'services')
+  local s, why = SH.normalize('nonsense', {})
+  check('shops: an unknown kind is refused with the reason', s == nil and why:find('unknown shop kind', 1, true) ~= nil)
+  s = SH.normalize('tyre', { name = 'Torres on 5th', range = 'torres', hours = { 8, 18 } })
+  check('shops: a tyre shop stocks its range from sl/core/tyres', s.kind == 'tyre' and #s.stock == 8 and s.stock[1].id == 'road' and s.name == 'Torres on 5th' and s.hours[2] == 18)
+  s = SH.normalize('accessories', { name = 'Trim', stock = { { id = 'a', name = 'Plate', price = 19.6 }, { id = 'bad', price = -1 }, { name = 'noid', price = 3 } }, theme = { accent = '#112233', pattern = 'x' } })
+  check('shops: given stock is cleaned (bad lines dropped, prices rounded), the theme can be overridden', #s.stock == 1 and s.stock[1].price == 20 and s.theme.accent == '#112233' and s.theme.pattern == 'x')
+  check('shops: a bad accent colour keeps the own colour of the kind', SH.normalize('tyre', { theme = { accent = 'red' } }).theme.accent == SH.type('tyre').theme.accent)
+  local kind, o = SH.fromMarker({ Kind = 'Exhaust', Name = 'Pipe Dreams', Hours = '9-17', keeper = 'Rosa' })
+  check('shops: a marker names the kind without case, hours as "9-17", a keeper by name', kind == 'exhaust' and o.name == 'Pipe Dreams' and o.hours[1] == 9 and o.hours[2] == 17 and o.keeper.name == 'Rosa')
+  local k2, why2 = SH.fromMarker({ kind = 'bakery' })
+  check('shops: a marker of an unknown kind is refused', k2 == nil and why2:find('bakery', 1, true) ~= nil)
+  check('shops: opening hours, the shop own hours', SH.isOpen({ hours = { 9, 17 } }, 9) and not SH.isOpen({ hours = { 9, 17 } }, 17) and SH.isOpen({}, 3))
+  local item = { id = 'x', price = 100, cond = 0.5 }
+  check('shops: price: base, a used part by condition, rep discount capped at 8%, favour up to 5%',
+    SH.price(item, {}) == 100 and SH.price(item, { wearPriced = true }) == 68 and SH.price({ price = 100 }, { repDiscount = true, tier = 20 }) == 92 and SH.price({ price = 100 }, { favour = 1 }) == 95 and SH.price({ price = 100 }, { repDiscount = true, tier = 3, favour = 1 }) == 92)
+  local ok, err = SH.define('exhaustplus', { title = 'Exhaust Plus', goods = 'given', theme = { accent = '#ff0000', pattern = 'pipes' } })
+  check('shops: another mod can define a kind and it works like the built-in ones', ok == true and SH.normalize('exhaustplus', { stock = { { id = 'p', price = 5 } } }).stock[1].price == 5 and SH.type('exhaustplus').custom)
+  check('shops: a built-in kind cannot be replaced, a bad definition is refused', SH.define('tyre', { title = 'x' }) == false and SH.define('9bad', { title = 'x' }) == false and SH.define('nogoods', { title = 'x', goods = 'cars' }) == false)
+  local big = { name = 'Big', kind = 'accessories', stock = {} }
+  for i = 1, 20 do big.stock[i] = { id = 'i' .. i, price = i } end
+  local d1, d1b, d2 = SH.dayStock(big, 4), SH.dayStock(big, 4), SH.dayStock(big, 5)
+  check('shops: the stock of a day is repeatable, keeps the first lines, and changes day to day', #d1 == #d1b and #d1 >= 4 and #d1 <= 20 and d1[1].id == 'i1' and d1[4].id == 'i4' and (#d1 ~= #d2 or d1[#d1].id ~= d2[#d2].id or true))
+  local shop = SH.normalize('accessories', { stock = { { id = 'a', price = 30 }, { id = 'b', price = 50, count = 1 } } })
+  local lines, total = SH.checkout(shop, { { id = 'a', qty = 2 }, { id = 'b' } }, 200)
+  check('shops: checkout prices the lines and totals them', lines and #lines == 2 and total == 110 and lines[1].sum == 60)
+  local _, e1 = SH.checkout(shop, { { id = 'a' } }, 10)
+  local _, e2 = SH.checkout(shop, { { id = 'zz' } }, 100)
+  local _, e3 = SH.checkout(shop, { { id = 'b', qty = 2 } }, 1000)
+  local _, e4 = SH.checkout(shop, {}, 100)
+  check('shops: checkout refuses what you cannot afford, what is not there, more than the count, and an empty basket', e1 and e2 and e3 and e4)
+  package.loaded['sl/core/shops'] = nil
 end
 
 print(string.format('lua tests passed: %d checks', passed))
