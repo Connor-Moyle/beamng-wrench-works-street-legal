@@ -4434,6 +4434,14 @@ do
     local rep0 = state.rep
     finish({ place = 1, time = 180, grid = 6 })
     check('calendar game side: a win pays the purse and 40 rep and is done', state.money == 1000 - home.fee + home.purse and paid[#paid]:find('Purse') ~= nil and state.calendar.done[evId].won == true and state.rep == rep0 + 40 and texts[#texts]:find('1st') ~= nil)
+    -- the series engine's side: event() hands the rules' fields; a round result marks the round's event done or missed and pays nothing
+    local evt = G.event(evId)
+    check('calendar game side: event(id) gives the event with its fee, laps and travel', evt ~= nil and evt.fee == home.fee and evt.laps == 3 and evt.travel.needed == false and G.event('nope') == nil)
+    local money0 = state.money
+    state.rep = 1000
+    G.onStreetLegalRoundResult({ seriesId = 'jv-offroad:2', round = 1, place = 1 })
+    G.onStreetLegalRoundResult({ seriesId = 'jv-offroad:2', round = 2, missed = true })
+    check('calendar game side: a series round result marks the event done (or missed) without paying', state.calendar.done['jv-offroad:2:r1'] ~= nil and state.calendar.done['jv-offroad:2:r1'].won == true and state.calendar.done['jv-offroad:2:r2'].won == nil and state.money == money0)
     on = false
     check('calendar game side: the part off: no summary, the actions answer nothing', G.summary() == nil and G.enter(evId) == nil)
     on = true

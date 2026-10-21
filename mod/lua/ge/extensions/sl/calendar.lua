@@ -57,6 +57,25 @@ function M.travel(eventId)
   if not career() then return false, strings.t('needs.no_career') end
   return false, strings.t('calendar.travel_not_yet')
 end
+-- one event with the rules' own fields (fee, laps, layer, travel, requires): sl_series reads it for the travel screen
+function M.event(eventId)
+  local s = career()
+  return s and rules.find(schedule(s), tostring(eventId)) or nil
+end
+
+-- a series round is over (sl_series: it pays the series prize at the end, so the round's calendar event is only marked, never paid here)
+function M.onStreetLegalRoundResult(r)
+  local s = career()
+  if not s or type(r) ~= 'table' or not r.seriesId or not r.round then return end
+  local id = tostring(r.seriesId) .. ':r' .. tostring(r.round)
+  local st = store(s)
+  if st.done[id] then return end
+  local ev = rules.find(schedule(s), id)
+  if r.missed then st.done[id] = { won = nil, day = ev and ev.day or s.day, reward = 0 }      -- (nil won: the calendar shows it missed)
+  else st.done[id] = { won = r.place == 1, place = r.place, day = ev and ev.day or s.day, reward = 0 } end
+  st.entered[id] = nil
+  extensions.hook('onStreetLegalChanged')
+end
 
 -- ---- the weekend race on a dockyards layout: the grid spot, read once per layer (the race itself is sl_gridrace's)
 local tracks = {}
@@ -151,6 +170,6 @@ function M.debugDue()
   return 'no open home race in the window'
 end
 
-features.gate('calendar', M, nil, nil, { 'summary', 'enter', 'decline', 'remind', 'travel' })      -- (the part off: nothing ticks, no app, the actions answer nothing)
+features.gate('calendar', M, nil, nil, { 'summary', 'enter', 'decline', 'remind', 'travel', 'event' })      -- (the part off: nothing ticks, no app, the actions answer nothing)
 
 return M
