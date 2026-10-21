@@ -90,7 +90,7 @@ function M.onVehicleData(id, data)
   for k, v in pairs(data) do car[k] = v end
 end
 
-local ASK_FAST = [[obj:queueGameEngineLua(string.format("sl_hud.onVehicleData(%d,%s)", obj:getId(), serialize({
+local ASK_FAST = [[obj:queueGameEngineLua(string.format("if sl_hud then sl_hud.onVehicleData(%d,%s) end", obj:getId(), serialize({
   rpm = electrics.values.rpm or 0, maxRpm = electrics.values.maxrpm or 0, gear = electrics.values.gear,
   speed = electrics.values.wheelspeed or electrics.values.airspeed or 0 })))]]
 
@@ -104,7 +104,7 @@ for _, k in ipairs({ 'engineDisabled', 'engineLockedUp', 'engineHydrolocked', 'b
 for _, k in ipairs({ 'headGasketDamaged', 'pistonRingsDamaged', 'rodBearingsDamaged', 'radiatorLeak', 'oilpanLeak', 'oilRadiatorLeak', 'impactDamage', 'engineReducedTorque', 'coolantOverheating', 'oilOverheating', 'exhaustBroken', 'turbochargerDamaged', 'superchargerDamaged', 'inductionSystemDamaged' }) do if d('engine', k) then trouble = true end end
 local tyres = {}
 for _, w in ipairs({ 'FL', 'FR', 'RL', 'RR' }) do tyres[w] = d('wheels', w) == true end
-obj:queueGameEngineLua(string.format("sl_hud.onVehicleData(%d,%s)", obj:getId(), serialize({ body = body, engine = dead and 2 or (trouble and 1 or 0), tyres = tyres })))
+obj:queueGameEngineLua(string.format("if sl_hud then sl_hud.onVehicleData(%d,%s) end", obj:getId(), serialize({ body = body, engine = dead and 2 or (trouble and 1 or 0), tyres = tyres })))
 ]]
 
 ----------------------------------------------------------------------------------------------

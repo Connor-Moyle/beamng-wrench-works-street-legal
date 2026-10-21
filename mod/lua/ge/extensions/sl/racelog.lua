@@ -8,6 +8,10 @@ local M = {}
 local PATH, PREV = '/settings/street_legal/race_log.txt', '/settings/street_legal/race_log.prev.txt'
 local lines, started = {}, false
 local MAX_LINES = 4000
+-- the whole file is rewritten (4000 lines at most), so not on every line: at most once a second, at once for the end of an event, and M.flush() writes what is waiting
+local WRITE_EVERY = 1
+local lastWrite, dirty = -math.huge, false
+M.clock = os.clock                       -- (a test can replace it)
 
 local function begin()
   if started then return end
@@ -40,8 +44,16 @@ function M.add(kind, what, fields)
   for _, k in ipairs(keys) do parts[#parts + 1] = k .. '=' .. fmt(fields[k]) end
   lines[#lines + 1] = string.format('[%s] %s %s %s', os.date('%H:%M:%S'), kind, what, table.concat(parts, ' '))
   if #lines > MAX_LINES then table.remove(lines, 2) end
-  if writeFile then pcall(writeFile, PATH, table.concat(lines, '\n') .. '\n') end
+  dirty = true
+  if M.clock() - lastWrite >= WRITE_EVERY or what:find('finish', 1, true) or what:find('cancel', 1, true) then M.flush() end
   log('I', 'race_log', lines[#lines])
+end
+
+function M.flush()
+  if not dirty then return end
+  dirty = false
+  lastWrite = M.clock()
+  if writeFile then pcall(writeFile, PATH, table.concat(lines, '\n') .. '\n') end
 end
 
 return M

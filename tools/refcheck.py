@@ -184,6 +184,11 @@ def main():
                 if ext in exports and field not in exports[ext] and (ext, field) not in seen:
                     seen.add((ext, field))
                     problems.append('%s:%d: %s.%s: %s does not export it' % (os.path.relpath(f, repo), line_of(src, m.start()), ext, field, ext))
+        # a car command that calls back into a game extension must guard it ("if sl_hud then sl_hud.f() end"): the extension may be off or failed to load
+        for f in lua_files(os.path.join(repo, 'mod')):
+            src = read(f)
+            for m in re.finditer(r'''queueGameEngineLua\(\s*(?:string\.format\(\s*)?["'](?:sl_\w+|slrr_\w+|carSurfaceFx\w*)\.''', src):
+                problems.append('%s:%d: queueGameEngineLua calls an extension without "if ext then"' % (os.path.relpath(f, repo), line_of(src, m.start())))
         # settings keys read must be defined (sl_options in Street Legal, slrr/garageSettings in Wrench Works)
         for opt, getter in ((os.path.join(repo, 'mod', 'lua', 'ge', 'extensions', 'sl', 'options.lua'), r'sl_options\.get'),
                             (os.path.join(repo, 'mod', 'lua', 'ge', 'extensions', 'slrr', 'garageSettings.lua'), r'\bsettings\.get')):

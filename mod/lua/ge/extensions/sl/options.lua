@@ -220,6 +220,7 @@ for _, d in ipairs(M.defs) do
 end
 
 local global
+local unreadable
 
 local function career() return sl_career and sl_career.isActive() and sl_career.getState() or nil end
 
@@ -250,6 +251,7 @@ local function loadGlobal()
   if global then return global end
   local data = jsonReadFile(FILE)
   global = type(data) == 'table' and data or {}
+  unreadable = data == nil and FS ~= nil and FS.fileExists ~= nil and FS:fileExists(FILE) == true      -- (a file that is there but did not read: never written over)
   -- (the flag is set in memory always, so the next normal save carries it; the file is rewritten here only when it was read as a table: a missing, locked or corrupt file is never overwritten by a migration)
   local m52, m60 = M.migrate052(global), M.migrate060(global)
   if (m52 or m60) and type(data) == 'table' then jsonWriteFile(FILE, global, true) end
@@ -289,7 +291,7 @@ local function set(key, value)
     extensions.hook('onStreetLegalChanged')
   else
     loadGlobal()[key] = value
-    jsonWriteFile(FILE, global, true)
+    if unreadable then log('W', 'street_legal', 'options.json did not read: the setting ' .. key .. ' is kept for this session only') else jsonWriteFile(FILE, global, true) end
   end
   extensions.hook('onStreetLegalOption', key, value)
   return true
