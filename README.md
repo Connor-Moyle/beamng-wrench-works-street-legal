@@ -98,7 +98,7 @@ Detection is BeamMP's own: `MPCoreNetwork.isMPSession()` or `MPGameNetwork.conne
 
 ## Known issues
 
-- **Wet roads and walls is off by default.** With it on, a long heavy-rain drive at High graphics lost the graphics device in five tests on BeamNG 0.40 (notes in `docs/WET_WORLD_HIGH_CRASH.md`); with it off the weather, puddles and rain work. Turn it on in Mods > Street Legal > Clock and weather only if you accept the risk.
+- **Wet roads and walls is off by default.** The version that also changed walls, roofs and pavements lost the graphics device in five heavy-rain drives at High graphics on BeamNG 0.40 (notes in `docs/WET_WORLD_HIGH_CRASH.md`). Since 0.8.1 it changes the terrain layers only, which ran one 366 s heavy-rain test at High without a crash; one run is not proof, so it stays off by default. Turn it on in Mods > Street Legal > Clock and weather if you accept the risk. With it off the weather, puddles and rain work.
 - Servicing and wear, weekly costs, used-car checks and the Wear rate setting have been tested offline; check the changelog for what has been seen in the game.
 - A few stock models (the midtruck) are kept off the lots: they can crash the game on a second lot build.
 - Some pedestrians stand still; frame time rises in the busy parts of the map with traffic and pedestrians on.
