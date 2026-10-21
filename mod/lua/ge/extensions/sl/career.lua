@@ -1612,6 +1612,15 @@ function M.phase() return s and ((s.visit and s.visit.active) and 'day' or s.pha
 -- the night is a phase now, not a clock range (D2): everything that was 'after dark' asks this
 function M.isNight() return M.phase() == 'night' end
 
+-- is the player free to be taken into something that moves the car (a calendar race, a scene)? nil when free, else the reason: a race, a job,
+-- a chase, a phase switch or a wait behind a fade, a cinematic, an open lot
+function M.freeToStart()
+  if not s then return strings.t('bank.no_career_running') end
+  if switching or (sl_scenes and sl_scenes.isActive and sl_scenes.isActive()) then return strings.t('career.not_now') end
+  if sl_lot and sl_lot.isOpen and sl_lot.isOpen() then return strings.t('career.not_now') end
+  return progression.skipRefusal(busyState())
+end
+
 -- (D3) the night's reputation is at risk until it is banked: at a garage, or by switching phase
 function M.atRisk()
   if not s then return 0 end

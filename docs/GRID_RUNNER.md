@@ -15,16 +15,27 @@ A race meeting on a closed layout the map brings, run by the game's own race obj
 
 ```lua
 local ok, text = sl_gridrace.start(spec, done)
--- spec = { layer = '003', name = 'Dockyards 3-lap sprint', laps = 3, purse = 800 }
+-- spec = { layer = '003', name = 'Dockyards 3-lap sprint', laps = 3, purse = 800, field = nil, grid = nil }
 --   layer: a West Coast dockyards layout (levels/west_coast_usa/gameplay/trackLayers/dockyards/<layer>/), or
---   dir = '/levels/<level>/<folder>/' with race.race.json, mainPrefab.prefab.json, introFwd.camPath.json, finishFwd.camPath.json
+--   dir = '/levels/<level>/<folder>/' or '/gameplay/missions/<level>/<type>/<mission>/' with race.race.json;
+--   mainPrefab.prefab.json, introFwd.camPath.json and finishFwd.camPath.json are used when the folder has them
+--   field: a roster of ours by name (sl/core/gridrace.ROSTERS: 'offroad' for the Johnson Valley loops); nil: the AI pool in the player's class
+--   grid: a cap on the AI cars below the setting
 -- done(result) is called once: { place = 1.. or nil, time = seconds, grid = cars on the grid, aborted = true|nil }
 sl_gridrace.abort()      -- a career stop, a level end or a vehicle change ends the race; done gets { aborted = true }
 sl_gridrace.running()    -- the running spec or nil
 sl_gridrace.status()     -- a line for the console
 ```
 
-The runner keeps no career state: the caller pays the entry, the purse and the reputation (`sl/core/gridrace.payout(place, purse)`: the purse to the winner, half to second, a quarter to third; 40/20/10 reputation, 5 for a finish).
+The series interface (DESIGN_CAREER_TRAVEL.md section 11.2, the Johnson Valley rounds `{ runner = 'grid', track = 'johnson_valley/timeTrial/006-ShortcourseA', laps = 3, field = 'offroad', title = ... }`):
+
+```lua
+local ok, why = sl_gridrace.startRound(ctx)   -- ctx = { series, round, def, vehId, seed, rivals }
+-- runs start() on '/gameplay/missions/' .. def.track .. '/' with def.laps, def.field and ctx.rivals as the cap, then calls once
+--   sl_series.report(ctx.series, ctx.round, { place, time, dnf, racers })   or   sl_series.abort(ctx.series, ctx.round, 'aborted')
+```
+
+The runner keeps no career state: the caller pays the entry, the purse and the reputation (`sl/core/gridrace.payout(place, purse)`: the purse to the winner, half to second, a quarter to third; 40/20/10 reputation, 5 for a finish). The Johnson Valley loops (Shortcourse A, B, C, the dune race) are closed, with 34 to 44 start positions and a `mainPrefab` for the short courses; the off-road roster is `pickup d15_track_awd_M` (A) and `d15_4wd_offroad_M` (B), `hopper race` (B), `rock_racer` (A) and `offroad` (B), `utv race` (A) and `wild` (B), `rockbouncer rock_racer` (A), `burnside banger` (B), all configs the game ships, the classes from their saved Performance Data.
 
 ## Not seen in the game yet (80's block)
 

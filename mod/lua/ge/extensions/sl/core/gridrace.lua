@@ -54,6 +54,29 @@ function M.field(cands, class, n, rng)
   return out
 end
 
+-- the fields of our own (a series round's `field`): off-road for the Johnson Valley loops (configs the game ships; the classes from their saved Performance Data)
+M.ROSTERS = {
+  offroad = {
+    { model = 'pickup', config = 'd15_track_awd_M', class = 'A' }, { model = 'pickup', config = 'd15_4wd_offroad_M', class = 'B' },
+    { model = 'hopper', config = 'race', class = 'B' }, { model = 'hopper', config = 'rock_racer', class = 'A' }, { model = 'hopper', config = 'offroad', class = 'B' },
+    { model = 'utv', config = 'race', class = 'A' }, { model = 'utv', config = 'wild', class = 'B' },
+    { model = 'rockbouncer', config = 'rock_racer', class = 'A' }, { model = 'burnside', config = 'banger', class = 'B' },
+  },
+}
+-- the candidates of a race: a named roster of ours, else the AI pool with its classes (poolFn gives { model, config, class } entries)
+function M.candidatesFor(field, poolFn)
+  local roster = field and M.ROSTERS[field]
+  if roster then
+    local out = {}
+    for i, c in ipairs(roster) do out[i] = { model = c.model, config = c.config, class = c.class } end
+    return out
+  end
+  return poolFn and poolFn() or {}
+end
+
+-- a series round's track ('johnson_valley/timeTrial/006-ShortcourseA') as the folder of its files (the game's missions live under /gameplay/missions/)
+function M.roundDir(track) return '/gameplay/missions/' .. tostring(track):gsub('^/', ''):gsub('/$', '') .. '/' end
+
 -- the AI's aggression from the player's standing: a nobody meets a calm field, a name a hard one
 function M.aggression(rep) return math.min(0.95, 0.55 + (tonumber(rep) or 0) / 5000) end
 

@@ -30,8 +30,12 @@ function M.enter(eventId, carIds)
   local s = career()
   if not s then return false, strings.t('needs.no_career') end
   local ev = rules.find(schedule(s), tostring(eventId))
-  local ok, text, fee = rules.enter(store(s), ev, s.money, s.day, sl_career.hour())
-  if ok and (fee or 0) > 0 then sl_career.addMoney(-fee, strings.t('calendar.entry_fee')) end
+  local st = store(s)
+  local ok, text, fee = rules.enter(st, ev, s.money, s.day, sl_career.hour())
+  if ok and (fee or 0) > 0 and not sl_career.addMoney(-fee, strings.t('calendar.entry_fee')) then      -- (the charge failed: the entry comes off the books)
+    st.entered[ev.id], st.remind[ev.id] = nil, nil
+    return false, strings.t('carcare.it_is_d_you_have', fee, s.money)
+  end
   if ok then extensions.hook('onStreetLegalChanged') end
   return ok, text
 end
@@ -91,11 +95,8 @@ local function startRace(ev)
   return ok
 end
 
-local tickT = 0
-local function tick(dtReal)
-  tickT = tickT + dtReal
-  if tickT < 2 then return end
-  tickT = 0
+local tickT, fails = 0, 0
+local function tickBody()
   local s = career()
   if not s then running = nil return end
   local list = schedule(s)
@@ -108,9 +109,21 @@ local function tick(dtReal)
     sl_career.sendText('benny', strings.t('calendar.you_missed_1', ev.title), 1)
     extensions.hook('onStreetLegalChanged')
   end
-  if running or not (sl_gridrace and sl_gridrace.start) or sl_gridrace.running() or (sl_streets and sl_streets.isRacing()) then return end
+  if running or not (sl_gridrace and sl_gridrace.start) or sl_gridrace.running() then return end
+  if sl_career.freeToStart and sl_career.freeToStart() then return end          -- (a race, a job, a chase, a fade, a scene, an open lot: the next tick tries again)
   local ev = rules.due(list, st, s.day, sl_career.hour(), distToGrid)
   if ev then startRace(ev) end
+end
+-- every 2 s, under a guard: an error is logged and five in a row switch the calendar's tick off for the session (the app and the actions stay)
+local function tick(dtReal)
+  tickT = tickT + dtReal
+  if tickT < 2 or fails >= 5 then return end
+  tickT = 0
+  local ok, err = pcall(tickBody)
+  if ok then fails = 0 else
+    fails = fails + 1
+    log('E', 'sl_calendar', tostring(err) .. (fails >= 5 and ' (the calendar tick is off for this session)' or ''))
+  end
 end
 function M.onUpdate(dtReal) tick(dtReal) end
 

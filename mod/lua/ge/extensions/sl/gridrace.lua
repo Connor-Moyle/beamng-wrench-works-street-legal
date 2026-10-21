@@ -5,11 +5,14 @@
 -- fade under the shared black-time budget; the intro camera path, a countdown, the laps, the finish camera path; the result (place, time) goes to
 -- whoever started it. Rules in sl/core/gridrace. No career state of its own: the caller (sl_calendar, later the invitationals) pays and records.
 --
--- API (keep it small):
+-- API (keep it small; docs/GRID_RUNNER.md):
 --   sl_gridrace.start(spec, done) -> ok, text
---     spec = { layer = '003' (a dockyards layout) or dir = '/levels/<level>/.../' (a folder with race.race.json, mainPrefab.prefab.json,
---             introFwd/finishFwd.camPath.json), name = 'the title', laps = 3, purse = 800 (shown only) }
+--     spec = { layer = '003' (a dockyards layout) or dir = '/levels/<level>/.../' (a folder with race.race.json; mainPrefab.prefab.json and
+--             introFwd/finishFwd.camPath.json when it has them), name = 'the title', laps = 3, purse = 800 (shown only),
+--             field = 'offroad' (a roster of ours, sl/core/gridrace.ROSTERS; nil: the AI pool in the player's class), grid = n (a cap on the AI cars) }
 --     done(result) once, result = { place = 1.. or nil (a DNF or an abort), time = seconds, grid = cars on the grid, aborted = true|nil }
+--   sl_gridrace.startRound(ctx) -> ok, why    the series interface (docs/DESIGN_CAREER_TRAVEL.md section 11.2): ctx.def.track, .laps, .field, .title;
+--     reports to sl_series.report(ctx.series, ctx.round, { place, time, dnf, racers }) once, or sl_series.abort(ctx.series, ctx.round, why)
 --   sl_gridrace.abort()        ends a running race (a career stop, a level end, a vehicle change); done gets { aborted = true }
 --   sl_gridrace.running()      the running spec or nil
 -- Settings: slGridCars (AI cars, 3 to 7; the Performance preset 3), slGridCams (the camera paths).
@@ -33,9 +36,11 @@ end
 local function fade(on) guihooks.trigger('slFade', { on = on }) end
 local function say(text, s) if ui_message then ui_message(text, s or 5, 'streetLegal') end end
 local function dirOf(spec) return spec.dir or ('/levels/' .. tostring(sl_career and sl_career.LEVEL or 'west_coast_usa') .. '/gameplay/trackLayers/dockyards/' .. tostring(spec.layer) .. '/') end
+local function hasFile(f) return FS and FS.fileExists and FS:fileExists(f) == true end
 
--- the performance class of each AI pool car, read once a session (the game's saved Performance Data of the config)
-local classOf = {}
+-- the performance class of each AI pool car (the game's saved Performance Data of the config), read a few at a time: a job started with the career
+-- scans the pool in the background; a race that comes first finishes the scan inside its own black-time budget, or goes with what is known
+local classOf, scanAt = {}, 1
 local function classFor(c)
   local k = c.model .. '/' .. c.config
   if classOf[k] == nil then
@@ -44,21 +49,41 @@ local function classFor(c)
   end
   return classOf[k] or nil
 end
+local function scanSome(n, until_)          -- n configs, or until the clock passes until_; true when the pool is done
+  local pool = builder.aiPool()
+  local stop = math.min(#pool, scanAt + n - 1)
+  while scanAt <= stop do
+    if until_ and os.clock() > until_ then return false end
+    classFor(pool[scanAt])
+    scanAt = scanAt + 1
+  end
+  return scanAt > #pool
+end
+local scanning = false
+local function scanInBackground()
+  if scanning or scanAt > #builder.aiPool() or not (core_jobsystem and core_jobsystem.create) then return end
+  scanning = true
+  core_jobsystem.create(function(job)
+    while not scanSome(25) do job.sleep(0.05) end
+    scanning = false
+  end)
+end
 local function candidates()
   local out = {}
   for _, c in ipairs(builder.aiPool()) do
-    local cls = classFor(c)
+    local cls = classOf[c.model .. '/' .. c.config]
     if cls then out[#out + 1] = { model = c.model, config = c.config, class = cls } end
   end
   return out
 end
+function M.onStreetLegalStarted() pcall(scanInBackground) end
 local function playerClass(vid)
   local ok, d = pcall(function() return gameplay_vehiclePerformance.getClassFromVehId(vid) end)
   return ok and type(d) == 'table' and type(d.class) == 'table' and d.class.name or 'B'
 end
 
 local function playCam(job, file, cap)
-  if not (opt('slGridCams', true) and core_paths and core_paths.loadPath) then return end
+  if not (opt('slGridCams', true) and core_paths and core_paths.loadPath and hasFile(file)) then return end
   local ok, path = pcall(core_paths.loadPath, file)
   local seconds = ok and path and rules.camSeconds(path, cap) or 0
   if seconds <= 0 then return end
@@ -99,9 +124,13 @@ local function build(job)
   fade(true)
   job.sleep(0.6)
   job.slFadeT0 = job.slFadeT0 or os.clock()
-  -- the layout's barriers and markings
-  c.prefab = 'sl_grid_' .. tostring(spec.layer or 'x')
-  if not pcall(spawnPrefab, c.prefab, dirOf(spec) .. 'mainPrefab.prefab.json', '0 0 0', '0 0 0 1', '1 1 1') then c.prefab = nil end
+  -- the layout's barriers and markings (a layout without them: none)
+  local prefabFile = dirOf(spec) .. 'mainPrefab.prefab.json'
+  if hasFile(prefabFile) then
+    c.prefab = 'sl_grid_' .. tostring(spec.layer or 'round')
+    local okp, obj = pcall(spawnPrefab, c.prefab, prefabFile, '0 0 0', '0 0 0 1', '1 1 1')
+    if not okp or not obj then c.prefab = nil end
+  end
   -- the grid: the player on the default spot, the AI on the rest
   local sps, mine = {}, r.path.startPositions.objects[r.path.defaultStartPosition]
   for _, sp in ipairs(r.path.startPositions.sorted) do if sp ~= mine and not sp.missing then sps[#sps + 1] = sp end end
@@ -116,7 +145,9 @@ local function build(job)
   local s = sl_career and sl_career.isActive() and sl_career.getState() or nil
   local rng = rngLib.new(rngLib.hash(tostring(spec.name) .. ':' .. tostring(s and s.day or 0) .. ':' .. tostring(s and s.seed or 0)))
   local want = rules.gridSize(opt('slGridCars', rules.MAX), #sps + 1)
-  local field = rules.field(candidates(), playerClass(c.playerId), want, rng)
+  if tonumber(spec.grid) then want = math.min(want, math.max(0, math.floor(spec.grid))) end
+  if not spec.field then scanSome(1e9, job.slFadeT0 + rules.BUILD_S * 0.5) end      -- (the classes still unread: up to half the budget, then what is known)
+  local field = rules.field(rules.candidatesFor(spec.field, candidates), playerClass(c.playerId), want, rng)
   local aggression = rules.aggression(s and s.rep or 0)
   for i, f in ipairs(field) do
     if os.clock() - job.slFadeT0 > rules.BUILD_S then break end
@@ -184,6 +215,20 @@ function M.abort()
   if c.done then pcall(c.done, { place = nil, aborted = true, grid = #c.ais + 1 }) end
 end
 function M.running() return cur and cur.spec or nil end
+
+-- a series round (sl_series, section 11.2): the round's track folder, laps and field; the result goes to sl_series.report once, an abort to sl_series.abort
+function M.startRound(ctx)
+  if type(ctx) ~= 'table' or type(ctx.def) ~= 'table' or not ctx.def.track then return false, strings.t('gridrace.no_track') end
+  local d = ctx.def
+  return M.start({ dir = rules.roundDir(d.track), name = d.title or tostring(d.track), laps = d.laps or 3, field = d.field, grid = ctx.rivals }, function(res)
+    if not sl_series then return end
+    if res.aborted then
+      if sl_series.abort then sl_series.abort(ctx.series, ctx.round, 'aborted') end
+    elseif sl_series.report then
+      sl_series.report(ctx.series, ctx.round, { place = res.place, time = res.time, dnf = res.place == nil, racers = res.grid })
+    end
+  end)
+end
 
 function M.onUpdate(dtReal, dtSim)
   local c = cur
