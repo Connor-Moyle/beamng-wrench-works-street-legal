@@ -219,6 +219,29 @@ assert.ok(calls.includes('cancel("r01:1")'), 'calling one off');
 click('home');
 click('open', 'bank');
 assert.ok(text().includes('-$45') && text().includes('+$300'), 'bank statement');
+assert.ok(!text().includes('Weekly costs'), 'no weekly card without weekly data');
+{
+  // the weekly costs card (sl_weekly.summary()): bills, debt with its one button, the last weeks; every part may be missing
+  const wk = { enabled: true, week: 3, dayOfWeek: 5, nextBillDay: 2, debt: 120, bills: [{ id: 'rent', label: 'Garage rent', amount: 150, due: 2 }, { id: 'insurance', label: 'Insurance', amount: 80, due: 0 }],
+    history: [{ week: 2, income: 900, costs: 400, net: 500 }, { week: 1, income: 100, costs: 300, net: -200 }, { week: 0, income: 1, costs: 1, net: 0 }, { week: -1, income: 1, costs: 1, net: 0 }, { week: -2, income: 1, costs: 1, net: 0 }] };
+  phone.handle('slPhoneData', Object.assign({}, data, { weekly: wk }));
+  let t = text();
+  assert.ok(t.includes('Weekly costs') && t.includes('Week 3, day 5 of 7') && t.includes('bills are paid in 2 days'), 'week, day and the days to the bills: ' + t.slice(0, 200));
+  assert.ok(t.includes('Garage rent') && t.includes('-$150') && t.includes('Insurance') && t.includes('tonight'), 'the coming bills');
+  assert.ok(t.includes('Debt: $120') && $('[data-a="paydebt"]'), 'debt with its pay button');
+  assert.ok(t.includes('Week 2') && t.includes('+$500') && t.includes('-$200'), 'the history, signed');
+  assert.ok(!t.includes('Week -2'), 'at most four weeks of history');
+  click('paydebt', '120');
+  assert.ok(calls.includes('payDebt(120)'), 'the pay button asks the game for payDebt');
+  phone.handle('slPhoneData', Object.assign({}, data, { weekly: { enabled: true, week: 1, dayOfWeek: 1, nextBillDay: 0 } }));
+  t = text();
+  assert.ok(t.includes('bills are paid tonight') && t.includes('No bills yet') && !t.includes('Debt:') && !$('[data-a="paydebt"]'), 'empty bills, no debt, nothing missing');
+  phone.handle('slPhoneData', Object.assign({}, data, { weekly: wk, has: Object.assign({}, data.has, { weekly: false }) }));
+  assert.ok(!text().includes('Weekly costs'), 'the part switched off: no card');
+  phone.handle('slPhoneData', Object.assign({}, data, { weekly: Object.assign({}, wk, { enabled: false }) }));
+  assert.ok(!text().includes('Weekly costs'), 'disabled: no card');
+  phone.handle('slPhoneData', data);
+}
 click('home');
 click('open', 'cab');
 click('taxi', 'junkyard');
