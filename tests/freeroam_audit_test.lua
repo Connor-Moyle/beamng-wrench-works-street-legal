@@ -95,6 +95,48 @@ check('audit: a free-roam wash cleans the car and asks no wallet', #washed == 1 
 check('audit: the control: a career ride is still charged', mods.cab.settle({ fee = 50, place = { name = 'Somewhere' } }) == 50 and wallet[1] == 'chargeFare 50')
 sl_career.chargeFare, sl_career.addMoney = careerCalls.chargeFare, careerCalls.addMoney
 _G.sl_surfacefx = nil
+
+-- the free-roam phone: a small snapshot of the free apps only, nothing of a career in it, no hidden app can be opened, and no phone action reaches a wallet or a garage
+local ph = mods.phone
+local realPlaces = sl_career.allPlaces
+sl_career.allPlaces = function() return { junk = { name = 'Junkyard', kind = 'junkyard' }, shop1 = { name = 'Parts', kind = 'shop' }, wash1 = { name = 'Wash', kind = 'carwash' }, lot1 = { name = 'Lot', kind = 'lot' } } end
+local snap = ph.freeSnapshot()
+local appSet = {}
+for _, a in ipairs(snap.apps) do appSet[a] = true end
+check('audit: the free-roam phone snapshot is free of a career (no money, rep, cars, contacts, jobs, bank, threads)', snap.freeroam == true and snap.money == nil and snap.rep == nil and snap.stats == nil and snap.garage == nil and snap.jobs == nil and snap.bank == nil and #snap.contacts == 0 and #snap.threads == 0 and snap.cars == 0 and #snap.fleet == 0)
+check('audit: the free-roam phone lists only Map and Cab, and none of the career apps', appSet.map and appSet.cab and #snap.apps == 2 and not appSet.settings and not (appSet.bank or appSet.garage or appSet.jobs or appSet.contacts or appSet.races or appSet.club or appSet.carmarket))
+local kinds = {}
+for _, p in ipairs(snap.places) do kinds[#kinds + 1] = p.kind end
+check('audit: the free-roam cab and map list only the shop and the wash, not the junkyard or a lot: ' .. table.concat(kinds, ','), #snap.places == 2)
+local gone = {}
+for _, a in ipairs({ 'bank', 'garage', 'garagekit', 'jobs', 'me', 'club', 'turf', 'carmarket', 'partmarket', 'contacts', 'messages', 'phone', 'races', 'wait', 'nonsense' }) do
+  if ph.freeAppOpens(a) ~= 'home' then gone[#gone + 1] = a end
+end
+check('audit: no career app can be opened in free roam (they fall back to home): ' .. table.concat(gone, ','), #gone == 0 and ph.freeAppOpens('map') == 'map' and ph.freeAppOpens('cab') == 'cab' and ph.freeAppOpens('settings') == 'home')
+local opened = {}
+_G.guihooks = { trigger = function(name, t) if name == 'slPhoneGo' then opened[#opened + 1] = t.app end end }
+ph.go('bank') ph.go('jobs') ph.go('garage') ph.go('map')
+check('audit: phone.go opens a hidden app as home and a free app as itself', opened[1] == 'home' and opened[2] == 'home' and opened[3] == 'home' and opened[4] == 'map')
+local mapSent
+_G.guihooks = { trigger = function(name, t) if name == 'slMap' then mapSent = t end end }
+sl_career.allPlaces = function() return { junk = { name = 'Junkyard', kind = 'junkyard', pos = { x = 1, y = 1, z = 0 } }, shop1 = { name = 'Parts', kind = 'shop', pos = { x = 2, y = 2, z = 0 } }, lot1 = { name = 'Lot', kind = 'lot', pos = { x = 3, y = 3, z = 0 } } } end
+local oldGpv = rawget(_G, 'getPlayerVehicle')
+_G.getPlayerVehicle = function() return { getPosition = function() return { x = 0, y = 0, z = 0 } end } end
+local okm, errm = pcall(ph.mapPlaces)
+_G.getPlayerVehicle = oldGpv
+local seen = {}
+local function walk(t) if type(t) == 'table' then for k, v in pairs(t) do if k == 'id' and type(v) == 'string' then seen[v] = true end walk(v) end end end
+walk(mapSent)
+check('audit: the free-roam Map app lists the shop and not the junkyard or a lot (' .. tostring(okm) .. ' ' .. tostring(errm) .. ')', mapSent ~= nil and seen.shop1 and not seen.junk and not seen.lot1)
+_G.guihooks = { trigger = function() end }
+local before2, w0 = #calls, #wallet
+for k, fn in pairs(ph) do
+  if type(fn) == 'function' and k:sub(1, 2) ~= 'on' and k ~= 'go' and k ~= 'toggle' and k ~= 'freeSnapshot' and k ~= 'freeAppOpens' then
+    pcall(fn, 'x', 1, 2) pcall(fn, 1) pcall(fn)
+  end
+end
+check('audit: no phone action (buy, sell, bank, garage, jobs ...) reaches a wallet or garage in free roam: ' .. table.concat(calls, ',', before2 + 1), #calls == before2 and #wallet == w0)
+sl_career.allPlaces = realPlaces
 setmetatable(_G, nil)
 check('audit: the hooks ran (' .. hooks .. ')', hooks > 100)
 if MUTATION then slrr_garage.addShelfPart('x', {}) end

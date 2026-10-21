@@ -18,12 +18,46 @@ local sendTimer, wantSend = 0, true
 
 local function career() return sl_career and sl_career.isActive() and sl_career.getState() or nil end
 
+-- free roam (sl_mode: the master switch and the 'phone' switch, no career): a small phone of the apps that need no career. Nothing of a career is in it (no money, rep, cars, contacts,
+-- messages or jobs), and an app that is not in the list cannot be opened.
+M.FREE_KINDS = { garage = true, shop = true, carwash = true, meet = true }       -- (the places the Cab and the Map list there)
+local function freeRoam() return career() == nil and sl_mode ~= nil and sl_mode.enabled('phone') end
+local function freeApps()
+  local out = {}      -- (no Settings app: the settings live in ESC > Mods)
+  if sl_mode.enabled('maps') then out[#out + 1] = 'map' end
+  if sl_mode.enabled('cab') then out[#out + 1] = 'cab' end
+  return out
+end
+-- the app to open: in free roam only the free apps, else the home screen
+function M.freeAppOpens(app)
+  for _, id in ipairs(freeApps()) do if id == app then return app end end
+  return 'home'
+end
+local function freeSnapshot()
+  local sb = sl_mode.state('phone') or {}
+  local h = sb.hour or 12
+  local placesOut = {}
+  for id, p in pairs(sl_career and sl_career.allPlaces and sl_career.allPlaces() or {}) do
+    if M.FREE_KINDS[p.kind] then placesOut[#placesOut + 1] = { id = id, name = p.name, kind = p.kind } end
+  end
+  table.sort(placesOut, function(a, b) return a.name < b.name end)
+  return {
+    active = true, freeroam = true, apps = freeApps(), hour = math.floor(h), minute = math.floor((h % 1) * 60), night = sb.phase == 'night', phase = sb.phase,
+    weather = sl_mode.enabled('weather') and sl_weather and sl_weather.forecast and sl_weather.forecast() or nil,
+    textScale = require('sl/core/strings').textScale(sl_options and sl_options.get and sl_options.get('slTextScale')),
+    colorBlind = sl_options ~= nil and sl_options.get ~= nil and sl_options.get('slColorBlind') == true,
+    has = { clubs = false, crews = false, classifieds = false, races = false, jobs = false, market = false, bank = false, maps = sl_mode.enabled('maps'), hudpill = false },
+    places = placesOut, contacts = {}, threads = {}, fleet = {}, cars = 0,
+  }
+end
+M.freeSnapshot = freeSnapshot
+
 ----------------------------------------------------------------------------------------------
 -- what the screen shows
 
 local function snapshot()
   local s = career()
-  if not s then return { active = false } end
+  if not s then if freeRoam() then return freeSnapshot() end return { active = false } end
   local title, nextRep, titleRep = progression.titleFor(s.rep, sl_career.LEVEL)
   local h = sl_career.hour()
   local contacts = { { id = BENNY.id, name = BENNY.name, phone = BENNY.phone, system = true } }
@@ -224,11 +258,12 @@ local function liveRoute()
 end
 
 function M.mapPlaces()
-  if not career() then return end
+  local inCareer = career() ~= nil
+  if not inCareer and not freeRoam() then return end
   liveRoute()
   local list = {}
   for id, p in pairs(sl_career.allPlaces() or {}) do
-    if p.pos then list[#list + 1] = { id = id, name = p.name, kind = p.kind, x = p.pos.x, y = p.pos.y } end
+    if p.pos and (inCareer or M.FREE_KINDS[p.kind]) then list[#list + 1] = { id = id, name = p.name, kind = p.kind, x = p.pos.x, y = p.pos.y } end
   end
   guihooks.trigger('slMap', { groups = mapLib.groups(list, playerAt()), route = route and { id = route.id, name = route.name } or nil })
 end
@@ -258,9 +293,8 @@ function M.people()
 end
 
 function M.routeTo(id)
-  local s = career()
-  local p = s and core_groundMarkers and sl_career.allPlaces()[tostring(id)]
-  if not p then return end
+  local p = (career() or freeRoam()) and core_groundMarkers and sl_career.allPlaces()[tostring(id)]
+  if not p or (not career() and not M.FREE_KINDS[p.kind]) then return end
   core_groundMarkers.setPath(p.pos)
   route = { id = tostring(id), name = p.name, x = p.pos.x, y = p.pos.y }
   answer(true, strings.t('phone.route_set', p.name))
@@ -360,14 +394,15 @@ end
 
 -- for a game test: open the phone on this app ('home', 'races', 'garage', 'bank', 'me', 'jobs', 'wait', 'help', 'settings', 'club', 'turf', 'carmarket', 'partmarket', 'phone', 'messages', 'contacts', 'cab')
 function M.go(app)
-  if not career() then return end
+  if not career() and not freeRoam() then return end
+  if not career() then app = M.freeAppOpens(tostring(app or 'home')) end
   guihooks.trigger('slPhoneGo', { app = tostring(app or 'home') })
   wantSend = true
 end
 
 -- the K key (rebindable in Options > Controls)
 function M.toggle()
-  if not career() then return end
+  if not career() and not freeRoam() then return end
   guihooks.trigger('slPhoneToggle', {})
   wantSend = true
 end
@@ -399,11 +434,15 @@ M.onStreetLegalText = function(thread, text)
   guihooks.trigger('slPhoneNotify', { thread = thread, name = name, text = text })
 end
 
+local freeWas = false
 M.onUpdate = function(dtReal)
   routeStep(dtReal)
   sendTimer = sendTimer + dtReal
   -- the clock on the screen moves too: a refresh every few seconds, sooner when something changed
-  if (wantSend and sendTimer > (anyOpen() and 0.25 or 1)) or (sendTimer > 5 and career()) then
+  local free = freeRoam()
+  if freeWas and not free then wantSend = true end      -- (the free-roam switch went off: the phone is told)
+  freeWas = free
+  if (wantSend and sendTimer > (anyOpen() and 0.25 or 1)) or (sendTimer > 5 and (career() or free)) then
     sendTimer, wantSend = 0, false
     send()
     if os.clock() - lastAccess > 5 then lastAccess = os.clock() sendAccess() end
