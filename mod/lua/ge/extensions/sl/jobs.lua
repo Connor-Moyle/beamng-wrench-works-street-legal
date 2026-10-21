@@ -458,6 +458,7 @@ end
 function M.finishWith(s, js, j, pay, rep, text)
   js.active = nil
   if core_groundMarkers then core_groundMarkers.setPath(nil) end
+  if pay > 0 and sl_perks then pay = math.floor(pay * (sl_perks.factor('jobs') or 1) / 10 + 0.5) * 10 end      -- (tier perks)
   if pay > 0 and sl_crews then pay = math.floor(pay * sl_crews.perksHere().pay / 10 + 0.5) * 10 end   -- (+10 % ending in one of your districts)
   if pay > 0 then sl_career.payOut(pay, j.title .. ': ' .. (j.item or 'delivery')) end
   stateLib.addRep(s, rep)

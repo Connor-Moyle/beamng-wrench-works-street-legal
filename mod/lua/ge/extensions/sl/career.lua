@@ -1380,7 +1380,7 @@ function M.onPursuitAction(id, action, pursuit)
     if racing then sl_streets.forfeit() end
     local ph = M.phase()
     local level = sl_police and sl_police.level and sl_police.level() or 0
-    local owed = heatLib.fine(progression.policeFine(offences, racing), ph, level)
+    local owed = math.floor(heatLib.fine(progression.policeFine(offences, racing), ph, level) * (sl_perks and sl_perks.factor('fines') or 1) + 0.5)
     local fine = math.min(s.money, owed)
     if fine > 0 then M.addMoney(-fine, strings.t('career.police_fine')) end
     local lost = 0

@@ -42,11 +42,12 @@ function M.buy(id)
   if not u then return false, strings.t('upgrades.no_such_thing') end
   local f = M.features(s)
   if (id == 'shelves' and f.shelfSize > progression.SHELF.base) or (id ~= 'shelves' and f[id]) then return false, strings.t('upgrades.the_garage_has_one_already') end
-  if not sl_career.addMoney(-u.price, strings.t('upgrades.garage_1', (u.name))) then return false, string.format(strings.t('upgrades.s_d_you_have_d'), u.name, u.price, s.money) end
+  local price = math.floor(u.price * (sl_perks and sl_perks.factor('upgrades') or 1) / 10 + 0.5) * 10
+  if not sl_career.addMoney(-price, strings.t('upgrades.garage_1', (u.name))) then return false, string.format(strings.t('upgrades.s_d_you_have_d'), u.name, price, s.money) end
   bought(s)[id] = true
   push()
   extensions.hook('onStreetLegalChanged')
-  return true, string.format(strings.t('upgrades.s_fitted_in_the_garage'), u.name, u.price)
+  return true, string.format(strings.t('upgrades.s_fitted_in_the_garage'), u.name, price)
 end
 
 -- for the phone's Garage app
@@ -56,7 +57,7 @@ function M.summary()
   local f, out = M.features(s), {}
   for _, u in ipairs(progression.UPGRADES) do
     local has = (u.id == 'shelves') and f.shelfSize > progression.SHELF.base or f[u.id] == true
-    out[#out + 1] = { id = u.id, name = u.name, price = u.price, desc = u.desc, has = has }
+    out[#out + 1] = { id = u.id, name = u.name, price = math.floor(u.price * (sl_perks and sl_perks.factor('upgrades') or 1) / 10 + 0.5) * 10, desc = u.desc, has = has }
   end
   return out
 end
