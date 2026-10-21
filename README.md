@@ -103,17 +103,21 @@ Detection is BeamMP's own: `MPCoreNetwork.isMPSession()` or `MPGameNetwork.conne
 - The Valo City map and the original cars and traffic of Street Legal Racing Redline are on hold and not part of this release.
 - Depth of field, the car lights and the hood opening in the dealers' camera shots depend on each car's own setup; switches for them are in `sl_lot.FX`.
 
-## Also in the repository
+## What ships and what does not
 
-The career can also run on the Wrench Works: Valo City map (`slrr_valo_city`); that map is on hold and not part of this release. The dashboard's own art (dials and icons) is not shipped; see `tools/slrr_ui.py`. `docs/integration.md` has the contract with the map and Wrench Works.
+- Ships: the career on **West Coast USA** (BeamNG's own map), the phone, the laptops, the markets, races, jobs, the bank, weather and puddles, free roam (off by default) and the files under `mod/`.
+- Does not ship: the **Valo City** map (`slrr_valo_city`) and the venues of the original game. The career code can still run on that map, but the map is on hold and is not part of any release. The cars and traffic of *Street Legal Racing: Redline* are not part of this release either.
+- Does not ship: the dashboard's own art (dials and icons); it is copied from each player's own game install by `tools/slrr_ui.py` and never shipped.
+- Not in the zip: the console cheat-car list (`sl/debugCars.lua`) and `tools/`.
+- `docs/integration.md` has the contract with Wrench Works and the Valo City map.
 
 ## Install (development)
 
 `tools/install.ps1` links `mod/` into BeamNG's `mods/unpacked` folder, so changes here are live after a Lua reload (Ctrl+L) and a UI reload (F5).
 
-## Debug cars
+## Debug cars (development only)
 
-The racers' custom cars are kept out of the vehicle selector. For testing, from the console (`~`, GE Lua):
+The racers' custom cars are kept out of the vehicle selector. In a development install (`tools/install.ps1`) the file `sl/debugCars.lua` is there, and from the console (`~`, GE Lua):
 
 ```
 sl_debugCars.list()                 -- the lineup: street builds Stage 1-3 from every class, track cars from the fastest
@@ -121,7 +125,7 @@ sl_debugCars.spawn(12)              -- build number 12 in front of you and get i
 sl_debugCars.spawn("night fury")    -- or by name
 ```
 
-Nothing is written to disk; a car is built when it is asked for.
+Nothing is written to disk; a car is built when it is asked for. The released zip does not contain this file, and the career runs without it.
 
 ## Tests
 
@@ -135,24 +139,18 @@ python tools/refcheck.py  # every global, hook, cross-mod call and settings key 
 
 ## Source
 
-| File | Job |
+`mod/` is what ships. The Lua is in `mod/lua/ge/extensions/sl/` (one extension per area, loaded by `mod/scripts/street_legal/modScript.lua`), the rules without game calls are in `sl/core/`, and the car's own side is in `mod/lua/vehicle/extensions/` and `mod/lua/common/`. The phone, the laptop and the dashboard are in `mod/ui/modModules/`.
+
+| Area | Files in `mod/lua/ge/extensions/sl/` |
 | --- | --- |
-| `lua/ge/extensions/sl/career.lua` | the career: start/continue, save, clock, wallet, places, arranged races, police, moving garage |
-| `lua/ge/extensions/sl/fleet.lua` | the player's cars: kept, restored, towed, swapped, sold, lost |
-| `lua/ge/extensions/sl/lot.lua` | the junkyard, dealership and scrap yard: browse, test drive, buy, sell |
-| `lua/ge/extensions/sl/streets.lua` | cruising racers, flash to race, car meets, the race runner, pink slips, the ROC |
-| `lua/ge/extensions/sl/carBuilder.lua` | stock cars, cars built as an offer says, saving and restoring a car |
-| `lua/ge/extensions/sl/markers.lua` | start lines, road flares along a race |
-| `lua/ge/extensions/sl/debugCars.lua` | the custom cars for testing, from the console (not in the vehicle selector) |
-| `lua/ge/extensions/sl/phone.lua` | what the phone shows and what its buttons do |
-| `lua/ge/extensions/sl/menuTile.lua` | the tile in Gameplay |
-| `lua/ge/extensions/sl/hud.lua` | the Street Legal dashboard |
-| `lua/ge/extensions/sl/carcare.lua` | battery, oil, coolant, wear, fuel grade, nitrous, the trunk, a car's history |
-| `lua/ge/extensions/sl/station.lua` | the gas station pumps and shop |
-| `lua/ge/extensions/sl/police.lua` | night patrols, heat, the impound |
-| `lua/ge/extensions/sl/services.lua` | the garage's Services drawer |
-| `lua/vehicle/extensions/slCar.lua` | the same in the car's own Lua: battery, fluids, wear, leaks |
-| `lua/common/sl_carcare.lua` | the car care rules |
-| `lua/ge/extensions/sl/core/*.lua` | the rules, no game calls: `progression`, `roster`, `market`, `cars`, `builds`, `state`, `rng` |
-| `ui/modModules/slPhone/slPhone.js` | the phone's screen |
-| `docs/integration.md` | how it fits with the Valo City map and Wrench Works |
+| The career, its save, the clock and the wallet | `career.lua`, `core/state.lua`, `core/progression.lua`, `fleet.lua` |
+| Dealers, lots, factory orders, the car report | `lot.lua`, `dealers.lua`, `carBuilder.lua`, `core/market.lua`, `core/carreport.lua` |
+| Markets and ads | `classifieds.lua`, `carauctions.lua`, `core/listings.lua`, `core/usedcar.lua` |
+| Races, drag, rally, police and heat | `streets.lua`, `races.lua`, `drag.lua`, `rally.lua`, `police.lua`, `rivals.lua`, `core/chase.lua` |
+| Jobs, the cab, the tow truck | `jobs.lua`, `wwjobs.lua`, `cab.lua`, `tow.lua` |
+| Money: bank, weekly costs, servicing, wear | `bank.lua`, `weekly.lua`, `service.lua`, `carcare.lua`, `core/wear.lua`, `core/service.lua` |
+| Phone and menus | `phone.lua`, `phoneskins.lua`, `options.lua`, `menuTile.lua`, `hud.lua`, `core/features.lua` |
+| World: weather, puddles, wet roads, ambience, billboards | `weather.lua`, `puddlefx.lua`, `wetworld.lua`, `ambience.lua`, `billboards.lua`, `core/gpugate.lua` |
+| Free roam | `mode.lua`, `core/mode.lua` |
+| Development | `debugCars.lua` (not shipped), `perf.lua`, `racelog.lua` |
+| Contract with other mods | `docs/integration.md` |
