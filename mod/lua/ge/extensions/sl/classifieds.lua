@@ -426,7 +426,7 @@ function M.offer(id, amount)
   if not s then return false, strings.t('bank.no_career_running') end
   local m = state(s)
   local l = find(m, id)
-  if not l or l.taken or l.channel == 'auction' or l.channel == 'meet' then return false, strings.t('classifieds.that_listing_is_gone') end   -- (a lot is only bid on; a stall is bought there)
+  if not l or l.taken or l.hidden or l.channel == 'auction' or l.channel == 'meet' then return false, strings.t('classifieds.that_listing_is_gone') end   -- (a lot is only bid on; a stall is bought there)
   local r, price = L.haggle(l, amount, m.rounds[id] or 0)
   m.rounds[id] = (m.rounds[id] or 0) + 1
   if r == 'accept' then l.agreed = price return true, string.format(strings.t('classifieds.s_deal_d'), l.seller, price) end
@@ -457,6 +457,14 @@ function M.addBarn(spot, seed)
   return l.id, offer.name
 end
 
+-- what became of a barn ad: 'open' (still for sale), 'gone' (bought, or taken off the market)
+function M.barnState(id)
+  local s = career()
+  local l = s and find(state(s), id)
+  if l and not l.taken then return 'open' end
+  return 'gone'
+end
+
 function M.revealBarn(id)
   local s = career()
   local l = s and find(state(s), id)
@@ -472,7 +480,7 @@ function M.check(id)
   local s = career()
   if not s then return false, strings.t('bank.no_career_running') end
   local l = find(state(s), id)
-  if not l or l.taken or l.kind ~= 'car' or not l.offer or l.channel == 'auction' or l.channel == 'meet' then return false, strings.t('classifieds.that_listing_is_gone') end
+  if not l or l.taken or l.hidden or l.kind ~= 'car' or not l.offer or l.channel == 'auction' or l.channel == 'meet' then return false, strings.t('classifieds.that_listing_is_gone') end
   if l.checked then return true, strings.t('usedcar.already_checked') end
   local fee = usedcar.fee(l.agreed or l.ask)
   if not sl_career.addMoney(-fee, strings.t('usedcar.check_label')) then return false, strings.t('career.not_enough_money') end
@@ -488,7 +496,7 @@ function M.buy(id, how)
   if not s then return false, strings.t('bank.no_career_running') end
   local m = state(s)
   local l = find(m, id)
-  if not l or l.taken or l.channel == 'auction' or l.channel == 'meet' then return false, strings.t('classifieds.that_listing_is_gone') end   -- (a lot is only bid on; a stall is bought there)
+  if not l or l.taken or l.hidden or l.channel == 'auction' or l.channel == 'meet' then return false, strings.t('classifieds.that_listing_is_gone') end   -- (a lot is only bid on; a stall is bought there)
   local price = l.agreed or l.ask
   local part = { part = l.item.part, name = l.item.name, slotId = l.item.slotId, value = price, wear = l.wear }
   if how == 'delivery' and l.kind == 'car' then

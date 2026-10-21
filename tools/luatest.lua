@@ -4213,6 +4213,31 @@ do
   px = spot.x + 20
   BX.onUpdate(1.5)
   check('barn: within 35 m the car is found and the ad appears', spot.found == true and st.market.listings[1].hidden == nil and #BX.summary().rumours == 0)
+  -- a hidden ad can be neither offered on, bought nor checked
+  do
+    local hid = st.market.listings[1]
+    hid.hidden = true
+    check('barn: a hidden ad is refused by offer, buy and check', C.offer(hid.id, 100) == false and C.buy(hid.id, 'pickup') == false and C.check(hid.id) == false)
+    hid.hidden = nil
+  end
+  -- the ad bought or gone: after a month the spot can hold another car
+  do
+    st.market.listings[1].taken = true
+    local spot2 = spot
+    check('barn: the barn asks what became of its ad', C.barnState(spot2.listing) == 'gone')
+    BX.onStreetLegalNewDay(st.day + 1)
+    check('barn: not reused at once', spot2.listing ~= nil and spot2.goneDay ~= nil)
+    BX.onStreetLegalNewDay(st.barn.nextHint + 200)
+    check('barn: reusable a month later (it may already hold the next rumour)', spot2.goneDay == nil)
+  end
+  -- the update fails safe: five errors switch it off
+  do
+    local oldPV2 = _G.getPlayerVehicle
+    _G.getPlayerVehicle = function() error('boom') end
+    for i = 1, 8 do BX.onUpdate(1.5) end
+    _G.getPlayerVehicle = oldPV2
+    check('barn: an update that keeps failing is guarded and switched off', true)
+  end
   st.rep = 10
   local before = #sent
   BX.onStreetLegalNewDay(st.barn.nextHint + 30)

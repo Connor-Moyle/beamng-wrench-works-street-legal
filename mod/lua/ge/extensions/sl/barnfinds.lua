@@ -42,7 +42,14 @@ function M.onStreetLegalNewDay(day)
   local s = career()
   if not s or (s.rep or 0) < rules.MIN_REP or not sl_classifieds or not sl_classifieds.addBarn then return end
   local e, b = ensure(s)
-  if not e or day < (b.nextHint or 0) then return end
+  if not e then return end
+  for _, sp in ipairs(e.spots) do          -- an ad that is gone (bought, or off the market) frees its spot after a month
+    if sp.listing and sl_classifieds.barnState and sl_classifieds.barnState(sp.listing) == 'gone' then
+      sp.goneDay = sp.goneDay or day
+      if day - sp.goneDay >= rules.REUSE_DAYS then sp.listing, sp.car, sp.found, sp.goneDay = nil, nil, nil, nil end
+    end
+  end
+  if day < (b.nextHint or 0) then return end
   local rng = rngLib.new(rngLib.hash('barnhint:' .. day .. ':' .. tostring(s.seed)))
   local free = {}
   for _, sp in ipairs(e.spots) do if not sp.listing then free[#free + 1] = sp end end
@@ -57,10 +64,7 @@ function M.onStreetLegalNewDay(day)
 end
 
 local timer = 0
-function M.onUpdate(dt)
-  timer = timer + (dt or 0)
-  if timer < 1 then return end
-  timer = 0
+local function update()
   local s = career()
   local v = s and s.barn and getPlayerVehicle(0)
   if not v then return end
@@ -74,6 +78,18 @@ function M.onUpdate(dt)
       toast(strings.t('barn.found', sp.car or '?'))
       extensions.hook('onStreetLegalChanged')
     end
+  end
+end
+
+local fails = 0
+function M.onUpdate(dt)
+  timer = timer + (dt or 0)
+  if timer < 1 or fails >= 5 then return end
+  timer = 0
+  local ok, err = pcall(update)
+  if ok then fails = 0 else
+    fails = fails + 1
+    log('E', 'street_legal', 'barn finds: ' .. tostring(err) .. (fails >= 5 and ' (switched off for this session)' or ''))
   end
 end
 
