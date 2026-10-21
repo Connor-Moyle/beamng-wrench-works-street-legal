@@ -39,7 +39,7 @@ assert(/Gus/.test($('.slsh-title span').textContent), 'the keeper is in the head
 assert.strictEqual($('.slsh-panel').getAttribute('style').match(/--sl-accent:(#[0-9a-f]{6})/i)[1], '#f2b84b', 'the theme accent is on the panel');
 assert(/\$1,200/.test($('.slsh-money').textContent), 'the money is shown');
 assert.strictEqual($$('.slsh-card').length, 4, 'a card per item');
-assert.deepStrictEqual($$('.slsh-cat').map((b) => b.textContent).slice(1), ['road', 'weather', 'track'], 'the groups are the rail');
+assert.deepStrictEqual($$('.slsh-cat').map((b) => b.firstChild.textContent).slice(1), ['road', 'weather', 'track'], 'the groups are the rail');
 click('cat', 'road');
 assert.strictEqual($$('.slsh-card').length, 2, 'a group filters the cards');
 click('cat', 'all');
@@ -87,6 +87,20 @@ assert(/--sl-accent:#a8c7fa/.test($('.slsh-panel').getAttribute('style')), 'a ba
 // names from the data are escaped
 shop.handle('slShopOpen', Object.assign(JSON.parse(JSON.stringify(tyreShop)), { name: '<img src=x onerror=alert(1)>' }));
 assert(!$('.slsh-head img') && /<img/.test($('.slsh-title b').textContent), 'a shop name cannot inject markup');
+
+// ---- text on an accent fill: --sl-deep on a light accent, white on a dark one, at least 4.5:1 for every built-in accent (and the ones in the sample data)
+const core = fs.readFileSync(path.join(__dirname, '..', 'mod/lua/ge/extensions/sl/core/shops.lua'), 'utf8');
+const accents = Array.from(new Set((core.match(/accent = '#[0-9a-fA-F]{6}'/g) || []).map((m) => m.slice(10, 17)).concat(['#f2b84b', '#9b8cf0', '#e9855b', '#a8c7fa'])));
+assert(accents.length >= 9, 'the built-in accents were found: ' + accents.length);
+const contrast = (a, b) => { const x = win.__slShopParts.luminance(a), y = win.__slShopParts.luminance(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+accents.forEach((a) => assert(contrast(a, win.__slShopParts.onAccent(a)) >= 4.5, 'text on ' + a + ' is ' + contrast(a, win.__slShopParts.onAccent(a)).toFixed(2) + ':1'));
+shop.handle('slShopOpen', Object.assign(JSON.parse(JSON.stringify(tyreShop)), { colorBlind: true }));
+assert(shop.root.classList.contains('slsh-cb') && /\.slsh-cb\{--sl-good:#56b4e9;--sl-bad:#ffb454\}/.test(shop.css), 'the colour-blind palette is the same as the phone, toggled by the data');
+shop.handle('slShopOpen', JSON.parse(JSON.stringify(tyreShop)));
+assert(!shop.root.classList.contains('slsh-cb'), 'and off again');
+assert(/--sl-on-accent:#0d0b12/.test($('.slsh-panel').getAttribute('style')), 'amber gets the dark text');
+assert.strictEqual($('.slsh-cat[data-v="all"] .slsh-count').textContent, '4', 'the rail counts the items');
+assert(/box-shadow:0 0 0 2px var\(--sl-deep\)/.test(shop.css), 'the focus ring has a dark inner line so it shows on any accent');
 
 // ---- the style rules
 shop.handle('slShopOpen', JSON.parse(JSON.stringify(tyreShop)));

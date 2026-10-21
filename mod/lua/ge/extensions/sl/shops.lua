@@ -31,7 +31,7 @@ local function ctx(s) return { repDiscount = true, tier = tierOf(s), wearPriced 
 local function view(shop, s)
   local c = ctx(s)
   local out = { kind = shop.kind, title = shop.title, name = shop.name, brand = shop.brand, theme = shop.theme, screen = shop.screen, keeper = shop.keeper, goods = shop.goods, sections = shop.sections,
-    money = s.money or 0, stock = {}, services = {} }
+    money = s.money or 0, stock = {}, services = {}, colorBlind = sl_options ~= nil and sl_options.get ~= nil and sl_options.get('slColorBlind') == true }
   for _, it in ipairs(rules.dayStock(shop, s.day)) do
     out.stock[#out.stock + 1] = { id = it.id, name = it.name, group = it.group, desc = it.desc, cond = it.cond, count = it.count, price = rules.price(it, c), was = it.price }
   end

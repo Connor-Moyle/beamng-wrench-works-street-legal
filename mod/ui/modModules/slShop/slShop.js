@@ -30,20 +30,20 @@
     '.slsh-pattern{position:absolute;left:0;top:0;right:0;bottom:0;opacity:.35;pointer-events:none}',
     '.slsh-icon{position:relative;width:48px;height:48px;flex:none;color:var(--sl-accent)}.slsh-icon svg{width:48px;height:48px}',
     '.slsh-title{position:relative;flex:1;min-width:0}.slsh-title b{display:block;font-size:22px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
-    '.slsh-title span{font-size:14px;color:var(--sl-text2)}.slsh-money{position:relative;font-size:20px;color:var(--sl-accent-l);font-variant-numeric:tabular-nums}',
+    '.slsh-title span{font-size:14px;color:var(--sl-text2)}.slsh-money{position:relative;font-size:20px;color:var(--sl-text);font-variant-numeric:tabular-nums}',
     '.slsh-closed{padding:8px 20px;background:var(--sl-surface3);color:var(--sl-bad);font-size:15px}.slsh-closed:before{content:"\\25BC "}',
     '.slsh-body{flex:1;min-height:0;display:flex}',
     '.slsh-rail{width:200px;flex:none;padding:12px 8px;border-right:1px solid var(--sl-outline);overflow-y:auto;background:var(--sl-surface1)}',
     '.slsh-main{flex:1;min-width:0;overflow-y:auto;padding:14px 16px}',
     '.slsh-side{width:300px;flex:none;display:flex;flex-direction:column;border-left:1px solid var(--sl-outline);background:var(--sl-surface2)}',
     '.slsh-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:40px;padding:8px 16px;border:1px solid var(--sl-outline);border-radius:20px;background:var(--sl-surface3);color:var(--sl-text);font:inherit;font-size:15px;cursor:pointer}',
-    '.slsh-btn:hover{border-color:var(--sl-accent)}.slsh-btn.slsh-pri{background:var(--sl-accent);color:#062e6f;border-color:var(--sl-accent)}.slsh-btn[disabled]{opacity:.45;cursor:default}',
+    '.slsh-btn:hover{border-color:var(--sl-accent)}.slsh-btn.slsh-pri{background:var(--sl-accent);color:var(--sl-on-accent,#0d0b12);border-color:var(--sl-accent)}.slsh-btn[disabled]{opacity:.45;cursor:default}',
     '.slsh-cat{display:block;width:100%;text-align:left;margin:2px 0;padding:10px 12px;border:0;border-radius:12px;background:transparent;color:var(--sl-text2);font:inherit;font-size:15px;cursor:pointer}',
     '.slsh-cat.slsh-on{background:var(--sl-surface3);color:var(--sl-text);box-shadow:inset 3px 0 0 var(--sl-accent)}',
     '.slsh-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px}',
     '.slsh-card{display:flex;flex-direction:column;gap:6px;padding:12px;border:1px solid var(--sl-outline);border-radius:14px;background:var(--sl-surface2);color:inherit;font:inherit;text-align:left;cursor:pointer}',
     '.slsh-card:hover,.slsh-card.slsh-sel{border-color:var(--sl-accent)}.slsh-card b{font-size:16px;font-weight:500}.slsh-card small{color:var(--sl-muted);font-size:13px}',
-    '.slsh-price{font-size:17px;color:var(--sl-accent-l);font-variant-numeric:tabular-nums}.slsh-was{margin-left:6px;font-size:13px;color:var(--sl-muted);text-decoration:line-through}',
+    '.slsh-price{font-size:17px;color:var(--sl-text);font-variant-numeric:tabular-nums}.slsh-was{margin-left:6px;font-size:13px;color:var(--sl-muted);text-decoration:line-through}',
     '.slsh-good{color:var(--sl-good)}.slsh-good:before{content:"\\2714 "}.slsh-bad{color:var(--sl-bad)}.slsh-bad:before{content:"\\25BC "}.slsh-up:before{content:"\\25B2 "}',
     '.slsh-cond{height:6px;border-radius:3px;background:var(--sl-surface3);overflow:hidden}.slsh-cond i{display:block;height:100%;background:var(--sl-accent)}',
     '.slsh-row{display:flex;align-items:center;gap:12px;padding:12px 14px;margin-bottom:8px;border:1px solid var(--sl-outline);border-radius:14px;background:var(--sl-surface2)}',
@@ -53,7 +53,9 @@
     '.slsh-foot{padding:12px 16px;border-top:1px solid var(--sl-outline);display:flex;flex-direction:column;gap:8px}.slsh-total{display:flex;justify-content:space-between;font-size:18px}',
     '.slsh-note{padding:16px;border:1px dashed var(--sl-outline);border-radius:14px;color:var(--sl-text2);font-size:15px;line-height:1.5}.slsh-muted{color:var(--sl-muted)}',
     '.slsh-toast{position:absolute;left:50%;bottom:28px;transform:translateX(-50%);padding:10px 18px;border-radius:20px;background:var(--sl-surface3);border:1px solid var(--sl-accent);font-size:15px}',
-    '.slsh-root [data-a]:focus,.slsh-root [tabindex]:focus{outline:3px solid var(--sl-focus)!important;outline-offset:2px}',
+    '.slsh-root [data-a]:focus,.slsh-root [tabindex]:focus{outline:3px solid var(--sl-focus)!important;outline-offset:2px;box-shadow:0 0 0 2px var(--sl-deep)}',
+    '.slsh-main::-webkit-scrollbar,.slsh-rail::-webkit-scrollbar,.slsh-cart::-webkit-scrollbar{width:8px}.slsh-main::-webkit-scrollbar-thumb,.slsh-rail::-webkit-scrollbar-thumb,.slsh-cart::-webkit-scrollbar-thumb{background:var(--sl-outline);border-radius:4px}',
+    '.slsh-count{float:right;color:var(--sl-muted);font-size:13px;font-variant-numeric:tabular-nums}',
     '@media (prefers-reduced-motion:no-preference){.slsh-card,.slsh-btn,.slsh-cat{transition:border-color .15s,background .15s}.slsh-root.slsh-open{animation:slsh-in .18s ease-out}@keyframes slsh-in{from{opacity:0}to{opacity:1}}}',
   ].join('\n');
 
@@ -86,6 +88,13 @@
     return '<svg class="slsh-pattern" width="100%" height="100%" aria-hidden="true"><defs><pattern id="slsh-pat" width="60" height="60" patternUnits="userSpaceOnUse">' + fn(accent) + '</pattern></defs><rect width="100%" height="100%" fill="url(#slsh-pat)"/></svg>';
   }
 
+  // text on an accent fill: --sl-deep or white, whichever has more contrast (docs/UI_STYLE.md says deep above a luminance of 0.4; the cross-over that always reaches 4.5:1 is lower; the test checks every built-in accent)
+  function luminance(hex) {
+    var c = [1, 3, 5].map(function (i) { var v = parseInt(hex.substr(i, 2), 16) / 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+    return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+  }
+  function onAccent(hex) { var l = luminance(hex); return (l + 0.05) / (0.0036 + 0.05) >= 1.05 / (l + 0.05) ? '#0d0b12' : '#ffffff'; }      // (whichever of the two reads better: the cross-over is at about 0.18, never below 4.5:1)
+
   // ---------------------------------------------------------------- components: pure functions, each returns a string of HTML
   function header(shop, closed) {
     var sub = shop.keeper && shop.keeper.name ? esc(shop.keeper.name) + (shop.keeper.line ? ': ' + esc(shop.keeper.line) : '') : esc(shop.title);
@@ -95,9 +104,10 @@
       '<button class="slsh-btn" data-a="close" bng-nav-item>' + esc(T('shops.ui_close', 'Close')) + '</button></div>' +
       (closed ? '<div class="slsh-closed">' + esc(closed) + '</div>' : '');
   }
-  function rail(groups, cat) {
-    var out = '<div class="slsh-rail">' + '<button class="slsh-cat' + (cat === 'all' ? ' slsh-on' : '') + '" data-a="cat" data-v="all" bng-nav-item>' + esc(T('shops.ui_all', 'Everything')) + '</button>';
-    groups.forEach(function (g) { out += '<button class="slsh-cat' + (cat === g ? ' slsh-on' : '') + '" data-a="cat" data-v="' + esc(g) + '" bng-nav-item>' + esc(g) + '</button>'; });
+  function rail(groups, cat, counts) {
+    counts = counts || {};
+    var out = '<div class="slsh-rail">' + '<button class="slsh-cat' + (cat === 'all' ? ' slsh-on' : '') + '" data-a="cat" data-v="all" bng-nav-item>' + esc(T('shops.ui_all', 'Everything')) + '<span class="slsh-count">' + (counts.all || 0) + '</span></button>';
+    groups.forEach(function (g) { out += '<button class="slsh-cat' + (cat === g ? ' slsh-on' : '') + '" data-a="cat" data-v="' + esc(g) + '" bng-nav-item>' + esc(g) + '<span class="slsh-count">' + (counts[g] || 0) + '</span></button>'; });
     return out + '</div>';
   }
   function condBar(cond) { return cond === undefined || cond === null ? '' : '<div class="slsh-cond" title="' + Math.round(cond * 100) + '%"><i style="width:' + Math.round(cond * 100) + '%"></i></div>'; }
@@ -173,9 +183,11 @@
         var g = groups(), list = arr(shop.stock).filter(function (it) { return st.cat === 'all' || it.group === st.cat; });
         var cards = list.map(function (it) { return card(it, st.sel === it.id, st.cart[it.id]); }).join('');
         if (!cards) cards = '<div class="slsh-note">' + esc(shop.goods === 'catalog' ? T('shops.ui_catalog_note', 'Parts for your car are fitted from the Wrench Works catalogue.') : T('shops.ui_none', 'Nothing is on offer today.')) + '</div>';
-        body = (g.length ? rail(g, st.cat) : '') + '<div class="slsh-main"><div class="slsh-grid">' + cards + '</div></div><div class="slsh-side">' + detail(find(st.sel), !closed) + cartBar(l, t, shop.money, closed) + '</div>';
+        var counts = { all: arr(shop.stock).length };
+        arr(shop.stock).forEach(function (it) { if (it.group) counts[it.group] = (counts[it.group] || 0) + 1; });
+        body = (g.length ? rail(g, st.cat, counts) : '') + '<div class="slsh-main"><div class="slsh-grid">' + cards + '</div></div><div class="slsh-side">' + detail(find(st.sel), !closed) + cartBar(l, t, shop.money, closed) + '</div>';
       }
-      layer.innerHTML = '<div class="slsh-panel" style="--sl-accent:' + esc(shop.theme.accent) + '">' + header(shop, closed) + '<div class="slsh-body">' + body + '</div>' + toast(st.toast) + '</div>';
+      layer.innerHTML = '<div class="slsh-panel" style="--sl-accent:' + esc(shop.theme.accent) + ';--sl-on-accent:' + onAccent(shop.theme.accent) + '">' + header(shop, closed) + '<div class="slsh-body">' + body + '</div>' + toast(st.toast) + '</div>';
       var el = focusKey ? layer.querySelector('[data-a="' + focusKey.a + '"][data-v="' + focusKey.v + '"]') || layer.querySelector('[data-a="' + focusKey.a + '"]') : null;
       if (el && el.focus) el.focus();
     }
@@ -224,6 +236,7 @@
           var fresh = !st.open || !st.shop || st.shop.name !== data.name || st.shop.kind !== data.kind;
           data.theme = data.theme || {}; data.theme.accent = /^#[0-9a-f]{6}$/i.test(data.theme.accent || '') ? data.theme.accent : '#a8c7fa';
           st.shop = data; st.open = true;
+          root.classList.toggle('slsh-cb', !!data.colorBlind);
           if (fresh) { st.cat = 'all'; st.cart = {}; st.sel = null; focusKey = null; } else { st.cart = {}; }      // (bought: the basket is empty again)
           break;
         }
@@ -237,7 +250,7 @@
     return { handle: handle, state: st, act: act, root: root, css: CSS };
   }
 
-  var api = { create: createShop, header: header, rail: rail, card: card, detail: detail, cartBar: cartBar, serviceRow: serviceRow, toast: toast, patternSvg: patternSvg, iconSvg: iconSvg, themes: Object.keys(PATTERNS) };
+  var api = { luminance: luminance, onAccent: onAccent, create: createShop, header: header, rail: rail, card: card, detail: detail, cartBar: cartBar, serviceRow: serviceRow, toast: toast, patternSvg: patternSvg, iconSvg: iconSvg, themes: Object.keys(PATTERNS) };
   if (typeof window !== 'undefined') { window.__slShopCreate = createShop; window.__slShopParts = api; }
 
   // in the game: one shop screen for the whole UI, fed by the Lua side's events
