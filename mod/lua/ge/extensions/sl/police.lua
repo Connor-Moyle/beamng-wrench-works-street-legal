@@ -520,13 +520,21 @@ function M.onStreetLegalRaceResult()
 end
 
 -- (P3) after an escape the patrols leave you alone for a while (the game's ignorePursuit flag on the player's traffic entry) and the heat cools fast
+local ignoredVid               -- the vehicle whose traffic entry carries the flag: cleared by that id (a stop or a vehicle change must never leave it set: the game's police skip a flagged entry for good)
 local function setIgnore(on)
+  local data = gameplay_traffic and gameplay_traffic.getTrafficData and gameplay_traffic.getTrafficData()
+  if ignoredVid then
+    local t = data and data[ignoredVid]
+    if t then t.ignorePursuit = nil end
+    ignoredVid = nil
+  end
+  if not on then return end
   local v = getPlayerVehicle(0)
-  local data = v and gameplay_traffic and gameplay_traffic.getTrafficData and gameplay_traffic.getTrafficData()
-  local t = data and data[v:getID()]
-  if t then t.ignorePursuit = on or nil end
+  local t = v and data and data[v:getID()]
+  if t then t.ignorePursuit = true ignoredVid = v:getID() end
 end
 function M.inCooldown() return os.clock() < cooldownUntil end
+function M.onVehicleSwitched() if M.inCooldown() then setIgnore(true) else setIgnore(false) end end      -- (the flag follows the player's car)
 -- the game's pursuit events for the player: the career settles money and reputation itself (sl_career.onPursuitAction); here the cool-down, the radio,
 -- and in free roam (no career) the whole bust: heat and a message, no money (the sandbox has no wallet)
 function M.onPursuitAction(id, action, pursuit)
@@ -635,7 +643,7 @@ function M.onUpdate(dtReal)
   end
 end
 
-function M.onStreetLegalStopped() for _, id in ipairs(units) do despawn(id) end units = {} if stripId then despawn(stripId) stripId, stripPos = nil, nil end if wallId then despawn(wallId) wallId, wallOut, spots = nil, false, nil end cooldownUntil, radio, repainted = -1e9, {}, false end
-function M.onClientEndMission() units = {} busy = false stripId, stripPos, stripBusy = nil, nil, false wallId, wallOut, wallBusy, spots = nil, false, false, nil cooldownUntil, radio, seen = -1e9, {}, {} end
+function M.onStreetLegalStopped() for _, id in ipairs(units) do despawn(id) end units = {} if stripId then despawn(stripId) stripId, stripPos = nil, nil end if wallId then despawn(wallId) wallId, wallOut, spots = nil, false, nil end cooldownUntil, radio, repainted = -1e9, {}, false setIgnore(false) end
+function M.onClientEndMission() units = {} busy = false stripId, stripPos, stripBusy = nil, nil, false wallId, wallOut, wallBusy, spots = nil, false, false, nil cooldownUntil, radio, seen = -1e9, {}, {} pcall(setIgnore, false) end
 
 return M

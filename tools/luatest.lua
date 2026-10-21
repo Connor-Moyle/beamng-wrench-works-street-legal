@@ -4419,7 +4419,8 @@ do
     _G.extensions = { hook = function(n) events[#events + 1] = n end }
     _G.ui_message = function(t) said[#said + 1] = t end
     _G.gameplay_police = { getPoliceVehicles = function() return {} end }
-    _G.gameplay_traffic = { getTrafficData = function() return {} end }
+    local traffic = { [1] = {}, [2] = {} }
+    _G.gameplay_traffic = { getTrafficData = function() return traffic end }
     _G.log = function() end
     package.loaded['sl/police'] = nil
     local P = require('sl/police')
@@ -4431,6 +4432,18 @@ do
     P.onPursuitAction(1, 'evade')
     check('police free roam: an escape is heat and the cool-down', sandbox.heat > h and P.inCooldown() and said[#said]:find('lost them') ~= nil)
     check('police free roam: the radio spoke', #P.radio() >= 2 and P.radio()[#P.radio()]:find('back to patrol') ~= nil)
+    check('police: the cool-down flags the player car for the game', traffic[1].ignorePursuit == true)
+    -- (the reviewer's case) a stop during the cool-down must clear the flag, else the police never chase that car again until the level reloads
+    P.onStreetLegalStopped()
+    check('police: a stop during the cool-down clears the flag', traffic[1].ignorePursuit == nil and not P.inCooldown())
+    P.onPursuitAction(1, 'evade')
+    local pv = _G.getPlayerVehicle
+    _G.getPlayerVehicle = function() return { getID = function() return 2 end, getVelocity = function() return { x = 0, y = 1, length = function() return 1 end } end, getPosition = function() return { x = 0, y = 0, z = 0 } end, getJBeamFilename = function() return 'covet' end } end
+    P.onVehicleSwitched(1, 2)
+    check('police: a vehicle change in the cool-down moves the flag to the new car and clears the old', traffic[1].ignorePursuit == nil and traffic[2].ignorePursuit == true)
+    P.onClientEndMission()
+    check('police: a level end clears the flag', traffic[2].ignorePursuit == nil)
+    _G.getPlayerVehicle = pv
     _G.sl_career, _G.sl_mode, _G.sl_options, _G.getPlayerVehicle, _G.extensions, _G.ui_message, _G.gameplay_police, _G.gameplay_traffic, _G.log, _G.getObjectByID = old.c, old.m, old.o, old.pv, old.e, old.um, old.gp, old.gt, old.lg, old.id
     package.loaded['sl/police'] = nil
   end
