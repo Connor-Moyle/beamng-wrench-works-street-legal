@@ -90,6 +90,7 @@ local freePaid = mods.cab.settle({ free = true, fee = 50, place = { name = 'Some
 local before = #wallet
 mods.station.freeWash({ getID = function() return 77 end })
 check('audit: a free-roam cab ride is not charged and asks no wallet', freePaid == 0 and before == 0)
+check('audit: a ride made free is free from the start, a career one is not', mods.cab.newRide(5, { name = 'x' }, 40, true).free == true and mods.cab.newRide(5, { name = 'x' }, 40).free == false and mods.cab.settle(mods.cab.newRide(5, { name = 'x' }, 40, true)) == 0)
 check('audit: a free-roam wash cleans the car and asks no wallet', #washed == 1 and washed[1] == 77 and #wallet == 0, table.concat(wallet, ','))
 check('audit: the control: a career ride is still charged', mods.cab.settle({ fee = 50, place = { name = 'Somewhere' } }) == 50 and wallet[1] == 'chargeFare 50')
 sl_career.chargeFare, sl_career.addMoney = careerCalls.chargeFare, careerCalls.addMoney

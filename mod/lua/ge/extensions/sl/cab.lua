@@ -44,7 +44,9 @@ local function place(veh, c)
 end
 
 -- the fare is charged on arrival (fee: what it will be); returns false when no cab can come here
-function M.call(destination, fee)
+-- the ride record; free (free roam) is set when it is made, never patched on afterwards
+function M.newRide(vid, destination, fee, free) return { vid = vid, place = destination, fee = fee, waited = 0, free = free == true } end
+function M.call(destination, fee, free)
   local me = onFoot()
   if ride or not me then return false end
   local mine = me:getPosition()
@@ -61,7 +63,7 @@ function M.call(destination, fee)
   local ok, veh = pcall(core_vehicles.spawnNewVehicle, MODEL, { config = CONFIG, pos = vec3(c.x, c.y, c.z + 0.5), autoEnterVehicle = false, canSpawnAnotherVehicleCheck = false })
   if not ok or not veh then return false end
   place(veh, c)
-  ride = { vid = veh:getID(), place = destination, fee = fee, waited = 0 }
+  ride = M.newRide(veh:getID(), destination, fee, free)
   local n1 = coming and map.findClosestRoad(mine)
   local node = n1 and map.getMap().nodes[n1]
   if node then
@@ -95,8 +97,7 @@ function M.callFree(placeId)
   if not place then return false, strings.t('cab.free_unknown_place') end
   if not onFoot() then return false, strings.t('cab.free_not_on_foot') end
   if ride then return false, strings.t('career.a_cab_is_already_waiting') end
-  if not M.call(place, 0) then return false, strings.t('career.the_cab_does_not_know') end
-  ride.free = true
+  if not M.call(place, 0, true) then return false, strings.t('career.the_cab_does_not_know') end
   return true, strings.t('cab.free_ride')
 end
 
