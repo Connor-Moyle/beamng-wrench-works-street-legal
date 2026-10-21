@@ -15,12 +15,16 @@ On BeamNG 0.40, in heavy rain, with Wet roads and walls on, the game loses the g
 | (a) 899afa9 | High/Custom | **off**, puddles on | - | survived 628 s |
 | trace 63fb2a8, standing | High/Custom | on, trace on | standing still | survived all 308 edits (109 s) and 180 s |
 | trace 63fb2a8, driving | High/Custom | on, trace on | reset onto a street, then driven | crashed 52 s into the rain, after 11 of 308 edits |
+| vehiclehold 1726fb8 + trace, car excluded from the plan | High/Custom, wet tarmac on | on, trace on, 10 puddles | reset onto a street, then stood still (engine start failed) | crashed 96 s into the rain, 5.2 s after edit #262 of 327; the first edit came 2.1 s after the reset (the 2 s hold worked) |
 
 ## The 11-edit crash (crash_2026-10-21_2251_highrain_wettrace_63fb2a8_driving.log in the graph repo's crashlogs)
 - Edits #1-#11 were all asphalt, the last at 211.88 s; no "wet start" without its edit afterwards, so no edit was running at the hang. The next Lua log line is the device loss at 217.14 s: a 5.3 s silence.
 - The car was rebuilt just before: slrrDrivers logged the autobello's wheel at 209.16 s, "parts that fell off" at 209.72 s; the first edit was at 209.59 s. So a vehicle reset/respawn happened about 0.4 s before the first edit and 2.7 s before the stall (the reset is in the first seconds of the edits, not at the moment of the stall).
 - The plan had 332 materials (glass 35) where the standing runs had 308 (glass 11): the car's materials seem to enter the plan when the car exists, although `classify` skips files under /vehicles/. Unchecked: which 24 glass materials these were.
 - One misclassification seen in the trace: a tree imposter material (`imposter_mat_levels_west_coast_usa_art_shapes_trees_trees_conifer_redwood_broad.dae`) counts as asphalt.
+
+## The extra glass (open)
+Every High run that crashed had the car in the world when the plan was read; the one run that finished all 308 edits (standing, trace) had a plan of 308 materials with 11 glass. The vehiclehold run read 327 materials with 30 glass even though the plan now left out every name returned by each vehicle's `getMaterialNames()` (branch worker-a-vehiclehold). So the 19-24 extra glass materials are not the car's own names (maybe a material another mod creates for the car, or a copy under another name). Their names were not captured; a no-rain check at Low (print the plan's glass names with and without the car, using `require('sl/core/wetworld').plan(list, 400)` over `getObjectsByClass('Material')`) would name them. Not done.
 
 ## What it is not
 - Not VRAM exhaustion (no allocation failure before the device loss; 5 live puddle planes in (b), 0 in the 21:11 run).
