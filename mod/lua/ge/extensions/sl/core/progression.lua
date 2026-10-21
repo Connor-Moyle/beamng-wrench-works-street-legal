@@ -27,6 +27,11 @@ M.MAPS = {
     { id = 'alderDragwayGarage', name = strings.t('progression.alder_dragway_garage') }, { id = 'commercialGarage', name = strings.t('progression.industrial_garage') },
     { id = 'belascoCityGarage', name = strings.t('progression.belasco_city_garage') } } },
 }
+-- the maps a career travels to (docs/DESIGN_CAREER_TRAVEL.md): not maps to play a career on (they are not in MAP_ORDER), no feature of the home world exists there
+M.MAPS.johnson_valley = { name = strings.t('progression.johnson_valley'), visit = true, races = 'sl_races', has = {} }
+M.MAPS.utah = { name = strings.t('progression.utah'), visit = true, races = 'sl_races', has = {} }
+M.MAPS.hirochi_raceway = { name = strings.t('progression.hirochi_raceway'), visit = true, races = 'sl_races', has = {} }
+function M.isVisit(level) return M.MAPS[level] ~= nil and M.MAPS[level].visit == true end
 M.MAP_ORDER = { 'west_coast_usa', 'slrr_valo_city' }      -- (West Coast USA is the game; Valo City is parked: its code stays, it is only not the default)
 M.DEFAULT_MAP = 'west_coast_usa'
 -- A save from before the maps were chosen has no level field, and before West Coast USA was the default every career was a Valo City one: a save with no level IS Valo City.
