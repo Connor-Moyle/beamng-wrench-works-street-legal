@@ -2890,6 +2890,36 @@ do -- the career's tyres (sl/core/tyres)
   check('tyres: a change is refused moving or when short of money, never otherwise', T.refusal(100, 500, true) ~= nil and T.refusal(100, 50, false) ~= nil and T.refusal(100, 100, false) == nil)
 end
 
+do -- the free-roam switches in the Mods menu list (sl/options) and the game side (sl/mode)
+  local Op = require('sl/options')
+  local Mo = require('sl/core/mode')
+  local oldR, oldW = rawget(_G, 'jsonReadFile'), rawget(_G, 'jsonWriteFile')
+  _G.jsonReadFile, _G.jsonWriteFile = function() return {} end, function() return true end
+  local all = true
+  for _, f in ipairs(Mo.FEATURES()) do
+    local k = Mo.key(f.id)
+    local d for _, x in ipairs(Op.defs) do if x.key == k then d = x end end
+    all = all and d ~= nil and d.type == 'bool' and d.default == false and d.tab == 'Free roam' and Op.get(k) == false
+  end
+  check('free roam: the master and every feature switch are Mods-menu bools, off by default', all)
+  _G.jsonReadFile, _G.jsonWriteFile = oldR, oldW
+  local saved = { sl_career = rawget(_G, 'sl_career'), sl_options = rawget(_G, 'sl_options') }
+  package.loaded['sl/mode'] = nil
+  local M = require('sl/mode')
+  _G.sl_career, _G.sl_options = nil, nil
+  check('free roam: with no career and the switches off nothing runs and there is no state', M.kind() == nil and not M.enabled('phone') and M.state('phone') == nil)
+  local on = {}
+  _G.sl_options = { get = function(k) return on[k] end }
+  on.freeroam, on.freeroam_phone = true, true
+  check('free roam: master and feature switch enable it, the state is still nil (sandbox comes later)', M.kind() == 'freeroam' and M.enabled('phone') and not M.enabled('maps') and M.state('phone') == nil)
+  local st = { cars = {} }
+  _G.sl_career = { isActive = function() return true end, getState = function() return st end }
+  on.freeroam, on.freeroam_phone = nil, nil
+  check('free roam: in a career everything runs with the career state, whatever the switches', M.kind() == 'career' and M.enabled('rivals') and M.state('phone') == st)
+  _G.sl_career, _G.sl_options = saved.sl_career, saved.sl_options
+  package.loaded['sl/mode'] = nil
+end
+
 do -- Street Legal in free roam (sl/core/mode)
   local Mo = require('sl/core/mode')
   local on = {}

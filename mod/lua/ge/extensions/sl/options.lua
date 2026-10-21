@@ -200,6 +200,10 @@ local PRESETS = {
 for _, f in ipairs(require('sl/core/features').LIST) do
   M.defs[#M.defs + 1] = { key = f.opt, feature = true, title = f.title, type = 'bool', default = true, tab = 'Parts of the game', group = 'Parts of the game', desc = f.desc }
 end
+-- Street Legal in free roam (sl/core/mode, sl_mode): the master switch and one per feature, all off by default; a feature needs the master and its own switch
+for _, f in ipairs(require('sl/core/mode').FEATURES()) do
+  M.defs[#M.defs + 1] = { key = require('sl/core/mode').key(f.id), title = f.title, type = 'bool', default = false, tab = 'Free roam', group = 'Free roam', desc = f.tip }
+end
 local byKey = {}
 for _, d in ipairs(M.defs) do
   local own = d.group                          -- (a def of another module names its own group: it is its sub-heading on the Mods menu page)
