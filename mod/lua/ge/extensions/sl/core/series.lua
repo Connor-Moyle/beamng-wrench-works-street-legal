@@ -13,7 +13,7 @@ M.RACERS = 4                            -- a race round without a count: the pla
 
 -- one entry per calendar series id (the id without the cycle). prize: shares of the calendar series' purse and reputation by final position
 M.DEFS = {
-  ['hirochi-cup'] = { id = 'hirochi-cup', map = 'hirochi_raceway', scoring = 'place', points = M.RACE_POINTS, class = 'road',
+  ['hirochi-cup'] = { id = 'hirochi-cup', map = 'hirochi_raceway', purse = 2000, scoring = 'place', points = M.RACE_POINTS, class = 'road',
     prize = { money = { 1.0, 0.55, 0.3, 0.15 }, rep = { 30, 20, 10, 5 } }, loaner = { model = 'covet', config = 'race' },
     rounds = {
       { runner = 'mission', mission = 'hirochi_raceway/aiRace/001-Short', title = 'Short circuit' },
@@ -21,7 +21,7 @@ M.DEFS = {
       { runner = 'mission', mission = 'hirochi_raceway/aiRace/003-Long', title = 'Long circuit' },
       { runner = 'mission', mission = 'hirochi_raceway/aiRace/004-derby', title = 'Banger derby', finale = true },
     } },
-  ['utah-rally'] = { id = 'utah-rally', map = 'utah', scoring = 'time', points = M.RALLY_POINTS, class = 'rally',
+  ['utah-rally'] = { id = 'utah-rally', map = 'utah', purse = 3000, scoring = 'time', points = M.RALLY_POINTS, class = 'rally',
     prize = { money = { 1.0, 0.55, 0.3, 0.15 }, rep = { 40, 25, 15, 8 } }, loaner = { model = 'sunburst2', config = 'rally_am_gravel' },
     rounds = {
       { runner = 'mission', mission = 'utah/rallyStage/ngrc26-ss1-river', title = 'SS1 River' },
@@ -29,7 +29,7 @@ M.DEFS = {
       { runner = 'mission', mission = 'utah/rallyStage/ngrc26-ss3-river-reverse', title = 'SS3 River reverse' },
       { runner = 'mission', mission = 'utah/rallyStage/ngrc26-ss4-canyon-reverse', title = 'SS4 Canyon reverse' },
     } },
-  ['jv-offroad'] = { id = 'jv-offroad', map = 'johnson_valley', scoring = 'place', points = M.RACE_POINTS, class = 'offroad',
+  ['jv-offroad'] = { id = 'jv-offroad', map = 'johnson_valley', purse = 1200, scoring = 'place', points = M.RACE_POINTS, class = 'offroad',
     prize = { money = { 1.0, 0.55, 0.3, 0.15 }, rep = { 30, 20, 10, 5 } }, loaner = { model = 'pickup', config = 'd15_track_awd_M' },
     rounds = {
       { runner = 'mission', mission = 'johnson_valley/aiRace/005-outbackbangers', title = 'Outback bangers' },
