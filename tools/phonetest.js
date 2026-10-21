@@ -945,6 +945,25 @@ assert.ok(calls.includes('routeGarage()'), 'Route to my garage on the home scree
   phone.handle('slPhoneData', data);
   assert.ok(!phone.root.querySelector('[data-a="open"][data-v="traps"]'), 'no data: no app');
 }
+{
+  // the danger zones (sl_danger.summary()) share the Speed traps page: the jump ladder card and the drift zones; the page works with one of them, both, or none
+  const danger = { drift: [{ id: 'd1', name: 'Drift zone 1', target: 3000, best: 3500, count: 2, paid: true, metres: 5200, pay: 300 }, { id: 'd2', name: 'Drift zone 2', target: 5000, best: 0, count: 0, paid: false, metres: 900, pay: 500 }], jump: { best: 38.4, count: 5, next: 50, prize: 400 } };
+  phone.handle('slPhoneData', Object.assign({}, data, { danger }));
+  phone.act('home');
+  assert.ok(phone.root.querySelector('[data-a="open"][data-v="traps"]'), 'the app shows with danger data alone');
+  phone.act('open', 'traps');
+  let tx = text();
+  assert.ok(tx.includes('Danger zones') && tx.includes('Longest jump') && tx.includes('38 m') && tx.includes('Next prize $400 at 50 m'), 'the jump card: ' + tx.slice(0, 300));
+  assert.ok(tx.indexOf('Drift zone 2') < tx.indexOf('Drift zone 1') && tx.includes('3000 points') && tx.includes('\u2714') && tx.includes('$500') && tx.includes('Paid') && tx.includes('900 m away'), 'the drift zones, nearest first, with target, met mark, reward or Paid, distance');
+  phone.handle('slPhoneData', Object.assign({}, data, { danger: { drift: [], jump: { best: 60, count: 9, next: null, prize: 400 } } }));
+  assert.ok(text().includes('Every prize is paid'), 'all four rungs paid');
+  phone.handle('slPhoneData', Object.assign({}, data, { danger, traps: { list: [{ id: 't1', name: 'Speed trap 1', kind: 'trap', target: 150, best: 0, count: 0, paid: false, metres: 100, pay: 250 }] } }));
+  tx = text();
+  assert.ok(tx.includes('Speed trap 1') && tx.includes('Danger zones') && tx.includes('Drift zone 1'), 'both on one page');
+  phone.handle('slPhoneData', Object.assign({}, data, { danger, has: Object.assign({}, data.has, { danger: false }) }));
+  assert.ok(!phone.root.querySelector('[data-a="open"][data-v="traps"]'), 'the part off: no app');
+  phone.handle('slPhoneData', data);
+}
 console.log('phone test passed');
 
 // a page to look at: the phone in several states side by side

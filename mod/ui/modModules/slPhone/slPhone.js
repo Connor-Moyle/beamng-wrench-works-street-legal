@@ -459,7 +459,7 @@
           { id: 'garagekit', title: T('app.garagekit', 'Garage'), icon: I.house },
           { id: 'bank', title: T('app.bank', 'Bank'), icon: I.bank, hide: has.bank === false },
           { id: 'me', title: T('app.me', 'Street cred'), icon: I.me },
-          { id: 'traps', title: T('app.traps', 'Speed traps'), icon: I.traps, hide: !d.traps || has.traps === false },
+          { id: 'traps', title: T('app.traps', 'Speed traps'), icon: I.traps, hide: !(d.traps && has.traps !== false) && !(d.danger && has.danger !== false) },
           { id: 'jobs', title: T('app.jobs', 'Jobs'), icon: I.jobs, badge: d.jobs && d.jobs.active ? 1 : 0, hide: has.jobs === false },
           { id: 'wait', title: T('app.wait', 'Wait'), icon: I.wait },
           { id: 'help', title: T('app.help', 'Help'), icon: I.help },
@@ -1272,18 +1272,33 @@
 
     // the speed traps and zones (sl_traps.summary(): { list = { { id, name, kind: trap|zone, target km/h, best km/h (0 = never), count, paid, metres, pay } } }): nearest first
     function trapsPage() {
-      var list = arr(obj(st.data.traps).list).slice().sort(function (a, b) { return (a.metres == null ? 1e9 : a.metres) - (b.metres == null ? 1e9 : b.metres); });
-      var cards = list.map(function (t) {
+      var tr = obj(st.data.traps), dg = obj(st.data.danger), hasTraps = st.data.traps && obj(st.data.has).traps !== false, hasDanger = st.data.danger && obj(st.data.has).danger !== false;
+      var byDistance = function (a, b) { return (a.metres == null ? 1e9 : a.metres) - (b.metres == null ? 1e9 : b.metres); };
+      var away = function (t) { return t.metres != null ? '<p>' + T('ui.trap_away', '{1} away', Number(t.metres) >= 1000 ? (t.metres / 1000).toFixed(1) + ' km' : Math.round(t.metres) + ' m') + '</p>' : ''; };
+      var cards = (hasTraps ? arr(tr.list) : []).slice().sort(byDistance).map(function (t) {
         var met = Number(t.best) >= Number(t.target);
         return '<div class="slp-card"><h4>' + esc(t.name || '') + ' <span class="slp-chip" style="margin:0 0 0 6px">' + (t.kind === 'zone' ? T('ui.trap_zone', 'Zone') : T('ui.trap_trap', 'Trap')) + '</span></h4>' +
           '<div class="slp-kv"><span>' + T('ui.trap_target', 'Target') + '</span><b>' + Math.round(Number(t.target) || 0) + ' km/h</b></div>' +
           '<div class="slp-kv"><span>' + T('ui.trap_best', 'Your best') + '</span><b' + (met ? ' class="slp-on"' : '') + '>' + (Number(t.best) > 0 ? (met ? '&#10004; ' : '') + Math.round(t.best) + ' km/h' : '&ndash;') + '</b></div>' +
           '<div class="slp-kv"><span>' + T('ui.trap_times', 'Times passed') + '</span><b>' + (Number(t.count) || 0) + '</b></div>' +
-          '<div class="slp-kv"><span>' + T('ui.trap_reward', 'Reward') + '</span><b>' + (t.paid ? '&#10004; ' + T('ui.trap_paid', 'Paid') : money(t.pay)) + '</b></div>' +
-          (t.metres != null ? '<p>' + T('ui.trap_away', '{1} away', Number(t.metres) >= 1000 ? (t.metres / 1000).toFixed(1) + ' km' : Math.round(t.metres) + ' m') + '</p>' : '') + '</div>';
+          '<div class="slp-kv"><span>' + T('ui.trap_reward', 'Reward') + '</span><b>' + (t.paid ? '&#10004; ' + T('ui.trap_paid', 'Paid') : money(t.pay)) + '</b></div>' + away(t) + '</div>';
       }).join('');
-      return bar(T('app.traps', 'Speed traps')) + '<div class="slp-body"><div class="slp-card"><p>' + T('ui.trap_intro', 'Drive through a trap faster than its target to be paid, once. A zone pays for holding the speed through it.') + '</p></div>' +
-        (cards || '<div class="slp-empty">' + T('ui.trap_none', 'No traps on this map yet.') + '</div>') + '</div>';
+      // the danger zones (sl_danger.summary(): { drift = { { id, name, target (points), best, count, paid, metres, pay } }, jump = { best (m), count, next (m or nil), prize } })
+      var jump = hasDanger ? obj(dg.jump) : null;
+      var jumpCard = jump ? '<div class="slp-card"><h4>' + T('ui.danger_jumps', 'Jumps') + '</h4>' +
+        '<div class="slp-kv"><span>' + T('ui.danger_jump_best', 'Longest jump') + '</span><b>' + (Number(jump.best) > 0 ? Math.round(jump.best) + ' m' : '&ndash;') + '</b></div>' +
+        '<div class="slp-kv"><span>' + T('ui.danger_jumps_count', 'Jumps') + '</span><b>' + (Number(jump.count) || 0) + '</b></div>' +
+        '<p>' + (jump.next != null ? T('ui.danger_jump_next', 'Next prize {1} at {2} m', money(jump.prize), Math.round(jump.next)) : '&#10004; ' + T('ui.danger_jump_done', 'Every prize is paid')) + '</p></div>' : '';
+      var drift = (hasDanger ? arr(dg.drift) : []).slice().sort(byDistance).map(function (z) {
+        var met = Number(z.best) >= Number(z.target);
+        return '<div class="slp-card"><h4>' + esc(z.name || '') + ' <span class="slp-chip" style="margin:0 0 0 6px">' + T('ui.danger_drift', 'Drift') + '</span></h4>' +
+          '<div class="slp-kv"><span>' + T('ui.danger_target', 'Target') + '</span><b>' + Math.round(Number(z.target) || 0) + ' ' + T('ui.danger_points', 'points') + '</b></div>' +
+          '<div class="slp-kv"><span>' + T('ui.trap_best', 'Your best') + '</span><b' + (met ? ' class="slp-on"' : '') + '>' + (Number(z.best) > 0 ? (met ? '&#10004; ' : '') + Math.round(z.best) : '&ndash;') + '</b></div>' +
+          '<div class="slp-kv"><span>' + T('ui.trap_reward', 'Reward') + '</span><b>' + (z.paid ? '&#10004; ' + T('ui.trap_paid', 'Paid') : money(z.pay)) + '</b></div>' + away(z) + '</div>';
+      }).join('');
+      var title = hasDanger && !hasTraps ? T('ui.danger_title', 'Danger zones') : T('app.traps', 'Speed traps');
+      return bar(title) + '<div class="slp-body">' + (hasTraps ? '<div class="slp-card"><p>' + T('ui.trap_intro', 'Drive through a trap faster than its target to be paid, once. A zone pays for holding the speed through it.') + '</p></div>' + (cards || '<div class="slp-empty">' + T('ui.trap_none', 'No traps on this map yet.') + '</div>') : '') +
+        (hasDanger ? '<div class="slp-card"><h4>' + T('ui.danger_title', 'Danger zones') + '</h4><p>' + T('ui.danger_intro', 'A jump ladder and drift zones: each prize is paid once.') + '</p></div>' + jumpCard + drift : '') + '</div>';
     }
 
     function mePage() {
