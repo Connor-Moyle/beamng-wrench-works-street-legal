@@ -3720,4 +3720,43 @@ do
   package.loaded['sl/core/shops'] = nil
 end
 
+-- shops: the game side (sl/shops) against a stubbed game
+do
+  local ST = require('sl/core/state')
+  local st = ST.new(1, 0)
+  st.day, st.money, st.rep = 3, 500, 1000
+  local sent, hooks, toasts = {}, {}, {}
+  local old = { c = rawget(_G, 'sl_career'), g = rawget(_G, 'guihooks'), e = rawget(_G, 'extensions'), t = rawget(_G, 'core_environment') }
+  _G.guihooks = { trigger = function(n, d) sent[#sent + 1] = { n = n, d = d } if n == 'slPhoneToast' then toasts[#toasts + 1] = d.text end end }
+  _G.extensions = { hook = function(n, ...) hooks[#hooks + 1] = { n = n, a = { ... } } end }
+  _G.core_environment = { getTimeOfDay = function() return { time = 0 } end }      -- noon
+  _G.sl_career = { isActive = function() return true end, getState = function() return st end, addMoney = function(a, l) return ST.addMoney(st, a, l) end }
+  package.loaded['sl/shops'] = nil
+  local SS = require('sl/shops')
+  local ok, why = SS.open('bakery', {})
+  check('sl_shops: an unknown kind is refused', ok == false and why:find('unknown shop kind', 1, true) ~= nil and #sent == 0)
+  local bought
+  ok = SS.open('accessories', { name = 'Trim', id = 'trim1', stock = { { id = 'plate', name = 'Plate', price = 100 }, { id = 'lamp', name = 'Lamp', price = 40 } }, onBuy = function(lines, total) bought = { lines, total } end })
+  local ev = sent[#sent]
+  check('sl_shops: open sends the screen the shop with the player\'s prices (reputation discount) and the money', ok and ev.n == 'slShopOpen' and ev.d.kind == 'accessories' and ev.d.money == 500 and ev.d.stock[1].price == 98 and ev.d.stock[1].was == 100 and ev.d.closed == nil)
+  SS.buy('plate:2,lamp:1')
+  check('sl_shops: buying takes the money once, calls onBuy and the hook, and refreshes the screen', st.money == 500 - (98 * 2 + 39) and bought and bought[2] == 98 * 2 + 39 and hooks[#hooks].n == 'onStreetLegalShopBought' and hooks[#hooks].a[1] == 'trim1' and sent[#sent].n == 'slShopOpen' and sent[#sent].d.money == st.money)
+  local before = st.money
+  SS.buy('plate:99,lamp:1')
+  check('sl_shops: buying more than you can pay for changes nothing', st.money == before and toasts[#toasts] ~= nil)
+  SS.buy('nonsense:1')
+  check('sl_shops: an item that is not in the stock changes nothing', st.money == before)
+  SS.close()
+  check('sl_shops: close tells the screen', sent[#sent].n == 'slShopClose' and not SS.isOpen())
+  SS.buy('plate:1')
+  check('sl_shops: nothing is bought with no shop open', st.money == before)
+  _G.core_environment = { getTimeOfDay = function() return { time = 0.5 } end }      -- midnight: shops are shut
+  SS.open('accessories', { stock = { { id = 'plate', price = 100 } } })
+  check('sl_shops: a shut shop shows why and sells nothing', sent[#sent].d.closed ~= nil)
+  SS.buy('plate:1')
+  check('sl_shops: buying in a shut shop changes nothing', st.money == before)
+  _G.sl_career, _G.guihooks, _G.extensions, _G.core_environment = old.c, old.g, old.e, old.t
+  package.loaded['sl/shops'] = nil
+end
+
 print(string.format('lua tests passed: %d checks', passed))
