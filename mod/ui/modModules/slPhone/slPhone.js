@@ -356,7 +356,7 @@
   var SLRR_ART = '/ui/modModules/slHud/slrr/icons/';
   var SLRR_ICON = { races: 'cup.png', garage: 'garage.png', bank: 'dollar.png', cab: 'city.png', me: 'roc.png' };
   function slrrIcon(name, cls) { return '<img class="slp-slrr ' + (cls || '') + '" src="' + SLRR_ART + name + '" alt="">'; }
-  var APP_COLORS = { map: '#3a7d6e', camera: '#3b6fa0', gallery: '#a05a8a', carmarket: '#2e7d4f', partmarket: '#a3322c', settings: '#5c6474', wait: '#4a5d7a', market: '#a3322c', paper: '#5b5346', bid: '#b5651d', club: '#6a2e7a', jobs: '#3d7a2e', phone: '#2e7d4f', messages: '#2f5fb3', contacts: '#7b4fb0', races: '#c2541e', bank: '#1f7a70', cab: '#b58a12', me: '#5c6474', garage: '#8a3b8f', garagekit: '#6b5b2e' };
+  var APP_COLORS = { map: '#3a7d6e', camera: '#3b6fa0', gallery: '#a05a8a', carmarket: '#2e7d4f', partmarket: '#a3322c', settings: '#5c6474', wait: '#4a5d7a', market: '#a3322c', paper: '#5b5346', bid: '#b5651d', club: '#6a2e7a', jobs: '#3d7a2e', phone: '#2e7d4f', messages: '#2f5fb3', contacts: '#7b4fb0', races: '#c2541e', bank: '#1f7a70', cab: '#b58a12', me: '#5c6474', garage: '#8a3b8f', garagekit: '#6b5b2e', traps: '#b4541a', health: '#b23a5e', help: '#4a6fa5', turf: '#7a4a2e' };      // (every app has its own tile colour: the white icon needs a fill)
   var AV_COLORS = ['#a8c7fa', '#f2b8b5', '#c3e7c6', '#ffd8a8', '#d0bcff', '#9fe0e8', '#ffb4ab', '#e8def8'];
   var CLASS_NAMES = { beater: T('ui.beaters', 'Beaters'), compact: T('ui.compacts', 'Compacts'), muscle: T('ui.muscle', 'Muscle'), tuner: T('ui.tuners', 'Tuners'), sport: T('ui.sports_cars', 'Sports cars'), super: T('ui.supercars', 'Supercars') };
 
@@ -853,7 +853,7 @@
       var html = '<div class="slp-card"><h4>' + T('ui.weekly_costs', 'Weekly costs') + '</h4><p>' + T('ui.week_day', 'Week {1}, day {2} of 7', Number(wk.week) || 1, Number(wk.dayOfWeek) || 1) + ' &middot; ' +
         (left <= 0 ? T('ui.bills_tonight', 'bills are paid tonight') : left === 1 ? T('ui.bills_in_one_day', 'bills are paid in 1 day') : T('ui.bills_in_days', 'bills are paid in {1} days', left)) + '</p>';
       html += bills.length ? bills.map(function (b) {
-        return '<div class="slp-row" style="min-height:40px;cursor:default"><div class="slp-rt"><b>' + esc(b.label || '') + '</b><small>' + (Number(b.due) <= 0 ? T('ui.due_tonight', 'tonight') : T('ui.due_in_days', 'in {1} d', Number(b.due) || 0)) +
+        return '<div class="slp-row" style="min-height:40px;cursor:default;padding:6px 0"><div class="slp-rt" style="margin-left:0"><b>' + esc(b.label || '') + '</b><small>' + (Number(b.due) <= 0 ? T('ui.due_tonight', 'tonight') : T('ui.due_in_days', 'in {1} d', Number(b.due) || 0)) +
           '</small></div><div class="slp-amt slp-minus">' + money(-(Number(b.amount) || 0)) + '</div></div>';
       }).join('') : '<p>' + T('ui.no_bills_yet', 'No bills yet: rent starts with a second garage or more than two cars.') + '</p>';
       if (debt > 0) {
@@ -863,7 +863,7 @@
       }
       html += hist.map(function (h) {
         var net = Number(h.net) || 0;
-        return '<div class="slp-row" style="min-height:40px;cursor:default"><div class="slp-rt"><b>' + T('ui.week_n', 'Week {1}', Number(h.week) || 0) + '</b><small>' + T('ui.week_in_out', 'in {1} &middot; out {2}', money(h.income), money(h.costs)) +
+        return '<div class="slp-row" style="min-height:40px;cursor:default;padding:6px 0"><div class="slp-rt" style="margin-left:0"><b>' + T('ui.week_n', 'Week {1}', Number(h.week) || 0) + '</b><small>' + T('ui.week_in_out', 'in {1} &middot; out {2}', money(h.income), money(h.costs)) +
           '</small></div><div class="slp-amt ' + (net >= 0 ? 'slp-plus' : 'slp-minus') + '">' + (net >= 0 ? '+' : '') + money(net) + '</div></div>';
       }).join('');
       return html + '</div>';
