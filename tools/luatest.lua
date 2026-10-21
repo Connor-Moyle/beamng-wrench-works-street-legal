@@ -431,6 +431,8 @@ do
   local c = ww.parseColor('0.8 0.7 0.6 1')
   check('wet: colour text round trips and the alpha is untouched', c and #c == 4 and ww.formatColor(c, 0.5) == '0.4000 0.3500 0.3000 1.0000' and ww.parseColor('x') == nil)
   local plan = ww.plan({ { name = 'grass_a' }, { name = 'road_b' }, { name = 'tunnel_road' }, { name = 'wall_c' }, { name = 'road_a' }, { name = 'ui_x' } }, 3)
+  local withFiles = ww.plan({ { name = 'bld_glass_transparent', file = '/levels/x/a.materials.json' }, { name = 'hopper_signalglass_L', file = '' }, { name = 'autobello_chmslglass', file = '' }, { name = 'asphalt_a' } }, 10)
+  check('wet: a material the game reports with an empty file (a vehicle-side one, such as a lamp glass) is never planned; a missing file field still goes by the name', #withFiles == 2 and withFiles[1].name == 'asphalt_a' and withFiles[2].name == 'bld_glass_transparent')
   check('wet: the plan is road first, the rest by kind, capped, with the skipped left out', #plan == 3 and plan[1].name == 'road_a' and plan[2].name == 'road_b' and plan[3].name == 'wall_c')
   check('wet: the batch is small when edits are slow and never above the maximum', ww.batch(nil) == 2 and ww.batch(nil, 3, 1) == 1 and ww.batch(10) == 1 and ww.batch(0.1, 3, 8) == 8 and ww.batch(1, 3, 8) == 3)
   -- the kinds of standing water: the odds add to one, every kind is sane, the long ones lie along the road, and over many draws every kind comes
@@ -3213,6 +3215,8 @@ do -- 0.5.2: a saved Wet tarmac "on" is reset to off once
   O.migrate052(b)
   check('wet tarmac migration: nothing saved stays unset (the default applies), and a saved off stays off', b.slWetTarmac == nil and b.slWetTarmacReset052 == true and O.migrate052({ slWetTarmac = false }) == true)
 end
+
+check('wet trace: a line names the number, kind, material, step and time', require('sl/core/wetworld').traceLine(7, { kind = 'asphalt', name = 'road_a' }, 6, 1.5) == 'wet edit #7 asphalt road_a -> step 6 (1.5 ms)' and require('sl/core/wetworld').traceLine(7, { kind = 'asphalt', name = 'road_a' }, 6) == 'wet start #7 asphalt road_a -> step 6')
 
 do -- 0.6.0: a saved Wet roads and walls "on" is reset to off once, and the default is off
   local O = require('sl/options')

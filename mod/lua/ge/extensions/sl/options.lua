@@ -95,6 +95,8 @@ M.defs = {
     desc = strings.t('options.how_many_police_cars_patrol') },
   { key = 'slNightPrespawn', tab = 'Night traffic', group = strings.t('options.prepare_night_traffic_during_the_fade'), title = strings.t('options.prepare_night_traffic_during_the_fade'), type = 'bool', default = true,
     desc = strings.t('options.builds_the_first_two_cruisers') },
+  { key = 'slWetTrace', advanced = true, tab = 'Developer', group = 'Rain on the ground', title = strings.t('options.wet_trace'), type = 'bool', default = false,
+    desc = strings.t('options.wet_trace_text') },
   { key = 'slOfflineTree', advanced = true, tab = 'Developer', group = 'Night traffic', title = strings.t('options.read_the_parts_tree_without_a_car'), type = 'bool', default = true,
     desc = strings.t('options.a_first_build_of_a') },
   { key = 'slRain', needs = 'weather', title = 'Rain', type = 'range', min = 0, max = 0.5, step = 0.02, default = 0.12, unit = '/h',
