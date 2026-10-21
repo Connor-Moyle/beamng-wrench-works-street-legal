@@ -333,6 +333,7 @@
     bank: svg('M4 10v7h3v-7zm6 0v7h3v-7zM2 22h19v-3H2zm14-12v7h3v-7zM11.5 1 2 6v2h19V6z'),
     house: svg('M12 3 2 12h3v8h5v-6h4v6h5v-8h3z'),
     sponsors: svg('M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14 2 9.27l6.91-1.01z'),
+    event: svg('M14.4 6 14 4H5v17h2v-7h5.6l.4 2h7V6z'),
     calendar: svg('M19 3h-1V1h-2v2H8V1H6v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm0 16H5V9h14zM5 7V5h14v2zm2 4h5v5H7z'),
     traps: svg('M20.38 8.57l-1.23 1.85a8 8 0 0 1-.22 7.58H5.07A8 8 0 0 1 15.58 6.85l1.85-1.23A10 10 0 0 0 3.35 19a2 2 0 0 0 1.72 1h13.85a2 2 0 0 0 1.74-1 10 10 0 0 0-.27-10.44zm-9.79 6.84a2 2 0 0 0 2.83 0l5.66-8.49-8.49 5.66a2 2 0 0 0 0 2.83z'),
     cab: svg('M18.9 6c-.2-.6-.8-1-1.4-1h-11c-.7 0-1.2.4-1.4 1L3 12v8a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-1h12v1a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-8zM6.5 16A1.5 1.5 0 1 1 8 14.5 1.5 1.5 0 0 1 6.5 16zm11 0a1.5 1.5 0 1 1 1.5-1.5 1.5 1.5 0 0 1-1.5 1.5zM5 11l1.5-4.5h11L19 11z'),
@@ -357,7 +358,7 @@
   var SLRR_ART = '/ui/modModules/slHud/slrr/icons/';
   var SLRR_ICON = { races: 'cup.png', garage: 'garage.png', bank: 'dollar.png', cab: 'city.png', me: 'roc.png' };
   function slrrIcon(name, cls) { return '<img class="slp-slrr ' + (cls || '') + '" src="' + SLRR_ART + name + '" alt="">'; }
-  var APP_COLORS = { map: '#3a7d6e', camera: '#3b6fa0', gallery: '#a05a8a', carmarket: '#2e7d4f', partmarket: '#a3322c', settings: '#5c6474', wait: '#4a5d7a', market: '#a3322c', paper: '#5b5346', bid: '#b5651d', club: '#6a2e7a', jobs: '#3d7a2e', phone: '#2e7d4f', messages: '#2f5fb3', contacts: '#7b4fb0', races: '#c2541e', bank: '#1f7a70', cab: '#b58a12', me: '#5c6474', garage: '#8a3b8f', garagekit: '#6b5b2e', calendar: '#2f6f9f', sponsors: '#9a6b12' };
+  var APP_COLORS = { map: '#3a7d6e', camera: '#3b6fa0', gallery: '#a05a8a', carmarket: '#2e7d4f', partmarket: '#a3322c', settings: '#5c6474', wait: '#4a5d7a', market: '#a3322c', paper: '#5b5346', bid: '#b5651d', club: '#6a2e7a', jobs: '#3d7a2e', phone: '#2e7d4f', messages: '#2f5fb3', contacts: '#7b4fb0', races: '#c2541e', bank: '#1f7a70', cab: '#b58a12', me: '#5c6474', garage: '#8a3b8f', garagekit: '#6b5b2e', event: '#2f6f9f', calendar: '#2f6f9f', sponsors: '#9a6b12' };
   var AV_COLORS = ['#a8c7fa', '#f2b8b5', '#c3e7c6', '#ffd8a8', '#d0bcff', '#9fe0e8', '#ffb4ab', '#e8def8'];
   var CLASS_NAMES = { beater: T('ui.beaters', 'Beaters'), compact: T('ui.compacts', 'Compacts'), muscle: T('ui.muscle', 'Muscle'), tuner: T('ui.tuners', 'Tuners'), sport: T('ui.sports_cars', 'Sports cars'), super: T('ui.supercars', 'Supercars') };
 
@@ -446,6 +447,8 @@
           return '<div class="slp-app" data-a="open" data-v="' + a.id + '"><div class="slp-ico" style="background:' + APP_COLORS[a.id] + '">' + ico + '</div>' + badge + '<span>' + a.title + '</span></div>';
         }).join('');
       };
+      var ON_TRIP = { event: 1, garage: 1, bank: 1, calendar: 1, help: 1, messages: 1, contacts: 1, phone: 1 };      // (away from home: the paddock, the cars brought, money, plans, talk)
+      var onTrip = function (a) { if (d.visit && !ON_TRIP[a.id]) a.hide = true; return a; };
       var arranged = arr(d.challenges).length;
       var tut = d.tutorial ? ('<div class="slp-card slp-tut"><h4>' + T('ui.getting_started', 'Getting started ')) + d.tutorial.step + '/' + d.tutorial.total + ': ' + esc(d.tutorial.title) + '</h4><p>' + esc(d.tutorial.text) + '</p>' +
         ('<div class="slp-acts"><div class="slp-btn slp-text" data-a="tutskip" data-v="1">' + T('ui.skip_the_tutorial', 'Skip the tutorial') + '</div></div></div>') : '';
@@ -456,6 +459,7 @@
         (d.freeroam ? '' :         '<div><span class="slp-chip">' + esc(d.title || '') + ' &middot; ' + (d.rep || 0) + ' rep &middot; ' + money(d.money) + '</span>' +
           '<span class="slp-chip" data-a="routegarage" data-v="1" style="cursor:pointer">' + T('ui.route_to_my_garage', 'Route to my garage') + '</span></div>') +
         (d.freeroam ? '' : tut) + '<div class="slp-grid">' + appsHtml([
+          { id: 'event', title: T('app.event', 'Event'), icon: I.event, hide: !d.visit },
           { id: 'races', title: T('app.races', 'Races'), icon: I.flag, badge: arranged || 0, hide: has.races === false },
           { id: 'garage', title: T('app.garage', 'My cars'), icon: I.cab },
           { id: 'garagekit', title: T('app.garagekit', 'Garage'), icon: I.house },
@@ -474,13 +478,13 @@
           { id: 'turf', title: T('app.turf', 'Turf'), icon: I.turf, hide: has.crews === false },
           { id: 'carmarket', title: T('app.carmarket', 'Car market'), icon: I.cab, hide: has.market === false },
           { id: 'partmarket', title: T('app.partmarket', 'Part market'), icon: I.market, badge: (d.market && d.market.deliveries || 0) + (d.market ? arr(d.market.auctions).filter(function (l) { return l.high === 'you'; }).length : 0), hide: has.classifieds === false || has.market === false },
-        ]) + '</div>' +
+        ].map(onTrip)) + '</div>' +
         '<div class="slp-dock">' + appsHtml([
           { id: 'phone', title: T('app.phone', 'Phone'), icon: I.phone },
           { id: 'messages', title: T('app.messages', 'Messages'), icon: I.msg, badge: unread() || 0 },
           { id: 'contacts', title: T('app.contacts', 'Contacts'), icon: I.contacts },
           { id: 'cab', title: T('app.cab', 'Cab'), icon: I.cab },
-        ]).replace(/<span>[^<]*<\/span>/g, '') + '</div></div>';
+        ].map(onTrip)).replace(/<span>[^<]*<\/span>/g, '') + '</div></div>';
     }
 
     function contactLine(c) {
@@ -1414,6 +1418,43 @@
       return bar(T('app.calendar', 'Calendar')) + '<div class="slp-tabs" style="padding:0 16px 8px">' + tabs + '</div><div class="slp-body">' + body + '</div>';
     }
 
+    // the trip (docs/DESIGN_CAREER_TRAVEL.md): the pick-cars screen over everything while sl_series.options(eventId) is open, the paddock hub (sl_series.hub()) while on a visit
+    function pickPage() {
+      var o = obj(st.data.travelPick), sel = arr(st.pickSel), max = Number(o.max) || 3, lo = o.loaner;
+      if (st.pickFor !== o.eventId) { st.pickFor = o.eventId; st.pickSel = sel = []; st.pickLoaner = false; }
+      var n = sel.length + (st.pickLoaner ? 1 : 0), total = (Number(o.fee) || 0) + (Number(o.perCar) || 0) * sel.length + (st.pickLoaner && lo ? Number(lo.deposit) || 0 : 0);
+      var cars = arr(o.cars).map(function (c) {
+        var on = sel.indexOf(c.id) >= 0, ok = c.fits !== false && (on || sel.length < max);
+        return '<div class="slp-card' + (c.fits === false ? ' slp-off' : '') + '"' + (ok ? ' data-a="pickcar" data-v="' + esc(c.id) + '" style="cursor:pointer"' : '') + '><h4>' + (on ? '&#10004; ' : '') + esc(c.name) + '</h4>' +
+          (c.fits === false ? '<p class="slp-warn">&#9888; ' + esc(c.why || T('ui.trip_no_fit', 'Does not fit this event')) + '</p>' : (c.report ? '<p>' + esc(c.report) + '</p>' : '')) + '</div>';
+      }).join('');
+      var loan = lo ? '<div class="slp-card" data-a="pickloaner" data-v="1" style="cursor:pointer"><h4>' + (st.pickLoaner ? '&#10004; ' : '') + T('ui.trip_loaner', 'Borrow {1}', esc(lo.name || '')) + '</h4><p>' + T('ui.trip_deposit', 'Deposit {1}', money(lo.deposit)) + '</p></div>' : '';
+      var body = o.refuse ? '<div class="slp-empty">' + esc(o.refuse) + '</div>'
+        : '<p style="padding:0 16px">' + T('ui.trip_pick', 'Pick up to {1} cars to bring.', max) + '</p>' + cars + loan +
+          '<div class="slp-card"><div class="slp-kv"><span>' + T('ui.trip_fee', 'Entry fee') + '</span><b>' + money(o.fee) + '</b></div>' +
+          '<div class="slp-kv"><span>' + T('ui.trip_per_car', 'Each car brought') + '</span><b>' + money(o.perCar) + '</b></div>' +
+          '<div class="slp-kv"><span>' + T('ui.trip_time', 'Travel') + '</span><b>' + T('ui.trip_hours', '{1} h', Number(o.hours) || 0) + '</b></div>' +
+          '<div class="slp-kv"><span>' + T('ui.trip_total', 'Total') + '</span><b>' + money(total) + '</b></div>' +
+          '<div class="slp-acts"><div class="slp-btn' + (n ? '' : ' slp-off') + '" data-a="pickconfirm" data-v="1">' + T('ui.trip_confirm', 'Confirm and go') + '</div></div></div>';
+      return bar(o.name || T('app.event', 'Event')).replace('data-a="back"', 'data-a="pickback"') + '<div class="slp-body">' + body + '</div>';
+    }
+    function hubPage() {
+      var h = obj(st.data.hub), nx = h.next;
+      var rows = arr(h.standings).map(function (r) {
+        return '<div class="slp-kv"><span>' + (Number(r.pos) || 0) + '. ' + (r.you ? '<b>' + esc(r.name) + '</b>' : esc(r.name)) + '</span><b>' + (Number(r.points) || 0) + ' ' + T('ui.trip_pts', 'pts') + (r.time ? ' &middot; ' + esc(r.time) : '') + '</b></div>';
+      }).join('');
+      var home = '<div class="slp-card">' + (st.hubHome ? '<p class="slp-warn">' + T('ui.trip_home_sure', 'Go home now? The rest of this series counts as missed and the entry fee is gone.') + '</p>' : '') +
+        '<div class="slp-acts"><div class="slp-btn slp-text" data-a="hubhome" data-v="1">' + (st.hubHome ? T('ui.trip_home_yes', 'Yes, go home') : T('ui.trip_home', 'Go home')) + '</div>' +
+        (st.hubHome ? '<div class="slp-btn slp-text" data-a="hubhome" data-v="0">' + T('ui.cancel', 'Cancel') + '</div>' : '') + '</div></div>';
+      return bar(h.name || T('app.event', 'Event')) + '<div class="slp-body">' +
+        '<div class="slp-card"><h4>' + esc(h.name || '') + '</h4><div class="slp-kv"><span>' + esc(h.place || '') + '</span><b>' + T('ui.trip_round', 'Round {1} of {2}', Number(h.round) || 1, Number(h.rounds) || 1) + '</b></div>' +
+        (h.untilDay != null ? '<p>' + T('ui.trip_until', 'You can stay until day {1}', Number(h.untilDay) || 0) + '</p>' : '') + '</div>' +
+        (nx ? '<div class="slp-card"><h4>' + T('ui.trip_next', 'Next: {1}', esc(nx.name || '')) + '</h4><p>' + esc(nx.when || '') + '</p>' + (nx.startable === false && nx.why ? '<p class="slp-warn">' + esc(nx.why) + '</p>' : '') +
+          '<div class="slp-acts"><div class="slp-btn' + (nx.startable === false ? ' slp-off' : '') + '" data-a="hubstart" data-v="1">' + T('ui.trip_start', 'Start') + '</div></div></div>' : '') +
+        (rows ? '<div class="slp-card"><h4>' + T('ui.trip_standings', 'Standings') + '</h4>' + rows + '</div>' : '') +
+        (arr(h.cars).length ? '<div class="slp-card"><h4>' + T('ui.trip_cars', 'Your cars here') + '</h4>' + arr(h.cars).map(function (c) { return '<p>' + esc(c.name) + '</p>'; }).join('') + '</div>' : '') + home + '</div>';
+    }
+
     function mePage() {
       var d = st.data, s = obj(d.stats);
       var from = d.titleRep || 0, to = d.nextRep, pct = to ? Math.max(0, Math.min(100, ((d.rep || 0) - from) / (to - from) * 100)) : 100;
@@ -1737,7 +1778,11 @@
       var repScroll0 = layer.querySelector('.slp-repbody');
       var repKeep = repScroll0 ? repScroll0.scrollTop : 0;
       var page;
+      if (d.travelPick) st.app = 'pick';
+      else if (st.app === 'pick') st.app = 'home';
       switch (st.app) {
+        case 'pick': page = pickPage(); break;
+        case 'event': page = hubPage(); break;
         case 'contacts': page = contactsPage(); break;
         case 'contact': page = contactPage(); break;
         case 'messages': page = messagesPage(); break;
@@ -2100,7 +2145,22 @@
         case 'calenter': lua('calendarEnter(' + JSON.stringify(String(v)) + ')'); break;
         case 'caldecline': lua('calendarDecline(' + JSON.stringify(String(v)) + ')'); st.calEvent = null; break;
         case 'calremind': var cr = String(v).split('|'); lua('calendarRemind(' + JSON.stringify(cr[0]) + ',' + (cr[1] === 'true' ? 'true' : 'false') + ')'); break;
-        case 'caltravel': lua('calendarTravel(' + JSON.stringify(String(v)) + ')'); break;
+        case 'caltravel': lua('travelPick(' + JSON.stringify(String(v)) + ')'); break;
+        case 'pickcar':
+          var ps = arr(st.pickSel).slice(), pi = ps.indexOf(String(v));
+          if (pi >= 0) ps.splice(pi, 1); else ps.push(String(v));
+          st.pickSel = ps; render(); break;
+        case 'pickloaner': st.pickLoaner = !st.pickLoaner; render(); break;
+        case 'pickconfirm':
+          if (arr(st.pickSel).length || st.pickLoaner) lua('travelConfirm(' + JSON.stringify(String(obj(st.data.travelPick).eventId)) + ',' + JSON.stringify(arr(st.pickSel)) + ',' + (st.pickLoaner ? 'true' : 'false') + ')');
+          break;
+        case 'pickback': st.pickFor = null; lua('travelClose()'); break;      // (the next time starts with no cars picked)
+        case 'hubstart': lua('hubStart()'); break;
+        case 'hubhome':
+          if (v === '0') st.hubHome = false;
+          else if (!st.hubHome) st.hubHome = true;      // (the rest counts as missed: ask once more)
+          else { st.hubHome = false; lua('hubHome()'); }
+          render(); break;
         case 'service': var sp = String(v).split('|'); lua('service(' + Number(sp[0]) + ',' + JSON.stringify(sp[1] || '') + ')'); break;
         case 'insure': lua('insure(' + (v === 'true' ? 'true' : 'false') + ')'); break;
         case 'tutskip': lua('@sl_tutorial.skip()'); break;

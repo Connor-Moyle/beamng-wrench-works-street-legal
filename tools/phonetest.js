@@ -1061,7 +1061,7 @@ assert.ok(calls.includes('routeGarage()'), 'Route to my garage on the home scree
   click('calopen', 'utah-rally:3:r1');
   calls.length = 0;
   click('caltravel', 'utah-rally:3:r1');
-  assert.ok(calls.some((c) => c.indexOf('calendarTravel("utah-rally:3:r1")') >= 0), 'with the requirement met, Go there asks the game to travel');
+  assert.ok(calls.some((c) => c.indexOf('travelPick("utah-rally:3:r1")') >= 0), 'with the requirement met, Go there opens the pick-cars screen');
   click('back');
   click('calopen', 'weekend:dock-3:5');
   assert.ok(phone.root.querySelector('[data-a="calenter"][data-v="weekend:dock-3:5"]'), 'a home event is entered directly');
@@ -1078,6 +1078,56 @@ assert.ok(calls.includes('routeGarage()'), 'Route to my garage on the home scree
   assert.ok(text().includes('Nothing planned.'), 'an empty calendar says so');
   click('caltab', 'series');
   assert.ok(text().includes('No series running'), 'no series says so');
+  phone.act('home');
+  phone.handle('slPhoneData', data);
+}
+{
+  // the trip (tools/travel_fixture.js is the contract): the pick-cars screen, the Event hub, a trip leaves only the apps that work away from home
+  const tf = require('./travel_fixture.js');
+  const base = Object.assign({}, data);
+  phone.act('home');
+  phone.handle('slPhoneData', Object.assign({}, base, { travelPick: tf.options }));
+  let tx = text();
+  assert.ok(tx.includes('NGRC Utah Rally') && tx.includes('Subaru Impreza GC8') && tx.includes('Gravel tyres') && tx.includes('Too low for the stages') && tx.includes('Pick up to 3 cars'), 'the pick screen: ' + tx.slice(0, 300));
+  assert.ok(!phone.root.querySelector('[data-a="pickcar"][data-v="c3"]'), 'a car that does not fit cannot be picked');
+  assert.ok(phone.root.querySelector('.slp-btn.slp-off[data-a="pickconfirm"]'), 'Confirm is dimmed with no car');
+  calls.length = 0;
+  click('pickconfirm', '1');
+  assert.ok(calls.length === 0, 'nothing sent with no car');
+  click('pickcar', 'c1'); click('pickcar', 'c2');
+  tx = text();
+  assert.ok(tx.includes('$800') && tx.includes('$200') && tx.includes('6 h') && tx.includes('$1,200'), 'total = fee + each car: ' + tx.slice(0, 500));
+  click('pickconfirm', '1');
+  assert.ok(calls.includes('travelConfirm("utah-rally:3:r1",["c1","c2"],false)'), 'Confirm: ' + calls.join(' '));
+  click('pickback');
+  assert.ok(calls.includes('travelClose()'), 'Back closes the screen');
+  phone.handle('slPhoneData', Object.assign({}, base, { travelPick: Object.assign({}, tf.options, { loaner: { name: 'Rental Hatch', deposit: 300 }, cars: [] }) }));
+  click('pickloaner', '1');
+  assert.ok(text().includes('Borrow Rental Hatch') && text().includes('Deposit $300') && text().includes('$1,100'), 'a loaner when no car fits, with its deposit in the total');
+  calls.length = 0; click('pickconfirm', '1');
+  assert.ok(calls.includes('travelConfirm("utah-rally:3:r1",[],true)'), 'the loaner goes');
+  phone.handle('slPhoneData', Object.assign({}, base, { travelPick: Object.assign({}, tf.options, { refuse: 'Not during a race.' }) }));
+  assert.ok(text().includes('Not during a race.') && !phone.root.querySelector('[data-a="pickconfirm"]'), 'a refusal shows its reason and nothing to confirm');
+  phone.handle('slPhoneData', base);
+  assert.ok(!text().includes('Pick up to'), 'closed with the data gone');
+  phone.act('home');
+  assert.ok(!phone.root.querySelector('[data-a="open"][data-v="event"]'), 'no Event app at home');
+  phone.handle('slPhoneData', Object.assign({}, base, { visit: tf.visit, hub: tf.hub }));
+  assert.ok(phone.root.querySelector('[data-a="open"][data-v="event"]') && !phone.root.querySelector('[data-a="open"][data-v="races"]') && !phone.root.querySelector('[data-a="open"][data-v="garagekit"]') && !phone.root.querySelector('[data-a="open"][data-v="cab"]') &&
+    phone.root.querySelector('[data-a="open"][data-v="garage"]') && phone.root.querySelector('[data-a="open"][data-v="bank"]') && phone.root.querySelector('[data-a="open"][data-v="messages"]'), 'on a trip: the Event app, the cars, money, talk; no races, home garage or cab');
+  phone.act('open', 'event');
+  tx = text();
+  assert.ok(tx.includes('Round 2 of 4') && tx.includes('You can stay until day 44') && tx.includes('Next: SS2 Canyon') && tx.includes('Day 43 08:00') && tx.includes('K. Ward') && tx.includes('25 pts') && tx.includes('4:15.9') && tx.includes('Standings') && tx.includes('Subaru Impreza GC8'), 'the hub: ' + tx.slice(0, 500));
+  calls.length = 0;
+  click('hubstart', '1');
+  assert.ok(calls.includes('hubStart()'), 'Start');
+  click('hubhome', '1');
+  assert.ok(!calls.includes('hubHome()') && text().includes('The rest of this series counts as missed'), 'Go home asks first, in plain words');
+  click('hubhome', '0'); assert.ok(!text().includes('counts as missed'), 'Cancel closes it');
+  click('hubhome', '1'); click('hubhome', '1');
+  assert.ok(calls.includes('hubHome()'), 'the second press goes home');
+  phone.handle('slPhoneData', Object.assign({}, base, { visit: tf.visit, hub: Object.assign({}, tf.hub, { next: { name: 'SS3', when: 'Day 44 08:00', startable: false, why: 'Not before 08:00' } }) }));
+  assert.ok(phone.root.querySelector('.slp-btn.slp-off[data-a="hubstart"]') && text().includes('Not before 08:00'), 'a round that cannot start yet says why');
   phone.act('home');
   phone.handle('slPhoneData', data);
 }

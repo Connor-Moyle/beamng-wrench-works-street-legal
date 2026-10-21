@@ -56,6 +56,8 @@ M.freeSnapshot = freeSnapshot
 ----------------------------------------------------------------------------------------------
 -- what the screen shows
 
+local travelPick = nil
+
 local function snapshot()
   local s = career()
   if not s then if freeRoam() then return freeSnapshot() end return { active = false } end
@@ -115,6 +117,9 @@ local function snapshot()
     cars = #s.cars, stats = s.stats,
     perks = sl_perks and sl_perks.perks and sl_perks.perks() or nil,
     calendar = sl_calendar and sl_calendar.summary and sl_calendar.summary() or nil,      -- (the Calendar app: nil with the part off or no career)
+    visit = sl_career.visit and sl_career.visit() and { name = sl_career.visit().name or sl_career.mapName(), round = sl_career.visit().round, rounds = sl_career.visit().rounds, untilDay = sl_career.visit().untilDay } or nil,      -- (on a trip: the phone shows the Event hub)
+    hub = sl_career.visit and sl_career.visit() and sl_series and sl_series.hub and sl_series.hub() or nil,      -- (the paddock: standings, the next round, the cars brought)
+    travelPick = travelPick,      -- (the pick-cars screen: sl_series.options(eventId) while one is open)
     danger = sl_danger and sl_danger.summary and sl_danger.summary() or nil,      -- (jumps and drift zones, on the Speed traps page)
     traps = sl_traps and sl_traps.summary and sl_traps.summary() or nil,      -- (the Speed traps page: nil with the part off or no career)
     fleet = (function()      -- each car with its service card (sl_service.serviceOf: nil with the part off or for an unknown car)
@@ -383,6 +388,24 @@ function M.borrow(amount) if career() and sl_bank then answer(sl_bank.borrow(ton
 function M.calendarEnter(eventId, carIds) if career() and sl_calendar and sl_calendar.enter then answer(sl_calendar.enter(tostring(eventId), type(carIds) == 'table' and carIds or nil)) end end
 function M.calendarDecline(eventId) if career() and sl_calendar and sl_calendar.decline then answer(sl_calendar.decline(tostring(eventId))) end end
 function M.calendarRemind(eventId, on) if career() and sl_calendar and sl_calendar.remind then answer(sl_calendar.remind(tostring(eventId), on == true or on == 'true')) end end
+-- the trip: open the pick-cars screen for an event, confirm it (sl_series answers ok, text), close it; the paddock's two buttons
+function M.travelPick(eventId)
+  if not (career() and sl_series and sl_series.options) then return end
+  local o, why = sl_series.options(tostring(eventId))
+  if not o then answer(false, why) return end
+  travelPick = o
+  wantSend = true
+end
+function M.travelClose() travelPick = nil wantSend = true end
+function M.travelConfirm(eventId, carIds, useLoaner)
+  if not (career() and sl_series and sl_series.confirm) then return end
+  local ok, text = sl_series.confirm(tostring(eventId), type(carIds) == 'table' and carIds or {}, useLoaner == true)
+  if ok then travelPick = nil end
+  answer(ok, text)
+end
+function M.hubStart() if career() and sl_series and sl_series.startNext then answer(sl_series.startNext()) end end
+function M.hubHome() if career() and sl_career.returnHome then answer(sl_career.returnHome('forfeit')) end end
+
 function M.calendarTravel(eventId) if career() and sl_calendar and sl_calendar.travel then answer(sl_calendar.travel(tostring(eventId))) end end
 function M.service(carId, optionId) if career() and sl_service then answer(sl_service.service(tonumber(carId), tostring(optionId))) end end
 function M.sponsorAccept() if career() and sl_sponsor then answer(sl_sponsor.accept()) end end
