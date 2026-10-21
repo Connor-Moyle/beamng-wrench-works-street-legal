@@ -702,12 +702,21 @@ local function meetPace(job)
   return true
 end
 
+-- the place of the meet the night is going to have next (or nil), for building its cars early
+function M.plannedMeet()
+  local s = career()
+  if not s then return nil end
+  local list = {}
+  for _, p in pairs(sl_career.getPlaces() or {}) do if p.kind == 'meet' then list[#list + 1] = p end end
+  return nightlife.plannedMeet(list, s.day, meetsTonight, s.seed, rngLib)
+end
+
 local function startMeet(s)
   local list = {}
   for _, p in pairs(sl_career.getPlaces() or {}) do if p.kind == 'meet' then list[#list + 1] = p end end
   if #list == 0 or busy then return end
   local rng = rngLib.new(rngLib.hash('meet' .. s.day .. math.floor(sl_career.hour())))
-  local place = list[rng:int(#list)]
+  local place = nightlife.plannedMeet(list, s.day, meetsTonight, s.seed, rngLib)       -- (the same place however late the try comes: the night fade can build for it)
   if not meetHidden(place.pos) then return false end         -- tried again at the next chance
   local racers = {}
   for _, r in ipairs(s.racers) do
