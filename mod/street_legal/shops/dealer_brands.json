@@ -1,0 +1,9 @@
+{
+  "_note": "The brands on each dealer's sign (the brand feather flags of the map stand at the dealerships: Jefferson Motors has Bruckell, Gavril and Ibishu, Belasco Auto Ibishu and Gavril). The dealer's Parts counter sells the parts of these brands for the player's cars. Keys: place id, stock id or place name.",
+  "west_coast_usa": {
+    "dealer": ["Bruckell", "Gavril", "Ibishu"],
+    "jeffersonmotors": ["Bruckell", "Gavril", "Ibishu"],
+    "Jefferson Motors": ["Bruckell", "Gavril", "Ibishu"],
+    "belascoAuto": ["Ibishu", "Gavril"]
+  }
+}

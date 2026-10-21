@@ -98,6 +98,13 @@ function M.normalize(kind, opts)
   opts = type(opts) == 'table' and opts or {}
   local s = { kind = kind, title = t.title, name = tostring(opts.name or t.title), brand = opts.brand and tostring(opts.brand) or nil, goods = t.goods, screen = t.screen,
     theme = { accent = t.theme.accent, pattern = t.theme.pattern, icon = t.theme.icon }, hoursKind = t.hours, sections = t.sections, stock = {}, services = {} }
+  local function texts(list)
+    local out = {}
+    for _, v in ipairs(type(list) == 'table' and list or {}) do if type(v) == 'string' and v ~= '' then out[#out + 1] = v end end
+    return #out > 0 and out or nil
+  end
+  s.sections = texts(opts.sections) or s.sections      -- (a shop of this kind may sell other chapters: "engine/exhaust", "engine/intake")
+  s.brands = texts(opts.brands)                          -- (only parts of these brands: a dealer's counter)
   if type(opts.theme) == 'table' then
     if isHex(opts.theme.accent) then s.theme.accent = opts.theme.accent end
     if opts.theme.pattern then s.theme.pattern = tostring(opts.theme.pattern) end
@@ -134,7 +141,7 @@ function M.fromMarker(fields)
     if a then o.hours = { tonumber(a), tonumber(b) } end
   elseif type(f.hours) == 'table' then o.hours = f.hours end
   if f.keeper then o.keeper = type(f.keeper) == 'table' and f.keeper or { name = tostring(f.keeper) } end
-  o.stock, o.services, o.range = f.stock, f.services, f.range
+  o.stock, o.services, o.range, o.sections, o.brands, o.replaces = f.stock, f.services, f.range, f.sections, f.brands, f.replaces
   return kind, o
 end
 

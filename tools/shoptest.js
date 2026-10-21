@@ -111,6 +111,9 @@ shop.handle('slShopOpen', Object.assign(JSON.parse(JSON.stringify(tyreShop)), { 
 click('pick', 'cat');
 assert($('.slsh-card .slsh-brand') && /Vexaro/.test($('.slsh-card .slsh-brand').textContent) && /Vexaro/.test($('.slsh-detail .slsh-brand').textContent), 'a part brand shows on the card and in the detail pane');
 
+shop.handle('slShopOpen', { kind: 'dealerparts', title: 'Dealer parts', name: 'Jefferson Motors', goods: 'catalog', screen: 'catalogue', money: 100, theme: { accent: '#8ab4f8', pattern: 'badge', icon: 'badge' }, stock: [], services: [], note: 'Nothing fits your Pickup: this counter sells parts of Ibishu only.' });
+assert(/Nothing fits your Pickup/.test($('.slsh-note').textContent), 'a catalogue shop says why nothing fits (the note from the Lua side)');
+
 // ---- text on an accent fill: --sl-deep on a light accent, white on a dark one, at least 4.5:1 for every built-in accent (and the ones in the sample data)
 const core = fs.readFileSync(path.join(__dirname, '..', 'mod/lua/ge/extensions/sl/core/shops.lua'), 'utf8');
 const accents = Array.from(new Set((core.match(/accent = '#[0-9a-fA-F]{6}'/g) || []).map((m) => m.slice(10, 17)).concat(['#f2b84b', '#9b8cf0', '#e9855b', '#a8c7fa'])));

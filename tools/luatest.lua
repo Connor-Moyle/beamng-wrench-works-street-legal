@@ -3938,4 +3938,116 @@ do
   package.loaded['sl/shops'] = nil
 end
 
+-- shops: parts for the player's car (Wrench Works lookup), the dealer's parts counter, the shops the map brings
+do
+  local ST = require('sl/core/state')
+  local st = ST.new(1, 0)
+  st.day, st.money, st.rep = 3, 2000, 0
+  local sent, toasts, shelf, asked = {}, {}, {}, {}
+  local old = {}
+  for _, k in ipairs({ 'sl_career', 'guihooks', 'core_environment', 'slrr_garage', 'sl_fleet', 'FS', 'jsonReadFile', 'getCurrentLevelIdentifier', 'vec3', 'quat', 'extensions' }) do old[k] = rawget(_G, k) end
+  _G.guihooks = { trigger = function(n, d) sent[#sent + 1] = { n = n, d = d } if n == 'slPhoneToast' then toasts[#toasts + 1] = d.text end end }
+  _G.extensions = { hook = function() end }
+  _G.core_environment = { getTimeOfDay = function() return { time = 0 } end }
+  local places = { dealer = { id = 'dealer', kind = 'dealer', name = 'Jefferson Motors', pos = { -391, 169, 100 } }, junkyard = { id = 'junkyard', kind = 'junkyard', name = 'Yard' } }
+  local phase = 'day'
+  _G.sl_career = { isActive = function() return true end, getState = function() return st end, addMoney = function(a, l) return ST.addMoney(st, a, l) end, getPlaces = function() return places end, phase = function() return phase end }
+  local fits = { { part = 'covet_exhaust_sport', name = 'Sport exhaust', slotId = 'exhaust_main', slot = 'Exhaust', price = 572, brand = 'Ibishu', more = false },
+    { part = 'pack_intake', name = 'Big intake', slotId = 'intake', slot = 'Intake', price = 300, brand = 'Zephyrin', more = true } }
+  local shelfFails = false
+  _G.slrr_garage = {
+    lookupParts = function(vid, opts)
+      asked[#asked + 1] = opts
+      local out = {}
+      for _, e in ipairs(fits) do
+        local ok = true
+        if opts.brands then
+          ok = false
+          for _, b in ipairs(opts.brands) do if b:lower() == e.brand:lower() then ok = true end end
+        end
+        if ok then out[#out + 1] = e end
+      end
+      return out, 'covet'
+    end,
+    addShelfPart = function(model, p) if shelfFails then error('shelf') end shelf[#shelf + 1] = { model = model, p = p } end,
+    setShopOverride = function(fn) _G.OVERRIDE = fn end }
+  local car = { id = 1, name = 'Covet', brand = 'Ibishu' }
+  _G.sl_fleet = { currentCar = function() return car end, vehicleOf = function() return { getID = function() return 77 end } end }
+  package.loaded['sl/shops'] = nil
+  local SS = require('sl/shops')
+
+  SS.open('exhaust', { name = 'Belasco City Exhaust', sections = { 'engine/exhaust', 'engine/intake' } })
+  local v = sent[#sent].d
+  check('sl_shops: a catalogue shop lists the parts that fit the player car, with brand, price and the slot as the group, none missing',
+    #v.stock == 2 and v.stock[1].name == 'Sport exhaust' and v.stock[1].brand == 'Ibishu' and v.stock[1].group == 'Exhaust' and v.stock[1].price == 572 and v.note == nil and asked[#asked].sections[2] == 'engine/intake')
+  SS.buy('p1:1,p2:2')
+  check('sl_shops: bought parts go on the shelf of the model of the car, the money is taken once',
+    #shelf == 3 and shelf[1].model == 'covet' and shelf[1].p.part == 'covet_exhaust_sport' and shelf[1].p.slotId == 'exhaust_main' and shelf[1].p.value == 572 and shelf[3].p.part == 'pack_intake' and st.money == 2000 - 572 - 2 * 300)
+  local money = st.money
+  shelfFails = true
+  SS.buy('p1:1')
+  check('sl_shops: a shelf that fails gives the money back', st.money == money and toasts[#toasts] ~= nil)
+  shelfFails = false
+
+  -- the dealer parts counter: the brands of the sign, a car of those brands, and a clear note otherwise
+  _G.getCurrentLevelIdentifier = function() return 'west_coast_usa' end
+  local files = { ['/street_legal/shops/dealer_brands.json'] = { west_coast_usa = { dealer = { 'Bruckell', 'Gavril', 'Ibishu' } } } }
+  _G.FS = { fileExists = function(_, f) return files[f] ~= nil end, findFiles = function() return {} end }
+  _G.jsonReadFile = function(f) return files[f] end
+  package.loaded['sl/shops'] = nil
+  SS = require('sl/shops')
+  local act = {}
+  SS.onActivityAcceptGatherData({ { placeId = 'dealer' }, { placeId = 'junkyard' }, { type = 'other' } }, act)
+  check('sl_shops: a dealer with brands on its sign gets a Parts counter button naming them; other places get none',
+    #act == 1 and act[1].buttonLabel == 'Parts counter (Bruckell, Gavril, Ibishu)' and act[1].heading == 'Jefferson Motors' and act[1].sorting.id == 'dealer')
+  act[1].buttonFun()
+  v = sent[#sent].d
+  check('sl_shops: the counter sells the parts of those brands that fit the player car (the Ibishu part, not the Zephyrin one)', v.kind == 'dealerparts' and #v.stock == 1 and v.stock[1].brand == 'Ibishu' and asked[#asked].brands[3] == 'Ibishu')
+  car.name, car.brand = 'Pickup', 'Gavril'
+  fits = { { part = 'p_x', name = 'X', slotId = 's', slot = 'S', price = 1, brand = 'Zephyrin' } }
+  act = {}
+  SS.onActivityAcceptGatherData({ { placeId = 'dealer' } }, act)
+  act[1].buttonFun()
+  v = sent[#sent].d
+  check('sl_shops: when nothing of the brands of the sign fits, the screen says so with the car and the brands', #v.stock == 0 and v.note:find('Pickup', 1, true) and v.note:find('Bruckell, Gavril, Ibishu', 1, true))
+  local keepLookup = _G.slrr_garage.lookupParts
+  _G.slrr_garage.lookupParts = nil
+  SS.open('parts', {})
+  check('sl_shops: without the garage mod the shop says it is needed', sent[#sent].d.note ~= nil and #sent[#sent].d.stock == 0)
+  _G.slrr_garage.lookupParts = keepLookup
+  local keepFleet = _G.sl_fleet
+  _G.sl_fleet = { currentCar = function() return nil end }
+  SS.open('parts', {})
+  check('sl_shops: with no car the shop says to bring one', sent[#sent].d.note:find('car', 1, true) ~= nil)
+  _G.sl_fleet = keepFleet
+
+  -- the shops the map brings: only the right level; replaces takes the Wrench Works counter over
+  files['/street_legal/shops/west_coast_usa.json'] = { level = 'west_coast_usa', shops = { { id = 't', kind = 'tyre', name = 'Torres Tires', pos = { 1, 2, 3 }, replaces = 'torresTires' } } }
+  files['/street_legal/shops/utah.json'] = { level = 'utah', shops = { { id = 'u', kind = 'tyre', name = 'Elsewhere', pos = { 1, 2, 3 } } } }
+  _G.FS.findFiles = function(_, dir)
+    if dir == '/street_legal/shops/' then return { '/street_legal/shops/west_coast_usa.json', '/street_legal/shops/utah.json', '/street_legal/shops/dealer_brands.json' } end
+    return {}
+  end
+  _G.vec3 = function(x, y, z) return { x = x, y = y, z = z } end
+  _G.quat = function() return {} end
+  package.loaded['sl/shops'] = nil
+  SS = require('sl/shops')
+  local els = {}
+  SS.onGetRawPoiListForLevel('west_coast_usa', els)
+  check('sl_shops: a file for another level is skipped, a file without shops (the dealer brands) is harmless', #els == 1 and els[1].data.name == 'Torres Tires')
+  SS.onStreetLegalStarted()
+  check('sl_shops: Wrench Works is told that its Torres Tires counter is ours', type(_G.OVERRIDE) == 'function' and _G.OVERRIDE({ id = 'torresTires' }) == true and _G.OVERRIDE({ id = 'exhaustShop' }) == false)
+  SS.onStreetLegalStopped()
+  check('sl_shops: and gets it back when the career stops', _G.OVERRIDE == nil)
+
+  -- the career night shuts the counters
+  phase = 'night'
+  SS.open('tyre', {})
+  check('sl_shops: at night the shop is shut, whatever the clock says', sent[#sent].d.closed == 'Closed. Opens in the morning.')
+
+  for k, val in pairs(old) do _G[k] = val end
+  _G.OVERRIDE = nil
+  package.loaded['sl/shops'] = nil
+end
+
 print(string.format('lua tests passed: %d checks', passed))

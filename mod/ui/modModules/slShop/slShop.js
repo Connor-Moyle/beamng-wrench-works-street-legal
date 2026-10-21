@@ -199,7 +199,7 @@
       } else {
         var g = groups(), list = arr(shop.stock).filter(function (it) { return st.cat === 'all' || it.group === st.cat; });
         var cards = list.map(function (it) { return card(it, st.sel === it.id, st.cart[it.id]); }).join('');
-        if (!cards) cards = '<div class="slsh-note">' + esc(shop.goods === 'catalog' ? T('shops.ui_catalog_note', 'Parts for your car are fitted from the Wrench Works catalogue.') : T('shops.ui_none', 'Nothing is on offer today.')) + '</div>';
+        if (!cards) cards = '<div class="slsh-note">' + esc(shop.note ? shop.note : shop.goods === 'catalog' ? T('shops.ui_catalog_note', 'Parts for your car are fitted from the Wrench Works catalogue.') : T('shops.ui_none', 'Nothing is on offer today.')) + '</div>';
         var counts = { all: arr(shop.stock).length };
         arr(shop.stock).forEach(function (it) { if (it.group) counts[it.group] = (counts[it.group] || 0) + 1; });
         body = (g.length ? rail(g, st.cat, counts) : '') + '<div class="slsh-main"><div class="slsh-grid">' + cards + '</div></div><div class="slsh-side">' + detail(find(st.sel), !closed, shop.words) + cartBar(l, t, shop.money, closed, shop.words) + '</div>';
