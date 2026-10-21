@@ -183,7 +183,7 @@ end
 
 -- called from the weather every frame: wet 0..1 is the wetness of the roads
 function M.update(dt, wet)
-  local on = option('slWetWorld', true) == true
+  local on = option('slWetWorld', false) == true
   held = rules.held(held, wet, dt)
   local target = on and rules.step(held, option('slWetStrength', 0.8), current) or 0
   if target ~= current then

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.1 (needs Wrench Works 1.8.3)
+
+Hotfix for 0.6.0.
+
+### Changes
+- **Wet roads and walls** is now off by default and switched off once for everyone, because it is what crashes the graphics driver at High graphics in heavy rain on BeamNG 0.40. You can turn it back on in Mods > Street Legal (the row carries the warning); a player who turns it back on keeps it. Puddles, rain and the rest of the weather are unchanged.
+
+### Known issue
+- With Wet roads and walls on, a heavy-rain crash can still happen at High graphics. With it off it was not seen (a 10-minute High-graphics heavy-rain test with it off, and puddles on, did not crash).
+
 ## 0.6.0 (needs Wrench Works 1.8.3)
 
 ### New

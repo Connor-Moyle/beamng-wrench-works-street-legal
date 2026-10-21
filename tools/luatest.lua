@@ -3069,6 +3069,21 @@ do -- 0.5.2: a saved Wet tarmac "on" is reset to off once
   check('wet tarmac migration: nothing saved stays unset (the default applies), and a saved off stays off', b.slWetTarmac == nil and b.slWetTarmacReset052 == true and O.migrate052({ slWetTarmac = false }) == true)
 end
 
+do -- 0.6.0: a saved Wet roads and walls "on" is reset to off once, and the default is off
+  local O = require('sl/options')
+  local a = { slWetWorld = true }
+  check('wet world migration: a saved on becomes off, once, and the flag is stored', O.migrate060(a) == true and a.slWetWorld == false and a.slWetWorldReset060 == true)
+  a.slWetWorld = true
+  check('wet world migration: a player who turned it back on afterwards keeps it', O.migrate060(a) == false and a.slWetWorld == true)
+  local b = {}
+  O.migrate060(b)
+  check('wet world migration: nothing saved stays unset, a saved off stays off', b.slWetWorld == nil and O.migrate060({ slWetWorld = false }) == true)
+  local def
+  for _, d in ipairs(O.defs) do if d.key == 'slWetWorld' then def = d end end
+  check('wet world: off by default and in every preset, with the warning in its description', def and def.default == false and def.presets.performance == false and def.presets.balanced == false and def.presets.quality == false and def.presets.max == false
+    and def.desc:find('crash the graphics driver', 1, true) ~= nil)
+end
+
 do -- the migration never overwrites a file it could not read
   local sv = { r = rawget(_G, 'jsonReadFile'), w = rawget(_G, 'jsonWriteFile') }
   local reads, writes = nil, 0
