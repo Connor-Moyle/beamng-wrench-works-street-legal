@@ -681,6 +681,7 @@ M.TEXT = {
   ["bank.loan_payment"] = "Loan payment",
   ["bank.loan_repayment"] = "Loan repayment",
   ["weekly.rent"] = "Garage rent",
+  ["series.loaner_name"] = "Loaner: {1}",
   ["progression.johnson_valley"] = "Johnson Valley", ["progression.utah"] = "Utah", ["progression.hirochi_raceway"] = "Hirochi Raceway",
   ["visit.no_cars"] = "Choose at least one car to take.", ["visit.too_many"] = "At most {1} cars can go.", ["visit.same_car_twice"] = "A car can only be chosen once.",
   ["visit.no_such_car"] = "One of the cars is not yours.", ["visit.car_impounded"] = "{1} is in the impound.", ["visit.car_does_not_fit"] = "{1} does not fit this event.",
