@@ -3404,7 +3404,9 @@ do -- phone skins: what a skin.json may say, what reaches the UI, and the folder
   local saved = { FS = _G.FS, log = _G.log, jsonDecode = _G.jsonDecode, buffer = _G.buffer, readTo = io.readFileToBuffer }
   local reads = {}
   _G.FS = { findFiles = function(self, root) return files[root] or {} end, fileSize = function(self, f) return bytes[f] and #bytes[f] or nil end }
-  _G.buffer = { new = function() local b = { data = '' } function b:tostring() return self.data end return b end }
+  _G.buffer = nil      -- (the game has no global `buffer`: the reader must take the 'string.buffer' module, as the game does)
+  local savedSB = package.loaded['string.buffer']
+  package.loaded['string.buffer'] = { new = function() local b = { data = '' } function b:tostring() return self.data end return b end }
   io.readFileToBuffer = function(f, buf) reads[#reads + 1] = f if not bytes[f] then return false end buf.data = bytes[f] return true end
   _G.jsonDecode = function(text) return json[text] end
   _G.log = function() end
@@ -3415,6 +3417,38 @@ do -- phone skins: what a skin.json may say, what reaches the UI, and the folder
   local listReads = {}
   for _, f in ipairs(reads) do listReads[#listReads + 1] = f end
   check('skins: the list holds Classic and the skins of the mod and the user folder (the user folder wins an id; a folder name that is no id is skipped)', table.concat(names, ',') == 'classic=Classic,mine=Mine,slate=Slate (mine)', table.concat(names, ','))
+  do
+    local logged = {}
+    _G.log = function(level, tag, text) logged[#logged + 1] = level .. ' ' .. tostring(text) end
+    local oldDecode = _G.jsonDecode
+    _G.jsonDecode = function() error('boom') end
+    PK.warned = {}
+    local bad1, bad2 = PK.choices(), PK.choices()
+    _G.jsonDecode = oldDecode
+    _G.log = function() end
+    local warns = 0
+    for _, l in ipairs(logged) do if l:find('could not be read', 1, true) and l:find('boom', 1, true) then warns = warns + 1 end end
+    check('skins: a list that cannot be built falls back to Classic and says why, once (not on every call)', #bad1 == 1 and bad1[1].id == 'classic' and #bad2 == 1 and warns == 1, table.concat(logged, ' | '))
+  end
+  do
+    local hasSlate = false
+    for _, c in ipairs(PK.choices()) do if c.id == 'slate' then hasSlate = true end end
+    check('skins: against the game-like setup (string.buffer module, no global buffer) the list is not empty and contains Slate', #PK.choices() >= 2 and hasSlate and rawget(_G, 'buffer') == nil)
+    local logged = {}
+    _G.log = function(level, tag, text) logged[#logged + 1] = tostring(text) end
+    PK.warned = {}
+    local oldFind = _G.FS.findFiles
+    _G.FS.findFiles = function(self, root) if root == '/street_legal/phone_skins/' then error('nofs') end return {} end
+    PK.choices() PK.choices()
+    _G.FS.findFiles = function() return {} end
+    PK.warned = {}
+    PK.choices() PK.choices()
+    _G.FS.findFiles = oldFind
+    _G.log = function() end
+    local n1, n2 = 0, 0
+    for _, l in ipairs(logged) do if l:find('searching', 1, true) and l:find('nofs', 1, true) then n1 = n1 + 1 end if l:find('no skin.json found', 1, true) then n2 = n2 + 1 end end
+    check('skins: a failed search and an empty mod folder each say so in the log, once', n1 == 1 and n2 == 1, table.concat(logged, ' | '))
+  end
   check('skins: Classic and unknown ids send nothing', PK.payload('classic') == nil and PK.payload(nil) == nil and PK.payload('nobody') == nil and PK.payload('Bad Id') == nil)
   local mine = PK.payload('mine')
   check('skins: a picture icon is read from the skin folder and sent as a data uri; one outside the folder is not', mine.icons.map and mine.icons.map:find('^<img class="slp%-skinimg" src="data:image/png;base64,iVBORw0KGgo') and mine.icons.cab == nil)
@@ -3422,6 +3456,7 @@ do -- phone skins: what a skin.json may say, what reaches the UI, and the folder
   check('skins: a skin.json over 64 KB is never read (a look at its size first), and the list reads only skin.json files, no pictures', (function() for _, f in ipairs(listReads) do if f:find('huge', 1, true) or f:find('%.png$') then return false end end return true end)())
   check('skins: base64 of 1, 2 and 3 bytes', PK.base64('M') == 'TQ==' and PK.base64('Ma') == 'TWE=' and PK.base64('Man') == 'TWFu' and PK.base64('') == '')
   _G.FS, _G.log, _G.jsonDecode, _G.buffer, io.readFileToBuffer = saved.FS, saved.log, saved.jsonDecode, saved.buffer, saved.readTo
+  package.loaded['string.buffer'] = savedSB
   package.loaded['sl/phoneskins'] = nil
 end
 
