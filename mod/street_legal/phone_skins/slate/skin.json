@@ -1,0 +1,117 @@
+{
+ "id": "slate",
+ "name": "Slate",
+ "author": "Wrench Works",
+ "vars": {
+  "frame": "#08090c",
+  "rim": "#33363f",
+  "screen": "#0b0c10",
+  "text": "#eceff6",
+  "accent": "#8fb4ff",
+  "frameRadius": 56,
+  "screenRadius": 46,
+  "iconRadius": 17,
+  "gloss": true,
+  "notch": "pill"
+ },
+ "css": ".slp-root .slp-ico{color:#fff;box-shadow:0 2px 6px rgba(0,0,0,.35)}.slp-root .slp-ico svg{width:26px;height:26px}.slp-root .slp-app span{font-weight:500;letter-spacing:.2px}",
+ "appColors": {
+  "races": "#ff6a3d",
+  "garage": "#4f7cff",
+  "garagekit": "#8a63f0",
+  "bank": "#17a982",
+  "me": "#e8a817",
+  "jobs": "#2fa6d0",
+  "wait": "#6f7c9c",
+  "help": "#64718e",
+  "map": "#2aa866",
+  "camera": "#4a5262",
+  "gallery": "#d94f86",
+  "club": "#9a55e6",
+  "turf": "#d44e38",
+  "carmarket": "#1893cc",
+  "partmarket": "#dc7418",
+  "phone": "#2aa866",
+  "messages": "#3779f0",
+  "contacts": "#7f56e0",
+  "cab": "#e8a817"
+ },
+ "icons": {
+  "races": {
+   "path": "M5 21V4 M5 4h12l-2 4 2 4H5",
+   "stroke": 1.8
+  },
+  "garage": {
+   "path": "M3 14l2-6h14l2 6v4h-3v-2H6v2H3z M7 13.5h.5 M16.5 13.5h.5",
+   "stroke": 1.8
+  },
+  "garagekit": {
+   "path": "M3 11l9-7 9 7 M5 10v10h14V10 M10 20v-6h4v6",
+   "stroke": 1.8
+  },
+  "bank": {
+   "path": "M3 9l9-5 9 5 M5 10v8 M9.5 10v8 M14.5 10v8 M19 10v8 M3 20h18",
+   "stroke": 1.8
+  },
+  "me": {
+   "path": "M12 3l2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 16.4 6.8 19.2l1-5.9L3.5 9.2l5.9-.8z",
+   "stroke": 1.8
+  },
+  "jobs": {
+   "path": "M4 8h16v11H4z M9 8V5h6v3 M4 13h16",
+   "stroke": 1.8
+  },
+  "wait": {
+   "path": "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z M12 7v5l3 2",
+   "stroke": 1.8
+  },
+  "help": {
+   "path": "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z M9.5 9.500a2.500 2.500 0 1 1 3.500 2.300c-.7.4-1 .9-1 1.700 M12 17h.01",
+   "stroke": 1.8
+  },
+  "map": {
+   "path": "M12 21s-6.5-6-6.5-11a6.5 6.5 0 0 1 13 0c0 5-6.5 11-6.5 11z M12 7.500a2.500 2.500 0 1 0 0 5 2.500 2.500 0 0 0 0-5z",
+   "stroke": 1.8
+  },
+  "camera": {
+   "path": "M4 8h3l1.500-2h7L17 8h3v11H4z M12 10a3.500 3.500 0 1 0 0 7 3.500 3.500 0 0 0 0-7z",
+   "stroke": 1.8
+  },
+  "gallery": {
+   "path": "M4 5h16v14H4z M4 16l5-5 4 4 3-3 4 4 M15.500 9.500h.01",
+   "stroke": 1.8
+  },
+  "club": {
+   "path": "M12 3l7 3v6c0 4.500-3 7.500-7 9-4-1.500-7-4.500-7-9V6z",
+   "stroke": 1.8
+  },
+  "turf": {
+   "path": "M4 4h7v7H4z M13 4h7v7h-7z M4 13h7v7H4z M13 13h7v7h-7z",
+   "stroke": 1.8
+  },
+  "carmarket": {
+   "path": "M3 12V4h8l10 10-8 8z M7.500 8h.01",
+   "stroke": 1.8
+  },
+  "partmarket": {
+   "path": "M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z M12 3v3 M12 18v3 M3 12h3 M18 12h3 M5.600 5.600l2.100 2.100 M16.300 16.300l2.100 2.100 M18.400 5.600l-2.100 2.100 M7.700 16.300l-2.100 2.100",
+   "stroke": 1.8
+  },
+  "phone": {
+   "path": "M6 3h4l1.500 4-2.200 1.500a11 11 0 0 0 6.200 6.200L17.500 12.500 21.500 14v4a2 2 0 0 1-2 2A16 16 0 0 1 4 5a2 2 0 0 1 2-2z",
+   "stroke": 1.8
+  },
+  "messages": {
+   "path": "M4 5h16v11H9l-5 4z",
+   "stroke": 1.8
+  },
+  "contacts": {
+   "path": "M12 4a4 4 0 1 0 0 8 4 4 0 0 0 0-8z M4 20c0-4 3.500-6 8-6s8 2 8 6",
+   "stroke": 1.8
+  },
+  "cab": {
+   "path": "M3 14l2-5h14l2 5v5h-3v-2H6v2H3z M10 6h4v3h-4z M7 14h.5 M16.500 14h.5",
+   "stroke": 1.8
+  }
+ }
+}

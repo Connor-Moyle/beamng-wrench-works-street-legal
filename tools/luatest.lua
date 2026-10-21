@@ -3190,4 +3190,60 @@ do
   check('parts: an own option hook of the extension still runs', calls[#calls] == 'old:slRaces')
 end
 
+do -- phone skins: what a skin.json may say, what reaches the UI, and the folders
+  local PS = require('sl/core/phoneskin')
+  local good = { id = 'slate', name = 'Slate', author = 'Us', vars = { frame = '#101114', rim = '#3A3A44', screen = '#0e0e11', text = '#eee', accent = '#7fb2ff', frameRadius = 54, screenRadius = 44, iconRadius = 16, gloss = true, notch = 'pill' },
+    appColors = { map = '#3a7d6e', bad = 'red' }, icons = { map = { path = 'M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z', stroke = 1.8 }, camera = { path = 'M1 1h2z' }, evil = { path = 'M1 1" onload="x' }, nopath = {} } }
+  local sk = PS.validate(good, 'slate')
+  check('skin: a good skin.json is accepted with its name and author', sk and sk.id == 'slate' and sk.name == 'Slate' and sk.author == 'Us')
+  check('skin: colours are kept (lower case), a wrong colour name is dropped', sk.appColors.map == '#3a7d6e' and sk.appColors.bad == nil and sk.dropped >= 1)
+  check('skin: the css holds the frame, the screen, the tiles, the accent and the pill', sk.css:find('.slp-device:not(.slp-land){background:#101114;border-radius:54px;box-shadow:0 0 0 2px #3a3a44', 1, true) and sk.css:find('.slp-screen{background:#0e0e11;border-radius:44px;', 1, true)
+    and sk.css:find('.slp-ico{border-radius:16px}', 1, true) and sk.css:find('fill:#7fb2ff', 1, true) and sk.css:find('.slp-screen::before', 1, true) and sk.css:find('linear-gradient', 1, true))
+  check('skin: an outline icon is drawn with a stroke, a filled one is a plain path', sk.icons.map:find('stroke-width:1.8', 1, true) and sk.icons.camera == '<svg viewBox="0 0 24 24"><path d="M1 1h2z"/></svg>')
+  check('skin: an icon path with anything but path characters is dropped (no attribute can be closed)', sk.icons.evil == nil and sk.icons.nopath == nil)
+  local clamped = PS.validate({ vars = { frameRadius = 999, frame = 'javascript:x' } }, 'a1')
+  check('skin: numbers are clamped and a wrong colour is dropped', clamped.css:find('border-radius:70px', 1, true) and not clamped.css:find('javascript', 1, true) and not clamped.css:find('background', 1, true))
+  check('skin: the id comes from the folder when the file has none; bad ids and classic are refused', PS.validate({}, 'mine').id == 'mine' and PS.validate({}, 'Bad Id') == nil and PS.validate({ id = 'classic' }, 'x') == nil and PS.validate('x', 'a') == nil
+    and PS.validate({}, string.rep('a', 33)) == nil)
+  check('skin: extra css may use a data picture and nothing else that loads', PS.safeCss('.a{background:url(data:image/png;base64,AAAA)}') and not PS.safeCss('@import "x";') and not PS.safeCss('.a{background:url(http://x/y.png)}')
+    and not PS.safeCss('.a{background:url("/ui/x.png")}') and not PS.safeCss('.a{width:expression(1)}') and not PS.safeCss('</style><script>') and not PS.safeCss(string.rep('a', 9000)) and not PS.safeCss(5))
+  check('skin: a skin whose css is refused is refused', PS.validate({ css = '@import url(x);' }, 'a1') == nil)
+  local withFile = PS.validate({ icons = { map = { file = 'map.svg' }, camera = { file = 'nope.svg' } } }, 'pics', function(n) if n == 'map.svg' then return 'data:image/svg+xml;base64,AAAA' end end)
+  check('skin: a picture icon is an img with the data uri the caller gave; a picture it could not read is dropped', withFile.icons.map == '<img class="slp-skinimg" src="data:image/svg+xml;base64,AAAA" alt="">' and withFile.icons.camera == nil and withFile.dropped == 1)
+  local list = PS.choices({ b = { id = 'b', name = 'Zed' }, a = { id = 'a', name = 'alpha' } })
+  check('skin: the Mods menu list is Classic first, then the skins by name', #list == 3 and list[1].id == 'classic' and list[2].label == 'alpha' and list[3].label == 'Zed')
+
+  -- the skins that ship with the mod: every one is accepted whole (nothing dropped); the template is a skin folder the scan skips (its name is no id) and also valid
+  for dir, raw in pairs(SHIPPED_SKINS) do
+    local ok = PS.validate(raw, dir:match('^_') and 'template' or dir, function() return 'data:image/svg+xml;base64,AAAA' end)
+    check('skin: the shipped skin ' .. dir .. ' is valid with nothing dropped', ok and ok.dropped == 0, ok and ok.dropped)
+  end
+  local slate = PS.validate(SHIPPED_SKINS.slate, 'slate')
+  local apps = { 'races', 'garage', 'garagekit', 'bank', 'me', 'jobs', 'wait', 'help', 'map', 'camera', 'gallery', 'club', 'turf', 'carmarket', 'partmarket', 'phone', 'messages', 'contacts', 'cab' }
+  local missing = {}
+  for _, a in ipairs(apps) do if not slate.icons[a] or not slate.appColors[a] then missing[#missing + 1] = a end end
+  check('skin: Slate redraws the icon and the colour of all 19 apps of the home screen', #missing == 0, table.concat(missing, ','))
+  -- the folders (sl/phoneskins) with a stand-in for the game's files
+  local files = { ['/street_legal/phone_skins/'] = { '/street_legal/phone_skins/slate/skin.json', '/street_legal/phone_skins/_template/skin.json' },
+    ['/settings/street_legal/phone_skins/'] = { '/settings/street_legal/phone_skins/mine/skin.json', '/settings/street_legal/phone_skins/slate/skin.json' } }
+  local json = { ['/street_legal/phone_skins/slate/skin.json'] = { name = 'Slate (mod)' }, ['/settings/street_legal/phone_skins/slate/skin.json'] = { name = 'Slate (mine)', css = '.slp-root{color:#abc}' },
+    ['/settings/street_legal/phone_skins/mine/skin.json'] = { name = 'Mine', icons = { map = { file = 'm.png' }, cab = { file = '../x.png' } }, css = '.a{color:red}' }, ['/street_legal/phone_skins/_template/skin.json'] = { name = 'Template' } }
+  local saved = { FS = _G.FS, json = _G.jsonReadFile, log = _G.log, open = io.open }
+  _G.FS = { findFiles = function(self, root) return files[root] or {} end }
+  _G.jsonReadFile = function(f) return json[f] end
+  _G.log = function() end
+  io.open = function(path, mode) if path == '/settings/street_legal/phone_skins/mine/m.png' then local d = 'ab' return { read = function() return d end, close = function() end } end return saved.open(path, mode) end
+  package.loaded['sl/phoneskins'] = nil
+  local PK = require('sl/phoneskins')
+  local names = {}
+  for _, c in ipairs(PK.choices()) do names[#names + 1] = c.id .. '=' .. c.label end
+  check('skins: the list holds Classic and the skins of the mod and the user folder (the user folder wins an id; a folder name that is no id is skipped)', table.concat(names, ',') == 'classic=Classic,mine=Mine,slate=Slate (mine)', table.concat(names, ','))
+  check('skins: Classic and unknown ids send nothing', PK.payload('classic') == nil and PK.payload(nil) == nil and PK.payload('nobody') == nil and PK.payload('Bad Id') == nil)
+  local mine = PK.payload('mine')
+  check('skins: a picture icon is read from the skin folder and sent as a data uri; one outside the folder is not', mine.icons.map == '<img class="slp-skinimg" src="data:image/png;base64,YWI=" alt="">' and mine.icons.cab == nil)
+  check('skins: base64 of 1, 2 and 3 bytes', PK.base64('M') == 'TQ==' and PK.base64('Ma') == 'TWE=' and PK.base64('Man') == 'TWFu' and PK.base64('') == '')
+  _G.FS, _G.jsonReadFile, _G.log, io.open = saved.FS, saved.json, saved.log, saved.open
+  package.loaded['sl/phoneskins'] = nil
+end
+
 print(string.format('lua tests passed: %d checks', passed))

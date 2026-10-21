@@ -48,6 +48,7 @@
     '.slp-app{display:flex;flex-direction:column;align-items:center;cursor:pointer;position:relative}',
     '.slp-ico{width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center}',
     '.slp-ico svg{width:28px;height:28px;fill:#fff}',
+    '.slp-ico img.slp-skinimg{width:100%;height:100%;object-fit:contain;border-radius:inherit}',
     '.slp-app span{margin-top:6px;font-size:11.5px;color:#e6e1e5}',
     '.slp-app:active .slp-ico{transform:scale(.92)}',
     '.slp-badge{position:absolute;top:-2px;left:50%;margin-left:14px;min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:#f2b8b5;color:#601410;font-size:11px;font-weight:700;line-height:20px;text-align:center}',
@@ -385,6 +386,25 @@
     var style = doc.createElement('style');
     style.textContent = CSS;
     root.appendChild(style);
+    // the phone skin (Mods menu > Phone skin; sl/core/phoneskin checked it): the colours and shapes are an extra style, the icons and app colours replace the classic ones while it is on.
+    // Classic (no skin) leaves all of this empty.
+    var skinStyle = doc.createElement('style');
+    root.appendChild(skinStyle);
+    var skinIcons = {}, savedI = {}, savedColors = {};
+    function applySkin(data) {
+      Object.keys(savedI).forEach(function (k) { I[k] = savedI[k]; });
+      Object.keys(savedColors).forEach(function (k) { if (savedColors[k] === undefined) delete APP_COLORS[k]; else APP_COLORS[k] = savedColors[k]; });
+      savedI = {}; savedColors = {}; skinIcons = {}; skinStyle.textContent = '';
+      if (!data || !data.css) return;
+      skinStyle.textContent = String(data.css).replace(/<\/style/gi, '');
+      var icons = data.icons || {}, colors = data.appColors || {};
+      Object.keys(icons).forEach(function (k) {
+        if (typeof icons[k] !== 'string') return;
+        skinIcons[k] = icons[k];
+        if (Object.prototype.hasOwnProperty.call(I, k)) { savedI[k] = I[k]; I[k] = icons[k]; }
+      });
+      Object.keys(colors).forEach(function (k) { if (typeof colors[k] === 'string') { savedColors[k] = APP_COLORS[k]; APP_COLORS[k] = colors[k]; } });
+    }
     var layer = doc.createElement('div');
     var bars = doc.createElement('div');           // the cinematic bars of the lot's camera: a node of their own, so their slide is not undone by a re-render
     bars.className = 'slp-bars';
@@ -419,7 +439,7 @@
       var appsHtml = function (list) {
         return list.filter(function (a) { return !a.hide; }).map(function (a) {
           var badge = a.badge ? '<div class="slp-badge">' + a.badge + '</div>' : '';
-          var ico = st.slrrArt && SLRR_ICON[a.id] ? slrrIcon(SLRR_ICON[a.id], 'slp-appimg') : a.icon;
+          var ico = skinIcons[a.id] || (st.slrrArt && SLRR_ICON[a.id] ? slrrIcon(SLRR_ICON[a.id], 'slp-appimg') : a.icon);
           return '<div class="slp-app" data-a="open" data-v="' + a.id + '"><div class="slp-ico" style="background:' + APP_COLORS[a.id] + '">' + ico + '</div>' + badge + '<span>' + a.title + '</span></div>';
         }).join('');
       };
@@ -1981,6 +2001,7 @@
         case 'slPeople': st.people = data; render(); break;
         case 'slHelp': st.help = arr(data && data.pages); render(); break;
         case 'slStrings': TABLE = (data && data.text) || {}; render(); break;
+        case 'slPhoneSkin': applySkin(data); render(); break;
         case 'slLaptopDealers': st.dealers = data; render(); break;
         case 'slAuctions': st.auction = data; render(); break;
         case 'slRivals': st.rivals = data; render(); break;
@@ -2022,7 +2043,7 @@
         probe.onload = function () { phone.handle('slArt'); };
         probe.src = '/ui/modModules/slHud/slrr/icons/cup.png';
       });
-      ['slPhoneData', 'slPhoneToggle', 'slPhoneGo', 'slPhoneCall', 'slPhoneCallReply', 'slPhoneNotify', 'slPhoneToast', 'slFade', 'slLotBars', 'slLotData', 'slMeet', 'slRace', 'slMenu', 'slStation', 'slGarage', 'slPhotos', 'slMap', 'slPeople', 'slLaptopDealers', 'slAuctions', 'slRivals', 'slLaptopOffers', 'slHelp', 'slStrings', 'slMapsTiles', 'slMapsPose', 'slMapsRoute', 'slMapsPlaces', 'slMapsOptions'].forEach(function (name) {
+      ['slPhoneData', 'slPhoneSkin', 'slPhoneToggle', 'slPhoneGo', 'slPhoneCall', 'slPhoneCallReply', 'slPhoneNotify', 'slPhoneToast', 'slFade', 'slLotBars', 'slLotData', 'slMeet', 'slRace', 'slMenu', 'slStation', 'slGarage', 'slPhotos', 'slMap', 'slPeople', 'slLaptopDealers', 'slAuctions', 'slRivals', 'slLaptopOffers', 'slHelp', 'slStrings', 'slMapsTiles', 'slMapsPose', 'slMapsRoute', 'slMapsPlaces', 'slMapsOptions'].forEach(function (name) {
         $rootScope.$on(name, function (ev, data) { phone.handle(name, data); });
       });
       if (window.bngApi) window.bngApi.engineLua('if sl_phone then sl_phone.request() end if sl_menuTile then sl_menuTile.request() end');

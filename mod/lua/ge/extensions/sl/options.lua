@@ -67,6 +67,8 @@ M.defs = {
     desc = strings.t('options.map_k_slide_text') },
   { key = 'slMapZoom', title = strings.t('options.map_zoom'), type = 'choice', default = 'normal', tab = 'Maps', group = 'Maps',
     options = { { id = 'close', label = strings.t('options.map_zoom_close') }, { id = 'normal', label = strings.t('options.map_zoom_normal') }, { id = 'far', label = strings.t('options.map_zoom_far') } }, desc = strings.t('options.map_zoom_text') },
+  { key = 'slPhoneSkin', title = strings.t('options.phone_skin'), type = 'choice', default = 'classic', tab = 'Screens and texts', group = 'Phone look',
+    options = require('sl/phoneskins').choices(), desc = strings.t('options.phone_skin_text') },
   { key = 'slWetTarmac', feature = true, title = strings.t('options.wet_tarmac'), type = 'bool', default = false, tab = 'Clock and weather', group = 'Rain on the ground',
     presets = { performance = false, balanced = false, quality = false, max = false }, desc = strings.t('options.wet_tarmac_text') },
   { key = 'slWetStrength', title = strings.t('options.wet_world_strength'), type = 'range', min = 0, max = 1, step = 0.05, scale = 100, unit = '%', default = 0.8,
