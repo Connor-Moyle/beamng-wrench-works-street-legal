@@ -11,7 +11,7 @@ M.TEXT = {
   ['scenes.busted'] = 'Busted', ['scenes.busted_sub'] = 'The police have you', ['scenes.impound'] = 'Impounded', ['scenes.impound_sub'] = 'Your car is at the pound',
   ['scenes.pinkwin'] = 'You won the slip', ['scenes.pinkwin_sub'] = 'You beat {1}', ['scenes.pinklose'] = 'You lost the slip', ['scenes.pinklose_sub'] = '{1} takes your car',
   ['scenes.heat'] = 'Heat {1}', ['scenes.heat_sub'] = 'The police are looking for you', ['scenes.reveal'] = 'New car', ['scenes.reveal_sub'] = '{1}',
-  ['scenes.tier'] = 'New garage', ['scenes.tier_sub'] = '{1}', ['scenes.garage_in'] = '{1}', ['scenes.garage_sub'] = 'Your garage', ['scenes.garage_out'] = 'Back on the street', ['scenes.garage_out_sub'] = '',
+  ['scenes.tier'] = 'New garage', ['scenes.tier_sub'] = 'Garage level {2}', ['scenes.garage_in'] = '{1}', ['scenes.garage_sub'] = 'Your garage', ['scenes.garage_out'] = 'Back on the street', ['scenes.garage_out_sub'] = '',
   ['scenes.count'] = '{1}', ['scenes.go'] = 'GO',
   ['scenes.night'] = 'Night', ['scenes.night_sub'] = 'Day {1}: the street is awake', ['scenes.day'] = 'Morning', ['scenes.day_sub'] = 'Day {1} begins', ['scenes.skip'] = 'Press any key to skip',
   ['settings.reduceMotion'] = 'Reduce motion', ['settings.reduceMotionDesc'] = 'Cinematic moments (the start of the night and of the day) show a still title card instead of the moving sky and city. Shorter, and nothing flies across the screen.',

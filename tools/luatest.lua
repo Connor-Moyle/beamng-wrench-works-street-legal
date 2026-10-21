@@ -3758,6 +3758,7 @@ do
   check('banners: a countdown number is the title; the car reveal shows the car name', sc.banner('count', { n = 2 }, false, strings.t).title == '2' and sc.banner('reveal', { name = 'Covet' }, false, strings.t).subtitle == 'Covet')
   check('banners: busted and a lost slip are bad, a won slip and a new car are good (every tone has a mark in the UI)', sc.banner('busted', nil, false, strings.t).tone == 'bad' and sc.banner('pinklose', { name = '$900' }, false, strings.t).tone == 'bad'
     and sc.banner('pinkwin', { name = 'Covet' }, false, strings.t).tone == 'good' and sc.banner('reveal', {}, false, strings.t).tone == 'good')
+  check('banners: the garage tier banner names the level through the strings table', sc.banner('tier', { level = 2 }, false, strings.t).subtitle == 'Garage level 2')
   check('banners: an unknown style is nothing; reduce motion is passed on', sc.banner('nope', {}, false, strings.t) == nil and sc.banner('go', {}, true, strings.t).reduce == true)
   check('banners: every style has its texts in the table', (function() for _, b in pairs(sc.BANNERS) do if strings.TEXT[b.title] == nil or (b.sub and strings.TEXT[b.sub] == nil) then return false end end return true end)())
   local saved = _G.guihooks

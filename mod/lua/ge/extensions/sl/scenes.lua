@@ -122,7 +122,7 @@ end
 function M.onStreetLegalPinkSlip(won, opponent) M.play(won and 'pinkwin' or 'pinklose', { name = opponent }) end
 function M.onStreetLegalHeatUp(newLevel) M.play('heat', { level = newLevel }) end
 function M.onStreetLegalCarAdded(car) M.play('reveal', { name = type(car) == 'table' and car.name or nil }) end
-function M.onStreetLegalGarageMoved(_, toLevel) M.play('tier', { name = toLevel and ('Garage level ' .. tostring(toLevel)) or nil }) end
+function M.onStreetLegalGarageMoved(_, toLevel) M.play('tier', { level = toLevel }) end
 function M.onStreetLegalRaceGo() M.play('go') end
 -- Wrench Works' garage (WW 1.8.8 and later; an older Wrench Works never calls these): the garage's name, then the street
 function M.onWrenchWorksGarageEntered(siteName) M.play('garage_in', { name = siteName }) end
