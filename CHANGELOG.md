@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.7.0 (unreleased)
+## 0.7.0 (needs Wrench Works 1.8.5)
 
 ### New
 - **Phone skins (new, off by default):** ESC > Mods > Street Legal > Screens and texts > Phone skin. Classic is the default and the phone is unchanged. **Slate** is a modern look of our own (squircle tiles, outline icons, a pill camera island). You can add your own skins as folders in the user folder (`settings/street_legal/phone_skins/<id>/skin.json`); see docs/PHONE_SKINS.md. Offline-tested; not yet seen in the game.
@@ -11,7 +11,7 @@
 
 ### Changes
 - **Wet roads and walls** stays off by default (0.6.1) with its warning: five tests at High graphics lost the graphics device within a minute of heavy rain with it on, and the cause is not found; notes in docs/WET_WORLD_HIGH_CRASH.md. Two additions for whoever looks at it next: materials the game reports with no file (the lamp glass of loaded cars) are never edited by it any more (this did not stop the crashes), and a Developer row, "Log each wet-world material edit", writes the material being edited to the game log.
-- **Garage entry:** a visit the career refuses (a garage above your street cred) now says why on screen, and the car garage's enter calls return false with the reason; this needs Wrench Works 1.8.4 or later (not yet released).
+- **Garage entry:** a visit the career refuses (a garage above your street cred) now says why on screen, and the car garage's enter calls return false with the reason.
 
 ## 0.6.1 (needs Wrench Works 1.8.3)
 
