@@ -4083,6 +4083,18 @@ do
   sent = {}
   H.onStreetLegalCalendarReminder({ title = 'Utah Rally' }, 24) H.onStreetLegalCalendarReminder(nil, nil)
   check('banners: the calendar reminder is a banner, with odd arguments too', sent[1] == 'reminder' and sent[2] == 'reminder' and require('sl/core/scenes').banner('reminder', { name = 'Utah Rally', level = 1 }, false, require('sl/core/strings').t).subtitle == 'Utah Rally in 1 h')
+  sent = {}
+  H.onStreetLegalRoundResult({ name = 'Utah Rally', round = 2, place = 1, points = 25 }) H.onStreetLegalRoundResult({ round = 2, place = 3, points = 15 }) H.onStreetLegalRoundResult({ round = 3, place = 7, points = 2 })
+  H.onStreetLegalRoundResult({ round = 4, dnf = true }) H.onStreetLegalRoundResult({ round = 5, missed = true }) H.onStreetLegalRoundResult(nil) H.onStreetLegalSeriesFinished({ name = 'Utah Rally', pos = 1, points = 70 }) H.onStreetLegalSeriesFinished({ pos = 3 }) H.onStreetLegalSeriesFinished({ pos = 6 })
+  check('banners: a round shows win / podium / done / did not finish, a missed round and nothing show nothing; a series shows win / podium / over', sent[1] == 'round_win' and sent[2] == 'round_podium' and sent[3] == 'round_done' and sent[4] == 'round_dnf' and sent[5] == 'series_win' and sent[6] == 'series_podium' and sent[7] == 'series_end' and #sent == 7)
+  do
+    local sc2, t2 = require('sl/core/scenes'), require('sl/core/strings').t
+    local st, d = sc2.roundBanner({ name = 'Utah Rally', round = 2, place = 3, points = 15 })
+    local b = sc2.banner(st, d, false, t2)
+    check('banners: the texts carry the round, place, series and points', b.title == 'Round 2: place 3' and b.subtitle == 'Utah Rally: 15 points' and b.tone == 'good')
+    local s2, d2 = sc2.seriesBanner({ name = 'Utah Rally', pos = 1, points = 70 })
+    check('banners: a series win says so', sc2.banner(s2, d2, false, t2).title == 'Series won' and sc2.banner(s2, d2, false, t2).subtitle == 'Utah Rally: 70 points')
+  end
   check('banners: a hook with odd arguments does not throw', pcall(function() H.onStreetLegalBusted(nil, nil, nil) H.onStreetLegalCarAdded(nil) H.onStreetLegalGarageMoved() end))
   _G.guihooks = saved
   package.loaded['sl/scenes'] = nil

@@ -12,6 +12,8 @@ M.TEXT = {
   ['scenes.pinkwin'] = 'You won the slip', ['scenes.pinkwin_sub'] = 'You beat {1}', ['scenes.pinklose'] = 'You lost the slip', ['scenes.pinklose_sub'] = '{1} takes your car',
   ['scenes.heat'] = 'Heat {1}', ['scenes.heat_sub'] = 'The police are looking for you', ['scenes.reveal'] = 'New car', ['scenes.reveal_sub'] = '{1}',
   ['scenes.tier'] = 'New garage', ['scenes.tier_sub'] = 'Garage level {2}', ['scenes.garage_in'] = '{1}', ['scenes.garage_sub'] = 'Your garage', ['scenes.garage_out'] = 'Back on the street', ['scenes.garage_out_sub'] = '',
+  ['scenes.round_win'] = 'Round {1}: you won', ['scenes.round_podium'] = 'Round {1}: place {2}', ['scenes.round_done'] = 'Round {1}: place {2}', ['scenes.round_dnf'] = 'Round {1}: did not finish', ['scenes.round_sub'] = '{1}: {2} points',
+  ['scenes.series_win'] = 'Series won', ['scenes.series_podium'] = 'Series: place {2}', ['scenes.series_end'] = 'Series over: place {2}', ['scenes.series_sub'] = '{1}: {2} points',
   ['scenes.reminder'] = 'Reminder', ['scenes.reminder_sub'] = '{1} in {2} h',
   ['scenes.count'] = '{1}', ['scenes.go'] = 'GO',
   ['scenes.night'] = 'Night', ['scenes.night_sub'] = 'Day {1}: the street is awake', ['scenes.day'] = 'Morning', ['scenes.day_sub'] = 'Day {1} begins', ['scenes.skip'] = 'Press any key to skip',

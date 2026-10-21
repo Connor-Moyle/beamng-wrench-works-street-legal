@@ -23,20 +23,43 @@ M.BANNERS = {
   garage_out = { hold = 1.4, title = 'scenes.garage_out', sub = 'scenes.garage_out_sub', tone = 'plain', cues = {} },
   reminder = { hold = 3.0, title = 'scenes.reminder', sub = 'scenes.reminder_sub', tone = 'warn', cues = { { at = 0, event = 'event:>UI>Missions>Info_Open' } } },
   count = { hold = 0.9, title = 'scenes.count', tone = 'warn', cues = { { at = 0, event = 'event:>UI>Main>Click_Tonal_01' } } },
+  -- a series round and a whole series (the hooks onStreetLegalRoundResult / onStreetLegalSeriesFinished): title {1} = round (or place), {2} = place; subtitle {1} = series name, {2} = points
+  round_win = { hold = 3.0, title = 'scenes.round_win', sub = 'scenes.round_sub', tone = 'good', cues = { { at = 0, event = 'event:>UI>Career>EndScreen_Receive_XP' } } },
+  round_podium = { hold = 2.8, title = 'scenes.round_podium', sub = 'scenes.round_sub', tone = 'good', cues = { { at = 0, event = 'event:>UI>Career>EndScreen_Receive_Money' } } },
+  round_done = { hold = 2.4, title = 'scenes.round_done', sub = 'scenes.round_sub', tone = 'plain', cues = { { at = 0, event = 'event:>UI>Missions>Info_Open' } } },
+  round_dnf = { hold = 2.4, title = 'scenes.round_dnf', sub = 'scenes.round_sub', tone = 'bad', cues = { { at = 0, event = 'event:>UI>Career>Drift_Canceled' } } },
+  series_win = { hold = 4.0, title = 'scenes.series_win', sub = 'scenes.series_sub', tone = 'good', cues = { { at = 0, event = 'event:>UI>Career>EndScreen_Receive_XP' }, { at = 1.0, event = 'event:>UI>Career>EndScreen_Receive_Money' } } },
+  series_podium = { hold = 3.4, title = 'scenes.series_podium', sub = 'scenes.series_sub', tone = 'good', cues = { { at = 0, event = 'event:>UI>Career>EndScreen_Receive_Money' } } },
+  series_end = { hold = 3.0, title = 'scenes.series_end', sub = 'scenes.series_sub', tone = 'plain', cues = { { at = 0, event = 'event:>UI>Missions>Info_Open' } } },
   go = { hold = 1.0, title = 'scenes.go', tone = 'good', cues = { { at = 0, event = 'event:>UI>Missions>Checkpoint' } } },
 }
 
--- a banner's spec: nil for an unknown style. data: { name, level, n, day }. Under reduce motion the same card, with no movement and the same hold (the UI does the rest).
+-- a banner's spec: nil for an unknown style. data: { name, level, n, day, extra }. Under reduce motion the same card, with no movement and the same hold (the UI does the rest).
 function M.banner(style, data, reduce, t)
   local b = M.BANNERS[style]
   if not b then return nil end
   data = data or {}
   local name = data.name and tostring(data.name) or ''
-  local title = b.title and t(b.title, tonumber(data.n) or tonumber(data.level) or name) or ''
+  local title = b.title and t(b.title, tonumber(data.n) or tonumber(data.level) or name, data.extra ~= nil and data.extra or '') or ''
   return {
     kind = 'banner', style = style, tone = b.tone, reduce = reduce == true, hold = b.hold, title = title,
-    subtitle = b.sub and t(b.sub, name, tonumber(data.level) or '') or '', cues = b.cues, skipHint = '',
+    subtitle = b.sub and t(b.sub, name, tonumber(data.level) or '', data.extra ~= nil and data.extra or '') or '', cues = b.cues, skipHint = '',
   }
+end
+
+-- a round result r = { series, name, round, rounds, place = n|nil, points, dnf, missed } -> style and data; nil for a missed round (nothing to celebrate)
+function M.roundBanner(r)
+  if type(r) ~= 'table' or r.missed == true then return nil end
+  local place = tonumber(r.place)
+  local style = (r.dnf == true or not place) and 'round_dnf' or place == 1 and 'round_win' or place <= 3 and 'round_podium' or 'round_done'
+  return style, { name = r.name, n = tonumber(r.round) or 1, level = tonumber(r.points) or 0, extra = place }
+end
+-- a series result r = { series, name, pos, points } (pos = the final place in the standings)
+function M.seriesBanner(r)
+  if type(r) ~= 'table' then return nil end
+  local pos = tonumber(r.pos)
+  local style = not pos and 'series_end' or pos == 1 and 'series_win' or pos <= 3 and 'series_podium' or 'series_end'
+  return style, { name = r.name, n = pos, level = tonumber(r.points) or 0, extra = pos }
 end
 
 M.FADE_IN = 0.5          -- the screen goes dark under the scene this long before the game changes anything behind it
