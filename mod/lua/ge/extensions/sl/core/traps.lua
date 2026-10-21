@@ -43,6 +43,26 @@ local function far(list, x, y)
   return true
 end
 
+-- `count` drift zones (a gate pair on a long link, like a speed zone), away from the places in `taken`
+function M.selectDrift(nodes, rng, count, taken)
+  local cands = candidates(nodes)
+  for i = #cands, 2, -1 do local j = rng:int(i) cands[i], cands[j] = cands[j], cands[i] end
+  local out, avoid = {}, {}
+  for _, t in ipairs(taken or {}) do avoid[#avoid + 1] = t end
+  for _, c in ipairs(cands) do
+    if #out >= count then break end
+    if c.len >= M.ZONE_MIN then
+      local mx, my = (c.a.x + c.b.x) / 2, (c.a.y + c.b.y) / 2
+      if far(avoid, mx, my) then
+        local t = { id = 'd' .. (#out + 1), kind = 'drift', name = strings.t('danger.drift_zone', #out + 1), x = mx, y = my, z = (c.a.z + c.b.z) / 2, dx = c.dx, dy = c.dy, limit = c.limit,
+          len = c.len * 0.7, target = 600, g1 = { x = c.a.x + c.dx * c.len * 0.15, y = c.a.y + c.dy * c.len * 0.15 }, g2 = { x = c.a.x + c.dx * c.len * 0.85, y = c.a.y + c.dy * c.len * 0.85 } }
+        out[#out + 1], avoid[#avoid + 1] = t, t
+      end
+    end
+  end
+  return out
+end
+
 -- the traps and zones of a map: { { id, kind = 'trap' | 'zone', name, x, y, z, dx, dy, limit, target, len, g1 = { x, y }, g2 = { x, y } } }; rng is sl/core/rng
 function M.select(nodes, rng)
   local cands = candidates(nodes)

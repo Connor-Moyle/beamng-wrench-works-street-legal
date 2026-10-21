@@ -3,6 +3,7 @@
 ## 0.8.1 (unreleased; needs Wrench Works 1.8.5)
 
 ### New
+- **Danger zones (new, on by default; Mods > Street Legal > Parts of the game > Danger zones):** the longest jump you fly is recorded anywhere on the map (a jump is at least 0.4 s in the air) and pays $150, $300, $600 and $1,000 for 20, 40, 70 and 110 m, each once. Two drift zones on long roads score your drift points between their two gates (fast and sliding between 15 and 80 degrees counts); 600 points pays $300 and 5 reputation the first time. Offline-tested; not yet seen in the game; how high a car must be off the ground to count as flying is a guess to check.
 - **Speed traps and speed zones (new, on by default; Mods > Street Legal > Parts of the game > Speed traps):** six traps and two zones on long straight roads of the map, chosen once for your career. Drive through a trap and your speed counts; drive between the two gates of a zone and your average speed counts. Each has a target; the first time you beat it it pays ($250 for a trap, $400 for a zone) and gives 5 reputation; after that only your personal best changes. The phone list is built by the phone. Offline-tested; not yet seen in the game.
 
 ## 0.8.0 (needs Wrench Works 1.8.5)

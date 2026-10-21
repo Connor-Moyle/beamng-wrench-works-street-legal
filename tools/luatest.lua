@@ -3308,7 +3308,7 @@ do
   local Opt = require('sl/options')
   local defs = {}
   for _, d in ipairs(Opt.defs) do defs[d.key] = d end
-  local okDefs = #F.LIST == 26
+  local okDefs = #F.LIST == 27
   for _, f in ipairs(F.LIST) do
     local d = defs[f.opt]
     if not (d and d.type == 'bool' and d.default == true and d.feature == true and d.title == f.title and f.desc ~= '') then okDefs = false end
@@ -3925,6 +3925,94 @@ do
   end
   _G.sl_career, _G.extensions, _G.guihooks, _G.getPlayerVehicle, _G.map, _G.getCurrentLevelIdentifier, _G.ui_message = old.c, old.e, old.g, old.pv, old.map, old.lv, old.um
   package.loaded['sl/traps'] = nil
+end
+
+-- danger zones (campaign idea #2)
+do
+  local D = require('sl/core/danger')
+  local TR = require('sl/core/traps')
+  local rngLib = require('sl/core/rng')
+  check('danger: slip angle between the way a car moves and the way it points', math.abs(D.slipAngle(10, 0, 1, 0)) < 1e-6 and math.abs(D.slipAngle(10, 0, 0, 1) - 90) < 1e-6 and math.abs(D.slipAngle(0, 0, 1, 0)) == 0)
+  check('danger: drift points only when fast enough and sliding between 15 and 80 degrees', D.driftPoints(20, 45, 1) == 20 and D.driftPoints(20, 10, 1) == 0 and D.driftPoints(20, 85, 1) == 0 and D.driftPoints(5, 45, 1) == 0 and D.driftPoints(20, -45, 1) == 20 and D.driftPoints(20, 90, 1) == 0)
+  local st = D.newJump()
+  local r
+  for i = 1, 6 do r = D.jumpStep(st, true, i * 10, 0, 0.1) end
+  r = D.jumpStep(st, false, 62, 0, 0.1)
+  check('danger: a jump is the ground covered between take-off and landing after enough air time', r and math.abs(r - 52) < 1e-6)
+  local st2 = D.newJump()
+  D.jumpStep(st2, true, 0, 0, 0.1)
+  check('danger: a bump shorter than 0.4 s is no jump, and a landing with no take-off gives nothing', D.jumpStep(st2, false, 3, 0, 0.1) == nil and D.jumpStep(D.newJump(), false, 3, 0, 0.1) == nil)
+  local st3 = D.newJump()
+  for i = 1, 6 do D.jumpStep(st3, true, 0, 0, 0.1) end
+  check('danger: a distance of more than 400 m was a teleport', D.jumpStep(st3, false, 900, 0, 0.1) == nil)
+  local n1, p1 = D.ladder(0, 45)
+  local n2, p2 = D.ladder(n1, 45)
+  local n3, p3 = D.ladder(n2, 120)
+  check('danger: the ladder pays each rung once, in order', n1 == 2 and p1[1] == 150 and p1[2] == 300 and n2 == 2 and #p2 == 0 and n3 == 4 and p3[1] == 600 and p3[2] == 1000)
+
+  local nodes = {}
+  for i = 1, 20 do
+    nodes['a' .. i] = { pos = { x = 0, y = i * 1000, z = 0 }, links = { ['b' .. i] = { drivability = 1, speedLimit = 25 } } }
+    nodes['b' .. i] = { pos = { x = 400, y = i * 1000, z = 0 }, links = { ['a' .. i] = { drivability = 1, speedLimit = 25 } } }
+  end
+  local taken = TR.select(nodes, rngLib.new(7))
+  local drift = TR.selectDrift(nodes, rngLib.new(9), 2, taken)
+  local apart = true
+  for _, d in ipairs(drift) do for _, t in ipairs(taken) do if (d.x - t.x) ^ 2 + (d.y - t.y) ^ 2 < TR.APART ^ 2 then apart = false end end end
+  check('danger: two drift zones with a target and two gates, away from the traps', #drift == 2 and drift[1].kind == 'drift' and drift[1].target == 600 and drift[1].g2 and apart)
+
+  -- the extension: a jump and a drift run
+  local ST = require('sl/core/state')
+  local st0 = ST.new(1, 0)
+  st0.seed = 4
+  local old = { c = rawget(_G, 'sl_career'), e = rawget(_G, 'extensions'), g = rawget(_G, 'guihooks'), pv = rawget(_G, 'getPlayerVehicle'), map = rawget(_G, 'map'), lv = rawget(_G, 'getCurrentLevelIdentifier'),
+    um = rawget(_G, 'ui_message'), ray = rawget(_G, 'castRayStatic'), v3 = rawget(_G, 'vec3'), clock = os.clock }
+  local paid = 0
+  _G.guihooks = { trigger = function() end }
+  _G.ui_message = nil
+  _G.extensions = { hook = function() end }
+  _G.map = { getMap = function() return { nodes = nodes } end }
+  _G.getCurrentLevelIdentifier = function() return 'test_level' end
+  _G.vec3 = function(x, y, z) return { x = x, y = y, z = z, __add = nil } end
+  _G.sl_career = { isActive = function() return true end, getState = function() return st0 end, payOut = function(a) paid = paid + a return ST.addMoney(st0, a, 'x') end }
+  local pos, vel, face, ground = { x = 0, y = 0, z = 0 }, { x = 0, y = 0 }, { x = 1, y = 0 }, 0.5
+  _G.castRayStatic = function() return ground end
+  local function veh()
+    local p = setmetatable({ x = pos.x, y = pos.y, z = pos.z or 0 }, { __add = function(a, b) return { x = a.x + b.x, y = a.y + b.y, z = a.z + b.z } end })
+    return { getJBeamFilename = function() return 'covet' end, getPosition = function() return p end,
+      getVelocity = function() return { x = vel.x, y = vel.y, length = function() return math.sqrt(vel.x ^ 2 + vel.y ^ 2) end } end, getDirectionVector = function() return { x = face.x, y = face.y } end }
+  end
+  _G.getPlayerVehicle = function() return veh() end
+  package.loaded['sl/danger'] = nil
+  local DX = require('sl/danger')
+  DX.onUpdate(0.2)
+  local sm = DX.summary()
+  check('danger: the career gets two drift zones in the save and a jump record', sm and #sm.drift == 2 and sm.jump.next == 20 and st0.danger.level == 'test_level')
+  -- a jump of 50 m: in the air for 0.8 s
+  pos = { x = 500, y = 500, z = 0 } ground = 0.5 DX.onUpdate(0.2)
+  ground = 3 for i = 1, 4 do pos = { x = 500 + i * 12, y = 500, z = 0 } DX.onUpdate(0.2) end
+  ground = 0.5 pos = { x = 560, y = 500, z = 0 } DX.onUpdate(0.2)
+  check('danger: a 50 m jump is recorded, pays the 20 and 40 m rungs and nothing more', st0.danger.jump.best > 40 and st0.danger.jump.paid == 2 and paid == 450 and DX.summary().jump.next == 70)
+  -- a drift run through the first zone
+  local zone = st0.danger.drift.list[1]
+  local clock = 100
+  os.clock = function() return clock end
+  vel, face = { x = 25, y = 0 }, { x = 0.7071, y = 0.7071 }          -- 45 degrees of slip at 25 m/s
+  local function at(g, back) pos = { x = g.x - zone.dx * 6 * back, y = g.y - zone.dy * 6 * back } DX.onUpdate(0.2) end
+  -- (the zone runs along its dx, dy: move the car along it with the slip kept)
+  vel = { x = zone.dx * 25, y = zone.dy * 25 }
+  face = { x = (zone.dx + -zone.dy) * 0.7071, y = (zone.dy + zone.dx) * 0.7071 }
+  pos = { x = zone.g1.x - zone.dx * 400, y = zone.g1.y - zone.dy * 400 } DX.onUpdate(0.2) DX.onUpdate(0.2)
+  pos = { x = zone.g1.x - zone.dx * 6, y = zone.g1.y - zone.dy * 6 } clock = clock + 0.2 DX.onUpdate(0.2)
+  pos = { x = zone.g1.x + zone.dx * 6, y = zone.g1.y + zone.dy * 6 } clock = clock + 0.2 DX.onUpdate(0.2)
+  for i = 1, 31 do pos = { x = pos.x + zone.dx * 9, y = pos.y + zone.dy * 9 } DX.onUpdate(0.1) end
+  pos = { x = zone.g2.x - zone.dx * 6, y = zone.g2.y - zone.dy * 6 } DX.onUpdate(0.2)
+  pos = { x = zone.g2.x + zone.dx * 6, y = zone.g2.y + zone.dy * 6 } DX.onUpdate(0.2)
+  local rec = st0.danger.drift.rec[zone.id]
+  check('danger: a drift run between the gates scores points, and a score under the target pays nothing', rec and rec.best > 0 and rec.count == 1 and not rec.paid and paid == 450)
+  os.clock = old.clock
+  _G.sl_career, _G.extensions, _G.guihooks, _G.getPlayerVehicle, _G.map, _G.getCurrentLevelIdentifier, _G.ui_message, _G.castRayStatic, _G.vec3 = old.c, old.e, old.g, old.pv, old.map, old.lv, old.um, old.ray, old.v3
+  package.loaded['sl/danger'] = nil
 end
 
 print(string.format('lua tests passed: %d checks', passed))
