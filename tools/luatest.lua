@@ -4632,7 +4632,10 @@ do
   check('visit: leaving marks the chosen cars to be built at the paddock and puts every other car in the garage', s0.cars[1].visit and s0.cars[1].out and s0.cars[1].where == nil and s0.cars[3].visit
     and s0.cars[4].out == false and s0.cars[4].where == nil and not s0.cars[4].visit and s0.visit == visit)
   s0.cars[1].where = { pos = { 5, 5, 5 } }
-  local was = V.finish(s0)
+  s0.cars[#s0.cars + 1] = { id = 9, name = 'Loaner', loaner = true, visit = true, out = true }
+  s0.activeCar = 9
+  local was, gone = V.finish(s0)
+  check('visit: a loaner leaves the garage list with the visit and is handed back for the deposit', #gone == 1 and gone[1].id == 9 and s0.activeCar == nil and #s0.cars == 5)
   check('visit: coming back puts every car in the garage and clears the visit', was == visit and s0.visit == nil and s0.cars[1].out == false and s0.cars[1].where == nil and not s0.cars[1].visit)
   local pad = V.paddock({ x = 100, y = 100, z = 5 }, { x = 0, y = 1 }, 3)
   check('visit: the paddock is a row to the right of the player, 3.2 m apart, facing the same way', #pad == 3 and pad[1].pos.x > 100 and math.abs(pad[2].pos.x - pad[1].pos.x - 3.2) < 1e-9 and pad[1].face.y == 1 and V.paddock({ x = 0, y = 0 }, { x = 0, y = 0 }, 1)[1].face.y == 1)
@@ -4821,7 +4824,7 @@ do
   _G.extensions = { hook = function(name, a) events[#events + 1] = { name, a } end }
   _G.core_jobsystem = { create = function(fn) fn({ sleep = function() end }) end }
   _G.sl_career = { isActive = function() return true end, getState = function() return st end, visit = function() return visit end, mapName = function() return 'Hirochi Raceway' end,
-    payOut = function(a) paid = paid + a return ST.addMoney(st, a, 'x') end, isBusy = function() return false end }
+    payOut = function(a) paid = paid + a return ST.addMoney(st, a, 'x') end, addMoney = function(a, l) return ST.addMoney(st, a, l) end, isBusy = function() return false end }
   _G.sl_fleet = { currentCar = function() return st.cars[1] end }
   _G.getPlayerVehicle = function() return { getID = function() return 55 end } end
   local missions = { ['hirochi_raceway/aiRace/001-Short'] = { id = 'hirochi_raceway/aiRace/001-Short', setupModules = { vehicles = { vehicles = {} } } } }
@@ -4882,6 +4885,24 @@ do
   _G.sl_gridrace = nil
   SX.running = nil
   check('series game: a runner that is not there refuses', SX.startNext() == false)
+  -- a loaner
+  do
+    st.money = 5000
+    local before = st.money
+    local car = SX.addLoaner('utah-rally:1', 21400)
+    check('series game: a loaner is a car of the career for the visit: worth nothing, out at the paddock, a deposit paid of a twentieth of its price, with its config file', car and car.loaner and car.visit and car.out and car.value == 0 and car.pcPath == 'vehicles/sunburst2/rally_am_gravel.pc'
+      and st.money == before - 1070 and car.id ~= nil)
+    st.money = 10
+    check('series game: no money for the deposit, no loaner', SX.addLoaner('utah-rally:1', 21400) == nil)
+    st.money = 5000
+    local m0 = st.money
+    SX.onStreetLegalVisitEnded(visit, 'done', { { id = 9, deposit = 1070 } })
+    check('series game: an undamaged loaner gives its deposit back', st.money == m0 + 1070)
+    m0 = st.money
+    SX.onStreetLegalVisitEnded(visit, 'done', { { id = 9, deposit = 1070, damage = { nodes = { [1] = 5 } } } })
+    check('series game: a damaged loaner keeps the deposit', st.money == m0)
+    for i = #st.cars, 1, -1 do if st.cars[i].loaner then table.remove(st.cars, i) end end
+  end
   -- closing a visit: the rounds left are missed and the series is closed; the days running out sends the career home
   do
     st.series['utah-rally:1'] = SR.newState(1)

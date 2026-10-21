@@ -681,6 +681,7 @@ M.TEXT = {
   ["bank.loan_payment"] = "Loan payment",
   ["bank.loan_repayment"] = "Loan repayment",
   ["weekly.rent"] = "Garage rent",
+  ["series.loaner_not_yours"] = "That car is a loaner: it is not yours to sell.", ["series.loaner_back"] = "Loaner back: deposit ${1} returned.", ["series.loaner_damaged"] = "Loaner back damaged: the deposit is kept.",
   ["series.you"] = "You", ["series.prize_label"] = "Series prize: {1}", ["series.finished"] = "The series is over: you finished {1}. Prize ${2}.",
   ["series.round_done"] = "Round {1}: place {2}, {3} points.", ["series.round_dnf"] = "Round {1}: you did not finish.", ["series.round_missed"] = "Round {1} was missed.",
   ["series.no_series"] = "You are not in a series.", ["series.round_running"] = "A round is running.", ["series.all_done"] = "Every round is done.",

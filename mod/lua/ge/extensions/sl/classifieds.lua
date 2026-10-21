@@ -570,6 +570,7 @@ function M.listCar(carId)
   if #m.mine >= MINE_MAX then return false, strings.t('classifieds.you_have_1_things_listed', (MINE_MAX)) end
   local car = carById(s, tonumber(carId) or carId)
   if not car then return false, strings.t('classifieds.that_car_is_not_yours') end
+  if car.loaner then return false, strings.t('series.loaner_not_yours') end
   for _, y in ipairs(m.mine) do if y.carId == car.id then return false, strings.t('classifieds.it_is_listed_already') end end
   local y = { id = 'y' .. m.nextId, kind = 'car', carId = car.id, name = car.name or car.model, model = car.model, value = car.value or 0,
     condition = car.condition or 0.5, channel = 'app', offers = {}, listed = now(s) }
