@@ -9,6 +9,7 @@ The ads are drawn here (a gradient, the name in bold letters, a tagline and a ch
 import io
 import os
 import re
+import sys
 import zipfile
 
 from PIL import Image, ImageDraw, ImageFont
@@ -78,6 +79,18 @@ def ad(name):
     return slug, im
 
 
+def tiles():
+    """The overlay fallback (release.py --billboards overlay): only our own five-ad tiles, no pixel of the game's atlas.
+    mod/art/street_legal/billboards/tiles/<slug>_<n>.png, n = 1..5 in the order of REPLACED (sl/core/billboards.lua draws them into the game's own atlas)."""
+    out = os.path.join(OUT, "tiles")
+    os.makedirs(out, exist_ok=True)
+    for name in ADS:
+        slug, tile = ad(name)
+        for n in range(1, len(REPLACED) + 1):
+            tile.save(os.path.join(out, "%s_%d.png" % (slug, n)), optimize=True)
+    print("tiles written to", out)
+
+
 def main():
     z = zipfile.ZipFile(os.path.join(GAME, "content", "assets", "materials", "billboard_label.zip"))
     atlas = Image.open(io.BytesIO(z.read(ATLAS))).convert("RGB")
@@ -97,4 +110,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    if "--tiles" in sys.argv:
+        tiles()          # (needs no game files)
+    else:
+        main()

@@ -431,6 +431,47 @@ return function(check, rngLib)
     and BB.choose('Some Other Co', nil) == nil and BB.choose('Some Other Co', 3) == 'Club 3' and BB.choose(nil, 9) == nil)
   check('billboards: the atlas file is in the mod folder by slug; no name, no file', BB.file('Valo Tyre & Wheel') == '/art/street_legal/billboards/valo-tyre-wheel.jpg' and BB.file('Club 1') == '/art/street_legal/billboards/club-1.jpg' and BB.file(nil) == nil and BB.file('x') == nil)
 
+  -- #47 overlay mode: no atlas in the mod, only our tiles; the game's atlas is drawn on with them
+  do
+    local have = {}
+    local function exists(f) return have[f] == true end
+    check('billboards overlay: with an atlas in the mod it is used', (function() have[BB.file('Club 1')] = true local p = BB.plan('Club 1', exists) have[BB.file('Club 1')] = nil return p.kind == 'atlas' and p.file == BB.file('Club 1') end)())
+    check('billboards overlay: nothing shipped, nothing planned (the stock ads stay); an unknown name too', BB.plan('Club 1', exists) == nil and BB.plan('Nobody', exists) == nil and BB.plan(nil, exists) == nil)
+    for n = 1, #BB.TILES do have[BB.tileFile('Club 1', n)] = true end
+    local pl = BB.plan('Club 1', exists)
+    check('billboards overlay: five tiles planned, the drawn atlas goes to /temp', pl.kind == 'tiles' and #pl.tiles == 5 and pl.tiles[1] == '/art/street_legal/billboards/tiles/club-1_1.png' and pl.out == '/temp/street_legal/billboards_club-1.png')
+    have[BB.tileFile('Club 1', 3)] = nil
+    check('billboards overlay: one tile missing, nothing planned', BB.plan('Club 1', exists) == nil)
+    have[BB.tileFile('Club 1', 3)] = true
+    -- a fake GBitmap: tiles 2x1 pixels, an atlas of 8x4 (four tiles across, four down)
+    local files, saved = {}, {}
+    local function bitmap()
+      local b = { px = {} }
+      function b:loadFile(f) if not files[f] then return false end self.w, self.h = files[f].w, files[f].h for k, v in pairs(files[f].px) do self.px[k] = v end return true end
+      function b:getWidth() return self.w end
+      function b:getHeight() return self.h end
+      function b:getColor(x, y, c) c.v = self.px[x .. ',' .. y] or 0 return true end
+      function b:setColor(x, y, c) self.px[x .. ',' .. y] = c.v return true end
+      function b:saveFile(f) saved[f] = self return true end
+      return b
+    end
+    files[BB.ORIGINAL] = { w = 8, h = 4, px = { ['0,0'] = 7 } }
+    for n = 1, 5 do files[pl.tiles[n]] = { w = 2, h = 1, px = { ['0,0'] = 10 * n, ['1,0'] = 10 * n + 1 } } end
+    local step = BB.composer(bitmap, function() return {} end, BB.ORIGINAL, pl, 3)
+    local frames, done, ok = 0, false, nil
+    while not done do done, ok = step() frames = frames + 1 if frames > 50 then break end end
+    local out = saved[pl.out]
+    check('billboards overlay: the tiles are drawn into the atlas at their places (column, row) and the rest is left alone',
+      done and ok and out and out.px['0,0'] == 7 and out.px['3,0'] == nil and out.px['6,3'] == 10 and out.px['7,3'] == 11 and out.px['0,3'] == 20 and out.px['2,3'] == 30 and out.px['4,3'] == 40 and out.px['4,0'] == 50)
+    check('billboards overlay: the work is spread over frames (3 pixels a frame for 5 tiles of 2)', frames == 4)
+    files[pl.tiles[2]] = nil
+    local s2 = BB.composer(bitmap, function() return {} end, BB.ORIGINAL, pl, 3)
+    local d2, ok2, why2 = false, nil, nil
+    while not d2 do d2, ok2, why2 = s2() end
+    check('billboards overlay: a missing tile ends the work with a reason and nothing saved', ok2 == false and tostring(why2):find('no tile') and true)
+    check('billboards overlay: no readable atlas, no composer', BB.composer(bitmap, function() return {} end, '/nowhere.png', pl, 3) == nil)
+  end
+
   -- #24: rally stages
   local RL = require('sl/core/rally')
   local function line(parts)

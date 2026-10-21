@@ -25,4 +25,54 @@ end
 
 function M.file(name) return name and M.SLUGS[name] and (M.DIR .. M.SLUGS[name] .. '.jpg') or nil end
 
+-- Overlay mode (release.py --billboards overlay, not the default): the mod then ships no atlas, only our five ads of each name (tiles/<slug>_<n>.png, 512x256), and the
+-- atlas is made in the game: the game's own atlas file with the five tiles drawn into it, saved to /temp and put on the material.
+M.TILES = { { 3, 3 }, { 0, 3 }, { 1, 3 }, { 2, 3 }, { 2, 0 } }      -- (column, row) of the replaced ads: the same as REPLACED in tools/make_billboards.py
+M.TEMP = '/temp/street_legal/'
+function M.tileFile(name, n) return name and M.SLUGS[name] and (M.DIR .. 'tiles/' .. M.SLUGS[name] .. '_' .. n .. '.png') or nil end
+
+-- what to put on the material for a name: the shipped atlas; else the tiles to draw into the game's atlas; else nil (the stock ads stay)
+function M.plan(name, exists)
+  if not (name and M.SLUGS[name]) then return nil end
+  local atlas = M.file(name)
+  if exists(atlas) then return { kind = 'atlas', file = atlas } end
+  local tiles = {}
+  for n = 1, #M.TILES do
+    tiles[n] = M.tileFile(name, n)
+    if not exists(tiles[n]) then return nil end
+  end
+  return { kind = 'tiles', tiles = tiles, out = M.TEMP .. 'billboards_' .. M.SLUGS[name] .. '.png' }
+end
+
+-- Draws the tiles of a plan into the game's atlas, perStep pixels at a time. newBitmap() makes a GBitmap, newColour() a ColorI. Returns a function to call
+-- once a frame: it returns done, ok, why. nil, why when the atlas cannot be read.
+function M.composer(newBitmap, newColour, baseFile, plan, perStep)
+  local atlas = newBitmap()
+  if atlas:loadFile(baseFile) == false then return nil, 'no atlas ' .. baseFile end
+  local co = coroutine.create(function()
+    local col, n = newColour(), 0
+    for i, file in ipairs(plan.tiles) do
+      local tile = newBitmap()
+      if tile:loadFile(file) == false then error('no tile ' .. file, 0) end
+      local tw, th = tile:getWidth(), tile:getHeight()
+      if atlas:getWidth() ~= 4 * tw or atlas:getHeight() ~= 4 * th then error('the atlas is not four tiles across and four down', 0) end
+      local ox, oy = M.TILES[i][1] * tw, M.TILES[i][2] * th
+      for y = 0, th - 1 do
+        for x = 0, tw - 1 do
+          tile:getColor(x, y, col)
+          atlas:setColor(ox + x, oy + y, col)
+          n = n + 1
+          if n >= perStep then n = 0 coroutine.yield() end
+        end
+      end
+    end
+    if atlas:saveFile(plan.out) == false then error('cannot save ' .. plan.out, 0) end
+  end)
+  return function()
+    local ok, why = coroutine.resume(co)
+    if not ok then return true, false, why end
+    return coroutine.status(co) == 'dead', true
+  end
+end
+
 return M
