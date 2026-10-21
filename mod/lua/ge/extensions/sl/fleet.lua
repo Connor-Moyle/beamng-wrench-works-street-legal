@@ -202,6 +202,7 @@ function M.registerVehicle(vid, info)
   s.activeCar = car.id
   veh:queueLuaCommand('controller.setFreeze(0) extensions.load("slrrGarageVeh")')
   extensions.hook('onStreetLegalChanged')
+  extensions.hook('onStreetLegalCarAdded', car)      -- (a car bought, won or delivered; for the screen banners)
   return car
 end
 
