@@ -1002,6 +1002,27 @@ if (out > 0) {
   phone.handle('slPhoneSkin', { id: 'classic' });
   console.log('phone skin test passed');
 }
+// free roam (no career): data.freeroam with data.apps keeps only those apps (grid and dock), hides the career line and the tutorial, and an app it does not have goes home
+{
+  if (!phone.root.querySelector('.slp-device:not(.slp-away)')) phone.handle('slPhoneToggle');
+  const fr = { active: true, freeroam: true, apps: ['map', 'cab'], hour: 14, minute: 5, day: 1, mapName: 'West Coast', night: false, weather: { text: 'Clear', wet: false }, has: { maps: true, races: false, bank: false, jobs: false, clubs: false, crews: false, market: false } };
+  phone.handle('slPhoneData', fr);
+  phone.act('home');
+  const ids = () => Array.from(phone.root.querySelectorAll('.slp-app')).map((a) => a.getAttribute('data-v'));
+  assert.deepStrictEqual(ids().sort(), ['cab', 'map'], 'free roam shows only the apps it was given (the grid and the dock): ' + ids());
+  assert.ok(!phone.root.querySelector('.slp-chip') && !phone.root.querySelector('.slp-tut'), 'no career line, no route-to-garage, no tutorial in free roam');
+  assert.ok(/Clear/.test(text()) && /14:05/.test(text()), 'the clock and the weather are there');
+  phone.act('open', 'races');
+  assert.ok(phone.state.app === 'home', 'an app free roam does not have lands on the home screen');
+  phone.act('open', 'map');
+  assert.ok(phone.state.app === 'map', 'an app it has opens');
+  phone.handle('slPhoneGo', { app: 'bank' });
+  assert.ok(phone.state.app === 'home', 'a deep link to an app it does not have lands on the home screen');
+  phone.handle('slPhoneData', data);
+  phone.act('home');
+  assert.ok(ids().includes('races') || ids().includes('garage'), 'a career phone shows its apps again');
+  console.log('phone free roam test passed');
+}
 // the home grid scrolls (wheel) and the dock never leaves the screen: the grid shrinks, the dock does not; the phone is scaled to fit the window height
 {
   const css = require('fs').readFileSync(require('path').join(__dirname, '..', 'mod', 'ui', 'modModules', 'slPhone', 'slPhone.js'), 'utf8');
