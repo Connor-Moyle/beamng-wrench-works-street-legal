@@ -4059,4 +4059,102 @@ do
   package.loaded['sl/shops'] = nil
 end
 
+-- shops step 3: paint and body, the tuner, special orders (sl/core/shops and sl/shops)
+do
+  local SH = require('sl/core/shops')
+  local none = SH.paintServices(nil)
+  check('shops: no Car Surface FX state, no paint services', #none == 0)
+  local svc = SH.paintServices({ dirtName = 'muddy', scratchName = 'heavy' })
+  check('shops: a dirty, heavily scratched car is offered a wash (15), a heavy polish (190) and eight resprays at 450 with a swatch',
+    svc[1].id == 'wash' and svc[1].price == 15 and svc[2].id == 'polish' and svc[2].price == 190 and #svc == 10 and svc[3].swatch == '#c0392b' and svc[3].price == 450 and svc[3].id == 'respray_c0392b')
+  local clean = SH.paintServices({ dirtName = 'clean', scratchName = 'none' })
+  check('shops: a clean unscratched car is offered only the resprays', #clean == 8 and clean[1].id:find('^respray_'))
+  check('shops: a light scratch polishes for less', SH.paintServices({ dirtName = 'clean', scratchName = 'light' })[1].price == 80)
+  local hexs, r, g, b = SH.resprayColour('respray_FF8000')
+  check('shops: a respray id gives its colour as r, g, b in 0..1', hexs == '#ff8000' and r == 1 and math.abs(g - 128 / 255) < 1e-9 and b == 0 and SH.resprayColour('respray_zz') == nil and SH.resprayColour('wash') == nil)
+  check('shops: the tuner offers a dyno run at 90', SH.tunerServices()[1].id == 'dyno' and SH.tunerServices()[1].price == 90)
+  check('shops: a deposit is 30% (rounded up, at least 1, never above the total)', SH.deposit(1500) == 450 and SH.deposit(1) == 1 and SH.deposit(0) == 0 and SH.deposit(10) == 3)
+  check('shops: a special order takes 6 hours and one more for each 300 dollars, at most 48', SH.orderHours(0) == 6 and SH.orderHours(1500) == 11 and SH.orderHours(100000) == 48)
+  check('shops: the performance kind is a special-order shop, the others are not', SH.normalize('performance', {}).order == true and SH.normalize('exhaust', {}).order == false)
+  local entries = { p1 = { part = 'turbo_big', name = 'Big turbo', slotId = 'turbo' } }
+  local os = SH.newOrders('Fast Automotive', 'covet', entries, { { id = 'p1', qty = 2, each = 1500 } }, 0.3, 100)
+  check('shops: an order is made for each part bought, with the deposit share paid and the due time', #os == 2 and os[1].paid == 450 and os[1].due == 111 and os[1].model == 'covet' and os[1].shop == 'Fast Automotive')
+  check('shops: the orders that are ready come oldest first', #SH.ready(os, 110) == 0 and #SH.ready(os, 111) == 2 and SH.ready({ { due = 5 }, { due = 3 } }, 9)[1].due == 3)
+  package.loaded['sl/core/shops'] = nil
+
+  local ST = require('sl/core/state')
+  local st = ST.new(1, 0)
+  st.day, st.money, st.rep = 3, 5000, 0
+  local sent, toasts, texts, shelf, queued, painted, washed, repaired = {}, {}, {}, {}, {}, {}, {}, {}
+  local old = {}
+  for _, k in ipairs({ 'sl_career', 'guihooks', 'core_environment', 'slrr_garage', 'sl_fleet', 'sl_surfacefx', 'core_vehicle_colors', 'getObjectByID', 'extensions' }) do old[k] = rawget(_G, k) end
+  _G.guihooks = { trigger = function(n, d) sent[#sent + 1] = { n = n, d = d } if n == 'slPhoneToast' then toasts[#toasts + 1] = d.text end end }
+  _G.extensions = { hook = function() end }
+  _G.core_environment = { getTimeOfDay = function() return { time = 0 } end }
+  local hour = 12
+  _G.sl_career = { isActive = function() return true end, getState = function() return st end, addMoney = function(a, l) return ST.addMoney(st, a, l) end, phase = function() return 'day' end,
+    hour = function() return hour end, sendText = function(who, t) texts[#texts + 1] = t end }
+  _G.sl_fleet = { currentCar = function() return { id = 1, name = 'Covet', brand = 'Ibishu' } end, vehicleOf = function() return { getID = function() return 77 end } end }
+  local level = { dirtName = 'muddy', scratchName = 'light' }
+  _G.sl_surfacefx = { level = function() return level end, washOff = function(v) washed[#washed + 1] = v return true end, repair = function(v) repaired[#repaired + 1] = v return true end, wash = function(v) washed[#washed + 1] = v return true end }
+  _G.core_vehicle_colors = { setVehiclePaint = function(i, p, v) painted[#painted + 1] = { i = i, p = p, v = v } end }
+  _G.getObjectByID = function(id) return { queueLuaCommand = function(_, c) queued[#queued + 1] = c end } end
+  local fits = { { part = 'turbo_big', name = 'Big turbo', slotId = 'turbo', slot = 'Turbo', price = 1500, brand = 'Turvane', more = false } }
+  _G.slrr_garage = { lookupParts = function() return fits, 'covet' end, addShelfPart = function(model, p) shelf[#shelf + 1] = { model = model, p = p } end }
+  package.loaded['sl/shops'] = nil
+  local SS = require('sl/shops')
+
+  -- paint and body
+  SS.open('paint', { name = 'Spray Kings' })
+  local v = sent[#sent].d
+  check('sl_shops: the paint shop offers what the state of the car calls for (from Car Surface FX)', #v.services == 10 and v.services[1].id == 'wash' and v.services[2].id == 'polish' and v.services[2].price == 80 and v.note == nil)
+  local m0 = st.money
+  SS.buy('wash:1,polish:1')
+  check('sl_shops: a wash and a polish are paid, the car is washed and polished, nothing else changes', st.money == m0 - 15 - 80 and washed[1] == 77 and repaired[1] == 77 and #painted == 0)
+  local m1 = st.money
+  SS.buy('respray_c0392b:1')
+  check('sl_shops: a respray paints the car in that colour, then washes and repairs it (a paint job leaves it clean)', st.money == m1 - 450 and painted[1].v == 77 and painted[1].i == 1 and math.abs(painted[1].p.baseColor[1] - 192 / 255) < 1e-9 and #repaired == 2)
+  _G.sl_surfacefx.repair = function() return nil end
+  local m2 = st.money
+  SS.buy('polish:1')
+  check('sl_shops: a service that cannot be done is refunded', st.money == m2)
+  _G.sl_surfacefx = nil
+  SS.open('paint', {})
+  check('sl_shops: without Car Surface FX the paint shop says it is needed and offers nothing', sent[#sent].d.note ~= nil and #sent[#sent].d.services == 0)
+
+  -- the tuner
+  SS.open('tuner', {})
+  check('sl_shops: the tuner offers the dyno run', #sent[#sent].d.services == 1 and sent[#sent].d.services[1].id == 'dyno')
+  local m3 = st.money
+  SS.buy('dyno:1')
+  check('sl_shops: a dyno run is paid and the garage mod vehicle side is told to run it', st.money == m3 - 90 and queued[1]:find('slrrGarageVeh.dyno()', 1, true) ~= nil)
+  SS.onWrenchWorksDyno(5, { maxPower = 240, maxPowerRPM = 6500, maxTorque = 300, maxTorqueRPM = 4200, power = { 1, 2 } })
+  check('sl_shops: a dyno result of another car is ignored', sent[#sent].n ~= 'slShopResult')
+  SS.onWrenchWorksDyno(77, { maxPower = 240, maxPowerRPM = 6500, maxTorque = 300, maxTorqueRPM = 4200, power = { 1, 2 } })
+  local res = sent[#sent]
+  check('sl_shops: the result of the car goes to the screen with the peaks and the curve', res.n == 'slShopResult' and res.d.lines[1].text == '240 hp at 6500 rpm' and res.d.lines[2].text == '300 Nm at 4200 rpm' and #res.d.curve == 2)
+
+  -- special orders
+  SS.open('performance', { name = 'Fast Automotive' })
+  v = sent[#sent].d
+  check('sl_shops: the performance shop lists parts for the car like any catalogue shop', #v.stock == 1 and v.stock[1].price == 1500)
+  local m4 = st.money
+  SS.buy('p1:1')
+  check('sl_shops: a special order takes the deposit only, nothing is on the shelf yet, the order is in the save with its due time',
+    st.money == m4 - 450 and #shelf == 0 and #st.shopOrders == 1 and st.shopOrders[1].paid == 450 and st.shopOrders[1].due == 89 and sent[#sent].d.orders[1].name == 'Big turbo')
+  SS.onUpdate(6)
+  check('sl_shops: before it is ready nothing arrives', #shelf == 0 and #st.shopOrders == 1)
+  st.day = st.day + 1      -- (a day later: the order is due)
+  SS.onUpdate(6)
+  check('sl_shops: when it is ready the balance is paid and the part is on the shelf of the car model, with a text', #shelf == 1 and shelf[1].model == 'covet' and shelf[1].p.part == 'turbo_big' and st.money == m4 - 1500 and #st.shopOrders == 0 and #texts == 1)
+  SS.buy('p1:1')
+  st.money = 100
+  st.day = st.day + 3
+  SS.onUpdate(6)
+  check('sl_shops: a balance that cannot be paid waits, with one text, and nothing is taken', #st.shopOrders == 1 and st.money == 100 and #texts == 2)
+
+  for k, val in pairs(old) do _G[k] = val end
+  package.loaded['sl/shops'] = nil
+end
+
 print(string.format('lua tests passed: %d checks', passed))

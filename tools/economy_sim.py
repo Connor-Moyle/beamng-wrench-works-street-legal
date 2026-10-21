@@ -19,6 +19,9 @@ CARS_KEPT = int(sys.argv[sys.argv.index('--cars') + 1]) if '--cars' in sys.argv 
 WEAR = '--nowear' not in sys.argv          # core/service.lua: wear x40 paid back as repairs, and a basic service every 150 km
 WEEKLY = '--noweekly' not in sys.argv      # the weekly costs of core/weekly.lua
 BOOST = '--noboost' not in sys.argv     # the early-game boost in sl_jobs
+SHOPS = '--noshops' not in sys.argv     # what the shops of sl_shops take (docs/SHOPS_REWORK.md step 3): (price, how often a week) of the services a player buys now and then; a guess to check in game
+SHOP_WEEK = [('wash', 15, 3.0), ('scratch polish', 120, 0.6), ('dyno run', 90, 0.4), ('respray', 450, 0.08), ('special order (performance)', 1500, 0.12)]
+SHOP_SPONSOR = float(os.environ.get('SHOP_FACTOR', '1.0'))      # a sponsor's price factor (sl_shops.setPriceFactor), 0.9 = ten per cent off
 DAY_MIN = 30.0            # real minutes per in-game day (BeamNG's TimeOfDay dayLength; verify in game)
 NIGHT = (20, 5)           # night hours, as progression.isNight
 CITY_SPEED = 11.0         # m/s average across town, stops included
@@ -127,6 +130,13 @@ class Player:
                 bill = {1: 0, 2: 250, 3: 700}.get(self.garage, 700)
                 bill += 40 * max(0, CARS_KEPT - 2)       # core/weekly STORAGE for each car beyond two
                 self.money -= min(self.money, bill)     # (a shortfall is a debt in the game; here it is just not paid, the floor check shows who runs dry)
+            if SHOPS and self.day() % 7 == 0 and self.car is not None:      # the shops: a player buys what they can well afford (three times the price in the pocket), never the last dollars
+                for name, price, per_week in SHOP_WEEK:
+                    price = price * SHOP_SPONSOR
+                    count = int(per_week) + (1 if self.r.random() < per_week - int(per_week) else 0)
+                    for _ in range(count):
+                        if self.money >= 3 * price:
+                            self.money -= price; self.shop_spent = getattr(self, 'shop_spent', 0) + price
             if self.loan:                               # core/bank: interest, the weekly quarter, two warnings
                 self.loan[1] = min(self.loan[0] * 1.5, round(self.loan[1] * 1.03))
                 if self.day() >= self.loan[2]:
@@ -339,6 +349,10 @@ def main():
         bm = sorted(getattr(p, 'broke_min', 0) for p in ps)
         print('Floor (%s): minutes under $300 after the first 20: median %d, worst %d; players who ended under $300: %d of %d'
               % (style, statistics.median(bm), bm[-1], sum(1 for p in ps if p.money < 300), len(ps)))
+    if SHOPS:
+        spent = sorted(getattr(p, 'shop_spent', 0) for p in players)
+        earned = sorted(sum(m for m, _ in p.earned.values()) for p in players)
+        print('Shops (SHOP_WEEK, factor %.2f): median spend over the run $%d (10-90 %%: $%d-$%d), %.1f %% of the median income $%d' % (SHOP_SPONSOR, statistics.median(spent), spent[len(spent) // 10], spent[len(spent) * 9 // 10], 100 * statistics.median(spent) / max(1, statistics.median(earned)), statistics.median(earned)))
     fines = [p.fines for p in players]
     print('\nPolice: median fines over the run $%d; players who could not pay a fine at least once: %d of %d' % (statistics.median(fines), sum(1 for p in players if p.broke), len(players)))
     if '--plot' in sys.argv:

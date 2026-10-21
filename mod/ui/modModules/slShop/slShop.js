@@ -59,6 +59,7 @@
     '.slsh-root [data-a]:focus,.slsh-root [tabindex]:focus{outline:3px solid var(--sl-focus)!important;outline-offset:2px;box-shadow:0 0 0 2px var(--sl-deep)}',
     '.slsh-main::-webkit-scrollbar,.slsh-rail::-webkit-scrollbar,.slsh-cart::-webkit-scrollbar{width:6px}.slsh-main::-webkit-scrollbar-thumb,.slsh-rail::-webkit-scrollbar-thumb,.slsh-cart::-webkit-scrollbar-thumb{background:var(--sl-outline);border-radius:4px}',
     '.slsh-card small.slsh-brand,.slsh-brand{color:var(--sl-accent-l);font-size:13px}',
+    '.slsh-result,.slsh-orders{padding:12px 16px;border-bottom:1px solid var(--sl-outline);font-size:14px}.slsh-result h4,.slsh-orders h4{margin:0 0 6px;font-size:15px;font-weight:500;color:var(--sl-accent-l)}.slsh-result .slsh-curve{width:100%;height:60px;margin-top:6px}',
     '.slsh-count{float:right;color:var(--sl-muted);font-size:13px;font-variant-numeric:tabular-nums}',
     '@media (prefers-reduced-motion:no-preference){.slsh-card,.slsh-btn,.slsh-cat{transition:border-color .15s,background .15s}.slsh-root.slsh-open{animation:slsh-in .18s ease-out}@keyframes slsh-in{from{opacity:0}to{opacity:1}}}',
   ].join('\n');
@@ -154,6 +155,17 @@
       (sv.minutes ? '<small>' + esc(T('shops.ui_minutes', '{1} min', sv.minutes)) + '</small>' : '') + specRows(sv.specs) + '</div>' + (sv.curve ? curveSvg(sv.curve, 'slsh-curve') : '') + '<span>' + priceTag(sv) + '</span>' +
       '<button class="slsh-btn' + (inCart ? '' : ' slsh-pri') + '" data-a="' + (inCart ? 'remove' : 'add') + '" data-v="' + esc(sv.id) + '" bng-nav-item>' + esc(inCart ? T('shops.ui_remove', 'Remove') : ((words && words.add) || T('shops.ui_do', 'Book'))) + '</button></div>';
   }
+  function resultCard(r) {
+    if (!r) return '';
+    return '<div class="slsh-result"><h4>' + esc(r.title || T('shops.ui_result', 'Result')) + '</h4>' + specRows(arr(r.lines).map(function (l) { return { label: l.label, text: l.text }; })) +
+      (r.curve ? curveSvg(r.curve, 'slsh-curve') + (r.curveLabel ? '<small class="slsh-muted">' + esc(r.curveLabel) + '</small>' : '') : '') + '</div>';
+  }
+  function ordersCard(orders) {
+    if (!arr(orders).length) return '';
+    return '<div class="slsh-orders"><h4>' + esc(T('shops.ui_on_order', 'On order')) + '</h4>' + arr(orders).map(function (o) {
+      return '<div class="slsh-line"><span>' + esc(o.name) + '</span><b>' + esc(T('shops.ui_hours_left', '{1} h', o.hours)) + '</b></div>';
+    }).join('') + '</div>';
+  }
   function toast(text) { return text ? '<div class="slsh-toast" role="status">' + esc(text) + '</div>' : ''; }
 
   // ---------------------------------------------------------------- the screen
@@ -194,15 +206,15 @@
       var shop = st.shop, closed = shop.closed, l = lines(), t = total();
       var body;
       if (shop.screen === 'services') {
-        var rows = arr(shop.services).map(function (sv) { return serviceRow(sv, !!st.cart[sv.id], shop.words); }).join('') || '<div class="slsh-note">' + esc(T('shops.ui_none', 'Nothing is on offer today.')) + '</div>';
-        body = '<div class="slsh-main">' + rows + '</div><div class="slsh-side">' + cartBar(l, t, shop.money, closed, shop.words) + '</div>';
+        var rows = arr(shop.services).map(function (sv) { return serviceRow(sv, !!st.cart[sv.id], shop.words); }).join('') || '<div class="slsh-note">' + esc(shop.note ? shop.note : T('shops.ui_none', 'Nothing is on offer today.')) + '</div>';
+        body = '<div class="slsh-main">' + rows + '</div><div class="slsh-side">' + resultCard(st.result) + cartBar(l, t, shop.money, closed, shop.words) + '</div>';
       } else {
         var g = groups(), list = arr(shop.stock).filter(function (it) { return st.cat === 'all' || it.group === st.cat; });
         var cards = list.map(function (it) { return card(it, st.sel === it.id, st.cart[it.id]); }).join('');
         if (!cards) cards = '<div class="slsh-note">' + esc(shop.note ? shop.note : shop.goods === 'catalog' ? T('shops.ui_catalog_note', 'Parts for your car are fitted from the Wrench Works catalogue.') : T('shops.ui_none', 'Nothing is on offer today.')) + '</div>';
         var counts = { all: arr(shop.stock).length };
         arr(shop.stock).forEach(function (it) { if (it.group) counts[it.group] = (counts[it.group] || 0) + 1; });
-        body = (g.length ? rail(g, st.cat, counts) : '') + '<div class="slsh-main"><div class="slsh-grid">' + cards + '</div></div><div class="slsh-side">' + detail(find(st.sel), !closed, shop.words) + cartBar(l, t, shop.money, closed, shop.words) + '</div>';
+        body = (g.length ? rail(g, st.cat, counts) : '') + '<div class="slsh-main"><div class="slsh-grid">' + cards + '</div></div><div class="slsh-side">' + detail(find(st.sel), !closed, shop.words) + ordersCard(shop.orders) + resultCard(st.result) + cartBar(l, t, shop.money, closed, shop.words) + '</div>';
       }
       layer.innerHTML = '<div class="slsh-panel" style="--sl-accent:' + esc(shop.theme.accent) + ';--sl-on-accent:' + onAccent(shop.theme.accent) + '">' + header(shop, closed) + '<div class="slsh-body">' + body + '</div>' + toast(st.toast) + '</div>';
       var el = focusKey ? layer.querySelector('[data-a="' + focusKey.a + '"][data-v="' + focusKey.v + '"]') || layer.querySelector('[data-a="' + focusKey.a + '"]') : null;
@@ -255,10 +267,11 @@
           st.shop = data; st.open = true;
           root.classList.toggle('slsh-cb', !!data.colorBlind);
           root.classList.toggle('slsh-rm', !!data.reduceMotion);
-          if (fresh) { st.cat = 'all'; st.cart = {}; st.sel = null; focusKey = null; } else { st.cart = {}; }      // (bought: the basket is empty again)
+          if (fresh) { st.cat = 'all'; st.cart = {}; st.sel = null; st.result = null; focusKey = null; } else { st.cart = {}; }      // (bought: the basket is empty again)
           break;
         }
-        case 'slShopClose': st.open = false; break;
+        case 'slShopClose': st.open = false; st.result = null; break;
+        case 'slShopResult': st.result = data; break;
         case 'slPhoneToast': if (st.open && data && data.text) say(data.text); break;
         case 'slStrings': TABLE = data; break;
         default: return;
@@ -281,7 +294,7 @@
         window.bngApi.engineLua('if ' + ext + ' then ' + call.slice(1) + ' end');
       });
       window.__slShop = shop;
-      ['slShopOpen', 'slShopClose', 'slPhoneToast', 'slStrings'].forEach(function (name) {
+      ['slShopOpen', 'slShopClose', 'slShopResult', 'slPhoneToast', 'slStrings'].forEach(function (name) {
         $rootScope.$on(name, function (ev, data) { shop.handle(name, data); });
       });
     }]);

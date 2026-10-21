@@ -11,6 +11,7 @@ local M = {}
 local strings = require('sl/core/strings')
 local rules = require('sl/core/shops')
 local hours = require('sl/core/hours')
+local dealersRules = require('sl/core/dealers')      -- (its clock: game hours since the start)
 
 local function career() return sl_career and sl_career.isActive() and sl_career.getState() or nil end
 local function toast(text) if text then guihooks.trigger('slPhoneToast', { text = text }) end end
@@ -90,6 +91,55 @@ local function catalogStock(shop)
   return lines, entries, model, note
 end
 
+-- the services of a shop that sells jobs, from the state of the player's car: { services, note }
+local function serviceList(shop)
+  local car, vid = playerCar()
+  if shop.kind == 'paint' then
+    if not (sl_surfacefx and sl_surfacefx.level) then return {}, strings.t('shops.need_csfx') end
+    if not (car and vid) then return {}, strings.t('shops.bring_car') end
+    local level = sl_surfacefx.level(vid)
+    if not level then return {}, strings.t('shops.need_csfx') end
+    return rules.paintServices(level), nil
+  elseif shop.kind == 'tuner' then
+    if not (car and vid) then return {}, strings.t('shops.bring_car') end
+    if not (slrr_garage and slrr_garage.lookupParts) then return {}, strings.t('shops.need_ww') end      -- (the dyno is the garage mod's: slrrGarageVeh)
+    return rules.tunerServices(), nil
+  end
+  return {}, nil
+end
+
+-- does one booked service on the player's car. Returns ok, text
+local function perform(line)
+  local car, vid = playerCar()
+  if not (car and vid) then return false, strings.t('shops.bring_car') end
+  local id = line.id
+  if id == 'wash' then
+    if not (sl_surfacefx and sl_surfacefx.washOff and sl_surfacefx.washOff(vid)) then return false, strings.t('shops.need_csfx') end
+    return true
+  elseif id == 'polish' then
+    if not (sl_surfacefx and sl_surfacefx.repair and sl_surfacefx.repair(vid)) then return false, strings.t('shops.need_csfx') end
+    return true
+  elseif id == 'dyno' then
+    local veh = getObjectByID and getObjectByID(vid)
+    if not veh then return false, strings.t('shops.not_here') end
+    veh:queueLuaCommand('extensions.load("slrrGarageVeh") slrrGarageVeh.dyno()')
+    at.dynoVid = vid
+    return true, strings.t('shops.dyno_running')
+  end
+  local hexs, r, g, b = rules.resprayColour(id)
+  if hexs then
+    if not (core_vehicle_colors and core_vehicle_colors.setVehiclePaint) then return false, strings.t('shops.not_here') end
+    local paint = { baseColor = { r, g, b, 1.2 }, metallic = 0.25, roughness = 0.35, clearcoat = 0.9, clearcoatRoughness = 0.05 }
+    local ok = pcall(core_vehicle_colors.setVehiclePaint, 1, paint, vid)
+    if not ok then return false, strings.t('shops.not_here') end
+    if sl_surfacefx then pcall(sl_surfacefx.wash, vid) pcall(sl_surfacefx.repair, vid) end      -- (a paint job leaves the car clean and unscratched)
+    return true
+  end
+  return false, strings.t('shops.no_such_service')
+end
+
+local function clockNow(s) return dealersRules.clock(s.day, sl_career.hour and sl_career.hour() or 0) end
+
 -- the record the screen gets: the shop, its day's stock with the player's prices, the money, and why it is closed (nil: open)
 local function view(shop, s)
   local c = ctx(s, shop)
@@ -112,6 +162,13 @@ local function view(shop, s)
     out.services[#out.services + 1] = { id = sv.id, name = sv.name, desc = sv.desc, minutes = sv.minutes, price = rules.price(sv, c), specs = sv.specs, swatch = sv.swatch, curve = sv.curve, curveLabel = sv.curveLabel }
   end
   out.note = shop.note
+  if shop.order then
+    local s2 = career()
+    out.orders = {}
+    for _, o in ipairs(s2 and s2.shopOrders or {}) do
+      if o.shop == shop.name then out.orders[#out.orders + 1] = { name = o.name, hours = math.max(0, math.ceil((o.due or 0) - clockNow(s2))) } end
+    end
+  end
   local t = dayTime()
   if sl_career and sl_career.phase and sl_career.phase() == 'night' and (shop.hoursKind == 'shop' or shop.hoursKind == 'dealer') and not shop.hours then
     out.closed = strings.t('shops.closed_morning')      -- (the career's night shuts the counters, as it shuts the lots)
@@ -136,6 +193,11 @@ function M.open(kind, opts)
   if shop.goods == 'catalog' and #shop.stock == 0 then
     shop.stock, entries, model, shop.note = catalogStock(shop)
     shop.full = true
+  end
+  if shop.goods == 'services' and #shop.services == 0 then
+    local list, note = serviceList(shop)
+    for _, sv in ipairs(list) do shop.services[#shop.services + 1] = sv end
+    shop.note = note
   end
   at = { entries = entries, model = model, id = tostring(type(opts) == 'table' and opts.id or shop.name), shop = shop, pos = asVec(type(opts) == 'table' and opts.pos or nil), onBuy = type(opts) == 'table' and type(opts.onBuy) == 'function' and opts.onBuy or nil }
   if sl_phone and sl_phone.requestStrings then sl_phone.requestStrings() end
@@ -181,7 +243,37 @@ function M.buy(text)
     return
   end
   -- the money first, then the goods: a refusal or an error in onBuy gives the money back
-  if total > 0 and not sl_career.addMoney(-total, shop.name) then return toast(strings.t('shops.cannot_afford')) end
+  local special = (shop.goods == 'services' and not at.onBuy) or (at.entries and shop.order)      -- (jobs and special orders take their money themselves, below)
+  if not special and total > 0 and not sl_career.addMoney(-total, shop.name) then return toast(strings.t('shops.cannot_afford')) end
+  if shop.goods == 'services' and not at.onBuy then      -- a job done on the car: paid first, each line done, the lines that could not be done refunded
+    if total > 0 and not sl_career.addMoney(-total, shop.name) then return toast(strings.t('shops.cannot_afford')) end
+    local kept, texts = 0, {}
+    for _, l in ipairs(lines) do
+      local ok, text = perform(l)
+      if ok then kept = kept + l.sum else
+        if l.sum > 0 then sl_career.addMoney(l.sum, strings.t('shops.refund', shop.name)) end
+      end
+      if text then texts[#texts + 1] = text end
+    end
+    toast(texts[1] or strings.t('shops.paint_done'))
+    if kept > 0 and extensions and extensions.hook then extensions.hook('onStreetLegalShopBought', at.id, shop.kind, lines, kept) end
+    guihooks.trigger('slShopOpen', view(shop, career() or s))
+    return
+  end
+  if at.entries and shop.order then      -- special order: a deposit now, the parts after some hours
+    local deposit = rules.deposit(total)
+    if deposit > 0 and not sl_career.addMoney(-deposit, shop.name) then return toast(strings.t('shops.cannot_afford')) end
+    s.shopOrders = s.shopOrders or {}
+    local first
+    for _, o in ipairs(rules.newOrders(shop.name, at.model, at.entries, lines, total > 0 and deposit / total or 1, clockNow(s))) do
+      s.shopOrders[#s.shopOrders + 1] = o
+      first = first or o
+    end
+    toast(strings.t('shops.ordered', deposit, first and first.name or '', first and rules.orderHours(first.price) or 0))
+    if extensions and extensions.hook then extensions.hook('onStreetLegalShopBought', at.id, shop.kind, lines, deposit) end
+    guihooks.trigger('slShopOpen', view(shop, career() or s))
+    return
+  end
   if at.entries then      -- parts for the player's car go on the shelf of its model
     local paid, failed = 0, false      -- what is on the shelf is kept and paid for; only the parts that did not get there are refunded
     for _, l in ipairs(lines) do
@@ -328,7 +420,45 @@ end
 
 -- walked or driven away: it closes
 local timer = 0
+local orderTimer, told = 0, {}
+local function deliverOrders(s)
+  if not (slrr_garage and slrr_garage.addShelfPart) then return end
+  local list = s.shopOrders or {}
+  for _, o in ipairs(rules.ready(list, clockNow(s))) do
+    local balance = math.max(0, (o.price or 0) - (o.paid or 0))
+    if (s.money or 0) < balance then
+      if not told[o] then
+        told[o] = true
+        sl_career.sendText('benny', strings.t('shops.order_waiting', o.name or '?', o.shop or '?', balance), 2)
+      end
+    elseif balance == 0 or sl_career.addMoney(-balance, o.shop) then
+      local ok = pcall(slrr_garage.addShelfPart, o.model, { part = o.part, name = o.name, slotId = o.slotId, value = o.price })
+      if ok then
+        for i, x in ipairs(list) do if x == o then table.remove(list, i) break end end
+        sl_career.sendText('benny', strings.t('shops.order_arrived', o.name or '?', o.shop or '?', balance), 2)
+      elseif balance > 0 then
+        sl_career.addMoney(balance, strings.t('shops.refund', o.shop or ''))
+      end
+    end
+  end
+end
+
+-- the dyno run of a tuner shop is done: the figures and the curve go to the screen (Wrench Works' vehicle side reports it)
+function M.onWrenchWorksDyno(id, data)
+  if not (at and at.dynoVid and at.dynoVid == id and type(data) == 'table' and data.maxPower) then return end
+  at.dynoVid = nil
+  guihooks.trigger('slShopResult', { title = strings.t('shops.svc_dyno'), curve = data.power, curveLabel = strings.t('shops.dyno_peak_power'),
+    lines = { { label = strings.t('shops.dyno_peak_power'), text = string.format('%d hp at %d rpm', data.maxPower or 0, data.maxPowerRPM or 0) },
+      { label = strings.t('shops.dyno_peak_torque'), text = string.format('%d Nm at %d rpm', data.maxTorque or 0, data.maxTorqueRPM or 0) } } })
+end
+
 function M.onUpdate(dtReal)
+  orderTimer = orderTimer + (dtReal or 0)
+  if orderTimer > 5 then
+    orderTimer = 0
+    local s = career()
+    if s and s.shopOrders and #s.shopOrders > 0 then pcall(deliverOrders, s) end
+  end
   if not at then return end
   timer = timer + (dtReal or 0)
   if timer < 1 then return end

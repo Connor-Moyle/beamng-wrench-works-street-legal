@@ -114,6 +114,16 @@ assert($('.slsh-card .slsh-brand') && /Vexaro/.test($('.slsh-card .slsh-brand').
 shop.handle('slShopOpen', { kind: 'dealerparts', title: 'Dealer parts', name: 'Jefferson Motors', goods: 'catalog', screen: 'catalogue', money: 100, theme: { accent: '#8ab4f8', pattern: 'badge', icon: 'badge' }, stock: [], services: [], note: 'Nothing fits your Pickup: this counter sells parts of Ibishu only.' });
 assert(/Nothing fits your Pickup/.test($('.slsh-note').textContent), 'a catalogue shop says why nothing fits (the note from the Lua side)');
 
+// a result (the dyno run) and the orders of a special-order shop
+shop.handle('slShopOpen', tuner);
+shop.handle('slShopResult', { title: 'Dyno run', lines: [{ label: 'Peak power', text: '240 hp at 6500 rpm' }, { label: 'Peak torque', text: '300 Nm at 4200 rpm' }], curve: [20, 80, 160, 240, 220], curveLabel: 'Peak power' });
+assert(/240 hp at 6500 rpm/.test($('.slsh-result').textContent) && $('.slsh-result .slsh-curve path'), 'a result shows its figures and its curve');
+shop.handle('slShopOpen', Object.assign(JSON.parse(JSON.stringify(tuner)), { name: 'Elsewhere' }));
+assert(!$('.slsh-result'), 'a result belongs to the shop that gave it');
+shop.handle('slShopOpen', { kind: 'performance', title: 'Performance shop', name: 'Fast Automotive', goods: 'catalog', screen: 'catalogue', money: 3000, theme: { accent: '#d9575f', pattern: 'chevrons', icon: 'engine' }, services: [],
+  stock: [{ id: 'p1', name: 'Big turbo', group: 'Turbo', price: 1500, brand: 'Turvane' }], orders: [{ name: 'Cams', hours: 12 }] });
+assert(/Cams/.test($('.slsh-orders').textContent) && /shops.ui_hours_left/.test($('.slsh-orders').textContent), 'the parts on order show with the hours to go (the text through T)');
+
 // ---- text on an accent fill: --sl-deep on a light accent, white on a dark one, at least 4.5:1 for every built-in accent (and the ones in the sample data)
 const core = fs.readFileSync(path.join(__dirname, '..', 'mod/lua/ge/extensions/sl/core/shops.lua'), 'utf8');
 const accents = Array.from(new Set((core.match(/accent = '#[0-9a-fA-F]{6}'/g) || []).map((m) => m.slice(10, 17)).concat(['#f2b84b', '#9b8cf0', '#e9855b', '#a8c7fa'])));

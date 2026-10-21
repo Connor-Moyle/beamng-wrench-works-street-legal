@@ -9,7 +9,9 @@ Street Legal draws every shop with one screen (`ui/modModules/slShop`) that chan
 | `tyre` | catalogue | the tyre ranges of Street Legal (`range`: `torres`, `race`, or all); buying fits the set on your car through Car Surface FX (it needs that mod) |
 | `exhaust`, `parts`, `performance`, `dealerparts` | catalogue | parts that fit the player's car, read from Wrench Works (`slrr_garage.lookupParts`; Wrench Works 1.8.7 or later). Bought parts go on the shelf of the car's model. Give `stock` instead and the shop sells your own list |
 | `accessories` | catalogue | the stock you give |
-| `paint`, `tuner`, `mechanic` | services | the services you give |
+| `paint` | services | what the state of the player's car calls for (Car Surface FX): Wash ($15, when the car is dirty), Scratch polish ($80 light, $190 heavy), and a Respray in one of eight colours ($450: the car comes out clean and unscratched; the paint goes on through the game's vehicle colours). Give `services` instead and the shop sells your list |
+| `tuner` | services | a Dyno run ($90): the car runs on the rollers through Wrench Works' vehicle side and the screen shows the peak power and torque and the curve. Needs Wrench Works |
+| `mechanic` | services | the services you give (none built in yet) |
 
 A mod can add its own kind with `sl_shops.define` (below).
 
@@ -86,6 +88,12 @@ Other calls: `sl_shops.kinds()` (the kinds known), `sl_shops.isOpen()`, `sl_shop
 ### Price modifiers
 
 `sl_shops.setPriceFactor(id, fn)` registers a function `fn(item, shop)` that returns a factor (1 = the price as it is, 0.8 = twenty per cent off); `fn = nil` removes it. `item` is the line as the shop shows it (`id`, `name`, `brand`, `price`, `group`...) and `shop` is `{ kind, name, brand }`. Several mods may register, each under its own `id`; the factors multiply. It is nil-safe: an error, or a result that is not a number, counts as 1, and the total factor is held between 0.05 and 3. It applies to the price shown (the list price is struck out) and to what is charged. Tyre shops charge their own counter price and ignore it.
+
+## Special orders (the performance shop)
+
+The `performance` kind sells big hardware by special order: the player pays a deposit of 30% now, and the parts are put on the shelf of the car's model after 6 hours plus one hour for each $300 of the price (48 at most), when the balance is paid; if the money is not there yet the order waits and a text says so once. The orders are kept in the career save (`shopOrders`, additive; a save without it starts empty) and the shop screen lists them with the hours to go. Other catalogue kinds can be special-order shops too: pass `order = true` to `sl_shops.open`. Not done: the car does not go away for the build.
+
+For services, a mod that opens a `services` shop with its own `services` and an `onBuy` gets the usual flow (pay, then `onBuy`); a shop with neither gets the built-in jobs of its kind.
 
 ## Dealers: the parts counter
 

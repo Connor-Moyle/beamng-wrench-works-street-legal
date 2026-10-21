@@ -18,7 +18,7 @@ M.TYPES = {
   tyre =        { title = 'Tyre shop',          goods = 'tyres',    screen = 'catalogue', theme = { accent = '#f2b84b', pattern = 'tread',    icon = 'tyre' },     hours = 'shop' },
   exhaust =     { title = 'Exhaust shop',       goods = 'catalog',  screen = 'catalogue', theme = { accent = '#e9855b', pattern = 'pipes',    icon = 'exhaust' },  hours = 'shop', sections = { 'exhaust' } },
   parts =       { title = 'Parts shop',         goods = 'catalog',  screen = 'catalogue', theme = { accent = '#7cc4a6', pattern = 'grid',     icon = 'wrench' },   hours = 'shop' },
-  performance = { title = 'Performance shop',   goods = 'catalog',  screen = 'catalogue', theme = { accent = '#d9575f', pattern = 'chevrons', icon = 'engine' },   hours = 'shop', sections = { 'intake', 'forced', 'internals', 'management', 'cooling', 'fuel' } },
+  performance = { title = 'Performance shop',   goods = 'catalog',  screen = 'catalogue', theme = { accent = '#d9575f', pattern = 'chevrons', icon = 'engine' },   hours = 'shop', order = true, sections = { 'intake', 'forced', 'internals', 'management', 'cooling', 'fuel' } },
   paint =       { title = 'Paint and body',     goods = 'services', screen = 'services',  theme = { accent = '#9b8cf0', pattern = 'spray',    icon = 'paint' },    hours = 'shop' },
   tuner =       { title = 'Tuner',              goods = 'services', screen = 'services',  theme = { accent = '#5fb7e6', pattern = 'dyno',     icon = 'gauge' },    hours = 'shop' },
   mechanic =    { title = 'Mechanic',           goods = 'services', screen = 'services',  theme = { accent = '#b0b8c4', pattern = 'bolts',    icon = 'spanner' },  hours = 'shop' },
@@ -103,6 +103,7 @@ function M.normalize(kind, opts)
     for _, v in ipairs(type(list) == 'table' and list or {}) do if type(v) == 'string' and v ~= '' then out[#out + 1] = v end end
     return #out > 0 and out or nil
   end
+  s.order = t.order == true or opts.order == true       -- (special order: a deposit now, the parts after some hours)
   s.sections = texts(opts.sections) or s.sections      -- (a shop of this kind may sell other chapters: "engine/exhaust", "engine/intake")
   s.brands = texts(opts.brands)                          -- (only parts of these brands: a dealer's counter)
   if type(opts.theme) == 'table' then
@@ -158,6 +159,60 @@ function M.tyreSpecs(id, rules)
     { label = strings.t('shops.spec_temp'), text = string.format('%d to %d C', c.lo or 0, c.hi or 0) },
     { label = strings.t('shops.spec_loose'), text = string.format('%.2f', loose), bar = clamp(loose / 1.3, 0, 1) },
   }
+end
+
+-- ---- paint and body: what the shop does for a car, from the state Car Surface FX keeps (level = sl_surfacefx.level: { dirtName = clean | dusty | muddy, scratchName = none | light | heavy }; nil without the mod)
+M.WASH_PRICE = 15            -- = sl/station WASH_PRICE
+M.POLISH_PRICE = { light = 80, heavy = 190 }
+M.RESPRAY_PRICE = 450
+M.COLOURS = { { '#c0392b', 'Signal red' }, { '#1f2a44', 'Midnight blue' }, { '#1e5b3a', 'Racing green' }, { '#f1c40f', 'Signal yellow' }, { '#ecf0f1', 'Pearl white' },
+  { '#4b5563', 'Gunmetal' }, { '#e67e22', 'Burnt orange' }, { '#111111', 'Gloss black' } }
+
+function M.paintServices(level)
+  local out = {}
+  if type(level) ~= 'table' then return out end
+  if level.dirtName and level.dirtName ~= 'clean' then out[#out + 1] = { id = 'wash', name = strings.t('shops.svc_wash'), price = M.WASH_PRICE, desc = strings.t('shops.svc_wash_desc') } end
+  local polish = M.POLISH_PRICE[level.scratchName or '']
+  if polish then out[#out + 1] = { id = 'polish', name = strings.t('shops.svc_polish'), price = polish, desc = strings.t('shops.svc_polish_desc') } end
+  for _, c in ipairs(M.COLOURS) do
+    out[#out + 1] = { id = 'respray_' .. c[1]:sub(2), name = strings.t('shops.svc_respray', c[2]), price = M.RESPRAY_PRICE, swatch = c[1], desc = strings.t('shops.svc_respray_desc') }
+  end
+  return out
+end
+
+-- the colour of a respray line id ('respray_c0392b' -> '#c0392b' and its r, g, b in 0..1), nil for anything else
+function M.resprayColour(id)
+  local hexs = type(id) == 'string' and id:match('^respray_(%x%x%x%x%x%x)$')
+  if not hexs then return nil end
+  local function c(i) return tonumber(hexs:sub(i, i + 1), 16) / 255 end
+  return '#' .. hexs:lower(), c(1), c(3), c(5)
+end
+
+-- ---- the tuner
+M.DYNO_PRICE = 90
+function M.tunerServices() return { { id = 'dyno', name = strings.t('shops.svc_dyno'), price = M.DYNO_PRICE, desc = strings.t('shops.svc_dyno_desc') } } end
+
+-- ---- special orders (the performance shop): a deposit now, the parts after some hours, the balance when they arrive
+M.SPECIAL = { DEPOSIT = 0.3, BASE_HOURS = 6, PER_HOURS = 300, MAX_HOURS = 48 }
+function M.deposit(total) return math.min(total, math.max(1, math.ceil(total * M.SPECIAL.DEPOSIT))) end
+function M.orderHours(price) return math.min(M.SPECIAL.MAX_HOURS, M.SPECIAL.BASE_HOURS + math.floor((price or 0) / M.SPECIAL.PER_HOURS)) end
+-- one order per part bought: { shop, model, part, name, slotId, price, paid, due } (due in game hours, as sl/core/dealers.clock counts them)
+function M.newOrders(shopName, model, entries, lines, depositShare, now)
+  local out = {}
+  for _, l in ipairs(lines) do
+    local e = entries[l.id]
+    for _ = 1, l.qty do
+      out[#out + 1] = { shop = shopName, model = model, part = e.part, name = e.name, slotId = e.slotId, price = l.each, paid = math.floor(l.each * depositShare + 0.5), due = now + M.orderHours(l.each) }
+    end
+  end
+  return out
+end
+-- the orders that are ready (due <= now), oldest first
+function M.ready(orders, now)
+  local out = {}
+  for _, o in ipairs(orders or {}) do if (o.due or 0) <= now then out[#out + 1] = o end end
+  table.sort(out, function(a, b) return (a.due or 0) < (b.due or 0) end)
+  return out
 end
 
 -- the tyres of a range ('torres' or 'race'; nil: all) as stock: one line per compound, the price of a set
