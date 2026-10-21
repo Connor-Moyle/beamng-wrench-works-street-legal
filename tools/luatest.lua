@@ -3262,7 +3262,7 @@ do
   local Opt = require('sl/options')
   local defs = {}
   for _, d in ipairs(Opt.defs) do defs[d.key] = d end
-  local okDefs = #F.LIST == 21
+  local okDefs = #F.LIST == 22
   for _, f in ipairs(F.LIST) do
     local d = defs[f.opt]
     if not (d and d.type == 'bool' and d.default == true and d.feature == true and d.title == f.title and f.desc ~= '') then okDefs = false end
@@ -3508,6 +3508,76 @@ do
   check('weekly: history keeps eight weeks', #st.weekly.history == W.KEEP)
   _G.sl_career, _G.guihooks, _G.extensions = old.c, old.g, old.e
   package.loaded['sl/weekly'] = nil
+end
+
+-- servicing and wear (career expansion #2)
+do
+  local S = require('sl/core/service')
+  local W = require('sl/core/wear')
+  local sv = S.state({})
+  check('service: a fresh record, due once the interval is driven', sv.penalty == 0 and S.since(sv, 1000, 1000) == 0 and not S.due(149) and S.due(150) and S.wearFactor(100) == 1 and S.wearFactor(200) == 1.5)
+  local g0 = S.gross(sv, 1000, 1000, {})
+  local g1 = S.gross(sv, 1100, 1000, {})
+  check('service: wear is scaled so a few hundred km show (brakes after 100 km: 0.5*100*40/120000)', g0.brakes == 0 and math.abs(g1.brakes - 0.5 * 100 * 40 / 120000) < 1e-9)
+  local gOver = S.gross(sv, 1300, 1000, {})       -- 300 km since purchase, 150 over the interval = 75 km extra
+  local gPlain = W.lost(300 * 40, {})
+  check('service: skipping the interval wears faster', gOver.brakes > gPlain.brakes and math.abs(gOver.brakes - W.lost((300 + 75) * 40, {}).brakes) < 1e-9)
+  S.doBasic(sv, 1300, 1000)
+  local gAfter = S.gross(sv, 1300, 1000, {})
+  check('service: a basic service keeps the wear of the skipped interval, resets the clock', sv.baseKm == 1300 and sv.count == 1 and math.abs(gAfter.brakes - gOver.brakes) < 1e-9 and S.since(sv, 1300, 1000) == 0)
+  local gLater = S.gross(sv, 1400, 1000, {})
+  check('service: after it, the wear grows at the normal rate again', math.abs((gLater.brakes - gAfter.brakes) - W.lost(100 * 40, {}).brakes) < 1e-9)
+  local net0 = S.net(sv, gLater)
+  S.doOverhaul(sv, 1400, 1000, {})
+  local net1 = S.net(sv, S.gross(sv, 1400, 1000, {}))
+  local zero = true
+  for _, v in pairs(net1) do if v ~= 0 then zero = false end end
+  check('service: an overhaul puts all wear right, and later wear shows on top of it', zero and net0.brakes > 0 and S.net(sv, S.gross(sv, 1500, 1000, {})).brakes > 0)
+  check('service: the abuse counts scale too', S.gross(S.state({}), 1000, 1000, { brakes = 100 }).brakes > 0 and S.gross(S.state({}), 1000, 1000, { brakes = 100 }).brakes == W.lost(0, { brakes = 100 * 40 }).brakes)
+  check('service: prices: basic $60 + 0.4% of the value, half as much again without a workbench; the overhaul adds the worn sections',
+    S.basicCost(10000, true) == 100 and S.basicCost(10000, false) == 150 and S.overhaulCost(10000, { brakes = 0.1 }, 3, true) == 100 + 330 and S.overhaulCost(10000, { brakes = 0.1 }, 3, false) == 150 + 500)
+  local secs = S.sections({ brakes = 0.25, engine = 0 }, nil)
+  check('service: sections 0..1 from the wear model', #secs == 5 and secs[1].id == 'engine' and secs[1].condition == 1 and secs[4].id == 'brakes' and secs[4].condition == 0.5)
+  local pw = S.sections({ brakes = 0 }, { { section = 'brakes', condition = 0.2 }, { section = 'brakes', condition = 0.6 }, { section = 'drive', condition = 0.9 }, { section = 'exhaust', condition = 0.7 }, { section = 'flux', condition = 0.1 } })
+  local by = {}
+  for _, x in ipairs(pw) do by[x.id] = x.condition end
+  check('service: Part Wear shows its worst part per section, drive is our drivetrain, new sections are added and an unknown one is other', by.brakes == 0.2 and by.drivetrain == 0.9 and by.exhaust == 0.7 and by.other == 0.1 and by.engine == 1)
+
+  -- the extension with a fake career
+  local ST = require('sl/core/state')
+  local st = ST.new(1, 0)
+  st.day, st.money, st.garageLevel = 3, 1000, 1
+  local car = { id = 1, name = 'Test', value = 10000, mileage = 1000, condition = 0.8, care = { engineKm = 1300, abuse = {}, trunk = {} } }
+  st.cars[1] = car
+  local old = { c = rawget(_G, 'sl_career'), cc = rawget(_G, 'sl_carcare'), e = rawget(_G, 'extensions'), f = rawget(_G, 'sl_fleet'), u = rawget(_G, 'sl_upgrades'), p = rawget(_G, 'slrr_partwear') }
+  _G.extensions = { hook = function() end }
+  _G.sl_fleet = nil
+  _G.sl_upgrades = { features = function() return { workbench = true } end }
+  _G.slrr_partwear = nil
+  _G.sl_career = { isActive = function() return true end, getState = function() return st end, addMoney = function(a, l) return ST.addMoney(st, a, l) end }
+  _G.sl_carcare = { careOf = function(c) return c.care end, note = function() end }
+  package.loaded['sl/service'] = nil
+  local SV = require('sl/service')
+  local info = SV.serviceOf(1)
+  check('service: the card says due, the km since, the interval, a factor and two options', info.due == true and info.km_since == 300 and info.km_interval == 150 and info.wearFactor == 1.5 and #info.options == 2 and info.options[1].cost == 100)
+  local okS, text = SV.service(1, 'basic')
+  check('service: a basic service charges, resets the interval and is noted', okS == true and st.money == 900 and car.service.baseKm == 1300 and SV.serviceOf(1).due == false)
+  check('service: not enough money refuses and changes nothing', (function() st.money = 10 local ok = SV.service(1, 'full') return ok == false and st.money == 10 and car.service.count == 1 end)())
+  check('service: an unknown car or service refuses', SV.service(9, 'basic') == false and SV.service(1, 'nope') == false)
+  _G.slrr_partwear = { conditionsOf = function() return nil end, conditionsOfKey = function(k) return { parts = { { section = 'suspension', condition = 0.3 } } } end }
+  local sus
+  for _, x in ipairs(SV.serviceOf(1).sections) do if x.id == 'suspension' then sus = x.condition end end
+  check('service: Part Wear by key is read when the car is not spawned', sus == 0.3)
+  _G.slrr_partwear = { conditionsOf = function() error('boom') end }
+  check('service: a failing Part Wear query falls back to our model', #SV.serviceOf(1).sections == 5)
+  do
+    local f = _G.sl_options
+    _G.sl_options = { get = function(k) if k == 'slService' then return false end end }
+    check('service: with the part off there is no card, no wear model and no purchase', SV.serviceOf(1) == nil and SV.wearOf(car) == nil and SV.service(1, 'basic') == nil)
+    _G.sl_options = f
+  end
+  _G.sl_career, _G.sl_carcare, _G.extensions, _G.sl_fleet, _G.sl_upgrades, _G.slrr_partwear = old.c, old.cc, old.e, old.f, old.u, old.p
+  package.loaded['sl/service'] = nil
 end
 
 print(string.format('lua tests passed: %d checks', passed))
