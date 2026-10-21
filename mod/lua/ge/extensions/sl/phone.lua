@@ -109,11 +109,12 @@ local function snapshot()
     art = sl_hud ~= nil and sl_hud.slrrArt ~= nil and sl_hud.slrrArt() or false,
     has = { clubs = sl_career.has('clubs'), crews = sl_career.has('crews'), classifieds = sl_career.has('classifieds'),
       races = require('sl/core/features').on('races'), jobs = require('sl/core/features').on('jobs'), market = require('sl/core/features').on('market'),
-      bank = require('sl/core/features').on('bank'), maps = require('sl/core/features').on('maps'), hudpill = require('sl/core/features').on('hudpill'), weekly = require('sl/core/features').on('weekly'), service = require('sl/core/features').on('service'), perks = require('sl/core/features').on('perks'), traps = require('sl/core/features').on('traps'), danger = require('sl/core/features').on('danger') },      -- (the parts that are switched off lose their apps)
+      bank = require('sl/core/features').on('bank'), maps = require('sl/core/features').on('maps'), hudpill = require('sl/core/features').on('hudpill'), weekly = require('sl/core/features').on('weekly'), service = require('sl/core/features').on('service'), perks = require('sl/core/features').on('perks'), traps = require('sl/core/features').on('traps'), danger = require('sl/core/features').on('danger'), calendar = require('sl/core/features').on('calendar') },      -- (the parts that are switched off lose their apps)
     contacts = contacts, threads = s.threads, unread = s.unread,
     challenges = challenges, ledger = ledger, places = placesOut,
     cars = #s.cars, stats = s.stats,
     perks = sl_perks and sl_perks.perks and sl_perks.perks() or nil,
+    calendar = sl_calendar and sl_calendar.summary and sl_calendar.summary() or nil,      -- (the Calendar app: nil with the part off or no career)
     danger = sl_danger and sl_danger.summary and sl_danger.summary() or nil,      -- (jumps and drift zones, on the Speed traps page)
     traps = sl_traps and sl_traps.summary and sl_traps.summary() or nil,      -- (the Speed traps page: nil with the part off or no career)
     fleet = (function()      -- each car with its service card (sl_service.serviceOf: nil with the part off or for an unknown car)
@@ -377,6 +378,11 @@ function M.watchReplay() if career() and sl_replay then answer(sl_replay.watch()
 function M.saveClip() if career() and sl_replay then answer(sl_replay.save()) end end
 function M.enterLeague(kind) if career() and sl_clubs then answer(sl_clubs.enter(tostring(kind))) end end
 function M.borrow(amount) if career() and sl_bank then answer(sl_bank.borrow(tonumber(amount))) end end
+-- the Calendar's actions (sl_calendar answers ok, text: the toast is the phone's own)
+function M.calendarEnter(eventId, carIds) if career() and sl_calendar and sl_calendar.enter then answer(sl_calendar.enter(tostring(eventId), type(carIds) == 'table' and carIds or nil)) end end
+function M.calendarDecline(eventId) if career() and sl_calendar and sl_calendar.decline then answer(sl_calendar.decline(tostring(eventId))) end end
+function M.calendarRemind(eventId, on) if career() and sl_calendar and sl_calendar.remind then answer(sl_calendar.remind(tostring(eventId), on == true or on == 'true')) end end
+function M.calendarTravel(eventId) if career() and sl_calendar and sl_calendar.travel then answer(sl_calendar.travel(tostring(eventId))) end end
 function M.service(carId, optionId) if career() and sl_service then answer(sl_service.service(tonumber(carId), tostring(optionId))) end end
 function M.payDebt(amount) if career() and sl_weekly then answer(sl_weekly.payDebt(tonumber(amount))) end end
 function M.repay(amount) if career() and sl_bank then answer(sl_bank.repay(tonumber(amount))) end end

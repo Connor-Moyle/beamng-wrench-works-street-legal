@@ -124,6 +124,8 @@ function M.onStreetLegalHeatUp(newLevel) M.play('heat', { level = newLevel }) en
 function M.onStreetLegalCarAdded(car) M.play('reveal', { name = type(car) == 'table' and car.name or nil }) end
 function M.onStreetLegalGarageMoved(_, toLevel) M.play('tier', { level = toLevel }) end
 function M.onStreetLegalRaceGo() M.play('go') end
+-- the calendar's reminder (24 h and 1 h before an event): a banner, never blocking
+function M.onStreetLegalCalendarReminder(event, hoursLeft) M.play('reminder', { name = type(event) == 'table' and event.title or nil, level = tonumber(hoursLeft) }) end
 -- Wrench Works' garage (WW 1.8.8 and later; an older Wrench Works never calls these): the garage's name, then the street
 function M.onWrenchWorksGarageEntered(siteName) M.play('garage_in', { name = siteName }) end
 function M.onWrenchWorksGarageLeft() M.play('garage_out') end

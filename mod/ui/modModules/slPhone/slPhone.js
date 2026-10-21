@@ -332,6 +332,7 @@
     flag: svg('M14.4 6 14 4H5v17h2v-7h5.6l.4 2h7V6z'),
     bank: svg('M4 10v7h3v-7zm6 0v7h3v-7zM2 22h19v-3H2zm14-12v7h3v-7zM11.5 1 2 6v2h19V6z'),
     house: svg('M12 3 2 12h3v8h5v-6h4v6h5v-8h3z'),
+    calendar: svg('M19 3h-1V1h-2v2H8V1H6v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm0 16H5V9h14zM5 7V5h14v2zm2 4h5v5H7z'),
     traps: svg('M20.38 8.57l-1.23 1.85a8 8 0 0 1-.22 7.58H5.07A8 8 0 0 1 15.58 6.85l1.85-1.23A10 10 0 0 0 3.35 19a2 2 0 0 0 1.72 1h13.85a2 2 0 0 0 1.74-1 10 10 0 0 0-.27-10.44zm-9.79 6.84a2 2 0 0 0 2.83 0l5.66-8.49-8.49 5.66a2 2 0 0 0 0 2.83z'),
     cab: svg('M18.9 6c-.2-.6-.8-1-1.4-1h-11c-.7 0-1.2.4-1.4 1L3 12v8a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-1h12v1a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-8zM6.5 16A1.5 1.5 0 1 1 8 14.5 1.5 1.5 0 0 1 6.5 16zm11 0a1.5 1.5 0 1 1 1.5-1.5 1.5 1.5 0 0 1-1.5 1.5zM5 11l1.5-4.5h11L19 11z'),
     me: svg('M12 2 4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5zm-1.5 14.5-4-4 1.4-1.4 2.6 2.6 6.1-6.1 1.4 1.4z'),
@@ -355,7 +356,7 @@
   var SLRR_ART = '/ui/modModules/slHud/slrr/icons/';
   var SLRR_ICON = { races: 'cup.png', garage: 'garage.png', bank: 'dollar.png', cab: 'city.png', me: 'roc.png' };
   function slrrIcon(name, cls) { return '<img class="slp-slrr ' + (cls || '') + '" src="' + SLRR_ART + name + '" alt="">'; }
-  var APP_COLORS = { map: '#3a7d6e', camera: '#3b6fa0', gallery: '#a05a8a', carmarket: '#2e7d4f', partmarket: '#a3322c', settings: '#5c6474', wait: '#4a5d7a', market: '#a3322c', paper: '#5b5346', bid: '#b5651d', club: '#6a2e7a', jobs: '#3d7a2e', phone: '#2e7d4f', messages: '#2f5fb3', contacts: '#7b4fb0', races: '#c2541e', bank: '#1f7a70', cab: '#b58a12', me: '#5c6474', garage: '#8a3b8f', garagekit: '#6b5b2e' };
+  var APP_COLORS = { map: '#3a7d6e', camera: '#3b6fa0', gallery: '#a05a8a', carmarket: '#2e7d4f', partmarket: '#a3322c', settings: '#5c6474', wait: '#4a5d7a', market: '#a3322c', paper: '#5b5346', bid: '#b5651d', club: '#6a2e7a', jobs: '#3d7a2e', phone: '#2e7d4f', messages: '#2f5fb3', contacts: '#7b4fb0', races: '#c2541e', bank: '#1f7a70', cab: '#b58a12', me: '#5c6474', garage: '#8a3b8f', garagekit: '#6b5b2e', calendar: '#2f6f9f' };
   var AV_COLORS = ['#a8c7fa', '#f2b8b5', '#c3e7c6', '#ffd8a8', '#d0bcff', '#9fe0e8', '#ffb4ab', '#e8def8'];
   var CLASS_NAMES = { beater: T('ui.beaters', 'Beaters'), compact: T('ui.compacts', 'Compacts'), muscle: T('ui.muscle', 'Muscle'), tuner: T('ui.tuners', 'Tuners'), sport: T('ui.sports_cars', 'Sports cars'), super: T('ui.supercars', 'Supercars') };
 
@@ -459,6 +460,7 @@
           { id: 'garagekit', title: T('app.garagekit', 'Garage'), icon: I.house },
           { id: 'bank', title: T('app.bank', 'Bank'), icon: I.bank, hide: has.bank === false },
           { id: 'me', title: T('app.me', 'Street cred'), icon: I.me },
+          { id: 'calendar', title: T('app.calendar', 'Calendar'), icon: I.calendar, badge: calOpenInvites(), hide: !d.calendar || has.calendar === false },
           { id: 'traps', title: T('app.traps', 'Speed traps'), icon: I.traps, hide: !(d.traps && has.traps !== false) && !(d.danger && has.danger !== false) },
           { id: 'jobs', title: T('app.jobs', 'Jobs'), icon: I.jobs, badge: d.jobs && d.jobs.active ? 1 : 0, hide: has.jobs === false },
           { id: 'wait', title: T('app.wait', 'Wait'), icon: I.wait },
@@ -1301,6 +1303,79 @@
         (hasDanger ? '<div class="slp-card"><h4>' + T('ui.danger_title', 'Danger zones') + '</h4><p>' + T('ui.danger_intro', 'A jump ladder and drift zones: each prize is paid once.') + '</p></div>' + jumpCard + drift : '') + '</div>';
     }
 
+    // the Calendar (sl_calendar.summary(): { today = { day, hour, week, dayOfWeek }, events = { { id, title, kind: race|series|weekend|invite|travel, day, hour, place, map, travel = { needed, fee, hours },
+    // series = { id, name, round, rounds }, status: open|entered|missed|done|declined, reward (number or text), requires = { label, met }, reminder, expiresIn } }, series = { { id, name, map, round, rounds,
+    // points, rank, nextDay } }, invites = { { id, from, text, eventId, expiresIn } } }). Three views (Agenda, Week, Series) and an event page with the actions.
+    function calOpenInvites() { var c = st.data.calendar; return c && obj(st.data.has).calendar !== false ? arr(c.invites).length : 0; }
+    var CAL_KIND = { race: T('ui.cal_kind_race', 'Race'), series: T('ui.cal_kind_series', 'Series'), weekend: T('ui.cal_kind_weekend', 'Weekend'), invite: T('ui.cal_kind_invite', 'Invitation'), travel: T('ui.cal_kind_travel', 'Trip') };
+    var CAL_STATUS = { entered: '&#10004; ' + T('ui.cal_entered', 'Entered'), missed: '&#9660; ' + T('ui.cal_missed', 'Missed'), done: '&#10004; ' + T('ui.cal_done', 'Done'), declined: T('ui.cal_declined', 'Declined') };
+    var DAY_NAMES = [T('ui.cal_mon', 'Mon'), T('ui.cal_tue', 'Tue'), T('ui.cal_wed', 'Wed'), T('ui.cal_thu', 'Thu'), T('ui.cal_fri', 'Fri'), T('ui.cal_sat', 'Sat'), T('ui.cal_sun', 'Sun')];
+    function calWhen(c, e) {      // "Today 18:00", "Tomorrow", "Sat, day 13 19:00"
+      var d = Number(e.day) || 0, today = Number(obj(c.today).day) || 0, dow = ((Number(obj(c.today).dayOfWeek) || 1) - 1 + (d - today)) % 7;
+      if (dow < 0) dow += 7;
+      var label = d === today ? T('ui.cal_today', 'Today') : d === today + 1 ? T('ui.cal_tomorrow', 'Tomorrow') : d < today ? T('ui.cal_day_ago', 'Day {1}', d) : DAY_NAMES[dow] + ', ' + T('ui.cal_day', 'day {1}', d);
+      return label + (e.hour != null ? ' ' + two(Math.floor(e.hour)) + ':' + two(Math.round((e.hour % 1) * 60)) : '');
+    }
+    function calReward(e) { return e.reward == null || e.reward === '' ? '' : (typeof e.reward === 'number' ? money(e.reward) : esc(e.reward)); }
+    function calEventCard(c, e) {
+      var tr = obj(e.travel), st1 = CAL_STATUS[e.status] || '';
+      var rq = e.requires && e.requires.label ? '<p' + (e.requires.met === false ? ' class="slp-warn"' : '') + '>' + (e.requires.met === false ? '&#9888; ' : '&#10004; ') + esc(e.requires.label) + '</p>' : '';
+      return '<div class="slp-card" data-a="calopen" data-v="' + esc(e.id) + '"><h4>' + esc(e.title || '') + ' <span class="slp-chip" style="margin:0 0 0 6px">' + (CAL_KIND[e.kind] || esc(e.kind || '')) + '</span>' + (e.reminder ? ' <span aria-label="' + T('ui.cal_reminder_on', 'Reminder on') + '">&#128276;</span>' : '') + '</h4>' +
+        '<p>' + calWhen(c, e) + (e.place ? ' &middot; ' + esc(e.place) : '') + (e.series ? ' &middot; ' + T('ui.cal_round', 'round {1} of {2}', e.series.round, e.series.rounds) : '') + '</p>' +
+        (tr.needed ? '<p>' + T('ui.cal_travel', 'Travel to {1}: {2} and {3} h', esc(e.map || ''), money(tr.fee), Number(tr.hours) || 0) + '</p>' : '') + rq +
+        (calReward(e) ? '<p>' + T('ui.cal_reward', 'Reward') + ': <b>' + calReward(e) + '</b></p>' : '') + (st1 ? '<p><b>' + st1 + '</b></p>' : '') +
+        (e.expiresIn != null ? '<p class="slp-warn">' + T('ui.cal_expires', 'Expires in {1} d', Number(e.expiresIn) || 0) + '</p>' : '') + '</div>';
+    }
+    function calEventPage(c, e) {
+      var tr = obj(e.travel), open = e.status === 'open', canEnter = open && !(e.requires && e.requires.met === false);
+      var acts = '';
+      if (open) {
+        acts += '<div class="slp-btn' + (canEnter ? '' : ' slp-off') + '" data-a="' + (tr.needed ? 'caltravel' : 'calenter') + '" data-v="' + esc(e.id) + '">' + (tr.needed ? T('ui.cal_go', 'Go there &middot; {1}', money(tr.fee)) : T('ui.cal_enter', 'Enter')) + '</div>';
+        acts += '<div class="slp-btn slp-tonal" data-a="calremind" data-v="' + esc(e.id) + '|' + (e.reminder ? 'false' : 'true') + '">' + (e.reminder ? T('ui.cal_remind_off', 'Reminder: on') : T('ui.cal_remind_on', 'Remind me')) + '</div>';
+        if (e.kind === 'invite' || e.expiresIn != null) acts += '<div class="slp-btn slp-text" data-a="caldecline" data-v="' + esc(e.id) + '">' + T('ui.cal_decline', 'Decline') + '</div>';
+      }
+      return bar(esc(e.title || T('app.calendar', 'Calendar'))) + '<div class="slp-body">' + calEventCard(c, e).replace(' data-a="calopen" data-v="' + esc(e.id) + '"', '') +
+        (acts ? '<div class="slp-card"><div class="slp-acts" style="flex-wrap:wrap">' + acts + '</div>' + (!canEnter && open ? '<p class="slp-warn">&#9888; ' + T('ui.cal_cannot', 'You cannot enter yet: see the requirement above.') + '</p>' : '') + '</div>' : '') + '</div>';
+    }
+    function calendarPage() {
+      var c = obj(st.data.calendar), events = arr(c.events).slice().sort(function (a, b) { return (a.day - b.day) || ((a.hour == null ? -1 : a.hour) - (b.hour == null ? -1 : b.hour)); });
+      if (st.calEvent) {
+        var ev = events.filter(function (x) { return x.id === st.calEvent; })[0];
+        if (ev) return calEventPage(c, ev);
+        st.calEvent = null;
+      }
+      var tab = st.calTab || 'agenda', today = Number(obj(c.today).day) || 0, dow = Number(obj(c.today).dayOfWeek) || 1;
+      var tabs = ['agenda', 'week', 'series'].map(function (t) {
+        return '<div class="slp-tab' + (tab === t ? ' slp-tabon' : '') + '" data-a="caltab" data-v="' + t + '">' + ({ agenda: T('ui.cal_agenda', 'Agenda'), week: T('ui.cal_week', 'Week'), series: T('ui.cal_series', 'Series') }[t]) + '</div>';
+      }).join('');
+      var body = '';
+      var inv = arr(c.invites).map(function (i) {
+        return '<div class="slp-card" data-a="calopen" data-v="' + esc(i.eventId) + '"><h4>&#9993; ' + esc(i.from || '') + '</h4><p>' + esc(i.text || '') + '</p>' + (i.expiresIn != null ? '<p class="slp-warn">' + T('ui.cal_expires', 'Expires in {1} d', Number(i.expiresIn) || 0) + '</p>' : '') + '</div>';
+      }).join('');
+      if (tab === 'agenda') {
+        var shown = events.filter(function (e) { return st.calDay == null || Number(e.day) === Number(st.calDay); });
+        body = inv + (shown.map(function (e) { return calEventCard(c, e); }).join('') || '<div class="slp-empty">' + T('ui.cal_none', 'Nothing planned.') + '</div>');
+      } else if (tab === 'week') {
+        var start = today - (dow - 1), cells = [];
+        for (var i = 0; i < 7; i++) {
+          var day = start + i, n = events.filter(function (e) { return Number(e.day) === day; }).length;
+          cells.push('<div class="slp-card" data-a="calday" data-v="' + day + '" style="margin:4px;padding:8px 4px;text-align:center;flex:1;min-width:0' + (day === today ? ';outline:2px solid #a8c7fa' : '') + '"><b>' + DAY_NAMES[i] + '</b><br><small>' + day + '</small><br>' + (n ? '<span class="slp-chip" style="margin:4px 0 0 0">' + n + '</span>' : '&nbsp;') + '</div>');
+        }
+        body = '<div style="display:flex;padding:0 12px">' + cells.join('') + '</div>' + (st.calDay != null ? '<div class="slp-acts" style="padding:0 16px"><div class="slp-btn slp-text" data-a="calday" data-v="">' + T('ui.cal_all_days', 'Show all days') + '</div></div>' : '') +
+          events.filter(function (e) { return st.calDay == null || Number(e.day) === Number(st.calDay); }).map(function (e) { return calEventCard(c, e); }).join('');
+      } else {
+        body = arr(c.series).map(function (x) {
+          return '<div class="slp-card"><h4>' + esc(x.name || '') + '</h4>' +
+            '<div class="slp-kv"><span>' + T('ui.cal_where', 'Where') + '</span><b>' + esc(x.map || '') + '</b></div>' +
+            '<div class="slp-kv"><span>' + T('ui.cal_round_label', 'Round') + '</span><b>' + (Number(x.round) || 0) + ' / ' + (Number(x.rounds) || 0) + '</b></div>' +
+            '<div class="slp-kv"><span>' + T('ui.cal_points', 'Points') + '</span><b>' + (Number(x.points) || 0) + '</b></div>' +
+            '<div class="slp-kv"><span>' + T('ui.cal_rank', 'Position') + '</span><b>' + (x.rank != null ? Number(x.rank) : '&ndash;') + '</b></div>' +
+            (x.nextDay != null ? '<p>' + T('ui.cal_next_round', 'Next round: day {1}', Number(x.nextDay)) + '</p>' : '') + '</div>';
+        }).join('') || '<div class="slp-empty">' + T('ui.cal_no_series', 'No series running. One opens each month.') + '</div>';
+      }
+      return bar(T('app.calendar', 'Calendar')) + '<div class="slp-tabs" style="padding:0 16px 8px">' + tabs + '</div><div class="slp-body">' + body + '</div>';
+    }
+
     function mePage() {
       var d = st.data, s = obj(d.stats);
       var from = d.titleRep || 0, to = d.nextRep, pct = to ? Math.max(0, Math.min(100, ((d.rep || 0) - from) / (to - from) * 100)) : 100;
@@ -1634,6 +1709,7 @@
         case 'bid': page = bidPage(); break;
         case 'ad': page = adPage(); break;
         case 'bank': page = bankPage(); break;
+        case 'calendar': page = calendarPage(); break;
         case 'traps': page = trapsPage(); break;
         case 'cab': page = cabPage(); break;
         case 'me': page = mePage(); break;
@@ -1916,7 +1992,7 @@
       switch (a) {
         case 'open': go(v); break;
         case 'helppage': go('helppage', { helpId: v }); break;
-        case 'back': back(); break;
+        case 'back': if (st.app === 'calendar' && st.calEvent) { st.calEvent = null; render(); } else back(); break;      // (on a Calendar event page Back returns to the list)
         case 'home': home(); break;
         case 'away': setOpen(false); break;
         case 'contact': go('contact', { contact: v }); break;
@@ -1958,6 +2034,13 @@
         case 'borrow': lua('borrow(' + Number(v) + ')'); break;
         case 'repay': lua('repay(' + Number(v) + ')'); break;
         case 'paydebt': lua('payDebt(' + Number(v) + ')'); break;
+        case 'caltab': st.calTab = String(v); st.calDay = null; render(); break;
+        case 'calday': st.calDay = v === '' ? null : Number(v); render(); break;
+        case 'calopen': st.calEvent = String(v); render(); break;
+        case 'calenter': lua('calendarEnter(' + JSON.stringify(String(v)) + ')'); break;
+        case 'caldecline': lua('calendarDecline(' + JSON.stringify(String(v)) + ')'); st.calEvent = null; break;
+        case 'calremind': var cr = String(v).split('|'); lua('calendarRemind(' + JSON.stringify(cr[0]) + ',' + (cr[1] === 'true' ? 'true' : 'false') + ')'); break;
+        case 'caltravel': lua('calendarTravel(' + JSON.stringify(String(v)) + ')'); break;
         case 'service': var sp = String(v).split('|'); lua('service(' + Number(sp[0]) + ',' + JSON.stringify(sp[1] || '') + ')'); break;
         case 'insure': lua('insure(' + (v === 'true' ? 'true' : 'false') + ')'); break;
         case 'tutskip': lua('@sl_tutorial.skip()'); break;
