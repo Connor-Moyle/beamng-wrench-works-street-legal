@@ -16,6 +16,7 @@ On BeamNG 0.40, in heavy rain, with Wet roads and walls on, the game loses the g
 | trace 63fb2a8, standing | High/Custom | on, trace on | standing still | survived all 308 edits (109 s) and 180 s |
 | trace 63fb2a8, driving | High/Custom | on, trace on | reset onto a street, then driven | crashed 52 s into the rain, after 11 of 308 edits |
 | vehiclehold 1726fb8 + trace, car excluded from the plan | High/Custom, wet tarmac on | on, trace on, 10 puddles | reset onto a street, then stood still (engine start failed) | crashed 96 s into the rain, 5.2 s after edit #262 of 327; the first edit came 2.1 s after the reset (the 2 s hold worked) |
+| wetrun 08a096f (empty-file fix + trace), car driving | High/Custom, wet tarmac on | on, trace on, 10 puddles | reset onto a street, engine running, driven 11 m/s | crashed 54 s into the rain, 5.0 s after edit #132 of 323 (a terrain rock imposter); plan 323 with glass 26 |
 
 ## The 11-edit crash (crash_2026-10-21_2251_highrain_wettrace_63fb2a8_driving.log in the graph repo's crashlogs)
 - Edits #1-#11 were all asphalt, the last at 211.88 s; no "wet start" without its edit afterwards, so no edit was running at the hang. The next Lua log line is the device loss at 217.14 s: a 5.3 s silence.
@@ -25,7 +26,10 @@ On BeamNG 0.40, in heavy rain, with Wet roads and walls on, the game loses the g
 
 ## The extra glass (found, 2026-10-21)
 Every High run that crashed had the car in the world when the plan was read; the one run that finished all 308 edits (standing, trace) had a plan of 308 materials with 11 glass. A Low, no-rain check (80) named the extras: with the autobello spawned the plan grew from 308 to 328 (glass 11 -> 31). The 20 extra glass materials are vehicle-side materials registered when a car is loaded (autobello_*glass, bx_*glass, hopper_*glass, fullsize_*glass: lamp glass of other models that come with the car's parts), all with an EMPTY file path (`getFilename()` gives ''), and only 5 of them are in this car's `getMaterialNames()` (hence the exclusion by name in worker-a-vehiclehold missed 15). They stay registered after the car is despawned (328 stays). The level's own 11 glass materials all have level/art file paths.
-Fix on branch worker-a-wetnofile: `plan()` skips every material whose file is reported as '' (vehicle-side). Whether that stops the High crash is not known: no High run has been made with it, and the wet world stays parked and off by default.
+Fix, in master since 6aadb98: `plan()` skips every material whose file is reported as '' (vehicle-side). It was tried in a High driving run (wetrun 08a096f) and the game still lost the device: the plan read 323 materials with glass 26, so the fix removed only 5 of the 20 extra glass materials. Open question: what file path do the other 15 report? 80's console check printed `getFilename()` as '' for all 20, but its script turned a nil result into '' (`okF and f or ''`), while the plan sees `nil` as "file cannot be read" and still classifies by name. The likely answer is that 15 of them return nil (not ''), which a further `file or ''` in `materials()` (wetworld.lua) would catch; this was NOT tried, and no High run was made with it.
+
+## Closing (2026-10-22)
+Five High runs with the wet world on lost the device (the 21:11 run, (b), the driving trace run, the vehiclehold run and the wetrun run), 52-96 s into forced heavy rain and about 5 s after an edit of an asphalt, terrain, rock-imposter or foliage material; the one standing run finished all 308 edits, and the run with the wet world off survived 628 s. The wet world at High is parked: Wet roads and walls is off by default (0.6.1) with a warning in its row. The branches kept for later: worker-a-vehiclehold (hold after a vehicle change, car-name exclusion), and the optional edit trace (slWetTrace, in master).
 
 ## What it is not
 - Not VRAM exhaustion (no allocation failure before the device loss; 5 live puddle planes in (b), 0 in the 21:11 run).
