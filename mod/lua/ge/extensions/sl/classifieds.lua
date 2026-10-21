@@ -6,6 +6,7 @@
 
 local carreport = require('sl/core/carreport')
 local usedcar = require('sl/core/usedcar')
+local barnRules = require('sl/core/barn')
 local M = {}
 
 local strings = require('sl/core/strings')
@@ -199,7 +200,7 @@ local function refresh(s, force)
       end
     end
   end
-  local function carAds() local n = 0 for _, l in ipairs(m.listings) do if l.kind == 'car' and not l.taken then n = n + 1 end end return n end
+  local function carAds() local n = 0 for _, l in ipairs(m.listings) do if l.kind == 'car' and not l.taken and not l.barn then n = n + 1 end end return n end
   -- private cars: the used lot's kind of car, sold from a kerb. One draw of many different cars (B60: a draw of one gave the lot's cheapest
   -- car every time, the same model for every ad)
   local fresh = sl_lot and sl_lot.privateOffers and sl_lot.privateOffers(rng:int(1, 1000000), CAR_ADS * 3) or {}
@@ -339,7 +340,7 @@ function M.summary()
   local out = { listings = {}, auctions = {}, deliveries = #m.deliveries, meet = { listings = {}, place = (meetPlace() or {}).name or strings.t('classifieds.tuning_shop_lot'), night = sl_career.has('nightMeet') or nil },
     paper = { bought = m.paperRead == edition, edition = edition + 1, listings = {}, hidden = 0, price = L.PAPER_PRICE } }
   for _, l in ipairs(m.listings) do
-    if not l.taken then
+    if not l.taken and not l.hidden then
       local card = { id = l.id, name = l.item.name, model = l.item.model, ask = l.agreed or l.ask, condition = math.floor(l.condition * 100 + 0.5),
         seller = l.seller, rating = l.rating, tells = L.tells(l), rare = l.rare, agreed = l.agreed ~= nil,
         delivery = not l.scam and L.delivery(l.agreed or l.ask) or nil, deposit = L.deposit(l.agreed or l.ask), hoursLeft = l.expires - now(s) }
@@ -432,6 +433,37 @@ function M.offer(id, amount)
   if r == 'counter' then l.ask = price return true, string.format(strings.t('classifieds.s_can_do_d_no'), l.seller, price) end
   if r == 'walk' then l.expires = now(s) return false, strings.t('classifieds.1_stopped_answering', (l.seller)) end
   return false, string.format(strings.t('classifieds.s_no_chance'), l.seller)
+end
+
+-- a barn find (sl_barnfinds): a poor, cheap car in an ad at a remote spot, hidden from the app until the player has found it. Returns the listing id and the car's name, or nil.
+function M.addBarn(spot, seed)
+  local s = career()
+  if not s or not (sl_lot and sl_lot.privateOffers) then return nil end
+  local m = state(s)
+  local t = now(s)
+  local rng = rngLib.new(rngLib.hash('barnad:' .. tostring(seed) .. ':' .. tostring(s.seed)))
+  local offer = barnRules.pick(sl_lot.privateOffers(rng:int(1, 1000000), 12))
+  if not offer then return nil end
+  offer = barnRules.carOffer(offer, rng)
+  local l = L.listing(rng, { kind = 'car', name = offer.name, value = offer.value or 0, model = offer.model, condition = offer.condition }, 'app', 1, t)
+  l.id, l.seller, l.offer, l.where = 'm' .. m.nextId, strings.t('barn.seller'), offer, { x = spot.x, y = spot.y, z = spot.z or 0 }
+  m.nextId = m.nextId + 1
+  l.barn, l.hidden, l.rare, l.scam, l.noShow, l.newAccount, l.payNote = true, true, true, nil, nil, false, nil
+  l.rating = 4
+  l.expires = t + 24 * 30
+  l.ask = offer.price
+  l.floor = math.max(10, math.floor(offer.price * 0.85 / 10) * 10)
+  m.listings[#m.listings + 1] = l
+  return l.id, offer.name
+end
+
+function M.revealBarn(id)
+  local s = career()
+  local l = s and find(state(s), id)
+  if not l then return false end
+  l.hidden = nil
+  extensions.hook('onStreetLegalChanged')
+  return true
 end
 
 -- a mechanic checks a private ad's car: the faults and the report show from now on. Returns ok, text.

@@ -3308,7 +3308,7 @@ do
   local Opt = require('sl/options')
   local defs = {}
   for _, d in ipairs(Opt.defs) do defs[d.key] = d end
-  local okDefs = #F.LIST == 28
+  local okDefs = #F.LIST == 29
   for _, f in ipairs(F.LIST) do
     local d = defs[f.opt]
     if not (d and d.type == 'bool' and d.default == true and d.feature == true and d.title == f.title and f.desc ~= '') then okDefs = false end
@@ -4115,6 +4115,108 @@ do
   check('scenes.run: without a job system there is no scene', run() == false)
   _G.core_jobsystem, _G.guihooks = saved.jobs, saved.gui
   package.loaded['sl/scenes'] = nil
+end
+
+-- barn finds (campaign idea #3)
+do
+  local B = require('sl/core/barn')
+  local rngLib = require('sl/core/rng')
+  -- a map: a grid of through roads, and dead ends far out
+  local nodes = {}
+  for i = 1, 6 do
+    nodes['r' .. i] = { pos = { x = i * 300, y = 0, z = 0 }, links = { ['r' .. (i % 6 + 1)] = {}, ['r' .. ((i + 4) % 6 + 1)] = {} } }
+  end
+  nodes.d1 = { pos = { x = 3000, y = 3000, z = 5 }, links = { r1 = {} } }
+  nodes.d2 = { pos = { x = 3300, y = 3000, z = 5 }, links = { r1 = {} } }       -- (too close to d1)
+  nodes.d3 = { pos = { x = -3000, y = 3000, z = 0 }, links = { r2 = {} } }
+  nodes.d4 = { pos = { x = 100, y = 100, z = 0 }, links = { r3 = {} } }          -- (next to the place)
+  nodes.d5 = { pos = { x = 3000, y = -3000, z = 0 }, links = { r2 = {} } }
+  nodes.d6 = { pos = { x = -3000, y = -3000, z = 0 }, links = { r2 = {} } }
+  local places = { { id = 'junk', name = 'the junkyard', x = 0, y = 0 } }
+  local spots = B.select(nodes, places, rngLib.new(3))
+  local ok = true
+  for i = 1, #spots do
+    if spots[i].x == 100 then ok = false end
+    for j = i + 1, #spots do if (spots[i].x - spots[j].x) ^ 2 + (spots[i].y - spots[j].y) ^ 2 < B.APART ^ 2 then ok = false end end
+  end
+  check('barn: four spots at dead ends, far from the places and from each other', #spots == 4 and ok and spots[1].id == 'b1')
+  local again = B.select(nodes, places, rngLib.new(3))
+  check('barn: the same map and seed give the same spots', again[1].x == spots[1].x and again[4].y == spots[4].y)
+  check('barn: the hint names the car, the nearest place and the way from it', (function()
+    local h = B.hint({ x = 3000, y = 0 }, places, 'Covet')
+    return h:find('Covet', 1, true) and h:find('the junkyard', 1, true) and h:find('3 km east', 1, true)
+  end)())
+  check('barn: the compass words', B.compass(0, 0, 10, 0) == 'east' and B.compass(0, 0, 0, 10) == 'north' and B.compass(0, 0, -10, 0) == 'west' and B.compass(0, 0, 0, -10) == 'south' and B.compass(0, 0, 10, 10) == 'north-east')
+  check('barn: no place at all still gives a rumour', B.hint({ x = 1, y = 1 }, {}, 'Covet'):find('Covet', 1, true) ~= nil)
+  local offer = B.carOffer({ name = 'Covet', model = 'covet', value = 10000, condition = 0.9, faults = {}, mileage = 100 }, rngLib.new(4))
+  check('barn: the car is in a poor state, with 3 to 5 faults, a high mileage and a low price', offer.condition >= 0.12 and offer.condition <= 0.3 and #offer.faults >= 3 and #offer.faults <= 5 and offer.mileage >= 150000 and offer.price == 2200 and offer.kind == 'barn')
+  check('barn: the offer given is not changed, and pick takes the most valuable', B.pick({ { value = 1 }, { value = 9 }, { value = 5 } }).value == 9 and B.pick({}) == nil)
+
+  -- the ad: hidden until found, a private car ad when found, its faults behind the mechanic's check
+  local ST = require('sl/core/state')
+  local st = ST.new(1, 0)
+  st.day, st.rep, st.seed = 5, 300, 7
+  st.market = { listings = {}, nextId = 1, refreshed = 1e9, deliveries = {}, rounds = {}, mine = {} }
+  local old = { c = rawget(_G, 'sl_career'), e = rawget(_G, 'extensions'), g = rawget(_G, 'guihooks'), pv = rawget(_G, 'getPlayerVehicle'), lot = rawget(_G, 'sl_lot'), map = rawget(_G, 'map'),
+    lv = rawget(_G, 'getCurrentLevelIdentifier'), cl = rawget(_G, 'sl_classifieds'), um = rawget(_G, 'ui_message'), fleet = rawget(_G, 'sl_fleet') }
+  local sent = {}
+  _G.guihooks = { trigger = function() end }
+  _G.extensions = { hook = function() end }
+  _G.ui_message = nil
+  _G.sl_fleet = nil
+  _G.getPlayerVehicle = function() return nil end
+  _G.getCurrentLevelIdentifier = function() return 'test_level' end
+  _G.map = { getMap = function() return { nodes = nodes } end }
+  _G.sl_lot = { privateOffers = function() return { { name = 'Covet', model = 'covet', value = 6000, condition = 0.8, faults = {}, mileage = 50000, kind = 'used', config = 'vehicles/covet/a.pc', id = 'x1' },
+    { name = 'Bolide', model = 'bolide', value = 20000, condition = 0.9, faults = {}, mileage = 10000, kind = 'used', config = 'vehicles/bolide/b.pc', id = 'x2' } } end }
+  _G.sl_career = { isActive = function() return true end, has = function() return true end, getState = function() return st end, hour = function() return 12 end, mapText = function(t) return t end,
+    addMoney = function(a, l) return ST.addMoney(st, a, l) end, getPlaces = function() return { junk = { name = 'the junkyard', pos = { x = 0, y = 0, z = 0 } } } end,
+    sendText = function(who, text) sent[#sent + 1] = text end }
+  package.loaded['jbeam/io'] = {}
+  package.loaded['sl/classifieds'] = nil
+  _G.sl_classifieds = require('sl/classifieds')
+  _G.getPlayerVehicle = function() return nil end
+  local C = _G.sl_classifieds
+  local id, name = C.addBarn({ x = 3000, y = 0, z = 0 }, 11)
+  local l = st.market.listings[1]
+  check('barn: addBarn makes a hidden, cheap, poor car ad at the spot from the most valuable offer', id and l.id == id and l.hidden == true and l.barn and name == 'Bolide' and l.offer.price == 4400 and l.where.x == 3000 and l.expires > 24 * 5)
+  local oldPV = rawget(_G, 'getPlayerVehicle')
+  local function card() for _, c in ipairs(C.summary().listings) do if c.id == id then return c end end end
+  for _, c in ipairs(st.cars) do c.model = c.model or 'covet' end
+  check('barn: the app does not show it before it is found', card() == nil)
+  C.revealBarn(id)
+  local c1 = card()
+  check('barn: found, it is a private car ad with its faults hidden until a mechanic has looked', c1 and c1.car == true and c1.hidden == true and c1.faults == nil and c1.ask == 4400 and c1.history ~= nil)
+  st.money = 1000
+  C.check(id)
+  local c2 = card()
+  check('barn: after the check the faults and what they cost show', c2.checked == true and c2.faults >= 3 and #c2.found == c2.faults)
+
+  -- the extension: the rumour and the finding
+  package.loaded['sl/barnfinds'] = nil
+  local BX = require('sl/barnfinds')
+  st.market.listings = {}
+  BX.onStreetLegalNewDay(4)
+  check('barn: not before the first rumour day', st.barn and #sent == 0)
+  BX.onStreetLegalNewDay(st.barn.nextHint)
+  local spot
+  for _, sp in ipairs(st.barn.levels.test_level.spots) do if sp.listing then spot = sp end end
+  check('barn: on the day a contact texts the rumour and a hidden ad stands at that spot', spot and #sent == 1 and sent[1]:find('km', 1, true) and st.market.listings[1].hidden == true and st.barn.nextHint > st.day)
+  check('barn: the Map app can show the rumoured spots', #BX.summary().rumours == 1)
+  local px, py = spot.x + 500, spot.y
+  _G.getPlayerVehicle = function() return { getPosition = function() return { x = px, y = py, z = 0 } end } end
+  BX.onUpdate(1.5)
+  check('barn: a car far from the spot finds nothing', not spot.found)
+  px = spot.x + 20
+  BX.onUpdate(1.5)
+  check('barn: within 35 m the car is found and the ad appears', spot.found == true and st.market.listings[1].hidden == nil and #BX.summary().rumours == 0)
+  st.rep = 10
+  local before = #sent
+  BX.onStreetLegalNewDay(st.barn.nextHint + 30)
+  check('barn: no rumours below the reputation', #sent == before)
+  _G.sl_career, _G.extensions, _G.guihooks, _G.getPlayerVehicle, _G.sl_lot, _G.map, _G.getCurrentLevelIdentifier, _G.sl_classifieds, _G.ui_message, _G.sl_fleet =
+    old.c, old.e, old.g, old.pv, old.lot, old.map, old.lv, old.cl, old.um, old.fleet
+  package.loaded['sl/classifieds'], package.loaded['sl/barnfinds'] = nil, nil
 end
 
 print(string.format('lua tests passed: %d checks', passed))
