@@ -7,7 +7,7 @@ Street Legal draws every shop with one screen (`ui/modModules/slShop`) that chan
 | Kind | Screen | Goods |
 |---|---|---|
 | `tyre` | catalogue | the tyre ranges of Street Legal (`range`: `torres`, `race`, or all); buying fits the set on your car through Car Surface FX (it needs that mod) |
-| `exhaust`, `parts`, `performance`, `dealerparts` | catalogue | parts for the player's car from the Wrench Works catalogue (not wired up yet: these show a note until `stock` is given) |
+| `exhaust`, `parts`, `performance`, `dealerparts` | catalogue | parts that fit the player's car, read from Wrench Works (`slrr_garage.lookupParts`; Wrench Works 1.8.7 or later). Bought parts go on the shelf of the car's model. Give `stock` instead and the shop sells your own list |
 | `accessories` | catalogue | the stock you give |
 | `paint`, `tuner`, `mechanic` | services | the services you give |
 
@@ -15,7 +15,7 @@ A mod can add its own kind with `sl_shops.define` (below).
 
 ## 1. Place a shop on a map
 
-Put a file `street_legal_shops.json` in your level's folder (`/levels/<level>/`), or a file `*.json` in `/settings/street_legal/shops/` in a mod:
+Put a file `street_legal_shops.json` in your level's folder (`/levels/<level>/`), or a `*.json` in `/street_legal/shops/` (a mod's own) or `/settings/street_legal/shops/` (the player's). A file can name its level (`"level": "west_coast_usa"`) and is then read on that level only:
 
 ```json
 { "shops": [
@@ -45,6 +45,9 @@ Fields (names are matched without case):
 | `stock` | items: `id` (letters, digits, `_` `.` `-`), `name`, `price` (dollars), optional `group` (the category on the left), `desc`, `cond` (0..1; a used item is priced by its condition), `count` (how many there are) |
 | `services` | rows with `id`, `name`, `price`, optional `minutes`, `desc` |
 | `range` | tyre shops: `torres` or `race` |
+| `sections` | catalogue shops: the Wrench Works chapters it sells, `"engine/exhaust"`, a whole section `"body"` or a chapter `"exhaust"` (the kind's own default when left out: an exhaust shop sells `exhaust`, a parts shop everything) |
+| `brands` | catalogue shops: only parts of these brands (a dealer's counter) |
+| `replaces` | the id of a Wrench Works parts counter (`torresTires`, `exhaustShop` ...) at this place: Wrench Works then leaves its own screen to this shop |
 | `id` | a name for the shop (default: file and position in it) |
 
 The shop's goods change a little each day (about a quarter of the lines are missing, the first four always stay), the price is the player's: reputation gives up to 8% off.
@@ -83,6 +86,10 @@ Other calls: `sl_shops.kinds()` (the kinds known), `sl_shops.isOpen()`, `sl_shop
 ### Price modifiers
 
 `sl_shops.setPriceFactor(id, fn)` registers a function `fn(item, shop)` that returns a factor (1 = the price as it is, 0.8 = twenty per cent off); `fn = nil` removes it. `item` is the line as the shop shows it (`id`, `name`, `brand`, `price`, `group`...) and `shop` is `{ kind, name, brand }`. Several mods may register, each under its own `id`; the factors multiply. It is nil-safe: an error, or a result that is not a number, counts as 1, and the total factor is held between 0.05 and 3. It applies to the price shown (the list price is struck out) and to what is charged. Tyre shops charge their own counter price and ignore it.
+
+## Dealers: the parts counter
+
+A dealer whose sign shows car brands gets a second button next to "Look at the cars": **Parts counter (Bruckell, Gavril, Ibishu)**. The brands are in `/street_legal/shops/dealer_brands.json`: `{ "<level>": { "<place id, stock id or place name>": [ "Brand", ... ] } }`. The counter lists the parts of those brands that fit the car you drive (the maker's parts from Wrench Works' catalogue, branded by `slrr_brands`); when none fits it says so, with your car and the brands. Bought parts go on the shelf of the car's model at your garage. On West Coast USA, Jefferson Motors has Bruckell, Gavril and Ibishu and Belasco Auto Ibishu and Gavril (read from the brand flags standing at their lots in the level's files).
 
 ## 3. Add your own kind
 
