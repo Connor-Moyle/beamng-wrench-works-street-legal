@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.8.1 (unreleased; needs Wrench Works 1.8.5)
+
+### New
+- **Speed traps and speed zones (new, on by default; Mods > Street Legal > Parts of the game > Speed traps):** six traps and two zones on long straight roads of the map, chosen once for your career. Drive through a trap and your speed counts; drive between the two gates of a zone and your average speed counts. Each has a target; the first time you beat it it pays ($250 for a trap, $400 for a zone) and gives 5 reputation; after that only your personal best changes. The phone list is built by the phone. Offline-tested; not yet seen in the game.
+
 ## 0.8.0 (needs Wrench Works 1.8.5)
 
 The career gets things to spend on and things to aim for. Everything marked "not yet seen in the game" is built and tested offline only.
