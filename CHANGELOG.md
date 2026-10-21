@@ -2,6 +2,9 @@
 
 ## 0.8.1 (unreleased; needs Wrench Works 1.8.5)
 
+### Changes
+- **Wet roads and walls now changes the terrain layers only** (a texture swap): the 300 or so material reloads for walls, roofs, pavements and leaves, which are what lost the graphics device at High graphics in heavy rain, no longer run (unless a hidden options key is set for experiments). One test at High graphics, with the terrain layers only and heavy rain forced, ran 366 s without a crash (every earlier run with the material edits crashed within 52 to 96 s of the rain). That is one run: the setting stays off by default, and walls and roofs no longer get wet. The notes are in docs/WET_WORLD_HIGH_CRASH.md.
+
 ### New
 - **Barn finds (new, on by default; Mods > Street Legal > Parts of the game > Barn finds):** from 100 reputation, every three to six days a contact texts about an old car rotting in a yard far from town (the nearest place and the way from it). Drive to the spot and the car shows in the Car market as a cheap private ad (about a fifth of its value, a poor condition, a high mileage) whose faults only a mechanic's check shows; buy it like any ad and restore it. Four spots per map, chosen from the dead-end roads. Offline-tested; not yet seen in the game.
 
