@@ -4559,4 +4559,57 @@ do
   end
 end
 
+-- the fixed sponsors and the brand sponsorships side by side
+do
+  local ST = require('sl/core/state')
+  local st = ST.new(1, 0)
+  st.day, st.rep, st.garageLevel, st.seed = 20, 2000, 1, 3
+  local old = { c = rawget(_G, 'sl_career'), e = rawget(_G, 'extensions'), g = rawget(_G, 'guihooks'), fs = rawget(_G, 'FS'), w = rawget(_G, 'sl_weather'), o = rawget(_G, 'sl_options'),
+    f = rawget(_G, 'sl_fleet'), b = rawget(_G, 'slrr_brands'), sp = rawget(_G, 'sl_sponsor'), jb = rawget(_G, 'sl_jobs') }
+  local places, sent, paid = {}, {}, 0
+  for i = 1, 6 do places['p' .. i] = { name = 'Place ' .. i, kind = 'shop', pos = { x = i * 900, y = (i % 3) * 700, z = 0 } } end
+  _G.guihooks = { trigger = function() end }
+  _G.extensions = { hook = function() end }
+  _G.FS = { findFiles = function() return {} end }
+  _G.sl_weather = { wetness = function() return 0 end }
+  _G.sl_fleet = { currentCar = function() return { model = 'covet', config = { partsTree = {} } } end }
+  _G.sl_career = { isActive = function() return true end, getState = function() return st end, phase = function() return 'day' end, getPlaces = function() return places end,
+    addMoney = function(a, l) return ST.addMoney(st, a, l) end, payOut = function(a, l) paid = paid + a return ST.addMoney(st, a, l) end, sendText = function(_, t) sent[#sent + 1] = t end,
+    hour = function() return 12 end }
+  _G.slrr_brands = nil
+  package.loaded['sl/jobs'], package.loaded['sl/sponsor'] = nil, nil
+  _G.sl_sponsor = require('sl/sponsor')
+  _G.sl_jobs = require('sl/jobs')
+  -- no brand registry: the fixed sponsor is picked and kept
+  check('sponsor: without the brand registry the brand sponsorships are not active', sl_sponsor.active() == false)
+  sl_jobs.onStreetLegalNewDay(20)
+  check('sponsor: a fixed sponsor is picked by reputation, as before', st.jobs.sponsor and st.jobs.sponsor.name ~= nil)
+  local name = st.jobs.sponsor.name
+  st.jobs.weekWins = 2
+  sl_jobs.onStreetLegalNewDay(27)
+  check('sponsor: and it pays its week', paid == st.jobs.sponsor.weekly and st.jobs.sponsor.name == name)
+  -- the registry arrives: the held sponsor keeps paying, no new fixed one is picked, a brand accept clears it
+  _G.slrr_brands = { list = function() return { { id = 'ibishu', name = 'Ibishu', kind = 'maker' } } end, ofCar = function() return 'ibishu' end, ofPart = function() return nil end, nameOf = function() return 'Ibishu' end }
+  check('sponsor: with the registry present the brand sponsorships are active', sl_sponsor.active() == true)
+  local before = paid
+  st.jobs.weekWins = 2
+  sl_jobs.onStreetLegalNewDay(34)
+  check('sponsor: the sponsor the career already held keeps paying', paid == before + st.jobs.sponsor.weekly and st.jobs.sponsor.name == name)
+  st.jobs.sponsor = nil
+  sl_jobs.onStreetLegalNewDay(41)
+  check('sponsor: and no new fixed sponsor comes while the brand ones work', st.jobs.sponsor == nil)
+  st.jobs.sponsor = { name = name, weekly = 500, since = 30 }
+  st.brands = { standing = { ibishu = { standing = 150, day = st.day } }, cooldown = {}, offer = { brand = 'ibishu', day = st.day } }
+  local ok = sl_sponsor.accept()
+  check('sponsor: accepting a brand offer clears the fixed sponsor', ok == true and st.jobs.sponsor == nil and st.sponsorship ~= nil)
+  -- the switch off: back to the fixed sponsors
+  local fo = _G.sl_options
+  _G.sl_options = { get = function(k) if k == 'slSponsors' then return false end end }
+  check('sponsor: with the part off the fixed sponsors are picked again', sl_sponsor.active() == false)
+  _G.sl_options = fo
+  _G.sl_career, _G.extensions, _G.guihooks, _G.FS, _G.sl_weather, _G.sl_options, _G.sl_fleet, _G.slrr_brands, _G.sl_sponsor, _G.sl_jobs =
+    old.c, old.e, old.g, old.fs, old.w, old.o, old.f, old.b, old.sp, old.jb
+  package.loaded['sl/jobs'], package.loaded['sl/sponsor'] = nil, nil
+end
+
 print(string.format('lua tests passed: %d checks', passed))
