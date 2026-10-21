@@ -3308,7 +3308,7 @@ do
   local Opt = require('sl/options')
   local defs = {}
   for _, d in ipairs(Opt.defs) do defs[d.key] = d end
-  local okDefs = #F.LIST == 24
+  local okDefs = #F.LIST == 25
   for _, f in ipairs(F.LIST) do
     local d = defs[f.opt]
     if not (d and d.type == 'bool' and d.default == true and d.feature == true and d.title == f.title and f.desc ~= '') then okDefs = false end
@@ -3793,6 +3793,40 @@ do
   end
   _G.sl_career, _G.extensions, _G.guihooks, _G.FS, _G.sl_weather, _G.sl_options, _G.sl_fleet = old.c, old.e, old.g, old.fs, old.w, old.o, old.f
   package.loaded['sl/jobs'] = nil
+end
+
+-- tier perks (career expansion #6)
+do
+  local P = require('sl/core/perks')
+  check('perks: no factor at rank 1; the upgrade and service perks at rank 2', P.factor(1, 'upgrades') == 1 and P.factor(2, 'upgrades') == 0.9 and P.factor(2, 'service') == 0.85 and P.factor(2, 'jobs') == 1)
+  check('perks: jobs at 3, fines at 4, loans at 5, and an unknown kind is always 1', P.factor(3, 'jobs') == 1.1 and P.factor(4, 'fines') == 0.8 and P.factor(5, 'loans') == 1.25 and P.factor(6, 'nothing') == 1 and P.factor(nil, 'jobs') == 1)
+  local l = P.list(3)
+  local unlocked = 0
+  for _, p in ipairs(l.list) do if p.unlocked then unlocked = unlocked + 1 end end
+  check('perks: the list for the phone has every perk with its text, and the ones up to the rank unlocked', l.tier == 3 and #l.list == 6 and unlocked == 3 and l.list[1].label == 'Trade prices' and l.list[3].text == 'Jobs pay 10% more.')
+  check('perks: the bank limit, the garage price and the fine follow the perk', (function()
+    local ST = require('sl/core/state')
+    local st = ST.new(1, 0)
+    st.rep, st.garageLevel, st.money = 1000, 1, 100000
+    local old = { c = rawget(_G, 'sl_career'), e = rawget(_G, 'extensions'), r = rawget(_G, 'sl_rivals'), g = rawget(_G, 'guihooks') }
+    _G.guihooks = { trigger = function() end }
+    _G.extensions = { hook = function() end }
+    _G.sl_career = { isActive = function() return true end, getState = function() return st end, addMoney = function(a, l) return ST.addMoney(st, a, l) end }
+    package.loaded['sl/perks'] = nil
+    package.loaded['sl/bank'] = nil
+    _G.sl_rivals = { rank = function() return 1 end }
+    _G.sl_perks = require('sl/perks')
+    local B = require('sl/bank')
+    local plain = B.summary().limit
+    _G.sl_rivals = { rank = function() return 5 end }
+    local boosted = B.summary().limit
+    local bankRules = require('sl/core/bank')
+    local ok = boosted == math.floor(plain * 1.25 / 500) * 500 and boosted > plain and plain == bankRules.loanLimit(1000, 1, 0)
+    _G.sl_perks = nil
+    _G.sl_career, _G.extensions, _G.sl_rivals, _G.guihooks = old.c, old.e, old.r, old.g
+    package.loaded['sl/perks'], package.loaded['sl/bank'] = nil, nil
+    return ok
+  end)())
 end
 
 print(string.format('lua tests passed: %d checks', passed))

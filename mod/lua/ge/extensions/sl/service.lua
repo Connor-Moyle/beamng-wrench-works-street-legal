@@ -59,13 +59,14 @@ function M.serviceOf(carId)
   local c, sv, _, net = figures(car)
   local km = svc.since(sv, c.engineKm, car.mileage)
   local bench = workbench(s)
+  local pf = sl_perks and sl_perks.factor('service') or 1                 -- (tier perks)
   local note = bench and '' or strings.t('service.no_bench')
   local rc = market.REPAIR_CONDITION
   return { due = svc.due(sv, km), km_since = math.floor(km), km_interval = math.floor(svc.INTERVAL / rate()), wearFactor = svc.wearFactor(sv, km), count = sv.count,
     sections = svc.sections(net, partwear(car)),
     options = {
-      { id = 'basic', label = strings.t('service.basic'), cost = svc.basicCost(car.value, bench), available = true, why = note },
-      { id = 'full', label = strings.t('service.overhaul'), cost = svc.overhaulCost(car.value, net, rc, bench), available = true, why = note },
+      { id = 'basic', label = strings.t('service.basic'), cost = math.floor(svc.basicCost(car.value, bench) * pf / 10 + 0.5) * 10, available = true, why = note },
+      { id = 'full', label = strings.t('service.overhaul'), cost = math.floor(svc.overhaulCost(car.value, net, rc, bench) * pf / 10 + 0.5) * 10, available = true, why = note },
     } }
 end
 

@@ -20,6 +20,12 @@ local function fleetValue(s)
   return v
 end
 
+-- what the bank lends: the rules' limit, higher with the tier perk
+local function limitOf(s)
+  local limit = bank.loanLimit(s.rep, s.garageLevel, fleetValue(s))
+  return math.floor(limit * (sl_perks and sl_perks.factor('loans') or 1) / 500) * 500
+end
+
 -- is a loan open (the Mods menu will not switch the bank off while one is)
 function M.hasLoan() local s = career() local b = s and s.bank return b ~= nil and b.loan ~= nil end
 
@@ -30,7 +36,7 @@ function M.borrow(amount)
   if b.loan then return false, strings.t('bank.pay_off_the_loan_you') end
   if sl_weekly and sl_weekly.debt and (sl_weekly.debt() or 0) > 0 then return false, strings.t('weekly.clear_debt_first') end      -- (unpaid weekly bills: no new loan)
   amount = math.floor((tonumber(amount) or 0) / 100) * 100
-  local limit = bank.loanLimit(s.rep, s.garageLevel, fleetValue(s))
+  local limit = limitOf(s)
   if amount < 100 or amount > limit then return false, string.format(strings.t('bank.the_bank_lends_up_to'), limit) end
   b.loan = bank.newLoan(amount, s.day)
   sl_career.addMoney(amount, 'Loan')
@@ -141,7 +147,7 @@ function M.summary()
   local s = career()
   if not s then return nil end
   local b = bankState(s)
-  local out = { limit = bank.loanLimit(s.rep, s.garageLevel, fleetValue(s)), rate = bank.RATE, premium = bank.premium(b.claims, s.day), premiumWhy = bank.premiumWhy(b.claims, s.day), deductible = bank.DEDUCTIBLE }
+  local out = { limit = limitOf(s), rate = bank.RATE, premium = bank.premium(b.claims, s.day), premiumWhy = bank.premiumWhy(b.claims, s.day), deductible = bank.DEDUCTIBLE }
   if b.loan then out.loan = { owed = b.loan.owed, due = bank.due(b.loan), dueIn = b.loan.nextDue - s.day, missed = b.loan.missed } end
   if b.policy and b.policy.active then out.policy = { from = b.policy.from, startsIn = math.max(0, b.policy.from - s.day) } end
   return out
