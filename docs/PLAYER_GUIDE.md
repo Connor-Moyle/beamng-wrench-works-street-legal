@@ -103,6 +103,10 @@ The Jobs app lists what is on offer now. Taking one gives you a destination or a
 
 Some jobs need a car you own, some a certain reputation. Finish the job you are on before you take another.
 
+Contracts: from 100 reputation, a few part runs and courier parcels carry terms (no damage, within 80% of the time limit, delivered while the road is wet, or in a car worth $15,000 or more). Keep the terms and the job pays 1.6 to 2.2 times as much and gives 5 extra reputation; miss them and you get the normal pay. Switch it off in Mods > Parts of the game > Contracts.
+
+Tier perks: each boss you beat gives a lasting advantage, listed on the Street cred page: cheaper garage upgrades and services, better pay on jobs, lower police fines and a higher loan limit. Switch it off in Mods > Parts of the game > Tier perks.
+
 Taxi fares: a walker waits at the kerb. Drive smoothly; hard braking and hard cornering cost the tip (up to half the fare). Tow jobs: a dead car waits at the kerb; hook it to your car with the tow coupler of the game and tow it to the garage; the clock and the damage are the towed car itself. Parts runs from the scrapyard carry fragile parts. Dealer deliveries take a new car to the customer; with Car Surface FX a single new scratch means no pay.
 
 ## Day and night
@@ -177,7 +181,7 @@ Difficulty has the police and their aggression, pay, hardcore mode (no pull-outs
 - Show co-driver notes on screen: on rally stages what the co-driver calls is also written on screen.
 - Record street races: a race can be watched again (Races app, Last race) and saved as a clip.
 - Phone skin (Screens and texts): Classic, or Slate, a modern look; your own skins are folders in the user folder (see docs/PHONE_SKINS.md). A phone that is already open keeps its look until you close and reopen it.
-- Parts of the game (Mods > Street Legal > Parts of the game, and the Active features page): spectators, sponsor billboards, ambient sounds, puddles, achievements, tips, car and part markets, rally, street races and drag, clubs, crews, the tow truck, the taxi ride, the bank, the hospital, the HUD pill, the laptops, Maps, garage upgrades, jobs, weekly costs, servicing and wear and used-car checks. Each is on by default and can be switched off; what a part keeps in your save is not deleted.
+- Parts of the game (Mods > Street Legal > Parts of the game, and the Active features page): spectators, sponsor billboards, ambient sounds, puddles, achievements, tips, car and part markets, rally, street races and drag, clubs, crews, the tow truck, the taxi ride, the bank, the hospital, the HUD pill, the laptops, Maps, garage upgrades, jobs, weekly costs, servicing and wear, used-car checks, contracts and tier perks. Each is on by default and can be switched off; what a part keeps in your save is not deleted.
 - Street Legal in free roam (Mods > Street Legal > Free roam, all off by default): a master switch and one switch each for the phone (K) with the Maps and Cab apps, map pins, weather, the free cab, the free car wash and the dashboard. No career is started or saved and no money is spent.
 - Wet roads and walls (Mods > Street Legal > Clock and weather, off by default): they can lose the graphics device at High graphics in heavy rain on BeamNG 0.40; turn it on only if you accept that.
 Developer: a button that gives you all the money, for testing.
