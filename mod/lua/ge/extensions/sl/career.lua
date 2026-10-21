@@ -1214,10 +1214,12 @@ function M.onSlrrRaceFinished(r)
       -- their car is yours: the map stops it and, once out of sight, hands it over (onSlrrPinkCarDelivered)
       M._pinkWon = { name = r.opponent and (r.opponent .. strings.t('career.s_car')) or nil, vid = r.opponentVid, value = tonumber(r.value) }
       s.stats.pinksWon = s.stats.pinksWon + 1
+      extensions.hook('onStreetLegalPinkSlip', true, r.opponent)
     elseif not r.won then
       local gone = sl_fleet.lastGone
       if gone and os.clock() - gone.at < 5 then sl_fleet.lose(gone.carId) end
       s.stats.pinksLost = s.stats.pinksLost + 1
+      extensions.hook('onStreetLegalPinkSlip', false, r.opponent)
       -- no free car to drive home in: you walk. The map swaps your car for a runabout only after
       -- this hook (seen in game: the player was left in a free Covet on the start line), so look
       -- again once it has
@@ -1407,6 +1409,7 @@ function M.onPursuitAction(id, action, pursuit)
     else
       tell(why .. string.format(strings.t('career.busted_d_in_fines_s'), fine, racing and strings.t('career.and_the_race_is_lost') or '', lost > 0 and string.format(strings.t('career.and_the_d_reputation_you'), lost) or ''), 7)
     end
+    extensions.hook('onStreetLegalBusted', fine, car and car.impounded or 0, car and car.name or nil)      -- (for the screen banners)
     changed()
   elseif action == 'evade' then
     -- the escape pays by heat, and for each roadblock passed and strip survived (core/chase)

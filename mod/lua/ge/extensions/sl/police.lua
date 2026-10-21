@@ -43,7 +43,12 @@ function M.level() return heatLib.level(M.heat()) end
 
 local function addHeat(x)
   local s = career()
-  if s and night() then s.heat = heatLib.raised(s.heat, x) end
+  if s and night() then
+    local before = heatLib.level(s.heat or 0)
+    s.heat = heatLib.raised(s.heat, x)
+    local now = heatLib.level(s.heat)
+    if now > before then extensions.hook('onStreetLegalHeatUp', now, before) end      -- (for the screen banners)
+  end
 end
 
 -- the game's police has a chase on the player now
