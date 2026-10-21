@@ -32,6 +32,7 @@ M.LIST = {
   { id = 'danger', opt = 'slDanger', title = 'Danger zones', desc = 'Jumps and drifts count: the longest jump you fly pays at 20, 40, 70 and 110 m, and two drift zones on long roads score your drift points against a target. Off: nothing is watched.' },
   { id = 'service', opt = 'slService', title = 'Servicing and wear', desc = 'Cars wear much faster, a service is due about every 150 km, and skipping it wears the car more. A basic service and an overhaul are bought on the phone. Off: wear stays as slow as it was and there is no service.' },
   { id = 'weekly', opt = 'slWeekly', title = 'Weekly costs', desc = 'Each week the garage rent and the storage of the cars beyond two are paid, with a ledger on the phone. What you cannot pay becomes a debt at the bank (never a repossession). Off: no weekly bills.' },
+  { id = 'scenes', opt = 'slScenes', title = 'Cinematic moments', desc = 'A short full-screen scene when the night starts or the day starts (the sky, the city lights, a title card); any key skips it. Off: the plain fade to black.' },
   { id = 'jobs', opt = 'slJobs', title = 'Jobs', desc = 'Courier and workshop jobs, their markers and the Jobs app. Off: no jobs.' },
 }
 local byId = {}

@@ -3308,7 +3308,7 @@ do
   local Opt = require('sl/options')
   local defs = {}
   for _, d in ipairs(Opt.defs) do defs[d.key] = d end
-  local okDefs = #F.LIST == 27
+  local okDefs = #F.LIST == 28
   for _, f in ipairs(F.LIST) do
     local d = defs[f.opt]
     if not (d and d.type == 'bool' and d.default == true and d.feature == true and d.title == f.title and f.desc ~= '') then okDefs = false end
@@ -4013,6 +4013,92 @@ do
   os.clock = old.clock
   _G.sl_career, _G.extensions, _G.guihooks, _G.getPlayerVehicle, _G.map, _G.getCurrentLevelIdentifier, _G.ui_message, _G.castRayStatic, _G.vec3 = old.c, old.e, old.g, old.pv, old.map, old.lv, old.um, old.ray, old.v3
   package.loaded['sl/danger'] = nil
+end
+
+-- cinematic moments (sl/core/scenes): what the UI is told, the reduced-motion hold, the skip guard
+do
+  local sc = require('sl/core/scenes')
+  local strings = require('sl/core/strings')
+  local n = sc.spec('night', { day = 4 }, false, strings.t)
+  check('scenes: the night scene has its title, its day in the subtitle, the full hold and the fades', n.kind == 'night' and n.title == 'Night' and n.subtitle == 'Day 4: the street is awake' and n.hold == 3.4 and n.fadeIn == 0.5 and n.fadeOut == 0.6 and n.reduce == false)
+  local d = sc.spec('day', { day = 5 }, true, strings.t)
+  check('scenes: reduce motion shortens the hold and is passed on to the UI', d.kind == 'day' and d.hold == 1.2 and d.reduce == true and d.subtitle == 'Day 5 begins')
+  check('scenes: an unknown kind has no scene, a missing day is day 1', sc.spec('nope', {}, false, strings.t) == nil and sc.spec('day', nil, false, strings.t).day == 1)
+  check('scenes: the cues are the games own UI events, a start whoosh and a title chime; reduce motion has only the chime', #n.cues == 2 and n.cues[1].at == 0 and n.cues[2].at == 1.3 and n.cues[1].event:find('^event:>UI>') and #d.cues == 1)
+  check('scenes: a scene cannot be skipped in its first moments, then it can', not sc.canSkip(0) and not sc.canSkip(0.39) and sc.canSkip(0.4) and sc.canSkip(2))
+  check('scenes: every kind has its texts in the table', (function() for _, k in pairs(sc.KINDS) do if strings.TEXT[k.title] == nil or strings.TEXT[k.sub] == nil then return false end end return true end)())
+end
+
+-- the short moments (banners): the spec for each style, the text with its numbers, the unknown style, sl_scenes.play never throws
+do
+  local sc = require('sl/core/scenes')
+  local strings = require('sl/core/strings')
+  local h = sc.banner('heat', { level = 3 }, false, strings.t)
+  check('banners: heat 3 has its title, tone and a sound', h.kind == 'banner' and h.style == 'heat' and h.title == 'Heat 3' and h.tone == 'warn' and #h.cues == 1 and h.hold > 0)
+  check('banners: a countdown number is the title; the car reveal shows the car name', sc.banner('count', { n = 2 }, false, strings.t).title == '2' and sc.banner('reveal', { name = 'Covet' }, false, strings.t).subtitle == 'Covet')
+  check('banners: busted and a lost slip are bad, a won slip and a new car are good (every tone has a mark in the UI)', sc.banner('busted', nil, false, strings.t).tone == 'bad' and sc.banner('pinklose', { name = '$900' }, false, strings.t).tone == 'bad'
+    and sc.banner('pinkwin', { name = 'Covet' }, false, strings.t).tone == 'good' and sc.banner('reveal', {}, false, strings.t).tone == 'good')
+  check('banners: the garage tier banner names the level through the strings table', sc.banner('tier', { level = 2 }, false, strings.t).subtitle == 'Garage level 2')
+  check('banners: an unknown style is nothing; reduce motion is passed on', sc.banner('nope', {}, false, strings.t) == nil and sc.banner('go', {}, true, strings.t).reduce == true)
+  check('banners: every style has its texts in the table', (function() for _, b in pairs(sc.BANNERS) do if strings.TEXT[b.title] == nil or (b.sub and strings.TEXT[b.sub] == nil) then return false end end return true end)())
+  local saved = _G.guihooks
+  local sent = {}
+  _G.guihooks = { trigger = function(n, d) sent[#sent + 1] = d.style or d.kind end }
+  package.loaded['sl/scenes'] = nil
+  local Sc = require('sl/scenes')
+  check('banners: play shows a banner over the live game and says so', Sc.play('busted', {}) == true and sent[1] == 'busted')
+  check('banners: an unknown style is not shown, and play never throws', Sc.play('nope', {}) == false and Sc.play(nil, nil) == false)
+  _G.guihooks = { trigger = function() error('boom') end }
+  check('banners: a failing UI hook does not reach the caller', Sc.play('busted', {}) == false)
+  -- the career's hooks pick the banner
+  _G.guihooks = { trigger = function(n, d) sent[#sent + 1] = d.style or d.kind end }
+  package.loaded['sl/scenes'] = nil
+  local H = require('sl/scenes')
+  sent = {}
+  H.onStreetLegalBusted(300, 0, 'Covet') H.onStreetLegalBusted(300, 900, 'Covet') H.onStreetLegalPinkSlip(true, 'Dora') H.onStreetLegalPinkSlip(false, 'Dora') H.onStreetLegalHeatUp(3)
+  H.onStreetLegalCarAdded({ name = 'Covet' }) H.onStreetLegalGarageMoved(1, 2, 6000) H.onStreetLegalRaceGo()
+  check('banners: the career hooks choose the style (busted or impound, a slip won or lost, heat, a new car, a bigger garage, go)', table.concat(sent, ',') == 'busted,impound,pinkwin,pinklose,heat,reveal,tier,go', table.concat(sent, ','))
+  sent = {}
+  H.onWrenchWorksGarageEntered('Belasco City Garage') H.onWrenchWorksGarageLeft()
+  check('banners: the garage hooks of Wrench Works pick garage_in and garage_out', table.concat(sent, ',') == 'garage_in,garage_out', table.concat(sent, ','))
+  check('banners: a hook with odd arguments does not throw', pcall(function() H.onStreetLegalBusted(nil, nil, nil) H.onStreetLegalCarAdded(nil) H.onStreetLegalGarageMoved() end))
+  _G.guihooks = saved
+  package.loaded['sl/scenes'] = nil
+end
+
+-- sl_scenes.run: the scene around a change of the world; the caller's lock is released whatever fails inside, the screen is always cleared
+do
+  local saved = { jobs = _G.core_jobsystem, gui = _G.guihooks }
+  local sent, order = {}, {}
+  _G.guihooks = { trigger = function(name, d) sent[#sent + 1] = name .. ':' .. tostring(d.kind or d.on) end }
+  _G.core_jobsystem = { create = function(fn) fn({ sleep = function() end }) end }       -- (a job that runs at once)
+  package.loaded['sl/scenes'] = nil
+  local Sc = require('sl/scenes')
+  local function run(move, release)
+    sent, order = {}, {}
+    return Sc.run('night', { day = 3 }, move or function() order[#order + 1] = 'move' end, release or function() order[#order + 1] = 'release' end)
+  end
+  check('scenes.run: a scene runs, the world moves, the lock is released, the scene is cleared', run() == true and table.concat(order, ',') == 'move,release' and sent[1] == 'slScene:night' and sent[#sent] == 'slScene:end')
+  check('scenes.run: a failing move still releases and clears the screen', (function() local ok = run(function() error('boom') end) return ok == true and order[1] == 'release' and sent[#sent] == 'slScene:end' end)())
+  check('scenes.run: a failing release does not leave the screen covered', (function() run(nil, function() error('boom') end) return sent[#sent] == 'slScene:end' end)())
+  local realBegin = Sc.begin
+  Sc.begin = function() error('boom') end
+  check('scenes.run: a begin that throws is no scene: false, nothing covered, nothing moved (the caller does the plain fade)', (function() local r = run() return r == false and #order == 0 end)())
+  Sc.begin = realBegin
+  local realHold, realFinish = Sc.hold, Sc.finish
+  Sc.hold = function() error('boom') end
+  check('scenes.run: a hold that throws still moves, releases and finishes', (function() local r = run() return r == true and table.concat(order, ',') == 'move,release' and sent[#sent] == 'slScene:end' end)())
+  Sc.hold = realHold
+  Sc.finish = function() error('boom') end
+  check('scenes.run: a finish that throws does not break the caller', (function() local r = run() return r == true and table.concat(order, ',') == 'move,release' end)())
+  Sc.finish = realFinish
+  realFinish()                                   -- (the scene the throwing finish left active is cleared)
+  _G.core_jobsystem = { create = function() error('boom') end }
+  check('scenes.run: a job system that throws is no scene: false, the screen not covered', (function() local r = run() return r == false and sent[#sent] == 'slScene:end' and #order == 0 end)())
+  _G.core_jobsystem = nil
+  check('scenes.run: without a job system there is no scene', run() == false)
+  _G.core_jobsystem, _G.guihooks = saved.jobs, saved.gui
+  package.loaded['sl/scenes'] = nil
 end
 
 print(string.format('lua tests passed: %d checks', passed))
