@@ -642,6 +642,23 @@
         '<div class="slp-kv"><span>' + T('ui.known_faults', 'Known faults') + '</span><b>' + (arr(rp.faults).length ? esc(arr(rp.faults).join(', ')) : 'none') + '</b></div>' + secs +
         '<div class="slp-kv"><span><b>' + T('ui.repair_estimate_to_95', 'Repair estimate, to 95 %') + '</b></span><b>' + money(rp.total) + '</b></div></div></div></div>';
     }
+    // used-car checks (sl_classifieds): a private car ad tells the car's history; the faults and the report show after a paid mechanic's check
+    // (l.history = lines, l.hidden, l.checkFee, l.checked, l.found = { { label, cost } }); an ad without these shows nothing here
+    function usedCheck(l) {
+      var lines = arr(l.history);
+      if (!lines.length && !l.hidden && !l.checked) return '';
+      var html = '<div class="slp-card" style="margin:6px 0 4px 0"><h4>' + T('ui.history', 'History') + '</h4>' + lines.map(function (x) { return '<p>' + esc(x) + '</p>'; }).join('');
+      if (l.hidden) {
+        html += '<p class="slp-warn">&#9888; ' + T('ui.hidden_faults', 'The faults and the car report show after a mechanic has checked the car.') + '</p>' +
+          '<div class="slp-acts"><div class="slp-btn slp-tonal" data-a="mkcheck" data-v="' + esc(l.id) + '">' + T('ui.check_car', 'Check the car') + ' &middot; ' + money(l.checkFee) + '</div></div>';
+      } else if (l.checked) {
+        var found = arr(l.found);
+        html += found.length ? '<p>' + T('ui.faults_found', 'The mechanic found:') + '</p>' + found.map(function (f) {
+          return '<div class="slp-kv"><span>' + esc(f.label || '') + '</span><b>' + money(f.cost) + '</b></div>';
+        }).join('') : '<p>' + T('ui.no_faults_found', 'The mechanic found no faults.') + '</p>';
+      }
+      return html + '</div>';
+    }
     function carAdCard(l) {
       var tells = arr(l.tells).length ? '<p class="slp-warn">&#9888; ' + arr(l.tells).map(esc).join(' &middot; ') + '</p>' : '';
       return '<div class="slp-card">' + adPic(l) + '<h4 data-a="adview" data-v="' + esc(l.id) + '">' + (l.rare ? '&#9733; ' : '') + (l.year ? l.year + ' ' : '') + esc(l.name) + '</h4>' +
@@ -649,7 +666,7 @@
         '<p>' + esc(l.seller) + ' ' + '&#9733;'.repeat(l.rating || 0) + (l.metres != null ? T('ui.middot_1_away', ' &middot; {1} away', adDist(l.metres)) : '') + (l.hours ? T('ui.middot_delivered_in_about_1', ' &middot; delivered in about {1} h', l.hours) : '') +
         ' &middot; ' + l.condition + T('ui.condition', '% condition') + (l.faults ? T('ui.middot_1_fault_2', ' &middot; {1} fault{2}', l.faults, (l.faults > 1 ? 's' : '')) : '') + ' &middot; ' + Math.max(0, l.hoursLeft | 0) + (T('ui.h_left', ' h left') + '</p>') + tells +
         '<p><b>' + money(l.ask) + '</b>' + (l.agreed ? T('ui.agreed', ' (agreed)') : '') + ' &middot; deposit ' + money(l.deposit) + (l.delivery != null ? T('ui.middot_delivery_1', ' &middot; delivery +{1}', money(l.delivery)) : '') + '</p>' +
-        reportBlock('ad:' + l.id, l.report) +
+        usedCheck(l) + reportBlock('ad:' + l.id, l.report) +
         adButtons(l).replace('<div class="slp-acts">', '<div class="slp-acts"><div class="slp-btn slp-tonal" data-a="adview" data-v="' + esc(l.id) + ('">' + T('ui.details', 'Details') + '</div>')) + '</div>';
     }
     // the detail view: the picture, every spec, the seller and the price
@@ -663,7 +680,7 @@
         row(T('ui.brand', 'Brand'), esc(l.brand)) + row(T('ui.year', 'Year'), l.year) + row(T('ui.mileage', 'Mileage'), l.mileage != null ? Number(l.mileage).toLocaleString() + ' km' : null) + row(T('ui.condition_2', 'Condition'), l.condition + '%') +
         row(T('ui.power', 'Power'), sp.power ? Math.round(sp.power) + ' PS' : null) + row(T('ui.weight', 'Weight'), sp.weight ? Math.round(sp.weight).toLocaleString() + ' kg' : null) +
         row(T('ui.transmission', 'Transmission'), esc(sp.transmission)) + row(T('ui.drivetrain', 'Drivetrain'), esc(sp.drivetrain)) + row(T('ui.fuel', 'Fuel'), esc(sp.fuel)) + row(T('ui.body', 'Body'), esc(sp.body)) +
-        row(T('ui.top_speed', 'Top speed'), sp.topSpeed ? Math.round(sp.topSpeed * 3.6) + ' km/h' : null) + (faults.length ? row(T('ui.needs', 'Needs'), esc(faults.join(', '))) : '') + reportBlock('ad:' + l.id, l.report) + '</div>' +
+        row(T('ui.top_speed', 'Top speed'), sp.topSpeed ? Math.round(sp.topSpeed * 3.6) + ' km/h' : null) + (faults.length ? row(T('ui.needs', 'Needs'), esc(faults.join(', '))) : '') + usedCheck(l) + reportBlock('ad:' + l.id, l.report) + '</div>' +
         '<div class="slp-card">' + row(T('ui.seller', 'Seller'), esc(l.seller) + ' ' + '&#9733;'.repeat(l.rating || 0)) + row(T('ui.distance', 'Distance'), l.metres != null ? adDist(l.metres) : null) +
         row(T('ui.delivery', 'Delivery'), l.hours ? T('ui.to_your_garage_in_about', 'to your garage in about {1} h', l.hours) : null) + row(T('ui.asking', 'Asking'), money(l.ask)) + row(T('ui.deposit_pick_up', 'Deposit (pick up)'), money(l.deposit)) +
         (l.delivery != null ? row(T('ui.delivery_fee', 'Delivery fee'), money(l.delivery)) : '') + adButtons(l) + '</div></div>';
@@ -1136,6 +1153,26 @@
         '<div class="slp-acts" style="flex-wrap:wrap">' + offers + '</div></div>';
     }
 
+    // a car's service card (sl_service.serviceOf: { due, km_since, km_interval, wearFactor, count, sections = { { id, label, condition } }, options = { { id, label, cost, available, why } } });
+    // nothing when the part is off or the game sent none
+    function serviceCard(c) {
+      var sv = c.service;
+      if (!sv || obj(st.data.has).service === false) return '';
+      var secs = arr(sv.sections).map(function (x) {
+        var v = Math.max(0, Math.min(1, Number(x.condition) || 0));
+        return '<div class="slp-kv"><span>' + esc(x.label || x.id || '') + '</span><b' + (v < 0.4 ? ' class="slp-warn"' : '') + '>' + (v < 0.4 ? '&#9888; ' : '') + Math.round(v * 100) + '%</b></div>';
+      }).join('');
+      var opts = arr(sv.options).map(function (o) {
+        var ok = o.available !== false;
+        return '<div class="slp-btn slp-tonal' + (ok ? '' : ' slp-off') + '"' + (ok ? ' data-a="service" data-v="' + c.id + '|' + esc(o.id) + '"' : '') + '>' + esc(o.label || o.id) + '<br><small>' + money(o.cost) + (o.why ? ' &middot; ' + esc(o.why) : '') + '</small></div>';
+      }).join('');
+      var factor = Number(sv.wearFactor) || 1;
+      return '<div class="slp-card" style="margin:6px 0 4px 0"><h4>' + (sv.due ? '&#9888; ' + T('ui.service_due', 'Service due') : T('ui.service', 'Service')) + '</h4><p>' +
+        T('ui.service_km', '{1} km since the last service (every {2} km)', Math.round(Number(sv.km_since) || 0), Math.round(Number(sv.km_interval) || 0)) +
+        (factor > 1.001 ? ' &middot; ' + T('ui.service_wear_faster', 'parts wear {1} times as fast until it is serviced', factor.toFixed(1)) : '') + '</p>' + secs +
+        (opts ? '<div class="slp-acts" style="flex-wrap:wrap">' + opts + '</div>' : '') + '</div>';
+    }
+
     // a car's health, its trunk (use what is in it) and its history
     var ITEM_NAMES = { fuelCan: T('ui.fuel_can', 'Fuel can'), oil: T('ui.engine_oil', 'Engine oil'), coolant: T('ui.coolant', 'Coolant'), battery: T('ui.12_v_battery', '12 V battery') };
     function careView(c) {
@@ -1158,7 +1195,7 @@
       var h = k.history || {};
       var hist = ('<div class="slp-kv" style="border:none"><span>' + T('ui.history', 'History') + '</span><b>') + (h.owners || 0) + T('ui.owners_before_you_middot', ' owners before you &middot; ') + (h.wins || 0) + '/' + (h.races || 0) + T('ui.races_won', ' races won') +
         (h.wrecks ? T('ui.middot_wrecked_1_times', ' &middot; wrecked {1}&times;', h.wrecks) : '') + '</b></div>';
-      return '<div class="slp-carcare">' + rows + tyresView(c.tyres) + tyreSwapCard(c) + (trunk ? ('<div class="slp-trunk">' + T('ui.trunk', 'Trunk') + '</div>') + trunk : '') + hist + reportBlock('car:' + c.id, c.report) + '</div>';
+      return '<div class="slp-carcare">' + rows + tyresView(c.tyres) + tyreSwapCard(c) + (trunk ? ('<div class="slp-trunk">' + T('ui.trunk', 'Trunk') + '</div>') + trunk : '') + hist + serviceCard(c) + reportBlock('car:' + c.id, c.report) + '</div>';
     }
 
     function garagePage() {
@@ -1871,6 +1908,7 @@
         case 'borrow': lua('borrow(' + Number(v) + ')'); break;
         case 'repay': lua('repay(' + Number(v) + ')'); break;
         case 'paydebt': lua('payDebt(' + Number(v) + ')'); break;
+        case 'service': var sp = String(v).split('|'); lua('service(' + Number(sp[0]) + ',' + JSON.stringify(sp[1] || '') + ')'); break;
         case 'insure': lua('insure(' + (v === 'true' ? 'true' : 'false') + ')'); break;
         case 'tutskip': lua('@sl_tutorial.skip()'); break;
         case 'jobtake': lua('takeJob(' + JSON.stringify(v) + ')'); break;
@@ -1888,6 +1926,7 @@
         case 'awatch': var aw = String(v).split('|'); lua('@sl_carauctions.watch(' + JSON.stringify(aw[0]) + ',' + (aw[1] === '1' ? 'true' : 'false') + ')'); break;
         case 'asell': var as = String(v).split('|'); lua('@sl_carauctions.sell(' + Number(as[0]) + ',' + Number(as[1]) + ')'); break;
         case 'buypaper': lua('buyPaper()'); break;
+        case 'mkcheck': lua('marketCheck(' + JSON.stringify(String(v)) + ')'); break;
         case 'mkbuy': lua('marketBuy(' + JSON.stringify(String(v).split('|')[0]) + ',' + JSON.stringify(String(v).split('|')[1]) + ')'); break;
         case 'jobquit': lua('giveUpJob()'); break;
         case 'jobway': lua('jobWay()'); toast(T('ui.the_route_is_on_your', 'The route is on your road.')); break;
