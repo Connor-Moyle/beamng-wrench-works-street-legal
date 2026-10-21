@@ -100,14 +100,25 @@ _G.sl_surfacefx = nil
 local ph = mods.phone
 local realPlaces = sl_career.allPlaces
 sl_career.allPlaces = function() return { junk = { name = 'Junkyard', kind = 'junkyard' }, shop1 = { name = 'Parts', kind = 'shop' }, wash1 = { name = 'Wash', kind = 'carwash' }, lot1 = { name = 'Lot', kind = 'lot' } } end
+local vecMt = { __add = function(p, q) return setmetatable({ x = p.x + q.x, y = p.y + q.y, z = p.z + q.z }, getmetatable(p)) end, __mul = function(p, k) return setmetatable({ x = p.x * k, y = p.y * k, z = p.z * k }, getmetatable(p)) end, __unm = function(p) return setmetatable({ x = -p.x, y = -p.y, z = -p.z }, getmetatable(p)) end }
+local function v3(x, y, z) return setmetatable({ x = x, y = y, z = z }, vecMt) end
+local savedSites = package.loaded['slrr/garageSites']
+package.loaded['slrr/garageSites'] = { getSites = function() return { { id = 'alderDragwayGarage', name = 'Alder Dragway Garage', spot = v3(1, 2, 3), dir = v3(1, 0, 0) } } end, getShops = function() return {} end }
+local oldLevel = rawget(_G, 'getCurrentLevelIdentifier')
+_G.getCurrentLevelIdentifier = function() return 'west_coast_usa' end
 local snap = ph.freeSnapshot()
+_G.getCurrentLevelIdentifier = oldLevel
 local appSet = {}
 for _, a in ipairs(snap.apps) do appSet[a] = true end
 check('audit: the free-roam phone snapshot is free of a career (no money, rep, cars, contacts, jobs, bank, threads)', snap.freeroam == true and snap.money == nil and snap.rep == nil and snap.stats == nil and snap.garage == nil and snap.jobs == nil and snap.bank == nil and #snap.contacts == 0 and #snap.threads == 0 and snap.cars == 0 and #snap.fleet == 0)
 check('audit: the free-roam phone lists only Map and Cab, and none of the career apps', appSet.map and appSet.cab and #snap.apps == 2 and not appSet.settings and not (appSet.bank or appSet.garage or appSet.jobs or appSet.contacts or appSet.races or appSet.club or appSet.carmarket))
 local kinds = {}
 for _, p in ipairs(snap.places) do kinds[#kinds + 1] = p.kind end
-check('audit: the free-roam cab and map list only the shop and the wash, not the junkyard or a lot: ' .. table.concat(kinds, ','), #snap.places == 2)
+local hasGarage = false
+for _, p in ipairs(snap.places) do if p.kind == 'garage' and p.id == 'alderDragwayGarage' then hasGarage = true end end
+check('audit: the free-roam cab and map list the shop, the wash and the map garages (from the garage sites, which a career lists through its ladder), not the junkyard or a lot: ' .. table.concat(kinds, ','), #snap.places == 3 and hasGarage)
+check('audit: the free-roam phone names the map it is on (not the Valo City fallback of the screen)', snap.mapName == require('sl/core/progression').MAPS.west_coast_usa.name and snap.mapName ~= 'Valo City')
+package.loaded['slrr/garageSites'] = savedSites
 local gone = {}
 for _, a in ipairs({ 'bank', 'garage', 'garagekit', 'jobs', 'me', 'club', 'turf', 'carmarket', 'partmarket', 'contacts', 'messages', 'phone', 'races', 'wait', 'nonsense' }) do
   if ph.freeAppOpens(a) ~= 'home' then gone[#gone + 1] = a end

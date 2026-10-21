@@ -109,7 +109,7 @@ function M.onGetRawPoiListForLevel(level, elements)
   end
   -- the garages and the Wrench Works shops: on the big map only (their own markers stand at their doors); a locked garage greyed, with what it needs
   local state = sl_career.getState()
-  for _, r in ipairs(fasttravel.extras(sl_career.allPlaces(), state)) do
+  for _, r in ipairs(fasttravel.extras(careerOn() and sl_career.allPlaces() or sl_career.freeRoamPlaces(), state)) do
     local pos = vec3(r.pos.x, r.pos.y, r.pos.z)
     elements[#elements + 1] = {
       id = r.poiId, data = { type = 'other', name = r.name, date = 0 }, clusterType = 'missionMarker', clusterInBigMap = true, clusterInPlayMode = false,
@@ -191,6 +191,8 @@ local function removeTeleport()
 end
 
 -- the game builds this list once per level: again when a career starts or stops and when the places change
+-- the game keeps the raw POI list once built: the free-roam switches change what it holds, so it is built again when they change
+function M.onStreetLegalOption(key) if key == 'freeroam' or key == 'freeroam_places' then M.refresh() end end
 function M.refresh() if gameplay_rawPois and gameplay_rawPois.clear then gameplay_rawPois.clear() end end
 local function refresh() if gameplay_rawPois and gameplay_rawPois.clear then gameplay_rawPois.clear() end end
 M.onStreetLegalStarted = function() refresh() installTeleport() end

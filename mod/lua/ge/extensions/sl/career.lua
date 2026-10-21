@@ -209,6 +209,19 @@ function M.has(feature)
   return progression.has(M.LEVEL, feature)
 end
 function M.mapName() return mapOf(M.LEVEL).name end
+-- free roam (no career): the places plus the map's Wrench Works garages, which a career lists through its garage ladder (progression.garages, remapped at a career's start) and
+-- which are therefore missing without one
+function M.freeRoamPlaces()
+  local out = {}
+  for id, p in pairs(M.allPlaces() or {}) do out[id] = p end
+  local sites = garageModule('slrr/garageSites')
+  for _, site in ipairs(sites and sites.getSites() or {}) do
+    if site.id and site.spot and site.dir and not out[site.id] then
+      out[site.id] = { id = site.id, kind = 'garage', name = site.name or site.id, pos = site.spot + site.dir * 2, dir = -site.dir }
+    end
+  end
+  return out
+end
 function M.mapText(text) return progression.mapText(text, M.LEVEL) end
 
 local function levelInstalled(level)
