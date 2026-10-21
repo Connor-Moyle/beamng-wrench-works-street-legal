@@ -23,6 +23,11 @@ local function brandsState(s)
   return s.brands
 end
 
+-- do the brand sponsorships work here: the part is on and Wrench Works' brand registry is there (without it nothing could be earned, and the fixed sponsors stay)
+function M.active()
+  return require('sl/core/features').on('sponsors') and api() ~= nil
+end
+
 -- the discount factor for a part name (1 = list price)
 local function factorFor(partName)
   local s = career()
@@ -140,6 +145,7 @@ function M.accept()
   s.sponsorship = { brand = offer.brand, name = brandName(offer.brand), kind = kind, since = s.day, nextReview = s.day + 7, terms = { wins = terms.wins, car = terms.car },
     retainer = terms.retainer, discount = terms.discount, weekWins = 0, carRaces = 0, strikes = 0 }
   st.offer = nil
+  if sl_jobs and sl_jobs.clearSponsor then sl_jobs.clearSponsor() end          -- (a fixed sponsor the career held is replaced)
   refreshShops()
   extensions.hook('onStreetLegalChanged')
   return true, strings.t('sponsor.signed', s.sponsorship.name, math.floor(terms.discount * 100 + 0.5), terms.retainer)

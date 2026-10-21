@@ -713,6 +713,12 @@ function M.onStreetLegalRaceResult(won, opponent, racerId)
     j.item, shop.name, meet.name), 60)
 end
 
+-- the fixed sponsor goes (a brand sponsorship was signed)
+function M.clearSponsor()
+  local s = career()
+  if s and s.jobs then s.jobs.sponsor, s.jobs.weekWins = nil, 0 end
+end
+
 function M.onStreetLegalNewDay(day)
   local s = career()
   if not s then return end
@@ -725,10 +731,10 @@ function M.onStreetLegalNewDay(day)
   end
   -- sponsors: the best one your name gets you; paid weekly, as long as you win two races a week
   local best
-  if require('sl/core/features').on('sponsors') and sl_sponsor then
-    js.sponsor = nil          -- (the brand sponsorships of sl_sponsor take over: one system)
-  else
-  for _, sp in ipairs(SPONSORS) do if (s.rep or 0) >= sp.rep then best = sp end end
+  -- with brand sponsorships working (sl_sponsor.active: the part on and Wrench Works' brand registry there) no new fixed sponsor is picked; one the career already holds keeps paying
+  -- until the player accepts a brand offer (M.clearSponsor)
+  if not (sl_sponsor and sl_sponsor.active and sl_sponsor.active()) then
+    for _, sp in ipairs(SPONSORS) do if (s.rep or 0) >= sp.rep then best = sp end end
   end
   if best and (not js.sponsor or js.sponsor.name ~= best.name) then
     js.sponsor = { name = best.name, weekly = best.weekly, since = day }
