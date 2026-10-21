@@ -25,6 +25,14 @@ end
 -- the discount tier of the player: one per 500 reputation (the discount is 1% a tier up to 8%)
 local function tierOf(s) return math.floor(math.max(0, s.rep or 0) / 500) end
 
+-- a position another mod passes (a vec3, { x, y, z } or { x, y, z } as a list) as a vec3; nil when it is none of them (the shop then does not close by distance)
+local function asVec(p)
+  if type(p) ~= 'table' then return nil end
+  local x, y, z = tonumber(p.x or p[1]), tonumber(p.y or p[2]), tonumber(p.z or p[3])
+  if not (x and y and z and vec3) then return nil end
+  return vec3(x, y, z)
+end
+
 local function ctx(s) return { repDiscount = true, tier = tierOf(s), wearPriced = true, favour = 0 } end
 
 -- the record the screen gets: the shop, its day's stock with the player's prices, the money, and why it is closed (nil: open)
@@ -32,8 +40,13 @@ local function view(shop, s)
   local c = ctx(s)
   local out = { kind = shop.kind, title = shop.title, name = shop.name, brand = shop.brand, theme = shop.theme, screen = shop.screen, keeper = shop.keeper, goods = shop.goods, sections = shop.sections,
     money = s.money or 0, stock = {}, services = {}, colorBlind = sl_options ~= nil and sl_options.get ~= nil and sl_options.get('slColorBlind') == true }
+  local quotes = shop.goods == 'tyres' and sl_tyrecare and sl_tyrecare.quotes and sl_tyrecare.quotes('garage') or nil      -- (what the counter really charges: the trade-in is in it)
   for _, it in ipairs(rules.dayStock(shop, s.day)) do
-    out.stock[#out.stock + 1] = { id = it.id, name = it.name, group = it.group, desc = it.desc, cond = it.cond, count = it.count, price = rules.price(it, c), was = it.price }
+    if shop.goods == 'tyres' then
+      out.stock[#out.stock + 1] = { id = it.id, name = it.name, group = it.group, desc = quotes and it.desc or strings.t('shops.price_before_trade_in'), count = 1, price = quotes and quotes[it.id] or it.price, was = quotes and it.price > quotes[it.id] and it.price or nil }
+    else
+      out.stock[#out.stock + 1] = { id = it.id, name = it.name, group = it.group, desc = it.desc, cond = it.cond, count = it.count, price = rules.price(it, c), was = it.price }
+    end
   end
   for _, sv in ipairs(shop.services) do
     out.services[#out.services + 1] = { id = sv.id, name = sv.name, desc = sv.desc, minutes = sv.minutes, price = rules.price(sv, c) }
@@ -56,7 +69,7 @@ function M.open(kind, opts)
   if not s then return false, strings.t('shops.no_career') end
   local shop, why = rules.normalize(kind, opts)
   if not shop then return false, why end
-  at = { id = tostring(type(opts) == 'table' and opts.id or shop.name), shop = shop, pos = type(opts) == 'table' and opts.pos or nil, onBuy = type(opts) == 'table' and type(opts.onBuy) == 'function' and opts.onBuy or nil }
+  at = { id = tostring(type(opts) == 'table' and opts.id or shop.name), shop = shop, pos = asVec(type(opts) == 'table' and opts.pos or nil), onBuy = type(opts) == 'table' and type(opts.onBuy) == 'function' and opts.onBuy or nil }
   if sl_phone and sl_phone.requestStrings then sl_phone.requestStrings() end
   guihooks.trigger('slShopOpen', view(shop, s))
   return true
@@ -88,22 +101,26 @@ function M.buy(text)
   if current.closed then return toast(current.closed) end
   local day = {}
   for _, it in ipairs(rules.dayStock(shop, s.day)) do day[#day + 1] = it end
-  local priced = { kind = shop.kind, name = shop.name, stock = day, services = shop.services }
-  local lines, total = rules.checkout(priced, parseCart(text), s.money or 0, ctx(s))
+  local priced = { kind = shop.kind, name = shop.name, goods = shop.goods, stock = day, services = shop.services }
+  local tyres = shop.goods == 'tyres'
+  local lines, total = rules.checkout(priced, parseCart(text), tyres and math.huge or s.money or 0, ctx(s))      -- (tyres: the counter charges its own price, with the trade-in, and checks the money itself)
   if not lines then return toast(total) end
-  if shop.goods == 'tyres' then
-    local line = lines[1]
+  if tyres then
     local ok, msg = false, strings.t('shops.not_here')
-    if sl_tyrecare and sl_tyrecare.changeNow then ok, msg = sl_tyrecare.changeNow(line.id, 'garage') end
+    if sl_tyrecare and sl_tyrecare.changeNow then ok, msg = sl_tyrecare.changeNow(lines[1].id, 'garage') end
     toast(msg)
     if ok then guihooks.trigger('slShopOpen', view(shop, career() or s)) end
     return
   end
+  -- the money first, then the goods: a refusal or an error in onBuy gives the money back
+  if total > 0 and not sl_career.addMoney(-total, shop.name) then return toast(strings.t('shops.cannot_afford')) end
   if at.onBuy then
     local ok, accepted = pcall(at.onBuy, lines, total)
-    if not ok or accepted == false then return toast(strings.t('shops.not_here')) end
+    if not ok or accepted == false then
+      if total > 0 then sl_career.addMoney(total, strings.t('shops.refund', shop.name)) end
+      return toast(strings.t('shops.not_here'))
+    end
   end
-  if total > 0 and not sl_career.addMoney(-total, shop.name) then return toast(strings.t('shops.cannot_afford')) end
   if extensions and extensions.hook then extensions.hook('onStreetLegalShopBought', at.id, shop.kind, lines, total) end
   toast(strings.t('shops.bought', total))
   guihooks.trigger('slShopOpen', view(shop, career() or s))
@@ -187,7 +204,12 @@ function M.onUpdate(dtReal)
   if timer < 1 then return end
   timer = 0
   local v = getPlayerVehicle(0)
-  if not career() or not v or (at.pos and (v:getPosition() - at.pos):length() > 25) then M.close() end
+  local far = false
+  if v and at.pos then
+    local ok, d = pcall(function() return (v:getPosition() - at.pos):length() end)
+    far = ok and d > 25
+  end
+  if not career() or not v or far then M.close() end
 end
 
 local function refresh() if gameplay_rawPois and gameplay_rawPois.clear then gameplay_rawPois.clear() end end

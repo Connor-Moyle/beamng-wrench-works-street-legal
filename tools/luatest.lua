@@ -3809,4 +3809,72 @@ do
   package.loaded['sl/shops'] = nil
 end
 
+-- shops: review fixes (the same id twice, a mixed tyre basket, the money before the goods, a plain-table position, the tyre quote)
+do
+  local SH = require('sl/core/shops')
+  local shop = SH.normalize('accessories', { stock = { { id = 'a', price = 30, count = 1 }, { id = 'b', price = 5 } } })
+  local l1, e1 = SH.checkout(shop, { { id = 'a', qty = 1 }, { id = 'a', qty = 1 } }, 1000)
+  check('shops: the same id twice is one line and the stock count is checked on the sum', l1 == nil and e1 ~= nil)
+  local l2, t2 = SH.checkout(shop, { { id = 'b', qty = 2 }, { id = 'b', qty = 3 } }, 1000)
+  check('shops: an item without a count may be listed twice, the lines merge', l2 and #l2 == 1 and l2[1].qty == 5 and t2 == 25)
+  local ty = SH.normalize('tyre', {})
+  local l3, e3 = SH.checkout(ty, { { id = 'road', qty = 1 }, { id = 'winter', qty = 1 } }, 1e9)
+  local l4, e4 = SH.checkout(ty, { { id = 'road', qty = 2 } }, 1e9)
+  local l5 = SH.checkout(ty, { { id = 'road', qty = 1 } }, 1e9)
+  check('shops: a tyre basket is one set: two kinds or two sets are refused', l3 == nil and e3 and l4 == nil and e4 and l5 and #l5 == 1)
+  package.loaded['sl/core/shops'] = nil
+
+  local ST = require('sl/core/state')
+  local st = ST.new(1, 0)
+  st.day, st.money, st.rep = 3, 500, 0
+  local toasts, sent = {}, {}
+  local old = { c = rawget(_G, 'sl_career'), g = rawget(_G, 'guihooks'), t = rawget(_G, 'core_environment'), ty = rawget(_G, 'sl_tyrecare'), v = rawget(_G, 'vec3'), pv = rawget(_G, 'getPlayerVehicle') }
+  _G.guihooks = { trigger = function(n, d) sent[#sent + 1] = { n = n, d = d } if n == 'slPhoneToast' then toasts[#toasts + 1] = d.text end end }
+  _G.core_environment = { getTimeOfDay = function() return { time = 0 } end }
+  _G.sl_career = { isActive = function() return true end, getState = function() return st end, addMoney = function(a, l) return ST.addMoney(st, a, l) end }
+  package.loaded['sl/shops'] = nil
+  local SS = require('sl/shops')
+  SS.open('accessories', { stock = { { id = 'p', name = 'Plate', price = 100 } }, onBuy = function() return false end })
+  SS.buy('p:1')
+  check('sl_shops: a refusing onBuy gives the money back', st.money == 500 and toasts[#toasts] ~= nil)
+  SS.open('accessories', { stock = { { id = 'p', name = 'Plate', price = 100 } }, onBuy = function() error('boom') end })
+  SS.buy('p:1')
+  check('sl_shops: an onBuy that errors gives the money back too', st.money == 500)
+  local seenMoney
+  SS.open('accessories', { stock = { { id = 'p', name = 'Plate', price = 100 } }, onBuy = function() seenMoney = st.money return true end })
+  SS.buy('p:1')
+  check('sl_shops: the money is taken before the goods are handed over', seenMoney == 400 and st.money == 400)
+  -- a position that is a plain table (from another mod) must not break the update
+  _G.vec3 = function(x, y, z) return setmetatable({ x = x, y = y, z = z }, { __sub = function(a, b) return { length = function() return math.sqrt((a.x - b.x) ^ 2 + (a.y - b.y) ^ 2 + (a.z - b.z) ^ 2) end } end }) end
+  _G.getPlayerVehicle = function() return { getPosition = function() return vec3(0, 0, 0) end } end
+  SS.open('accessories', { stock = {}, pos = { x = 1, y = 2, z = 3 } })
+  SS.onUpdate(2)
+  check('sl_shops: a position given as a plain table works and the shop stays open near it', SS.isOpen())
+  SS.open('accessories', { stock = {}, pos = 'nonsense' })
+  local okU = pcall(SS.onUpdate, 2)
+  check('sl_shops: a position that is no position does not error and the shop does not close by distance', okU and SS.isOpen())
+  SS.open('accessories', { stock = {}, pos = { 1000, 0, 0 } })
+  SS.onUpdate(2)
+  check('sl_shops: walking away closes the shop', not SS.isOpen())
+  -- the tyre card shows what the counter charges
+  local fitted
+  _G.sl_tyrecare = { quotes = function() return { road = 300, performance = 640, winter = 480, intermediate = 700, fullwet = 700, offroad = 520, mud = 600, rally = 780, semislick = 900, slick = 1100, slicksoft = 1250, drag = 800 } end,
+    changeNow = function(c) fitted = c return true, 'Fitted' end }
+  SS.open('tyre', {})
+  local card
+  for _, it in ipairs(sent[#sent].d.stock) do if it.id == 'road' then card = it end end
+  check('sl_shops: the tyre card shows the counter price (the trade-in counted) and the set price struck out', card.price == 300 and card.was == 360)
+  SS.buy('road:1,winter:1')
+  check('sl_shops: a mixed tyre basket changes nothing', fitted == nil)
+  SS.buy('road:1')
+  check('sl_shops: a tyre sale is fitted by the tyre counter, which charges', fitted == 'road' and st.money == 400)
+  _G.sl_tyrecare = nil
+  SS.open('tyre', {})
+  local plain
+  for _, it in ipairs(sent[#sent].d.stock) do if it.id == 'road' then plain = it end end
+  check('sl_shops: without a tyre module the card says the price is before the trade-in', plain.price == 360 and plain.desc ~= nil)
+  _G.sl_career, _G.guihooks, _G.core_environment, _G.sl_tyrecare, _G.vec3, _G.getPlayerVehicle = old.c, old.g, old.t, old.ty, old.v, old.pv
+  package.loaded['sl/shops'] = nil
+end
+
 print(string.format('lua tests passed: %d checks', passed))

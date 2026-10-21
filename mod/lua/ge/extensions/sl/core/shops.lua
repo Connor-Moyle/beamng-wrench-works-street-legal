@@ -150,16 +150,20 @@ function M.checkout(shop, cart, money, ctx)
   local byId = {}
   for _, it in ipairs(shop.stock) do byId[it.id] = it end
   for _, sv in ipairs(shop.services) do byId[sv.id] = sv end
-  local lines, total = {}, 0
+  local lines, total, at = {}, 0, {}
   for _, c in ipairs(cart) do
     local it = type(c) == 'table' and byId[c.id]
     if not it then return nil, strings.t('shops.not_in_stock') end
     local qty = math.max(1, math.floor(tonumber(c.qty) or 1))
+    local line = at[it.id]
+    if line then qty = qty + line.qty end                     -- (the same id twice is one line: the stock count is checked on the sum)
     if it.count and qty > it.count then return nil, strings.t('shops.not_in_stock') end
     local each = M.price(it, ctx)
-    lines[#lines + 1] = { id = it.id, name = it.name, qty = qty, each = each, sum = each * qty }
-    total = total + each * qty
+    if line then line.qty, line.sum = qty, each * qty
+    else line = { id = it.id, name = it.name, qty = qty, each = each, sum = each * qty } at[it.id] = line lines[#lines + 1] = line end
   end
+  if shop.goods == 'tyres' and (#lines ~= 1 or lines[1].qty ~= 1) then return nil, strings.t('shops.one_set') end
+  for _, l in ipairs(lines) do total = total + l.sum end
   if total > (money or 0) then return nil, strings.t('shops.cannot_afford'), total end
   return lines, total
 end

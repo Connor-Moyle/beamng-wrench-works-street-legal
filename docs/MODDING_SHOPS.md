@@ -51,6 +51,8 @@ The shop's goods change a little each day (about a quarter of the lines are miss
 A shop that cannot be read is skipped and a line goes in the game's log (`sl_shops`).
 A scene object cannot name a shop type yet; the file is the convention.
 
+Stock and baskets: an item with no `count` can be bought in any quantity (the player's money is the limit); with a `count` the basket may not hold more than that, however many times the item is listed. A tyre shop sells one set at a time, and the card shows the price at the counter (the trade-in of the old set counted) when Car Surface FX is on, the set price ("before the trade-in") when it is not.
+
 ## 2. Open a shop from Lua
 
 ```lua
@@ -58,7 +60,7 @@ A scene object cannot name a shop type yet; the file is the convention.
 local ok, why = sl_shops.open('exhaust', {
   name = 'Pipe Dreams', brand = 'Ibishu', keeper = { name = 'Rosa', line = 'Sounds like a promise.' },
   stock = { { id = 'cat_ss', name = 'Cat-back, stainless', group = 'Cat-back', price = 420 } },
-  onBuy = function(lines, total)           -- optional; called before the money is taken; return false to refuse the sale
+  onBuy = function(lines, total)           -- optional; called after the money is taken; return false (or raise an error) and the money is given back
     -- lines = { { id, name, qty, each, sum } ... }
     return true
   end,
@@ -66,13 +68,13 @@ local ok, why = sl_shops.open('exhaust', {
 sl_shops.close()
 ```
 
-`sl_shops.open(kind, opts)` takes the fields of section 1 (as a Lua table) plus `onBuy`. The player pays through the career (`sl_career.addMoney`); every sale also fires the extension hook, so a mod that does not own the shop can react:
+`sl_shops.open(kind, opts)` takes the fields of section 1 (as a Lua table) plus `onBuy`; `pos` is optional and may be a vec3, `{ x, y, z }` or `{ x, y, z }` as a list (the shop closes when the player is 25 m away from it; without `pos` it stays open until closed). The player pays through the career (`sl_career.addMoney`); every sale also fires the extension hook, so a mod that does not own the shop can react:
 
 ```lua
 function M.onStreetLegalShopBought(shopId, kind, lines, total) end
 ```
 
-Map makers: stand where the shop should be and call `sl_shops.placeHere('tyre', 'Torres on 5th')` in the console; it writes a file under `settings/street_legal/shops/` at your position and the marker appears (delete the file to remove it).
+Map makers: stand where the shop should be and call `sl_shops.placeHere('tyre', 'Torres on 5th')` in the console; it writes a file under `settings/street_legal/shops/` at your position and the marker appears (delete the file to remove it). It is a tool: it works without a career and is not behind the Shops switch.
 
 Other calls: `sl_shops.kinds()` (the kinds known), `sl_shops.isOpen()`, `sl_shops.placed()` (the shops from files), `sl_shops.define(kind, def)`.
 
