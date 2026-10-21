@@ -70,6 +70,30 @@
     '@keyframes sls-on{from{opacity:0}to{opacity:.95}}',
     '@keyframes sls-off{from{opacity:.95}to{opacity:0}}',
     '@keyframes sls-title{from{opacity:0;transform:translateY(2vmin) scale(1.12)}to{opacity:1;transform:translateY(0) scale(1)}}',
+    /* the short moments: bars and a big title over the live game (nothing is darkened, the game goes on) */
+    '.sls-banner{position:fixed;left:0;top:0;right:0;bottom:0;z-index:69;pointer-events:none;visibility:hidden;font-family:"Segoe UI","Roboto","Noto Sans",sans-serif;--sls-tone:#e6e1e5}',
+    '.sls-banner.sls-bn-on{visibility:visible}',
+    '.sls-bn-bad{--sls-tone:#f2b8b5}.sls-bn-good{--sls-tone:#6dd58c}.sls-bn-warn{--sls-tone:#ffd54f}.sls-bn-plain{--sls-tone:#e6e1e5}',
+    '.sls-cb.sls-bn-good{--sls-tone:#56b4e9}.sls-cb.sls-bn-bad{--sls-tone:#ffb454}',
+    '.sls-bn-bar{position:absolute;left:0;right:0;height:7vh;background:#000;opacity:0}',
+    '.sls-bn-t{top:0}.sls-bn-b{bottom:0}',
+    '.sls-bn-text{position:absolute;left:0;right:0;top:36%;text-align:center;opacity:0}',
+    '.sls-bn-title{margin:0;font-size:11vmin;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--sls-tone);text-shadow:0 .5vmin 3vmin rgba(0,0,0,.7)}',
+    '.sls-bn-bad .sls-bn-title:before{content:"\\25BC "}.sls-bn-good .sls-bn-title:before{content:"\\2714 "}.sls-bn-warn .sls-bn-title:before{content:"\\26A0 "}',
+    '.sls-bn-sub{margin:1.2vmin 0 0 0;font-size:3vmin;letter-spacing:.1em;color:#e6e1e5;text-shadow:0 .3vmin 2vmin rgba(0,0,0,.7)}',
+    '.sls-bn-line{width:18vmin;height:.6vmin;margin:1.6vmin auto 0 auto;background:var(--sls-tone);transform-origin:50% 50%}',
+    '.sls-bn-on .sls-bn-bar{animation:sls-fade .35s ease-out both}',
+    '.sls-bn-on .sls-bn-t{animation:sls-bar-t .35s cubic-bezier(.2,.9,.25,1) both}.sls-bn-on .sls-bn-b{animation:sls-bar-b .35s cubic-bezier(.2,.9,.25,1) both}',
+    '.sls-bn-on .sls-bn-text{animation:sls-bn-in .45s cubic-bezier(.2,.9,.25,1) .1s both}',
+    '.sls-bn-on .sls-bn-line{animation:sls-line .5s ease-out .3s both}',
+    '.sls-bn-leave .sls-bn-bar,.sls-bn-leave .sls-bn-text{animation:sls-bn-out .4s ease-in both}',
+    '@keyframes sls-bar-t{from{opacity:1;transform:translateY(-100%)}to{opacity:1;transform:translateY(0)}}',
+    '@keyframes sls-bar-b{from{opacity:1;transform:translateY(100%)}to{opacity:1;transform:translateY(0)}}',
+    '@keyframes sls-bn-in{from{opacity:0;transform:scale(1.35)}to{opacity:1;transform:scale(1)}}',
+    '@keyframes sls-line{from{transform:scaleX(0)}to{transform:scaleX(1)}}',
+    '@keyframes sls-bn-out{from{opacity:1}to{opacity:0}}',
+    '.sls-bn-reduce .sls-bn-bar{display:none}.sls-bn-reduce.sls-bn-on .sls-bn-text{animation:sls-fade .2s ease-out both}.sls-bn-reduce .sls-bn-line{animation:none!important}',
+    '@media (prefers-reduced-motion:reduce){.sls-banner .sls-bn-bar{display:none}.sls-banner *{animation-duration:.01s!important;animation-delay:0s!important}}',
     /* reduce motion: a still card, no sky, no city, no movement */
     '.sls-reduce .sls-sky,.sls-reduce .sls-stars,.sls-reduce .sls-orb,.sls-reduce .sls-city{display:none}',
     '.sls-reduce.sls-play .sls-title{animation:sls-fade .4s ease-out .1s both}',
@@ -90,10 +114,37 @@
     root.innerHTML = '<div class="sls-sky"></div><div class="sls-stars"></div><div class="sls-orb"></div>' + cityHtml() +
       '<div class="sls-text"><h1 class="sls-title"></h1><p class="sls-sub"></p></div><div class="sls-hint"></div>';
     doc.body.appendChild(root);
+    var banner = doc.createElement('div');
+    banner.className = 'sls-banner';
+    banner.innerHTML = '<div class="sls-bn-bar sls-bn-t"></div><div class="sls-bn-bar sls-bn-b"></div><div class="sls-bn-text"><h2 class="sls-bn-title"></h2><p class="sls-bn-sub"></p><div class="sls-bn-line"></div></div>';
+    doc.body.appendChild(banner);
+    var bnTimer = null, bnShownAt = 0, bnKind = null;
     var q = function (sel) { return root.querySelector(sel); };
     var shownAt = 0, hideTimer = null, kind = null;
 
+    function bannerHide() {
+      if (!bnKind) return;
+      clock.clear(bnTimer);
+      bnKind = null;
+      banner.classList.add('sls-bn-leave');
+      bnTimer = clock.set(function () { banner.className = 'sls-banner'; }, 450);
+    }
+    function bannerShow(d) {
+      clock.clear(bnTimer);
+      bnKind = d.style || 'plain';
+      banner.className = 'sls-banner sls-bn-' + (d.tone || 'plain') + (d.reduce ? ' sls-bn-reduce' : '') + (root.classList.contains('sls-cb') ? ' sls-cb' : '');
+      banner.querySelector('.sls-bn-title').textContent = d.title || '';
+      var sub = banner.querySelector('.sls-bn-sub');
+      sub.textContent = d.subtitle || '';
+      sub.style.display = d.subtitle ? '' : 'none';
+      bnShownAt = clock.now();
+      void banner.offsetWidth;
+      banner.classList.add('sls-bn-on');
+      bnTimer = clock.set(bannerHide, Math.max(300, (Number(d.hold) || 2) * 1000));
+    }
+
     function skip() {
+      if (bnKind && clock.now() - bnShownAt >= 400) { bannerHide(); return true; }      // (a banner has no game side: any key puts it away)
       if (!kind || clock.now() - shownAt < 400) return false;     // (too early: a key still held from the menu must not cancel it)
       lua('sl_scenes.skip()');
       return true;
@@ -126,13 +177,13 @@
 
     function handle(name, data) {
       if (name !== 'slScene' || !data) return;
-      if (data.kind === 'end') end(); else show(data);
+      if (data.kind === 'banner') bannerShow(data); else if (data.kind === 'end') end(); else show(data);
     }
 
     ['keydown', 'mousedown', 'touchstart'].forEach(function (ev) {
       doc.addEventListener(ev, function () { skip(); }, true);
     });
-    return { handle: handle, root: root, skip: skip, active: function () { return kind; } };
+    return { handle: handle, root: root, banner: banner, skip: skip, active: function () { return kind; }, bannerActive: function () { return bnKind; } };
   }
 
   if (typeof window !== 'undefined') window.__slScenesCreate = createScenes;

@@ -3749,6 +3749,39 @@ do
   check('scenes: every kind has its texts in the table', (function() for _, k in pairs(sc.KINDS) do if strings.TEXT[k.title] == nil or strings.TEXT[k.sub] == nil then return false end end return true end)())
 end
 
+-- the short moments (banners): the spec for each style, the text with its numbers, the unknown style, sl_scenes.play never throws
+do
+  local sc = require('sl/core/scenes')
+  local strings = require('sl/core/strings')
+  local h = sc.banner('heat', { level = 3 }, false, strings.t)
+  check('banners: heat 3 has its title, tone and a sound', h.kind == 'banner' and h.style == 'heat' and h.title == 'Heat 3' and h.tone == 'warn' and #h.cues == 1 and h.hold > 0)
+  check('banners: a countdown number is the title; the car reveal shows the car name', sc.banner('count', { n = 2 }, false, strings.t).title == '2' and sc.banner('reveal', { name = 'Covet' }, false, strings.t).subtitle == 'Covet')
+  check('banners: busted and a lost slip are bad, a won slip and a new car are good (every tone has a mark in the UI)', sc.banner('busted', nil, false, strings.t).tone == 'bad' and sc.banner('pinklose', { name = '$900' }, false, strings.t).tone == 'bad'
+    and sc.banner('pinkwin', { name = 'Covet' }, false, strings.t).tone == 'good' and sc.banner('reveal', {}, false, strings.t).tone == 'good')
+  check('banners: an unknown style is nothing; reduce motion is passed on', sc.banner('nope', {}, false, strings.t) == nil and sc.banner('go', {}, true, strings.t).reduce == true)
+  check('banners: every style has its texts in the table', (function() for _, b in pairs(sc.BANNERS) do if strings.TEXT[b.title] == nil or (b.sub and strings.TEXT[b.sub] == nil) then return false end end return true end)())
+  local saved = _G.guihooks
+  local sent = {}
+  _G.guihooks = { trigger = function(n, d) sent[#sent + 1] = d.style or d.kind end }
+  package.loaded['sl/scenes'] = nil
+  local Sc = require('sl/scenes')
+  check('banners: play shows a banner over the live game and says so', Sc.play('busted', {}) == true and sent[1] == 'busted')
+  check('banners: an unknown style is not shown, and play never throws', Sc.play('nope', {}) == false and Sc.play(nil, nil) == false)
+  _G.guihooks = { trigger = function() error('boom') end }
+  check('banners: a failing UI hook does not reach the caller', Sc.play('busted', {}) == false)
+  -- the career's hooks pick the banner
+  _G.guihooks = { trigger = function(n, d) sent[#sent + 1] = d.style or d.kind end }
+  package.loaded['sl/scenes'] = nil
+  local H = require('sl/scenes')
+  sent = {}
+  H.onStreetLegalBusted(300, 0, 'Covet') H.onStreetLegalBusted(300, 900, 'Covet') H.onStreetLegalPinkSlip(true, 'Dora') H.onStreetLegalPinkSlip(false, 'Dora') H.onStreetLegalHeatUp(3)
+  H.onStreetLegalCarAdded({ name = 'Covet' }) H.onStreetLegalGarageMoved(1, 2, 6000) H.onStreetLegalRaceGo()
+  check('banners: the career hooks choose the style (busted or impound, a slip won or lost, heat, a new car, a bigger garage, go)', table.concat(sent, ',') == 'busted,impound,pinkwin,pinklose,heat,reveal,tier,go', table.concat(sent, ','))
+  check('banners: a hook with odd arguments does not throw', pcall(function() H.onStreetLegalBusted(nil, nil, nil) H.onStreetLegalCarAdded(nil) H.onStreetLegalGarageMoved() end))
+  _G.guihooks = saved
+  package.loaded['sl/scenes'] = nil
+end
+
 -- sl_scenes.run: the scene around a change of the world; the caller's lock is released whatever fails inside, the screen is always cleared
 do
   local saved = { jobs = _G.core_jobsystem, gui = _G.guihooks }
@@ -3775,6 +3808,9 @@ do
   Sc.finish = function() error('boom') end
   check('scenes.run: a finish that throws does not break the caller', (function() local r = run() return r == true and table.concat(order, ',') == 'move,release' end)())
   Sc.finish = realFinish
+  realFinish()                                   -- (the scene the throwing finish left active is cleared)
+  _G.core_jobsystem = { create = function() error('boom') end }
+  check('scenes.run: a job system that throws is no scene: false, the screen not covered', (function() local r = run() return r == false and sent[#sent] == 'slScene:end' and #order == 0 end)())
   _G.core_jobsystem = nil
   check('scenes.run: without a job system there is no scene', run() == false)
   _G.core_jobsystem, _G.guihooks = saved.jobs, saved.gui

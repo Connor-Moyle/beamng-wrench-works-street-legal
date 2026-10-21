@@ -65,7 +65,7 @@ function M.run(kind, data, move, release)
     if not okBegin then M.finish() end
     return false
   end
-  core_jobsystem.create(function(job)
+  local okCreate = pcall(core_jobsystem.create, function(job)
     local okSleep = pcall(job.sleep, scenes.FADE_IN)
     local okMove, err = pcall(move, job)
     pcall(release)
@@ -76,7 +76,27 @@ function M.run(kind, data, move, release)
     pcall(M.finish)
     if not okMove and log then log('E', 'sl_scenes', 'the change behind the scene failed: ' .. tostring(err)) end
   end)
+  if not okCreate then pcall(M.finish) return false end      -- (no job: the caller does its plain fade and its lock is untouched)
   return true
+end
+
+-- a short moment over the live game (a banner): no black screen, nothing is held, the game goes on; style = busted, impound, pinkwin, pinklose, heat, reveal, tier, garage_in,
+-- garage_out, count, go. data = { name, level, n }. Returns true when it was shown (false: scenes are off or the style is unknown). Never throws into the caller.
+local bannerUntil = 0
+function M.play(style, data)
+  local ok, shown = pcall(function()
+    if not features.on('scenes') or not guihooks then return false end
+    if active then return false end                           -- (not over a full-screen scene)
+    local spec = scenes.banner(style, data, reduced(), strings.t)
+    if not spec then return false end
+    guihooks.trigger('slScene', spec)
+    for _, c in ipairs(spec.cues or {}) do
+      if Engine and Engine.Audio and Engine.Audio.playOnce and c.event then pcall(Engine.Audio.playOnce, 'AudioGui', c.event, { volume = 0.9 }) end
+    end
+    bannerUntil = now() + spec.hold
+    return true
+  end)
+  return ok and shown == true
 end
 
 -- the world behind the scene is done: the UI clears the screen
@@ -93,6 +113,17 @@ function M.skip()
 end
 
 function M.isActive() return active end
+
+-- ---- the moments, from the career's own hooks (every extension that defines them is called; nothing in the career calls this file) -------------------------------------
+-- busted (the car impounded: the impound banner instead), a pink slip won or lost, the heat going up, a new car, a bigger garage, the race's green light
+function M.onStreetLegalBusted(fine, impounded, carName)
+  if (tonumber(impounded) or 0) > 0 then M.play('impound', { name = carName }) else M.play('busted', { name = carName }) end
+end
+function M.onStreetLegalPinkSlip(won, opponent) M.play(won and 'pinkwin' or 'pinklose', { name = opponent }) end
+function M.onStreetLegalHeatUp(newLevel) M.play('heat', { level = newLevel }) end
+function M.onStreetLegalCarAdded(car) M.play('reveal', { name = type(car) == 'table' and car.name or nil }) end
+function M.onStreetLegalGarageMoved(_, toLevel) M.play('tier', { name = toLevel and ('Garage level ' .. tostring(toLevel)) or nil }) end
+function M.onStreetLegalRaceGo() M.play('go') end
 
 function M.onStreetLegalStopped()
   if active then M.finish() end
