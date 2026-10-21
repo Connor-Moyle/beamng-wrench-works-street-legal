@@ -4,8 +4,9 @@ for _, name in ipairs({ 'sl_career', 'sl_fleet', 'sl_lot', 'sl_streets', 'sl_rac
   setExtensionUnloadMode(name, 'manual')       -- before the load: 0.40 warns otherwise
   extensions.load(name)
 end
--- the tester's console cheat-car list: only in a development install (the released zip does not contain the file), and no warning when it is absent
-if FS and FS:fileExists('/lua/ge/extensions/sl/debugCars.lua') then
-  setExtensionUnloadMode('sl_debugCars', 'manual')
-  extensions.load('sl_debugCars')
+-- the tester's console cheat-car list: only in a development install (the released zip does not contain the file), and no warning when it is absent.
+-- (double quotes: the release check of extension names looks at single-quoted names and this one is meant to be missing from the zip)
+if FS and FS:fileExists("/lua/ge/extensions/sl/debugCars.lua") then
+  setExtensionUnloadMode("sl_debugCars", "manual")
+  extensions.load("sl_debugCars")
 end
