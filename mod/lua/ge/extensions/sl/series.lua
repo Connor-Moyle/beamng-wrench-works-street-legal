@@ -86,7 +86,7 @@ local function finishRound(rec, round)
   local list = rules.standings(st, def, ctxFor(s, def, cur))
   local mine
   for _, e in ipairs(list) do if e.you then mine = e end end
-  extensions.hook('onStreetLegalRoundResult', { series = def.id, name = strings.t('series.title_' .. def.id), round = round, rounds = #def.rounds, place = rec.place, points = rec.points, prize = 0, you = true, dnf = rec.dnf, missed = rec.missed })
+  extensions.hook('onStreetLegalRoundResult', { series = def.id, seriesId = cur, name = strings.t('series.title_' .. def.id), round = round, rounds = #def.rounds, place = rec.place, points = rec.points, prize = 0, you = true, dnf = rec.dnf, missed = rec.missed })
   if not rules.finished(st, def) or st.paid then return end
   st.finished, st.paid = true, true
   local purse = def.purse or 0
@@ -96,7 +96,7 @@ local function finishRound(rec, round)
   local podium = {}
   for i = 1, math.min(3, #list) do podium[i] = { name = list[i].name, points = list[i].points, you = list[i].you } end
   toast(strings.t('series.finished', mine and mine.pos or '-', prize.money))
-  extensions.hook('onStreetLegalSeriesFinished', { series = def.id, name = strings.t('series.title_' .. def.id), pos = mine and mine.pos, position = mine and mine.pos, points = mine and mine.points or 0, prize = prize.money, champion = mine ~= nil and mine.pos == 1, podium = podium })
+  extensions.hook('onStreetLegalSeriesFinished', { series = def.id, seriesId = cur, name = strings.t('series.title_' .. def.id), pos = mine and mine.pos, position = mine and mine.pos, points = mine and mine.points or 0, prize = prize.money, champion = mine ~= nil and mine.pos == 1, podium = podium })
   extensions.hook('onStreetLegalChanged')
 end
 

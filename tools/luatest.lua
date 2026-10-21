@@ -4904,7 +4904,7 @@ do
     check('series game: when every round was run it ends as done', returned[#returned] == 'done')
     local fin2
     for _, e in ipairs(events) do if e[1] == 'onStreetLegalRoundResult' and e[2].name == 'NGRC Utah Rally' then fin2 = e[2] end end
-    check('series game: the hook shapes carry the series name for the banners, the points and the flags', fin2 and fin2.round and fin2.points ~= nil and fin2.name == 'NGRC Utah Rally' and fin2.series == 'utah-rally')
+    check('series game: the hook shapes carry the series name for the banners, the points, the flags and the full series id with its cycle', fin2 and fin2.round and fin2.points ~= nil and fin2.name == 'NGRC Utah Rally' and fin2.series == 'utah-rally' and fin2.seriesId == 'utah-rally:1')
     local fin3
     for _, e in ipairs(events) do if e[1] == 'onStreetLegalSeriesFinished' and e[2].series == 'utah-rally' then fin3 = e[2] end end
     check('series game: the finished hook has name, pos, position, points, prize, champion and a podium', fin3 and fin3.name == 'NGRC Utah Rally' and fin3.pos == fin3.position and fin3.pos ~= nil and fin3.podium and #fin3.podium >= 1)
