@@ -1016,8 +1016,22 @@ if (out > 0) {
   assert.ok(phone.state.app === 'home', 'an app free roam does not have lands on the home screen');
   phone.act('open', 'map');
   assert.ok(phone.state.app === 'map', 'an app it has opens');
-  phone.handle('slPhoneGo', { app: 'bank' });
-  assert.ok(phone.state.app === 'home', 'a deep link to an app it does not have lands on the home screen');
+  for (const app of ['bank', 'messages', 'thread', 'ad', 'helppage', 'contact', 'photo', 'market', 'paper', 'bid']) {
+    phone.handle('slPhoneGo', { app });
+    assert.ok(phone.state.app === 'home', 'a deep link to ' + app + ' lands on the home screen');
+  }
+  phone.act('openthread', 'r01');
+  assert.ok(phone.state.app === 'home' && phone.state.stack.length === 0, 'an openthread action ends on the home screen with no stack');
+  phone.handle('slPhoneGo', { app: 'map' });
+  assert.ok(phone.state.app === 'map', 'the map still opens by a deep link');
+  phone.handle('slPhoneGo', { app: 'cab' });
+  assert.ok(phone.state.app === 'cab', 'the cab still opens by a deep link');
+  // a Back that would pop an app pushed before the free roam flag came: it lands on home, not on that app
+  phone.handle('slPhoneData', data);
+  phone.act('home'); phone.act('open', 'bank'); phone.act('open', 'messages');
+  phone.handle('slPhoneData', fr);
+  phone.act('back');
+  assert.ok(phone.state.app === 'home' && phone.state.stack.length === 0, 'a Back after the flag arrived does not return to an app free roam does not have: ' + phone.state.app);
   phone.handle('slPhoneData', data);
   phone.act('home');
   assert.ok(ids().includes('races') || ids().includes('garage'), 'a career phone shows its apps again');

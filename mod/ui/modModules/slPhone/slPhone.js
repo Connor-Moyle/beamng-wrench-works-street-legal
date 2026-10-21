@@ -1487,6 +1487,7 @@
     // ---------------------------------------------------------------- drawing
     function render() {
       var d = st.data;
+      if (d.freeroam === true && st.app !== 'home' && arr(d.apps).indexOf(st.app) < 0) { st.stack = []; st.app = 'home'; }
       if (!d.active) {
         layer.innerHTML = menuView() + gameOverView() + '<div class="slp-toast' + (st.toast ? '' : ' slp-gone') + '">' + esc(st.toast || '') + '</div>' +
           fadeView();
@@ -1667,15 +1668,14 @@
       return Math.max(0.4, Math.min(1.2, (h - 40) / 760, h * 0.78 / 760)).toFixed(3);
     }
 
-    // Free roam (a phone outside a career: data.freeroam, data.apps = the app ids it has, e.g. map and cab): only those apps are shown, and anything that opens another one lands on the home screen
-    var TOP_APPS = ['races', 'garage', 'garagekit', 'bank', 'me', 'jobs', 'wait', 'help', 'map', 'camera', 'gallery', 'club', 'turf', 'carmarket', 'partmarket', 'phone', 'messages', 'contacts', 'cab'];
+    // Free roam (a phone outside a career: data.freeroam, data.apps = the app ids it has, e.g. map and cab): only those apps are shown. One rule at the one place every route ends up in
+    // (render): a screen that is not one of those apps (a sub-screen of another app, a thread, a help page, a screen a Back pops to) becomes the home screen and the stack is cleared.
     function inFreeroam(id) {
       var d = st.data;
       return !(d && d.freeroam === true) || arr(d.apps).indexOf(id) >= 0;
     }
     // ---------------------------------------------------------------- what the buttons do
     function go(app, params) {
-      if (TOP_APPS.indexOf(app) >= 0 && !inFreeroam(app)) { st.stack = []; st.app = 'home'; render(); return; }       // (free roam: an app this phone does not have)
       st.stack.push({ app: st.app, contact: st.contact, thread: st.thread });
       st.app = app;
       if (app === 'gallery') lua('photos()');
