@@ -38,18 +38,23 @@ local function ctx(s) return { repDiscount = true, tier = tierOf(s), wearPriced 
 -- the record the screen gets: the shop, its day's stock with the player's prices, the money, and why it is closed (nil: open)
 local function view(shop, s)
   local c = ctx(s)
-  local out = { kind = shop.kind, title = shop.title, name = shop.name, brand = shop.brand, theme = shop.theme, screen = shop.screen, keeper = shop.keeper, goods = shop.goods, sections = shop.sections,
+  local out = { kind = shop.kind, title = shop.title, name = shop.name, brand = shop.brand, theme = shop.theme, screen = shop.screen, keeper = shop.keeper, goods = shop.goods, sections = shop.sections, reduceMotion = sl_options ~= nil and sl_options.get ~= nil and sl_options.get('slReduceMotion') == true,
     money = s.money or 0, stock = {}, services = {}, colorBlind = sl_options ~= nil and sl_options.get ~= nil and sl_options.get('slColorBlind') == true }
+  local words = rules.WORDS[shop.kind]
+  if words then out.words = { add = strings.t(words.add), buy = strings.t(words.buy) } out.tagline = strings.t(words.tag) end
+  local csfx = shop.goods == 'tyres' and select(2, pcall(require, 'csfx_tyrerules')) or nil      -- (the real numbers of each compound: Car Surface FX's rules)
   local quotes = shop.goods == 'tyres' and sl_tyrecare and sl_tyrecare.quotes and sl_tyrecare.quotes('garage') or nil      -- (what the counter really charges: the trade-in is in it)
   for _, it in ipairs(rules.dayStock(shop, s.day)) do
     if shop.goods == 'tyres' then
-      out.stock[#out.stock + 1] = { id = it.id, name = it.name, group = it.group, desc = quotes and it.desc or strings.t('shops.price_before_trade_in'), count = 1, price = quotes and quotes[it.id] or it.price, was = quotes and it.price > quotes[it.id] and it.price or nil }
+      out.stock[#out.stock + 1] = { id = it.id, name = it.name, group = it.group, desc = quotes and it.desc or strings.t('shops.price_before_trade_in'), count = 1, price = quotes and quotes[it.id] or it.price, was = quotes and it.price > quotes[it.id] and it.price or nil,
+        specs = rules.tyreSpecs(it.id, csfx) }
     else
-      out.stock[#out.stock + 1] = { id = it.id, name = it.name, group = it.group, desc = it.desc, cond = it.cond, count = it.count, price = rules.price(it, c), was = it.price }
+      out.stock[#out.stock + 1] = { id = it.id, name = it.name, group = it.group, desc = it.desc, cond = it.cond, count = it.count, price = rules.price(it, c), was = it.price,
+        specs = it.specs, swatch = it.swatch, curve = it.curve, curveLabel = it.curveLabel }
     end
   end
   for _, sv in ipairs(shop.services) do
-    out.services[#out.services + 1] = { id = sv.id, name = sv.name, desc = sv.desc, minutes = sv.minutes, price = rules.price(sv, c) }
+    out.services[#out.services + 1] = { id = sv.id, name = sv.name, desc = sv.desc, minutes = sv.minutes, price = rules.price(sv, c), specs = sv.specs, swatch = sv.swatch, curve = sv.curve, curveLabel = sv.curveLabel }
   end
   local t = dayTime()
   if t then

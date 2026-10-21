@@ -51,6 +51,8 @@ The shop's goods change a little each day (about a quarter of the lines are miss
 A shop that cannot be read is skipped and a line goes in the game's log (`sl_shops`).
 A scene object cannot name a shop type yet; the file is the convention.
 
+What a kind adds to the detail pane (all optional, per item or per service): `specs` = `[ { "label": "Sound", "text": "Loud", "bar": 0.7 } ]` (up to six rows; `bar` 0..1), `swatch` = `"#c0392b"` (a colour chip, for paint), `curve` = `[20, 55, 90, 125]` with `curveLabel` (a small line chart, for a dyno). Each kind also has its own words (the tagline under the name when there is no keeper, and the add and pay buttons: Choose these / Fit them for tyres, Book / Pay and book for services). The tyre shop fills its specs from Car Surface FX's compound rules (dry and wet grip, tread, working temperature, loose ground). The Reduce motion option (`slReduceMotion`) switches every transition off.
+
 Stock and baskets: an item with no `count` can be bought in any quantity (the player's money is the limit); with a `count` the basket may not hold more than that, however many times the item is listed. A tyre shop sells one set at a time, and the card shows the price at the counter (the trade-in of the old set counted) when Car Surface FX is on, the set price ("before the trade-in") when it is not.
 
 ## 2. Open a shop from Lua

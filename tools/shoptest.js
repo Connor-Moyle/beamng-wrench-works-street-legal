@@ -88,6 +88,24 @@ assert(/--sl-accent:#a8c7fa/.test($('.slsh-panel').getAttribute('style')), 'a ba
 shop.handle('slShopOpen', Object.assign(JSON.parse(JSON.stringify(tyreShop)), { name: '<img src=x onerror=alert(1)>' }));
 assert(!$('.slsh-head img') && /<img/.test($('.slsh-title b').textContent), 'a shop name cannot inject markup');
 
+// ---- what a kind adds: specs, a swatch, a curve, its own words, the reduce-motion option
+const tuner = { kind: 'tuner', title: 'Tuner', name: 'Dyno Dan', tagline: 'Dyno and setup', goods: 'services', screen: 'services', money: 700, reduceMotion: true, theme: { accent: '#5fb7e6', pattern: 'dyno', icon: 'gauge' }, stock: [],
+  words: { add: 'Reserve', buy: 'Pay and reserve' },
+  services: [{ id: 'dyno', name: 'Dyno run', price: 90, curve: [10, 40, 80, 120, 140, 130], swatch: '#5fb7e6', specs: [{ label: 'Peak', text: '140 hp', bar: 0.7 }] }] };
+shop.handle('slShopOpen', tuner);
+assert(/Dyno and setup/.test($('.slsh-title span').textContent), 'no keeper: the tagline of the kind is under the name');
+assert($('.slsh-row .slsh-curve path') && /^M0\.0 /.test($('.slsh-row .slsh-curve path').getAttribute('d')), 'a service with a curve draws it');
+assert($('.slsh-row .slsh-swatch') && $('.slsh-row .slsh-spec'), 'a swatch and a spec row');
+assert(/Reserve/.test($(sel('add', 'dyno')).textContent), 'the kind has its own word for the add button');
+click('add', 'dyno');
+assert(/Pay and reserve/.test($(sel('buy')).textContent), 'and for the pay button');
+assert(shop.root.classList.contains('slsh-rm'), 'the reduce-motion option is on the root');
+shop.handle('slShopOpen', Object.assign(JSON.parse(JSON.stringify(tyreShop)), { stock: [{ id: 'road', name: 'Road', group: 'road', price: 357, specs: [{ label: 'Dry grip', text: '1.00', bar: 0.4 }, { label: 'Tread', text: '8 mm' }] }] }));
+click('pick', 'road');
+assert.strictEqual($$('.slsh-detail .slsh-spec').length, 2, 'the detail pane shows the specs');
+assert($('.slsh-detail .slsh-spec .slsh-bar i').getAttribute('style').indexOf('40%') >= 0, 'a bar spec has its bar');
+assert(!shop.root.classList.contains('slsh-rm'), 'and the option is off again');
+
 // ---- text on an accent fill: --sl-deep on a light accent, white on a dark one, at least 4.5:1 for every built-in accent (and the ones in the sample data)
 const core = fs.readFileSync(path.join(__dirname, '..', 'mod/lua/ge/extensions/sl/core/shops.lua'), 'utf8');
 const accents = Array.from(new Set((core.match(/accent = '#[0-9a-fA-F]{6}'/g) || []).map((m) => m.slice(10, 17)).concat(['#f2b84b', '#9b8cf0', '#e9855b', '#a8c7fa'])));
@@ -110,13 +128,13 @@ assert.strictEqual(bad.length, 0, 'every button has data-a and bng-nav-item: ' +
 assert(/\.slsh-root \[data-a\]:focus[^{]*\{[^}]*outline:3px solid var\(--sl-focus\)/.test(shop.css), 'a visible focus style (3 px, --sl-focus)');
 assert(/--sl-focus:#ffd54f/.test(shop.css) && /--sl-accent:#a8c7fa/.test(shop.css) && /--sl-surface1:#141218/.test(shop.css), 'the family tokens');
 const noMotion = shop.css.split(/\r?\n/).filter((l) => !l.startsWith('@media (prefers-reduced-motion:no-preference)')).join(' ');      // (the guarded rules are the one line)
-assert(!/transition\s*:|animation\s*:/.test(noMotion), 'motion only inside prefers-reduced-motion:no-preference');
+assert(!/transition\s*:(?!\s*none)|animation\s*:(?!\s*none)/.test(noMotion), 'motion only inside prefers-reduced-motion:no-preference (and switched off by the reduce-motion option)');
 assert(/prefers-reduced-motion:no-preference/.test(shop.css), 'the reduced-motion guard is there');
 // no text outside T(): remove the markers, the data and the money; no word is left
-const data = [tyreShop.name, 'Gus', 'Tread tells the truth.', 'Tyre shop', 'Road', 'Performance', 'Winter', 'Slick', 'road', 'weather', 'track', 'Soft rubber for the cold.', '<img src=x onerror=alert(1)>'];
+const data = ['Dry grip', 'Tread', '8 mm', '1.00', tyreShop.name, 'Gus', 'Tread tells the truth.', 'Tyre shop', 'Road', 'Performance', 'Winter', 'Slick', 'road', 'weather', 'track', 'Soft rubber for the cold.', '<img src=x onerror=alert(1)>'];
 let seen = $$('*').filter((e) => e.children.length === 0 && e.tagName !== 'STYLE').map((e) => e.textContent).join(' | ');
 seen = seen.replace(/«[^»]*»/g, ' ');
-data.forEach((d) => { seen = seen.split(d).join(' '); });
+data.sort((x, y) => y.length - x.length).forEach((d) => { seen = seen.split(d).join(' '); });
 const words = seen.match(/[A-Za-z]{2,}/g) || [];
 assert.strictEqual(words.length, 0, 'text not from T() or the data: ' + words.join(','));
 $$('[aria-label]').forEach((e) => assert(/«/.test(e.getAttribute('aria-label')), 'aria-label goes through T()'));

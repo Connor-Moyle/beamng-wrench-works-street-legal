@@ -27,10 +27,43 @@ M.TYPES = {
 }
 M.ORDER = { 'tyre', 'exhaust', 'parts', 'performance', 'paint', 'tuner', 'mechanic', 'accessories', 'dealerparts' }
 local KINDS = { 'catalogue', 'services' }
+
+-- the wording of a kind: the string keys of its tagline (under the name when there is no keeper), the add and the pay buttons (sl/shops turns them into text)
+M.WORDS = {
+  tyre = { tag = 'shops.tag_tyre', add = 'shops.word_choose', buy = 'shops.word_fit' },
+  exhaust = { tag = 'shops.tag_exhaust', add = 'shops.word_add', buy = 'shops.word_pay' },
+  parts = { tag = 'shops.tag_parts', add = 'shops.word_add', buy = 'shops.word_pay' },
+  performance = { tag = 'shops.tag_performance', add = 'shops.word_add', buy = 'shops.word_order' },
+  paint = { tag = 'shops.tag_paint', add = 'shops.word_book', buy = 'shops.word_book_pay' },
+  tuner = { tag = 'shops.tag_tuner', add = 'shops.word_book', buy = 'shops.word_book_pay' },
+  mechanic = { tag = 'shops.tag_mechanic', add = 'shops.word_book', buy = 'shops.word_book_pay' },
+  accessories = { tag = 'shops.tag_accessories', add = 'shops.word_add', buy = 'shops.word_pay' },
+  dealerparts = { tag = 'shops.tag_dealerparts', add = 'shops.word_add', buy = 'shops.word_order' },
+}
+
 local GOODS = { tyres = true, given = true, catalog = true, services = true }
 
 local function clamp(x, lo, hi) return math.max(lo, math.min(hi, x)) end
 local function isHex(s) return type(s) == 'string' and s:match('^#%x%x%x%x%x%x$') ~= nil end
+
+-- the optional extras of an item or a service: specs (label, text, bar 0..1: up to six rows in the detail pane), a colour swatch, a curve (up to 64 numbers) with its label
+local function extras(it, out)
+  if type(it.specs) == 'table' then
+    out.specs = {}
+    for _, sp in ipairs(it.specs) do
+      if type(sp) == 'table' and sp.label and #out.specs < 6 then
+        out.specs[#out.specs + 1] = { label = tostring(sp.label), text = sp.text ~= nil and tostring(sp.text) or nil, bar = tonumber(sp.bar) and clamp(tonumber(sp.bar), 0, 1) or nil }
+      end
+    end
+  end
+  if isHex(it.swatch) then out.swatch = it.swatch end
+  if type(it.curve) == 'table' then
+    out.curve = {}
+    for _, v in ipairs(it.curve) do if tonumber(v) and #out.curve < 64 then out.curve[#out.curve + 1] = tonumber(v) end end
+    if #out.curve < 2 then out.curve = nil else out.curveLabel = it.curveLabel and tostring(it.curveLabel) or nil end
+  end
+  return out
+end
 
 function M.type(kind) return M.TYPES[kind] end
 function M.kinds()
@@ -74,13 +107,13 @@ function M.normalize(kind, opts)
   if type(opts.keeper) == 'table' then s.keeper = { name = tostring(opts.keeper.name or ''), line = opts.keeper.line and tostring(opts.keeper.line) or nil } end
   for _, it in ipairs(type(opts.stock) == 'table' and opts.stock or {}) do
     if type(it) == 'table' and type(it.id) == 'string' and tonumber(it.price) and it.price >= 0 then
-      s.stock[#s.stock + 1] = { id = it.id, name = tostring(it.name or it.id), price = math.floor(it.price + 0.5), cond = it.cond and clamp(tonumber(it.cond) or 1, 0, 1) or nil,
-        group = it.group and tostring(it.group) or nil, desc = it.desc and tostring(it.desc) or nil, count = it.count and math.max(1, math.floor(tonumber(it.count))) or nil }
+      s.stock[#s.stock + 1] = extras(it, { id = it.id, name = tostring(it.name or it.id), price = math.floor(it.price + 0.5), cond = it.cond and clamp(tonumber(it.cond) or 1, 0, 1) or nil,
+        group = it.group and tostring(it.group) or nil, desc = it.desc and tostring(it.desc) or nil, count = it.count and math.max(1, math.floor(tonumber(it.count))) or nil })
     end
   end
   for _, sv in ipairs(type(opts.services) == 'table' and opts.services or {}) do
     if type(sv) == 'table' and type(sv.id) == 'string' and tonumber(sv.price) and sv.price >= 0 then
-      s.services[#s.services + 1] = { id = sv.id, name = tostring(sv.name or sv.id), price = math.floor(sv.price + 0.5), minutes = math.max(0, math.floor(tonumber(sv.minutes) or 0)), desc = sv.desc and tostring(sv.desc) or nil }
+      s.services[#s.services + 1] = extras(sv, { id = sv.id, name = tostring(sv.name or sv.id), price = math.floor(sv.price + 0.5), minutes = math.max(0, math.floor(tonumber(sv.minutes) or 0)), desc = sv.desc and tostring(sv.desc) or nil })
     end
   end
   if t.goods == 'tyres' and #s.stock == 0 then s.stock = M.tyreStock(opts.range) end
@@ -102,6 +135,21 @@ function M.fromMarker(fields)
   if f.keeper then o.keeper = type(f.keeper) == 'table' and f.keeper or { name = tostring(f.keeper) } end
   o.stock, o.services, o.range = f.stock, f.services, f.range
   return kind, o
+end
+
+-- the facts of a tyre compound from Car Surface FX's rules (csfx_tyrerules.COMPOUNDS; dry grip 1.00 is a road tyre): dry grip, wet grip, tread, working temperature, loose ground. nil without the rules
+function M.tyreSpecs(id, rules)
+  local c = type(rules) == 'table' and type(rules.COMPOUNDS) == 'table' and rules.COMPOUNDS[id]
+  if type(c) ~= 'table' or not c.base then return nil end
+  local wet = (c.wet0 or 0.8) * (c.wetF or 1)
+  local loose = c.loose or 1
+  return {
+    { label = strings.t('shops.spec_dry'), text = string.format('%.2f', c.base), bar = clamp((c.base - 0.8) / 0.5, 0, 1) },
+    { label = strings.t('shops.spec_wet'), text = string.format('%.2f', wet), bar = clamp(wet / 1.2, 0, 1) },
+    { label = strings.t('shops.spec_tread'), text = string.format('%.0f mm', c.h0 or 0), bar = clamp((c.h0 or 0) / 15, 0, 1) },
+    { label = strings.t('shops.spec_temp'), text = string.format('%d to %d C', c.lo or 0, c.hi or 0) },
+    { label = strings.t('shops.spec_loose'), text = string.format('%.2f', loose), bar = clamp(loose / 1.3, 0, 1) },
+  }
 end
 
 -- the tyres of a range ('torres' or 'race'; nil: all) as stock: one line per compound, the price of a set

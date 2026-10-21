@@ -3877,4 +3877,26 @@ do
   package.loaded['sl/shops'] = nil
 end
 
+-- shops: what a kind adds (specs, swatch, curve, tyre facts from the rules, wording)
+do
+  local SH = require('sl/core/shops')
+  local s = SH.normalize('tuner', { services = { { id = 'd', name = 'Dyno', price = 90, swatch = '#5fb7e6', curve = { 1, 2, 3, 'x', 5 }, curveLabel = 'hp', specs = { { label = 'Peak', text = 140, bar = 2 }, { label = 'No bar' }, {} } },
+    { id = 'e', price = 5, swatch = 'red', curve = { 1 } } } })
+  local d, e = s.services[1], s.services[2]
+  check('shops: specs keep label, text and a bar clamped to 0..1, an empty spec is dropped', #d.specs == 2 and d.specs[1].text == '140' and d.specs[1].bar == 1 and d.specs[2].bar == nil)
+  check('shops: a swatch must be #rrggbb, a curve needs two numbers (the rest are dropped)', d.swatch == '#5fb7e6' and #d.curve == 4 and d.curveLabel == 'hp' and e.swatch == nil and e.curve == nil)
+  local rules = { COMPOUNDS = { road = { base = 1.0, wet0 = 0.8, wetF = 1.0, h0 = 8, lo = 20, hi = 85, loose = 0.9 } } }
+  local t = SH.tyreSpecs('road', rules)
+  check('shops: the tyre facts come from the compound rules (dry, wet, tread, temperature, loose ground)', #t == 5 and t[1].text == '1.00' and t[2].text == '0.80' and t[3].text == '8 mm' and t[4].text == '20 to 85 C' and math.abs(t[1].bar - 0.4) < 1e-9)
+  check('shops: no rules or an unknown compound: no facts', SH.tyreSpecs('road', nil) == nil and SH.tyreSpecs('zzz', rules) == nil)
+  local all = true
+  for _, k in ipairs(SH.kinds()) do if not (SH.WORDS[k] and SH.WORDS[k].tag and SH.WORDS[k].add and SH.WORDS[k].buy) then all = false end end
+  check('shops: every built-in kind has its wording', all)
+  local strings = require('sl/core/strings')
+  local ok = true
+  for _, k in ipairs(SH.kinds()) do for _, key in pairs(SH.WORDS[k]) do if strings.t(key) == key or strings.t(key) == '' then ok = false end end end
+  check('shops: the wording keys are in the strings table', ok)
+  package.loaded['sl/core/shops'] = nil
+end
+
 print(string.format('lua tests passed: %d checks', passed))

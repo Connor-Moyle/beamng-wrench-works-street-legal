@@ -12,7 +12,15 @@ const paint = { kind: 'paint', title: 'Paint and body', name: 'Spray Kings', goo
   services: [{ id: 'buff', name: 'Buff out scratches', price: 80, minutes: 30, desc: 'Polishes light scratches away. Dents are not touched.' }, { id: 'respray', name: 'Full respray', price: 620, minutes: 240, desc: 'Strips and sprays the whole car in the colour you pick.' }, { id: 'wax', name: 'Wax and polish', price: 40, minutes: 20 }, { id: 'dent', name: 'Panel repair', price: 190, minutes: 90, desc: 'Bumps out one dented panel.' }] };
 const exhaust = { kind: 'exhaust', title: 'Exhaust shop', name: 'Pipe Dreams', goods: 'catalog', screen: 'catalogue', money: 940, theme: { accent: '#e9855b', pattern: 'pipes', icon: 'exhaust' }, keeper: { name: 'Rosa', line: 'It should sound like a promise.' },
   stock: [{ id: 'cat', name: 'Cat-back, stainless', group: 'Cat-back', price: 420, cond: 1 }, { id: 'headers', name: 'Long-tube headers', group: 'Headers', price: 560, cond: 1 }, { id: 'usedcat', name: 'Cat-back, used', group: 'Cat-back', price: 180, cond: 0.55 }, { id: 'muff', name: 'Straight-through muffler', group: 'Mufflers', price: 240, cond: 1 }], services: [] };
-const kinds = { tyre, paint, exhaust };
+tyre.tagline = 'Tyres fitted while you wait'; tyre.words = { add: 'Choose these', buy: 'Fit them' };
+tyre.stock.forEach((it) => { it.specs = [{ label: 'Dry grip', text: it.id === 'performance' ? '1.05' : '1.00', bar: it.id === 'performance' ? 0.5 : 0.4 }, { label: 'Wet grip', text: '0.80', bar: 0.67 }, { label: 'Tread', text: '8 mm', bar: 0.53 }, { label: 'Works best at', text: '20 to 85 C' }, { label: 'Loose ground', text: '0.90', bar: 0.69 }]; });
+paint.words = { add: 'Book', buy: 'Pay and book' }; paint.tagline = 'Paint and bodywork';
+[['#c0392b', 0], ['#2c3e50', 1], ['#27ae60', 2], ['#f1c40f', 3]].forEach((c) => { paint.services[c[1]].swatch = c[0]; });
+exhaust.words = { add: 'Add to basket', buy: 'Pay' }; exhaust.sel = 'headers'; exhaust.cart = { headers: 1 };
+exhaust.stock.forEach((it, i) => { it.specs = [{ label: 'Sound', text: ['Mild', 'Loud', 'Mild', 'Very loud'][i], bar: [0.3, 0.7, 0.35, 0.95][i] }, { label: 'Flow', text: ['+6%', '+11%', '+6%', '+9%'][i], bar: [0.4, 0.8, 0.4, 0.65][i] }, { label: 'Weight', text: ['-4 kg', '-2 kg', '-4 kg', '-6 kg'][i] }]; });
+const tuner = { kind: 'tuner', title: 'Tuner', name: 'Dyno Dan', tagline: 'Dyno and setup', goods: 'services', screen: 'services', money: 940, theme: { accent: '#5fb7e6', pattern: 'dyno', icon: 'gauge' }, words: { add: 'Reserve', buy: 'Pay and reserve' }, stock: [],
+  services: [{ id: 'dyno', name: 'Dyno run', price: 90, minutes: 20, desc: 'Power and torque of your car on the rollers.', curve: [20, 55, 90, 125, 150, 160, 148, 120] }, { id: 'align', name: 'Alignment', price: 70, minutes: 40, desc: 'Toe, camber and caster set to your numbers.' }, { id: 'tune', name: 'Engine map', price: 260, minutes: 90, desc: 'A map written for your parts.', curve: [30, 70, 110, 150, 170, 175, 160, 130] }] };
+const kinds = { tyre, paint, exhaust, tuner };
 for (const k of Object.keys(kinds)) {
   const d = kinds[k];
   const html = '<!doctype html><meta charset="utf-8"><body style="margin:0;background:#0d0b12"><script>window.__slShopTest=true;</script><script>' + code.replace(/<\/script/g, '<\/script') + '</script><script>' +

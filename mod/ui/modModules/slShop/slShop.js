@@ -25,6 +25,7 @@
     '  font-family:"Segoe UI","Roboto","Noto Sans",Arial,sans-serif;color:var(--sl-text);-webkit-user-select:none;user-select:none}',
     '.slsh-root.slsh-open{display:flex}.slsh-root *{box-sizing:border-box}',
     '.slsh-cb{--sl-good:#56b4e9;--sl-bad:#ffb454}',
+    '.slsh-rm *,.slsh-rm.slsh-open{transition:none!important;animation:none!important}',
     '.slsh-panel{width:min(1120px,96vw);height:min(700px,92vh);display:flex;flex-direction:column;border-radius:16px;background:var(--sl-surface1);box-shadow:0 20px 60px rgba(0,0,0,.6);overflow:hidden;border:1px solid var(--sl-outline)}',
     '.slsh-head{position:relative;display:flex;align-items:center;gap:16px;padding:14px 20px;background:var(--sl-deep);border-bottom:3px solid var(--sl-accent);overflow:hidden}',
     '.slsh-pattern{position:absolute;left:0;top:0;right:0;bottom:0;opacity:.35;pointer-events:none}',
@@ -41,12 +42,14 @@
     '.slsh-cat{display:block;width:100%;text-align:left;margin:2px 0;padding:10px 12px;border:0;border-radius:12px;background:transparent;color:var(--sl-text2);font:inherit;font-size:15px;cursor:pointer}',
     '.slsh-cat.slsh-on{background:var(--sl-surface3);color:var(--sl-text);box-shadow:inset 3px 0 0 var(--sl-accent)}',
     '.slsh-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px}',
-    '.slsh-card{display:flex;flex-direction:column;gap:6px;padding:12px;border:1px solid var(--sl-outline);border-radius:14px;background:var(--sl-surface2);color:inherit;font:inherit;text-align:left;cursor:pointer}',
+    '.slsh-card{display:flex;flex-direction:column;gap:6px;padding:12px;border:1px solid var(--sl-outline);border-radius:18px;background:var(--sl-surface2);color:inherit;font:inherit;text-align:left;cursor:pointer}',
     '.slsh-card:hover,.slsh-card.slsh-sel{border-color:var(--sl-accent)}.slsh-card b{font-size:16px;font-weight:500}.slsh-card small{color:var(--sl-muted);font-size:13px}',
     '.slsh-price{font-size:17px;color:var(--sl-text);font-variant-numeric:tabular-nums}.slsh-was{margin-left:6px;font-size:13px;color:var(--sl-muted);text-decoration:line-through}',
     '.slsh-good{color:var(--sl-good)}.slsh-good:before{content:"\\2714 "}.slsh-bad{color:var(--sl-bad)}.slsh-bad:before{content:"\\25BC "}.slsh-up:before{content:"\\25B2 "}',
     '.slsh-cond{height:6px;border-radius:3px;background:var(--sl-surface3);overflow:hidden}.slsh-cond i{display:block;height:100%;background:var(--sl-accent)}',
-    '.slsh-row{display:flex;align-items:center;gap:12px;padding:12px 14px;margin-bottom:8px;border:1px solid var(--sl-outline);border-radius:14px;background:var(--sl-surface2)}',
+    '.slsh-row{display:flex;align-items:center;gap:12px;min-height:64px;padding:12px 14px;margin-bottom:8px;border:1px solid var(--sl-outline);border-radius:18px;background:var(--sl-surface2)}',
+    '.slsh-spec{display:grid;grid-template-columns:96px 1fr auto;gap:8px;align-items:center;margin:4px 0;font-size:13px;color:var(--sl-text2)}.slsh-spec .slsh-bar{height:6px;border-radius:3px;background:var(--sl-surface3);overflow:hidden}.slsh-spec .slsh-bar i{display:block;height:100%;background:var(--sl-accent)}.slsh-spec b{font-weight:400;color:var(--sl-text);font-variant-numeric:tabular-nums}',
+    '.slsh-swatch{width:28px;height:28px;border-radius:14px;border:2px solid var(--sl-text2);flex:none}.slsh-curve{width:120px;height:34px;flex:none}.slsh-curve path{stroke:var(--sl-accent);stroke-width:2;fill:none}',
     '.slsh-row .slsh-grow{flex:1;min-width:0}.slsh-row b{font-weight:500;font-size:16px}.slsh-row small{display:block;color:var(--sl-muted);font-size:13px}',
     '.slsh-detail{padding:14px 16px;border-bottom:1px solid var(--sl-outline);min-height:120px}.slsh-detail h3{margin:0 0 6px;font-size:18px;font-weight:500}.slsh-detail p{margin:6px 0;color:var(--sl-text2);font-size:14px;line-height:1.45}',
     '.slsh-cart{flex:1;min-height:0;overflow-y:auto;padding:10px 16px}.slsh-line{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:14px}.slsh-line span{flex:1}',
@@ -54,7 +57,7 @@
     '.slsh-note{padding:16px;border:1px dashed var(--sl-outline);border-radius:14px;color:var(--sl-text2);font-size:15px;line-height:1.5}.slsh-muted{color:var(--sl-muted)}',
     '.slsh-toast{position:absolute;left:50%;bottom:28px;transform:translateX(-50%);padding:10px 18px;border-radius:20px;background:var(--sl-surface3);border:1px solid var(--sl-accent);font-size:15px}',
     '.slsh-root [data-a]:focus,.slsh-root [tabindex]:focus{outline:3px solid var(--sl-focus)!important;outline-offset:2px;box-shadow:0 0 0 2px var(--sl-deep)}',
-    '.slsh-main::-webkit-scrollbar,.slsh-rail::-webkit-scrollbar,.slsh-cart::-webkit-scrollbar{width:8px}.slsh-main::-webkit-scrollbar-thumb,.slsh-rail::-webkit-scrollbar-thumb,.slsh-cart::-webkit-scrollbar-thumb{background:var(--sl-outline);border-radius:4px}',
+    '.slsh-main::-webkit-scrollbar,.slsh-rail::-webkit-scrollbar,.slsh-cart::-webkit-scrollbar{width:6px}.slsh-main::-webkit-scrollbar-thumb,.slsh-rail::-webkit-scrollbar-thumb,.slsh-cart::-webkit-scrollbar-thumb{background:var(--sl-outline);border-radius:4px}',
     '.slsh-count{float:right;color:var(--sl-muted);font-size:13px;font-variant-numeric:tabular-nums}',
     '@media (prefers-reduced-motion:no-preference){.slsh-card,.slsh-btn,.slsh-cat{transition:border-color .15s,background .15s}.slsh-root.slsh-open{animation:slsh-in .18s ease-out}@keyframes slsh-in{from{opacity:0}to{opacity:1}}}',
   ].join('\n');
@@ -96,8 +99,20 @@
   function onAccent(hex) { var l = luminance(hex); return (l + 0.05) / (0.0036 + 0.05) >= 1.05 / (l + 0.05) ? '#0d0b12' : '#ffffff'; }      // (whichever of the two reads better: the cross-over is at about 0.18, never below 4.5:1)
 
   // ---------------------------------------------------------------- components: pure functions, each returns a string of HTML
+  function specRows(specs) {
+    return arr(specs).map(function (sp) {
+      return '<div class="slsh-spec"><span>' + esc(sp.label) + '</span>' + (sp.bar !== undefined && sp.bar !== null ? '<div class="slsh-bar"><i style="width:' + Math.round(sp.bar * 100) + '%"></i></div>' : '<span></span>') + '<b>' + esc(sp.text === undefined ? '' : sp.text) + '</b></div>';
+    }).join('');
+  }
+  function curveSvg(values, cls) {
+    var v = arr(values).map(Number).filter(function (n) { return isFinite(n); });
+    if (v.length < 2) return '';
+    var lo = Math.min.apply(null, v), hi = Math.max.apply(null, v), span = hi - lo || 1;
+    var pts = v.map(function (n, i) { return (i ? 'L' : 'M') + (i * 100 / (v.length - 1)).toFixed(1) + ' ' + (30 - (n - lo) / span * 28).toFixed(1); }).join('');
+    return '<svg class="' + cls + '" viewBox="0 0 100 32" preserveAspectRatio="none" aria-hidden="true"><path d="' + pts + '" vector-effect="non-scaling-stroke"/></svg>';
+  }
   function header(shop, closed) {
-    var sub = shop.keeper && shop.keeper.name ? esc(shop.keeper.name) + (shop.keeper.line ? ': ' + esc(shop.keeper.line) : '') : esc(shop.title);
+    var sub = shop.keeper && shop.keeper.name ? esc(shop.keeper.name) + (shop.keeper.line ? ': ' + esc(shop.keeper.line) : '') : esc(shop.tagline || shop.title);
     return '<div class="slsh-head">' + patternSvg(shop.theme.pattern, shop.theme.accent) + '<div class="slsh-icon">' + iconSvg(shop.theme.icon) + '</div>' +
       '<div class="slsh-title"><b>' + esc(shop.name) + (shop.brand ? ' <span>(' + esc(shop.brand) + ')</span>' : '') + '</b><span>' + sub + '</span></div>' +
       '<div class="slsh-money" title="' + esc(T('shops.ui_money', 'Your money')) + '">' + money(shop.money) + '</div>' +
@@ -117,25 +132,26 @@
       (it.group ? '<small>' + esc(it.group) + '</small>' : '') + condBar(it.cond) +
       '<span>' + priceTag(it) + '</span>' + (inCart ? '<small class="slsh-good">' + esc(T('shops.ui_in_basket', 'In the basket')) + ' x' + inCart + '</small>' : '') + '</button>';
   }
-  function detail(it, canAdd) {
+  function detail(it, canAdd, words) {
     if (!it) return '<div class="slsh-detail"><p class="slsh-muted">' + esc(T('shops.ui_pick', 'Pick something to see it here.')) + '</p></div>';
     return '<div class="slsh-detail"><h3>' + esc(it.name) + '</h3>' + (it.desc ? '<p>' + esc(it.desc) + '</p>' : '') +
       (it.cond !== undefined && it.cond !== null ? '<p>' + esc(T('shops.ui_condition', 'Condition')) + ': ' + Math.round(it.cond * 100) + '%</p>' + condBar(it.cond) : '') +
-      '<p>' + priceTag(it) + '</p><button class="slsh-btn slsh-pri" data-a="add" data-v="' + esc(it.id) + '" bng-nav-item' + (canAdd ? '' : ' disabled') + '>' + esc(T('shops.ui_add', 'Add to basket')) + '</button></div>';
+      (it.swatch ? '<p><span class="slsh-swatch" style="background:' + esc(it.swatch) + '"></span></p>' : '') + specRows(it.specs) + (it.curve ? curveSvg(it.curve, 'slsh-curve') + (it.curveLabel ? '<small class="slsh-muted">' + esc(it.curveLabel) + '</small>' : '') : '') +
+      '<p>' + priceTag(it) + '</p><button class="slsh-btn slsh-pri" data-a="add" data-v="' + esc(it.id) + '" bng-nav-item' + (canAdd ? '' : ' disabled') + '>' + esc((words && words.add) || T('shops.ui_add', 'Add to basket')) + '</button></div>';
   }
-  function cartBar(lines, total, have, closed) {
+  function cartBar(lines, total, have, closed, words) {
     var rows = lines.map(function (l) {
       return '<div class="slsh-line"><span>' + esc(l.name) + ' x' + l.qty + '</span><b>' + money(l.sum) + '</b><button class="slsh-btn" data-a="remove" data-v="' + esc(l.id) + '" bng-nav-item aria-label="' + esc(T('shops.ui_remove', 'Remove')) + '">&minus;</button></div>';
     }).join('') || '<p class="slsh-muted">' + esc(T('shops.ui_empty', 'Nothing in the basket.')) + '</p>';
     var short = total > have;
     return '<div class="slsh-cart">' + rows + '</div><div class="slsh-foot"><div class="slsh-total"><span>' + esc(T('shops.ui_total', 'Total')) + '</span><b class="' + (short ? 'slsh-bad' : '') + '">' + money(total) + '</b></div>' +
       (short ? '<span class="slsh-bad">' + esc(T('shops.cannot_afford', 'You cannot afford that.')) + '</span>' : '') +
-      '<button class="slsh-btn slsh-pri" data-a="buy" bng-nav-item' + (lines.length && !short && !closed ? '' : ' disabled') + '>' + esc(T('shops.ui_buy', 'Pay')) + '</button></div>';
+      '<button class="slsh-btn slsh-pri" data-a="buy" bng-nav-item' + (lines.length && !short && !closed ? '' : ' disabled') + '>' + esc((words && words.buy) || T('shops.ui_buy', 'Pay')) + '</button></div>';
   }
-  function serviceRow(sv, inCart) {
-    return '<div class="slsh-row"><div class="slsh-grow"><b>' + esc(sv.name) + '</b>' + (sv.desc ? '<small>' + esc(sv.desc) + '</small>' : '') +
-      (sv.minutes ? '<small>' + esc(T('shops.ui_minutes', '{1} min', sv.minutes)) + '</small>' : '') + '</div><span>' + priceTag(sv) + '</span>' +
-      '<button class="slsh-btn' + (inCart ? '' : ' slsh-pri') + '" data-a="' + (inCart ? 'remove' : 'add') + '" data-v="' + esc(sv.id) + '" bng-nav-item>' + esc(inCart ? T('shops.ui_remove', 'Remove') : T('shops.ui_do', 'Book')) + '</button></div>';
+  function serviceRow(sv, inCart, words) {
+    return '<div class="slsh-row">' + (sv.swatch ? '<span class="slsh-swatch" style="background:' + esc(sv.swatch) + '"></span>' : '') + '<div class="slsh-grow"><b>' + esc(sv.name) + '</b>' + (sv.desc ? '<small>' + esc(sv.desc) + '</small>' : '') +
+      (sv.minutes ? '<small>' + esc(T('shops.ui_minutes', '{1} min', sv.minutes)) + '</small>' : '') + specRows(sv.specs) + '</div>' + (sv.curve ? curveSvg(sv.curve, 'slsh-curve') : '') + '<span>' + priceTag(sv) + '</span>' +
+      '<button class="slsh-btn' + (inCart ? '' : ' slsh-pri') + '" data-a="' + (inCart ? 'remove' : 'add') + '" data-v="' + esc(sv.id) + '" bng-nav-item>' + esc(inCart ? T('shops.ui_remove', 'Remove') : ((words && words.add) || T('shops.ui_do', 'Book'))) + '</button></div>';
   }
   function toast(text) { return text ? '<div class="slsh-toast" role="status">' + esc(text) + '</div>' : ''; }
 
@@ -177,15 +193,15 @@
       var shop = st.shop, closed = shop.closed, l = lines(), t = total();
       var body;
       if (shop.screen === 'services') {
-        var rows = arr(shop.services).map(function (sv) { return serviceRow(sv, !!st.cart[sv.id]); }).join('') || '<div class="slsh-note">' + esc(T('shops.ui_none', 'Nothing is on offer today.')) + '</div>';
-        body = '<div class="slsh-main">' + rows + '</div><div class="slsh-side">' + cartBar(l, t, shop.money, closed) + '</div>';
+        var rows = arr(shop.services).map(function (sv) { return serviceRow(sv, !!st.cart[sv.id], shop.words); }).join('') || '<div class="slsh-note">' + esc(T('shops.ui_none', 'Nothing is on offer today.')) + '</div>';
+        body = '<div class="slsh-main">' + rows + '</div><div class="slsh-side">' + cartBar(l, t, shop.money, closed, shop.words) + '</div>';
       } else {
         var g = groups(), list = arr(shop.stock).filter(function (it) { return st.cat === 'all' || it.group === st.cat; });
         var cards = list.map(function (it) { return card(it, st.sel === it.id, st.cart[it.id]); }).join('');
         if (!cards) cards = '<div class="slsh-note">' + esc(shop.goods === 'catalog' ? T('shops.ui_catalog_note', 'Parts for your car are fitted from the Wrench Works catalogue.') : T('shops.ui_none', 'Nothing is on offer today.')) + '</div>';
         var counts = { all: arr(shop.stock).length };
         arr(shop.stock).forEach(function (it) { if (it.group) counts[it.group] = (counts[it.group] || 0) + 1; });
-        body = (g.length ? rail(g, st.cat, counts) : '') + '<div class="slsh-main"><div class="slsh-grid">' + cards + '</div></div><div class="slsh-side">' + detail(find(st.sel), !closed) + cartBar(l, t, shop.money, closed) + '</div>';
+        body = (g.length ? rail(g, st.cat, counts) : '') + '<div class="slsh-main"><div class="slsh-grid">' + cards + '</div></div><div class="slsh-side">' + detail(find(st.sel), !closed, shop.words) + cartBar(l, t, shop.money, closed, shop.words) + '</div>';
       }
       layer.innerHTML = '<div class="slsh-panel" style="--sl-accent:' + esc(shop.theme.accent) + ';--sl-on-accent:' + onAccent(shop.theme.accent) + '">' + header(shop, closed) + '<div class="slsh-body">' + body + '</div>' + toast(st.toast) + '</div>';
       var el = focusKey ? layer.querySelector('[data-a="' + focusKey.a + '"][data-v="' + focusKey.v + '"]') || layer.querySelector('[data-a="' + focusKey.a + '"]') : null;
@@ -237,6 +253,7 @@
           data.theme = data.theme || {}; data.theme.accent = /^#[0-9a-f]{6}$/i.test(data.theme.accent || '') ? data.theme.accent : '#a8c7fa';
           st.shop = data; st.open = true;
           root.classList.toggle('slsh-cb', !!data.colorBlind);
+          root.classList.toggle('slsh-rm', !!data.reduceMotion);
           if (fresh) { st.cat = 'all'; st.cart = {}; st.sel = null; focusKey = null; } else { st.cart = {}; }      // (bought: the basket is empty again)
           break;
         }
@@ -250,7 +267,7 @@
     return { handle: handle, state: st, act: act, root: root, css: CSS };
   }
 
-  var api = { luminance: luminance, onAccent: onAccent, create: createShop, header: header, rail: rail, card: card, detail: detail, cartBar: cartBar, serviceRow: serviceRow, toast: toast, patternSvg: patternSvg, iconSvg: iconSvg, themes: Object.keys(PATTERNS) };
+  var api = { luminance: luminance, onAccent: onAccent, create: createShop, header: header, rail: rail, card: card, detail: detail, cartBar: cartBar, serviceRow: serviceRow, toast: toast, patternSvg: patternSvg, iconSvg: iconSvg, themes: Object.keys(PATTERNS), specRows: specRows, curveSvg: curveSvg };
   if (typeof window !== 'undefined') { window.__slShopCreate = createShop; window.__slShopParts = api; }
 
   // in the game: one shop screen for the whole UI, fed by the Lua side's events
