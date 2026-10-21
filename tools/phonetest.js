@@ -927,6 +927,24 @@ phone.act('home');
 calls.length = 0;
 click('routegarage', '1');
 assert.ok(calls.includes('routeGarage()'), 'Route to my garage on the home screen');
+{
+  // the speed traps and zones (sl_traps.summary()): nearest first, target, best (met = marked), times, reward or Paid; nothing with the part off or no data
+  const traps = { list: [{ id: 't2', name: 'Speed trap 2', kind: 'trap', target: 150, best: 182, count: 3, paid: true, metres: 4200, pay: 250 }, { id: 'z1', name: 'Speed zone 1', kind: 'zone', target: 90, best: 0, count: 0, paid: false, metres: 800, pay: 400 }] };
+  phone.handle('slPhoneData', Object.assign({}, data, { traps }));
+  phone.act('home');
+  assert.ok(phone.root.querySelector('[data-a="open"][data-v="traps"]'), 'the Speed traps app is on the home screen');
+  phone.act('open', 'traps');
+  const tx = text();
+  assert.ok(tx.includes('Speed zone 1') && tx.includes('Speed trap 2') && tx.indexOf('Speed zone 1') < tx.indexOf('Speed trap 2'), 'the nearest first');
+  assert.ok(tx.includes('150 km/h') && tx.includes('182 km/h') && tx.includes('\u2714') && tx.includes('Paid') && tx.includes('$400') && tx.includes('800 m away') && tx.includes('4.2 km away') && tx.includes('Zone') && tx.includes('Trap'), 'target, best with the met mark, paid or the reward, distance, kind: ' + tx.slice(0, 300));
+  phone.handle('slPhoneData', Object.assign({}, data, { traps: { list: [] } }));
+  assert.ok(text().includes('No traps on this map yet.'), 'an empty list says so');
+  phone.act('home');
+  phone.handle('slPhoneData', Object.assign({}, data, { traps, has: Object.assign({}, data.has, { traps: false }) }));
+  assert.ok(!phone.root.querySelector('[data-a="open"][data-v="traps"]'), 'the part off: no app');
+  phone.handle('slPhoneData', data);
+  assert.ok(!phone.root.querySelector('[data-a="open"][data-v="traps"]'), 'no data: no app');
+}
 console.log('phone test passed');
 
 // a page to look at: the phone in several states side by side
