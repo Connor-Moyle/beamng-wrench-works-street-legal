@@ -109,11 +109,12 @@ local function snapshot()
     art = sl_hud ~= nil and sl_hud.slrrArt ~= nil and sl_hud.slrrArt() or false,
     has = { clubs = sl_career.has('clubs'), crews = sl_career.has('crews'), classifieds = sl_career.has('classifieds'),
       races = require('sl/core/features').on('races'), jobs = require('sl/core/features').on('jobs'), market = require('sl/core/features').on('market'),
-      bank = require('sl/core/features').on('bank'), maps = require('sl/core/features').on('maps'), hudpill = require('sl/core/features').on('hudpill'), weekly = require('sl/core/features').on('weekly'), service = require('sl/core/features').on('service'), perks = require('sl/core/features').on('perks') },      -- (the parts that are switched off lose their apps)
+      bank = require('sl/core/features').on('bank'), maps = require('sl/core/features').on('maps'), hudpill = require('sl/core/features').on('hudpill'), weekly = require('sl/core/features').on('weekly'), service = require('sl/core/features').on('service'), perks = require('sl/core/features').on('perks'), traps = require('sl/core/features').on('traps') },      -- (the parts that are switched off lose their apps)
     contacts = contacts, threads = s.threads, unread = s.unread,
     challenges = challenges, ledger = ledger, places = placesOut,
     cars = #s.cars, stats = s.stats,
     perks = sl_perks and sl_perks.perks and sl_perks.perks() or nil,
+    traps = sl_traps and sl_traps.summary and sl_traps.summary() or nil,      -- (the Speed traps page: nil with the part off or no career)
     fleet = (function()      -- each car with its service card (sl_service.serviceOf: nil with the part off or for an unknown car)
       local list = sl_fleet and sl_fleet.list() or {}
       if sl_service and sl_service.serviceOf then for _, c in ipairs(list) do c.service = sl_service.serviceOf(c.id) end end

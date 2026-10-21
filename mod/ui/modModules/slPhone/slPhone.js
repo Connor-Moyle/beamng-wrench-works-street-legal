@@ -332,6 +332,7 @@
     flag: svg('M14.4 6 14 4H5v17h2v-7h5.6l.4 2h7V6z'),
     bank: svg('M4 10v7h3v-7zm6 0v7h3v-7zM2 22h19v-3H2zm14-12v7h3v-7zM11.5 1 2 6v2h19V6z'),
     house: svg('M12 3 2 12h3v8h5v-6h4v6h5v-8h3z'),
+    traps: svg('M20.38 8.57l-1.23 1.85a8 8 0 0 1-.22 7.58H5.07A8 8 0 0 1 15.58 6.85l1.85-1.23A10 10 0 0 0 3.35 19a2 2 0 0 0 1.72 1h13.85a2 2 0 0 0 1.74-1 10 10 0 0 0-.27-10.44zm-9.79 6.84a2 2 0 0 0 2.83 0l5.66-8.49-8.49 5.66a2 2 0 0 0 0 2.83z'),
     cab: svg('M18.9 6c-.2-.6-.8-1-1.4-1h-11c-.7 0-1.2.4-1.4 1L3 12v8a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-1h12v1a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-8zM6.5 16A1.5 1.5 0 1 1 8 14.5 1.5 1.5 0 0 1 6.5 16zm11 0a1.5 1.5 0 1 1 1.5-1.5 1.5 1.5 0 0 1-1.5 1.5zM5 11l1.5-4.5h11L19 11z'),
     me: svg('M12 2 4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5zm-1.5 14.5-4-4 1.4-1.4 2.6 2.6 6.1-6.1 1.4 1.4z'),
     back: svg('M20 11H7.8l5.6-5.6L12 4l-8 8 8 8 1.4-1.4L7.8 13H20z'),
@@ -458,6 +459,7 @@
           { id: 'garagekit', title: T('app.garagekit', 'Garage'), icon: I.house },
           { id: 'bank', title: T('app.bank', 'Bank'), icon: I.bank, hide: has.bank === false },
           { id: 'me', title: T('app.me', 'Street cred'), icon: I.me },
+          { id: 'traps', title: T('app.traps', 'Speed traps'), icon: I.traps, hide: !d.traps || has.traps === false },
           { id: 'jobs', title: T('app.jobs', 'Jobs'), icon: I.jobs, badge: d.jobs && d.jobs.active ? 1 : 0, hide: has.jobs === false },
           { id: 'wait', title: T('app.wait', 'Wait'), icon: I.wait },
           { id: 'help', title: T('app.help', 'Help'), icon: I.help },
@@ -1268,6 +1270,22 @@
       }).join('') + '</div>';
     }
 
+    // the speed traps and zones (sl_traps.summary(): { list = { { id, name, kind: trap|zone, target km/h, best km/h (0 = never), count, paid, metres, pay } } }): nearest first
+    function trapsPage() {
+      var list = arr(obj(st.data.traps).list).slice().sort(function (a, b) { return (a.metres == null ? 1e9 : a.metres) - (b.metres == null ? 1e9 : b.metres); });
+      var cards = list.map(function (t) {
+        var met = Number(t.best) >= Number(t.target);
+        return '<div class="slp-card"><h4>' + esc(t.name || '') + ' <span class="slp-chip" style="margin:0 0 0 6px">' + (t.kind === 'zone' ? T('ui.trap_zone', 'Zone') : T('ui.trap_trap', 'Trap')) + '</span></h4>' +
+          '<div class="slp-kv"><span>' + T('ui.trap_target', 'Target') + '</span><b>' + Math.round(Number(t.target) || 0) + ' km/h</b></div>' +
+          '<div class="slp-kv"><span>' + T('ui.trap_best', 'Your best') + '</span><b' + (met ? ' class="slp-on"' : '') + '>' + (Number(t.best) > 0 ? (met ? '&#10004; ' : '') + Math.round(t.best) + ' km/h' : '&ndash;') + '</b></div>' +
+          '<div class="slp-kv"><span>' + T('ui.trap_times', 'Times passed') + '</span><b>' + (Number(t.count) || 0) + '</b></div>' +
+          '<div class="slp-kv"><span>' + T('ui.trap_reward', 'Reward') + '</span><b>' + (t.paid ? '&#10004; ' + T('ui.trap_paid', 'Paid') : money(t.pay)) + '</b></div>' +
+          (t.metres != null ? '<p>' + T('ui.trap_away', '{1} away', Number(t.metres) >= 1000 ? (t.metres / 1000).toFixed(1) + ' km' : Math.round(t.metres) + ' m') + '</p>' : '') + '</div>';
+      }).join('');
+      return bar(T('app.traps', 'Speed traps')) + '<div class="slp-body"><div class="slp-card"><p>' + T('ui.trap_intro', 'Drive through a trap faster than its target to be paid, once. A zone pays for holding the speed through it.') + '</p></div>' +
+        (cards || '<div class="slp-empty">' + T('ui.trap_none', 'No traps on this map yet.') + '</div>') + '</div>';
+    }
+
     function mePage() {
       var d = st.data, s = obj(d.stats);
       var from = d.titleRep || 0, to = d.nextRep, pct = to ? Math.max(0, Math.min(100, ((d.rep || 0) - from) / (to - from) * 100)) : 100;
@@ -1601,6 +1619,7 @@
         case 'bid': page = bidPage(); break;
         case 'ad': page = adPage(); break;
         case 'bank': page = bankPage(); break;
+        case 'traps': page = trapsPage(); break;
         case 'cab': page = cabPage(); break;
         case 'me': page = mePage(); break;
         case 'garage': page = garagePage(); break;
