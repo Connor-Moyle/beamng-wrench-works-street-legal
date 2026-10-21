@@ -11,6 +11,14 @@ lualib.luaL_openlibs(L);
 const lp = (p) => JSON.stringify(path.join(root, p).replace(/\\/g, '/'));
 const setup = `package.path = ${lp('mod/lua/ge/extensions/?.lua')} .. ';' .. ${lp('mod/lua/common/?.lua')} .. ';' .. ${lp('mod/lua/vehicle/extensions/?.lua')} .. ';' .. package.path`;
 if (lauxlib.luaL_dostring(L, to_luastring(setup)) !== lua.LUA_OK) throw new Error('setup failed');
+// the skins the mod ships (mod/street_legal/phone_skins/<id>/skin.json) as a Lua table, SHIPPED_SKINS, for the phone skin test
+{
+  const fs = require('fs');
+  const dir = path.join(root, 'mod', 'street_legal', 'phone_skins');
+  const lit = (v) => Array.isArray(v) ? '{' + v.map(lit).join(',') + '}' : (v && typeof v === 'object') ? '{' + Object.keys(v).map((k) => '[' + JSON.stringify(k) + ']=' + lit(v[k])).join(',') + '}' : (typeof v === 'string' ? JSON.stringify(v) : String(v));
+  const skins = fs.readdirSync(dir).filter((d) => fs.existsSync(path.join(dir, d, 'skin.json'))).map((d) => '[' + JSON.stringify(d) + ']=' + lit(JSON.parse(fs.readFileSync(path.join(dir, d, 'skin.json'), 'utf8'))));
+  if (lauxlib.luaL_dostring(L, to_luastring('SHIPPED_SKINS = {' + skins.join(',') + '}')) !== lua.LUA_OK) throw new Error('skins setup failed: ' + to_jsstring(lua.lua_tostring(L, -1)));
+}
 const status = lauxlib.luaL_dofile(L, to_luastring(path.join(__dirname, 'luatest.lua')));
 if (status !== lua.LUA_OK) {
   console.error(to_jsstring(lua.lua_tostring(L, -1)));

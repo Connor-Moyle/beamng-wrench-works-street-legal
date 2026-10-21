@@ -179,7 +179,14 @@ end
 ----------------------------------------------------------------------------------------------
 -- the rest of the buttons
 
-function M.request() wantSend = true end
+-- the phone skin chosen in the Mods menu (sl/phoneskins): sent when the UI asks and when the choice changes. Classic (or a skin that is gone) is sent as { id = 'classic' }
+function M.sendSkin()
+  local id = sl_options and sl_options.get and sl_options.get('slPhoneSkin') or 'classic'
+  local ok, skin = pcall(function() return require('sl/phoneskins').payload(id) end)
+  guihooks.trigger('slPhoneSkin', ok and skin or { id = 'classic' })
+end
+function M.onStreetLegalOption(key) if key == 'slPhoneSkin' then M.sendSkin() end end
+function M.request() wantSend = true M.sendSkin() end
 -- the help pages (sl/core/help), for the phone's Help app and the laptop's Help window
 -- all the player-facing text (sl/core/strings), once, for the UI's T()
 function M.requestStrings()

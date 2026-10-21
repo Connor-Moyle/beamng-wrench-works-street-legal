@@ -977,6 +977,31 @@ if (out > 0) {
   phone.handle('slPhoneData', data);
   console.log('phone parts off test passed');
 }
+// phone skins: a skin sets the look (its style, the app colours and icons); Classic (no skin) puts the classic look back, with no extra style left
+{
+  if (!phone.root.querySelector('.slp-device:not(.slp-away)')) phone.handle('slPhoneToggle');
+  phone.act('home');
+  const homeIcon = (id) => { const a = phone.root.querySelector('.slp-app[data-v="' + id + '"] .slp-ico'); return a ? a.innerHTML : null; };
+  const homeColour = (id) => { const a = phone.root.querySelector('.slp-app[data-v="' + id + '"] .slp-ico'); return a ? a.style.background : null; };
+  const skinStyle = () => Array.from(phone.root.querySelectorAll('style')).map((e) => e.textContent).slice(1).join('');
+  const classicIcon = homeIcon('map'), classicColour = homeColour('map');
+  assert.ok(classicIcon && skinStyle() === '', 'classic: a map icon and no skin style');
+  phone.handle('slPhoneSkin', { id: 'slate', css: '.slp-root .slp-ico{border-radius:16px}', icons: { map: '<svg viewBox="0 0 24 24"><path d="M1 1"/></svg>', zzz: '<svg/>' }, appColors: { map: '#112233' } });
+  phone.act('home');
+  assert.ok(skinStyle().includes('border-radius:16px'), 'the skin style is in the page');
+  assert.ok(homeIcon('map').includes('M1 1'), 'the skin icon is on the home grid');
+  assert.ok(/rgb\(17, 34, 51\)|#112233/i.test(homeColour('map')), 'the skin colour is on the tile');
+  assert.ok(homeIcon('camera') && !homeIcon('camera').includes('M1 1'), 'an app the skin does not name keeps its classic icon');
+  phone.handle('slPhoneSkin', { id: 'classic' });
+  phone.act('home');
+  assert.strictEqual(homeIcon('map'), classicIcon, 'classic icon back');
+  assert.strictEqual(homeColour('map'), classicColour, 'classic colour back');
+  assert.strictEqual(skinStyle(), '', 'no extra style left');
+  phone.handle('slPhoneSkin', { id: 'bad', css: 'a</style><script>x</script>' });
+  assert.ok(!skinStyle().includes('</style'), 'a closing style tag is removed');
+  phone.handle('slPhoneSkin', { id: 'classic' });
+  console.log('phone skin test passed');
+}
 // the home grid scrolls (wheel) and the dock never leaves the screen: the grid shrinks, the dock does not; the phone is scaled to fit the window height
 {
   const css = require('fs').readFileSync(require('path').join(__dirname, '..', 'mod', 'ui', 'modModules', 'slPhone', 'slPhone.js'), 'utf8');
