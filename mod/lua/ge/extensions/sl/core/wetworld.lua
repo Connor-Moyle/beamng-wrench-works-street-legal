@@ -99,6 +99,7 @@ end
 
 -- one line of the edit trace (a crash hunt: the last material edited before a GPU hang names the culprit): the n-th edit, its kind and name, the step it went to, the ms it took
 function M.traceLine(n, entry, step, ms)
+  if ms == nil then return string.format('wet start #%d %s %s -> step %d', n, tostring(entry.kind), tostring(entry.name), step) end      -- (written BEFORE the edit: after a GPU hang the last start names the material being edited)
   return string.format('wet edit #%d %s %s -> step %d (%.1f ms)', n, tostring(entry.kind), tostring(entry.name), step, ms or 0)
 end
 

@@ -153,6 +153,7 @@ local function batch(n, target, force)
     local slow = SLOW[entry.name] or (st and st.slow)
     local skip = slow and not force and ((target > 0 and target < rules.STEPS) or (os.clock() - (M.lastSlowAt or -99) < 4) or not quiet())      -- (a slow material waits for the full wet, a standstill, and one at a time, four seconds apart)
     if (st and st.step or 0) ~= target and not (st and st.failed) and not skip then
+      if option('slWetTrace', false) == true then log('I', TAG, rules.traceLine(stats.edits + 1, entry, target)) end
       local t0 = os.clock()
       local ok, err = pcall(apply, entry, target)
       local ms = (os.clock() - t0) * 1000

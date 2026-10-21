@@ -3214,7 +3214,7 @@ do -- 0.5.2: a saved Wet tarmac "on" is reset to off once
   check('wet tarmac migration: nothing saved stays unset (the default applies), and a saved off stays off', b.slWetTarmac == nil and b.slWetTarmacReset052 == true and O.migrate052({ slWetTarmac = false }) == true)
 end
 
-check('wet trace: a line names the number, kind, material, step and time', require('sl/core/wetworld').traceLine(7, { kind = 'asphalt', name = 'road_a' }, 6, 1.5) == 'wet edit #7 asphalt road_a -> step 6 (1.5 ms)')
+check('wet trace: a line names the number, kind, material, step and time', require('sl/core/wetworld').traceLine(7, { kind = 'asphalt', name = 'road_a' }, 6, 1.5) == 'wet edit #7 asphalt road_a -> step 6 (1.5 ms)' and require('sl/core/wetworld').traceLine(7, { kind = 'asphalt', name = 'road_a' }, 6) == 'wet start #7 asphalt road_a -> step 6')
 
 do -- 0.6.0: a saved Wet roads and walls "on" is reset to off once, and the default is off
   local O = require('sl/options')
