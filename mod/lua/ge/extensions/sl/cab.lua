@@ -121,6 +121,7 @@ local function board()
     elseif me then
       spawn.safeTeleport(me, r.place.pos + vec3(0, 0, 0.3), quatFromDir(r.place.dir, vec3(0, 0, 1)), true)
     end
+    extensions.hook('onStreetLegalFade', 'cab', job, r.place)       -- (the screen is black at the destination: a lot's row may be built now, inside this job)
     job.sleep(0.6)
     guihooks.trigger('slFade', { on = false })
     local paid = M.settle(r)

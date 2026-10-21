@@ -191,6 +191,12 @@ M.defs = {
     desc = 'How fast cars wear and how often they need a service. It sets the wear of the own wear model of the career, Part Wear (when installed) and the tyres (with Car Surface FX). Needs the Servicing and wear part on. Wear already there stays as it is.' },
   { key = 'slBuildGap', tab = 'World', group = 'Performance', title = 'Seconds between built cars', type = 'range', min = 8, max = 60, step = 2, unit = 's', default = 20, advanced = true,
     desc = 'Building a car for the night traffic freezes the game for a second or so. Longer gaps mean fewer freezes and a quieter street.' },
+  { key = 'slLotPrebuild', feature = true, tab = 'World', group = 'Performance', title = 'Build the nearest lot ahead', type = 'bool', default = true,
+    desc = 'The cars of the nearest dealer, junkyard or scrapyard are built while the screen is black (the career start, a fast travel, a cab ride) and kept hidden until you look at the lot, so the lot opens without the freeze per car. Off: a lot builds its cars when you open it.' },
+  { key = 'slLotCars', tab = 'World', group = 'Performance', title = 'Most cars on a lot', type = 'range', min = 2, max = 6, step = 1, default = 6, unit = '',
+    desc = 'How many cars a lot shows at most. Fewer cars: less to build and less physics while you look.' },
+  { key = 'slLotDents', tab = 'World', group = 'Performance', title = 'Dents on lot cars', type = 'bool', default = true,
+    desc = 'Used cars on a lot are bent where their report says. Off: the row builds faster; the dents still count in the report and the price.' },
 }
 -- where each setting is on the Mods menu page: { tab, group }
 local PLACE = {
@@ -207,6 +213,8 @@ local PRESETS = {
   slRaceTraffic = { performance = 'light', balanced = 'normal', quality = 'normal', max = 'normal' },
   slReplay = { performance = false, balanced = true, quality = true, max = true },
   slMarkers = { performance = false, balanced = true, quality = true, max = true },
+  slLotCars = { performance = 4, balanced = 6, quality = 6, max = 6 },
+  slLotDents = { performance = false, balanced = true, quality = true, max = true },
 }
 -- the parts of the game that can be switched off (sl/core/features: each is gated by its extension): one bool each, on by default, listed on the Active features page
 for _, f in ipairs(require('sl/core/features').LIST) do
