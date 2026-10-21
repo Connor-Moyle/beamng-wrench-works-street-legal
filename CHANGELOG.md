@@ -1,6 +1,8 @@
 # Changelog
 
-## 0.8.0 (unreleased; needs Wrench Works 1.8.5)
+## 0.8.0 (needs Wrench Works 1.8.5)
+
+The career gets things to spend on and things to aim for. Everything marked "not yet seen in the game" is built and tested offline only.
 
 ### New
 - **Weekly costs (new, on by default; ESC > Mods > Street Legal > Parts of the game > Weekly costs):** every 7th day the garage rent (garage 1 free, garage 2 $150, garage 3 $400) and the storage of cars beyond two ($40 a week each) are paid. What you cannot pay becomes a debt at the bank (never a repossession), costs 5 reputation once, and is paid down first from money above $200; the bank lends nothing while you owe it. A ledger on the phone shows the coming bills and the last eight weeks. A save that already exists starts its first week the day it loads, nothing is billed backwards. Offline-tested; not yet seen in the game.
@@ -9,6 +11,15 @@
 - **Contracts (new, on by default; Mods > Street Legal > Parts of the game > Contracts):** from 100 reputation, up to two of the part runs and courier parcels on the Jobs board come with terms: no damage, within 80% of the time limit, delivered in the rain (only offered when the road is wet), or in a car worth $15,000 or more. Keep them and the job pays 1.6 to 2.2 times as much and gives 5 extra reputation; miss them and you get the normal pay. Off: no terms, normal pay. Offline-tested; not yet seen in the game.
 - **Tier perks (new, on by default; Mods > Street Legal > Parts of the game > Tier perks):** every boss you beat gives a lasting advantage: from rank 2 garage upgrades cost 10% less and services 15% less; rank 3 jobs pay 10% more; rank 4 police fines are 20% lower; rank 5 the bank lends 25% more; rank 6 (all bosses beaten) completes the set. Saves that already count bosses as beaten (older careers) have the perks at once. Off: no advantages. Offline-tested; not yet seen in the game.
 - **Used-car checks (new, on by default; Mods > Street Legal > Parts of the game > Used-car checks):** a private ad for a car shows its history (owners, service record, accidents) but not its faults or the car report; a mechanic check ($40 plus 0.5% of the price) shows both and what each fault costs to fix. A patchy service record is a hint. Dealers, auctions and the swap meet are unchanged. Off: the ads show every fault, as before. Offline-tested; not yet seen in the game.
+
+### Changes
+- **Phone cards:** the Bank page shows the weekly costs; My cars shows each car's service card; private car ads show the history and the Check button; the Jobs page tags contracts; Street cred lists the tier perks.
+- Servicing, weekly costs, contracts and tier perks are on by default, so an existing save feels them at once (rent, storage, repair costs, prices): switch each off in Mods > Street Legal > Parts of the game. Wear already on a car counts as before.
+- The race log is written at most once a second (it was rewritten on every line); a flush at the end of the career and of the level.
+- Car commands that call back into the mod are guarded; the options file is never written over when it could not be read; `sl/debugCars.lua` (a tester's cheat-car list) is loaded only when the file exists and is not in the zip.
+- A material whose file the game reports as nothing counts as a car's (the wet-world glass), so the wet world leaves it alone. Wet roads and walls stays off by default.
+- Starting a career removes the free-roam car the player was in (it overlapped delivered cars).
+- README and the player guide are up to date; the README says what ships and what does not.
 
 ## 0.7.2 (needs Wrench Works 1.8.5)
 
