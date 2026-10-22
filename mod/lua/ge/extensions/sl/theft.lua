@@ -388,6 +388,27 @@ function M.gameResult(vid, stage, ok, noise)
 end
 function M.cancel() if session then tried[session.vid] = os.clock() endSession() toast(strings.t('theft.failed')) end end
 
+-- a record without a car is rebuilt once the player is near its place (the terrain there is loaded by then; a car built far off can fall through)
+M.REBUILD_M = 300
+local rebuilding = {}
+local function rebuildNear(s, t, p)
+  for _, r in ipairs(t.stolen) do
+    if not r.vid and r.pos and not rebuilding[r] and (vec3(r.pos[1], r.pos[2], r.pos[3]) - p):length() <= M.REBUILD_M then
+      rebuilding[r] = true
+      core_jobsystem.create(function(job)
+        local ok, veh = pcall(core_vehicles.spawnNewVehicle, r.model, { config = r.config, pos = vec3(r.pos[1], r.pos[2], r.pos[3] + 0.3), autoEnterVehicle = false, canSpawnAnotherVehicleCheck = false })
+        rebuilding[r] = nil
+        if not (ok and veh) then return end
+        r.vid = veh:getID()
+        if r.plate then applyPlate(r.vid, r.plate) end
+        if s.wanted and s.wanted.stolen and s.wanted.name == r.name and not s.wanted.vid then s.wanted.vid = r.vid end
+        if r.tracked then r.lastTrack = os.clock() end
+        changed()
+      end)
+    end
+  end
+end
+
 -- ---- the tick: the prompts on foot, the witness clock, the tracker, the plates, the fence's introduction
 local tickT = 0
 local function tick()
@@ -413,6 +434,7 @@ local function tick()
     if opt('slTheftPlates', true) ~= false then plateTick(s, v) end
   end
   for _, r in ipairs(t.stolen) do local o = carOf(r) if o then local p = o:getPosition() r.pos = { p.x, p.y, p.z } end end      -- (where it stands, for the rebuild after a restart)
+  if v then rebuildNear(s, t, v:getPosition()) end
   if not t.fenceKnown and t.busts >= 1 and (s.rep or 0) >= 300 then t.fenceKnown = true sl_career.sendText('benny', strings.t('theft.benny_fence'), 2) changed() end
   local list = onFoot() and candidates(s) or {}
   local sig = {}
@@ -604,9 +626,13 @@ function M.title(i, paid)
   local ok, why = charge(s, rules.titlePrice(r), strings.t('theft.title'), paid)
   if not ok then return false, why end
   local car = rules.titled(r)
-  drop(s, tonumber(i))
   local okr, fleet = pcall(sl_fleet.registerVehicle, o:getID(), { name = car.name, condition = car.condition, value = car.value })
-  if okr and type(fleet) == 'table' then fleet.plate = car.plate fleet.history = car.history end
+  if not (okr and type(fleet) == 'table') then      -- (no fleet car: the record stays, the money back)
+    sl_career.addMoney(rules.titlePrice(r), strings.t('theft.title'))
+    return false, strings.t('theft.not_here')
+  end
+  fleet.plate, fleet.history = car.plate, car.history
+  drop(s, tonumber(i))
   changed()
   return true, strings.t('theft.titled_1', car.name)
 end
@@ -661,7 +687,7 @@ function M.buyHot(i, paid)
     local okv, veh = pcall(core_vehicles.spawnNewVehicle, c.model, { config = c.config, pos = vec3(p.x + 8, p.y, p.z + 0.5), autoEnterVehicle = false, canSpawnAnotherVehicleCheck = false })
     if not (okv and veh) then
       c.sold = false
-      if not paid then sl_career.addMoney(c.price, strings.t('theft.black_market')) end      -- (no car: the money back)
+      sl_career.addMoney(c.price, strings.t('theft.black_market'))      -- (no car: the money back, whoever charged: the shop was told true already)
       toast(strings.t('theft.not_here'))
       return
     end
@@ -685,22 +711,7 @@ function M.onStreetLegalStarted()
     if not (r.pos and r.model and r.config and core_vehicles and core_vehicles.spawnNewVehicle) then table.remove(t.stolen, i) if s.wanted and s.wanted.stolen then s.wanted = nil end end
   end
   if s.wanted and s.wanted.stolen then s.wanted.vid = nil end
-  if #t.stolen == 0 then return end
-  core_jobsystem.create(function(job)
-    for _, r in ipairs(t.stolen) do
-      local ok, veh = pcall(core_vehicles.spawnNewVehicle, r.model, { config = r.config, pos = vec3(r.pos[1], r.pos[2], r.pos[3] + 0.3), autoEnterVehicle = false, canSpawnAnotherVehicleCheck = false })
-      if ok and veh then
-        r.vid = veh:getID()
-        if r.plate then applyPlate(r.vid, r.plate) end
-        if s.wanted and s.wanted.stolen and s.wanted.name == r.name and not s.wanted.vid then s.wanted.vid = r.vid end
-        if r.tracked then r.lastTrack = os.clock() end
-      end
-      job.sleep(1)
-    end
-    changed()
-  end)
 end
-
 function M.summary()
   local s = career()
   if not s then return nil end
@@ -720,7 +731,7 @@ end
 -- for the tester: a tool for nothing; the fence known
 function M.debugTool(id) local s = career() if not s then return 'no career' end return tostring(M.giveTool(id)) end
 function M.debugFence() local s = career() if not s then return 'no career' end store(s).fenceKnown = true changed() return 'known' end
-function M.onStreetLegalStopped() session, pulling, market = nil, nil, nil marks, markSig, stoodSince, tried = {}, '', {}, {} end
+function M.onStreetLegalStopped() session, pulling, market = nil, nil, nil marks, markSig, stoodSince, tried, rebuilding = {}, '', {}, {}, {} end
 function M.onClientEndMission() session, pulling = nil, nil marks, markSig, stoodSince = {}, '', {} end
 
 features.gate('theft', M, nil, nil, { 'summary', 'tools', 'buyTool', 'giveTool', 'hotCars', 'current', 'sell', 'strip', 'plates', 'stripTracker', 'title', 'blackMarket', 'buyHot', 'newPlate', 'begin', 'gameResult', 'pullTracker', 'jam' })      -- (the part off: no prompts, nothing)

@@ -7062,7 +7062,8 @@ do
     _G.core_jobsystem = { create = function(f) f({ sleep = function() end }) end }
     package.loaded['sl/theft'] = nil
     local T = require('sl/theft')
-    T.onUpdate(3.5)
+    local okTick, errTick = pcall(T.onUpdate, 3.5)
+    _G.log = function(_, _, m) print('LOG', m) end T.onUpdate(3.5) _G.log = function() end
     local els = {}
     T.onGetRawPoiListForLevel('west_coast_usa', els)
     check('theft game side: on foot the parked cars within reach are marks (not the player own car, not the far one)', #els == 2 and els[1].data.theftVid ~= nil and T.status():find('marks 2') ~= nil)
@@ -7173,7 +7174,28 @@ do
     local pos = recb.pos
     local oldVid = recb.vid
     T.onStreetLegalStarted()
-    check('theft game side: on career start the hot car is rebuilt at its last place with a new id and its plate; the wanted record follows', pos ~= nil and recb.vid ~= nil and recb.vid ~= oldVid and cars[recb.vid] ~= nil and cars[recb.vid].jbeam == recb.model and state.wanted.vid == recb.vid)
+    local farVid = recb.vid
+    cars[500].pos = v3(5000, 0, 0) meId = 500
+    T.onUpdate(3.5)
+    local stillFar = farVid == nil and recb.vid == nil
+    cars[500].pos = v3(pos[1] + 100, pos[2], pos[3])
+    T.onUpdate(3.5)
+    check('theft game side: on career start the ids are forgotten; the hot car is rebuilt at its last place only once the player is within 300 m, with a new id and its plate; the wanted record follows', pos ~= nil and stillFar and recb.vid ~= nil and recb.vid ~= oldVid and cars[recb.vid] ~= nil and cars[recb.vid].jbeam == recb.model and state.wanted.vid == recb.vid)
+    -- a title whose registration fails keeps the record and gives the money back; a black market car that cannot be built gives the money back even when the shop paid
+    recb.resprayed, recb.plated = true, true
+    local reg = _G.sl_fleet.registerVehicle
+    _G.sl_fleet.registerVehicle = function() return nil end
+    meId = recb.vid
+    state.money = 10000
+    local okNoReg = T.title(1)
+    _G.sl_fleet.registerVehicle = reg
+    local spawn = _G.core_vehicles.spawnNewVehicle
+    _G.core_vehicles.spawnNewVehicle = function() return nil end
+    local list2 = T.blackMarket()
+    local okNoCar = T.buyHot(2, true)
+    _G.core_vehicles.spawnNewVehicle = spawn
+    check('theft game side: a title that cannot register keeps the record and the money; a bought car that cannot be built refunds whoever charged', okNoReg == false and #state.theft.stolen == 1 and state.money == 10000 + list2[2].price and okNoCar and not T.blackMarket()[2].sold)
+    state.money = 10000
     state.theft.stolen[2] = { model = 'x', name = 'Nowhere', value = 1 }      -- (no place: it goes)
     T.onStreetLegalStarted()
     check('theft game side: a record without a place is dropped on start', #state.theft.stolen == 1)
