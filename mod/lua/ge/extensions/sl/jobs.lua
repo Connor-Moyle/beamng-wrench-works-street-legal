@@ -45,7 +45,7 @@ local function context(s)
   return { places = places, shops = shops, garage = byId[(progression.garages[s.garageLevel or 1] or progression.garages[1]).site], byId = byId }
 end
 
-M.context = function(s) return context(s or career()) end      -- (the tutorial makes its part run with it)
+M.context = function(s) return context(s or career()) end
 
 local function leg(p) return { id = p.id, name = p.name, x = p.x, y = p.y, z = p.z, radius = p.radius } end
 
@@ -281,6 +281,8 @@ local TYPES = {
     end },
   -- a patrol shift (sl_patrol, police plan P12): pick up a patrol car at the police station, chase the game's suspects, bring it back; it settles there
   { kind = 'patrol', title = strings.t('jobs.patrol_shift'), unlock = 300, offer = function(ctx, rng) return sl_patrol and sl_patrol.offer and sl_patrol.offer(ctx, rng) or nil end },
+  -- a pursuit delivery (sl_theft, Graph docs/CAR_THEFT.md section 7): a contact wants a car at the docks with the police on you from the pickup
+  { kind = 'theftrun', title = strings.t('jobs.pursuit_delivery'), unlock = 1000, night = true, offer = function(ctx, rng) return sl_theft and sl_theft.deliveryOffer and sl_theft.deliveryOffer(ctx, rng) or nil end },
   -- a new car from the dealer to the customer's door: any scratch (Car Surface FX) or dent and it pays nothing
   { kind = 'dealerdrive', title = strings.t('jobs.dealer_delivery'), unlock = 200, offer = function(ctx, rng)
       local from = ctx.byId.dealer
@@ -301,6 +303,7 @@ local function jobsState(s)
 end
 
 -- a fresh board each morning and each dusk
+function M.activeJob() local s = career() return s and jobsState(s).active or nil end      -- (read only: sl_theft watches its deliveries)      -- (the tutorial makes its part run with it)
 local function refresh(s, force)
   local js = jobsState(s)
   local phase = sl_career.phase() or 'day'

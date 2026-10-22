@@ -3312,14 +3312,14 @@ do
   local Opt = require('sl/options')
   local defs = {}
   for _, d in ipairs(Opt.defs) do defs[d.key] = d end
-  local okDefs = #F.LIST == 49
+  local okDefs = #F.LIST == 50
   local offByDefault = 0
   for _, f in ipairs(F.LIST) do
     local d = defs[f.opt]
     if not (d and d.type == 'bool' and d.default == (f.default ~= false) and d.feature == true and d.title == f.title and f.desc ~= '') then okDefs = false end
     if f.default == false then offByDefault = offByDefault + 1 end
   end
-  check('parts: every part has an option, one bool, on by default unless the part says off (needs), tagged for the Active features page', okDefs and offByDefault == 7 and F.get('needs').default == false and F.get('siphon').default == false and F.get('mates').default == false and F.get('seasons').default == false and F.get('radio').default == false)
+  check('parts: every part has an option, one bool, on by default unless the part says off (needs), tagged for the Active features page', okDefs and offByDefault == 8 and F.get('needs').default == false and F.get('siphon').default == false and F.get('mates').default == false and F.get('seasons').default == false and F.get('radio').default == false)
   local off = { slJobs = false }
   local function get(k) return off[k] end
   check('parts: on unless the option is false; a missing option system is on', F.on('jobs', get) == false and F.on('races', get) == true and F.on('jobs', function() return nil end) == true and F.on('nope', get) == true)
@@ -8189,6 +8189,310 @@ do
   check('settings: the grab bag week rows reach the good-week rule', GB.goodWeek(GB.mark(0, 0, 0), GB.mark(3, 0, 0)) and not GB.goodWeek(GB.mark(0, 0, 0), GB.mark(2, 1, 1000)) and (function() GB.GOOD_JOBS = 1 local g = GB.goodWeek(GB.mark(0, 0, 0), GB.mark(1, 0, 0)) GB.GOOD_JOBS = 3 return g end)())
   check('settings: the trap pay by kind', TR.pay('trap') == 250 and TR.pay('zone') == 400 and (function() TR.PAY_ZONE = 999 local p = TR.pay('zone') TR.PAY_ZONE = 400 return p == 999 end)())
   check('settings: the barn gap rows', BN.GAP_MIN == 3 and BN.GAP_MAX == 6)
+end
+
+-- car theft (sl/core/theft): the era from the years, the tools, the difficulty, noise and witnesses, the tracker, plates, the fence and the black market, fair game, the deliveries; sl/theft with stubs
+do
+  local TH = require('sl/core/theft')
+  check('theft: the year from the config, else the model, else our table', TH.year({ min = 1986 }, { min = 2000 }, 'covet') == 1986 and TH.year(nil, { min = 2000 }, 'covet') == 2000 and TH.year(nil, nil, 'covet') == 1986 and TH.year(nil, nil, 'nothing') == nil)
+  check('theft: the era: old before 1990, mid to 2009, modern from 2010 or prestige from 2000; no year is old', TH.era(1986) == 'old' and TH.era(1990) == 'mid' and TH.era(2009) == 'mid' and TH.era(2010) == 'modern' and TH.era(2005, true) == 'modern' and TH.era(2005, false) == 'mid' and TH.era(nil) == 'old')
+  check('theft: what an era needs and the tool held for it', TH.needs('old') == nil and TH.needs('mid')[1] == 'bypass' and #TH.needs('modern') == 2 and TH.toolFor('mid', { bypass = { uses = 3 } }) == 'bypass' and TH.toolFor('mid', { bypass = { uses = 0 } }) == nil and TH.toolFor('modern', { cloner = {} }) == 'cloner' and TH.toolFor('old', {}) == nil)
+  local kit = {}
+  TH.giveTool(kit, 'bypass') TH.giveTool(kit, 'bypass') TH.giveTool(kit, 'cloner')
+  TH.useTool(kit, 'bypass') TH.useTool(kit, 'cloner')
+  check('theft: a bought tool stacks its uses; a tool with uses runs down, one without lasts; has', kit.bypass.uses == 19 and kit.cloner.uses == nil and TH.has(kit, 'cloner') and not TH.has(kit, 'relay') and TH.giveTool(kit, 'nothing') == nil)
+  TH.TOOL_PRICE_X, TH.TOOL_USES_X = 2, 0.5
+  check('theft: the menu factors scale a tool price and uses (at least one use)', TH.tool('bypass').price == 1200 and TH.tool('bypass').uses == 5 and TH.tool('jammer').uses == 2 and TH.tool('cloner').uses == nil and TH.TOOLS[2].price == 600)
+  TH.TOOL_PRICE_X, TH.TOOL_USES_X = 1, 1
+  local d1, d2, d3 = TH.difficulty('old', 8000), TH.difficulty('mid', 20000), TH.difficulty('modern', 90000)
+  check('theft: the stages and numbers by era; prestige by value; a retry is a step harder', #d1.stages == 2 and d1.pins == 4 and d1.seconds == 25 and d1.chance == 0.85 and #d2.stages == 3 and d2.stages[2] == 'box' and d3.stages[1] == 'fob' and d3.prestige and d3.windows == 1 and d3.seconds == 75 and math.abs(d3.chance - 0.4) < 1e-9 and TH.difficulty('old', 8000, false, true).pins == 5)
+  TH.SECONDS_OLD = 50
+  check('theft: the time row reaches the difficulty', TH.difficulty('old', 8000).seconds == 50)
+  TH.SECONDS_OLD = 25
+  check('theft: noise adds up to one; a witness needs people and the mark (half by day); the alarm at the mark; exposure says both', TH.noiseAfter(0.9, 'fail') == 1 and TH.noiseAfter(0, 'pin') == 0.12 and TH.noiseAfter(0, 'wire') == 0.2 and TH.witness(0.5, true, false) and not TH.witness(0.5, false, false) and not TH.witness(0.4, true, false) and TH.witness(0.3, true, true) and TH.alarm(1) and not TH.alarm(0.99) and TH.exposure(1, true, false).witness and TH.exposure(1, true, false).alarm and not TH.exposure(0.1, true, false).witness)
+  local okA, nA = TH.autoplay(d1, 0.5)
+  local okB, nB = TH.autoplay(d1, 0.9)
+  check('theft: the autoplay roll: under the chance is a success with some noise, over it a fail at full noise', okA and nA > 0 and nA < 1 and not okB and nB == 1)
+  -- the tracker
+  local quiet, loud = TH.trackerChance('old', false, { noise = 0 }), TH.trackerChance('modern', true, { noise = 1, alarm = true, day = true, witness = true, patrol = true })
+  check('theft: the tracker chance: low but never zero for a quiet old car, capped for a loud prestige keyless one; the era and the exposure count', quiet == 0.05 and loud == 0.95 and TH.trackerChance('mid') == 0.25 and TH.trackerChance('modern') == 0.6 and TH.trackerChance('modern', true) == 0.8 and math.abs(TH.trackerChance('old', false, { alarm = true }) - 0.3) < 1e-9 and TH.tracked('old', false, nil, 0.04) and not TH.tracked('old', false, nil, 0.06))
+  check('theft: the search takes PULL_S, 40 % with the finder; the police are called again every TRACK_RESEND_S unless jammed', TH.pullSeconds(false) == 45 and TH.pullSeconds(true) == 18 and TH.trackerDue({ tracked = true, lastTrack = 0 }, 30) and not TH.trackerDue({ tracked = true, lastTrack = 0 }, 29) and not TH.trackerDue({ tracked = true, lastTrack = 0, jammedUntil = 100 }, 50) and not TH.trackerDue({ tracked = false }, 1e9) and TH.trackerDue({ tracked = true }, 0))
+  -- the stolen car, plates, the fence
+  local rec = TH.stolenRecord({ model = 'covet', config = 'x', name = 'Ibishu Covet DX', value = 8000 }, 'old', 10, false)
+  check('theft: the stolen record and the fence prices (a fifth hot, half legal, 40 % stripped, the $700 plate, a title of 15 % with a $400 floor)', rec.value == 8000 and not rec.plated and not rec.resprayed and TH.sellPrice(rec) == 1600 and TH.stripPay(rec) == 3200 and TH.platesPrice(rec) == 700 and TH.titlePrice(rec) == 1200 and TH.titlePrice({ value = 1000 }) == 400 and TH.platePrice(false) == 300 and TH.platePrice(true) == 700)
+  rec.plated = true
+  check('theft: plates alone do not make it legal; a respray too does, and then the fence pays half', not TH.legal(rec) and TH.sellPrice(rec) == 1600 and (function() rec.resprayed = true return TH.legal(rec) and TH.sellPrice(rec) == 4000 end)())
+  rec.plated, rec.resprayed = false, false
+  local pt = TH.plateText('seed:1')
+  check('theft: a plate text is three letters, a space and three digits, the same for the same seed, no I O Q', pt:match('^[A-Z][A-Z][A-Z] %d%d%d$') ~= nil and pt == TH.plateText('seed:1') and pt ~= TH.plateText('seed:2') and not pt:find('[IOQ]'))
+  check('theft: unreported, the owner notices after a day', not TH.reportedBy(rec, 10) and TH.reportedBy(rec, 11) and TH.reportedBy({ reported = true, day = 10 }, 10))
+  check('theft: the titled car keeps the name with a cut value, a history line and the plate', TH.titled(rec).value == 5600 and TH.titled(rec).history ~= nil and TH.titled({ value = 1, plate = 'ABC 123' }).plate == 'ABC 123')
+  check('theft: fair game is nobody we know and nothing running', TH.fairGame({}) == true and not TH.fairGame({ own = true }) and not TH.fairGame({ meet = true }) and not TH.fairGame({ police = true }) and not TH.fairGame({ speed = 3 }) and not TH.fairGame({ engineOn = true }))
+  -- the black market
+  local pool = {}
+  for i = 1, 8 do pool[i] = { model = 'm' .. i, config = 'c' .. i, name = 'Car ' .. i, value = i * 10000, era = i > 5 and 'modern' or 'old', prestige = i == 8 } end
+  local m1, m2 = TH.blackMarketList(pool, 5, 7), TH.blackMarketList(pool, 5, 7)
+  local distinct = m1[1].model ~= m1[2].model and m1[2].model ~= m1[3].model and m1[1].model ~= m1[3].model
+  check('theft: the black market: three distinct cars at 45 % of the value, the same for the same day and seed, another day another list, tracked by a roll', #m1 == 3 and distinct and m1[1].price == m1[1].value * 0.45 and m1[1].model == m2[1].model and m1[3].model == m2[3].model and type(m1[1].tracked) == 'boolean' and (TH.blackMarketList(pool, 6, 7)[1].model ~= m1[1].model or TH.blackMarketList(pool, 6, 7)[2].model ~= m1[2].model) and #TH.blackMarketList({ pool[1] }, 1, 1) == 1)
+  check('theft: the deliveries: five, the showroom one after three done; the pay by share with a floor and the menu factor; the decoy starts tracked', #TH.DELIVERIES == 5 and #TH.openDeliveries(0) == 4 and #TH.openDeliveries(3) == 5 and TH.deliveryPay(TH.delivery('showroom'), 60000) == 18000 and TH.deliveryPay(TH.delivery('decoy'), 1000) == 400 and TH.delivery('decoy').tracked == true and (function() TH.DELIVERY_PAY_X = 2 local p = TH.deliveryPay(TH.delivery('showroom'), 60000) TH.DELIVERY_PAY_X = 1 return p == 36000 end)())
+  -- the game side
+  do
+    local old = { c = _G.sl_career, f = _G.sl_fleet, o = _G.sl_options, gh = _G.guihooks, ex = _G.extensions, lg = _G.log, pv = _G.getPlayerVehicle, id = _G.getObjectByID, cv = _G.core_vehicles, gp = _G.gameplay_parking, gt = _G.gameplay_traffic, gw = _G.gameplay_walk, js = _G.core_jobsystem, um = _G.ui_message, v3 = _G.vec3, q = _G.quat, gpol = _G.gameplay_police, pol = _G.sl_police, poi = _G.sl_pois, peds = _G.slrrPedestrians }
+    local v3
+    v3 = function(x, y, z) return setmetatable({ x = x, y = y, z = z }, { __sub = function(a, b) return v3(a.x - b.x, a.y - b.y, a.z - b.z) end, __index = { length = function(p) return math.sqrt(p.x * p.x + p.y * p.y + p.z * p.z) end } }) end
+    _G.vec3 = v3
+    _G.quat = _G.quat or function() return {} end
+    local state = { day = 10, money = 5000, heat = 0, rep = 500, seed = 3, cars = { { id = 1, name = 'My Covet', model = 'covet' } } }
+    local texts, hooks, games, seated, cmds, deleted, chases, plates = {}, {}, {}, nil, {}, {}, 0, {}
+    local isNight = true
+    _G.sl_career = { isActive = function() return true end, getState = function() return state end, LEVEL = 'west_coast_usa', isNight = function() return isNight end,
+      sendText = function(_, t) texts[#texts + 1] = t end, payOut = function(a) state.money = state.money + a return true end, addMoney = function(a) if state.money + a < 0 then return false end state.money = state.money + a return true end }
+    local fleetOf = { [9] = 1 }
+    _G.sl_fleet = { carOfVehicle = function(vid) return fleetOf[vid] end, vehicleOf = function(carId) for vid, c in pairs(fleetOf) do if c == carId then return vid end end return nil end,
+      registerVehicle = function(vid, info) seated = { registered = vid, info = info } fleetOf[vid] = 77 local c = { id = 77 } state.cars[#state.cars + 1] = c return c end }
+    local sw = { slTheft = true, slTheftAutoplay = true }
+    _G.sl_options = { get = function(k) return sw[k] end }
+    local tracked = {}
+    _G.guihooks = { trigger = function(name, d) if name == 'slPhoneToast' then texts[#texts + 1] = d.text elseif name == 'slTheftGame' then games[#games + 1] = d elseif name == 'slTheftTracked' then tracked[#tracked + 1] = d.on elseif name == 'slTheftEnd' then hooks[#hooks + 1] = 'end' end end }
+    _G.extensions = { hook = function(name) hooks[#hooks + 1] = name end }
+    _G.log = function() end
+    _G.ui_message = function(t) texts[#texts + 1] = t end
+    local cars = { [1] = { pos = v3(10, 0, 0), usable = false, jbeam = 'covet', plate = 'OLD 001' }, [2] = { pos = v3(20, 0, 0), usable = false, jbeam = 'scintilla' }, [3] = { pos = v3(500, 0, 0), jbeam = 'pessima' }, [9] = { pos = v3(5, 0, 0), jbeam = 'covet', plate = 'MINE 1' } }
+    local function obj(id)
+      local c = cars[id]
+      if not c then return nil end
+      return { getID = function() return id end, getPosition = function() return c.pos end, getVelocity = function() return v3(c.vel or 0, 0, 0) end, getJBeamFilename = function() return c.jbeam end,
+        queueLuaCommand = function(_, cmd) cmds[#cmds + 1] = id .. ':' .. cmd end, delete = function() deleted[#deleted + 1] = id cars[id] = nil end, playerUsable = c.usable }
+    end
+    local meId, onFoot = 500, true
+    cars[500] = { pos = v3(0, 0, 0), jbeam = 'unicycle' }
+    _G.getPlayerVehicle = function() return obj(meId) end
+    _G.getObjectByID = obj
+    local details = { [1] = { key = 'covet', pc_file = 'vehicles/covet/dx.pc', configs = { Years = { min = 1986 }, Value = 8000, Configuration = 'DX' }, model = { Brand = 'Ibishu', Name = 'Covet' } },
+      [2] = { key = 'scintilla', pc_file = 'x', configs = { Years = { min = 2014 }, Value = 90000, InsuranceClass = 'prestige' }, model = { Brand = 'Civetta', Name = 'Scintilla' } },
+      [3] = { key = 'pessima', pc_file = 'x', configs = { Years = { min = 1996 }, Value = 12000 }, model = { Name = 'Pessima' } } }
+    local nextId = 20
+    _G.core_vehicles = { getVehicleDetails = function(id) return details[id] end, getVehicleLicenseText = function(v) local c = cars[v:getID()] return c and c.plate or '' end, setPlateText = function(txt, vid) plates[#plates + 1] = vid .. '=' .. txt if cars[vid] then cars[vid].plate = txt end end,
+      getModel = function(key) if key ~= 'covet' and key ~= 'pessima' then return nil end return { model = { Name = key, Brand = 'Ibishu' }, configs = { base = { Value = key == 'covet' and 8000 or 12000, Years = { min = key == 'covet' and 1986 or 1996 }, Configuration = 'Base' } } } end,
+      spawnNewVehicle = function(model, o) nextId = nextId + 1 cars[nextId] = { pos = o.pos, jbeam = model } return obj(nextId) end }
+    _G.gameplay_parking = { getParkedCarsList = function() return { 1, 2, 3 } end, removeVehicle = function() end }
+    _G.gameplay_traffic = { getTrafficData = function() return {} end, removeTraffic = function() end }
+    _G.gameplay_walk = { getInVehicle = function(v) seated = seated or {} seated.vid = v:getID() meId = v:getID() onFoot = false end, setWalkingMode = function() meId = 500 onFoot = true end }
+    _G.gameplay_police = { getPoliceVehicles = function() return {} end }
+    _G.sl_police = { chaseFromHere = function() chases = chases + 1 return true end }
+    _G.sl_pois = { refresh = function() end }
+    _G.slrrPedestrians = { getCount = function() return 5 end }
+    local rolls = { 0.1 }
+    local oldRandom = math.random
+    math.random = function() return table.remove(rolls, 1) or 0.1 end
+    _G.core_jobsystem = { create = function(f) f({ sleep = function() end }) end }
+    package.loaded['sl/theft'] = nil
+    local T = require('sl/theft')
+    local okTick, errTick = pcall(T.onUpdate, 3.5)
+    _G.log = function(_, _, m) print('LOG', m) end T.onUpdate(3.5) _G.log = function() end
+    local els = {}
+    T.onGetRawPoiListForLevel('west_coast_usa', els)
+    check('theft game side: on foot the parked cars within reach are marks (not the player own car, not the far one)', #els == 2 and els[1].data.theftVid ~= nil and T.status():find('marks 2') ~= nil)
+    check('theft game side: fair game for others (ba): a parked car yes, my own car and the player no', T.fairGame(1) == true and select(2, T.fairGame(9)) == 'own' and T.fairGame(500) == false)
+    local acts = {}
+    T.onActivityAcceptGatherData({ { theftVid = 1 }, { theftVid = 2 }, { theftVid = 'nonsense' } }, acts)
+    check('theft game side: the prompt names the car and the era; a modern car without the tool says what it needs', #acts == 2 and acts[1].buttonLabel:find('Covet') ~= nil and acts[1].buttonLabel:find('old car') ~= nil and acts[2].buttonLabel:find('Needs a Relay kit') ~= nil)
+    check('theft game side: a modern car without the tool cannot be begun', T.begin(2) == false)
+    rolls = { 0.1, 0.1, 0.9 }                  -- the lock, the wires: both succeed under the chance; the tracker roll: 0.9 over 0.05 + the night nothing: no tracker
+    local okb = T.begin(1)
+    local rec1 = state.theft.stolen[1]
+    check('theft game side: an old car with the autoplay: both stages roll, the player is in the car, the record is hot and unreported with its plate noted, no tracker, nobody knows; the screen is told the end', okb and seated ~= nil and seated.vid == 1 and #state.theft.stolen == 1 and rec1.vid == 1 and not rec1.reported and rec1.plate == 'OLD 001' and rec1.tracked == false and state.wanted == nil and texts[#texts]:find('yours for now') ~= nil and hooks[#hooks - 1] == 'end')
+    -- the plates rule: a plate changed outside the career comes back
+    cars[1].plate = 'HACK 1'
+    T.onUpdate(3.5)
+    check('theft game side: the plate changed outside the career is put back within a tick', cars[1].plate == 'OLD 001' and plates[#plates] == '1=OLD 001' and texts[#texts]:find('goes back on') ~= nil)
+    isNight = false
+    state.day = 11
+    T.onStreetLegalNewDay(11)
+    check('theft game side: a day later the owner reports it: wanted by its vehicle id, Benny texts', state.wanted ~= nil and state.wanted.vid == 1 and rec1.reported and texts[#texts]:find('reported stolen') ~= nil)
+    -- a respray alone is half of legal; plates ($700) make it legal: the wanted goes
+    T.onWrenchWorksPainted(1)
+    local legalBefore = state.wanted ~= nil and rec1.resprayed
+    local okp, textp = T.plates(1)
+    check('theft game side: a respray alone keeps it wanted; the $700 plates after it clear the record and the car wears the new plate', legalBefore and okp and state.money == 4300 and rec1.plated and rec1.plate ~= 'OLD 001' and cars[1].plate == rec1.plate and state.wanted == nil and textp:find('clean now') ~= nil)
+    -- a bust in it: the car goes, the record and the wanted go; the fence gets known at 300 rep and one bust
+    T.onPursuitAction(1, 'arrest', {})
+    T.onUpdate(3.5)
+    check('theft game side: busted in the hot car: the car is deleted, the record goes, a bust is counted and Benny tells of the fence; the text', #state.theft.stolen == 0 and deleted[#deleted] == 1 and texts[#texts - 1]:find('impound') ~= nil and state.theft.busts == 1 and state.theft.fenceKnown and T.fenceKnown() and texts[#texts]:find('Pier Lock') ~= nil)
+    -- a failed break-in: the alarm, the heat, the retry marked, the modern tool loses a use
+    meId, onFoot = 500, true
+    T.giveTool('relay')
+    rolls = { 0.9 }
+    T.begin(2)
+    check('theft game side: a failed fob: the alarm on the car (horn and hazards), a heat level, the relay kit down a use, nobody in it', state.theft.stolen[1] == nil and state.heat > 0 and cmds[#cmds]:find('set_warn_signal') ~= nil and state.theft.tools.relay.uses == 5 and T.toolCount('relay') == 5 and T.toolCount('nothing') == 0 and texts[#texts]:find('did not work') ~= nil)
+    -- the screens path: no autoplay: the spec goes out by guihooks and the answer comes back; a loud break-in by day with a patrol: tracked
+    sw.slTheftAutoplay = false
+    T.giveTool('bypass')
+    cars[500].pos = v3(495, 0, 0)
+    T.onUpdate(3.5)
+    local r3 = T.begin(3)
+    check('theft game side: the screens path: a mid car opens with the lock stage spec (three stages, the bypass box, the numbers)', r3 and #games == 1 and games[1].stage == 'lock' and #games[1].stages == 3 and games[1].tool == 'bypass' and games[1].difficulty.pins == 6)
+    T.gameResult(3, 'lock', true, 0.2)
+    T.gameResult(3, 'box', true, 0.1)
+    check('theft game side: each answered stage opens the next; the noise adds up', #games == 3 and games[3].stage == 'wires' and games[3].noise > 0.29 and games[3].noise < 0.31)
+    rolls = { 0.3 }      -- the tracker roll: a 1990s car by day with noise 1 and the alarm: 0.25 + 0.15 + 0.25 + 0.1 = 0.75 > 0.3: tracked
+    T.gameResult(3, 'wires', true, 0.7)
+    local rec3 = state.theft.stolen[1]
+    check('theft game side: the last stage steals the car; the noise reached one: the alarm, reported at once (wanted), tracked: the HUD mark and the radio line; the bypass box is down a use', rec3 ~= nil and rec3.vid == 3 and rec3.reported and state.wanted.vid == 3 and rec3.tracked and tracked[#tracked] == true and state.theft.tools.bypass.uses == 9 and meId == 3)
+    -- the tracked car: driving off, the police come after TRACK_S, and again after TRACK_RESEND_S; the jammer silences; the search pulls it
+    rec3.lastTrack = os.clock() - 100
+    cars[3].vel = 10
+    T.onUpdate(3.5)
+    local c1 = chases
+    T.onUpdate(3.5)
+    check('theft game side: a tracked car on the move calls the police once per resend window', c1 == 1 and chases == 1 and texts[#texts]:find('pinged') ~= nil)
+    check('theft game side: no jammer: refused; with one, the tracker is silent and the police are not called', T.jam() == false and (function() T.giveTool('jammer') local ok = T.jam() rec3.lastTrack = os.clock() - 100 T.onUpdate(3.5) return ok and chases == 1 and state.theft.tools.jammer.uses == 3 end)())
+    cars[3].vel = 0
+    rec3.jammedUntil = nil
+    T.giveTool('finder')
+    local okpull, textpull = T.pullTracker()
+    check('theft game side: the search in the standing car (18 s with the finder) pulls the tracker: the mark goes, the finder is down a use', okpull and textpull:find('18') ~= nil and rec3.tracked == false and tracked[#tracked] == false and state.theft.tools.finder.uses == 2 and T.pullTracker() == false)
+    -- the fence: a title needs a respray and plates; the car must be the record's own vehicle
+    state.money = 5000
+    check('theft game side: a title before the respray and plates is refused', T.title(1) == false)
+    T.onWrenchWorksPainted(3)
+    T.plates(1)
+    local hot = T.hotCars()
+    local cur = T.current()
+    check('theft game side: resprayed and plated the car is legal (the wanted goes), the list shows the prices, the car under the counter is this one', state.wanted == nil and hot[1].legal and hot[1].sell == 6000 and hot[1].plates == 700 and hot[1].stripTracker == 350 and cur ~= nil and cur.index == 1 and cur.driving and cur.present)
+    local okt = T.title(1)
+    check('theft game side: a title makes the car yours: the fleet registers it with the plate and the history, the record goes', okt and seated.registered == 3 and seated.info.value == 8400 and state.cars[2].plate == rec3.plate and state.cars[2].history ~= nil and #state.theft.stolen == 0 and state.money == 5000 - 700 - 1800)
+    -- the reviewer's case: a stale vehicle id that now points at another car (or a fleet car) is never deleted or registered
+    meId = 500
+    state.theft.stolen[1] = TH.stolenRecord({ model = 'burnside', config = 'x', name = 'Burnside', value = 8000 }, 'old', 11, true)
+    state.theft.stolen[1].vid = 9      -- (my own Covet wears this id now)
+    local before = #deleted
+    T.onStreetLegalNewDay(12)
+    local r9 = { vid = 9, model = 'covet', resprayed = true, plated = true, value = 8000 }
+    state.theft.stolen[1] = r9
+    check('theft game side: a stale id: the new day drops the record but deletes nothing; sell, strip and title refuse a car that is not the record own', #deleted == before and #state.theft.stolen == 1 and T.sell(1) == false and T.strip(1) == false and T.title(1) == false and deleted[#deleted] ~= 9)
+    state.theft.stolen = {}
+    -- selling a hot car
+    rolls = { 0.9 }
+    meId, onFoot = 500, true
+    cars[500].pos = v3(0, 0, 0)
+    cars[1] = { pos = v3(10, 0, 0), jbeam = 'covet', plate = 'OLD 002' }
+    sw.slTheftAutoplay = true
+    rolls = { 0.1, 0.1, 0.9 }
+    T.onUpdate(3.5)
+    T.begin(1)
+    state.money = 5000
+    local oks = T.sell(1)
+    check('theft game side: selling a hot car pays a fifth and deletes it; the player is out of it', oks and state.money == 5000 + 1600 and #state.theft.stolen == 0 and deleted[#deleted] == 1 and meId == 500)
+    -- a new plate for one of my cars: $300, the text on the car, a normal wanted record cleared
+    state.wanted = { carId = 1, name = 'My Covet' }
+    local oknp, textnp = T.newPlate(1)
+    check('theft game side: a new plate for my car costs $300, goes on the car and clears a normal wanted poster', oknp and state.money == 5000 + 1600 - 300 and state.cars[1].plate ~= nil and cars[9].plate == state.cars[1].plate and state.wanted == nil and T.plateOf(1) == state.cars[1].plate and T.newPlate(99) == false)
+    -- the black market: the day's list, a purchase spawns the car hot and wanted
+    local bm = T.blackMarket()
+    check('theft game side: the black market lists the day cars from the game models with a price under half the value', #bm == 2 and bm[1].price == bm[1].value * 0.45 and bm[1].index == 1 and not bm[1].sold)
+    state.money = 20000
+    local okh = T.buyHot(1)
+    local recb = state.theft.stolen[1]
+    check('theft game side: a bought stolen car stands by the counter: the money gone, the record hot and wanted at once, the player in it; sold out on the list', okh and recb ~= nil and recb.reported and state.wanted ~= nil and state.wanted.vid == recb.vid and state.money == 20000 - bm[1].price and meId == recb.vid and T.blackMarket()[1].sold and T.buyHot(1) == false)
+    -- the restart: the ids are forgotten and the hot car is rebuilt where it stood
+    T.onUpdate(3.5)
+    local pos = recb.pos
+    local oldVid = recb.vid
+    T.onStreetLegalStarted()
+    local farVid = recb.vid
+    cars[500].pos = v3(5000, 0, 0) meId = 500
+    T.onUpdate(3.5)
+    local stillFar = farVid == nil and recb.vid == nil
+    local spawn0 = _G.core_vehicles.spawnNewVehicle
+    local tries = 0
+    _G.core_vehicles.spawnNewVehicle = function(...) tries = tries + 1 return nil end
+    cars[500].pos = v3(pos[1] + 100, pos[2], pos[3])
+    T.onUpdate(3.5) T.onUpdate(3.5) T.onUpdate(3.5)
+    local backedOff = tries == 1 and recb.vid == nil
+    _G.core_vehicles.spawnNewVehicle = spawn0
+    T.REBUILD_WAIT_S = -100      -- (the wait is over)
+    cars[500].pos = v3(5000, 0, 0)
+    T.onUpdate(3.5)
+    cars[500].pos = v3(pos[1] + 100, pos[2], pos[3])
+    T.onUpdate(3.5)
+    check('theft game side: on career start the ids are forgotten; the hot car is rebuilt at its last place only once the player is within 300 m (a failed build waits half a minute), with a new id and its plate; the wanted record follows', pos ~= nil and stillFar and backedOff and recb.vid ~= nil and recb.vid ~= oldVid and cars[recb.vid] ~= nil and cars[recb.vid].jbeam == recb.model and state.wanted.vid == recb.vid)
+    -- a title whose registration fails keeps the record and gives the money back; a black market car that cannot be built gives the money back even when the shop paid
+    recb.resprayed, recb.plated = true, true
+    local reg = _G.sl_fleet.registerVehicle
+    _G.sl_fleet.registerVehicle = function() return nil end
+    meId = recb.vid
+    state.money = 10000
+    local okNoReg = T.title(1)
+    local okNoRegPaid = T.title(1, true)
+    local moneyAfterPaid = state.money
+    _G.sl_fleet.registerVehicle = reg
+    local spawn = _G.core_vehicles.spawnNewVehicle
+    _G.core_vehicles.spawnNewVehicle = function() return nil end
+    local list2 = T.blackMarket()
+    local okNoCar = T.buyHot(2, true)
+    _G.core_vehicles.spawnNewVehicle = spawn
+    check('theft game side: a title that cannot register keeps the record and the money (a shop that paid refunds its own line: nothing from me); a bought car that cannot be built refunds whoever charged', okNoReg == false and okNoRegPaid == false and moneyAfterPaid == 10000 and #state.theft.stolen == 1 and state.money == 10000 + list2[2].price and okNoCar and not T.blackMarket()[2].sold)
+    state.money = 10000
+    state.theft.stolen[2] = { model = 'x', name = 'Nowhere', value = 1 }      -- (no place: it goes)
+    T.onStreetLegalStarted()
+    check('theft game side: a record without a place is dropped on start', #state.theft.stolen == 1)
+    -- exposure for others (ba): the noise at a car
+    meId = 500
+    state.heat = 0
+    local e = T.exposure(1, 1)
+    check('theft game side: exposure at full noise: a witness (heat) and the alarm on that car', e.witness and e.alarm and state.heat > 0 and cmds[#cmds]:find('set_warn_signal') ~= nil)
+    -- the deliveries: the offer (the legs by kind), the twists at the pickup and the third leg, the count when the board settles
+    state.rep = 1500
+    local R = require('sl/core/rng')
+    local kerbs = { { x = 100, y = 0, z = 0 }, { x = 3000, y = 0, z = 0 }, { x = 0, y = 2000, z = 0 } }
+    local ki = 0
+    local oldJobs = _G.sl_jobs
+    _G.sl_jobs = { randomKerb = function() ki = ki + 1 return kerbs[ki % #kerbs + 1] end, activeJob = function() return nil end, summary = function() return { done = 0 } end }
+    local ctx = { byId = { meet_docks = { id = 'meet_docks', name = 'Docks', x = 2000, y = 2000, z = 0 }, dealer = { id = 'dealer', name = 'Dealer', x = 0, y = 0, z = 0 } },
+      places = { { id = 'carwash_apex', kind = 'carwash', name = 'Apex Wash', x = 500, y = 500, z = 0 } } }
+    local kinds = {}
+    for seed = 1, 40 do local r = R.new(R.hash('d' .. seed)) r:next() r:next() r:next() local o = T.deliveryOffer(ctx, r) if o then kinds[o.theft] = o end end      -- (close seeds: the first draws sit together, warm up)
+    check('theft deliveries: four kinds offered before three are done (no showroom), each with the docks last, a car, a pay with the floor', kinds.longway ~= nil and kinds.handoff ~= nil and kinds.tow ~= nil and kinds.decoy ~= nil and kinds.showroom == nil and kinds.tow.legs[#kinds.tow.legs].id == 'meet_docks' and kinds.tow.tow and kinds.tow.car.limp == 0.15 and kinds.tow.pay >= 400 and kinds.decoy.legs[2].id == 'carwash_apex' and #kinds.handoff.legs == 3 and kinds.longway.legs[2].through and kinds.longway.metres >= 5000)
+    state.theft.deliveries.done = 3
+    kinds = {}
+    for seed = 1, 40 do local r = R.new(R.hash('e' .. seed)) r:next() r:next() r:next() local o = T.deliveryOffer(ctx, r) if o then kinds[o.theft] = o end end
+    check('theft deliveries: after three done the showroom car is on the board, from the dealer; under the rep or with the switch off nothing', kinds.showroom ~= nil and kinds.showroom.legs[1].id == 'dealer' and (function() state.rep = 500 local o = T.deliveryOffer(ctx, R.new(7)) state.rep = 1500 sw.slTheftDeliveries = false local o2 = T.deliveryOffer(ctx, R.new(7)) sw.slTheftDeliveries = nil return o == nil and o2 == nil end)())
+    -- the twists: a decoy picked up: the heat, the chase, the tracker; at the wash the tracker goes; the board counts the delivery
+    local job = { theft = 'decoy', item = 'The decoy', leg = 1, car = { model = 'midsize' }, legs = { {}, {}, {} } }
+    _G.sl_jobs.activeJob = function() return job end
+    state.heat = 0
+    local c0 = chases
+    cars[40] = { pos = v3(0, 0, 0), jbeam = 'midsize', vel = 10 }
+    meId = 40
+    job.carVid = 40
+    T.onUpdate(3.5)
+    local picked = job.theftStarted and state.heat >= 0.75 and chases == c0 + 1 and tracked[#tracked] == true
+    job.leg = 3
+    T.onUpdate(3.5)
+    local washed = tracked[#tracked] == false and texts[#texts]:find('Washed') ~= nil
+    _G.sl_jobs.activeJob = function() return nil end
+    _G.sl_jobs.summary = function() return { done = 1 } end
+    T.onUpdate(3.5)
+    check('theft deliveries: the decoy picked up: heat 0.75, a patrol sent, TRACKED on; at the wash leg the tracker is off; the board settling it counts a delivery', picked and washed and state.theft.deliveries.done == 4)
+    -- the hand-off: at the third leg the player is put in the swap car and the hot one goes
+    job = { theft = 'handoff', item = 'The hand-off', leg = 1, car = { model = 'pessima' }, legs = { {}, {}, {} }, carVid = 41 }
+    cars[41] = { pos = v3(0, 0, 0), jbeam = 'pessima' }
+    meId = 41
+    _G.sl_jobs.activeJob = function() return job end
+    T.onUpdate(3.5)
+    job.leg = 3
+    T.onUpdate(3.5)
+    check('theft deliveries: the hand-off at the third leg: a new car, the player in it, the old one deleted, the job car id moved', job.swapped and job.carVid ~= 41 and meId == job.carVid and deleted[#deleted] == 41 and cars[job.carVid] ~= nil)
+    _G.sl_jobs.activeJob = function() return nil end
+    T.onUpdate(3.5)
+    _G.sl_jobs = oldJobs
+    sw.slTheft = false
+    check('theft game side: the part off: no summary, no begin, no market', T.summary() == nil and T.begin(1) == nil and T.blackMarket() == nil)
+    math.random = oldRandom
+    _G.sl_career, _G.sl_fleet, _G.sl_options, _G.guihooks, _G.extensions, _G.log, _G.getPlayerVehicle, _G.getObjectByID, _G.core_vehicles, _G.gameplay_parking, _G.gameplay_traffic, _G.gameplay_walk, _G.core_jobsystem, _G.ui_message, _G.vec3, _G.quat, _G.gameplay_police, _G.sl_police, _G.sl_pois, _G.slrrPedestrians = old.c, old.f, old.o, old.gh, old.ex, old.lg, old.pv, old.id, old.cv, old.gp, old.gt, old.gw, old.js, old.um, old.v3, old.q, old.gpol, old.pol, old.poi, old.peds
+    package.loaded['sl/theft'] = nil
+  end
 end
 
 print(string.format('lua tests passed: %d checks', passed))
