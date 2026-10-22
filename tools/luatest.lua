@@ -7703,6 +7703,29 @@ do
   SS.open('accessories', {})
   check('fence game: without Car theft the accessories keep their text plates', #sent[#sent].d.stock == 8)
   _G.sl_theft.newPlate = realNew
+  -- a hot car is not a fleet car: the paint shop sprays the vehicle you sit in, raises the paint hook (Car theft marks the record) and nothing else changes
+  local hooked, painted, snap = {}, {}, 0
+  local oe, ofl, osf, ocv, ogp = _G.extensions, _G.sl_fleet, rawget(_G, 'sl_surfacefx'), rawget(_G, 'core_vehicle_colors'), rawget(_G, 'getPlayerVehicle')
+  _G.extensions = { hook = function(n, a1) hooked[#hooked + 1] = { n, a1 } end }
+  _G.sl_fleet = { currentCar = function() return nil end, snapshot = function() snap = snap + 1 end }
+  _G.getPlayerVehicle = function() return { getID = function() return 88 end } end
+  _G.sl_surfacefx = { level = function() return { dirtName = 'clean', scratchName = 'none' } end }
+  _G.core_vehicle_colors = { setVehiclePaint = function(i, p, v) painted[#painted + 1] = { i = i, v = v } end }
+  hotRec = { index = 3, name = 'Stolen Covet', value = 9000 }
+  _G.sl_career.phase = function() return 'day' end
+  tod = 0
+  SS.open('paint', { name = 'Spray Kings' })
+  v = sent[#sent].d
+  check('fence game: the paint shop lists its resprays for a hot car', #v.services >= 8)
+  m0 = st.money
+  SS.buy('respray_c0392b:1')
+  local hookSeen = false
+  for _, h in ipairs(hooked) do if h[1] == 'onWrenchWorksPainted' and h[2] == 88 then hookSeen = true end end
+  check('fence game: a respray of a hot car paints the vehicle you sit in, raises the paint hook with its id and does not touch the fleet snapshot', #painted == 1 and painted[1].v == 88 and hookSeen and snap == 0 and st.money == m0 - 450)
+  hotRec = nil
+  SS.open('paint', { name = 'Spray Kings' })
+  check('fence game: with no fleet car and no hot car the paint shop asks for a car', #sent[#sent].d.services == 0)
+  _G.extensions, _G.sl_fleet, _G.sl_surfacefx, _G.core_vehicle_colors, _G.getPlayerVehicle = oe, ofl, osf, ocv, ogp
   -- the marker of the Lock-Up shows only once the fence is known
   cleared = 0
   known = false

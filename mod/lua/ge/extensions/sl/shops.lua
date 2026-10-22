@@ -59,9 +59,14 @@ local function ctx(s, shop)
 end
 
 -- the player's car and its world vehicle id (the car the parts are for)
-local function playerCar()
+local function playerCar(allowHot)
   local car = sl_fleet and sl_fleet.currentCar and sl_fleet.currentCar()
   local veh = car and sl_fleet.vehicleOf and sl_fleet.vehicleOf(car.id)
+  if not car and allowHot and sl_theft and sl_theft.current then      -- a hot car is not a fleet car (it never becomes one before its title): the paint shop and the wash work on the vehicle you sit in
+    local hot = sl_theft.current()
+    local pv = hot and getPlayerVehicle and getPlayerVehicle(0)
+    if pv then return { id = 'hot' .. tostring(hot.index), name = hot.name, hot = true }, pv:getID() end
+  end
   return car, veh and veh:getID()
 end
 
@@ -161,7 +166,7 @@ end
 
 -- the services of a shop that sells jobs, from the state of the player's car: { services, note }
 local function serviceList(shop)
-  local car, vid = playerCar()
+  local car, vid = playerCar(shop.kind == 'paint' or shop.kind == 'carwash')
   if shop.kind == 'paint' then
     if not (sl_surfacefx and sl_surfacefx.level) then return {}, strings.t('shops.need_csfx') end
     if not (car and vid) then return {}, strings.t('shops.bring_car') end
@@ -213,9 +218,10 @@ end
 -- does one booked service on the player's car. Returns ok, text
 local function perform(line)
   if type(line.id) == 'string' and (line.id:match('^tool_') or line.id:match('^fence_')) then return performFence(line.id) end
-  local car, vid = playerCar()
+  local car, vid = playerCar(true)
   if not (car and vid) then return false, strings.t('shops.bring_car') end
   local id = line.id
+  if car.hot and not (id == 'wash' or id == 'polish' or id == 'basicwash' or id == 'washpolish' or rules.resprayColour(id)) then return false, strings.t('shops.not_here') end      -- (a hot car: paint and wash only)
   if id == 'wash' then
     if not (sl_surfacefx and sl_surfacefx.washOff and sl_surfacefx.washOff(vid)) then return false, strings.t('shops.need_csfx') end
     return true
@@ -265,7 +271,7 @@ local function perform(line)
     local ok = pcall(core_vehicle_colors.setVehiclePaint, 1, paint, vid)
     if not ok then return false, strings.t('shops.not_here') end
     if extensions and extensions.hook then extensions.hook('onWrenchWorksPainted', vid) end      -- (as after a paint job in the garage: the car is washed, unscratched and its state kept)
-    if sl_fleet and sl_fleet.snapshot then pcall(sl_fleet.snapshot, false) end      -- (the car's setup, with the new paint, is saved with the car)
+    if sl_fleet and sl_fleet.snapshot and not car.hot then pcall(sl_fleet.snapshot, false) end      -- (the car's setup, with the new paint, is saved with the car)
     return true
   end
   return false, strings.t('shops.no_such_service')
