@@ -5906,4 +5906,50 @@ do
   end
 end
 
+-- crew mates (campaign #8): recruiting once per crew, the roles, the factors, the tipster's day, the scout's route and police lines, the save
+do
+  local MT = require('sl/core/mates')
+  local rng = rngLib.new(5)
+  local st = MT.new()
+  check('mates: nobody to start with, no discount, no rider, no scout', next(st) == nil and MT.partsFactor(st) == 1 and MT.labourFactor(st) == 1 and MT.rider(st) == nil and MT.scouts(st) == 0)
+  local m = MT.recruit(st, 'riverbed', 3, rng)
+  check('mates: the Riverbed crew gives a mechanic with a name from its pool', m and m.role == 'mechanic' and m.day == 3 and (function() for _, n in ipairs(MT.NAMES.riverbed) do if n == m.name then return true end end end)())
+  check('mates: a crew recruits once, however often its district is taken', MT.recruit(st, 'riverbed', 9, rng) == nil and st.riverbed.day == 3)
+  check('mates: an unknown crew recruits nobody', MT.recruit(st, 'nobody', 1, rng) == nil)
+  check('mates: the mechanic cuts parts by 5 % and labour by 10 %', MT.partsFactor(st) == 0.95 and MT.labourFactor(st) == 0.9)
+  MT.recruit(st, 'southside', 4, rng) MT.recruit(st, 'northend', 5, rng) MT.recruit(st, 'ringroad', 6, rng)
+  local r = MT.roster(st)
+  check('mates: four crews, four mates in the order of the crews, two of them scouts', #r == 4 and r[1].crew == 'southside' and r[1].role == 'tipster' and r[2].role == 'mechanic' and MT.scouts(st) == 2)
+  local names, distinct = {}, true
+  for _, x in ipairs(r) do if names[x.name] then distinct = false end names[x.name] = true end
+  check('mates: no two mates share a name', distinct)
+  local rider, crew = MT.rider(st)
+  check('mates: the rider is the North End scout first', rider and crew == 'northend' and rider.role == 'scout')
+  local w = MT.welcome(st.northend, 'The North End Crew')
+  check('mates: the welcome text names him and his crew', w.from == st.northend.name and w.text:find(st.northend.name, 1, true) and w.text:find('North End', 1, true) and w.text:find('ride along', 1, true))
+  -- the tipster: once a game day, nothing to say, no tip with the rate at 0
+  local world = { race = { name = 'the Docks sprint', hours = 3 }, job = { name = 'courier', pay = 450 } }
+  local tip = MT.tip(st, world, 10, nil, 1, rng)
+  check('mates: a tip comes from the tipster with something to say', tip and tip.from == st.southside.name and (tip.text:find('Docks sprint', 1, true) or tip.text:find('courier', 1, true)))
+  check('mates: not twice in a day, again the next', MT.tip(st, world, 10, 10, 1, rng) == nil and MT.tip(st, world, 11, 10, 1, rng) ~= nil)
+  check('mates: nothing to tell, no text; the rate 0 means none; no tipster, no tip', MT.tip(st, {}, 12, 10, 1, rng) == nil and MT.tip(st, world, 12, 10, 0, rng) == nil and MT.tip({}, world, 12, 10, 1, rng) == nil)
+  check('mates: a higher rate shortens the wait', MT.tip(st, world, 10.5, 10, 2, rng) ~= nil and MT.tip(st, world, 10.4, 10, 2, rng) == nil)
+  -- the scout
+  local sr = MT.scoutRoute(st, { dist = 237, turn = 'left', place = ' at the bridge' })
+  check('mates: the scout calls the first turn to the nearest ten metres', sr and sr.from == st.northend.name and sr.text == 'In 240 m turn left at the bridge.', sr and sr.text)
+  check('mates: no scout, no route call; a bad route gives nothing', MT.scoutRoute({}, { dist = 100, turn = 'left' }) == nil and MT.scoutRoute(st, { turn = 'left' }) == nil and MT.scoutRoute(st, nil) == nil)
+  local me = { x = 0, y = 0, hx = 0, hy = 1 }
+  local pw = MT.policeWarning(st, 100, nil, { { x = 5, y = 300 }, { x = 0, y = -100 }, { x = 900, y = 0 } }, me)
+  check('mates: a patrol ahead within the range is called, one behind or far is not', pw and pw.text == 'Cops ahead, about 300 m.' and pw.at == 100, pw and pw.text)
+  check('mates: only one warning a minute', MT.policeWarning(st, 130, 100, { { x = 0, y = 200 } }, me) == nil and MT.policeWarning(st, 161, 100, { { x = 0, y = 200 } }, me) ~= nil)
+  check('mates: nothing ahead, nothing said; no scout, nothing said', MT.policeWarning(st, 300, nil, { { x = 0, y = -50 }, { x = 800, y = 800 } }, me) == nil and MT.policeWarning({}, 300, nil, { { x = 0, y = 100 } }, me) == nil)
+  check('mates: the nearest patrol in front is the one called', (MT.policeWarning(st, 400, nil, { { x = 0, y = 350 }, { x = 0, y = 150 } }, me) or {}).text == 'Cops ahead, about 150 m.')
+  -- the save
+  local back = MT.load(MT.save(st))
+  check('mates: save and load give the same roster', #MT.roster(back) == 4 and back.northend.name == st.northend.name and back.riverbed.day == 3)
+  local damaged = MT.load({ riverbed = { role = 'scout', name = 'X' }, northend = 'x', southside = { role = 'tipster', name = '' }, ringroad = { role = 'scout', name = 'Hugo', day = 'z' }, nobody = { role = 'scout', name = 'Y' } })
+  check('mates: a damaged blob keeps only what is understood and never errors', damaged.ringroad and damaged.ringroad.day == 0 and damaged.riverbed == nil and damaged.northend == nil and damaged.southside == nil and damaged.nobody == nil)
+  check('mates: nothing loads from a missing blob', next(MT.load(nil)) == nil and next(MT.load('x')) == nil)
+end
+
 print(string.format('lua tests passed: %d checks', passed))
