@@ -266,6 +266,8 @@ local TYPES = {
         car = { model = ({ 'pessima', 'legran', 'midsize', 'fullsize', 'van' })[rng:int(5)], wear = 0.5, limp = 0 },
         seconds = math.max(360, math.floor(metres * 1.4 / 6 * 1.5)), pay = math.floor((240 + metres / 1000 * 180) / 10) * 10 }
     end },
+  -- a patrol shift (sl_patrol, police plan P12): pick up a patrol car at the police station, chase the game's suspects, bring it back; it settles there
+  { kind = 'patrol', title = strings.t('jobs.patrol_shift'), unlock = 300, offer = function(ctx, rng) return sl_patrol and sl_patrol.offer and sl_patrol.offer(ctx, rng) or nil end },
   -- a new car from the dealer to the customer's door: any scratch (Car Surface FX) or dent and it pays nothing
   { kind = 'dealerdrive', title = strings.t('jobs.dealer_delivery'), unlock = 200, offer = function(ctx, rng)
       local from = ctx.byId.dealer

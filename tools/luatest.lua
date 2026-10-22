@@ -6101,4 +6101,76 @@ do
   end
 end
 
+-- P12 the patrol shift (sl/core/chase, the P12 block; sl/patrol with stubs)
+do
+  local C = require('sl/core/chase')
+  check('patrol: an arrest pays $220 within 20 s, $2 a second less after, never under $80', C.arrestPay(0) == 220 and C.arrestPay(20) == 220 and C.arrestPay(50) == 160 and C.arrestPay(500) == 80)
+  check('patrol: the shift pays $180 plus the arrests, to 10', C.patrolPay({}) == 180 and C.patrolPay({ 10, 50 }) == 560 and C.patrolPay({ 10, 50, 500 }) == 640)
+  check('patrol: the damage charge: nothing under 500, $1 per 20 over it, at most $400', C.damageCharge(0) == 0 and C.damageCharge(500) == 0 and C.damageCharge(1500) == 50 and C.damageCharge(99999) == 400)
+  check('patrol: the shift is over after ten minutes or three arrests', C.shiftOver(600, 0) and C.shiftOver(0, 3) and not C.shiftOver(599, 2))
+  check('patrol: on a shift the suspects keep coming by day', C.patrolVars({ strictness = 0.1, suspectFrequency = 0 }, true).suspectFrequency == 1 and C.patrolVars({ strictness = 0.1, suspectFrequency = 0 }, false).suspectFrequency == 0)
+  do
+    local old = { c = _G.sl_career, j = _G.sl_jobs, p = _G.sl_police, o = _G.sl_options, gh = _G.guihooks, um = _G.ui_message, pv = _G.getPlayerVehicle, gt = _G.gameplay_traffic, id = _G.getObjectByID, lg = _G.log, js = _G.core_jobsystem, gw = _G.gameplay_walk, gm = _G.core_groundMarkers, v3 = _G.vec3 }
+    local v3 = function(x, y, z) return setmetatable({ x = x, y = y, z = z }, { __index = { length = function(p) return math.sqrt(p.x * p.x + p.y * p.y + p.z * p.z) end } }) end
+    _G.vec3 = v3
+    local state = { day = 3, rep = 400, money = 500, jobs = { offers = {}, done = 0, earned = 0 } }
+    local texts, finished, role, randomEvents, refreshed = {}, nil, nil, false, 0
+    _G.sl_career = { isActive = function() return true end, getState = function() return state end }
+    _G.sl_jobs = { finishWith = function(s, js, j, pay, rep, text) finished = { pay = pay, rep = rep, text = text } js.active = nil end }
+    _G.sl_police = { refreshVars = function() refreshed = refreshed + 1 end }
+    local on = true
+    _G.sl_options = { get = function(k) if k == 'slPolicePatrolJob' then return on end return nil end }
+    _G.guihooks = { trigger = function(name, d) if name == 'slPhoneToast' then texts[#texts + 1] = d.text end end }
+    _G.ui_message = function(t) texts[#texts + 1] = t end
+    local speed, pos, pid = 0, v3(0, 0, 0), 500
+    _G.getPlayerVehicle = function() return { getID = function() return pid end, getPosition = function() return pos end, getVelocity = function() return v3(speed, 0, 0) end } end
+    local damage = 0
+    _G.gameplay_traffic = { getTrafficVars = function() return { enableRandomEvents = randomEvents } end, setTrafficVars = function(t) randomEvents = t.enableRandomEvents end,
+      getTrafficData = function() return { [500] = { damage = damage, setRole = function(_, r) role = r end } } end }
+    local deleted = 0
+    _G.getObjectByID = function(id) if id == 500 then return { delete = function() deleted = deleted + 1 end } end end
+    _G.log = function() end
+    _G.core_jobsystem = { create = function(f) f({ sleep = function() end }) end }
+    _G.gameplay_walk = { setWalkingMode = function() end }
+    _G.core_groundMarkers = { setPath = function() end }
+    package.loaded['sl/patrol'] = nil
+    local Pz = require('sl/patrol')
+    local ctx = { places = { { id = 'g', kind = 'garage', name = 'Garage', x = 1, y = 1, z = 0 }, { id = 'impound', kind = 'impound', name = 'Belasco police impound', x = 0, y = 0, z = 84 } } }
+    local j = Pz.offer(ctx, nil)
+    check('patrol game side: the offer picks the police station up and back, a settled car job in the stock patrol car, the base pay on the card', j ~= nil and j.patrol and j.settle and #j.legs == 2 and j.legs[1].id == 'impound' and j.legs[2].radius == 22 and j.car.config == 'vehicles/fullsize/police.pc' and j.pay == 180)
+    check('patrol game side: no station or the switch off: no offer', Pz.offer({ places = {} }, nil) == nil and (function() on = false local r = Pz.offer(ctx, nil) on = true return r == nil end)())
+    -- the job is taken and the car picked up (sl_jobs sets carVid): the shift starts
+    j.leg = 2 j.carVid = 500
+    state.jobs.active = j
+    Pz.onUpdate(0.6)
+    check('patrol game side: the pick-up starts the shift: the badge on the car, random suspects on, the police vars refreshed', Pz.active() and role == 'police' and randomEvents == true and refreshed == 1 and texts[#texts]:find('On shift') ~= nil)
+    -- suspects: a fast arrest, an escape, a slow arrest
+    Pz.onPursuitAction(7, 'start', {}) Pz.onPursuitAction(7, 'arrest', {})
+    Pz.onPursuitAction(8, 'start', {}) Pz.onPursuitAction(8, 'evade', {})
+    check('patrol game side: an arrest is counted and paid by its speed, an escape is not', Pz.status():find('arrests 1') ~= nil and texts[#texts]:find('got away') ~= nil)
+    Pz.onPursuitAction(500, 'arrest', {})
+    check('patrol game side: the player own car is never a suspect', Pz.status():find('arrests 1') ~= nil)
+    Pz.onPursuitAction(9, 'start', {}) Pz.onPursuitAction(9, 'arrest', {}) Pz.onPursuitAction(10, 'start', {}) Pz.onPursuitAction(10, 'arrest', {})
+    pos = v3(300, 0, 84)
+    Pz.onUpdate(0.6)
+    check('patrol game side: three arrests end the shift: bring the car back', Pz.status():find('returning true') ~= nil and texts[#texts]:find('bring the patrol car back') ~= nil)
+    -- back at the station, stopped, with a dented car
+    damage = 1500
+    speed = 0
+    pos = v3(5, 5, 84)
+    Pz.onUpdate(0.6)
+    check('patrol game side: at the station the job settles: $180 + three fast arrests - $50 for the dents, the car deleted, suspects off again', finished ~= nil and finished.pay == 180 + 660 - 50 and finished.rep == 25 and deleted == 1 and randomEvents == false and not Pz.active() and state.jobs.active == nil and refreshed == 2)
+    -- a shift given up on the board (sl_jobs clears the job): the shift ends
+    j.leg, j.carVid = 2, 500
+    state.jobs.active = j
+    Pz.onUpdate(0.6)
+    check('patrol game side: a second pick-up starts a new shift', Pz.active())
+    state.jobs.active = nil
+    Pz.onUpdate(0.6)
+    check('patrol game side: the job dropped: the shift ends and the suspects are off', not Pz.active() and randomEvents == false)
+    _G.sl_career, _G.sl_jobs, _G.sl_police, _G.sl_options, _G.guihooks, _G.ui_message, _G.getPlayerVehicle, _G.gameplay_traffic, _G.getObjectByID, _G.log, _G.core_jobsystem, _G.gameplay_walk, _G.core_groundMarkers, _G.vec3 = old.c, old.j, old.p, old.o, old.gh, old.um, old.pv, old.gt, old.id, old.lg, old.js, old.gw, old.gm, old.v3
+    package.loaded['sl/patrol'] = nil
+  end
+end
+
 print(string.format('lua tests passed: %d checks', passed))

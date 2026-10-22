@@ -103,6 +103,8 @@ M.defs = {
     desc = 'An impounded car stands at the police station: pay at the window by day and drive it away, or cut the fence at night and run from a chase at heat 4 with a bounty on the car. Off: pay on the phone and the car comes back to the garage, as before.' },
   { key = 'slPoliceTactics', feature = true, tab = 'Police chase', group = 'Tactics', title = 'Box and PIT', type = 'bool', default = true,
     desc = 'At pursuit level 2 a second patrol boxes you in: it keeps your pace on your rear quarter while the first chases. At level 3 the nearest patrol gets a PIT window above 60 km/h on a straight: six seconds of hard driving, once a minute at most. Off: the game police as they are.' },
+  { key = 'slPolicePatrolJob', feature = true, tab = 'Police chase', group = 'Patrol shifts', title = 'Patrol shifts', type = 'bool', default = true,
+    desc = 'A day job from 300 reputation: borrow a patrol car at the police station and chase the game own suspects for a ten-minute shift or three arrests; every arrest pays by how fast it came; the car comes back with a charge for its damage. No heat for you on a shift. Off: no such job on the board.' },
   { key = 'slPoliceStripYaw', advanced = true, tab = 'Developer', group = 'Police chase', title = strings.t('options.chase_prop_turn'), type = 'choice', default = '0',
     options = { { id = '0', label = '0' }, { id = '90', label = '90' } }, desc = strings.t('options.turns_the_strip_and_the') },
   { key = 'slNightRaceKinds', feature = true, tab = 'Night traffic', group = strings.t('options.race_kinds'), title = strings.t('options.race_kinds'), type = 'bool', default = true,

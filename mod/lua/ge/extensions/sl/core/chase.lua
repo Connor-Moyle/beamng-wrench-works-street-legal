@@ -294,4 +294,23 @@ function M.isStraight(headings)
   return true
 end
 
+-- ---- P12: the patrol shift (the game side is sl/patrol.lua): the job, the pay by arrest time, the damage charge
+M.PATROL = { unlock = 300, shiftS = 600, arrests = 3, earlyS = 60, radius = 22, car = 'fullsize', config = 'vehicles/fullsize/police.pc',
+             base = 180, arrestPay = 220, arrestDrop = 2, arrestMin = 80, slowAfter = 20, damageFree = 500, damagePer = 20, damageMax = 400 }
+-- an arrest pays its full price when it came within slowAfter seconds of the chase's start, then $2 less a second, never under the floor
+function M.arrestPay(seconds) return math.max(M.PATROL.arrestMin, M.PATROL.arrestPay - M.PATROL.arrestDrop * math.max(0, (tonumber(seconds) or 0) - M.PATROL.slowAfter)) end
+function M.patrolPay(arrests)
+  local total = M.PATROL.base
+  for _, sec in ipairs(arrests or {}) do total = total + M.arrestPay(sec) end
+  return math.floor(total / 10 + 0.5) * 10
+end
+-- the borrowed car comes back: a charge for the damage on it (the traffic data's damage figure), nothing for a scrape
+function M.damageCharge(damage)
+  if (tonumber(damage) or 0) <= M.PATROL.damageFree then return 0 end
+  return math.min(M.PATROL.damageMax, math.floor((damage - M.PATROL.damageFree) / M.PATROL.damagePer))
+end
+function M.shiftOver(elapsed, arrests) return (elapsed or 0) >= M.PATROL.shiftS or (arrests or 0) >= M.PATROL.arrests end
+-- the pursuit variables while you wear the badge: suspects keep coming, by day too
+function M.patrolVars(v, active) if active then v.suspectFrequency = 1 v.strictness = math.max(v.strictness or 0, 0.5) end return v end
+
 return M

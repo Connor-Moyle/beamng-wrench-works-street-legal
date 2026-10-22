@@ -77,12 +77,17 @@ local function tick()
   end
 end
 
+local fails = 0
 function M.onUpdate(dtReal)
   tickT = tickT + dtReal
-  if tickT < 0.5 then return end
+  if tickT < 0.5 or fails >= rules.MAX_FAILS then return end
   tickT = 0
   local ok, err = pcall(tick)
-  if not ok then log('E', 'sl_pursuit', tostring(err)) reset() end
+  if ok then fails = 0 else
+    fails = fails + 1
+    log('E', 'sl_pursuit', tostring(err) .. (fails >= rules.MAX_FAILS and ' (the tactics are off for this session)' or ''))
+    reset()
+  end
 end
 
 function M.onPursuitAction(id, action)

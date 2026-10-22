@@ -77,6 +77,7 @@ JOBS = [
     ('test driver', 600, False, lambda r: (round(TUNE['test_top'] - (r.uniform(1.15, 1.35) - 1.15) * TUNE['test_slope'], -2), 0.3), lambda r, d=None: 6.0, 6),
     # day job variety (sl_jobs scrapparts / tow / dealerdrive; the taxi's pay carries an average comfort tip of a quarter of the fare)
     ('scrapyard parts', 0, False, lambda r: (lambda d: (round(max(120, d / 1000 * 140 * 1.5), -1), 0.06))(r.uniform(1200, 3000)), lambda r, d=None: 2 + r.uniform(1200, 3000) / CITY_SPEED / 60, 6),
+    ('patrol shift', 300, False, lambda r: (round(180 + sum(max(80, 220 - 2 * max(0, r.uniform(15, 120) - 20)) for _ in range(r.choice([1, 2, 2, 3]))) - r.choice([0, 0, 40, 120]), -1), 0.12), lambda r, d=None: 13 + r.uniform(0, 3), 6),      # sl_patrol: a ten-minute shift, one to three arrests paid by speed, a damage charge now and then
     ('tow job', 300, False, lambda r: (lambda d: (round(240 + d / 1000 * 180, -1), 0.1))(r.uniform(600, 2500)), lambda r, d=None: 3 + r.uniform(600, 2500) / 6 / 60, 6),
     ('dealer delivery', 200, False, lambda r: (lambda d: (320 + round(d / 1000 * 120, -1), 0.15))(r.uniform(800, 3000)), lambda r, d=None: 2 + r.uniform(800, 3000) / CITY_SPEED / 60, 6),
     ('hot car (night)', 1000, True, lambda r: (TUNE['hot_base'] + round(r.uniform(1000, 3000) / 1000 * TUNE['hot_per_km'], -2), 0.25), lambda r, d=None: 3 + r.uniform(1000, 3000) / CITY_SPEED / 60, 6),

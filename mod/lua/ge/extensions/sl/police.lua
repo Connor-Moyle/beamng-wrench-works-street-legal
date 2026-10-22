@@ -47,6 +47,7 @@ function M.level() return heatLib.level(M.heat()) end
 
 local function addHeat(x)
   local s = state()
+  if sl_patrol and sl_patrol.active and sl_patrol.active() then return end      -- (P12: no heat while you wear the badge)
   if s and night() then
     local before = heatLib.level(s.heat or 0)
     s.heat = heatLib.raised(s.heat, x)
@@ -68,13 +69,15 @@ local function applyVars()
   local level = M.level()
   local levels = opt('slPoliceLevels')
   local suspended = sl_justice ~= nil and sl_justice.suspended ~= nil and sl_justice.suspended() == true      -- (P8: a suspended licence: the police watch by day too)
-  local key = tostring(phase()) .. level .. tostring(levels) .. tostring(suspended)
+  local patrol = sl_patrol ~= nil and sl_patrol.active ~= nil and sl_patrol.active() == true                   -- (P12: on a patrol shift the suspects keep coming)
+  local key = tostring(phase()) .. level .. tostring(levels) .. tostring(suspended) .. tostring(patrol)
   if key == appliedVars then return end
   appliedVars = key
-  local vars = chaseLib.suspendedVars(chaseLib.vars(phase(), level), suspended)
+  local vars = chaseLib.patrolVars(chaseLib.suspendedVars(chaseLib.vars(phase(), level), suspended), patrol)
   if levels and phase() == 'night' then vars.scoreLevels = chaseLib.scoreLevels(level) end      -- (P1: the hotter, the sooner the game's chase climbs a level)
   gameplay_police.setPoliceVars(vars)
 end
+function M.refreshVars() appliedVars = nil applyVars() end      -- (sl_patrol: the shift starts or ends)
 
 -- ---- P6: radio chatter (text): the game's message line, and the last lines for the dashboard (chaseState.chatter)
 local radio = {}
