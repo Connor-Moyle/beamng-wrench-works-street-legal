@@ -130,6 +130,7 @@ local function finished(res)
   if money > 0 then sl_career.payOut(money, strings.t('hillduel.hill_duel')) elseif money < 0 then sl_career.addMoney(money, strings.t('hillduel.hill_duel')) end
   stateLib.addRep(s, rep)
   if sl_career.afterRace then pcall(sl_career.afterRace, d.rival.id, won, math.abs(d.score.me - d.score.them)) end
+  extensions.hook('onStreetLegalHillDuelResult', d.road.id, won, { me = d.score.me, them = d.score.them })      -- (the season's duel round)
   toast(won and strings.t('hillduel.you_won_1_2_3', rules.text(d.score), d.bet, rep) or strings.t('hillduel.you_lost_1_2', rules.text(d.score), d.bet))
   extensions.hook('onStreetLegalChanged')
 end

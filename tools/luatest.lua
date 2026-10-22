@@ -3312,7 +3312,7 @@ do
   local Opt = require('sl/options')
   local defs = {}
   for _, d in ipairs(Opt.defs) do defs[d.key] = d end
-  local okDefs = #F.LIST == 48
+  local okDefs = #F.LIST == 49
   local offByDefault = 0
   for _, f in ipairs(F.LIST) do
     local d = defs[f.opt]
@@ -4403,6 +4403,9 @@ do
     check('banners: the show podium has a title by place and the three names', b3.title == '2nd place' and b3.subtitle == '1. Ava   2. You   3. Cy')
     check('banners: the show podium: place 1 is the winner, 3 is third, 6 is a plain place, no place is nothing', select(1, sc3.showBanner({ place = 1 })) == 'show_win' and select(1, sc3.showBanner({ place = 3 })) == 'show_3' and select(1, sc3.showBanner({ place = 6 })) == 'show_other' and sc3.showBanner({}) == nil)
   end
+  sent = {}
+  H.onStreetLegalSeasonFinished({ position = 1, points = 60 }) H.onStreetLegalSeasonFinished({ pos = 2 }) H.onStreetLegalSeasonFinished(nil) H.onStreetLegalSeasonFinished({ position = 6 })
+  check('banners: the end of a home championship shows the series banners (win, podium, over); odd data shows nothing', sent[1] == 'series_win' and sent[2] == 'series_podium' and sent[3] == 'series_end' and #sent == 3)
   check('banners: a hook with odd arguments does not throw', pcall(function() H.onStreetLegalBusted(nil, nil, nil) H.onStreetLegalCarAdded(nil) H.onStreetLegalGarageMoved() end))
   _G.guihooks = saved
   package.loaded['sl/scenes'] = nil
@@ -8055,6 +8058,87 @@ do
   for k, v in pairs(old) do if k == 'parts' then package.loaded['slrr/garageParts'] = v elseif k == 'gcl' then _G.getCurrentLevelIdentifier = v elseif k == 'jwf' then _G.jsonWriteFile = v else _G[k] = v end end
   package.loaded['sl/frjobs'] = nil
   package.loaded['sl/sites'] = nil
+end
+
+-- the home championship season (sl/core/season): the plan from the weekend races, entry, points and missed rounds, the table, the end; sl/season with stubs
+do
+  local SE = require('sl/core/season')
+  local W = require('sl/core/weekly')
+  -- weekend events as the calendar lists them: days 6, 7 of weeks 6, 7, 8, 9 (days 41, 42, 48, 49, 55, 56, 62, 63)
+  local evs = {}
+  for _, d in ipairs({ 41, 42, 48, 49, 55, 56, 62, 63, 69, 70, 76, 77 }) do evs[#evs + 1] = { id = 'weekend:dock-' .. d .. ':' .. W.week(d), day = d, title = 'Dockyards ' .. d } end
+  local sea = SE.plan(1, 40, 9, evs)
+  check('season: the plan is the next five weekend races and a duel night on the Saturday of the second week, six rounds in day order', sea ~= nil and sea.id == 'season:1' and #sea.rounds == 6 and sea.rounds[1].day == 41 and sea.rounds[1].kind == 'race' and sea.rounds[3].kind == 'duel' and sea.rounds[3].day == 48 and sea.rounds[3].hour == 21 and sea.rounds[6].day == 55 and sea.from == 41 and sea.to == 55)
+  check('season: too few weekend races: no plan; events before the day are left out', SE.plan(1, 40, 9, { evs[1], evs[2] }) == nil and SE.plan(1, 43, 9, evs).rounds[1].day == 48)
+  check('season: entry is open until the first round has run', SE.canEnter(sea, 40) and SE.canEnter(sea, 41) and not SE.canEnter(sea, 42) and (function() sea.entered = true local r = SE.canEnter(sea, 40) sea.entered = false return not r end)())
+  local i1 = SE.roundFor(sea, 'race', 'weekend:dock-41:6')
+  local i3 = SE.roundFor(sea, 'duel', 48)
+  check('season: a round is found by the race event id or the duel day', i1 == 1 and i3 == 3 and SE.roundFor(sea, 'race', 'nope') == nil and SE.roundFor(sea, 'duel', 49) == nil)
+  local rec = SE.record(sea, 1, 2, false)
+  check('season: a place scores the series points; a second record of the round changes nothing', rec.points == 7 and SE.record(sea, 1, 1, false) == nil and sea.results[1].points == 7)
+  check('season: the duel: won is first, lost is second; a DNF is nought', SE.recordDuel(sea, 3, true).points == 10 and SE.record(sea, 2, nil, false).points == 0)
+  local missed = SE.sweep(sea, 55)
+  check('season: the rounds whose day passed without a result are missed at nought points', #missed == 2 and sea.results[4].missed and sea.results[4].points == 0 and sea.results[5].points == 0 and sea.results[6] == nil)
+  check('season: the next round and the end', SE.nextRound(sea) == 6 and not SE.over(sea) and (function() SE.record(sea, 6, 1, false) return SE.over(sea) and SE.nextRound(sea) == nil end)())
+  local list = SE.standings(sea, { roster = { 'Ana', 'Bo', 'Cy', 'Di', 'Ed' }, seed = 'x', you = 'You' })
+  local you
+  for _, e in ipairs(list) do if e.you then you = e end end
+  check('season: the table has the player and the roster with positions; the player has 27 points', you ~= nil and you.points == 27 and list[1].pos == 1 and #list >= 4 and SE.position(list) == you.pos)
+  check('season: the prize by position and the trophy', SE.prize(1).money == 2000 and SE.prize(2).money == 1100 and SE.prize(5).money == 0 and SE.prize(1).rep == 30 and SE.trophy(sea, 57).title == SE.TITLE and SE.trophy(sea, 57).season == 'season:1')
+  -- the game side
+  do
+    local old = { c = _G.sl_career, cal = _G.sl_calendar, o = _G.sl_options, gh = _G.guihooks, ex = _G.extensions, lg = _G.log }
+    local state = { day = 36, seed = 9, rep = 500, money = 1000, racers = { { id = 'a', name = 'Ana' }, { id = 'b', name = 'Bo' }, { id = 'c', name = 'Cy' }, { id = 'd', name = 'Di' } } }
+    local texts, hooks, paid = {}, {}, {}
+    _G.sl_career = { isActive = function() return true end, getState = function() return state end, sendText = function(_, t) texts[#texts + 1] = t end, payOut = function(a, l) state.money = state.money + a paid[#paid + 1] = { a, l } return true end }
+    local calEvents = {}
+    for _, e in ipairs(evs) do calEvents[#calEvents + 1] = { id = e.id, kind = 'weekend', day = e.day, title = e.title } end
+    _G.sl_calendar = { summary = function() return { events = calEvents } end }
+    local on = true
+    _G.sl_options = { get = function(k) if k == 'slSeason' then return on end return nil end }
+    _G.guihooks = { trigger = function(name, d) if name == 'slPhoneToast' then texts[#texts + 1] = d.text end end }
+    _G.extensions = { hook = function(name, ...) hooks[#hooks + 1] = { name = name, ... } end }
+    _G.log = function() end
+    package.loaded['sl/season'] = nil
+    local G = require('sl/season')
+    G.onStreetLegalNewDay(36)                     -- day 36 = day 1 of week 6
+    local sum = G.summary()
+    check('season game side: the first day of a week plans the season from the calendar, Benny texts, the phone shape has the rounds and an empty table with you in it', sum.season ~= nil and sum.season.id == 'season:1' and #sum.season.rounds == 6 and sum.season.canEnter == true and sum.season.entered == false and texts[#texts]:find('season opens on day 41') ~= nil and #sum.season.table >= 1)
+    local ok, text = G.enter()
+    check('season game side: entering once, free; twice is refused', ok and text:find('day 41') ~= nil and state.money == 1000 and not G.enter())
+    state.day = 41
+    G.onStreetLegalCalendarRace('weekend:dock-41:6', 1, 6)
+    check('season game side: a weekend race result scores the round', G.summary().season.rounds[1].points == 10 and texts[#texts]:find('Season round 1: 10 points') ~= nil)
+    G.onStreetLegalCalendarRace('weekend:dock-41:6', 3, 6)
+    check('season game side: the same race again changes nothing', G.summary().season.rounds[1].points == 10)
+    state.day = 42
+    G.onStreetLegalCalendarMissed('weekend:dock-42:6')
+    check('season game side: a missed race is a round at nought points, never money', G.summary().season.rounds[2].missed == true and G.summary().season.rounds[2].points == 0 and state.money == 1000)
+    state.day = 48
+    G.onStreetLegalCalendarRace('weekend:dock-48:7', 2, 6)
+    G.onStreetLegalHillDuelResult('cell', true, {})
+    check('season game side: the duel on its night is the duel round, won = first', G.summary().season.rounds[3].points == 10)
+    G.onStreetLegalHillDuelResult('alley', false, {})
+    check('season game side: a second duel that night changes nothing', G.summary().season.rounds[3].points == 10)
+    state.day = 49 G.onStreetLegalCalendarRace('weekend:dock-49:7', 2, 6)
+    state.day = 55 G.onStreetLegalCalendarRace('weekend:dock-55:8', 1, 6)
+    local sumEnd = G.summary()
+    check('season game side: the sixth round ends the season: the prize by position paid, the title and the trophy for a champion (on the shared shelf too), the season cleared', sumEnd.season == nil and #paid == 1 and paid[1][1] > 0 and state.season.titles == 1 and #G.trophies() == 1 and G.trophies()[1].title == SE.TITLE and type(state.trophies) == 'table' and state.trophies[#state.trophies].name == SE.TITLE and state.trophies[#state.trophies].kind == 'series' and texts[#texts - 1]:find('Champion') ~= nil and hooks[#hooks - 1].name == 'onStreetLegalSeasonFinished')
+    G.onStreetLegalCalendarRace('weekend:dock-56:8', 1, 6)
+    G.onStreetLegalNewDay(56)
+    check('season game side: a finished season never pays again (the reviewer case)', #paid == 1 and state.season.titles == 1)
+    state.day = 57
+    G.onStreetLegalNewDay(57)                     -- day 1 of week 9: the next season
+    check('season game side: a fresh season is planned the week after', G.summary().season ~= nil and G.summary().season.id == 'season:2')
+    -- a season not entered: watched, the end pays nothing
+    state.day = 80
+    G.onStreetLegalNewDay(80)
+    check('season game side: a season left to run out without an entry pays nothing and clears', G.summary().season == nil and #paid == 1)
+    on = false
+    check('season game side: the part off: no summary', G.summary() == nil)
+    _G.sl_career, _G.sl_calendar, _G.sl_options, _G.guihooks, _G.extensions, _G.log = old.c, old.cal, old.o, old.gh, old.ex, old.lg
+    package.loaded['sl/season'] = nil
+  end
 end
 
 print(string.format('lua tests passed: %d checks', passed))

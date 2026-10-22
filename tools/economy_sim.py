@@ -20,7 +20,8 @@ WEAR_SCALE = float(os.environ.get("WEAR_SCALE", "40"))   # core/service.lua SCAL
 WEAR = '--nowear' not in sys.argv          # core/service.lua: wear x40 paid back as repairs, and a basic service every 150 km
 SPONSOR = '--nosponsor' not in sys.argv       # core/brands.lua: standing from wins, a sponsorship at 100 with a retainer and a parts discount
 SHOW = '--noshow' not in sys.argv      # core/show.lua: the Saturday Style show (a purse by place, entered when the car is in show shape)
-WEEKLY = '--noweekly' not in sys.argv      # the weekly costs of core/weekly.lua
+WEEKLY = '--noweekly' not in sys.argv
+SEASON = '--noseason' not in sys.argv      # sl_calendar weekend races and sl_season: the championship season (six rounds, a prize every three weeks)      # the weekly costs of core/weekly.lua
 BOOST = '--noboost' not in sys.argv     # the early-game boost in sl_jobs
 SHOPS = '--noshops' not in sys.argv     # what the shops of sl_shops take (docs/SHOPS_REWORK.md step 3): (price, how often a week) of the services a player buys now and then; a guess to check in game
 SHOP_WEEK = [('wash', 15, 3.0), ('scratch polish', 120, 0.6), ('dyno run', 90, 0.4), ('respray', 450, 0.08), ('special order (performance)', 1500, 0.12)]
@@ -104,6 +105,7 @@ class Player:
         self.log = {}                       # milestone -> minute
         self.earned = {}                    # source -> [money, minutes]
         self.fines, self.broke = 0, 0
+        self.weekend_done, self.season_points, self.season_rounds = -1, 0, 0
         self.series = []
         self.flip_target = 1000
         self.kit = set()
@@ -300,6 +302,30 @@ class Player:
         self.spend(minutes)
         return True
 
+    def weekend_race(self):
+        # sl_calendar + sl_gridrace: a weekend dockyards race (days 6 and 7 of the week, once a day, a fee and a purse by place); sl_season: six rounds, the prize every three weeks
+        if not SEASON or self.car is None or self.day() % 7 not in (5, 6) or self.weekend_done == self.day(): return False
+        self.weekend_done = self.day()
+        fee, purse = (100, 500) if self.r.random() < 0.4 else (150, 800)
+        p = 1 / (1 + math.exp(-((CARS[self.car][1] - 1 + self.perf) * 0.9 - 1.5)))
+        roll = self.r.random()
+        place = 1 if roll < p * 0.45 else (2 if roll < p * 0.8 else (3 if roll < p else self.r.randint(4, 7)))
+        share = {1: 1.0, 2: 0.5, 3: 0.25}.get(place, 0)
+        net = -fee + round(purse * share, -1)
+        self.money += net; self.rep += {1: 40, 2: 20, 3: 10}.get(place, 5)
+        self.book('weekend race', net, 9)
+        self.season_points += [10, 7, 5, 3, 2, 1, 0][min(6, place - 1)]
+        self.season_rounds += 1
+        if self.season_rounds >= 6:
+            # the table: six rivals who score like the player on average; the prize by position
+            rivals = sorted(self.r.gauss(self.season_points, 9) for _ in range(6))
+            pos = 1 + sum(1 for x in rivals if x > self.season_points)
+            prize = round(2000 * {1: 1.0, 2: 0.55, 3: 0.3, 4: 0.15}.get(pos, 0), -1)
+            self.money += prize; self.rep += {1: 30, 2: 20, 3: 10, 4: 5}.get(pos, 0)
+            self.book('season prize', prize, 0)
+            self.season_points, self.season_rounds = 0, 0
+        return True
+
     def sprint(self):
         if not is_night(self.hour()): return False
         stars = self.r.choice([0, 1, 1, 2, 2, 3])
@@ -380,6 +406,7 @@ class Player:
                 break
         w = {'racer': 0.75, 'mixed': 0.5, 'worker': 0.25, 'borrower': 0.5}[self.style]
         roll = self.r.random()
+        if self.weekend_race(): return
         if roll < w and self.race(): return
         if roll < w + 0.1 and self.sprint(): return
         if self.style != 'racer' and roll > 0.92 and self.flip(): return

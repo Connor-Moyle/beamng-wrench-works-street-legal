@@ -1522,6 +1522,26 @@
       return bar(esc(e.title || T('app.calendar', 'Calendar'))) + '<div class="slp-body">' + calEventCard(c, e).replace(' data-a="calopen" data-v="' + esc(e.id) + '"', '') +
         (acts ? '<div class="slp-card"><div class="slp-acts" style="flex-wrap:wrap">' + acts + '</div>' + (!canEnter && open ? '<p class="slp-warn">&#9888; ' + T('ui.cal_cannot', 'You cannot enter yet: see the requirement above.') + '</p>' : '') + '</div>' : '') + '</div>';
     }
+    // the home championship (sl_season.summary(); tools/season_fixture.js): a card on the Series tab: the six rounds, the table, Enter while it can be entered, the titles won
+    function seasonCard() {
+      var sm = obj(st.data.season);
+      if (!st.data.season) return '';
+      var se = sm.season;
+      var titles = Number(sm.titles) || 0, trophies = arr(sm.trophies);
+      var trophyLine = titles > 0 ? '<p>&#127942; ' + T('ui.sn_titles', 'Titles won: {1}', titles) + (trophies.length ? ' &middot; ' + esc(trophies.slice(-1)[0].title || '') : '') + '</p>' : '';
+      if (!se) return '<div class="slp-card"><h4>' + T('ui.sn_title', 'Home championship') + '</h4><p>' + T('ui.sn_none', 'No season running. The next one opens soon: {1} for the champion.', money(sm.purse)) + '</p>' + trophyLine + '</div>';
+      var rows = arr(se.rounds).map(function (r, i) {
+        var status = r.done ? '&#10004; ' + T('ui.sn_place', 'Place {1}, {2} pts', Number(r.place) || 0, Number(r.points) || 0) : r.missed ? '&#9660; ' + T('ui.cal_missed', 'Missed') : (se.round === i + 1 ? '&#9654; ' + T('ui.sn_next', 'Next') : '');
+        return '<div class="slp-kv" style="display:block;padding:6px 0"><div style="display:flex;justify-content:space-between;gap:8px"><span>' + (r.kind === 'duel' ? '&#9876; ' : '') + esc(r.title || '') + '</span><b>' + T('ui.sn_day', 'Day {1}', Number(r.day) || 0) + '</b></div>' + (status ? '<div style="opacity:.85">' + status + '</div>' : '') + '</div>';
+      }).join('');
+      var tbl = arr(se.table).map(function (x) {
+        return '<div class="slp-kv"><span>' + (Number(x.pos) || 0) + '. ' + (x.you ? '<b>' + esc(x.name) + '</b>' : esc(x.name)) + '</span><b>' + (Number(x.points) || 0) + ' ' + T('ui.trip_pts', 'pts') + '</b></div>';
+      }).join('');
+      return '<div class="slp-card"><h4>' + T('ui.sn_title_n', 'Home championship, season {1}', Number(se.n) || 1) + '</h4><p>' + T('ui.sn_span', 'Days {1} to {2} &middot; {3} for the champion', Number(se.from) || 0, Number(se.to) || 0, money(sm.purse)) +
+        (se.entered && se.position != null ? ' &middot; ' + T('ui.sn_position', 'you are {1}', placeWord(se.position)) : '') + '</p>' + trophyLine + rows +
+        (!se.entered ? '<div class="slp-acts"><div class="slp-btn' + (se.canEnter ? '' : ' slp-off') + '" data-a="seasonenter" data-v="1">' + T('ui.sn_enter', 'Enter the season') + '</div></div>' : '') + '</div>' +
+        (tbl ? '<div class="slp-card"><h4>' + T('ui.trip_standings', 'Standings') + '</h4>' + tbl + '</div>' : '');
+    }
     function calendarPage() {
       var c = obj(st.data.calendar), events = arr(c.events).slice().sort(function (a, b) { return (a.day - b.day) || ((a.hour == null ? -1 : a.hour) - (b.hour == null ? -1 : b.hour)); });
       if (st.calEvent) {
@@ -1549,14 +1569,14 @@
         body = '<div style="display:flex;padding:0 12px">' + cells.join('') + '</div>' + (st.calDay != null ? '<div class="slp-acts" style="padding:0 16px"><div class="slp-btn slp-text" data-a="calday" data-v="">' + T('ui.cal_all_days', 'Show all days') + '</div></div>' : '') +
           events.filter(function (e) { return st.calDay == null || Number(e.day) === Number(st.calDay); }).map(function (e) { return calEventCard(c, e); }).join('');
       } else {
-        body = arr(c.series).map(function (x) {
+        body = seasonCard() + arr(c.series).map(function (x) {
           return '<div class="slp-card"><h4>' + esc(x.name || '') + '</h4>' +
             '<div class="slp-kv"><span>' + T('ui.cal_where', 'Where') + '</span><b>' + esc(x.map || '') + '</b></div>' +
             '<div class="slp-kv"><span>' + T('ui.cal_round_label', 'Round') + '</span><b>' + (Number(x.round) || 0) + ' / ' + (Number(x.rounds) || 0) + '</b></div>' +
             '<div class="slp-kv"><span>' + T('ui.cal_points', 'Points') + '</span><b>' + (Number(x.points) || 0) + '</b></div>' +
             '<div class="slp-kv"><span>' + T('ui.cal_rank', 'Position') + '</span><b>' + (x.rank != null ? Number(x.rank) : '&ndash;') + '</b></div>' +
             (x.nextDay != null ? '<p>' + T('ui.cal_next_round', 'Next round: day {1}', Number(x.nextDay)) + '</p>' : '') + '</div>';
-        }).join('') || '<div class="slp-empty">' + T('ui.cal_no_series', 'No series running. One opens each month.') + '</div>';
+        }).join('') || (st.data.season ? '' : '<div class="slp-empty">' + T('ui.cal_no_series', 'No series running. One opens each month.') + '</div>');
       }
       return bar(T('app.calendar', 'Calendar')) + '<div class="slp-tabs" style="padding:0 16px 8px">' + tabs + '</div><div class="slp-body">' + body + '</div>';
     }
@@ -2361,6 +2381,7 @@
         case 'calenter': lua('calendarEnter(' + JSON.stringify(String(v)) + ')'); break;
         case 'caldecline': lua('calendarDecline(' + JSON.stringify(String(v)) + ')'); st.calEvent = null; break;
         case 'calremind': var cr = String(v).split('|'); lua('calendarRemind(' + JSON.stringify(cr[0]) + ',' + (cr[1] === 'true' ? 'true' : 'false') + ')'); break;
+        case 'seasonenter': lua('seasonEnter()'); break;
         case 'camzoom': st.cam = st.cam || {}; st.cam.zoom = Number(v) || 1; lua('cameraZoom(' + (Number(v) || 1) + ')'); render(); break;
         case 'camflash': st.cam = st.cam || {}; st.cam.flash = !st.cam.flash; render(); break;
         case 'camgrid': st.cam = st.cam || {}; st.cam.grid = !st.cam.grid; render(); break;

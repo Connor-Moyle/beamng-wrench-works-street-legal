@@ -1369,6 +1369,30 @@ assert.ok(/target\.focus\(\{ preventScroll: true \}\)/.test(code) && !/target\.f
   assert.ok(calls.includes('cameraLeave()') && !phone.root.querySelector('.slp-camui'), 'leaving the app puts the camera back and the screen away: ' + calls.join(' '));
   phone.handle('slPhoneData', data);
 }
+{
+  // the home championship on the Series tab (tools/season_fixture.js)
+  const sf = require('./season_fixture.js');
+  phone.act('home');
+  phone.handle('slPhoneData', Object.assign({}, data, { calendar: require('./calendar_fixture.js'), season: sf }));
+  phone.act('open', 'calendar');
+  click('caltab', 'series');
+  let tx = text();
+  assert.ok(tx.includes('Home championship, season 2') && tx.includes('Days 40 to 58') && tx.includes('$2,000 for the champion') && tx.includes('you are 2nd') && tx.includes('Titles won: 1') && tx.includes('Home championship, season 1'), 'the season card: ' + tx.slice(0, 400));
+  assert.ok(tx.includes('Dockyards sprint') && tx.includes('Place 2, 8 pts') && tx.includes('Hill duel night, Saturday 21:00') && tx.includes('Missed') && tx.includes('Next') && tx.includes('Day 58'), 'six rounds with their states');
+  assert.ok(tx.includes('Standings') && tx.includes('K. Ward') && tx.includes('26 pts') && tx.includes('Mia the Mechanic of the Pier Street Garage Crew'), 'the table, with a long name');
+  assert.ok(!phone.root.querySelector('[data-a="seasonenter"]'), 'entered: no Enter button');
+  phone.handle('slPhoneData', Object.assign({}, data, { calendar: require('./calendar_fixture.js'), season: Object.assign({}, sf, { season: Object.assign({}, sf.season, { entered: false, canEnter: true, position: null }) }) }));
+  calls.length = 0; click('seasonenter', '1');
+  assert.ok(calls.includes('seasonEnter()') && !phone.root.querySelector('.slp-btn.slp-off[data-a="seasonenter"]'), 'Enter while it can be entered');
+  phone.handle('slPhoneData', Object.assign({}, data, { calendar: require('./calendar_fixture.js'), season: Object.assign({}, sf, { season: Object.assign({}, sf.season, { entered: false, canEnter: false }) }) }));
+  assert.ok(phone.root.querySelector('.slp-btn.slp-off[data-a="seasonenter"]'), 'dimmed when it cannot');
+  phone.handle('slPhoneData', Object.assign({}, data, { calendar: require('./calendar_fixture.js'), season: Object.assign({}, sf, { season: null }) }));
+  assert.ok(text().includes('No season running') && text().includes('$2,000'), 'no season: the card says so');
+  phone.handle('slPhoneData', Object.assign({}, data, { calendar: require('./calendar_fixture.js') }));
+  assert.ok(!text().includes('Home championship'), 'no data: no card');
+  phone.act('home');
+  phone.handle('slPhoneData', data);
+}
 console.log('phone test passed');
 
 // a page to look at: the phone in several states side by side
