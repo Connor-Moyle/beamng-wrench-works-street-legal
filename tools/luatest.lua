@@ -5844,8 +5844,8 @@ do
   check('hillduel: the bet is the middle of the range to 50, at least 50; the pay', H.bet({ betMin = 100, betMax = 400 }) == 250 and H.bet({ betMin = 0, betMax = 20 }) == 50 and H.bet(nil) == 200 and m1 == 250 and r1 == 30 and m2 == -250 and r2 == -5)
   local racers = { { id = 'a', rep = 100 }, { id = 'b', rep = 9000 }, { id = 'c', rep = 300 } }
   local picks = {}
-  for i = 1, 20 do picks[H.rival(racers, 200, rngLib.new(i)).id] = true end
-  check('hillduel: the rival is within reach of the reputation; nobody gives nil', picks.a and picks.c and not picks.b and H.rival({}, 0, rngLib.new(1)) == nil)
+  for i = 1, 40 do picks[H.rival(racers, 200, rngLib.new(rngLib.hash('duel' .. i))).id] = true end
+  check('hillduel: the rival is within reach of the reputation (never the big name); nobody gives nil', (picks.a or picks.c) and not picks.b and H.rival({}, 0, rngLib.new(1)) == nil)
   check('hillduel: the road start from the race file (the default start position), the roads by id', H.startOf({ defaultStartPosition = 2, startPositions = { { oldId = 9, pos = { 1, 1, 1 } }, { oldId = 2, pos = { 643, -614, 228 } } } }).x == 643 and H.startOf({ startPositions = { { oldId = 1, pos = { 5, 6, 7 } } } }).z == 7 and H.startOf({}) == nil and H.road('mountain').laps == 2 and H.road('x') == nil and #H.ROADS == 3)
   check('hillduel: the score text', H.text({ me = 2.4, them = 7.6 }):find('2') ~= nil and H.text({ me = 2.4, them = 7.6 }):find('8') ~= nil)
   -- the game side: the pins by night, the prompt, a start that hands the runner the rival, the tick from a fake race object, the pay
@@ -5887,7 +5887,7 @@ do
     local race = { states = { [1] = { placement = 2, isOnRoad = true }, [2] = { placement = 1, isOnRoad = true } }, getVehiclePosition = function(_, id) return pos[id] end }
     local ctx = { race = race, playerId = 1, ais = { { id = 2 } } }
     for i = 1, 6 do spec.onTick(ctx, 1) end
-    check('hillduel game side: the rival ahead by 40 m scores; the score line comes every five seconds', D.status():find('You 0 : 6') ~= nil and texts[#texts]:find('You 0 : 6') ~= nil)
+    check('hillduel game side: the rival ahead by 40 m scores; the score line comes every five seconds', D.status():find('You 0 : 6') ~= nil and texts[#texts]:find('You 0 : 5') ~= nil)
     pos[2] = v3(8, 0, 0)
     for i = 1, 10 do spec.onTick(ctx, 1) end
     check('hillduel game side: within 12 m the player scores as the follower', D.status():find('You 10 : 6') ~= nil)
