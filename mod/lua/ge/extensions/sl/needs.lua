@@ -230,7 +230,8 @@ function M.eat(itemId)
   local sold = false
   for _, id in ipairs(rules.ITEM_ORDER) do if id == itemId then sold = true end end
   if not it or not sold then return false, strings.t('needs.nothing_of_that') end
-  if s.money < it.price then return false, strings.t('carcare.it_is_d_you_have', it.price, s.money) end
+  local cost = rules.price(itemId)
+  if s.money < cost then return false, strings.t('carcare.it_is_d_you_have', cost, s.money) end
   local ok, price, text = rules.eat(needsOf(s), itemId)
   if ok and price > 0 then sl_career.addMoney(-price, strings.t('needs.food_and_drink')) end
   toast(text)
@@ -344,7 +345,7 @@ function provide()
   sl_shops.provide('motel', {
     services = function()
       if not partOn() then return {}, strings.t('needs.off') end
-      return { { id = 'room', name = strings.t('shops.motel_room'), price = rules.MOTEL.price, desc = strings.t('shops.motel_room_desc') } }
+      return { { id = 'room', name = strings.t('shops.motel_room'), price = rules.MOTEL_PRICE, desc = strings.t('shops.motel_room_desc') } }
     end,
     buy = function() return M.motel() == true end })
 end

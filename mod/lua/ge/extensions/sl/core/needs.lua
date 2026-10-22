@@ -124,7 +124,7 @@ function M.eat(n, itemId)
     if it[k] then n[k] = clamp(n[k] + it[k], 0, 100) parts[#parts + 1] = strings.t('needs.meter_' .. k) .. ' ' .. math.floor(n[k]) end
   end
   if it.food then n.lastMeal = true end
-  return true, it.price, strings.t('needs.ate_1_2', it.name, table.concat(parts, ', '))
+  return true, M.price(itemId), strings.t('needs.ate_1_2', it.name, table.concat(parts, ', '))
 end
 
 -- sleep: `hours` at `where` (bed, couch, car, nap). Returns the rest gained.
@@ -139,7 +139,8 @@ end
 M.ITEMS.bigmeal = { name = strings.t('needs.item_bigmeal'), price = 25, food = 100, water = 40 }
 M.DINER_ORDER = { 'drink', 'coffee', 'meal', 'bigmeal' }        -- what a diner sells (the fuel station sells ITEM_ORDER)
 M.SIT_HOURS = 0.33                                              -- sitting down to eat: twenty minutes of the clock
-M.MOTEL = { price = 40, hours = 6, where = 'bed' }              -- a room: six hours in a bed (27 an hour) is a full sleep
+M.MOTEL_PRICE, M.PRICE_SCALE = 40, 1                            -- (the motel room, and the factor on every counter price: settings)
+M.MOTEL = { hours = 6, where = 'bed' }              -- a room: six hours in a bed (27 an hour) is a full sleep
 M.FRIDGE = { water = 100, food = 60 }                           -- the garage fridge, once a day: water full, food to 60
 M.MEAL_PLAN = { weekly = 60, covers = { meal = true, bigmeal = true } }
 M.MICRO = { minSpeed = 8, gapMin = 25, gapMax = 70, secMin = 0.5, secMax = 1.0, grace = 30 }      -- m/s, seconds between nods, how long a nod is, quiet seconds after a spawn or a switch
@@ -149,7 +150,7 @@ function M.price(itemId, plan)
   local it = M.ITEMS[itemId]
   if not it then return 0 end
   if plan and M.MEAL_PLAN.covers[itemId] then return 0 end
-  return it.price
+  return math.floor(it.price * (tonumber(M.PRICE_SCALE) or 1) + 0.5)
 end
 
 -- eating at a counter: like eat, but with the plan, and what is paid is added to the week's food and drink. Returns ok, price, text
