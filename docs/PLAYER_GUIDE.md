@@ -179,7 +179,7 @@ The Club app has today's events and the standings.
 
 Every racer is in one of four crews, and each crew holds districts of West Coast USA. Beat a crew's racers on a district's streets at night to take it. A district you hold gives you more reputation and less heat there.
 
-A crew that loses a district calls you out to win it back. Turf income (off by default; Mods > Parts of the game > Turf income): every week the districts you hold pay a cut into the ledger, more at the district with your third garage; an unanswered call-out stops a district paying that week, and an angry crew can raid one (the week's cut and some control, never the district by itself). Hold four districts and the crew leaders come for you one by one in the turf war. The Turf app has a map.
+A crew that loses a district calls you out to win it back. Hold four districts and the crew leaders come for you one by one in the turf war. The Turf app has a map.
 
 ## Swap meet and auctions
 
