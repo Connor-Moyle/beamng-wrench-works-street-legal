@@ -7204,6 +7204,51 @@ do
     state.heat = 0
     local e = T.exposure(1, 1)
     check('theft game side: exposure at full noise: a witness (heat) and the alarm on that car', e.witness and e.alarm and state.heat > 0 and cmds[#cmds]:find('set_warn_signal') ~= nil)
+    -- the deliveries: the offer (the legs by kind), the twists at the pickup and the third leg, the count when the board settles
+    state.rep = 1500
+    local R = require('sl/core/rng')
+    local kerbs = { { x = 100, y = 0, z = 0 }, { x = 3000, y = 0, z = 0 }, { x = 0, y = 2000, z = 0 } }
+    local ki = 0
+    local oldJobs = _G.sl_jobs
+    _G.sl_jobs = { randomKerb = function() ki = ki + 1 return kerbs[ki % #kerbs + 1] end, activeJob = function() return nil end, summary = function() return { done = 0 } end }
+    local ctx = { byId = { meet_docks = { id = 'meet_docks', name = 'Docks', x = 2000, y = 2000, z = 0 }, dealer = { id = 'dealer', name = 'Dealer', x = 0, y = 0, z = 0 } },
+      places = { { id = 'carwash_apex', kind = 'carwash', name = 'Apex Wash', x = 500, y = 500, z = 0 } } }
+    local kinds = {}
+    for seed = 1, 40 do local r = R.new(R.hash('d' .. seed)) r:next() r:next() r:next() local o = T.deliveryOffer(ctx, r) if o then kinds[o.theft] = o end end      -- (close seeds: the first draws sit together, warm up)
+    check('theft deliveries: four kinds offered before three are done (no showroom), each with the docks last, a car, a pay with the floor', kinds.longway ~= nil and kinds.handoff ~= nil and kinds.tow ~= nil and kinds.decoy ~= nil and kinds.showroom == nil and kinds.tow.legs[#kinds.tow.legs].id == 'meet_docks' and kinds.tow.tow and kinds.tow.car.limp == 0.15 and kinds.tow.pay >= 400 and kinds.decoy.legs[2].id == 'carwash_apex' and #kinds.handoff.legs == 3 and kinds.longway.legs[2].through and kinds.longway.metres >= 5000)
+    state.theft.deliveries.done = 3
+    kinds = {}
+    for seed = 1, 40 do local r = R.new(R.hash('e' .. seed)) r:next() r:next() r:next() local o = T.deliveryOffer(ctx, r) if o then kinds[o.theft] = o end end
+    check('theft deliveries: after three done the showroom car is on the board, from the dealer; under the rep or with the switch off nothing', kinds.showroom ~= nil and kinds.showroom.legs[1].id == 'dealer' and (function() state.rep = 500 local o = T.deliveryOffer(ctx, R.new(7)) state.rep = 1500 sw.slTheftDeliveries = false local o2 = T.deliveryOffer(ctx, R.new(7)) sw.slTheftDeliveries = nil return o == nil and o2 == nil end)())
+    -- the twists: a decoy picked up: the heat, the chase, the tracker; at the wash the tracker goes; the board counts the delivery
+    local job = { theft = 'decoy', item = 'The decoy', leg = 1, car = { model = 'midsize' }, legs = { {}, {}, {} } }
+    _G.sl_jobs.activeJob = function() return job end
+    state.heat = 0
+    local c0 = chases
+    cars[40] = { pos = v3(0, 0, 0), jbeam = 'midsize', vel = 10 }
+    meId = 40
+    job.carVid = 40
+    T.onUpdate(3.5)
+    local picked = job.theftStarted and state.heat >= 0.75 and chases == c0 + 1 and tracked[#tracked] == true
+    job.leg = 3
+    T.onUpdate(3.5)
+    local washed = tracked[#tracked] == false and texts[#texts]:find('Washed') ~= nil
+    _G.sl_jobs.activeJob = function() return nil end
+    _G.sl_jobs.summary = function() return { done = 1 } end
+    T.onUpdate(3.5)
+    check('theft deliveries: the decoy picked up: heat 0.75, a patrol sent, TRACKED on; at the wash leg the tracker is off; the board settling it counts a delivery', picked and washed and state.theft.deliveries.done == 4)
+    -- the hand-off: at the third leg the player is put in the swap car and the hot one goes
+    job = { theft = 'handoff', item = 'The hand-off', leg = 1, car = { model = 'pessima' }, legs = { {}, {}, {} }, carVid = 41 }
+    cars[41] = { pos = v3(0, 0, 0), jbeam = 'pessima' }
+    meId = 41
+    _G.sl_jobs.activeJob = function() return job end
+    T.onUpdate(3.5)
+    job.leg = 3
+    T.onUpdate(3.5)
+    check('theft deliveries: the hand-off at the third leg: a new car, the player in it, the old one deleted, the job car id moved', job.swapped and job.carVid ~= 41 and meId == job.carVid and deleted[#deleted] == 41 and cars[job.carVid] ~= nil)
+    _G.sl_jobs.activeJob = function() return nil end
+    T.onUpdate(3.5)
+    _G.sl_jobs = oldJobs
     sw.slTheft = false
     check('theft game side: the part off: no summary, no begin, no market', T.summary() == nil and T.begin(1) == nil and T.blackMarket() == nil)
     math.random = oldRandom

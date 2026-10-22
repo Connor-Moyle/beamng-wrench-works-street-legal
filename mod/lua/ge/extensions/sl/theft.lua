@@ -409,6 +409,98 @@ local function rebuildNear(s, t, p)
   end
 end
 
+-- ---- the five pursuit deliveries (the jobs board kind 'theftrun'; sl_jobs spawns the car at the first leg and settles the pay): the twists are here
+local function valueOf(model)
+  local ok, m = pcall(function() return core_vehicles.getModel(model) end)
+  local cfgs = ok and type(m) == 'table' and type(m.configs) == 'table' and m.configs or {}
+  local best
+  for _, c in pairs(cfgs) do if type(c) == 'table' and tonumber(c.Value) then best = math.max(best or 0, tonumber(c.Value)) end end
+  return best or 20000
+end
+local function kerbLeg(rng, name, radius) local k = sl_jobs and sl_jobs.randomKerb and sl_jobs.randomKerb(rng) if not k then return nil end return { id = 'kerb', name = name, x = k.x, y = k.y, z = k.z, radius = radius } end
+local function metres(a, b) return math.sqrt((a.x - b.x) ^ 2 + (a.y - b.y) ^ 2) end
+function M.deliveryOffer(ctx, rng)
+  local s = career()
+  if not s or opt('slTheftDeliveries', true) == false or (s.rep or 0) < rules.DELIVERY_UNLOCK then return nil end
+  local open = rules.openDeliveries(store(s).deliveries.done or 0)
+  local d = open[rng:int(#open)]
+  local docks = ctx.byId.meet_docks
+  if not d or not docks then return nil end
+  local to = { id = docks.id, name = strings.t('theft.deliv_the_docks'), x = docks.x, y = docks.y, z = docks.z, radius = 14 }
+  local from
+  if d.from == 'dealer' and ctx.byId.dealer then local p = ctx.byId.dealer from = { id = p.id, name = p.name, x = p.x, y = p.y, z = p.z, radius = 14 }
+  else from = kerbLeg(rng, strings.t('theft.deliv_a_kerb'), 14) end
+  if not from then return nil end
+  local legs = { from }
+  if d.minMetres then      -- the long way round: a far kerb to pass through first
+    local far
+    for _ = 1, 12 do local k = kerbLeg(rng, strings.t('theft.deliv_the_long_way'), 14) if k and (not far or metres(k, from) + metres(k, to) > metres(far, from) + metres(far, to)) then far = k end end
+    if not far or metres(far, from) + metres(far, to) < d.minMetres then return nil end
+    far.through = true
+    legs[#legs + 1] = far
+  elseif d.swap then legs[#legs + 1] = kerbLeg(rng, strings.t('theft.deliv_the_hand_off'), 14)
+  elseif d.wash then
+    local wash
+    for _, p in ipairs(ctx.places) do if p.kind == 'carwash' and (not wash or metres(p, from) < metres(wash, from)) then wash = p end end
+    if wash then legs[#legs + 1] = { id = wash.id, name = wash.name, x = wash.x, y = wash.y, z = wash.z, radius = 14 } end
+  end
+  local need = (d.minMetres or d.swap or d.wash) and 2 or 1
+  if #legs < need then return nil end
+  legs[#legs + 1] = to
+  local total = 0
+  for i = 2, #legs do total = total + metres(legs[i - 1], legs[i]) end
+  local model = d.car.models[rng:int(#d.car.models)]
+  local value = valueOf(model)
+  return { item = d.title, legs = legs, metres = math.floor(total), fragile = false, theft = d.id, tow = d.tow or nil,
+    car = { model = model, wear = 0.05, limp = d.car.limp }, hint = d.tow and strings.t('theft.deliv_tow') or nil,
+    seconds = math.max(300, math.floor(total * 1.4 / (d.tow and 6 or 14) * 1.5)), pay = rules.deliveryPay(d, value) }
+end
+local jobTrack = nil      -- the decoy's tracker (the same mechanism as a hot car's)
+local lastJobsDone = nil
+local function deliveryTick(s, v)
+  local j = sl_jobs and sl_jobs.activeJob and sl_jobs.activeJob()
+  if not (j and j.theft) then
+    if jobTrack then trackedOff(jobTrack, nil) jobTrack = nil end
+    if lastJobsDone ~= nil and sl_jobs and sl_jobs.summary then      -- (the delivery ended: done if the board counted it)
+      local sum = sl_jobs.summary()
+      if sum and (sum.done or 0) > lastJobsDone then local t = store(s) t.deliveries.done = (t.deliveries.done or 0) + 1 changed() end
+      lastJobsDone = nil
+    end
+    return
+  end
+  local d = rules.delivery(j.theft)
+  if j.carVid and not j.theftStarted then      -- picked up: the police on you at once
+    j.theftStarted = true
+    lastJobsDone = sl_jobs.summary and (sl_jobs.summary() or {}).done or 0
+    s.heat = math.max(s.heat or 0, rules.DELIVERY_HEAT)
+    if sl_police and sl_police.chaseFromHere then pcall(sl_police.chaseFromHere) end
+    say(strings.t('theft.deliv_pickup'), 6)
+    if d.alarm then alarm(s, j.carVid) end
+    if d.tracked then jobTrack = { tracked = true, vid = j.carVid, name = j.item, model = j.car.model } trackedOn(jobTrack) toast(strings.t('theft.deliv_decoy')) end
+    changed()
+  end
+  if j.theftStarted and j.leg >= 3 then
+    if d.swap and not j.swapped then      -- the hand-off: another car waits at the kerb; the hot one stays
+      j.swapped = true
+      local old = getObjectByID(j.carVid)
+      local p = old and old:getPosition() or v:getPosition()
+      local model = d.swap.models[math.random(#d.swap.models)]
+      core_jobsystem.create(function(job)
+        local ok, veh = pcall(core_vehicles.spawnNewVehicle, model, { pos = vec3(p.x + 6, p.y, p.z + 0.5), autoEnterVehicle = false, canSpawnAnotherVehicleCheck = false })
+        if not (ok and veh) then return end
+        local oldVid = j.carVid
+        j.carVid = veh:getID()
+        if gameplay_walk and gameplay_walk.getInVehicle then gameplay_walk.getInVehicle(veh) end
+        job.sleep(1)
+        local o = getObjectByID(oldVid)
+        if o then o:delete() end
+        toast(strings.t('theft.deliv_swap_1', model))
+      end)
+    elseif d.wash and jobTrack and jobTrack.tracked then trackedOff(jobTrack, strings.t('theft.deliv_washed')) end
+  end
+  if jobTrack and jobTrack.tracked and v:getID() == jobTrack.vid then trackTick(s, jobTrack, v) end
+end
+
 -- ---- the tick: the prompts on foot, the witness clock, the tracker, the plates, the fence's introduction
 local tickT = 0
 local function tick()
@@ -433,6 +525,7 @@ local function tick()
     if rec and rec.tracked then trackTick(s, rec, v) end
     if opt('slTheftPlates', true) ~= false then plateTick(s, v) end
   end
+  if v then deliveryTick(s, v) end
   for _, r in ipairs(t.stolen) do local o = carOf(r) if o then local p = o:getPosition() r.pos = { p.x, p.y, p.z } end end      -- (where it stands, for the rebuild after a restart)
   if v then rebuildNear(s, t, v:getPosition()) end
   if not t.fenceKnown and t.busts >= 1 and (s.rep or 0) >= 300 then t.fenceKnown = true sl_career.sendText('benny', strings.t('theft.benny_fence'), 2) changed() end
@@ -720,7 +813,7 @@ function M.summary()
   for id, o in pairs(t.tools) do local def = rules.tool(id) tools[#tools + 1] = { id = id, title = def and def.title or id, uses = o.uses } end
   table.sort(tools, function(a, b) return a.id < b.id end)
   local cur = recordOf(s, playerVid())
-  return { hot = M.hotCars(), tools = tools, deliveries = t.deliveries.done or 0, breakingIn = session ~= nil, tracked = cur ~= nil and cur.tracked == true, fenceKnown = t.fenceKnown == true, busts = t.busts }
+  return { hot = M.hotCars(), tools = tools, deliveries = t.deliveries.done or 0, delivering = (sl_jobs and sl_jobs.activeJob and sl_jobs.activeJob() or {}).theft, breakingIn = session ~= nil, tracked = cur ~= nil and cur.tracked == true, fenceKnown = t.fenceKnown == true, busts = t.busts }
 end
 function M.status()
   local s = career()
@@ -731,9 +824,9 @@ end
 -- for the tester: a tool for nothing; the fence known
 function M.debugTool(id) local s = career() if not s then return 'no career' end return tostring(M.giveTool(id)) end
 function M.debugFence() local s = career() if not s then return 'no career' end store(s).fenceKnown = true changed() return 'known' end
-function M.onStreetLegalStopped() session, pulling, market = nil, nil, nil marks, markSig, stoodSince, tried, rebuilding = {}, '', {}, {}, {} end
+function M.onStreetLegalStopped() session, pulling, market, jobTrack, lastJobsDone = nil, nil, nil, nil, nil marks, markSig, stoodSince, tried, rebuilding = {}, '', {}, {}, {} end
 function M.onClientEndMission() session, pulling = nil, nil marks, markSig, stoodSince = {}, '', {} end
 
-features.gate('theft', M, nil, nil, { 'summary', 'tools', 'buyTool', 'giveTool', 'hotCars', 'current', 'sell', 'strip', 'plates', 'stripTracker', 'title', 'blackMarket', 'buyHot', 'newPlate', 'begin', 'gameResult', 'pullTracker', 'jam' })      -- (the part off: no prompts, nothing)
+features.gate('theft', M, nil, nil, { 'summary', 'tools', 'buyTool', 'giveTool', 'hotCars', 'current', 'sell', 'strip', 'plates', 'stripTracker', 'title', 'blackMarket', 'buyHot', 'newPlate', 'begin', 'gameResult', 'pullTracker', 'jam', 'deliveryOffer' })      -- (the part off: no prompts, nothing)
 
 return M

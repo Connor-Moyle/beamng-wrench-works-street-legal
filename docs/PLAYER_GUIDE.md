@@ -66,7 +66,7 @@ Hill duels: at night the three hill roads (Cell Hill, the Alleyway climb, the Mo
 
 Grab bag: a good week (three jobs, two race wins or $2,000 earned by the weekly ledger) leaves a box of used parts: Benny texts, and the next time you drive a car of yours into the garage two to four parts that fit it go on its shelf for nothing. Switch it off in Mods > Parts of the game > Grab bag.
 
-Car theft (off by default): on foot by a parked car the prompt offers a break-in; the car age decides the way in (an old car: the lock and the wires; a 1990s car: a bypass box first; a modern car: a fob tool), noise draws witnesses and the alarm, and a stolen car is hot (maybe tracked) until it is resprayed and on bought plates ($700; $300 for your own cars). Every number is a row on the Car theft page.
+Car theft (off by default): on foot by a parked car the prompt offers a break-in; the car age decides the way in (an old car: the lock and the wires; a 1990s car: a bypass box first; a modern car: a fob tool), noise draws witnesses and the alarm, and a stolen car is hot (maybe tracked) until it is resprayed and on bought plates ($700; $300 for your own cars). From 1,000 reputation the jobs board offers pursuit deliveries at night: a car to the docks with the police on you from the pickup. Every number is a row on the Car theft page.
 
 Calendar: the Calendar app on the phone lists the weekend races at the Belasco dockyards (days 6 and 7 of the week, 15:00, one of six circuits, an entry fee and a purse), the swap meet nights and the monthly series to come. Enter a race on the phone and be on the grid at the hour: a rival of your standing lines up next to you for three laps. A reminder comes a day and an hour ahead. Switch it off in Mods > Parts of the game > Calendar.
 
