@@ -63,7 +63,7 @@ end
 function M.probe(route, count)
   M.stop()
   route = (route == 'B') and 'B' or 'A'
-  count = math.max(1, math.floor(tonumber(count) or 1))
+  count = math.min(200, math.max(1, math.floor(tonumber(count) or 1)))          -- (at most 200 pairs: route B makes an object per light)
   local graph, cam = graphOf(), camera()
   if not graph or not cam then return 'no road graph or camera' end
   local cfg = F.defaults()
@@ -95,7 +95,7 @@ function M.probe(route, count)
   return text
 end
 
-function M.onUpdate(dt)
+local function step(dt)
   if not run then return end
   run.t = run.t + dt
   if run.t > 120 then M.stop() return end
@@ -123,6 +123,17 @@ function M.onUpdate(dt)
   end
 end
 
-function M.onClientEndMission() run = nil end
+-- an error in a step stops the probe (it would throw every frame for two minutes, with the route B statics alive)
+function M.onUpdate(dt)
+  if not run then return end
+  local ok, err = pcall(step, dt)
+  if not ok then
+    pcall(log, 'E', 'sl_fartraffic', 'probe stopped after an error: ' .. tostring(err))
+    M.stop()
+  end
+end
+
+function M.onClientEndMission() M.stop() end
+function M.onStreetLegalStopped() M.stop() end
 
 return M
