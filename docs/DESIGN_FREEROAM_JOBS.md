@@ -19,6 +19,10 @@ Audit row: "Jobs and races in free roam" (DESIGN_FREEROAM 0.6.1, FREEROAM_AUDIT)
 ## Why not refactor `sl_jobs` to take a sandbox state
 Every one of the 19 reads and the rep/heat/sponsor/crew writes would need a sandbox guard, and a missed guard writes a career event in free roam (what the free-roam audit forbids). A second 150-line module has none of those writes by construction, and the audit test (`tests/freeroam_audit_test.lua`) can assert it never calls `sl_career`, `writeSave`, rep or heat.
 
+## Behaviour worth knowing
+- A run that was taken stays payable if the day turns to night or the board is made again; the board only changes what is offered, not the run in hand. A run is called off by the Cancel button, by the switch going off, or by the end of the mission.
+- The pickup and the drop need the car within 9 m of the stop, 12 m in height and under 2 m/s; whether each business's first parking spot is a sensible stop for a truck is a game check.
+
 ## Later (not in this step)
 - Diner food runs at night (stops = gas-station diners; kerb stops need the road graph box that the career's places define: check `kerbNear` without places).
 - Races in free roam: `sl/races.lua` bets already go through `changeMoney`; needs the rival-free "stranger" race from DESIGN_FREEROAM (a separate note).
