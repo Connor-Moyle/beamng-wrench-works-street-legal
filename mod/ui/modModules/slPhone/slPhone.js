@@ -298,6 +298,7 @@
     '.slp-chcard.slp-chsl{border-left-color:#ff2a6d;background:linear-gradient(160deg,rgba(46,22,40,.96),rgba(14,10,20,.96))}',
     '.slp-chcard.slp-chsl b{color:#ff8a2a}',
     '.slp-slots{max-height:180px;overflow-y:auto;margin:6px 0}.slp-slot{padding:6px 0;border-top:1px solid rgba(255,255,255,.12)}.slp-slot span{display:block;opacity:.8}',
+    '.slp-routename{width:130px;background:rgba(0,0,0,.35);color:#fff;border:1px solid rgba(255,255,255,.25);border-radius:4px;padding:2px 6px}',
     '.slp-slotname{width:110px;background:rgba(0,0,0,.35);color:#fff;border:1px solid rgba(255,255,255,.25);border-radius:4px;padding:2px 6px}',
     '.slp-chcard .slp-btn{margin-top:8px;border-radius:4px;font-family:"Overpass","Roboto",sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:.4px}',
     '.slp-chcard .slp-go{background:#ff6600;color:#1d0d00}',
@@ -338,6 +339,7 @@
     event: svg('M14.4 6 14 4H5v17h2v-7h5.6l.4 2h7V6z'),
     calendar: svg('M19 3h-1V1h-2v2H8V1H6v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm0 16H5V9h14zM5 7V5h14v2zm2 4h5v5H7z'),
     inventory: svg('M20 7l-8-4-8 4v10l8 4 8-4zM4 7l8 4 8-4M12 11v10'),
+    myroute: svg('M9 11.5A2.5 2.5 0 1 1 9 6.5a2.5 2.5 0 0 1 0 5zM9 2a6.500 6.500 0 0 0-6.500 6.500C2.500 13.400 9 21 9 21s6.500-7.600 6.500-12.500A6.500 6.500 0 0 0 9 2zm10 11h-4v2h4a1 1 0 0 1 0 2h-3v2h3a3 3 0 0 0 0-6z'),
     traps: svg('M20.38 8.57l-1.23 1.85a8 8 0 0 1-.22 7.58H5.07A8 8 0 0 1 15.58 6.85l1.85-1.23A10 10 0 0 0 3.35 19a2 2 0 0 0 1.72 1h13.85a2 2 0 0 0 1.74-1 10 10 0 0 0-.27-10.44zm-9.79 6.84a2 2 0 0 0 2.83 0l5.66-8.49-8.49 5.66a2 2 0 0 0 0 2.83z'),
     cab: svg('M18.9 6c-.2-.6-.8-1-1.4-1h-11c-.7 0-1.2.4-1.4 1L3 12v8a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-1h12v1a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-8zM6.5 16A1.5 1.5 0 1 1 8 14.5 1.5 1.5 0 0 1 6.5 16zm11 0a1.5 1.5 0 1 1 1.5-1.5 1.5 1.5 0 0 1-1.5 1.5zM5 11l1.5-4.5h11L19 11z'),
     me: svg('M12 2 4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5zm-1.5 14.5-4-4 1.4-1.4 2.6 2.6 6.1-6.1 1.4 1.4z'),
@@ -361,7 +363,7 @@
   var SLRR_ART = '/ui/modModules/slHud/slrr/icons/';
   var SLRR_ICON = { races: 'cup.png', garage: 'garage.png', bank: 'dollar.png', cab: 'city.png', me: 'roc.png' };
   function slrrIcon(name, cls) { return '<img class="slp-slrr ' + (cls || '') + '" src="' + SLRR_ART + name + '" alt="">'; }
-  var APP_COLORS = { map: '#3a7d6e', camera: '#3b6fa0', gallery: '#a05a8a', carmarket: '#2e7d4f', partmarket: '#a3322c', settings: '#5c6474', wait: '#4a5d7a', market: '#a3322c', paper: '#5b5346', bid: '#b5651d', club: '#6a2e7a', jobs: '#3d7a2e', phone: '#2e7d4f', messages: '#2f5fb3', contacts: '#7b4fb0', races: '#c2541e', bank: '#1f7a70', cab: '#b58a12', me: '#5c6474', garage: '#8a3b8f', garagekit: '#6b5b2e', traps: '#b4541a', inventory: '#7a6a2e', health: '#b23a5e', help: '#4a6fa5', turf: '#7a4a2e', event: '#2f6f9f', calendar: '#2f6f9f', sponsors: '#9a6b12' };      // (every app has its own tile colour: the white icon needs a fill)
+  var APP_COLORS = { map: '#3a7d6e', camera: '#3b6fa0', gallery: '#a05a8a', carmarket: '#2e7d4f', partmarket: '#a3322c', settings: '#5c6474', wait: '#4a5d7a', market: '#a3322c', paper: '#5b5346', bid: '#b5651d', club: '#6a2e7a', jobs: '#3d7a2e', phone: '#2e7d4f', messages: '#2f5fb3', contacts: '#7b4fb0', races: '#c2541e', bank: '#1f7a70', cab: '#b58a12', me: '#5c6474', garage: '#8a3b8f', garagekit: '#6b5b2e', traps: '#b4541a', inventory: '#7a6a2e', myroute: '#2f8f6a', health: '#b23a5e', help: '#4a6fa5', turf: '#7a4a2e', event: '#2f6f9f', calendar: '#2f6f9f', sponsors: '#9a6b12' };      // (every app has its own tile colour: the white icon needs a fill)
   var AV_COLORS = ['#a8c7fa', '#f2b8b5', '#c3e7c6', '#ffd8a8', '#d0bcff', '#9fe0e8', '#ffb4ab', '#e8def8'];
   var CLASS_NAMES = { beater: T('ui.beaters', 'Beaters'), compact: T('ui.compacts', 'Compacts'), muscle: T('ui.muscle', 'Muscle'), tuner: T('ui.tuners', 'Tuners'), sport: T('ui.sports_cars', 'Sports cars'), super: T('ui.supercars', 'Supercars') };
 
@@ -471,6 +473,7 @@
           { id: 'sponsors', title: T('app.sponsors', 'Sponsors'), icon: I.sponsors, badge: d.sponsors && d.sponsors.offer ? 1 : 0, hide: !d.sponsors || has.sponsors === false },
           { id: 'calendar', title: T('app.calendar', 'Calendar'), icon: I.calendar, badge: calOpenInvites(), hide: !d.calendar || has.calendar === false },
           { id: 'inventory', title: T('app.inventory', 'Inventory'), icon: I.inventory, hide: !d.inventory || has.inventory === false },
+          { id: 'myroute', title: T('app.myroute', 'My routes'), icon: I.myroute, hide: !d.myroute || has.myroute === false },
           { id: 'traps', title: T('app.traps', 'Speed traps'), icon: I.traps, hide: !(d.traps && has.traps !== false) && !(d.danger && has.danger !== false) },
           { id: 'jobs', title: T('app.jobs', 'Jobs'), icon: I.jobs, badge: d.jobs && d.jobs.active ? 1 : 0, hide: has.jobs === false },
           { id: 'wait', title: T('app.wait', 'Wait'), icon: I.wait },
@@ -1311,6 +1314,32 @@
       return bar(T('app.inventory', 'Inventory')) + '<div class="slp-body">' + head + (rows || '<div class="slp-empty">' + T('ui.inv_empty', 'Nothing in the boot.') + '</div>') + '</div>';
     }
 
+    // my routes (sl_myroute.summary(): { routes = { { id, name, points, length (m), best (s, 0 = never), bestText, runs, last, lastText } }, draft (points dropped), draftMin, draftMax, maxRoutes,
+    // run = { id, name, next, points, started, t, clock } or nil })
+    function myroutePage() {
+      var m = obj(st.data.myroute), run = m.run, routes = arr(m.routes);
+      var km = function (len) { return Number(len) >= 1000 ? (len / 1000).toFixed(1) + ' km' : Math.round(len) + ' m'; };
+      var runCard = run ? '<div class="slp-card"><h4>' + T('ui.myroute_racing', 'Racing {1}: waypoint {2} of {3}', esc(run.name || ''), Math.min(Number(run.next) || 1, Number(run.points) || 1), Number(run.points) || 0) + '</h4>' +
+        '<div class="slp-kv"><span>' + (run.started ? T('ui.myroute_best', 'Best') : '') + '</span><b>' + (run.started ? esc(run.clock || '') : T('ui.myroute_to_start', 'Drive to the start of {1}', esc(run.name || ''))) + '</b></div>' +
+        '<div class="slp-btn slp-text" data-a="routestop" data-v="1">' + T('ui.myroute_stop', 'Stop') + '</div></div>' : '';
+      var draft = Number(m.draft) || 0;
+      var editor = run ? '' : '<div class="slp-card"><p>' + T('ui.myroute_intro', 'Drive to a place and drop a waypoint. Four to eight, then save: you race the route against the clock, and the best time is kept.') + '</p>' +
+        '<div class="slp-kv"><span>' + T('ui.myroute_dropped', 'Waypoints dropped: {1} of {2}', draft, Number(m.draftMax) || 8) + '</span></div>' +
+        '<div class="slp-acts"><div class="slp-btn slp-text" data-a="routedrop" data-v="1">' + T('ui.myroute_drop', 'Drop waypoint here') + '</div>' +
+        (draft ? '<div class="slp-btn slp-text" data-a="routeundo" data-v="1">' + T('ui.myroute_undo', 'Undo') + '</div><div class="slp-btn slp-text" data-a="routediscard" data-v="1">' + T('ui.myroute_discard', 'Discard') + '</div>' : '') + '</div>' +
+        (draft >= (Number(m.draftMin) || 4) ? '<div class="slp-acts"><input class="slp-routename" placeholder="' + T('ui.myroute_name', 'Name') + '" maxlength="24"><div class="slp-btn slp-text" data-a="routesave" data-v="1">' + T('ui.myroute_save', 'Save route') + '</div></div>' : '') + '</div>';
+      var cards = routes.map(function (r) {
+        return '<div class="slp-card"><h4>' + esc(r.name || '') + '</h4>' +
+          '<div class="slp-kv"><span>' + T('ui.myroute_length', 'Length') + '</span><b>' + km(r.length) + ' &middot; ' + (Number(r.points) || 0) + '</b></div>' +
+          '<div class="slp-kv"><span>' + T('ui.myroute_best', 'Best') + '</span><b>' + esc(r.bestText || '--') + '</b></div>' +
+          '<div class="slp-kv"><span>' + T('ui.myroute_last', 'Last') + '</span><b>' + esc(r.lastText || '--') + '</b></div>' +
+          '<div class="slp-kv"><span>' + T('ui.myroute_runs', 'Runs') + '</span><b>' + (Number(r.runs) || 0) + '</b></div>' +
+          '<div class="slp-acts">' + (run ? '' : '<div class="slp-btn slp-text" data-a="routerace" data-v="' + Number(r.id) + '">' + T('ui.myroute_race', 'Race it') + '</div>') +
+          '<div class="slp-btn slp-text" data-a="routedel" data-v="' + Number(r.id) + '">' + (st.routeDel === Number(r.id) ? T('ui.myroute_sure', 'Sure? Delete') : T('ui.myroute_delete', 'Delete')) + '</div></div></div>';
+      }).join('');
+      return bar(T('app.myroute', 'My routes')) + '<div class="slp-body">' + runCard + editor + (cards || '<div class="slp-empty">' + T('ui.myroute_none', 'No routes on this map yet.') + '</div>') + '</div>';
+    }
+
     // the speed traps and zones (sl_traps.summary(): { list = { { id, name, kind: trap|zone, target km/h, best km/h (0 = never), count, paid, metres, pay } } }): nearest first
     function trapsPage() {
       var tr = obj(st.data.traps), dg = obj(st.data.danger), hasTraps = st.data.traps && obj(st.data.has).traps !== false, hasDanger = st.data.danger && obj(st.data.has).danger !== false;
@@ -1871,6 +1900,7 @@
         case 'calendar': page = calendarPage(); break;
         case 'traps': page = trapsPage(); break;
         case 'inventory': page = inventoryPage(); break;
+        case 'myroute': page = myroutePage(); break;
         case 'cab': page = cabPage(); break;
         case 'me': page = mePage(); break;
         case 'garage': page = garagePage(); break;
@@ -2275,6 +2305,19 @@
           st.invDrop = null;
           var ip = String(v).split(':');
           lua('@sl_inventory.discard(' + JSON.stringify(ip[0]) + ',' + (ip[0] === 'can' ? Number(ip[1]) : JSON.stringify(ip[1])) + ')');
+          break;
+        case 'routedrop': lua('@sl_myroute.drop()'); break;
+        case 'routeundo': lua('@sl_myroute.undo()'); break;
+        case 'routediscard': lua('@sl_myroute.discard()'); break;
+        case 'routestop': lua('@sl_myroute.cancel()'); break;
+        case 'routerace': lua('@sl_myroute.race(' + Number(v) + ')'); break;
+        case 'routesave':
+          var rn = root.querySelector('.slp-routename');
+          lua('@sl_myroute.save(' + JSON.stringify(String(rn && rn.value || '')) + ')');
+          break;
+        case 'routedel':
+          if (st.routeDel !== Number(v)) { st.routeDel = Number(v); toast(T('ui.click_again_to_delete_that', 'Click again to delete that career for good.')); render(); break; }
+          st.routeDel = null; lua('@sl_myroute.delete(' + Number(v) + ')');
           break;
         case 'slotname':
           var inp = root.querySelector('.slp-slotname[data-slot="' + Number(v) + '"]');

@@ -3312,14 +3312,14 @@ do
   local Opt = require('sl/options')
   local defs = {}
   for _, d in ipairs(Opt.defs) do defs[d.key] = d end
-  local okDefs = #F.LIST == 44
+  local okDefs = #F.LIST == 45
   local offByDefault = 0
   for _, f in ipairs(F.LIST) do
     local d = defs[f.opt]
     if not (d and d.type == 'bool' and d.default == (f.default ~= false) and d.feature == true and d.title == f.title and f.desc ~= '') then okDefs = false end
     if f.default == false then offByDefault = offByDefault + 1 end
   end
-  check('parts: every part has an option, one bool, on by default unless the part says off (needs), tagged for the Active features page', okDefs and offByDefault == 5 and F.get('needs').default == false and F.get('mates').default == false and F.get('seasons').default == false and F.get('radio').default == false)
+  check('parts: every part has an option, one bool, on by default unless the part says off (needs), tagged for the Active features page', okDefs and offByDefault == 6 and F.get('needs').default == false and F.get('mates').default == false and F.get('seasons').default == false and F.get('radio').default == false)
   local off = { slJobs = false }
   local function get(k) return off[k] end
   check('parts: on unless the option is false; a missing option system is on', F.on('jobs', get) == false and F.on('races', get) == true and F.on('jobs', function() return nil end) == true and F.on('nope', get) == true)
@@ -7507,6 +7507,95 @@ do
   check('crews e2e: losing a leader ends the war for a week', c.turfWar == nil and c.turfWarAfter == st.day + 7)
   for k, v in pairs(old) do _G[k] = v end
   package.loaded['sl/crews'] = nil
+end
+
+-- my route (campaign idea #14)
+do
+  local R = require('sl/core/myroute')
+  local pts = { { x = 0, y = 0, z = 0 }, { x = 100, y = 0, z = 0 }, { x = 200, y = 50, z = 0 }, { x = 300, y = 50, z = 0 } }
+  check('myroute: the length is the sum of the legs', math.floor(R.length(pts)) == 100 + 111 + 100)
+  check('myroute: a waypoint too close to the last, a ninth and a too long route are refused with a reason',
+    select(2, R.canAdd(pts, { x = 310, y = 50 })) == 'myroute.too_close'
+    and select(2, R.canAdd({ pts[1], pts[2], pts[3], pts[4], pts[1], pts[2], pts[3], pts[4] }, { x = 900, y = 0 })) == 'myroute.full'
+    and select(2, R.canAdd({ { x = 0, y = 0 }, { x = 7000, y = 0 }, { x = 14000, y = 0 } }, { x = 14900, y = 900 })) == 'myroute.too_long'
+    and R.canAdd(pts, { x = 500, y = 50 }))
+  check('myroute: a name is one line, short, and empty becomes Route N', R.cleanName('  A\tB\n C ') == 'A B C' and #R.cleanName(string.rep('x', 60)) == R.NAME_MAX and R.cleanName('', 3) == 'Route 3')
+  local routes = {}
+  check('myroute: three waypoints do not make a route', select(2, R.make({ pts[1], pts[2], pts[3] }, 'x', routes)) == 'myroute.too_few')
+  local r1 = R.make(pts, 'Loop', routes)
+  routes[1] = r1
+  local r2 = R.make(pts, '', routes)
+  check('myroute: a route has an id, a name, its length and no record; the next id is higher', r1.id == 1 and r1.name == 'Loop' and r1.length == 311 and r1.best == 0 and r1.runs == 0 and r2.id == 2 and r2.name == 'Route 2')
+  local full = {}
+  for i = 1, R.MAX_ROUTES do full[i] = { id = i } end
+  check('myroute: ten routes are the most on a map', select(2, R.make(pts, 'x', full)) == 'myroute.too_many')
+
+  -- a run along the route: the clock starts at waypoint 1, the points are passed in order, the last one finishes
+  local run, ev = R.newRun(), nil
+  local function go(a, b, dt) run, ev = R.step(run, r1, a, b, dt or 1) return ev end
+  check('myroute: a car far from the start starts nothing', go({ x = -500, y = 0 }, { x = -450, y = 0 }) == nil and not run.started)
+  check('myroute: passing waypoint 1 between two samples starts the clock', go({ x = -5, y = 0 }, { x = 5, y = 0 }) == 'start' and run.started and run.next == 2 and run.t == 0)
+  check('myroute: waypoint 3 first does not count (the order is kept)', go({ x = 195, y = 50 }, { x = 205, y = 50 }) == nil and run.next == 2 and run.t == 1)
+  check('myroute: waypoint 2, then 3, then the last finishes', go({ x = 95, y = 0 }, { x = 105, y = 0 }, 2) == 'point' and go({ x = 195, y = 50 }, { x = 205, y = 50 }, 3) == 'point' and go({ x = 295, y = 50 }, { x = 305, y = 50 }, 4) == 'finish' and run.next == 5)
+  check('myroute: the clock is the sum of the steps since waypoint 1', math.abs(run.t - 10) < 1e-9)
+  run = R.newRun()
+  go({ x = -5, y = 0 }, { x = 5, y = 0 })
+  check('myroute: a teleport cancels a started run', go({ x = 5, y = 0 }, { x = 1000, y = 0 }) == 'cancel' and not run.started and run.next == 1)
+  run = R.newRun()
+  check('myroute: a jump before the start cancels nothing', go({ x = -500, y = 0 }, { x = 500, y = 500 }) == nil)
+  local rec, best = R.record({ best = 0, runs = 0 }, 61.234)
+  check('myroute: the first run is a best; a slower one is not; a faster one is', rec.best == 61.23 and rec.runs == 1 and best == true
+    and select(2, R.record({ best = 61.23, runs = 1 }, 70)) == false and select(1, R.record({ best = 61.23, runs = 1 }, 70)).best == 61.23
+    and select(2, R.record({ best = 61.23, runs = 1 }, 59)) == true)
+  check('myroute: the clock reads minutes and hundredths; no time is two dashes', R.clock(61.5) == '1:01.50' and R.clock(9.05) == '0:09.05' and R.clock(0) == '--' and R.clock(nil) == '--')
+
+  -- the game side, with the car, the clock of the update and the markers faked
+  local ST = require('sl/core/state')
+  local st = ST.new(1, 0)
+  local old = {}
+  for _, k in ipairs({ 'sl_career', 'guihooks', 'extensions', 'getPlayerVehicle', 'getCurrentLevelIdentifier', 'core_groundMarkers', 'sl_markers', 'sl_gridrace', 'sl_options', 'vec3', 'debugDrawer' }) do old[k] = rawget(_G, k) end
+  local pos, toasts, paths, hooks, flared, cleared = { x = -50, y = 0, z = 0 }, {}, {}, 0, 0, 0
+  _G.sl_options = nil
+  _G.debugDrawer = nil
+  _G.vec3 = function(x, y, z) return { x = x, y = y, z = z, length = function(self) return math.sqrt(self.x ^ 2 + self.y ^ 2) end, normalized = function(self) return self end } end
+  _G.guihooks = { trigger = function(n, d) if n == 'slPhoneToast' then toasts[#toasts + 1] = d.text end end }
+  _G.extensions = { hook = function() hooks = hooks + 1 end }
+  _G.getCurrentLevelIdentifier = function() return 'west_coast_usa' end
+  _G.getPlayerVehicle = function() return { getPosition = function() return pos end } end
+  _G.core_groundMarkers = { setPath = function(p) paths[#paths + 1] = p or false end }
+  _G.sl_markers = { flareCircuit = function() flared = flared + 1 end, clear = function() cleared = cleared + 1 end }
+  _G.sl_gridrace = { running = function() return nil end }
+  _G.sl_career = { isActive = function() return true end, getState = function() return st end, freeToStart = function() return nil end, LEVEL = 'west_coast_usa' }
+  package.loaded['sl/myroute'] = nil
+  local G = require('sl/myroute')
+  check('myroute: no routes and nothing dropped to begin with', #G.summary().routes == 0 and G.summary().draft == 0 and G.summary().maxRoutes == 10)
+  for _, x in ipairs({ 0, 100, 200, 300 }) do
+    pos = { x = x, y = x == 200 and 50 or (x == 300 and 50 or 0), z = 0 }
+    local ok = G.drop()
+    check('myroute: waypoint at ' .. x .. ' is dropped', ok == true)
+  end
+  check('myroute: dropping twice in the same place is refused', (function() local ok, why = G.drop() return ok == false and why ~= nil end)())
+  check('myroute: undo takes the last one back and the next drop goes there', G.undo() == true and G.summary().draft == 3 and G.drop() == true and G.summary().draft == 4)
+  check('myroute: saving puts the route in the career save under the map and clears the draft', G.save('Dock loop') == true and G.summary().draft == 0 and #st.myroutes.levels.west_coast_usa.list == 1 and G.summary().routes[1].name == 'Dock loop')
+  check('myroute: a career with a saved route has the achievement', require('sl/core/achievements').LIST and (function() for _, a in ipairs(require('sl/core/achievements').LIST) do if a.id == 'my_route' then return a.check(st) end end return false end)())
+  -- the race
+  pos = { x = -300, y = 0, z = 0 }
+  check('myroute: racing sends the player to the first waypoint and lights the route', G.race(1) == true and flared == 1 and paths[#paths] ~= false and G.summary().run.started == false)
+  check('myroute: a second race is refused while one runs; so is a drop', select(1, G.race(1)) == false and select(1, G.drop()) == false)
+  local t0 = #toasts
+  G.onUpdate(0.2) pos = { x = -3, y = 0, z = 0 } G.onUpdate(0.2) pos = { x = 3, y = 0, z = 0 } G.onUpdate(0.2)
+  check('myroute: passing the start runs the clock', G.summary().run.started == true and #toasts == t0 + 1)
+  for _, p in ipairs({ { 50, 0 }, { 97, 0 }, { 103, 0 }, { 150, 25 }, { 197, 50 }, { 203, 50 }, { 250, 50 }, { 297, 50 }, { 303, 50 } }) do pos = { x = p[1], y = p[2], z = 0 } G.onUpdate(1) end
+  local rec1 = G.summary().routes[1]
+  check('myroute: the finish stops the run and keeps the time, the run count and the best', G.summary().run == nil and rec1.runs == 1 and rec1.best > 0 and rec1.best == rec1.last and paths[#paths] == false)
+  check('myroute: the run put away its own flares once', cleared == 1)
+  check('myroute: money and reputation are untouched', st.money == ST.new(1, 0).money and st.rep == 0)
+  -- a delete, and a run cancelled by deleting its route
+  check('myroute: a route is deleted by id', G.delete(1) == true and #G.summary().routes == 0 and G.delete(1) == false)
+  G.onStreetLegalStopped()
+  check('myroute: stopping with no run of its own leaves the flares of other modules alone', cleared == 1)
+  for k, v in pairs(old) do _G[k] = v end
+  package.loaded['sl/myroute'] = nil
 end
 
 print(string.format('lua tests passed: %d checks', passed))
