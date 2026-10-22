@@ -875,6 +875,8 @@ M.TEXT = {
   ["calendar.you_finished_1_in_2_3_4_rep"] = "{1} in {2}: ${3} and {4} reputation.", ["calendar.you_did_not_finish_1"] = "You did not finish {1}.",
   ["gridrace.you_finished_1"] = "You finished {1}.", ["gridrace.did_not_finish"] = "Did not finish.", ["gridrace.go_1_laps"] = "Go! {1} laps.", ["gridrace.to_the_grid"] = "To the grid.",
   ["gridrace.no_car"] = "You need a car on the grid.", ["gridrace.no_race_object"] = "The game has no race object here.", ["gridrace.no_track"] = "No layout with a grid here.",
+  ["rallyservice.service_stall"] = "Service stall", ["rallyservice.stall_desc"] = "The rally service: Basic service and Full overhaul at the normal rate here, the mobile-mechanic rate anywhere else on the visit.",
+  ["rallyservice.at_the_stall"] = "At the service stall: the service card works at the normal rate here.",
   ["needs.no_career"] = "No career.", ["needs.nap_at_garage"] = "You can only nap at a garage.", ["needs.eat_at_station"] = "Food and drink are sold at fuel stations.",
   ["needs.food_and_drink"] = "Food and drink",
   ["needs.nap_1_rest_2"] = "A {1} hour nap: rest {2}.", ["needs.slept_1_2_rest_3"] = "You slept {1} hours {2}: rest {3}.",
