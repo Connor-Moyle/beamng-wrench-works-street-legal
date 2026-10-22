@@ -20,10 +20,14 @@ WEAR_SCALE = float(os.environ.get("WEAR_SCALE", "40"))   # core/service.lua SCAL
 WEAR = '--nowear' not in sys.argv          # core/service.lua: wear x40 paid back as repairs, and a basic service every 150 km
 SPONSOR = '--nosponsor' not in sys.argv       # core/brands.lua: standing from wins, a sponsorship at 100 with a retainer and a parts discount
 SHOW = '--noshow' not in sys.argv      # core/show.lua: the Saturday Style show (a purse by place, entered when the car is in show shape)
-WEEKLY = '--noweekly' not in sys.argv      # the weekly costs of core/weekly.lua
+WEEKLY = '--noweekly' not in sys.argv
+SEASON = '--noseason' not in sys.argv      # sl_calendar weekend races and sl_season: the championship season (six rounds, a prize every three weeks)      # the weekly costs of core/weekly.lua
 BOOST = '--noboost' not in sys.argv     # the early-game boost in sl_jobs
 SHOPS = '--noshops' not in sys.argv     # what the shops of sl_shops take (docs/SHOPS_REWORK.md step 3): (price, how often a week) of the services a player buys now and then; a guess to check in game
 SHOP_WEEK = [('wash', 15, 3.0), ('scratch polish', 120, 0.6), ('dyno run', 90, 0.4), ('respray', 450, 0.08), ('special order (performance)', 1500, 0.12)]
+NEEDS = '--needs' in sys.argv           # the Needs part (off by default in the game): food and drink every day: two drinks (2), a snack (3) and a meal (12) = $19 a day; --plan: the meal plan ($60 a week) pays the meals
+NEEDS_PLAN = '--plan' in sys.argv
+NEEDS_WEEK = (60 + 7 * 7) if NEEDS_PLAN else 7 * 19      # the plan: $60 + drinks and a snack every day ($7); without: $19 a day
 SHOP_SPONSOR = float(os.environ.get('SHOP_FACTOR', '1.0'))      # a sponsor's price factor (sl_shops.setPriceFactor), 0.9 = ten per cent off
 DAY_MIN = 30.0            # real minutes per in-game day (BeamNG's TimeOfDay dayLength; verify in game)
 NIGHT = (20, 5)           # night hours, as progression.isNight
@@ -101,6 +105,7 @@ class Player:
         self.log = {}                       # milestone -> minute
         self.earned = {}                    # source -> [money, minutes]
         self.fines, self.broke = 0, 0
+        self.weekend_done, self.season_points, self.season_rounds = -1, 0, 0
         self.series = []
         self.flip_target = 1000
         self.kit = set()
@@ -155,6 +160,9 @@ class Player:
                 bill = {1: 0, 2: int(os.environ.get("RENT2", "150")), 3: int(os.environ.get("RENT3", "400"))}.get(self.garage, 700)
                 bill += 40 * max(0, CARS_KEPT - 2)       # core/weekly STORAGE for each car beyond two
                 self.money -= min(self.money, bill)     # (a shortfall is a debt in the game; here it is just not paid, the floor check shows who runs dry)
+            if NEEDS and self.day() % 7 == 0:               # the Needs part: the food and drink of the week (buying is by choice: nothing is bought with the last dollars)
+                cost = min(self.money, NEEDS_WEEK)
+                self.money -= cost; self.needs_spent = getattr(self, 'needs_spent', 0) + cost
             if SHOPS and self.day() % 7 == 0 and self.car is not None:      # the shops: a player buys what they can well afford (three times the price in the pocket), never the last dollars
                 for name, price, per_week in SHOP_WEEK:
                     price = price * SHOP_SPONSOR
@@ -294,6 +302,30 @@ class Player:
         self.spend(minutes)
         return True
 
+    def weekend_race(self):
+        # sl_calendar + sl_gridrace: a weekend dockyards race (days 6 and 7 of the week, once a day, a fee and a purse by place); sl_season: six rounds, the prize every three weeks
+        if not SEASON or self.car is None or self.day() % 7 not in (5, 6) or self.weekend_done == self.day(): return False
+        self.weekend_done = self.day()
+        fee, purse = (100, 500) if self.r.random() < 0.4 else (150, 800)
+        p = 1 / (1 + math.exp(-((CARS[self.car][1] - 1 + self.perf) * 0.9 - 1.5)))
+        roll = self.r.random()
+        place = 1 if roll < p * 0.45 else (2 if roll < p * 0.8 else (3 if roll < p else self.r.randint(4, 7)))
+        share = {1: 1.0, 2: 0.5, 3: 0.25}.get(place, 0)
+        net = -fee + round(purse * share, -1)
+        self.money += net; self.rep += {1: 40, 2: 20, 3: 10}.get(place, 5)
+        self.book('weekend race', net, 9)
+        self.season_points += [10, 7, 5, 3, 2, 1, 0][min(6, place - 1)]
+        self.season_rounds += 1
+        if self.season_rounds >= 6:
+            # the table: six rivals who score like the player on average; the prize by position
+            rivals = sorted(self.r.gauss(self.season_points, 9) for _ in range(6))
+            pos = 1 + sum(1 for x in rivals if x > self.season_points)
+            prize = round(2000 * {1: 1.0, 2: 0.55, 3: 0.3, 4: 0.15}.get(pos, 0), -1)
+            self.money += prize; self.rep += {1: 30, 2: 20, 3: 10, 4: 5}.get(pos, 0)
+            self.book('season prize', prize, 0)
+            self.season_points, self.season_rounds = 0, 0
+        return True
+
     def sprint(self):
         if not is_night(self.hour()): return False
         stars = self.r.choice([0, 1, 1, 2, 2, 3])
@@ -374,6 +406,7 @@ class Player:
                 break
         w = {'racer': 0.75, 'mixed': 0.5, 'worker': 0.25, 'borrower': 0.5}[self.style]
         roll = self.r.random()
+        if self.weekend_race(): return
         if roll < w and self.race(): return
         if roll < w + 0.1 and self.sprint(): return
         if self.style != 'racer' and roll > 0.92 and self.flip(): return
@@ -432,7 +465,47 @@ def diff(a, b):
         real = hb < la or lb > ha
         print('%-34s %10.0f %10.0f %+9.0f %s' % (key, ma, mb, mb - ma, 'REAL' if real else '(within the spread)'))
 
+def turf_check(n):
+    """--turf [--seeds N]: the late game with turf income (docs/TURF_INCOME_PLAN.md). Not the 12 h sim (garage 3 is outside it): a year of weeks for a player who holds 2 to 6 districts at
+    60 to 100 % control, with the rules of core/turfincome.lua mirrored here (cut = 100 x control, +50 % at the base, a raid chance 12 % + 8 % per angry crew costing the cut and 15 control,
+    10 control won back a week by racing there, an unanswered call-out 15 % of district-weeks). Prints the weekly turf money against the garage-3 rent and storage and against the weekly pay
+    of the populations the sim plays (the sim's own median over the same seeds). Acceptance: 40 to 100 % of garage-3 costs at 4 to 6 districts, and far below the weekly pay."""
+    import random
+    garage3 = 400 + 40 * max(0, CARS_KEPT - 2)
+    rows, pay = [], []
+    for seed in range(n):
+        rng = random.Random(seed)
+        pops = population(seed)
+        weeks = HOURS * 60 / DAY_MIN / 7
+        pay.append(statistics.median(sum(m for m, _ in p.earned.values()) / weeks for p in pops))
+        for k in (2, 3, 4, 5, 6):
+            money, lost, raids = 0.0, 0.0, 0
+            control = [rng.uniform(60, 100) for _ in range(k)]
+            base = 0 if rng.random() < 0.5 else -1
+            angry = rng.choice((0, 1, 2))
+            for _week in range(52):
+                for i in range(k):
+                    cut = 100 * control[i] / 100 * (1.5 if i == base else 1.0)
+                    cut = int(cut / 10 + 0.5) * 10
+                    if rng.random() < min(0.5, 0.12 + 0.08 * angry):
+                        raids += 1; lost += cut
+                        control[i] = max(1, control[i] - 15 * (0.5 if i == base else 1))
+                    elif rng.random() < 0.15:
+                        lost += cut
+                    else:
+                        money += cut
+                    control[i] = min(100, control[i] + 10)
+            rows.append((k, money / 52, lost / 52, raids / 52))
+    print('Turf income over a year of weeks (%d seeds): garage 3 rent+storage $%d a week; the sim median weekly pay $%d' % (n, garage3, statistics.median(pay)))
+    for k in (2, 3, 4, 5, 6):
+        got = [r for r in rows if r[0] == k]
+        m = statistics.median(r[1] for r in got)
+        print('  %d districts held: $%4d a week paid (%3.0f %% of garage 3, %4.1f %% of the weekly pay), $%3d a week lost to raids and call-outs, %.2f raids a week'
+              % (k, m, 100 * m / garage3, 100 * m / max(1, statistics.median(pay)), statistics.median(r[2] for r in got), statistics.median(r[3] for r in got)))
+
 def main():
+    if '--turf' in sys.argv:
+        turf_check(int(sys.argv[sys.argv.index('--seeds') + 1]) if '--seeds' in sys.argv else 3); return
     if '--diff' in sys.argv:
         i = sys.argv.index('--diff'); diff(sys.argv[i + 1], sys.argv[i + 2]); return
     if '--seeds' in sys.argv:
@@ -468,6 +541,9 @@ def main():
         bm = sorted(getattr(p, 'broke_min', 0) for p in ps)
         print('Floor (%s): minutes under $300 after the first 20: median %d, worst %d; players who ended under $300: %d of %d'
               % (style, statistics.median(bm), bm[-1], sum(1 for p in ps if p.money < 300), len(ps)))
+    if NEEDS:
+        eaten = sorted(getattr(p, 'needs_spent', 0) for p in players)
+        print('Needs (%s): median spend over the run $%d (10-90 %%: $%d-$%d)' % ('meal plan' if NEEDS_PLAN else 'no plan', statistics.median(eaten), eaten[len(eaten) // 10], eaten[len(eaten) * 9 // 10]))
     if SHOPS:
         spent = sorted(getattr(p, 'shop_spent', 0) for p in players)
         earned = sorted(sum(m for m, _ in p.earned.values()) for p in players)

@@ -10,6 +10,7 @@ local strings = require('sl/core/strings')
 
 local progression = require('sl/core/progression')
 
+local function basePrice(u) if u.id == 'dressing' and sl_options and sl_options.get then return tonumber(sl_options.get('slDressingPrice')) or u.price end return u.price end          -- (the Garage dressing price setting)
 local function career() return sl_career and sl_career.isActive() and sl_career.getState() or nil end
 
 local function bought(s)
@@ -42,7 +43,7 @@ function M.buy(id)
   if not u then return false, strings.t('upgrades.no_such_thing') end
   local f = M.features(s)
   if (id == 'shelves' and f.shelfSize > progression.SHELF.base) or (id ~= 'shelves' and f[id]) then return false, strings.t('upgrades.the_garage_has_one_already') end
-  local price = math.floor(u.price * (sl_perks and sl_perks.factor('upgrades') or 1) / 10 + 0.5) * 10
+  local price = math.floor(basePrice(u) * (sl_perks and sl_perks.factor('upgrades') or 1) / 10 + 0.5) * 10
   if not sl_career.addMoney(-price, strings.t('upgrades.garage_1', (u.name))) then return false, string.format(strings.t('upgrades.s_d_you_have_d'), u.name, price, s.money) end
   bought(s)[id] = true
   push()
@@ -55,9 +56,12 @@ function M.summary()
   local s = career()
   if not s then return nil end
   local f, out = M.features(s), {}
+  local needsOn = require('sl/core/features').on('needs')
   for _, u in ipairs(progression.UPGRADES) do
+   if not u.needs or needsOn then
     local has = (u.id == 'shelves') and f.shelfSize > progression.SHELF.base or f[u.id] == true
-    out[#out + 1] = { id = u.id, name = u.name, price = math.floor(u.price * (sl_perks and sl_perks.factor('upgrades') or 1) / 10 + 0.5) * 10, desc = u.desc, has = has }
+    out[#out + 1] = { id = u.id, name = u.name, price = math.floor(basePrice(u) * (sl_perks and sl_perks.factor('upgrades') or 1) / 10 + 0.5) * 10, desc = u.desc, has = has }
+   end
   end
   return out
 end

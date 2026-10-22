@@ -10,7 +10,7 @@ local strings = require('sl/core/strings')
 
 -- the jobs on the phone's board (sl_jobs TYPES kinds, and the ones other modules add)
 M.JOBS = {
-  part = 'day', courier = 'day', taxi = 'day', crush = 'day', transport = 'day', scrapparts = 'day', tow = 'day', dealerdrive = 'day', testdrive = 'day', recovery = 'day', errand = 'day',
+  part = 'day', courier = 'day', freight = 'day', taxi = 'day', crush = 'day', transport = 'day', scrapparts = 'day', tow = 'day', dealerdrive = 'day', testdrive = 'day', recovery = 'day', errand = 'day',
   move = 'day', flip = 'day', dyno = 'day', quarter = 'day',
   food = 'night', hot = 'night', valet = 'night',
 }

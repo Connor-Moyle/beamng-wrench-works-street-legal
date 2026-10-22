@@ -316,6 +316,19 @@ end
 function M.getSlot() return slot end
 
 function M.getState() return s end
+
+-- the 0.8.0 economy for a save from before it: offered once on the phone (snapshot field economyOffer), opted in with the button
+function M.economyOffer() return active and require('sl/core/economy').pending(s) or nil end
+function M.optInEconomy()
+  local economy = require('sl/core/economy')
+  if not (active and economy.pending(s)) then return false, strings.t('career.economy_none') end
+  economy.mark(s)
+  local features = require('sl/core/features')
+  features.setSaveOff({})
+  for _, id in ipairs(economy.PARTS) do extensions.hook('onStreetLegalOption', features.get(id).opt, true) end          -- (each part starts as if its switch had just been turned on)
+  changed()
+  return true, strings.t('career.economy_on')
+end
 function M.isActive() return active end
 
 ----------------------------------------------------------------------------------------------
@@ -884,8 +897,10 @@ function M.start(fresh, n, level, choice)
   s = (not fresh) and readSave() or nil
   if not s then
     s = stateLib.new((os.time() % 1000000) * 31 + math.random(1, 997), now())
+    require('sl/core/economy').mark(s)          -- (a career created now has the 0.8.0 economy; a save without the marker keeps playing as before until it opts in)
     s.level = progression.MAPS[level] and not progression.isVisit(level) and level or progression.DEFAULT_MAP
   end
+  require('sl/core/features').setSaveOff(require('sl/core/economy').offFor(s))
   s.level = progression.levelOf(s)      -- (a save from before the maps has no level and is Valo City: it is written into the save the next time the game saves it)
   local target = s.level
   if s.visit and s.visit.active then
@@ -932,6 +947,7 @@ stop = function()
   active = false
   if core_groundMarkers then core_groundMarkers.setPath(nil) end
   extensions.hook('onStreetLegalStopped')
+  require('sl/core/features').setSaveOff({})
   pcall(function() require('sl/racelog').flush() end)       -- (the race log writes at most once a second: what waits goes out now)
   M.onTrafficOrParkingReady()           -- (no loading screen left up)
 end
@@ -1767,6 +1783,34 @@ function M.skipTime(what)
   local text = strings.t('wait.until', string.format('%02d:%02d', math.floor(plan.to), math.floor((plan.to % 1) * 60)))
   if plan.ends then text = text .. strings.t(s.phase == 'night' and 'wait.nightEnds' or 'wait.dayEnds') end
   return true, text
+end
+
+-- time that passes while the player does something that takes a while (WW fits parts at home): the clock moves on like a short wait, never past the end of the phase; the same refusals as
+-- a wait (a race, a job, a chase), and none on a trip. Answers ok, text, minutes really spent. The hook onStreetLegalTimeSpent(minutes, reason) tells the rest.
+function M.spendTime(minutes, reason)
+  if not s then return false, strings.t('bank.no_career_running') end
+  if switching then return false, strings.t('career.one_moment') end
+  if s.visit and s.visit.active then return false, strings.t('career.no_time_on_a_trip') end
+  local why = progression.skipRefusal(busyState())
+  if why then return false, why end
+  local plan, reason2 = phaseLib.spendPlan(s.phase or 'day', hour(), minutes)
+  if not plan then return false, reason2 end
+  lastHour = plan.to
+  clockHeld = plan.ends or false
+  if core_jobsystem and core_jobsystem.create and guihooks then
+    switching = true
+    core_jobsystem.create(function(job)
+      local ok, err = pcall(function() moveClock(plan.to, job) lastHour = hour() end)
+      switching = false                                 -- (released first, whatever happened: a lock left set would refuse every later wait)
+      if not ok then log('E', logTag, 'the time could not be moved: ' .. tostring(err)) end
+      pcall(extensions.hook, 'onStreetLegalTimeSpent', plan.minutes, tostring(reason or ''))          -- (after the move: a listener reading the hour sees the new time)
+    end)
+  else
+    setHour(plan.to)
+    extensions.hook('onStreetLegalTimeSpent', plan.minutes, tostring(reason or ''))
+  end
+  changed()
+  return true, strings.t('career.time_spent', plan.minutes), plan.minutes
 end
 
 -- the Clock setting changed: the clock runs at the new speed at once
