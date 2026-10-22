@@ -7759,4 +7759,60 @@ do
   package.loaded['sl/shops'] = nil
 end
 
+-- money charged first, then a result: the entry fees of the drag strip and the map's activities
+do
+  local old = {}
+  for _, k in ipairs({ 'sl_career', 'guihooks', 'career_career', 'extensions', 'ui_message', 'getPlayerVehicle' }) do old[k] = rawget(_G, k) end
+  local oldLog = package.loaded['sl/racelog']
+  package.loaded['sl/racelog'] = { add = function() end, car = function() return 'x' end }
+  local money, paid, racers, night = 1000, {}, {}, false
+  _G.guihooks = { trigger = function() end }
+  _G.career_career = nil
+  _G.extensions = { hook = function() end }
+  _G.getPlayerVehicle = function() return nil end
+  _G.sl_career = { isActive = function() return true end, phase = function() return 'day' end, isNight = function() return night end, LEVEL = 'west_coast_usa',
+    getState = function() return { rep = 0, heat = 0 } end,
+    addMoney = function(a) if money + a < 0 then return false end money = money + a return true end,
+    payOut = function(a) paid[#paid + 1] = a money = money + a end,
+    racersForRace = function() return racers end }
+  package.loaded['sl/drag'] = nil
+  local D = require('sl/drag')
+  local m0 = money
+  D.onDragRacersSetup({ racers = { a = { isPlayable = true, lane = 1 } } })
+  check('fee leaks: the drag fee is charged at the line and given back when no racer could be found (a practice run)', money == m0, tostring(money - m0))
+  D.onDragRacersSetup({ racers = { a = { isPlayable = true, lane = 1 } } })
+  check('fee leaks: a second run is refunded once for itself', money == m0, tostring(money - m0))
+  money = 10
+  D.onDragRacersSetup({ racers = { a = { isPlayable = true, lane = 1 } } })
+  check('fee leaks: a run the player cannot pay for is a practice run and nothing is given back', money == 10)
+  money = 1000
+  racers = { { name = 'Rex', racerId = 'r1' } }
+  _G.sl_streets = { buildRacerCar = function() return false end }
+  m0 = money
+  D.onDragRacersSetup({ racers = { a = { isPlayable = true, lane = 1 } } })
+  check('fee leaks: when the other lane cannot be made the fee comes back too', money == m0, tostring(money - m0))
+  _G.sl_streets = nil
+  package.loaded['sl/drag'] = nil
+
+  -- the map's activities: a stopped attempt never reports; its paid flag must not make the next attempt (a practice run) pay a prize
+  night = true
+  money, paid = 1000, {}
+  package.loaded['sl/activities'] = nil
+  local A = require('sl/activities')
+  local mission = { id = 'west_coast_usa/timeTrial/slrr_sprint_1' }
+  A.onAnyMissionChanged('started', mission)
+  check('fee leaks: the sprint fee is charged at night', money == 900, tostring(money))
+  night = false
+  A.onAnyMissionChanged('started', mission)      -- (the first attempt was stopped, never reported; this one is by day: no fee)
+  A.onMissionAttemptAggregated({ type = 'passed', unlockedStars = {} }, mission)
+  check('fee leaks: a practice run by day pays no prize because of an earlier attempt', #paid == 0, tostring(#paid))
+  night = true
+  A.onAnyMissionChanged('started', mission)
+  A.onMissionAttemptAggregated({ type = 'passed', unlockedStars = {} }, mission)
+  check('fee leaks: a paid attempt that passes still pays', #paid == 1)
+  package.loaded['sl/activities'] = nil
+  package.loaded['sl/racelog'] = oldLog
+  for k, v in pairs(old) do _G[k] = v end
+end
+
 print(string.format('lua tests passed: %d checks', passed))
