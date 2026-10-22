@@ -232,15 +232,21 @@ function M.summary()
 end
 
 -- ---- the prompt at the spot, until the calendar lists the show
+local cachedKey, cachedEv, cachedPlace = nil, nil, nil       -- (the event of the day, rebuilt when the day, seed or rep changes)
 local marker, markerBg = ColorF(0.9, 0.3, 0.8, 0.6), ColorI(40, 10, 40, 190)
 function M.onUpdate(dtReal)
   dtReal = dtReal or 0
   local s = career()
   if not s or sl_career.LEVEL ~= 'west_coast_usa' then return end
   cool = math.max(0, cool - dtReal)
-  local ev, place = M.eventToday(s)
   local hour = sl_career.hour and sl_career.hour() or 0
-  if not (ev and place and hour >= rules.HOUR and hour <= rules.HOUR + rules.LATE_H) then standFor = 0 return end
+  if not (hour >= rules.HOUR and hour <= rules.HOUR + rules.LATE_H) then standFor = 0 return end      -- (an idle frame builds nothing)
+  if not (cachedKey and cachedKey.day == s.day and cachedKey.seed == s.seed and cachedKey.rep == s.rep) then
+    cachedKey = { day = s.day, seed = s.seed, rep = s.rep }
+    cachedEv, cachedPlace = M.eventToday(s)
+  end
+  local ev, place = cachedEv, cachedPlace
+  if not (ev and place) then standFor = 0 return end
   if store(s).history[ev.week] then standFor = 0 return end
   if sl_career.freeToStart and not sl_career.freeToStart() then standFor = 0 return end         -- (not in a chase, a job or a race)
   local v = playerCar()
@@ -260,8 +266,8 @@ function M.onUpdate(dtReal)
 end
 
 function M.status() return { last = last and last.place or nil, tonight = (career() and M.eventToday() or {}).id } end
-function M.onStreetLegalStopped() last, standFor = nil, 0 end
-function M.onClientEndMission() last, standFor, kinds = nil, 0, nil end
+function M.onStreetLegalStopped() last, standFor, cachedKey = nil, 0, nil end
+function M.onClientEndMission() last, standFor, kinds, cachedKey = nil, 0, nil, nil end
 
 -- (the Mods menu's Parts of the game: with this part off, the hooks above do nothing)
 require('sl/core/features').gate('show', M, nil, nil, { 'begin', 'preview', 'summary', 'eventToday' })
