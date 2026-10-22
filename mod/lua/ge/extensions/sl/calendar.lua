@@ -19,11 +19,21 @@ local function opts() return { home = homeOn(), swap = sl_career.has('swapMeet')
 
 local function schedule(s) return rules.schedule(s.day, sl_career.hour(), s.seed, s.rep, store(s), opts()) end
 
+-- the purse of an event with the season's few per cent (Seasons on); nothing for an event without a purse
+local function seasonal(ev, reward)
+  if not (reward and sl_seasons and sl_seasons.purse) then return reward end
+  return math.floor(reward * sl_seasons.purse(tostring(ev.id):sub(1, 5) == 'swap:' and 'meet' or 'sprint') + 0.5)
+end
+
 -- ---- the phone
 function M.summary()
   local s = career()
   if not s then return nil end
-  return rules.summary(s.day, sl_career.hour(), s.seed, s.rep, store(s), opts())
+  local sum = rules.summary(s.day, sl_career.hour(), s.seed, s.rep, store(s), opts())
+  for _, ev in ipairs(sum.events) do          -- (Seasons: the card shows what will be paid)
+    if ev.status ~= 'done' then ev.reward = seasonal(ev, ev.reward) end
+  end
+  return sum
 end
 
 function M.enter(eventId, carIds)
@@ -112,6 +122,7 @@ local function finished(eventId, res)
   if not s or res.aborted then return end
   local ev = rules.find(schedule(s), eventId)
   if not ev then return end
+  ev.reward = seasonal(ev, ev.reward)          -- (Seasons: a few per cent by season, as the card showed)
   local money, rep = rules.result(store(s), ev, res.place)
   if money > 0 then sl_career.payOut(money, strings.t('calendar.purse_1', ev.title)) end
   if rep > 0 then stateLib.addRep(s, rep) end

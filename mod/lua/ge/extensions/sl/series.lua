@@ -185,6 +185,7 @@ local function finishRound(rec, round)
   st.finished, st.paid = true, true
   local purse = def.purse or 0
   local prize = rules.prize(def, mine and mine.pos or 99, purse)
+  if sl_seasons and sl_seasons.purse then prize.money = math.floor(prize.money * sl_seasons.purse(def.class == 'rally' and 'rally' or 'series') + 0.5) end          -- (Seasons)
   if prize.money > 0 then sl_career.payOut(prize.money, strings.t('series.prize_label', def.id)) end
   if prize.rep > 0 then stateLib.addRep(s, prize.rep) end
   local podium = {}
