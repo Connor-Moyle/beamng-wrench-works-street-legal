@@ -27,9 +27,11 @@ M.TYPES = {
   junkyard =    { title = 'Junkyard parts',     goods = 'catalog',  screen = 'catalogue', theme = { accent = '#c0a16b', pattern = 'rust',     icon = 'crate' },    hours = 'junkyard', used = true },
   diner =       { title = 'Diner',              goods = 'given',    screen = 'catalogue', theme = { accent = '#e8a23d', pattern = 'checks',   icon = 'cup' },      hours = 'always' },
   motel =       { title = 'Motel',              goods = 'services', screen = 'services',  theme = { accent = '#7e8fd6', pattern = 'stars',    icon = 'bed' },      hours = 'always' },
+  fence =       { title = 'The fence',          goods = 'services', screen = 'services',  theme = { accent = '#8a6d3b', pattern = 'rust',     icon = 'crate' },    hours = 'night' },
+  blackmarket = { title = 'Black market',       goods = 'given',    screen = 'catalogue', theme = { accent = '#b23a5e', pattern = 'chevrons', icon = 'badge' },    hours = 'night' },
   dealerparts = { title = 'Dealer parts',       goods = 'catalog',  screen = 'catalogue', theme = { accent = '#8ab4f8', pattern = 'badge',    icon = 'badge' },    hours = 'dealer' },
 }
-M.ORDER = { 'tyre', 'exhaust', 'parts', 'performance', 'paint', 'tuner', 'mechanic', 'accessories', 'dealerparts', 'diner', 'motel', 'carwash', 'junkyard' }
+M.ORDER = { 'fence', 'blackmarket', 'tyre', 'exhaust', 'parts', 'performance', 'paint', 'tuner', 'mechanic', 'accessories', 'dealerparts', 'diner', 'motel', 'carwash', 'junkyard' }
 local KINDS = { 'catalogue', 'services' }
 
 -- the wording of a kind: the string keys of its tagline (under the name when there is no keeper), the add and the pay buttons (sl/shops turns them into text)
@@ -43,6 +45,8 @@ M.WORDS = {
   mechanic = { tag = 'shops.tag_mechanic', add = 'shops.word_book', buy = 'shops.word_book_pay' },
   accessories = { tag = 'shops.tag_accessories', add = 'shops.word_add', buy = 'shops.word_pay' },
   dealerparts = { tag = 'shops.tag_dealerparts', add = 'shops.word_add', buy = 'shops.word_order' },
+  fence = { tag = 'shops.tag_fence', add = 'shops.word_book', buy = 'shops.word_book_pay' },
+  blackmarket = { tag = 'shops.tag_blackmarket', add = 'shops.word_add', buy = 'shops.word_pay' },
   carwash = { tag = 'shops.tag_carwash', add = 'shops.word_book', buy = 'shops.word_book_pay' },
   junkyard = { tag = 'shops.tag_junkyard', add = 'shops.word_pull', buy = 'shops.word_pay' },
   diner = { tag = 'shops.tag_diner', add = 'shops.word_order_food', buy = 'shops.word_eat' },
@@ -139,6 +143,39 @@ function M.normalize(kind, opts)
 end
 
 -- a marker's fields (a level's shops file, a scene object's dynamic fields) as the opener's table: keys are matched without case, 'hours' is "8-18"
+-- the theft shops (docs/THEFT_SHOPS_PLAN.md; the calls are Car theft's, THEFT_CONTRACT.md). The prices Connor set: a new plate $300, a stolen car's plate $700; the settings change them.
+-- A strip or a sale pays out in Car theft's own call (the line costs nothing); the others are charged by the shop and Car theft is told it was paid.
+M.THEFT = { plateLegal = 300, plateStolen = 700, stripTracker = 350, titleRate = 0.15, titleMin = 400 }
+function M.titlePrice(value) return math.max(M.THEFT.titleMin, math.floor((tonumber(value) or 0) * M.THEFT.titleRate / 10 + 0.5) * 10) end
+
+-- the fence's lines: the tools (sl_theft.tools()) and, for the hot car under the counter (sl_theft.current(): { index, value, tracked, resprayed, plated }), what can be done to it.
+-- prices = { plateStolen } from the settings
+function M.fenceServices(tools, hot, prices)
+  local out = {}
+  for _, t in ipairs(tools or {}) do
+    local desc = (t.uses and strings.t('shops.tool_uses', t.uses) or strings.t('shops.tool_unlimited')) .. ((t.have or 0) > 0 and (' - ' .. strings.t('shops.tool_have', t.have)) or '')
+    out[#out + 1] = { id = 'tool_' .. tostring(t.id), name = tostring(t.title or t.id), price = math.max(0, math.floor(tonumber(t.price) or 0)), desc = desc }
+  end
+  if type(hot) == 'table' then
+    out[#out + 1] = { id = 'fence_sell', name = strings.t('shops.svc_sell'), price = 0, desc = strings.t('shops.svc_sell_desc') }
+    out[#out + 1] = { id = 'fence_strip', name = strings.t('shops.svc_strip'), price = 0, desc = strings.t('shops.svc_strip_desc') }
+    if not hot.plated then out[#out + 1] = { id = 'fence_plates', name = strings.t('shops.svc_plates'), price = (prices and prices.plateStolen) or M.THEFT.plateStolen, desc = strings.t('shops.svc_plates_desc') } end
+    if hot.tracked then out[#out + 1] = { id = 'fence_striptracker', name = strings.t('shops.svc_striptracker'), price = M.THEFT.stripTracker, desc = strings.t('shops.svc_striptracker_desc') } end
+    if hot.resprayed and hot.plated then out[#out + 1] = { id = 'fence_title', name = strings.t('shops.svc_title'), price = M.titlePrice(hot.value), desc = strings.t('shops.svc_title_desc') } end
+  end
+  return out
+end
+
+-- the black market's day (sl_theft.blackMarket(): { index, model, name, value, era, price, sold }) as the lines of a catalogue
+function M.blackMarketStock(list)
+  local out = {}
+  for _, c in ipairs(list or {}) do
+    out[#out + 1] = { id = 'hot_' .. tostring(c.index), name = tostring(c.name or c.model), price = math.max(0, math.floor(tonumber(c.price) or 0)), group = tostring(c.era or ''), count = c.sold and 0 or 1,
+      desc = strings.t('shops.hot_desc', math.floor(tonumber(c.value) or 0)) }
+  end
+  return out
+end
+
 function M.fromMarker(fields)
   if type(fields) ~= 'table' then return nil, 'no fields' end
   local f = {}
@@ -152,6 +189,7 @@ function M.fromMarker(fields)
   elseif type(f.hours) == 'table' then o.hours = f.hours end
   if f.keeper then o.keeper = type(f.keeper) == 'table' and f.keeper or { name = tostring(f.keeper) } end
   o.stock, o.services, o.range, o.sections, o.brands, o.replaces = f.stock, f.services, f.range, f.sections, f.brands, f.replaces
+  o.gate = type(f.gate) == 'string' and f.gate or nil      -- ("gate": "fence": the marker shows only once the fence is known)
   return kind, o
 end
 

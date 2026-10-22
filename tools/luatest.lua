@@ -8495,4 +8495,143 @@ do
   end
 end
 
+-- the theft shops: the fence, the black market and the plate counter (docs/THEFT_SHOPS_PLAN.md; the calls are Car theft's)
+do
+  local SH = require('sl/core/shops')
+  local H = require('sl/core/hours')
+  check('fence: the night kind is open from 20:00 to 05:00 and closed by day', H.isOpen('night', 0.5) and H.isOpen('night', 0.45) and H.isOpen('night', -0.45) and not H.isOpen('night', 0) and not H.isOpen('night', 0.1) and not H.isOpen('night', -0.1))
+  check('fence: the two kinds exist with their themes and words', SH.type('fence').hours == 'night' and SH.type('fence').screen == 'services' and SH.type('blackmarket').screen == 'catalogue' and SH.WORDS.fence ~= nil and SH.WORDS.blackmarket ~= nil)
+  local tools = { { id = 'slimjim', title = 'Slim jim', price = 40, uses = nil, have = 0 }, { id = 'bypass', title = 'Bypass box', price = 600, uses = 10, have = 2 } }
+  local none = SH.fenceServices(tools, nil, nil)
+  check('fence: without a hot car under the counter only the tools are listed, priced, with their uses', #none == 2 and none[1].id == 'tool_slimjim' and none[1].price == 40 and none[2].desc:find('10 uses', 1, true) and none[2].desc:find('you have 2', 1, true))
+  local hot = { index = 3, value = 20000, tracked = true, resprayed = false, plated = false }
+  local all = SH.fenceServices(tools, hot, { plateStolen = 700 })
+  local byId = {}
+  for _, sv in ipairs(all) do byId[sv.id] = sv end
+  check('fence: a hot car gets sell and strip (free: they pay out), plates $700, strip the tracker $350 when it is tracked, and no title yet', byId.fence_sell.price == 0 and byId.fence_strip.price == 0 and byId.fence_plates.price == 700 and byId.fence_striptracker.price == 350 and byId.fence_title == nil)
+  hot.tracked, hot.resprayed, hot.plated = false, true, true
+  local legal = {}
+  for _, sv in ipairs(SH.fenceServices(tools, hot, nil)) do legal[sv.id] = sv end
+  check('fence: resprayed and plated it can be titled for 15 percent (min $400); no plates or tracker lines any more', legal.fence_title.price == 3000 and legal.fence_plates == nil and legal.fence_striptracker == nil and SH.titlePrice(1000) == 400)
+  local mk = SH.blackMarketStock({ { index = 1, model = 'covet', name = 'Covet', value = 9000, era = 'mid', price = 4050 }, { index = 2, name = 'Pigeon', value = 3000, era = 'old', price = 1350, sold = true } })
+  check('fence: the black market lists the day cars; a sold one has count 0', #mk == 2 and mk[1].id == 'hot_1' and mk[1].price == 4050 and mk[1].count == 1 and mk[2].count == 0)
+  local kind, o = SH.fromMarker({ kind = 'fence', name = 'Lock-Up', gate = 'fence' })
+  check('fence: a marker can carry a gate', kind == 'fence' and o.gate == 'fence' and select(2, SH.fromMarker({ kind = 'tyre' })).gate == nil)
+
+  -- the game side
+  local ST = require('sl/core/state')
+  local st = ST.new(1, 0)
+  st.day, st.money, st.rep = 5, 20000, 0
+  local sent, toasts = {}, {}
+  local old = {}
+  for _, k in ipairs({ 'sl_career', 'guihooks', 'core_environment', 'sl_fleet', 'extensions', 'sl_theft', 'sl_options', 'slrr_garage', 'gameplay_rawPois', 'getCurrentLevelIdentifier', 'jsonReadFile', 'FS', 'vec3', 'quat' }) do old[k] = rawget(_G, k) end
+  local tod = 0.5
+  local cleared = 0
+  _G.sl_options = nil
+  _G.guihooks = { trigger = function(n, d) sent[#sent + 1] = { n = n, d = d } if n == 'slPhoneToast' then toasts[#toasts + 1] = d.text end end }
+  _G.extensions = { hook = function() end }
+  _G.core_environment = { getTimeOfDay = function() return { time = tod } end }
+  _G.gameplay_rawPois = { clear = function() cleared = cleared + 1 end }
+  _G.sl_career = { isActive = function() return true end, getState = function() return st end, addMoney = function(a, l) return ST.addMoney(st, a, l) end, getPlaces = function() return {} end, phase = function() return 'night' end, hour = function() return 23 end }
+  _G.sl_fleet = { currentCar = function() return { id = 1, name = 'Covet', model = 'covet' } end, vehicleOf = function() return { getID = function() return 77 end } end }
+  _G.slrr_garage = nil
+  local calls, known, hotRec = {}, false, nil
+  _G.sl_theft = {
+    fenceKnown = function() return known end,
+    tools = function() return tools end,
+    current = function() return hotRec end,
+    giveTool = function(id) calls[#calls + 1] = 'give:' .. id return true, 'Got it.' end,
+    sell = function(i) calls[#calls + 1] = 'sell:' .. i st.money = st.money + 1000 return true, 'Sold.' end,
+    strip = function(i) calls[#calls + 1] = 'strip:' .. i return true, 'Stripped.' end,
+    plates = function(i, paid) calls[#calls + 1] = 'plates:' .. i .. ':' .. tostring(paid) return true, 'New plates.' end,
+    stripTracker = function(i, paid) calls[#calls + 1] = 'tracker:' .. i .. ':' .. tostring(paid) return true, 'Cut.' end,
+    title = function(i, paid) calls[#calls + 1] = 'title:' .. i .. ':' .. tostring(paid) return true, 'Titled.' end,
+    blackMarket = function() return { { index = 1, model = 'covet', name = 'Covet', value = 9000, era = 'mid', price = 4050 }, { index = 2, name = 'Sold car', value = 3000, era = 'old', price = 1350, sold = true } } end,
+    buyHot = function(i, paid) calls[#calls + 1] = 'buy:' .. i .. ':' .. tostring(paid) return true, 'Parked outside.' end,
+    newPlate = function(id, paid) calls[#calls + 1] = 'newplate:' .. id .. ':' .. tostring(paid) return true, 'A new plate.' end,
+  }
+  package.loaded['sl/shops'] = nil
+  local SS = require('sl/shops')
+  SS.open('fence', { name = 'The Pier Lock-Up' })
+  local v = sent[#sent].d
+  check('fence game: at night the Lock-Up lists the tools and says to bring a hot car', #v.services == 2 and v.services[2].id == 'tool_bypass' and v.note ~= nil and v.closed == nil)
+  local m0 = st.money
+  SS.buy('tool_bypass:1')
+  check('fence game: a tool is charged by the shop and given by Car theft', st.money == m0 - 600 and calls[#calls] == 'give:bypass')
+  hotRec = { index = 3, value = 20000, tracked = true, resprayed = false, plated = false }
+  SS.open('fence', { name = 'The Pier Lock-Up' })
+  m0 = st.money
+  SS.buy('fence_plates:1,fence_striptracker:1')
+  check('fence game: plates $700 and the tracker $350 are charged once each and Car theft is told they are paid', st.money == m0 - 700 - 350 and calls[#calls - 1] == 'plates:3:true' and calls[#calls] == 'tracker:3:true')
+  m0 = st.money
+  SS.buy('fence_sell:1')
+  check('fence game: a sale costs nothing at the counter; the cut is paid inside Car theft', st.money == m0 + 1000 and calls[#calls] == 'sell:3')
+  _G.sl_options = { get = function(k) if k == 'slPlateStolen' then return 900 end end }
+  SS.open('fence', { name = 'The Pier Lock-Up' })
+  local plateRow
+  for _, sv in ipairs(sent[#sent].d.services) do if sv.id == 'fence_plates' then plateRow = sv end end
+  check('fence game: the stolen-car plate price is a setting', plateRow and plateRow.price == 900)
+  _G.sl_options = nil
+  tod = 0
+  SS.open('fence', { name = 'The Pier Lock-Up' })
+  check('fence game: by day the Lock-Up is closed', sent[#sent].d.closed ~= nil)
+  tod = 0.5
+  -- the black market
+  SS.open('blackmarket', { name = 'The Pier Market' })
+  v = sent[#sent].d
+  check('fence game: the black market lists the day cars with the sold one out', #v.stock == 2 and v.stock[1].price == 4050 and v.stock[2].count == 0)
+  m0 = st.money
+  SS.buy('hot_1:1')
+  check('fence game: buying a hot car charges the price and Car theft spawns it (paid = true)', st.money == m0 - 4050 and calls[#calls] == 'buy:1:true')
+  m0 = st.money
+  SS.buy('hot_2:1')
+  check('fence game: a car that is sold costs nothing', st.money == m0)
+  -- the plate counter on the accessories shop
+  _G.sl_career.phase = function() return 'day' end
+  tod = 0
+  SS.open('accessories', {})
+  v = sent[#sent].d
+  check('fence game: accessories sell the career plate for $300 (a setting) when Car theft is there', #v.stock == 1 and v.stock[1].id == 'plate_new' and v.stock[1].price == 300)
+  m0 = st.money
+  SS.buy('plate_new:1')
+  check('fence game: the plate is charged once and Car theft applies it (paid = true)', st.money == m0 - 300 and calls[#calls] == 'newplate:1:true', tostring(st.money - m0) .. ' ' .. tostring(calls[#calls]) .. ' ' .. tostring(toasts[#toasts]))
+  local realNew = _G.sl_theft.newPlate
+  _G.sl_theft.newPlate = nil
+  SS.open('accessories', {})
+  check('fence game: without Car theft the accessories keep their text plates', #sent[#sent].d.stock == 8)
+  _G.sl_theft.newPlate = realNew
+  -- a hot car is not a fleet car: the paint shop sprays the vehicle you sit in, raises the paint hook (Car theft marks the record) and nothing else changes
+  local hooked, painted, snap = {}, {}, 0
+  local oe, ofl, osf, ocv, ogp = _G.extensions, _G.sl_fleet, rawget(_G, 'sl_surfacefx'), rawget(_G, 'core_vehicle_colors'), rawget(_G, 'getPlayerVehicle')
+  _G.extensions = { hook = function(n, a1) hooked[#hooked + 1] = { n, a1 } end }
+  _G.sl_fleet = { currentCar = function() return nil end, snapshot = function() snap = snap + 1 end }
+  _G.getPlayerVehicle = function() return { getID = function() return 88 end } end
+  _G.sl_surfacefx = { level = function() return { dirtName = 'clean', scratchName = 'none' } end }
+  _G.core_vehicle_colors = { setVehiclePaint = function(i, p, v) painted[#painted + 1] = { i = i, v = v } end }
+  hotRec = { index = 3, name = 'Stolen Covet', value = 9000 }
+  _G.sl_career.phase = function() return 'day' end
+  tod = 0
+  SS.open('paint', { name = 'Spray Kings' })
+  v = sent[#sent].d
+  check('fence game: the paint shop lists its resprays for a hot car', #v.services >= 8)
+  m0 = st.money
+  SS.buy('respray_c0392b:1')
+  local hookSeen = false
+  for _, h in ipairs(hooked) do if h[1] == 'onWrenchWorksPainted' and h[2] == 88 then hookSeen = true end end
+  check('fence game: a respray of a hot car paints the vehicle you sit in, raises the paint hook with its id and does not touch the fleet snapshot', #painted == 1 and painted[1].v == 88 and hookSeen and snap == 0 and st.money == m0 - 450)
+  hotRec = nil
+  SS.open('paint', { name = 'Spray Kings' })
+  check('fence game: with no fleet car and no hot car the paint shop asks for a car', #sent[#sent].d.services == 0)
+  _G.extensions, _G.sl_fleet, _G.sl_surfacefx, _G.core_vehicle_colors, _G.getPlayerVehicle = oe, ofl, osf, ocv, ogp
+  -- the marker of the Lock-Up shows only once the fence is known
+  cleared = 0
+  known = false
+  SS.onStreetLegalChanged()
+  known = true
+  SS.onStreetLegalChanged()
+  check('fence game: when the fence becomes known the game marker list is rebuilt', cleared == 1)
+  for k, v2 in pairs(old) do _G[k] = v2 end
+  package.loaded['sl/shops'] = nil
+end
+
 print(string.format('lua tests passed: %d checks', passed))
