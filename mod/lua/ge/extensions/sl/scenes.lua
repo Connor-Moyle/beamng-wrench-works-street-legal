@@ -129,6 +129,12 @@ function M.onStreetLegalRaceGo() M.play('go') end
 function M.onStreetLegalCalendarReminder(event, hoursLeft) M.play('reminder', { name = type(event) == 'table' and event.title or nil, level = tonumber(hoursLeft) }) end
 -- the series (sl_series): each round, then the whole series, skipped by the same keys, never blocking
 function M.onStreetLegalRoundResult(r) local style, data = scenes.roundBanner(r) if style then M.play(style, data) end end
+-- the home championship's end (sl_season): the same banners as a series; r = { position (or pos), points, title }
+function M.onStreetLegalSeasonFinished(r)
+  if type(r) ~= 'table' then return end
+  local style, data = scenes.seriesBanner({ name = r.title or strings.t('ui.sn_title'), pos = r.position or r.pos, points = r.points })
+  if style then M.play(style, data) end
+end
 function M.onStreetLegalSeriesFinished(r) local style, data = scenes.seriesBanner(r) if style then M.play(style, data) end end
 -- Wrench Works' garage (WW 1.8.8 and later; an older Wrench Works never calls these): the garage's name, then the street
 function M.onWrenchWorksGarageEntered(siteName) M.play('garage_in', { name = siteName }) end

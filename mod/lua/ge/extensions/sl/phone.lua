@@ -122,6 +122,7 @@ local function snapshot()
     perks = sl_perks and sl_perks.perks and sl_perks.perks() or nil,
     trophies = type(s.trophies) == 'table' and s.trophies or nil,      -- (the trophy shelf's list, written at a win; nil until there is one)
     calendar = sl_calendar and sl_calendar.summary and sl_calendar.summary() or nil,      -- (the Calendar app: nil with the part off or no career)
+    season = rawget(_G, 'sl_season') and sl_season.summary and sl_season.summary() or nil,      -- (the home championship: nil with the part off or no career)
     crack = rawget(_G, 'sl_phonecrack') and sl_phonecrack.view and sl_phonecrack.view() or nil,      -- (the cracked screen: nil when whole or the part is off)
     camera = { firstPerson = sl_options and sl_options.get and sl_options.get('slCamFirstPerson') ~= false, sway = sl_options and sl_options.get and tonumber(sl_options.get('slCamSway')) or 0.5,
       grid = sl_options and sl_options.get and sl_options.get('slCamGrid') ~= false, bezel = sl_options and sl_options.get and sl_options.get('slCamBezel') ~= false, zoomMax = sl_options and sl_options.get and tonumber(sl_options.get('slCamZoomMax')) or 4 },
@@ -420,6 +421,7 @@ function M.travelConfirm(eventId, carIds, useLoaner)
   if ok then travelPick = nil end
   answer(ok, text)
 end
+function M.seasonEnter() if career() and rawget(_G, 'sl_season') and sl_season.enter then answer(sl_season.enter()) else answer(false, strings.t('phone.trip_unavailable')) end end
 function M.hubStart()
   if not career() then return end
   if not (sl_series and sl_series.startNext) then tripAway() return end
