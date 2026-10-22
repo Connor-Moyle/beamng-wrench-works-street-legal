@@ -1674,6 +1674,7 @@ M.TEXT = {
   ["tyres.tyre_line2"] = "{1}: {2}% tread, {3}",
   ["tyres.axle_front"] = "Front",
   ["tyres.axle_rear"] = "Rear",
+  ["tyres.worn_toast"] = "Your tyres are worn out. A new set is on sale at the tyre shop and in the garage.",
   ["tyres.not_here"] = "Tyres are not available.",
   ["tyres.family_road"] = "road",
   ["tyres.family_weather"] = "weather",

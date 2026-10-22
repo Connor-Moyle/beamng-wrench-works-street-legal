@@ -209,6 +209,8 @@ M.defs = {
     options = { { id = 'half', label = '0.5x: parts last twice as long, service every 300 km' }, { id = 'normal', label = '1x: service every 150 km' },
       { id = 'double', label = '2x: parts wear twice as fast, service every 75 km' }, { id = 'quad', label = '4x: four times as fast, service every 38 km' } },
     desc = 'How fast cars wear and how often they need a service. It sets the wear of the own wear model of the career, Part Wear (when installed) and the tyres (with Car Surface FX). Needs the Servicing and wear part on. Wear already there stays as it is.' },
+  { key = 'slBasicTyres', feature = true, tab = 'Difficulty', group = 'Wear', title = 'Simple tyre wear', type = 'bool', default = false,
+    desc = 'The career wears your tyres on its own: the tread goes with the kilometres (faster when you drive hard), a worn tyre grips a little less, and the tyre shop and the garage sell and fit sets. Used only when Car Surface FX\'s tyre system is NOT installed: with it, its tyres are used and this does nothing.' },
   { key = 'slBuildGap', tab = 'World', group = 'Performance', title = 'Seconds between built cars', type = 'range', min = 8, max = 60, step = 2, unit = 's', default = 20, advanced = true, presets = { performance = 40, balanced = 20, quality = 14, max = 8 },
     desc = 'Building a car for the night traffic freezes the game for a second or so. Longer gaps mean fewer freezes and a quieter street.' },
   { key = 'slLotPrebuild', feature = true, tab = 'World', group = 'Performance', title = 'Build the nearest lot ahead', type = 'bool', default = true,

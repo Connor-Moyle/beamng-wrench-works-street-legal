@@ -8,14 +8,25 @@ local M = {}
 
 local strings = require('sl/core/strings')
 local T = require('sl/core/tyres')
+local B = require('sl_basictyres')
 
 local function career() return sl_career and sl_career.isActive() and sl_career.getState() or nil end
 local function api() return rawget(_G, 'carSurfaceFx_tyres') end
 local function has(name) local a = api() return a ~= nil and type(a[name]) == 'function' end
 local function toast(text) if text then guihooks.trigger('slPhoneToast', { text = text }) end if ui_message then ui_message(text, 4, 'streetLegal') end end
 
--- the tyre module is there and switched on
+-- the career's own simple tyre wear (docs/CAREER_EXPANSION.md #10): on by its switch Simple tyre wear, and ONLY while Car Surface FX's tyre system is not there at all, so the two never stack.
+-- It keeps a set of four treads with the car (car.tyres.set), wears it by the km the car reports (slCar, weighted by how hard it was driven) and tells the car the grip of each tyre.
+function M.basic()
+  if not career() or api() ~= nil then return false end
+  return sl_options ~= nil and sl_options.get ~= nil and sl_options.get('slBasicTyres') == true
+end
+local WEAR_RATE = { half = 0.5, normal = 1, double = 2, quad = 4 }       -- the Wear rate setting
+local layouts, sentKey = {}, {}                                          -- vehicle id -> its wheels as the car named them / the grip last sent to it
+
+-- the tyre module is there and switched on (or the career's own wear is)
 function M.available()
+  if M.basic() then return true end
   if not (career() and has('getTyres') and has('setCompound')) then return false end
   local ok, cfg = pcall(function() return has('getConfig') and api().getConfig() or nil end)
   if ok and type(cfg) == 'table' and cfg.enabled == false then return false end
@@ -35,14 +46,38 @@ local function compoundOf(car) return car and car.tyres and car.tyres.compound o
 
 -- the tyre module is on but the car has no tyres to report (a starter car is sold on bare rims): no tyre rows and no swap until a tyre part is fitted and the car respawns
 function M.noTyres(vid)
-  if not (vid and M.available()) then return false end
+  if not (vid and M.available()) or M.basic() then return false end
   local ok, raw = pcall(api().getTyres, vid)
   return ok and type(raw) == 'table' and (type(raw.wheels) ~= 'table' or #raw.wheels == 0)
 end
 
 -- what the garage and the phone show for a car: T.carRows plus the compound we know ({ compound, rows, worst, replace } or nil)
+-- the set of a car under the career's own wear (made new the first time it is looked at)
+local function setOf(car, vid)
+  car.tyres = car.tyres or {}
+  if type(car.tyres.set) ~= 'table' or type(car.tyres.set.treads) ~= 'table' or #car.tyres.set.treads == 0 then
+    car.tyres.set = B.newSet(layouts[vid] and #layouts[vid] or 4)
+  end
+  return car.tyres.set
+end
+
+-- tell the car the grip of each worn tyre; only when it changed since the last time
+local function applyBasic(vid, car)
+  local v = getObjectByID and getObjectByID(vid)
+  if not (v and car and car.tyres) then return end
+  local f = B.factors(setOf(car, vid), compoundOf(car))
+  local text = serialize(f)
+  if sentKey[vid] == text then return end
+  sentKey[vid] = text
+  v:queueLuaCommand(string.format('if slCar and slCar.setTyreGrip then slCar.setTyreGrip(%s) end', text))
+end
+
 function M.info(car, vid)
   if not (M.available() and car and vid) then return nil end
+  if M.basic() then
+    local raw = B.raw(setOf(car, vid), compoundOf(car), layouts[vid])
+    return T.carRows(raw)
+  end
   local ok, raw = pcall(api().getTyres, vid)
   if not (ok and type(raw) == 'table') then return nil end
   raw.compound = raw.compound or compoundOf(car)
@@ -128,6 +163,13 @@ function M.changeNow(compound, where)
   local plan = T.plan(compound, where or 'garage', setNow(car, info), s.money or 0, moving(vid))
   if not plan.ok then return false, plan.why end
   if plan.price > 0 and not sl_career.addMoney(-plan.price, strings.t('tyres.fitted', T.name(compound))) then return false, strings.t('tyres.you_cannot_afford_that') end
+  if M.basic() then
+    car.tyres = { compound = compound, sig = car.tyres and car.tyres.sig, set = B.newSet(layouts[vid] and #layouts[vid] or 4) }          -- (a new set)
+    sentKey[vid] = nil
+    applyBasic(vid, car)
+    extensions.hook('onStreetLegalChanged')
+    return true, strings.t('tyres.fitted', T.name(compound))
+  end
   if not pcall(api().setCompound, vid, nil, compound) then return false, strings.t('tyres.not_here') end
   pcall(api().setTread, vid, nil, 1)                    -- (a new set, however the module treats a compound it already had)
   car.tyres = { compound = compound }                   -- (no blob: the new set is new)
@@ -207,17 +249,58 @@ end
 M.RETRY = 2
 local retries = {}                   -- vehicle id -> { car, left }
 local function send(vid, car)
+  if M.basic() then sentKey[vid] = nil applyBasic(vid, car) return end
   local a = api()
   if has('attach') then pcall(a.attach, vid) end
   if type(car.tyres.blob) == 'table' and has('restore') then pcall(a.restore, vid, car.tyres.blob)         -- (the blob keeps the compound of every wheel)
   elseif car.tyres.compound and car.tyres.compound ~= 'road' then pcall(a.setCompound, vid, nil, car.tyres.compound) end
+  -- Car Surface FX is here now and the car was on the career's own wear: the treads it had go to the new tyres, the grip we set is taken off, and the own set is dropped (the hand-over)
+  if type(car.tyres.set) == 'table' and has('setTread') then
+    if type(car.tyres.blob) ~= 'table' then
+      local layout = layouts[vid]
+      for i, t in ipairs(car.tyres.set.treads or {}) do pcall(a.setTread, vid, (layout and layout[i] and layout[i].idx) or (i - 1), t) end
+    end
+    car.tyres.set = nil
+    local v = getObjectByID and getObjectByID(vid)
+    if v then v:queueLuaCommand('if slCar and slCar.setTyreGrip then slCar.setTyreGrip({}) end') end
+    sentKey[vid] = nil
+  end
 end
 
 function M.restore(vid, car)
-  if not (vid and car and car.tyres and M.available()) then return nil end
+  if not (vid and car and M.available()) then return nil end
+  if not car.tyres and not M.basic() then return nil end
+  car.tyres = car.tyres or {}
   send(vid, car)
   retries[vid] = { car = car, left = M.RETRY }
   return true
+end
+
+-- the car's report (slCar through sl_carcare.onReport, every 2 s): its wheel names, and under the career's own wear the km driven since the last one, weighted by how hard
+function M.onReport(vid, t)
+  if type(t) ~= 'table' then return end
+  if type(t.wheelNames) == 'table' then
+    local n = 0
+    for k in pairs(t.wheelNames) do n = math.max(n, (tonumber(k) or 0) + 1) end
+    if n > 0 then layouts[vid] = B.layout(t.wheelNames, n) end
+  end
+  if not M.basic() then return end
+  local s = career()
+  local carId = sl_fleet and sl_fleet.carOfVehicle and sl_fleet.carOfVehicle(vid)
+  local car = s and carId and carById(s, carId)
+  if not car then return end
+  local set = setOf(car, vid)
+  local km = tonumber(t.tyreKm)
+  if km and km > 0 then
+    local rate = WEAR_RATE[sl_options.get('slWearRate') or 'normal'] or 1
+    B.wear(set, compoundOf(car), km * rate)
+    local rows = T.carRows(B.raw(set, compoundOf(car), layouts[vid]))
+    if rows and rows.replace and not car.tyres.told then
+      car.tyres.told = true
+      toast(strings.t('tyres.worn_toast'))
+    end
+  end
+  applyBasic(vid, car)
 end
 
 -- the car leaves the garage: if its tyre parts are not the ones its wear was saved for, the tyres are a new set (no old blob, no old compound); the parts now fitted are remembered
@@ -226,7 +309,7 @@ function M.onWrenchWorksDriveOut(vid, info)
   local car = s and carById(s, sl_fleet and sl_fleet.carOfVehicle(vid))
   if not (car and type(info) == 'table' and type(info.partsTree) == 'table') then return end
   local sig = T.signature(info.partsTree)
-  if car.tyres and car.tyres.sig ~= nil and car.tyres.sig ~= sig then car.tyres = nil end      -- (a save from before this has no signature: kept, not guessed)
+  if car.tyres and car.tyres.sig ~= nil and car.tyres.sig ~= sig then car.tyres = nil sentKey[vid] = nil end      -- (a save from before this has no signature: kept, not guessed)
   car.tyres = car.tyres or {}
   car.tyres.sig = sig
 end
