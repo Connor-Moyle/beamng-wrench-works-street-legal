@@ -147,11 +147,19 @@ local function perform(line)
     return true
   elseif id == 'basicwash' or id == 'washpolish' then
     if not (sl_surfacefx and sl_surfacefx.washOff and sl_surfacefx.washOff(vid)) then return false, strings.t('shops.need_csfx') end
-    if id == 'washpolish' and sl_surfacefx.repair then sl_surfacefx.repair(vid) end
+    if id == 'washpolish' then
+      if not (sl_surfacefx.repair and sl_surfacefx.repair(vid)) then      -- (the polish could not be done: it is the wash that is paid, the rest comes back)
+        return true, strings.t('shops.polish_failed'), math.max(0, (line.sum or 0) - rules.WASH_BASIC)
+      end
+    end
     return true
   elseif id:match('^service_') then      -- the independent mechanic: an hour of the clock (refused in a race, on a job, with the police on you), then the service at the shop's price
     local option = id:match('^service_(.+)$')
-    if not (sl_service and sl_service.service) then return false, strings.t('shops.not_here') end
+    if not (sl_service and sl_service.service and sl_service.serviceOf) then return false, strings.t('shops.not_here') end
+    local info = sl_service.serviceOf(car.id)      -- (the service is checked before the clock moves: an hour is not spent on one that cannot be done)
+    local offered = false
+    for _, o in ipairs(info and info.options or {}) do if o.id == option and o.available ~= false then offered = true end end
+    if not offered then return false, strings.t('shops.no_such_service') end
     local okT, why = sl_career.skipTime(tostring(rules.MECHANIC.hours))
     if not okT then return false, strings.t('shops.mechanic_busy', tostring(why)) end
     local ok, text = sl_service.service(car.id, option, 0)      -- (the shop has charged its own price: no second charge)
@@ -317,8 +325,11 @@ function M.buy(text)
     if total > 0 and not sl_career.addMoney(-total, shop.name) then return toast(strings.t('shops.cannot_afford')) end
     local kept, texts = 0, {}
     for _, l in ipairs(lines) do
-      local ok, text = perform(l)
-      if ok then kept = kept + l.sum else
+      local ok, text, refund = perform(l)
+      if ok then
+        kept = kept + l.sum - (refund or 0)
+        if (refund or 0) > 0 then sl_career.addMoney(refund, strings.t('shops.refund', shop.name)) end
+      else
         if l.sum > 0 then sl_career.addMoney(l.sum, strings.t('shops.refund', shop.name)) end
       end
       if text then texts[#texts + 1] = text end

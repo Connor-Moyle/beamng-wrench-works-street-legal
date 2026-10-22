@@ -779,7 +779,7 @@ M.TEXT = {
   ["shops.svc_inspect"] = "Inspection", ["shops.svc_inspect_desc"] = "The mechanic goes over your car and tells you what is worn and what it would cost.", ["shops.plate_name"] = "Plate: {1}", ["shops.group_plates"] = "Plates",
   ["shops.inspect_result"] = "Inspection", ["shops.inspect_condition"] = "Condition", ["shops.inspect_faults"] = "Open faults", ["shops.inspect_total"] = "To bring it to 95%", ["shops.inspect_none"] = "None",
   ["shops.mechanic_busy"] = "The mechanic cannot work on it now: {1}", ["shops.plate_done"] = "The plate is on.", ["shops.no_wash"] = "Nothing to wash.",
-  ["shops.parts_yard"] = "Parts yard", ["shops.yard_heading"] = "Parts", ["shops.one_set"] = "One set of tyres at a time.",
+  ["shops.parts_yard"] = "Parts yard", ["shops.yard_heading"] = "Parts", ["shops.polish_failed"] = "The polish could not be done: only the wash is charged.", ["shops.one_set"] = "One set of tyres at a time.",
   ["shops.price_before_trade_in"] = "Price before the trade-in of your old set.",
   ["shops.refund"] = "Refund: {1}",
   ["shops.cart_empty"] = "Nothing in the basket.",

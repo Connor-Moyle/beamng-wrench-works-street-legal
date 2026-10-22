@@ -5750,6 +5750,20 @@ do
   for _, e in ipairs(sent) do if e.n == 'slShopResult' then found = e.d end end
   check('sl_shops: an inspection is paid and shows the car report in the result panel', st.money == m0 - 40 and found and found.lines[1].label ~= nil and found.lines[2].text:find('worn clutch', 1, true) ~= nil)
 
+  -- a service that cannot be done does not spend the hour
+  skipped = {}
+  m0 = st.money
+  SS.buy('service_nothing:1')
+  check('sl_shops: a service the mechanic cannot do costs nothing and does not move the clock', st.money == m0 and #skipped == 0)
+  -- a polish that fails: the wash is paid, the rest comes back
+  local realRepair = _G.sl_surfacefx.repair
+  _G.sl_surfacefx.repair = function() return nil end
+  SS.open('carwash', {})
+  m0 = st.money
+  SS.buy('washpolish:1')
+  check('sl_shops: a wash and polish whose polish fails is charged as the wash only', st.money == m0 - 15 or st.money == m0 - 25)
+  _G.sl_surfacefx.repair = realRepair
+
   -- plates
   SS.open('accessories', {})
   v = sent[#sent].d
