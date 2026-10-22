@@ -1417,15 +1417,18 @@
       var h = obj(st.data.hotcars);
       var cars = arr(h.hot).map(function (c) {
         var chips = (c.driving ? '<span class="slp-chip">' + T('ui.hot_driving', 'Driving it') + '</span>' : '') + (c.plated ? '<span class="slp-chip">' + T('ui.hot_plated', 'New plates') + '</span>' : '') +
-          (c.wanted ? '<span class="slp-chip">&#9888; ' + T('ui.hot_wanted', 'Wanted') + '</span>' : '');
+          (c.wanted ? '<span class="slp-chip">&#9888; ' + T('ui.hot_wanted', 'Wanted') + '</span>' : '') + (c.tracked ? '<span class="slp-chip">' + T('ui.hot_tracked', 'Tracked') + '</span>' : '') +
+          (c.resprayed ? '<span class="slp-chip">' + T('ui.hot_resprayed', 'Resprayed') + '</span>' : '') + (c.legal ? '<span class="slp-chip">' + T('ui.hot_legal', 'Legal') + '</span>' : '');
+        var jammer = arr(h.tools).some(function (t) { return t.id === 'jammer' && (t.uses == null || Number(t.uses) > 0); });
+        var acts = (c.driving && c.tracked) ? '<div class="slp-acts"><div class="slp-btn" data-a="theftact" data-v="pull">' + T('ui.hot_pull', 'Pull the tracker') + '</div>' + (jammer ? '<div class="slp-btn slp-tonal" data-a="theftact" data-v="jam">' + T('ui.hot_jam', 'Run the jammer') + '</div>' : '') + '</div><p>' + T('ui.hot_pull_hint', 'Stand still in the car while it searches.') + '</p>' : '';
         return '<div class="slp-card"><h4>' + esc(c.name || '') + '</h4><p>' + chips + '</p>' +
           '<div class="slp-kv"><span>' + T('ui.hot_value', 'Worth') + '</span><b>' + money(c.value) + '</b></div>' +
           '<div class="slp-kv"><span>' + T('ui.hot_sell', 'Sell whole') + '</span><b>' + money(c.sell) + '</b></div>' +
           '<div class="slp-kv"><span>' + T('ui.hot_strip', 'Strip for parts') + '</span><b>' + money(c.strip) + '</b></div>' +
-          (c.plated ? '<div class="slp-kv"><span>' + T('ui.hot_title', 'Title it') + '</span><b>' + money(c.title) + '</b></div>' : '<div class="slp-kv"><span>' + T('ui.hot_plates', 'New plates') + '</span><b>' + money(c.plates) + '</b></div>') + '</div>';
+          (c.plated ? '<div class="slp-kv"><span>' + T('ui.hot_title', 'Title it') + '</span><b>' + money(c.title) + '</b></div>' : '<div class="slp-kv"><span>' + T('ui.hot_plates', 'New plates') + '</span><b>' + money(c.plates) + '</b></div>') + acts + '</div>';
       }).join('');
       var tools = arr(h.tools).map(function (t) { return '<div class="slp-kv"><span>' + esc(t.title || t.id) + '</span><b>' + (t.uses != null ? T('ui.hot_uses', '{1} uses', Number(t.uses) || 0) : '&infin;') + '</b></div>'; }).join('');
-      return bar(T('app.hotcars', 'Hot cars')) + '<div class="slp-body">' + (cars || '<div class="slp-empty">' + T('ui.hot_none', 'No hot cars. The fence takes them at night.') + '</div>') +
+      return bar(T('app.hotcars', 'Hot cars')) + '<div class="slp-body">' + (h.tracked ? '<p class="slp-chip">' + T('ui.hot_tracked_banner', 'The police are following the car you drive.') + '</p>' : '') + (cars || '<div class="slp-empty">' + T('ui.hot_none', 'No hot cars. The fence takes them at night.') + '</div>') +
         (tools ? '<div class="slp-card"><h4>' + T('ui.hot_tools', 'Your tools') + '</h4>' + tools + '</div>' : '') +
         (Number(h.deliveries) > 0 ? '<p style="padding:0 16px">' + T('ui.hot_deliveries', 'Deliveries done: {1}', Number(h.deliveries)) + '</p>' : '') + '</div>';
     }
@@ -2213,6 +2216,7 @@
         case 'borrow': lua('borrow(' + Number(v) + ')'); break;
         case 'repay': lua('repay(' + Number(v) + ')'); break;
         case 'economy': lua('economyOptIn()'); break;
+        case 'theftact': lua('theftAct("' + (v === 'jam' ? 'jam' : 'pull') + '")'); break;
         case 'paydebt': lua('payDebt(' + Number(v) + ')'); break;
         case 'spnaccept': lua('sponsorAccept()'); break;
         case 'spndecline': lua('sponsorDecline()'); break;

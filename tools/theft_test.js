@@ -178,4 +178,10 @@ S.handle('slTheftGame', null); S.handle('slTheftGame', {});
 assert.ok(S.active(), 'odd data changes nothing');
 S.handle('slTheftEnd', {});
 assert.ok(!S.active(), 'the game can close it');
+// the HUD mark: shown while the police follow the car, hidden when the tracker is out
+S.handle('slTheftTracked', { on: true, name: 'Covet' });
+assert.strictEqual(S.badge.style.display, 'block');
+assert.strictEqual(S.badge.textContent, 'TRACKED');
+S.handle('slTheftTracked', { on: false });
+assert.strictEqual(S.badge.style.display, 'none');
 console.log('theft test passed');

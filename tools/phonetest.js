@@ -1241,6 +1241,12 @@ assert.ok(/target\.focus\(\{ preventScroll: true \}\)/.test(code) && !/target\.f
   phone.act('open', 'hotcars');
   const tx = text();
   assert.ok(tx.includes('Ibishu Covet DX') && tx.includes('Driving it') && tx.includes('Wanted') && tx.includes('$2,720') && tx.includes('$3,200') && tx.includes('New plates') && tx.includes('$1,200') && tx.includes('Title it') && tx.includes('$7,900') && tx.includes('Bypass box') && tx.includes('9 uses') && tx.includes('Deliveries done: 1'), 'the hot cars: ' + tx.slice(0, 300));
+  assert.ok(tx.includes('Tracked') && tx.includes('Resprayed') && tx.includes('The police are following'), 'tracked car: chips and the banner');
+  calls.length = 0;
+  phone.act('theftact', 'pull');
+  phone.act('theftact', 'jam');
+  assert.ok(calls.includes('theftAct("pull")') && calls.includes('theftAct("jam")'), 'the pull and jam buttons call the phone, which toasts the answer');
+  assert.ok(phone.root.querySelector('[data-a="theftact"][data-v="jam"]'), 'the jammer button shows with the tool');
   phone.act('home');
   phone.handle('slPhoneData', Object.assign({}, data, { hotcars: { hot: [], tools: [], deliveries: 0 } }));
   assert.ok(!phone.root.querySelector('[data-a="open"][data-v="hotcars"]'), 'nothing hot and no tools: no tile');

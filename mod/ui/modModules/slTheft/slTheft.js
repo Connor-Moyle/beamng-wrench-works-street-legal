@@ -17,7 +17,7 @@
     'theft.wires_join': 'Join the battery to the ignition: drag from the battery terminal to the ignition terminal.',
     'theft.wires_crank': 'Touch the starter and hold to crank. Let go early and the next try is louder.',
     'theft.fob': 'Capture the fob', 'theft.fob_wait': 'Wait for the pattern, press Capture while it shows.', 'theft.fob_match': 'Match the three sliders to the captured pattern, then Confirm.',
-    'theft.capture': 'Capture', 'theft.confirm': 'Confirm', 'theft.giveup': 'Give up', 'theft.noise': 'Noise', 'theft.time': 'Time', 'theft.set': 'set', 'theft.cut': 'cut',
+    'theft.tracked': 'TRACKED', 'theft.capture': 'Capture', 'theft.confirm': 'Confirm', 'theft.giveup': 'Give up', 'theft.noise': 'Noise', 'theft.time': 'Time', 'theft.set': 'set', 'theft.cut': 'cut',
     'theft.ok': 'Done', 'theft.failed': 'Failed', 'theft.step': 'Stage {1} of {2}', 'theft.windows_left': 'Pattern shows left: {1}', 'theft.hold': 'Hold…', 'theft.cloner': 'The cloner matches it for you.',
     'theft.tool': 'Tool: {1}', 'theft.bat': 'BAT', 'theft.ign': 'IGN', 'theft.cutme': 'CUT', 'theft.starter': 'STARTER'
   };
@@ -112,6 +112,12 @@
       '<div class="slt-bars"><div class="slt-bar slt-time"><span></span><i><b style="width:100%"></b></i></div><div class="slt-bar slt-noise"><span></span><i><b style="width:0"></b></i></div></div>' +
       '<svg class="slt-field" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMid meet"></svg><div class="slt-foot"><div class="slt-result"></div><div><span class="slt-extra"></span> <div class="slt-btn slt-giveup" tabindex="0" role="button"></div></div></div></div>';
     doc.body.appendChild(root);
+    // the HUD mark: the police follow the car the player drives (slTheftTracked { on, name }); a small badge in the top corner, over the HUD, not over the game's view
+    var badge = doc.createElement('div');
+    badge.className = 'slt-tracked';
+    badge.setAttribute('style', 'position:fixed;right:16px;top:64px;z-index:60;display:none;padding:4px 12px;border-radius:14px;background:rgba(176,32,32,.88);color:#fff;font:700 13px "Segoe UI","Roboto","Noto Sans",sans-serif;letter-spacing:1px;pointer-events:none');
+    badge.textContent = T('theft.tracked');
+    doc.body.appendChild(badge);
     var q = function (s) { return root.querySelector(s); };
     var svg = q('.slt-field');
     var st = null, tickTimer = null, endTimer = null, answered = false;
@@ -374,8 +380,9 @@
     function handle(name, data) {
       if (name === 'slTheftGame' && data) show(data);
       else if (name === 'slTheftEnd') { if (st && !answered) { answered = true; } hide(); }
+      else if (name === 'slTheftTracked') { badge.style.display = data && data.on ? 'block' : 'none'; badge.title = data && data.name ? String(data.name) : ''; }
     }
-    return { handle: handle, root: root, svg: svg, state: function () { return st; }, cancel: cancel, active: function () { return !!st; } };
+    return { handle: handle, root: root, badge: badge, svg: svg, state: function () { return st; }, cancel: cancel, active: function () { return !!st; } };
   }
 
   if (typeof window !== 'undefined') window.__slTheftCreate = createTheft;
@@ -386,7 +393,7 @@
       var clock = { now: function () { return Date.now(); }, set: function (f, ms) { return setTimeout(f, ms); }, clear: function (t) { clearTimeout(t); } };
       var t = createTheft(document, clock, function (cmd) { if (window.bngApi) window.bngApi.engineLua('if sl_theft then ' + cmd + ' end'); });
       window.__slTheft = t;
-      ['slTheftGame', 'slTheftEnd'].forEach(function (name) { $rootScope.$on(name, function (ev, data) { t.handle(name, data); }); });
+      ['slTheftGame', 'slTheftEnd', 'slTheftTracked'].forEach(function (name) { $rootScope.$on(name, function (ev, data) { t.handle(name, data); }); });
     }]);
   }
 })();

@@ -431,6 +431,15 @@ function M.service(carId, optionId) if career() and sl_service then answer(sl_se
 function M.sponsorAccept() if career() and sl_sponsor then answer(sl_sponsor.accept()) end end
 function M.sponsorDecline() if career() and sl_sponsor then answer(sl_sponsor.decline()) end end
 function M.sponsorQuit() if career() and sl_sponsor then answer(sl_sponsor.quit()) end end
+-- the Hot cars page's two buttons on the car you sit in: pull the tracker (standing still) or run the jammer; the answer is a toast
+function M.theftAct(kind)
+  local th = rawget(_G, 'sl_theft')
+  if not (career() and th) then return end
+  local fn = kind == 'jam' and th.jam or kind == 'pull' and th.pullTracker or nil
+  if not fn then return end
+  local ok, _, text = pcall(fn)
+  if ok and text then guihooks.trigger('slPhoneToast', { text = text }) end
+end
 function M.payDebt(amount) if career() and sl_weekly then answer(sl_weekly.payDebt(tonumber(amount))) end end
 function M.repay(amount) if career() and sl_bank then answer(sl_bank.repay(tonumber(amount))) end end
 function M.economyOptIn() if career() and sl_career.optInEconomy then answer(sl_career.optInEconomy()) end end      -- (the offer card's button: ok, text; the text is the toast)
