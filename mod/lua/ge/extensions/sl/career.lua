@@ -1424,7 +1424,10 @@ function M.onPursuitAction(id, action, pursuit)
   local v = getPlayerVehicle(0)
   if not v or v:getID() ~= id then return end
   if action == 'arrest' then
-    if sl_justice and sl_justice.ticketInstead and sl_justice.ticketInstead(pursuit) then return end      -- (P8: a pull-over at mode 1 is a ticket on the phone, not a bust)
+    if sl_justice and sl_justice.ticketInstead then                                     -- (P8: a pull-over at mode 1 is a ticket on the phone, not a bust; an error there is a bust as before)
+      local okT, isT = pcall(sl_justice.ticketInstead, pursuit)
+      if okT and isT then return end
+    end
     local offences = type(pursuit) == 'table' and type(pursuit.offensesList) == 'table' and #pursuit.offensesList or 1
     local racing = sl_streets and sl_streets.isRacing()
     if racing then sl_streets.forfeit() end

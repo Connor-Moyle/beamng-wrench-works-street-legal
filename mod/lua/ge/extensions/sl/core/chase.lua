@@ -192,7 +192,7 @@ function M.heading(vx, vy)
   return HEADINGS[math.floor((a + 22.5) / 45) % 8 + 1]
 end
 M.CHATTER = { start = 'police.radio_start', backup = 'police.radio_backup', lost = 'police.radio_lost', visual = 'police.radio_visual', roadblock = 'police.radio_roadblock',
-              strip = 'police.radio_strip', evade = 'police.radio_evade', arrest = 'police.radio_arrest' }
+              strip = 'police.radio_strip', evade = 'police.radio_evade', arrest = 'police.radio_arrest', box = 'police.radio_box', pit = 'police.radio_pit' }
 -- -> key, unit, car, where, heading
 function M.chatter(event, ctx)
   local key = M.CHATTER[event]
@@ -259,5 +259,39 @@ function M.informantPrice(bounty) return math.floor((bounty or 0) / 2 / 10 + 0.5
 M.LOT_BUILD_WITHIN = 300
 M.FENCE_HEAT = 0.75                   -- heat level 4
 function M.fenceBounty(owed, level) return math.max(M.bounty(level), tonumber(owed) or 0) end
+
+-- ---- P5: box and PIT (the game side is sl/pursuit.lua): who, when
+M.BOX_MODE, M.PIT_MODE = 2, 3
+M.BOX_AGGR, M.PIT_AGGR, M.BASE_AGGR = 0.6, 1.5, 0.85
+M.BOX_SPEED_PLUS = 1                  -- m/s over the player's speed the boxer may do (it keeps pace, it does not run away)
+M.PIT_S, M.PIT_EVERY = 6, 45
+M.PIT_MIN_MS = 16.7                   -- 60 km/h
+M.STRAIGHT_SAMPLES, M.STRAIGHT_DEG = 4, 12      -- two seconds of headings at half-second ticks, within 12 degrees: a straight
+local function sortedByDist(cops)
+  local ids = {}
+  for id in pairs(cops or {}) do ids[#ids + 1] = id end
+  table.sort(ids, function(a, b) return cops[a] < cops[b] end)
+  return ids
+end
+-- the boxer: the second-nearest unit at level 2 and above (the nearest keeps chasing); nil below or with one unit
+function M.boxUnit(mode, cops)
+  if (tonumber(mode) or 0) < M.BOX_MODE then return nil end
+  local ids = sortedByDist(cops)
+  return ids[2]
+end
+function M.pitUnit(cops) return sortedByDist(cops)[1] end
+function M.pitDue(mode, speed, straight, sinceLast)
+  return (tonumber(mode) or 0) >= M.PIT_MODE and (speed or 0) >= M.PIT_MIN_MS and straight == true and (sinceLast or 0) >= M.PIT_EVERY
+end
+-- headings in degrees (M.heading); a straight when every sample is within STRAIGHT_DEG of the first
+function M.isStraight(headings)
+  if type(headings) ~= 'table' or #headings < M.STRAIGHT_SAMPLES then return false end
+  local first = headings[1]
+  for i = 2, #headings do
+    local d = math.abs(headings[i] - first) % 360
+    if math.min(d, 360 - d) > M.STRAIGHT_DEG then return false end
+  end
+  return true
+end
 
 return M

@@ -6029,9 +6029,11 @@ do
     state.money = 1000
     acts[1].buttonFun()
     check('justice game side: paying at the window releases the car, hands it over and seats the player', #released == 1 and state.cars[1].impounded == nil and adopted ~= nil and adopted[1] == 3 and activated == 3 and state.money == 300)
-    -- the fence
+    -- the fence: refused while the car is not in the yard (the reviewer's case), nothing changes
     state.cars[1].impounded = 900
     isNight = true
+    local okf, textf = J.cutTheFence()
+    check('justice game side: the fence is refused while the car does not stand in the yard, nothing changes', not okf and textf:find('yard') ~= nil and state.cars[1].impounded == 900 and state.wanted == nil and chased == 0)
     J.onUpdate(0.3)
     acts = {}
     J.onActivityAcceptGatherData({ { impoundLot = true } }, acts)
@@ -6048,6 +6050,54 @@ do
     check('justice game side: with the switches off an arrest is a bust, no lot marker, no suspension', J.ticketInstead({}) == false and #e2 == 0 and J.suspended() == false)
     _G.sl_career, _G.sl_fleet, _G.sl_police, _G.sl_crews, _G.sl_options, _G.guihooks, _G.extensions, _G.getPlayerVehicle, _G.gameplay_police, _G.ui_message, _G.getObjectByID, _G.log, _G.sl_replay, _G.vec3, _G.quat, _G.core_jobsystem, _G.quatFromDir = old.c, old.f, old.p, old.cr, old.o, old.gh, old.ex, old.pv, old.gp, old.um, old.id, old.lg, old.rp, old.v3, old.q, old.js, old.qd
     package.loaded['sl/carBuilder'], package.loaded['sl/justice'] = old.cb, nil
+  end
+end
+
+-- P5 box and PIT (sl/core/chase, the P5 block; sl/pursuit with stubs)
+do
+  local C = require('sl/core/chase')
+  local cops = { [10] = 30, [11] = 12, [12] = 50 }
+  check('pursuit: the boxer is the second-nearest unit from level 2; none below or with one unit', C.boxUnit(2, cops) == 10 and C.boxUnit(3, cops) == 10 and C.boxUnit(1, cops) == nil and C.boxUnit(2, { [5] = 9 }) == nil and C.pitUnit(cops) == 11)
+  check('pursuit: a PIT needs level 3, 60 km/h, a straight and 45 s since the last', C.pitDue(3, 20, true, 50) and not C.pitDue(2, 20, true, 50) and not C.pitDue(3, 10, true, 50) and not C.pitDue(3, 20, false, 50) and not C.pitDue(3, 20, true, 30))
+  check('pursuit: a straight is four headings within 12 degrees, across north too', C.isStraight({ 10, 12, 8, 15 }) and not C.isStraight({ 10, 40, 8, 15 }) and C.isStraight({ 358, 2, 359, 5 }) and not C.isStraight({ 10, 12 }))
+  do
+    local old = { o = _G.sl_options, pv = _G.getPlayerVehicle, gp = _G.gameplay_police, gt = _G.gameplay_traffic, id = _G.getObjectByID, lg = _G.log, p = _G.sl_police, v3 = _G.vec3 }
+    local v3
+    v3 = function(x, y, z) return setmetatable({ x = x, y = y, z = z }, { __sub = function(a, b) return v3(a.x - b.x, a.y - b.y, a.z - b.z) end, __index = { length = function(p) return math.sqrt(p.x * p.x + p.y * p.y + p.z * p.z) end } }) end
+    _G.vec3 = v3
+    local mode, vel = 2, v3(20, 0, 0)
+    _G.getPlayerVehicle = function() return { getID = function() return 1 end, getPosition = function() return v3(0, 0, 0) end, getVelocity = function() return vel end } end
+    local aggr, cmds, radio = {}, {}, {}
+    local function role(id) return { setAggression = function(_, a) aggr[id] = a end } end
+    _G.gameplay_traffic = { getTrafficData = function() return { [10] = { role = role(10) }, [11] = { role = role(11) }, [12] = { role = role(12) } } end }
+    _G.gameplay_police = { getPursuitData = function() return { mode = mode } end, getPoliceVehicles = function() return { [10] = true, [11] = true, [12] = true } end }
+    local pos = { [10] = v3(30, 0, 0), [11] = v3(12, 0, 0), [12] = v3(50, 0, 0) }
+    _G.getObjectByID = function(id) if pos[id] then return { getPosition = function() return pos[id] end, queueLuaCommand = function(_, c) cmds[#cmds + 1] = id .. ':' .. c end } end end
+    _G.sl_options = { get = function() return nil end }
+    _G.sl_police = { radioSay = function(e) radio[#radio + 1] = e end }
+    _G.log = function() end
+    package.loaded['sl/pursuit'] = nil
+    local U = require('sl/pursuit')
+    U.onUpdate(0.6)
+    check('pursuit game side: at level 2 the second-nearest unit becomes the boxer: calm aggression, a speed cap at the player pace, the radio line', aggr[10] == 0.6 and aggr[11] == nil and cmds[#cmds]:find('^10:ai.setSpeedMode%("limit"%) ai.setSpeed%(21.0%)') ~= nil and radio[1] == 'box')
+    mode = 3
+    for i = 1, 3 do U.onUpdate(0.6) end
+    check('pursuit game side: at level 3 above 60 km/h on a straight the nearest unit gets the PIT window and the radio line', aggr[11] == 1.5 and radio[#radio] == 'pit' and U.status():find('pit 11') ~= nil)
+    local before = #radio
+    for i = 1, 3 do U.onUpdate(0.6) end
+    check('pursuit game side: no second PIT inside the window or the minute', #radio == before)
+    mode = 0
+    U.onUpdate(0.6)
+    check('pursuit game side: the chase over: the boxer and the pitter are put back', aggr[10] == 0.85 and aggr[11] == 0.85 and cmds[#cmds]:find('setSpeedMode%("off"%)') ~= nil and U.status():find('box none') ~= nil)
+    mode = 3
+    vel = v3(10, 0, 0)
+    for i = 1, 4 do U.onUpdate(0.6) end
+    check('pursuit game side: below 60 km/h there is no PIT, the box is back', aggr[11] == 0.85 and aggr[10] == 0.6)
+    _G.sl_options = { get = function(k) if k == 'slPoliceTactics' then return false end return nil end }
+    U.onUpdate(0.6)
+    check('pursuit game side: the switch off puts everything back and does nothing', aggr[10] == 0.85 and U.status():find('box none') ~= nil)
+    _G.sl_options, _G.getPlayerVehicle, _G.gameplay_police, _G.gameplay_traffic, _G.getObjectByID, _G.log, _G.sl_police, _G.vec3 = old.o, old.pv, old.gp, old.gt, old.id, old.lg, old.p, old.v3
+    package.loaded['sl/pursuit'] = nil
   end
 end
 

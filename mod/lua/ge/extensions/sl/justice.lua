@@ -81,7 +81,8 @@ function M.contestTicket(id)
   local rp = rawget(_G, 'sl_replay')
   local rec = rp and rp.summary and rp.summary()
   local evidence = type(rec) == 'table' and rec.saved == true
-  local won = rules.contest(t, evidence, math.random())
+  local okc, won = pcall(rules.contest, t, evidence, math.random())
+  if not okc then sl_career.addMoney(rules.LAWYER_FEE, strings.t('justice.lawyer')) log('E', 'sl_justice', 'contest: ' .. tostring(won)) return false, strings.t('career.not_now') end
   extensions.hook('onStreetLegalChanged')
   return true, won and strings.t('justice.contest_won') or strings.t('justice.contest_lost_1_due_2', t.amount, t.due)
 end
@@ -234,13 +235,16 @@ local function handOver(s, car)
   lot = nil
   if sl_fleet.setActive then pcall(sl_fleet.setActive, car.id) end
 end
+local function lotCarOf(car) return lot ~= nil and lot.carId == car.id and getObjectByID(lot.vid) ~= nil end
 function M.payAtWindow()
   local s = career()
   local car = s and impoundedCar(s)
   if not car then return false, strings.t('justice.nothing_impounded') end
   if night() then return false, strings.t('justice.window_closed') end
+  local standing = lotCarOf(car)
   local ok, text = sl_career.releaseCar(car.id)
   if not ok then return false, text end
+  if not standing then return true, text end          -- (the car was not in the yard yet: it went home to the garage, as the release says)
   handOver(s, car)
   return true, strings.t('justice.took_the_1', car.name)
 end
@@ -249,6 +253,7 @@ function M.cutTheFence()
   local car = s and impoundedCar(s)
   if not car then return false, strings.t('justice.nothing_impounded') end
   if not night() then return false, strings.t('justice.fence_by_day') end
+  if not lotCarOf(car) then return false, strings.t('justice.not_in_the_yard_yet') end      -- (the state changes only once the car stands there: no free car, no chase with no car)
   local owed = car.impounded or 0
   car.impounded = nil
   car.out, car.where = false, nil

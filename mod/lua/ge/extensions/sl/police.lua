@@ -98,6 +98,7 @@ local function say(event, ctx)
   while #radio > 3 do table.remove(radio, 1) end
   if ui_message then ui_message(text, 4, 'slPoliceRadio') end
 end
+function M.radioSay(event, ctx) say(event, ctx) end      -- (sl_pursuit: the box and PIT lines)
 function M.radio() return radio end
 
 local nodeAround              -- (defined below)
