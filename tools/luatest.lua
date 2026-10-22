@@ -3312,14 +3312,14 @@ do
   local Opt = require('sl/options')
   local defs = {}
   for _, d in ipairs(Opt.defs) do defs[d.key] = d end
-  local okDefs = #F.LIST == 41
+  local okDefs = #F.LIST == 42
   local offByDefault = 0
   for _, f in ipairs(F.LIST) do
     local d = defs[f.opt]
     if not (d and d.type == 'bool' and d.default == (f.default ~= false) and d.feature == true and d.title == f.title and f.desc ~= '') then okDefs = false end
     if f.default == false then offByDefault = offByDefault + 1 end
   end
-  check('parts: every part has an option, one bool, on by default unless the part says off (needs), tagged for the Active features page', okDefs and offByDefault == 3 and F.get('needs').default == false and F.get('mates').default == false and F.get('seasons').default == false)
+  check('parts: every part has an option, one bool, on by default unless the part says off (needs), tagged for the Active features page', okDefs and offByDefault == 4 and F.get('needs').default == false and F.get('mates').default == false and F.get('seasons').default == false and F.get('radio').default == false)
   local off = { slJobs = false }
   local function get(k) return off[k] end
   check('parts: on unless the option is false; a missing option system is on', F.on('jobs', get) == false and F.on('races', get) == true and F.on('jobs', function() return nil end) == true and F.on('nope', get) == true)
@@ -6587,6 +6587,127 @@ do
     _G.sl_career, _G.sl_fleet, _G.slrr_garage, _G.sl_options, _G.guihooks, _G.extensions, _G.log = old.c, old.f, old.g, old.o, old.gh, old.ex, old.lg
     package.loaded['sl/grabbag'] = nil
   end
+end
+
+-- the car radio's DJ (campaign idea #15)
+do
+  local R = require('sl/core/radio')
+  local rngLib = require('sl/core/rng')
+  local rng = rngLib.new(7)
+  local strings = require('sl/core/strings')
+  local allThere = true
+  for kind, n in pairs(R.COUNTS) do
+    check('radio: the pool ' .. kind .. ' has a priority', R.PRIORITY[kind] ~= nil)
+    for i = 1, n do if strings.t('radio.' .. kind .. '_' .. i) == 'radio.' .. kind .. '_' .. i then allThere = false end end
+  end
+  check('radio: every line of every pool is written', allThere)
+  check('radio: no line names a real station, DJ or force (a short list of words to keep out)', (function()
+    for kind, n in pairs(R.COUNTS) do for i = 1, n do
+      local t = strings.t('radio.' .. kind .. '_' .. i):lower()
+      for _, w in ipairs({ 'kroq', 'bbc', 'nypd', 'lapd', 'fbi', 'grand theft', 'spotify' }) do if t:find(w, 1, true) then return false end end
+    end end
+    return true
+  end)())
+  check('radio: race news is a win or a loss, a pink slip is its own kind, the weather states map to four kinds',
+    R.fromRace(true, 'Kai') == 'race_win' and R.fromRace(false, 'Kai') == 'race_loss' and R.fromRace(true, 'Kai', 'pink') == 'pink_won' and R.fromRace(false, 'Kai', 'pink') == 'pink_lost'
+    and R.fromWeather('heavy') == 'rain' and R.fromWeather('fog') == 'fog' and R.fromWeather('snow') == nil)
+
+  local r = R.new()
+  check('radio: nothing to say and not yet idle long enough: nothing', R.next(r, 0, 1, false, rng) == nil)
+  check('radio: a quiet stretch gets a filler line after the idle gap', select(2, R.next(r, 200, 1, false, rng)) == 'filler')
+  check('radio: a second line before the gap is over waits', R.next(r, 220, 1, false, rng) == nil and R.push(r, 'race_win', { 'Kai' }, 1) == true and R.next(r, 230, 1, false, rng) == nil)
+  local text, kind = R.next(r, 270, 1, false, rng)
+  check('radio: the news is read when the gap is over, with its argument', kind == 'race_win' and text:find('Kai', 1, true) ~= nil)
+  check('radio: during a race or a chase nothing is said and the news waits', (function()
+    R.push(r, 'busted', {}, 1)
+    if R.next(r, 400, 1, true, rng) ~= nil then return false end
+    local t, k = R.next(r, 401, 1, false, rng)
+    return k == 'busted' and t ~= nil
+  end)())
+  check('radio: the bigger story goes first', (function()
+    local q = R.new()
+    R.push(q, 'clear', {}, 1) R.push(q, 'king', {}, 1) R.push(q, 'race_loss', { 'X' }, 1)
+    return select(2, R.next(q, 1000, 1, false, rng)) == 'king' and select(2, R.next(q, 1100, 1, false, rng)) == 'race_loss' and select(2, R.next(q, 1200, 1, false, rng)) == 'clear'
+  end)())
+  check('radio: news of the same kind replaces the older one; the queue is capped', (function()
+    local q = R.new()
+    R.push(q, 'rain', {}, 1) R.push(q, 'rain', {}, 1)
+    if #q.queue ~= 1 then return false end
+    for _, k in ipairs({ 'heat', 'busted', 'district', 'king', 'fog', 'clear', 'pink_won' }) do R.push(q, k, {}, 1) end
+    return #q.queue == R.QUEUE_MAX
+  end)())
+  check('radio: news from before yesterday is dropped; unknown kinds and filler cannot be pushed', (function()
+    local q = R.new()
+    R.push(q, 'rain', {}, 1)
+    local t = R.next(q, 1000, 5, false, rng)
+    return (select(2, R.next(q, 1000, 5, false, rng)) == nil or true) and #q.queue == 0 and R.push(q, 'filler', {}, 5) == false and R.push(q, 'bogus', {}, 5) == false
+  end)())
+  check('radio: a pool does not repeat a line until it must (three race wins give three lines)', (function()
+    local q = R.new()
+    local seen, n = {}, 0
+    for i = 1, 3 do
+      R.push(q, 'race_win', { 'A' }, 1)
+      local t = R.next(q, i * 1000, 1, false, rng)
+      if seen[t] then return false end
+      seen[t] = true n = n + 1
+    end
+    return n == 3
+  end)())
+
+  -- the game side
+  local ST = require('sl/core/state')
+  local st = ST.new(1, 0)
+  st.day = 3
+  local old = {}
+  for _, k in ipairs({ 'sl_career', 'slrr_carRadio', 'ui_message', 'sl_police', 'extensions', 'guihooks' }) do old[k] = rawget(_G, k) end
+  local said, registered, radioState, busy, level = {}, {}, { on = true, id = nil }, nil, 0
+  _G.ui_message = function(t, _, cat) said[#said + 1] = { t = t, cat = cat } end
+  _G.sl_police = { level = function() return level end }
+  _G.sl_career = { isActive = function() return true end, getState = function() return st end, freeToStart = function() return busy end }
+  _G.slrr_carRadio = { status = function() return radioState end, registerStation = function(d) registered[#registered + 1] = d end, unregisterStation = function(id) registered[#registered] = nil end }
+  package.loaded['sl/radio'] = nil
+  local G = require('sl/radio')
+  G.onStreetLegalRaceResult(true, 'Kai', 'kai', nil)
+  G.onUpdate(1)
+  check('radio: the station is registered with the car radio, as a text station', #registered == 1 and registered[1].id == 'sl_fm' and registered[1].text == true and registered[1].name == 'Street Legal FM')
+  check('radio: with the radio on another station nothing is said', #said == 0 and G.status().news == 1 and G.status().onAir == false)
+  radioState = { on = true, id = 'sl_fm', text = true }
+  busy = 'A race is on.'
+  for _ = 1, 100 do G.onUpdate(1) end
+  check('radio: in a race nothing is said, however long it takes', #said == 0)
+  _G.slrr_garage = { getPhase = function() return 'garage' end }
+  for _ = 1, 100 do G.onUpdate(1) end
+  check('radio: in a garage visit nothing is said', #said == 0)
+  _G.slrr_garage = nil
+  busy, level = nil, 2
+  for _ = 1, 100 do G.onUpdate(1) end
+  check('radio: with the police on you nothing is said either', #said == 0)
+  level = 0
+  G.onUpdate(1)
+  check('radio: when it is quiet the waiting news is read on the HUD message area', #said == 1 and said[1].cat == 'slrrRadio' and said[1].t:find('Kai', 1, true) ~= nil)
+  G.onStreetLegalWeather('rain') G.onStreetLegalDistrictTaken('d1', 'northend') G.onStreetLegalPinkSlip(false, 'Mo')
+  check('radio: the events become news', G.status().news == 3)
+  radioState = { on = false }
+  for _ = 1, 200 do G.onUpdate(1) end
+  check('radio: with the radio off nothing is said and the news waits', #said == 1)
+  -- an error in the update does not repeat for ever: five in a row and the DJ is off
+  local boom = 0
+  _G.sl_police = { level = function() boom = boom + 1 error('boom') end }
+  radioState = { on = true, id = 'sl_fm', text = true }
+  for _ = 1, 20 do G.onUpdate(1) end
+  check('radio: five failed updates in a row switch the DJ off for the session', boom == 5)
+  G.onStreetLegalStarted()
+  _G.sl_police = { level = function() return 0 end }
+  G.onStreetLegalStopped()
+  check('radio: stopping withdraws the station', #registered == 0)
+  _G.slrr_carRadio = nil
+  package.loaded['sl/radio'] = nil
+  G = require('sl/radio')
+  radioState = nil
+  for _ = 1, 5 do G.onUpdate(1) end
+  check('radio: without a car radio nothing happens and nothing breaks', #said == 1 and G.status().registered == false)
+  for k, v in pairs(old) do _G[k] = v end
+  package.loaded['sl/radio'] = nil
 end
 
 print(string.format('lua tests passed: %d checks', passed))
