@@ -38,7 +38,7 @@ local function hot()
   if isNight() then return false end
   local w = rawget(_G, 'sl_weather')
   local sz = rawget(_G, 'sl_seasons')
-  local h = sz and sz.hot and w and w.state and sz.hot(w.state())
+  local h = sz and sz.hot and w and type(w.state) == 'function' and sz.hot(w.state())
   if h ~= nil then return h == true end          -- (Seasons on: clear summer days only)
   return w ~= nil and w.state ~= nil and w.state() == 'clear'
 end
