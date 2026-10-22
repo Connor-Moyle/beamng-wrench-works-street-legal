@@ -106,8 +106,9 @@ local function tickBody()
     return
   end
   local pay = M.settleJob(act, act.startedAt and (os.clock() - act.startedAt) or 0)
-  if pay > 0 then changeMoney(pay, act.title .. ': ' .. (act.item or 'freight')) end
-  toast(string.format(strings.t('jobs.s_delivered_s_d'), act.item or 'Delivery', '', pay))
+  local paid = pay <= 0 or changeMoney(pay, act.title .. ': ' .. (act.item or 'freight'))
+  if paid then toast(string.format(strings.t('jobs.s_delivered_s_d'), act.item or 'Delivery', '', pay))
+  else toast(string.format(strings.t('frjobs.pay_failed'), act.item or 'Delivery')) end      -- (the money is Wrench Works': when it cannot add it the toast does not say it was paid)
   act = nil
   clearRoute()
 end

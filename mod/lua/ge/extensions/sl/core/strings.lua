@@ -1792,6 +1792,7 @@ M.TEXT = {
   ["mode.wash_tip"] = "Car wash.",
   ["mode.cab"] = "Cab",
   ["mode.cab_tip"] = "Call a cab to a place on the map.",
+  ["frjobs.pay_failed"] = "%s delivered, but Wrench Works could not add the pay.",
   ["frjobs.off"] = "Freight runs in free roam are switched off.", ["frjobs.none"] = "No freight run to call off.", ["frjobs.called_off"] = "Freight run called off.",
   ["mode.jobs"] = "Freight runs", ["mode.jobs_tip"] = "Freight runs between the game's own delivery businesses, paid into the Wrench Works money. No reputation, no heat, nothing is saved.",
   ["mode.hud"] = "Dashboard",
