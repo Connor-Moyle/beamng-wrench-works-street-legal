@@ -104,6 +104,7 @@ local function snapshot()
     phase = sl_career.phase and sl_career.phase() or nil, phaseSwitch = phaseLib.switchLabel(sl_career.phase and sl_career.phase() or nil),
     garage = (progression.garages[s.garageLevel] or {}).name,
     weather = sl_weather and sl_weather.forecast and sl_weather.forecast() or nil,
+    economyOffer = sl_career.economyOffer and sl_career.economyOffer() and strings.t('career.economy_offer') or nil,          -- (a save from before the 0.8.0 economy: the phone offers it)
     nextGarage = nextGarage and { name = nextGarage.garage.name, canMove = nextGarage.canMove, why = nextGarage.why } or nil,
     roc = progression.rocOpen(s) and sl_career.has('roc'), hasRoc = sl_career.has('roc'), mapName = sl_career.mapName(),
     art = sl_hud ~= nil and sl_hud.slrrArt ~= nil and sl_hud.slrrArt() or false,

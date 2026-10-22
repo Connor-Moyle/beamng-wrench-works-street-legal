@@ -314,6 +314,19 @@ end
 function M.getSlot() return slot end
 
 function M.getState() return s end
+
+-- the 0.8.0 economy for a save from before it: offered once on the phone (snapshot field economyOffer), opted in with the button
+function M.economyOffer() return active and require('sl/core/economy').pending(s) or nil end
+function M.optInEconomy()
+  local economy = require('sl/core/economy')
+  if not (active and economy.pending(s)) then return false, strings.t('career.economy_none') end
+  economy.mark(s)
+  local features = require('sl/core/features')
+  features.setSaveOff({})
+  for _, id in ipairs(economy.PARTS) do extensions.hook('onStreetLegalOption', features.get(id).opt, true) end          -- (each part starts as if its switch had just been turned on)
+  changed()
+  return true, strings.t('career.economy_on')
+end
 function M.isActive() return active end
 
 ----------------------------------------------------------------------------------------------
@@ -851,8 +864,10 @@ function M.start(fresh, n, level)
   s = (not fresh) and readSave() or nil
   if not s then
     s = stateLib.new((os.time() % 1000000) * 31 + math.random(1, 997), now())
+    require('sl/core/economy').mark(s)          -- (a career created now has the 0.8.0 economy; a save without the marker keeps playing as before until it opts in)
     s.level = progression.MAPS[level] and level or progression.DEFAULT_MAP
   end
+  require('sl/core/features').setSaveOff(require('sl/core/economy').offFor(s))
   s.level = progression.levelOf(s)      -- (a save from before the maps has no level and is Valo City: it is written into the save the next time the game saves it)
   useMap(s.level)
   pending = 'start'
@@ -887,6 +902,7 @@ stop = function()
   active = false
   if core_groundMarkers then core_groundMarkers.setPath(nil) end
   extensions.hook('onStreetLegalStopped')
+  require('sl/core/features').setSaveOff({})
   pcall(function() require('sl/racelog').flush() end)       -- (the race log writes at most once a second: what waits goes out now)
   M.onTrafficOrParkingReady()           -- (no loading screen left up)
 end
