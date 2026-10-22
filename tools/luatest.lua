@@ -8068,6 +8068,23 @@ do
   F.onUpdate(1)
   check('frjobs: the pay goes through Wrench Works money once, and no career call was made', #paid == 1 and paid[1] > 0 and careerCalls == 0 and F.summary().active == nil)
   check('frjobs: nothing was written to a file', writes == 0)
+  -- the pay cannot be added (no Wrench Works money): the toast does not say it was paid
+  local said = {}
+  _G.ui_message = function(t) said[#said + 1] = t end
+  package.loaded['slrr/garageParts'] = {}
+  local sm2 = F.summary()
+  local o2 = sm2 and sm2.offers[1]
+  if o2 then
+    F.accept(o2.id)
+    local q1, q2 = place(o2.from), place(o2.to)
+    pos.x, pos.y = q1.x, q1.y
+    F.onUpdate(1)
+    pos.x, pos.y = q2.x, q2.y
+    F.onUpdate(1)
+  end
+  local lastMsg = said[#said] or ''
+  check('frjobs: when the pay cannot be added the toast says so and does not announce a payment', lastMsg:find('could not add the pay', 1, true) ~= nil and not lastMsg:find('delivered%s*%.%s*%$'))
+  package.loaded['slrr/garageParts'] = { changeMoney = function(a, l) paid[#paid + 1] = a end }
   on = false
   check('frjobs: with the switch off nothing is offered', F.summary() == nil)
   for k, v in pairs(old) do if k == 'parts' then package.loaded['slrr/garageParts'] = v elseif k == 'gcl' then _G.getCurrentLevelIdentifier = v elseif k == 'jwf' then _G.jsonWriteFile = v else _G[k] = v end end
