@@ -67,10 +67,11 @@ local function applyVars()
   if not (gameplay_police and gameplay_police.setPoliceVars) then return end
   local level = M.level()
   local levels = opt('slPoliceLevels')
-  local key = tostring(phase()) .. level .. tostring(levels)
+  local suspended = sl_justice ~= nil and sl_justice.suspended ~= nil and sl_justice.suspended() == true      -- (P8: a suspended licence: the police watch by day too)
+  local key = tostring(phase()) .. level .. tostring(levels) .. tostring(suspended)
   if key == appliedVars then return end
   appliedVars = key
-  local vars = chaseLib.vars(phase(), level)
+  local vars = chaseLib.suspendedVars(chaseLib.vars(phase(), level), suspended)
   if levels and phase() == 'night' then vars.scoreLevels = chaseLib.scoreLevels(level) end      -- (P1: the hotter, the sooner the game's chase climbs a level)
   gameplay_police.setPoliceVars(vars)
 end
@@ -457,6 +458,8 @@ local function updatePatrols()
 end
 
 -- for the tests (run_lua): a patrol 80-160 m from you and a chase started with it. Returns the words for the log.
+-- a chase from where the player stands (the impound lot's fence, P10): the tester's debugChase does the same
+function M.chaseFromHere() return M.debugChase() end
 function M.debugChase()
   local v = getPlayerVehicle(0)
   if not (v and gameplay_police and gameplay_traffic) then return 'no player or no police' end

@@ -213,4 +213,51 @@ function M.configsFor(level)
   return out
 end
 
+-- ---- police batch 2 (P8-P10): tickets and court, the wanted record, the impound lot (the game side is sl/justice.lua)
+M.PULLOVER_S = 5                      -- seconds from the siren to a stop for a ticket instead of a bust
+M.STOPPED_MS = 1.5
+M.TICKET_BASE, M.TICKET_OFFENCE = 120, 60
+M.LAWYER_FEE = 150
+M.CONTEST_WITH, M.CONTEST_WITHOUT = 0.6, 0.25      -- the chance to win with and without evidence (a saved race recording)
+M.LOST_RAISE = 1.5
+M.SUSPEND_AT = 3                      -- overdue unpaid tickets for a licence suspension
+M.TICKET_KEEP = 7                     -- days a paid ticket stays on the phone
+function M.isTicket(maxMode, stoppedAfter) return (tonumber(maxMode) or 9) <= 1 and stoppedAfter ~= nil and stoppedAfter <= M.PULLOVER_S end
+function M.ticketFine(offences) return M.TICKET_BASE + M.TICKET_OFFENCE * math.max(1, tonumber(offences) or 1) end
+function M.newTicket(id, day, offences)
+  local n = math.max(1, tonumber(offences) or 1)
+  return { id = id, day = day, offences = n, amount = M.ticketFine(n), due = day + 1, paid = false, contested = false }
+end
+-- the unpaid tickets whose court day has passed
+function M.overdue(tickets, day)
+  local out = {}
+  for _, t in ipairs(tickets or {}) do if not t.paid and (t.due or 0) < (day or 0) then out[#out + 1] = t end end
+  return out
+end
+function M.suspended(tickets, day) return #M.overdue(tickets, day) >= M.SUSPEND_AT end
+-- a contested ticket: won (cleared) or lost (half as much again, the court day a day later); roll in 0..1
+function M.contest(t, evidence, roll)
+  t.contested = true
+  local won = (roll or 1) < (evidence and M.CONTEST_WITH or M.CONTEST_WITHOUT)
+  if won then t.paid = true t.won = true
+  else t.amount = math.floor(t.amount * M.LOST_RAISE / 10 + 0.5) * 10 t.due = (t.due or 0) + 1 end
+  return won
+end
+function M.sweepTickets(tickets, day)
+  for i = #tickets, 1, -1 do local t = tickets[i] if t.paid and (t.paidDay or t.day or 0) < day - M.TICKET_KEEP then table.remove(tickets, i) end end
+end
+-- the suspension on the pursuit variables: the police watch by day as at night
+function M.suspendedVars(v, suspended) if suspended then v.strictness = 1 end return v end
+
+M.WANTED_LEVEL = 4
+function M.bounty(level) return 500 + 250 * math.max(0, lvl(level) - 3) end
+function M.wantedRecord(car, day, level) return { carId = car.id, name = car.name, model = car.model, day = day, level = lvl(level), bounty = M.bounty(level) } end
+M.RECOGNISE_M, M.RECOGNISE_EVERY = 25, 60
+function M.recognised(dist, speed, sinceLast) return (dist or 1e9) <= M.RECOGNISE_M and (speed or 0) > 2 and (sinceLast or 0) >= M.RECOGNISE_EVERY end
+function M.informantPrice(bounty) return math.floor((bounty or 0) / 2 / 10 + 0.5) * 10 end
+
+M.LOT_BUILD_WITHIN = 300
+M.FENCE_HEAT = 0.75                   -- heat level 4
+function M.fenceBounty(owed, level) return math.max(M.bounty(level), tonumber(owed) or 0) end
+
 return M

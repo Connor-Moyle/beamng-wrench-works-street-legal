@@ -38,6 +38,7 @@ TUNE = dict(               # the game's numbers since the balance pass (DESIGN3_
     race_rep_base=35,       # progression.raceResult: rep for a win = base + bet/100 (x1.5 at night)
     job_rep=10,             # sl_jobs: rep per job done
     fine_base=250, fine_offence=150, fine_racing=500,    # progression.policeFine
+    ticket_base=120, ticket_offence=60, pullover=0.35,    # core/chase: a pull-over at level 1 is a ticket (police batch 2); the share of caught chases that are pull-overs at night
     heat_decay_per_min=0.01,  # sl_police: heat cooling per real minute (on top of the daily x0.7)
     crush_pay=250, hot_base=400, hot_per_km=220, test_top=1200, test_slope=3000,
 )
@@ -58,6 +59,7 @@ def race_rep(won, bet, night, opp_rep, my_rep, pink=False):          # progressi
     return round(rep)
 
 def police_fine(racing): return TUNE['fine_base'] + TUNE['fine_offence'] + (TUNE['fine_racing'] if racing else 0)
+def ticket_fine(): return TUNE['ticket_base'] + TUNE['ticket_offence']
 
 # jobs: (name, unlock rep, night only, pay(dist m, rng) -> $, minutes(dist, rng), rep on success, fail chance)
 def job_part(d, r):
@@ -233,7 +235,7 @@ class Player:
         self.heat = min(1, self.heat + 0.12)
         if self.r.random() < (0.15 + 0.55 * self.heat) * (1 if night else 0.3):
             if self.r.random() < 0.4:
-                fine = police_fine(True)
+                fine = ticket_fine() if (night and self.r.random() < TUNE['pullover']) else police_fine(True)
                 paid = min(self.money, fine)
                 self.money -= paid; self.fines += paid; self.rep -= 25; self.heat = min(1, self.heat + 0.2)
                 if paid < fine: self.broke += 1
