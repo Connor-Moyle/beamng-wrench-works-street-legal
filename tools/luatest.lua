@@ -3310,14 +3310,14 @@ do
   local Opt = require('sl/options')
   local defs = {}
   for _, d in ipairs(Opt.defs) do defs[d.key] = d end
-  local okDefs = #F.LIST == 38
+  local okDefs = #F.LIST == 39
   local offByDefault = 0
   for _, f in ipairs(F.LIST) do
     local d = defs[f.opt]
     if not (d and d.type == 'bool' and d.default == (f.default ~= false) and d.feature == true and d.title == f.title and f.desc ~= '') then okDefs = false end
     if f.default == false then offByDefault = offByDefault + 1 end
   end
-  check('parts: every part has an option, one bool, on by default unless the part says off (needs), tagged for the Active features page', okDefs and offByDefault == 1 and F.get('needs').default == false)
+  check('parts: every part has an option, one bool, on by default unless the part says off (needs), tagged for the Active features page', okDefs and offByDefault == 2 and F.get('needs').default == false and F.get('mates').default == false)
   local off = { slJobs = false }
   local function get(k) return off[k] end
   check('parts: on unless the option is false; a missing option system is on', F.on('jobs', get) == false and F.on('races', get) == true and F.on('jobs', function() return nil end) == true and F.on('nope', get) == true)
@@ -6202,6 +6202,36 @@ do
   _G.ColorF, _G.ColorI = oldCF, oldCI
   for _, k in ipairs(keys) do _G[names[k]] = old[k] end
   package.loaded['sl/show'] = nil
+end
+
+-- the crew mates' game side (sl/mates): a district taken recruits once, the mechanic's factors, the shop factor registered and withdrawn, the passenger armed for the car's model
+do
+  local old = { sl_career = _G.sl_career, sl_shops = _G.sl_shops, extensions = _G.extensions, slrrDriverMount = _G.slrrDriverMount, slrrDrivers = _G.slrrDrivers, log = _G.log, sl_mates = _G.sl_mates }
+  local s = { day = 40, seed = 3 }
+  local texts, factor, armed = {}, nil, nil
+  _G.sl_career = { isActive = function() return true end, getState = function() return s end, sendText = function(_, t) texts[#texts + 1] = t end }
+  _G.sl_shops = { setPriceFactor = function(id, fn) factor = fn end }
+  _G.extensions = { hook = function() end }
+  _G.log = function() end
+  _G.slrrDrivers = { getDrivers = function() return { { id = 'a' }, { id = 'b' } } end }
+  _G.slrrDriverMount = { requestPassenger = function(id, forCar) armed = { id = id, model = forCar.model } return true end }
+  package.loaded['sl/mates'] = nil
+  local M = require('sl/mates')
+  M.onStreetLegalStarted()
+  check('mates: no mate, no factor, no seat', M.labourFactor() == 1 and factor == nil and M.armPassenger('covet') == false)
+  M.onStreetLegalDistrictTaken('d1', 'riverbed')
+  M.onStreetLegalDistrictTaken('d2', 'riverbed')
+  check('mates: a district taken recruits once; the text names the mate', #texts == 1 and s.mates.riverbed and s.mates.riverbed.role == 'mechanic' and texts[1]:find(s.mates.riverbed.name, 1, true))
+  check('mates: the mechanic cuts labour and parts', M.labourFactor() == 0.9 and type(factor) == 'function' and factor({}, { kind = 'tyre' }) == 0.95 and factor({}, { kind = 'parts' }) == 0.95)
+  check('mates: the parts cut stops at the shop door: services, a diner, a wash and a call without a shop are at list price', factor({}, { kind = 'mechanic' }) == 1 and factor({}, { kind = 'diner' }) == 1 and factor({}, { kind = 'wash' }) == 1 and factor({}) == 1)
+  M.onStreetLegalDistrictTaken('d3', 'northend')
+  check('mates: the scout\'s seat is armed for the model about to spawn', M.armPassenger('covet') and armed and armed.model == 'covet' and (armed.id == 'a' or armed.id == 'b'))
+  M.onStreetLegalDistrictTaken('d4', 'nowhere')
+  check('mates: an unknown crew recruits nobody', #texts == 2)
+  M.onStreetLegalStopped()
+  check('mates: the shop factor is withdrawn at the end', factor == nil)
+  for k, v in pairs(old) do _G[k] = v end
+  package.loaded['sl/mates'] = nil
 end
 
 print(string.format('lua tests passed: %d checks', passed))
