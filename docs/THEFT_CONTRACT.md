@@ -1,6 +1,6 @@
 # Car theft: the contracts for the screens (9e), the fence and black market (19), the fuel siphoning (ba)
 
-The game side is `sl/theft.lua`, the rules `sl/core/theft.lua` (Graph docs/CAR_THEFT.md). The part is off by default (Mods > Street Legal > Parts of the game > Car theft). Every number of the rules is a row on the Mods page "Car theft" (tagged `gameplay` for the presets); the defaults below are the design's.
+The game side is `sl/theft.lua`, the rules `sl/core/theft.lua` (Graph docs/CAR_THEFT.md). The part is off by default (Mods > Street Legal > Parts of the game > Car theft). Every number of the rules is a row on the Mods page "Car theft" (`scope = 'gameplay'` for the presets, Easy and Hardcore values where they differ); the defaults below are the design's.
 
 ## The screens (9e): three mini-games, one UI module (built: ui/modModules/slTheft)
 
