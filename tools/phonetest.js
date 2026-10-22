@@ -993,6 +993,17 @@ assert.ok(calls.includes('routeGarage()'), 'Route to my garage on the home scree
   phone.handle('slPhoneData', data);
   phone.act('home');
 }
+{
+  // Wrench Works' garage takes the right of the screen: an open phone is put away when a visit starts (80, WW 1.8.8: the HUD phone hid the Services list)
+  phone.handle('slPhoneToggle');
+  assert.ok(phone.state.open === true || phone.root.querySelector('.slp-device'), 'the phone is up');
+  phone.handle('slrrGarageState', { phase: 'garage' });
+  assert.ok(!phone.state.open, 'a garage visit puts the open phone away');
+  phone.handle('slPhoneToggle');
+  phone.handle('slrrGarageState', { phase: 'idle' });
+  assert.ok(phone.state.open === true, 'an idle garage state leaves it alone');
+  phone.handle('slPhoneToggle');
+}
 console.log('phone test passed');
 
 // a page to look at: the phone in several states side by side
