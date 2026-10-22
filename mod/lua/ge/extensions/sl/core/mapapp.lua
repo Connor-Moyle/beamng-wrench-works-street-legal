@@ -60,4 +60,15 @@ end
 
 function M.arrived(from, p) return from ~= nil and p ~= nil and M.distance(from, p) <= M.ARRIVED end
 
+-- A rumour pin marks an AREA, not the spot (finding a barn stays a search): the circle's centre is the true spot moved a fixed, id-seeded distance and direction, so the
+-- centre is never the spot, the spot is always inside the circle, and the same rumour always draws the same circle. Returns { x, y, r } (metres).
+M.RUMOUR_RADIUS = 220
+function M.rumourArea(id, x, y)
+  local h = 0
+  for i = 1, #tostring(id) do h = (h * 31 + tostring(id):byte(i)) % 1000003 end
+  local angle = (h % 360) * math.pi / 180
+  local dist = M.RUMOUR_RADIUS * (0.35 + 0.35 * ((math.floor(h / 360) % 100) / 100))      -- 35 % to 70 % of the radius away from the spot
+  return { x = math.floor(x + math.cos(angle) * dist + 0.5), y = math.floor(y + math.sin(angle) * dist + 0.5), r = M.RUMOUR_RADIUS }
+end
+
 return M
