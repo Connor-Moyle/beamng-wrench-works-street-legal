@@ -1239,7 +1239,44 @@ assert.ok(calls.includes('routeGarage()'), 'Route to my garage on the home scree
 // BUGS_1018 #9: the phone's own focus never scrolls the screen (a plain focus() brought the Home button into view and left the home grid 171 px down); jsdom has no scrolling, so the call is what is checked
 assert.ok(/target\.focus\(\{ preventScroll: true \}\)/.test(code) && !/target\.focus\(\)/.test(code), 'the phone focuses its controls with preventScroll');
 {
+  // police batch 2 (tools/justice_fixture.js): tickets on the Bank page, the wanted poster on Street cred, the impound line on My cars
+  const jf = require('./justice_fixture.js');
+  phone.act('home');
+  phone.handle('slPhoneData', Object.assign({}, data, { justice: jf }));
+  assert.strictEqual(phone.root.querySelector('[data-a="open"][data-v="bank"] .slp-badge').textContent, '3', 'the Bank tile counts the unpaid tickets');
+  phone.act('open', 'bank');
+  let tx = text();
+  assert.ok(tx.includes('Tickets: 3 unpaid') && tx.includes('licence is suspended') && tx.includes('Overdue') && tx.includes('Due day 45') && tx.includes('Contested') && tx.includes('Paid'), 'the tickets with their states: ' + tx.slice(0, 300));
+  assert.ok(phone.root.querySelector('[data-a="tkpay"][data-v="t1"]') && phone.root.querySelector('[data-a="tkcontest"][data-v="t2"]') && !phone.root.querySelector('[data-a="tkpay"][data-v="t3"]') && !phone.root.querySelector('[data-a="tkpay"][data-v="t4"]') && tx.includes('Contest \u00b7 $150') && tx.includes('Pay $120'), 'Pay and Contest on a ticket that is open, none on a contested or paid one');
+  calls.length = 0;
+  click('tkpay', 't1'); click('tkcontest', 't2');
+  assert.ok(calls.includes('payTicket("t1")') && !calls.includes('contestTicket("t2")') && text().includes('Sure? The lawyer costs $150 up front'), 'Contest asks once more first (the lawyer is paid up front): ' + calls.join(' '));
+  click('tkcontest', 't2');
+  assert.ok(calls.includes('contestTicket("t2")'), 'the second press asks the game: ' + calls.join(' '));
+  phone.act('home'); phone.act('open', 'me');
+  tx = text();
+  assert.ok(tx.includes('Wanted: Covet 1.5') && tx.includes('Bounty $2,400') && tx.includes('since day 39 (2 d ago)') && tx.includes('Use an informant \u00b7 $900'), 'the wanted poster with the informant: ' + tx.slice(0, 300));
+  calls.length = 0; click('informant', '1');
+  assert.ok(calls.includes('informant()'), 'the informant asks the game');
+  phone.handle('slPhoneData', Object.assign({}, data, { justice: Object.assign({}, jf, { wanted: Object.assign({}, jf.wanted, { informant: false }) }) }));
+  assert.ok(text().includes('Wanted: Covet 1.5') && !phone.root.querySelector('[data-a="informant"]'), 'without the perk the poster has no informant button');
+  phone.act('home'); phone.act('open', 'garage');
+  phone.handle('slPhoneData', Object.assign({}, data, { justice: jf, fleet: [{ id: 8, name: 'Pessima', where: 'Impounded', condition: 0.9, impounded: 450 }, { id: 9, name: 'Other', where: 'Garage', condition: 1 }] }));
+  assert.ok(text().includes('Standing at the Belasco police impound') && (text().match(/Standing at the/g) || []).length === 1, 'the impound line sits under the impounded car only');
+  phone.handle('slPhoneData', Object.assign({}, data, { justice: Object.assign({}, jf, { impound: Object.assign({}, jf.impound, { standing: false }) }), fleet: [{ id: 8, name: 'Pessima', where: 'Impounded', condition: 0.9, impounded: 450 }] }));
+  assert.ok(!text().includes('Standing at the'), 'a car that is not standing has no line');
+  phone.act('home');
+  phone.handle('slPhoneData', Object.assign({}, data, { justice: { tickets: [], suspended: false, lawyerFee: 150 } }));
+  phone.act('open', 'bank');
+  assert.ok(!text().includes('Tickets:') && !phone.root.querySelector('[data-a="tkpay"]'), 'no tickets and no suspension: no card');
+  phone.act('home');
+  phone.handle('slPhoneData', data);
+  phone.act('open', 'bank');
+  assert.ok(!text().includes('Tickets:'), 'no data: nothing');
+  phone.act('home');
+}
   // the trophy list on Street cred (tools/trophies_fixture.js): newest first, kind and day, the place; no card without the list
+{
   const tf = require('./trophies_fixture.js');
   phone.act('home');
   phone.handle('slPhoneData', Object.assign({}, data, { trophies: tf }));
