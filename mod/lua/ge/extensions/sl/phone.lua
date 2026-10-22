@@ -46,6 +46,7 @@ local function freeSnapshot()
     weather = sl_mode.enabled('weather') and sl_weather and sl_weather.forecast and sl_weather.forecast() or nil,
     textScale = require('sl/core/strings').textScale(sl_options and sl_options.get and sl_options.get('slTextScale')),
     colorBlind = sl_options ~= nil and sl_options.get ~= nil and sl_options.get('slColorBlind') == true,
+    frjobs = sl_frjobs and sl_frjobs.summary and sl_frjobs.summary() or nil,          -- (free-roam freight runs: nil unless the Jobs free-roam switch is on)
     has = { clubs = false, crews = false, classifieds = false, races = false, jobs = false, market = false, bank = false, maps = sl_mode.enabled('maps'), hudpill = false },
     places = placesOut, contacts = {}, threads = {}, fleet = {}, cars = 0,
     mapName = (function() local lvl = getCurrentLevelIdentifier and getCurrentLevelIdentifier() local m = lvl and progression.MAPS and progression.MAPS[lvl] return m and m.name or lvl end)(),
@@ -433,6 +434,8 @@ function M.sponsorDecline() if career() and sl_sponsor then answer(sl_sponsor.de
 function M.sponsorQuit() if career() and sl_sponsor then answer(sl_sponsor.quit()) end end
 function M.payDebt(amount) if career() and sl_weekly then answer(sl_weekly.payDebt(tonumber(amount))) end end
 function M.repay(amount) if career() and sl_bank then answer(sl_bank.repay(tonumber(amount))) end end
+function M.frjobAccept(id) if sl_frjobs and sl_frjobs.accept then answer(sl_frjobs.accept(tostring(id))) end end          -- (free roam: take a freight run)
+function M.frjobCancel() if sl_frjobs and sl_frjobs.cancel then answer(sl_frjobs.cancel()) end end
 function M.economyOptIn() if career() and sl_career.optInEconomy then answer(sl_career.optInEconomy()) end end      -- (the offer card's button: ok, text; the text is the toast)
 function M.insure(on) if career() and sl_bank then answer(sl_bank.insure(on == true or on == 'true')) end end
 function M.takeJob(id) if career() and sl_jobs then answer(sl_jobs.take(tostring(id))) end end

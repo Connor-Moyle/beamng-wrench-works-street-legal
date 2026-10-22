@@ -1738,6 +1738,8 @@ M.TEXT = {
   ["mode.wash_tip"] = "Car wash.",
   ["mode.cab"] = "Cab",
   ["mode.cab_tip"] = "Call a cab to a place on the map.",
+  ["frjobs.off"] = "Freight runs in free roam are switched off.", ["frjobs.none"] = "No freight run to call off.", ["frjobs.called_off"] = "Freight run called off.",
+  ["mode.jobs"] = "Freight runs", ["mode.jobs_tip"] = "Freight runs between the game's own delivery businesses, paid into the Wrench Works money. No reputation, no heat, nothing is saved.",
   ["mode.hud"] = "Dashboard",
   ["mode.hud_tip"] = "The Street Legal dashboard HUD. It also needs the Dashboard setting (Screens and texts) to be on.",
   ["mode.police"] = "Police", ["mode.police_tip"] = "Patrols at night, heat from near misses and chases, a chase you can lose or get busted in. A bust is heat and a message: no fine (free roam has no wallet) and no impound. The heat goes with the session.",

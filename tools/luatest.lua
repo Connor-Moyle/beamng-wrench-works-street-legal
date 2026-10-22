@@ -8001,4 +8001,47 @@ do
   check('freight: the settings default to the built-in numbers and are gameplay-scoped', byKey.slFreightPay.default == 100 and byKey.slFreightMin.default == J.MIN_METRES and byKey.slFreightPay.scope == 'gameplay' and require('sl/core/splitphase').phaseOf('jobs', 'freight') == 'day')
 end
 
+-- freight runs in free roam (sl/frjobs): a board on the sandbox, pay only through the Wrench Works money, no career touched
+do
+  local old = { sl_mode = _G.sl_mode, sl_career = _G.sl_career, sl_options = _G.sl_options, freeroam_facilities = _G.freeroam_facilities, getPlayerVehicle = _G.getPlayerVehicle, ui_message = _G.ui_message,
+    gcl = _G.getCurrentLevelIdentifier, log = _G.log, parts = package.loaded['slrr/garageParts'], FS = _G.FS, jwf = _G.jsonWriteFile }
+  local careerCalls, paid, writes = 0, {}, 0
+  local on = true
+  _G.sl_career = setmetatable({}, { __index = function() careerCalls = careerCalls + 1 return function() end end })
+  _G.sl_mode = { kind = function() return on and 'freeroam' or nil end, enabled = function(f) return on and f == 'jobs' end, state = function() return on and { day = 3, phase = 'day', seed = 9, hour = 12, sandbox = true } or nil end }
+  _G.sl_options = { get = function() return nil end }
+  _G.getCurrentLevelIdentifier = function() return 'frjobs_test_level' end
+  _G.freeroam_facilities = { getFacilities = function() return { deliveryProviders = { { id = 'a', name = 'A Yard' }, { id = 'b', name = 'B Depot' }, { id = 'c', name = 'C Works' } } } end,
+    getParkingSpotsForFacility = function(p) return { { pos = { x = ({ a = 0, b = 3000, c = 6000 })[p.id], y = 0, z = 0 } } } end }
+  package.loaded['slrr/garageParts'] = { changeMoney = function(a, l) paid[#paid + 1] = a end }
+  _G.ui_message = function() end
+  _G.log = function() end
+  _G.FS = setmetatable({}, { __index = function() writes = writes + 1 return function() end end })
+  _G.jsonWriteFile = function() writes = writes + 1 end
+  local pos = { x = -500, y = 0, z = 0 }
+  _G.getPlayerVehicle = function() return { getPosition = function() return pos end, getVelocity = function() return { length = function() return 0 end } end } end
+  package.loaded['sl/sites'] = nil
+  package.loaded['sl/frjobs'] = nil
+  local F = require('sl/frjobs')
+  local sm = F.summary()
+  check('frjobs: with the switch on there is a board of freight runs between the stock sites', sm and #sm.offers >= 1 and #sm.offers <= 3 and sm.offers[1].title and sm.offers[1].pay > 0)
+  local o = sm.offers[1]
+  local ok = F.accept(o.id)
+  check('frjobs: a run can be taken, and only one at a time', ok and not F.accept(o.id))
+  -- drive to the pickup, then the drop
+  local function place(name) for _, s in ipairs(require('sl/sites').deliverySites()) do if s.name == name then return s end end end
+  local p1, p2 = place(o.from), place(o.to)
+  pos.x, pos.y = p1.x, p1.y
+  F.onUpdate(1)
+  pos.x, pos.y = p2.x, p2.y
+  F.onUpdate(1)
+  check('frjobs: the pay goes through Wrench Works money once, and no career call was made', #paid == 1 and paid[1] > 0 and careerCalls == 0 and F.summary().active == nil)
+  check('frjobs: nothing was written to a file', writes == 0)
+  on = false
+  check('frjobs: with the switch off nothing is offered', F.summary() == nil)
+  for k, v in pairs(old) do if k == 'parts' then package.loaded['slrr/garageParts'] = v elseif k == 'gcl' then _G.getCurrentLevelIdentifier = v elseif k == 'jwf' then _G.jsonWriteFile = v else _G[k] = v end end
+  package.loaded['sl/frjobs'] = nil
+  package.loaded['sl/sites'] = nil
+end
+
 print(string.format('lua tests passed: %d checks', passed))

@@ -175,7 +175,7 @@ for _, id in ipairs(modeCore.IDS) do
   check('audit: sandbox state for ' .. id .. ' carries no money, cars, rep or garage', type(s) == 'table' and s.sandbox == true and s.money == nil and s.cars == nil and s.rep == nil and s.garageLevel == nil and s.activeCar == nil and s.slot == nil,
     type(s) == 'table' and table.concat(keys, ',') or tostring(s))
 end
-check('audit: career-only features stay off in free roam', not sl_mode.enabled('rivals') and not sl_mode.enabled('bank') and not sl_mode.enabled('classifieds') and not sl_mode.enabled('races') and not sl_mode.enabled('jobs'))
+check('audit: career-only features stay off in free roam', not sl_mode.enabled('rivals') and not sl_mode.enabled('bank') and not sl_mode.enabled('classifieds') and not sl_mode.enabled('races') and not sl_mode.enabled('bogus-career-only'))
 
 for _, n in ipairs(names) do package.loaded['sl/' .. n] = savedLoaded[n] _G['sl_' .. n] = nil end
 package.loaded['slrr/garageParts'] = savedParts

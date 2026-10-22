@@ -7,7 +7,7 @@ local M = {}
 M.MASTER = 'freeroam'
 -- the features that can run in free roam, in menu order (0.6.0); jobs, races and police follow in 0.6.1. Everything else (rep, rivals, the campaign, the career's
 -- shops of cars, the bank...) is career-only: enabled() is false for it in free roam whatever the switches.
-M.IDS = { 'phone', 'maps', 'places', 'weather', 'traffic', 'shops', 'wash', 'cab', 'hud', 'clock', 'police' }
+M.IDS = { 'phone', 'maps', 'places', 'weather', 'traffic', 'shops', 'wash', 'cab', 'hud', 'clock', 'police', 'jobs' }
 
 local known = { [M.MASTER] = true }
 for _, id in ipairs(M.IDS) do known[id] = true end
