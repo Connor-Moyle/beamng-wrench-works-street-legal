@@ -3828,6 +3828,30 @@ do
   check('mastery: the best possible stack with the tier perks stays under a quarter off the service price', K.factor('service', 5) * require('sl/core/perks').factor(6, 'service') > 0.75)
 end
 
+-- the settings rows of car mastery and the Style show (the Mods menu: sl/core/mastery.config, sl/core/show.config)
+do
+  local K = require('sl/core/mastery')
+  local Sh = require('sl/core/show')
+  local d = K.config(nil)
+  check('settings: the mastery defaults are the numbers of the rules', d.km == 5 and d.clean == 20 and d.scale == 1 and math.abs(d.per.insurance + 0.02) < 1e-9 and math.abs(d.per.trade - 0.015) < 1e-9)
+  check('settings: kilometres per point and the clean-race points change the points', K.points({ km = 100, clean = 1 }, { kmPerPoint = 10 }) == 30 and K.points({ km = 100, clean = 1 }, { cleanPoints = 50 }) == 70 and K.points({ km = 100 }, nil) == 20)
+  check('settings: the points of a level scale', K.level({ km = 500 }, { thresholdScale = 2 }) == 0 and K.level({ km = 1000 }, { thresholdScale = 2 }) == 1 and K.level({ km = 500 }, { thresholdScale = 0.5 }) == 1 and K.toNext({ km = 0 }, { thresholdScale = 2 }) == 200)
+  check('settings: the perks per level follow the rows', math.abs(K.factor('insurance', 5, { insurance = 4 }) - 0.8) < 1e-9 and math.abs(K.factor('trade', 2, { trade = 5 }) - 1.1) < 1e-9 and K.factor('service', 5, { service = 0 }) == 1 and math.abs(K.factor('tyres', 1, { tyres = 3 }) - 0.97) < 1e-9)
+  check('settings: garbage rows are the defaults or clamped', K.points({ km = 100 }, { kmPerPoint = 'x' }) == 20 and K.points({ km = 100 }, { kmPerPoint = 0 }) == 100 and K.factor('insurance', 5, { insurance = 99 }) == 0.75 and K.factor('insurance', 5, { insurance = 0 / 0 }) == 0.9)
+  check('settings: the card words follow the rows', K.view({ clean = 5 }, { insurance = 3 }).perks[1]:find('3') ~= nil and K.view({ clean = 5 }, { insurance = 3 }).perks[1]:find('^mastery%.') == nil)
+  local c = Sh.config(nil)
+  check('settings: the show defaults are the numbers of the rules', c.fee == 60 and c.hour == 21 and c.prize == 1 and c.tipAt == 3 and c.stand == 1.2)
+  check('settings: the show rows are clamped, garbage is the default', Sh.config({ fee = 5000, hour = 3, prize = 'x', tipAt = -4, stand = 100 }).fee == 1000 and Sh.config({ hour = 3 }).hour == 18 and Sh.config({ prize = 'x' }).prize == 1 and Sh.config({ tipAt = -4 }).tipAt == 0 and Sh.config({ stand = 100 }).stand == 10)
+  local money1 = Sh.prize(3, 1)
+  check('settings: the prize scales and nothing changes at 1', Sh.prize(3, 1, { prize = 2 }) == 2 * money1 and Sh.prize(3, 1, { prize = 1 }) == money1 and Sh.prize(3, 4, { prize = 3 }) == 0 and select(2, Sh.prize(3, 1, { prize = 3 })) == select(2, Sh.prize(3, 1)))
+  local e0, e1 = Sh.event(6, 11, { 'Marina' }, 0), Sh.event(6, 11, { 'Marina' }, 0, { fee = 100, hour = 19, prize = 2 })
+  check('settings: the event takes the fee, the hour and the prize of the rows', e0.fee == 60 and e0.hour == 21 and e1.fee == 100 and e1.hour == 19 and e1.reward ~= e0.reward)
+  local res = Sh.score({ paint = { paints = { { baseColor = { 0.9, 0.1, 0.1, 1 }, metallic = 0.8, roughness = 0.1, clearcoat = 1, clearcoatRoughness = 0.05 } }, condition = 1, changed = true }, wheels = { aftermarket = true, tread = 1 }, parts = { acme = 10 }, clean = { dirt = 0, scratches = 0 }, body = 0, wear = {} })
+  local _, tipDefault = Sh.lines(res)
+  local _, tipAlways, worst = Sh.lines(res, { tipAt = 0 })
+  check('settings: the tip threshold decides when the judges name a thing to improve', tipDefault == nil and tipAlways ~= nil and worst ~= nil)
+end
+
 -- car mastery, the game side (sl/mastery): the counters in the car record, the odometer, clean races, the factors, the market and the part switch
 do
   local ST = require('sl/core/state')
