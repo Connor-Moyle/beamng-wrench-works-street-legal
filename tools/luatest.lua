@@ -6235,4 +6235,102 @@ do
   package.loaded['sl/mates'] = nil
 end
 
+-- distant background traffic (sl/core/fartraffic): the road-graph walker
+do
+  local F = require('sl/core/fartraffic')
+  -- a trunk road along x (nodes every 100 m, 4 lanes), a side road along y from the middle node, and a one-way road along x at y = 1500 from west to east
+  local function mk()
+    local g = { nodes = {} }
+    local function node(id, x, y, r) g.nodes[id] = { pos = { x = x, y = y, z = 0 }, radius = r, links = {} } end
+    local function link(a, b, edge) g.nodes[a].links[b] = edge g.nodes[b].links[a] = edge end
+    for i = -20, 20 do node('M' .. i, i * 100, 0, 5) end
+    for i = -20, 19 do link('M' .. i, 'M' .. (i + 1), { drivability = 1, speedLimit = 25, lanes = '++--' }) end
+    for i = 1, 20 do node('S' .. i, 0, i * 100, 2.5) end
+    link('M0', 'S1', { drivability = 0.8, speedLimit = 14, lanes = '+-' })
+    for i = 1, 19 do link('S' .. i, 'S' .. (i + 1), { drivability = 0.8, speedLimit = 14, lanes = '+-' }) end
+    for i = -10, 10 do node('O' .. i, i * 100, 1500, 3) end
+    for i = -10, 9 do link('O' .. i, 'O' .. (i + 1), { drivability = 1, speedLimit = 20, lanes = '+++', oneWay = true, inNode = 'O' .. i }) end
+    return g
+  end
+  local g, cam, cfg = mk(), { x = 0, y = 0, z = 0 }, F.defaults()
+  check('fartraffic: road classes (wide or one-way or many lanes: trunk; a narrow road: side; a track: none)', F.roadClass({ lanes = '++--' }, 5, 5) == 'trunk' and F.roadClass({ lanes = '+-' }, 2.5, 2.5) == 'side'
+    and F.roadClass({ lanes = '+++', oneWay = true }, 3, 3) == 'trunk' and F.roadClass({ lanes = '+-' }, 1, 1) == nil and F.roadClass({ drivability = 0.1, lanes = '+-' }, 5, 5) == nil)
+  check('fartraffic: speed from the graph within 5 to 30, else by class', F.edgeSpeed({ speedLimit = 50 }, 'side') == 30 and F.edgeSpeed({ speedLimit = 2 }, 'side') == 5 and F.edgeSpeed({ speedLimit = 14 }, 'trunk') == 14
+    and F.edgeSpeed({}, 'trunk') == 22 and F.edgeSpeed({}, 'side') == 13)
+  check('fartraffic: the fade is 0 at both edges, 1 in the middle', F.alpha(300, cfg) == 0 and F.alpha(700, cfg) == 0 and F.alpha(500, cfg) == 1 and F.alpha(330, cfg) == 0.5 and F.alpha(650, cfg) == 0.5)
+  local st = F.newState(11)
+  local maxSeen, inRing = 0, true
+  for _ = 1, 600 do
+    F.step(st, g, cam, 0.1, cfg)
+    maxSeen = math.max(maxSeen, #st.cars)
+  end
+  check('fartraffic: after a minute the ring has cars, never more than max', #st.cars > 3 and maxSeen <= cfg.max, #st.cars)
+  local function dist(car)
+    local x1, y1 = g.nodes[car.a].pos.x, g.nodes[car.a].pos.y
+    local x2, y2 = g.nodes[car.b].pos.x, g.nodes[car.b].pos.y
+    local k = car.t / car.len
+    return math.sqrt((x1 + (x2 - x1) * k) ^ 2 + (y1 + (y2 - y1) * k) ^ 2)
+  end
+  for _ = 1, 300 do
+    F.step(st, g, cam, 0.1, cfg)
+    for _, c in ipairs(st.cars) do local d = dist(c) if d < cfg.inner * 0.9 - 1 or d > cfg.outer + 101 then inRing = false end end
+  end
+  check('fartraffic: every car stays in the ring (retired when it leaves it)', inRing)
+  -- spawns are placed beyond the real ring
+  local st2, nearSpawn = F.newState(5), false
+  for _ = 1, 400 do
+    local before = #st2.cars
+    F.step(st2, g, cam, 0.5, cfg)
+    if #st2.cars > before then local c = st2.cars[#st2.cars] if dist(c) < cfg.inner then nearSpawn = true end end
+  end
+  check('fartraffic: a car is never created inside the real ring', not nearSpawn)
+  -- the same seed gives the same cars
+  local a1, a2 = F.newState(9), F.newState(9)
+  for _ = 1, 400 do F.step(a1, g, cam, 0.25, cfg) F.step(a2, g, cam, 0.25, cfg) end
+  local same = #a1.cars == #a2.cars
+  for i, c in ipairs(a1.cars) do local o = a2.cars[i] if not o or o.a ~= c.a or o.b ~= c.b or math.abs(o.t - c.t) > 1e-9 then same = false end end
+  check('fartraffic: the same seed, the same cars', same and #a1.cars > 0)
+  -- cars move at their speed and turn at junctions without turning back
+  local mv = F.newState(1)
+  mv.cars[1] = { id = 1, a = 'M5', b = 'M6', t = 10, len = 100, speed = 20, lane = 2, edge = g.nodes.M5.links.M6 }
+  F.step(mv, g, { x = 0, y = 0 }, 1, { inner = 0, outer = 5000, fadeIn = 60, fadeOut = 100, max = 0, spawnEvery = 99, lightHalf = 0.75, lightZ = 0.7 })
+  check('fartraffic: a car moves speed x dt along its edge', math.abs(mv.cars[1].t - 30) < 1e-9)
+  F.step(mv, g, { x = 0, y = 0 }, 4, { inner = 0, outer = 5000, fadeIn = 60, fadeOut = 100, max = 0, spawnEvery = 99, lightHalf = 0.75, lightZ = 0.7 })
+  check('fartraffic: at the end of the edge it carries on to the next node, not back', mv.cars[1].a == 'M6' and mv.cars[1].b == 'M7' and math.abs(mv.cars[1].t - 10) < 1e-9)
+  -- a dead end turns the car round
+  local de = F.newState(1)
+  de.cars[1] = { id = 1, a = 'S19', b = 'S20', t = 95, len = 100, speed = 10, lane = 1, edge = g.nodes.S19.links.S20 }
+  F.step(de, g, { x = 0, y = 0 }, 1, { inner = 0, outer = 5000, fadeIn = 60, fadeOut = 100, max = 0, spawnEvery = 99, lightHalf = 0.75, lightZ = 0.7 })
+  check('fartraffic: a dead end turns the car round', de.cars[1].a == 'S20' and de.cars[1].b == 'S19')
+  -- a one-way road is only driven from its inNode
+  local ow = F.newState(3)
+  local wrong = false
+  for _ = 1, 800 do
+    F.step(ow, g, { x = 0, y = 1500 + 0 }, 0.5, { inner = 100, outer = 900, fadeIn = 60, fadeOut = 100, max = 12, spawnEvery = 0.5, lightHalf = 0.75, lightZ = 0.7 })
+    for _, c in ipairs(ow.cars) do
+      if tostring(c.a):sub(1, 1) == 'O' and tostring(c.b):sub(1, 1) == 'O' and tonumber(c.b:sub(2)) < tonumber(c.a:sub(2)) then wrong = true end
+    end
+  end
+  check('fartraffic: a one-way road is driven the one way', not wrong and #ow.cars > 0)
+  -- the lights: two per car, white toward the camera, red away from it, faded by distance, growing with distance
+  local one = F.newState(1)
+  one.cars[1] = { id = 1, a = 'M10', b = 'M11', t = 0, len = 100, speed = 20, lane = 2, edge = g.nodes.M10.links.M11 }       -- at x = 1000: too far, nothing
+  check('fartraffic: a car beyond the outer edge draws nothing', #F.lights(one, g, { x = 0, y = 0, z = 0 }, cfg) == 0)
+  one.cars[1] = { id = 1, a = 'M5', b = 'M6', t = 0, len = 100, speed = 20, lane = 2, edge = g.nodes.M5.links.M6 }          -- at x = 500 going east (away from the camera at the origin)
+  local ls = F.lights(one, g, { x = 0, y = 0, z = 0 }, cfg)
+  check('fartraffic: a pair of lights 1.5 m apart, red going away, 0.7 m up', #ls == 2 and ls[1].r == 1 and ls[1].g < 0.2 and math.abs(math.sqrt((ls[1].x - ls[2].x) ^ 2 + (ls[1].y - ls[2].y) ^ 2) - 1.5) < 1e-6 and math.abs(ls[1].z - 0.7) < 1e-9 and ls[1].a == 1)
+  one.cars[1] = { id = 1, a = 'M6', b = 'M5', t = 0, len = 100, speed = 20, lane = 2, edge = g.nodes.M5.links.M6 }
+  ls = F.lights(one, g, { x = 0, y = 0, z = 0 }, cfg)
+  check('fartraffic: white coming toward the camera', #ls == 2 and ls[1].g > 0.9 and ls[1].b > 0.7)
+  local ls2 = F.lights(one, g, { x = 200, y = 0, z = 0 }, cfg)
+  check('fartraffic: the sprites grow with distance, with a floor', ls2[1] == nil or ls2[1].size >= 0.15)
+  check('fartraffic: the sprite is bigger further away', ls[1].size > 0.7 and ls[1].size >= 0.15)
+  local ls3 = F.lights(one, g, { x = -50, y = 0, z = 0 }, cfg)
+  check('fartraffic: in the fade ring the alpha is below 1', #ls3 == 2 and ls3[1].a < 1)
+  -- the lane: right of the direction of travel (east: right is south, y negative)
+  one.cars[1] = { id = 1, a = 'M5', b = 'M6', t = 0, len = 100, speed = 20, lane = 2, edge = g.nodes.M5.links.M6 }
+  ls = F.lights(one, g, { x = 0, y = 0, z = 0 }, cfg)
+  check('fartraffic: it drives on the right: going east it is south of the centre line', (ls[1].y + ls[2].y) / 2 < -1.9)
+end
+
 print(string.format('lua tests passed: %d checks', passed))
