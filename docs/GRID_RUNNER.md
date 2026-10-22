@@ -21,6 +21,8 @@ local ok, text = sl_gridrace.start(spec, done)
 --   mainPrefab.prefab.json, introFwd.camPath.json and finishFwd.camPath.json are used when the folder has them
 --   field: a roster of ours by name (sl/core/gridrace.ROSTERS: 'offroad' for the Johnson Valley loops); nil: the AI pool in the player's class
 --   grid: a cap on the AI cars below the setting
+--   rival: a racer id: the one AI car is that rival's own car (sl_streets.buildRacerCar) on the first slot; the pool fills the rest
+--   onTick = function(ctx, dt): called after the race object's update while the race runs, ctx = { race, playerId, ais } (the hill duel's scorer)
 -- done(result) is called once: { place = 1.. or nil, time = seconds, grid = cars on the grid, aborted = true|nil }
 sl_gridrace.abort()      -- a career stop, a level end or a vehicle change ends the race; done gets { aborted = true }
 sl_gridrace.running()    -- the running spec or nil

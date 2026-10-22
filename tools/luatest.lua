@@ -3310,7 +3310,7 @@ do
   local Opt = require('sl/options')
   local defs = {}
   for _, d in ipairs(Opt.defs) do defs[d.key] = d end
-  local okDefs = #F.LIST == 34
+  local okDefs = #F.LIST == 35
   local offByDefault = 0
   for _, f in ipairs(F.LIST) do
     local d = defs[f.opt]
@@ -5823,6 +5823,90 @@ do
 
   for k, val in pairs(old) do _G[k] = val end
   package.loaded['sl/shops'] = nil
+end
+
+-- the hill duel (sl/core/hillduel): points by lead and chase, the off-road penalty, the tie, the bet, the pay, the rival, the road start; the game side on the runner
+do
+  local H = require('sl/core/hillduel')
+  local rngLib = require('sl/core/rng')
+  local sc = H.newScore()
+  H.tick(sc, 'me', 30, true, true, 1) H.tick(sc, 'me', 20, true, true, 1) H.tick(sc, 'me', 10, true, true, 1)
+  check('hillduel: the leader scores from 25 m, nobody between, the follower within 12 m', sc.me == 1 and sc.them == 1 and sc.t == 3)
+  H.tick(sc, 'them', 40, true, true, 2) H.tick(sc, 'them', 5, true, true, 1) H.tick(sc, nil, 5, true, true, 1)
+  check('hillduel: the same the other way round; level scores nothing', sc.me == 2 and sc.them == 3)
+  for i = 1, 4 do H.tick(sc, 'me', 40, false, true, 1) end
+  check('hillduel: off the road: two seconds of grace, then a point a second off, never below zero', sc.me == 4 and sc.offMe == 4 and H.tick(H.newScore(), nil, 40, false, true, 5).me == 0)
+  H.tick(sc, 'me', 40, true, true, 0.5)
+  check('hillduel: back on the road the clock resets; a zero dt changes nothing', sc.offMe == 0 and H.tick(sc, 'me', 40, true, true, 0).t == sc.t)
+  check('hillduel: more points wins, a tie goes to the first across', H.winner({ me = 3, them = 2 }, 2) == 'me' and H.winner({ me = 1, them = 2 }, 1) == 'them' and H.winner({ me = 2, them = 2 }, 1) == 'me' and H.winner({ me = 2, them = 2 }, 2) == 'them')
+  local m1, r1 = H.payout(true, 250)
+  local m2, r2 = H.payout(false, 250)
+  check('hillduel: the bet is the middle of the range to 50, at least 50; the pay', H.bet({ betMin = 100, betMax = 400 }) == 250 and H.bet({ betMin = 0, betMax = 20 }) == 50 and H.bet(nil) == 200 and m1 == 250 and r1 == 30 and m2 == -250 and r2 == -5)
+  local racers = { { id = 'a', rep = 100 }, { id = 'b', rep = 9000 }, { id = 'c', rep = 300 } }
+  local picks = {}
+  for i = 1, 20 do picks[H.rival(racers, 200, rngLib.new(i)).id] = true end
+  check('hillduel: the rival is within reach of the reputation; nobody gives nil', picks.a and picks.c and not picks.b and H.rival({}, 0, rngLib.new(1)) == nil)
+  check('hillduel: the road start from the race file (the default start position), the roads by id', H.startOf({ defaultStartPosition = 2, startPositions = { { oldId = 9, pos = { 1, 1, 1 } }, { oldId = 2, pos = { 643, -614, 228 } } } }).x == 643 and H.startOf({ startPositions = { { oldId = 1, pos = { 5, 6, 7 } } } }).z == 7 and H.startOf({}) == nil and H.road('mountain').laps == 2 and H.road('x') == nil and #H.ROADS == 3)
+  check('hillduel: the score text', H.text({ me = 2.4, them = 7.6 }):find('2') ~= nil and H.text({ me = 2.4, them = 7.6 }):find('8') ~= nil)
+  -- the game side: the pins by night, the prompt, a start that hands the runner the rival, the tick from a fake race object, the pay
+  do
+    local old = { c = _G.sl_career, g = _G.sl_gridrace, o = _G.sl_options, gh = _G.guihooks, ex = _G.extensions, jr = _G.jsonReadFile, v3 = _G.vec3, q = _G.quat, um = _G.ui_message, rp = _G.gameplay_rawPois }
+    local state = { day = 3, seed = 9, rep = 200, money = 1000, racers = { { id = 'ra', rep = 150, name = 'Ra', betMin = 100, betMax = 300 }, { id = 'rb', rep = 9000, name = 'Rb', betMin = 5000, betMax = 8000 } } }
+    local isNight, paid, texts, spec, done = true, {}, {}, nil, nil
+    _G.sl_career = { isActive = function() return true end, getState = function() return state end, isNight = function() return isNight end, LEVEL = 'west_coast_usa',
+      payOut = function(a, l) state.money = state.money + a paid[#paid + 1] = a return true end, addMoney = function(a, l) state.money = state.money + a paid[#paid + 1] = a return true end, afterRace = function() end, freeToStart = function() return nil end }
+    _G.sl_gridrace = { running = function() return spec ~= nil and done ~= nil end, start = function(sp, d) spec, done = sp, d return true, 'to the grid' end }
+    local on = true
+    _G.sl_options = { get = function(k) if k == 'slHillDuel' then return on end return nil end }
+    _G.guihooks = { trigger = function(name, d) if name == 'slPhoneToast' then texts[#texts + 1] = d.text end end }
+    _G.extensions = { hook = function() end }
+    _G.jsonReadFile = function() return { defaultStartPosition = 2, startPositions = { { oldId = 2, pos = { 643, -614, 228 } } } } end
+    _G.vec3 = _G.vec3 or function(x, y, z) return { x = x, y = y, z = z } end
+    _G.quat = _G.quat or function() return {} end
+    _G.ui_message = function(t) texts[#texts + 1] = t end
+    _G.gameplay_rawPois = { clear = function() end }
+    package.loaded['sl/hillduel'] = nil
+    local D = require('sl/hillduel')
+    local els = {}
+    D.onGetRawPoiListForLevel('west_coast_usa', els)
+    check('hillduel game side: at night the three roads are pins at their starts, interactable', #els == 3 and els[1].data.duelRoad == 'cell' and els[1].interactableInPlayMode == true and els[1].markerInfo.missionMarker.pos.x == 643)
+    isNight = false
+    local none = {}
+    D.onGetRawPoiListForLevel('west_coast_usa', none)
+    check('hillduel game side: by day no pins and no start', #none == 0 and D.start('cell') == false)
+    isNight = true
+    local acts = {}
+    D.onActivityAcceptGatherData({ { duelRoad = 'cell' }, { ownerKey = 'x' } }, acts)
+    check('hillduel game side: the prompt at a road offers the duel against the rival within reach for the bet', #acts == 1 and acts[1].buttonLabel:find('Ra') ~= nil and acts[1].buttonLabel:find('200') ~= nil)
+    acts[1].buttonFun()
+    check('hillduel game side: the start hands the runner the road folder, the laps, the rival and the scorer, one AI', spec ~= nil and spec.dir == '/gameplay/missions/west_coast_usa/timeTrial/006-Cell/' and spec.laps == 1 and spec.rival == 'ra' and spec.grid == 1 and type(spec.onTick) == 'function' and D.status():find('Cell') ~= nil)
+    check('hillduel game side: a second start while one runs is refused', D.start('alley') == false)
+    local v3
+    v3 = function(x, y, z) return setmetatable({ x = x, y = y, z = z }, { __sub = function(a, b) return v3(a.x - b.x, a.y - b.y, a.z - b.z) end, __index = { length = function(p) return math.sqrt(p.x * p.x + p.y * p.y + p.z * p.z) end } }) end
+    local pos = { [1] = v3(0, 0, 0), [2] = v3(40, 0, 0) }
+    local race = { states = { [1] = { placement = 2, isOnRoad = true }, [2] = { placement = 1, isOnRoad = true } }, getVehiclePosition = function(_, id) return pos[id] end }
+    local ctx = { race = race, playerId = 1, ais = { { id = 2 } } }
+    for i = 1, 6 do spec.onTick(ctx, 1) end
+    check('hillduel game side: the rival ahead by 40 m scores; the score line comes every five seconds', D.status():find('You 0 : 6') ~= nil and texts[#texts]:find('You 0 : 6') ~= nil)
+    pos[2] = v3(8, 0, 0)
+    for i = 1, 10 do spec.onTick(ctx, 1) end
+    check('hillduel game side: within 12 m the player scores as the follower', D.status():find('You 10 : 6') ~= nil)
+    local money0 = state.money
+    done({ place = 2, time = 120, grid = 2 })
+    check('hillduel game side: more points wins: the bet is paid and 30 rep', state.money == money0 + 200 and state.rep == 230 and texts[#texts]:find('won') ~= nil and D.status() == 'no duel')
+    spec, done = nil, nil
+    D.start('alley')
+    done({ place = 1, time = 100, grid = 2 })
+    check('hillduel game side: no points on either side: the tie goes to the first across (the player won)', state.money == money0 + 400 and state.rep == 260)
+    spec, done = nil, nil
+    D.start('mountain')
+    done({ aborted = true })
+    check('hillduel game side: an abort pays nothing and says so', state.money == money0 + 400 and texts[#texts]:find('called off') ~= nil)
+    on = false
+    check('hillduel game side: the part off: no pins, no start', (function() local e = {} D.onGetRawPoiListForLevel('west_coast_usa', e) return #e == 0 end)() and D.start('cell') == nil)
+    _G.sl_career, _G.sl_gridrace, _G.sl_options, _G.guihooks, _G.extensions, _G.jsonReadFile, _G.vec3, _G.quat, _G.ui_message, _G.gameplay_rawPois = old.c, old.g, old.o, old.gh, old.ex, old.jr, old.v3, old.q, old.um, old.rp
+    package.loaded['sl/hillduel'] = nil
+  end
 end
 
 print(string.format('lua tests passed: %d checks', passed))

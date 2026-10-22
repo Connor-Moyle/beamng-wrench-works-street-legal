@@ -38,6 +38,7 @@ M.LIST = {
   { id = 'scenes', opt = 'slScenes', title = 'Cinematic moments', desc = 'A short full-screen scene when the night starts or the day starts (the sky, the city lights, a title card); any key skips it. Off: the plain fade to black.' },
   { id = 'shops', opt = 'slShops', title = 'Shops', desc = 'Shops with their own screens (tyre shop, exhaust shop and others), opened at a shop marker or by another mod. Off: no shop screens and no shop markers.' },
   { id = 'jobs', opt = 'slJobs', title = 'Jobs', desc = 'Courier and workshop jobs, their markers and the Jobs app. Off: no jobs.' },
+  { id = 'hillduel', opt = 'slHillDuel', title = 'Hill duels', desc = 'At night the hill roads carry a marker: a duel against a rival for a bet, scored by points (the leader scores while well ahead, the follower while close; off the road costs). Off: no markers, no duels.' },
   { id = 'calendar', opt = 'slCalendar', title = 'Calendar', desc = 'The Calendar app: weekend races on the dockyards circuits (enter on the phone, be on the grid at the hour), the swap meet, and the monthly series to come, with reminders a day and an hour ahead. Off: no app, no weekend races, no reminders.' },
   { id = 'needs', opt = 'slNeeds', default = false, title = 'Needs: hunger, thirst and sleep', desc = 'Three meters drain while you are awake. Low: a nudge on the phone, then a blur, slower reactions or shaky hands, never a game over. Food and drink at fuel stations, sleep when the day starts or a nap at the garage. Off (the default): nothing ticks and nothing shows.' },
 }
