@@ -30,7 +30,8 @@
     '.slp-device.slp-land{width:760px;height:380px;border-radius:34px}',
     '.slp-land .slp-mapbody{flex:1}.slp-land .slp-mapcv{height:100%}.slp-land .slp-mapbody .slp-card{position:absolute;left:10px;bottom:10px;margin:0;max-width:300px}',
     '.slp-page.slp-open{animation:slp-zoom .3s cubic-bezier(.2,.9,.25,1)}@keyframes slp-zoom{from{transform:scale(.2);opacity:0;border-radius:40px}to{transform:none;opacity:1}}',
-    '@media (prefers-reduced-motion:reduce){.slp-device{transition:none !important}.slp-page.slp-open{animation:none}}',
+    '@media (prefers-reduced-motion:reduce){.slp-device{transition:none !important}.slp-page.slp-open{animation:none}.slp-root *,.slp-root *:before,.slp-root *:after{transition:none!important;animation:none!important}}',
+    '.slp-rm .slp-device,.slp-rm *,.slp-rm *:before,.slp-rm *:after{transition:none!important;animation:none!important}',      /* (the career option Reduce motion: the same) */
     '.slp-screen{position:relative;width:100%;height:100%;border-radius:36px;overflow:hidden;background:#141218;display:flex;flex-direction:column}',
     '.slp-cam{position:absolute;left:50%;top:10px;width:11px;height:11px;margin-left:-5.5px;border-radius:50%;background:#000;box-shadow:0 0 0 2px #1d1d22;z-index:5}',
     /* status bar */
@@ -170,7 +171,7 @@
     '.slp-cb .slp-plus:before{content:"\\25B2 "}.slp-cb .slp-minus:before{content:"\\25BC "}.slp-cb .slp-rok:before,.slp-cb .slp-lotfaults.slp-ok:before{content:"\\2714 "}',
     '.slp-cb i.slp-ahead:before{content:"\\25B2 "}.slp-cb i.slp-behind:before{content:"\\25BC "}',
     /* #51 the pad's focus is always visible: a thick yellow ring on whatever is focused */
-    '[bng-nav-item]:focus,[data-a]:focus,[tabindex]:focus{outline:3px solid #ffd54f!important;outline-offset:2px}',
+    '[bng-nav-item]:focus,[data-a]:focus,[tabindex]:focus{outline:3px solid #ffd54f!important;outline-offset:2px;box-shadow:0 0 0 2px #0d0b12}',      /* (docs/UI_STYLE.md: a dark band between the control and the ring so it shows on a yellow or accent fill) */
     '.slp-report{margin:6px 0}.slp-rsec{margin:8px 0;padding:8px 10px;border-radius:12px;background:#0d0b12}.slp-rsec h5{margin:0 0 4px;font-size:13px;color:#a8c7fa}.slp-rok{color:#7bd88f}.slp-rmid{color:#e6c35c}.slp-rbad{color:#f2b8b5}',
     '.slp-kv{display:flex;justify-content:space-between;padding:7px 0;font-size:14px;border-bottom:1px solid #2b2930}',
     '.slp-kv span{color:#cac4d0}',
@@ -358,7 +359,7 @@
   var SLRR_ART = '/ui/modModules/slHud/slrr/icons/';
   var SLRR_ICON = { races: 'cup.png', garage: 'garage.png', bank: 'dollar.png', cab: 'city.png', me: 'roc.png' };
   function slrrIcon(name, cls) { return '<img class="slp-slrr ' + (cls || '') + '" src="' + SLRR_ART + name + '" alt="">'; }
-  var APP_COLORS = { map: '#3a7d6e', camera: '#3b6fa0', gallery: '#a05a8a', carmarket: '#2e7d4f', partmarket: '#a3322c', settings: '#5c6474', wait: '#4a5d7a', market: '#a3322c', paper: '#5b5346', bid: '#b5651d', club: '#6a2e7a', jobs: '#3d7a2e', phone: '#2e7d4f', messages: '#2f5fb3', contacts: '#7b4fb0', races: '#c2541e', bank: '#1f7a70', cab: '#b58a12', me: '#5c6474', garage: '#8a3b8f', garagekit: '#6b5b2e', event: '#2f6f9f', calendar: '#2f6f9f', sponsors: '#9a6b12' };
+  var APP_COLORS = { map: '#3a7d6e', camera: '#3b6fa0', gallery: '#a05a8a', carmarket: '#2e7d4f', partmarket: '#a3322c', settings: '#5c6474', wait: '#4a5d7a', market: '#a3322c', paper: '#5b5346', bid: '#b5651d', club: '#6a2e7a', jobs: '#3d7a2e', phone: '#2e7d4f', messages: '#2f5fb3', contacts: '#7b4fb0', races: '#c2541e', bank: '#1f7a70', cab: '#b58a12', me: '#5c6474', garage: '#8a3b8f', garagekit: '#6b5b2e', traps: '#b4541a', health: '#b23a5e', help: '#4a6fa5', turf: '#7a4a2e', event: '#2f6f9f', calendar: '#2f6f9f', sponsors: '#9a6b12' };      // (every app has its own tile colour: the white icon needs a fill)
   var AV_COLORS = ['#a8c7fa', '#f2b8b5', '#c3e7c6', '#ffd8a8', '#d0bcff', '#9fe0e8', '#ffb4ab', '#e8def8'];
   var CLASS_NAMES = { beater: T('ui.beaters', 'Beaters'), compact: T('ui.compacts', 'Compacts'), muscle: T('ui.muscle', 'Muscle'), tuner: T('ui.tuners', 'Tuners'), sport: T('ui.sports_cars', 'Sports cars'), super: T('ui.supercars', 'Supercars') };
 
@@ -860,7 +861,7 @@
       var html = '<div class="slp-card"><h4>' + T('ui.weekly_costs', 'Weekly costs') + '</h4><p>' + T('ui.week_day', 'Week {1}, day {2} of 7', Number(wk.week) || 1, Number(wk.dayOfWeek) || 1) + ' &middot; ' +
         (left <= 0 ? T('ui.bills_tonight', 'bills are paid tonight') : left === 1 ? T('ui.bills_in_one_day', 'bills are paid in 1 day') : T('ui.bills_in_days', 'bills are paid in {1} days', left)) + '</p>';
       html += bills.length ? bills.map(function (b) {
-        return '<div class="slp-row" style="min-height:40px;cursor:default"><div class="slp-rt"><b>' + esc(b.label || '') + '</b><small>' + (Number(b.due) <= 0 ? T('ui.due_tonight', 'tonight') : T('ui.due_in_days', 'in {1} d', Number(b.due) || 0)) +
+        return '<div class="slp-row" style="min-height:40px;cursor:default;padding:6px 0"><div class="slp-rt" style="margin-left:0"><b>' + esc(b.label || '') + '</b><small>' + (Number(b.due) <= 0 ? T('ui.due_tonight', 'tonight') : T('ui.due_in_days', 'in {1} d', Number(b.due) || 0)) +
           '</small></div><div class="slp-amt slp-minus">' + money(-(Number(b.amount) || 0)) + '</div></div>';
       }).join('') : '<p>' + T('ui.no_bills_yet', 'No bills yet: rent starts with a second garage or more than two cars.') + '</p>';
       if (debt > 0) {
@@ -870,7 +871,7 @@
       }
       html += hist.map(function (h) {
         var net = Number(h.net) || 0;
-        return '<div class="slp-row" style="min-height:40px;cursor:default"><div class="slp-rt"><b>' + T('ui.week_n', 'Week {1}', Number(h.week) || 0) + '</b><small>' + T('ui.week_in_out', 'in {1} &middot; out {2}', money(h.income), money(h.costs)) +
+        return '<div class="slp-row" style="min-height:40px;cursor:default;padding:6px 0"><div class="slp-rt" style="margin-left:0"><b>' + T('ui.week_n', 'Week {1}', Number(h.week) || 0) + '</b><small>' + T('ui.week_in_out', 'in {1} &middot; out {2}', money(h.income), money(h.costs)) +
           '</small></div><div class="slp-amt ' + (net >= 0 ? 'slp-plus' : 'slp-minus') + '">' + (net >= 0 ? '+' : '') + money(net) + '</div></div>';
       }).join('');
       return html + '</div>';
@@ -1830,6 +1831,7 @@
       var zoom = Math.max(Number(d.textScale) || 1, Date.now() - padAt < 60000 ? 1.25 : 1);
       layer.style.setProperty('--sl-zoom', zoom); layer.setAttribute('data-zoom', zoom);
       layer.classList.toggle('slp-cb', !!d.colorBlind);      // #51 colour-blind friendly colours
+      layer.classList.toggle('slp-rm', !!d.reduceMotion);      // the Reduce motion option (docs/UI_STYLE.md)
       var isHome = st.app === 'home';
       var screen = '<div class="slp-screen' + (isHome ? ' slp-home-on' : '') + '"><div class="slp-cam"></div>' +
         '<div class="slp-status">' + two(d.hour || 0) + ':' + two(d.minute || 0) + '<div class="slp-sr">' + I.signal + I.wifi + I.battery + '</div></div>' +
@@ -2013,7 +2015,7 @@
     var slide = null, intent = null, slideSeq = 0;
     function hudApp() {
       var h = win.slMapsHud;
-      if (!h || typeof h.rect !== 'function' || MV.opts.slide === false) return null;
+      if (!h || typeof h.rect !== 'function' || MV.opts.slide === false || (st.data && st.data.reduceMotion)) return null;      // (no slide with Reduce motion: the plain open and close)
       try { if (win.matchMedia && win.matchMedia('(prefers-reduced-motion: reduce)').matches) return null; } catch (e) { return null; }
       return h;
     }

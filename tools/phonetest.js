@@ -991,6 +991,18 @@ assert.ok(calls.includes('routeGarage()'), 'Route to my garage on the home scree
   phone.handle('slPhoneData', data);
 }
 {
+  // the UI style kit: Reduce motion (option slReduceMotion, data.reduceMotion) and the focus band
+  const layer = () => phone.root.querySelector('.slp-layer') || phone.root;
+  phone.handle('slPhoneData', Object.assign({}, data, { reduceMotion: true }));
+  assert.ok(phone.root.classList.contains('slp-rm') || phone.root.querySelector('.slp-rm'), 'Reduce motion puts the slp-rm class on the phone');
+  phone.handle('slPhoneData', Object.assign({}, data, { reduceMotion: false }));
+  assert.ok(!phone.root.classList.contains('slp-rm') && !phone.root.querySelector('.slp-rm'), 'and takes it off');
+  const css = win.document.querySelector('style').textContent;
+  assert.ok(/\.slp-rm \.slp-device,\.slp-rm \*[^}]*transition:none!important;animation:none!important/.test(css) && /prefers-reduced-motion:reduce\)\{.*\.slp-root \*,\.slp-root \*:before/.test(css), 'both the option and the system setting stop every transition and animation');
+  assert.ok(/outline:3px solid #ffd54f!important;outline-offset:2px;box-shadow:0 0 0 2px #0d0b12/.test(css), 'the focus ring is 3 px with a dark band');
+  assert.ok(/reduceMotion\)\) return null/.test(code), 'with Reduce motion the K slide is the plain open and close');
+}
+{
   // brand sponsorships (sl_sponsor.summary()): the offer with Accept / Decline, the deal with its terms and strikes, the standing bars; nothing with the part off or no data
   const sponsors = { current: { brand: 'ironline', name: 'Ironline Racing', kind: 'maker', since: 30, retainer: 300, discount: 0.1, terms: { wins: 2, car: true }, weekWins: 1, carRaces: 3, strikes: 1, daysToReview: 4 },
     offer: { brand: 'revline', name: 'Revline Parts', retainer: 450, discount: 0.15, terms: { wins: 2 }, expiresIn: 2 },

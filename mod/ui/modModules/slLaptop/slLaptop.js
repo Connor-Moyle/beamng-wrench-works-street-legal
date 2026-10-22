@@ -32,7 +32,9 @@
     /* #51 colour-blind friendly colours: blue and orange, with a mark beside every good or bad figure; and the pad's focus always visible */
     '.sll-cb .sll-plus,.sll-cb .sll-rok{color:#56b4e9}.sll-cb .sll-minus,.sll-cb .sll-rbad,.sll-cb .sll-note,.sll-cb .sll-balloon{color:#ffb454}',
     '.sll-cb .sll-plus:before{content:"\\25B2 "}.sll-cb .sll-minus:before{content:"\\25BC "}.sll-cb .sll-rok:before{content:"\\2714 "}',
-    '.sll-screen [bng-nav-item]:focus,.sll-screen [data-a]:focus,.sll-screen [tabindex]:focus{outline:3px solid #ffd54f!important;outline-offset:2px}',
+    '.sll-screen [bng-nav-item]:focus,.sll-screen [data-a]:focus,.sll-screen [tabindex]:focus{outline:3px solid #ffd54f!important;outline-offset:2px;box-shadow:0 0 0 2px #0d0b12}',      /* (docs/UI_STYLE.md: a dark band so the ring shows on any fill) */
+    '@media (prefers-reduced-motion:reduce){.sll-root *,.sll-root *:before,.sll-root *:after{transition:none!important;animation:none!important}}',
+    '.sll-rm *,.sll-rm *:before,.sll-rm *:after{transition:none!important;animation:none!important}',      /* (the career option Reduce motion) */
     '.sll-repsum:focus,.sll-repsum:hover{outline:2px solid #a8c7fa}.sll-repparts{margin:2px 0 6px 14px}',
     '.sll-screen{position:absolute;left:0;top:0;right:0;bottom:0;overflow:hidden;pointer-events:auto;transition:opacity .2s;',
     '  background-color:#0d0b12;background-size:cover;background-position:center}',
@@ -643,6 +645,7 @@
       var zoom = Math.max(Number(st.data.textScale) || 1, Date.now() - st.padAt < 60000 ? 1.25 : 1);
       layer.style.setProperty('--sl-zoom', zoom); layer.setAttribute('data-zoom', zoom);      // (#51 text size; at least Large on a pad)
       layer.classList.toggle('sll-cb', !!st.data.colorBlind);      // (#51 colour-blind friendly colours)
+      layer.classList.toggle('sll-rm', !!st.data.reduceMotion);      // (the Reduce motion option, docs/UI_STYLE.md)
       var html = '<div class="sll-screen' + (st.open ? '' : ' sll-gone') + '">' + inner + '</div>';
       if (html === lastHtml && layer.firstChild) { renderSkips++; reportRenders(); return; }
       lastHtml = html; renders++; reportRenders();
