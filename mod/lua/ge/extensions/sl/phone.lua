@@ -291,9 +291,9 @@ function M.mapPlaces()
   liveRoute()
   local list = {}
   for id, p in pairs((inCareer and sl_career.allPlaces or sl_career.freeRoamPlaces or sl_career.allPlaces)() or {}) do
-    if p.pos and (inCareer or M.FREE_KINDS[p.kind]) then list[#list + 1] = { id = id, name = p.name, kind = p.kind, x = p.pos.x, y = p.pos.y } end
+    if p.pos and (inCareer or M.FREE_KINDS[p.kind]) then list[#list + 1] = { id = id, name = p.name, kind = p.kind, x = p.pos.x, y = p.pos.y, info = p.kind == 'gas' and sl_fuelrange and sl_fuelrange.priceText and sl_fuelrange.priceText() or nil } end
   end
-  guihooks.trigger('slMap', { groups = mapLib.groups(list, playerAt()), route = route and { id = route.id, name = route.name } or nil })
+  guihooks.trigger('slMap', { groups = mapLib.groups(list, playerAt()), route = route and { id = route.id, name = route.name } or nil, fuelNote = sl_fuelrange and sl_fuelrange.mapNote and sl_fuelrange.mapNote(playerAt()) or nil })
 end
 
 -- the Contacts app's people: rivals (sl_rivals), the crews' leaders you know, the dealers on the map

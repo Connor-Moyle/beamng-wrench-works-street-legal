@@ -1130,11 +1130,11 @@
           '<div class="slp-mapzoom"><div data-a="mapzoom" data-v="in">+</div><div data-a="mapzoom" data-v="out">&minus;</div></div>' +
           (r ? '<div class="slp-card"><h4>' + esc(T('ui.route_to_1', 'Route: {1}', r.name)) + '</h4><div class="slp-acts"><div class="slp-btn slp-tonal" data-a="clearroute" data-v="1">' + T('ui.clear_route', 'Clear route') + '</div></div></div>' : '') + '</div>';
       }
-      var head = '<div class="slp-card"><p>' + esc(T('ui.map_text', 'Tap a place and the route shows on the road. It clears when you get there.')) + '</p>' +
+      var head = (m.fuelNote ? '<div class="slp-card"><p class="slp-warn">' + esc(m.fuelNote) + '</p></div>' : '') + '<div class="slp-card"><p>' + esc(T('ui.map_text', 'Tap a place and the route shows on the road. It clears when you get there.')) + '</p>' +
         (r ? '<h4>' + esc(T('ui.route_to_1', 'Route: {1}', r.name)) + '</h4><div class="slp-acts"><div class="slp-btn slp-tonal" data-a="clearroute" data-v="1">' + T('ui.clear_route', 'Clear route') + '</div></div>' : '') + '</div>';
       var body = groups.map(function (g) {
         return '<div class="slp-seth">' + esc(MAP_KINDS[g.kind] || T('ui.kind_other', 'Other places')) + '</div>' + arr(g.places).map(function (p) {
-          return '<div class="slp-row" data-a="route" data-v="' + esc(p.id) + '"><div class="slp-rt"><b>' + esc(p.name) + (r && r.id === p.id ? ' &#10003;' : '') + '</b><span>' + distText(p.dist) + '</span></div><div class="slp-ib">' + I.gps + '</div></div>';
+          return '<div class="slp-row" data-a="route" data-v="' + esc(p.id) + '"><div class="slp-rt"><b>' + esc(p.name) + (r && r.id === p.id ? ' &#10003;' : '') + '</b><span>' + distText(p.dist) + (p.info ? ' &middot; ' + esc(p.info) : '') + '</span></div><div class="slp-ib">' + I.gps + '</div></div>';
         }).join('');
       }).join('');
       return bar(T('app.map', 'Map')) + tabsHtml('map', [['map', T('ui.map_tab', 'Map')], ['list', T('ui.list_tab', 'List')]]) + '<div class="slp-body">' + head + (body || '<div class="slp-empty">' + T('ui.no_places_yet', 'The map has no places yet.') + '</div>') + '</div>';
