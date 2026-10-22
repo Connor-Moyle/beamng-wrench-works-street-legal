@@ -144,7 +144,7 @@ end
 
 local function sendCallouts(s, c)
   for _, co in ipairs(c.callouts or {}) do
-    if not co.racer then
+    if not co.racer and not (sl_rivalbeats and sl_rivalbeats.truce and sl_rivalbeats.truce(co.crew)) then      -- (a crew that gave you its respect keeps the truce)
       local t = c.territory[co.district] or {}
       local home = t.home == co.crew
       -- the leader for a home, else the crew's best racer after the leader
@@ -263,7 +263,7 @@ local function planRaid(s, c, day)
   if c.raid or not raidsOn() or c.king then return end
   c.raided = c.raided or {}
   for crewId, since in pairs(c.angry or {}) do
-    if day - since <= 7 and (c.raided[crewId] or -99) + 7 <= day then
+    if day - since <= 7 and (c.raided[crewId] or -99) + 7 <= day and not (sl_rivalbeats and sl_rivalbeats.truce and sl_rivalbeats.truce(crewId)) then
       c.raid = { crew = crewId, day = day + 1 }
       sl_career.sendText('benny', string.format(strings.t('crews.heads_up_word_is_s'), crews.crew(crewId).name), 3)
       return

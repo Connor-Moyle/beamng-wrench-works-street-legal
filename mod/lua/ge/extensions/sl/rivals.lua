@@ -171,8 +171,26 @@ local function offerView(s, m, rival)
   if not o then return nil end
   local mine = sl_fleet and sl_fleet.currentCar and sl_fleet.currentCar()
   local racer = racerOf(s, rival.id)
-  return { stake = o.stake, boss = o.boss, myCar = mine and mine.name or nil, theirCar = racer and racer.car and racer.car.name or nil }
+  local hunted
+  if o.hunt then for _, c in ipairs(s.cars or {}) do if c.id == o.hunt then hunted = c.name end end end
+  return { stake = o.stake, boss = o.boss, myCar = mine and mine.name or nil, theirCar = racer and racer.car and racer.car.name or nil, hunt = hunted, sweetener = o.sweetener }
 end
+-- the hunt (sl_rivalbeats): the rival wants the car you took back: an offer for that car, maybe with money on top for you
+function M.offerHunt(rivalId, carId, sweetener)
+  local s = career()
+  local m = s and state(s)
+  local rival = m and rules.byId(m.list, tostring(rivalId))
+  if not rival then return false end
+  m.offers = m.offers or {}
+  m.offers[rival.id] = { stake = 'pink', hunt = carId, sweetener = sweetener, day = s.day }
+  roster.pinkForced[rival.id] = true
+  local racer = racerOf(s, rival.id)
+  if racer then racer.pinkOK = true end
+  extensions.hook('onStreetLegalChanged')
+  return true
+end
+function M.hasOffer(rivalId) local s = career() local m = s and state(s) return m ~= nil and m.offers ~= nil and m.offers[tostring(rivalId)] ~= nil end
+function M.dropOffer(rivalId) local s = career() local m = s and state(s) if m and m.offers then m.offers[tostring(rivalId)] = nil roster.pinkForced[tostring(rivalId)] = nil end end
 
 local function proactive(s, m)
   local rng = rngLib.new(rngLib.hash('rivalnight:' .. tostring(s.day) .. ':' .. tostring(s.seed)))
@@ -265,10 +283,15 @@ function M.accept(id)
   if not offer then toast(strings.t('rivals.no_offer')) M.list() return false end
   local mine = sl_fleet and sl_fleet.currentCar and sl_fleet.currentCar()
   if not mine then toast(strings.t('career.pink_slips_for_which_car')) return false end
+  if offer.hunt and sl_rivalbeats and sl_rivalbeats.canAcceptHunt then      -- (the hunt: only in the car they want)
+    local okh, why = sl_rivalbeats.canAcceptHunt(rival.id, mine.id)
+    if okh == false then toast(why) return false end
+  end
   local c, answer = challenge(s, rival, 'pink')
   if not c then toast(answer and answer.text or strings.t('rivals.no_offer')) return false end
   c.boss = offer.boss
   if offer.boss then m.bossActive = rival.id end
+  if offer.hunt then c.hunt = offer.hunt if sl_rivalbeats and sl_rivalbeats.huntAccepted then sl_rivalbeats.huntAccepted(rival.id) end end
   m.offers[rival.id] = nil
   roster.pinkForced[rival.id] = nil
   toast(string.format(strings.t('rivals.pink_on'), mine.name or '?'))
@@ -287,6 +310,7 @@ function M.decline(id, forMoney)
   m.offers[rival.id] = nil
   roster.pinkForced[rival.id] = nil
   rival.meter = math.max(rules.METER[1], (rival.meter or 0) - 5)
+  if offer.hunt then if sl_rivalbeats and sl_rivalbeats.huntLapsed then sl_rivalbeats.huntLapsed(rival.id) end forMoney = false end      -- (the hunt is the car or nothing)
   toast(strings.t(forMoney and 'rivals.for_money' or 'rivals.walked_away'))
   if forMoney then
     local racer = racerOf(s, rival.id)

@@ -30,6 +30,13 @@ M.MAP = {
   { 'slHospitalDied', 'sl/hospital', 'HOSPITAL_DIED' },
   { 'slHospitalSeverity', 'sl/hospital', 'HOSPITAL_SEVERITY' },
   { 'slBuildGap', 'sl/core/spawnplan', 'MIN_GAP' },
+  { 'slHuntWaitMin', 'sl/core/rivalbeats', 'HUNT_WAIT_MIN' },
+  { 'slHuntWaitMax', 'sl/core/rivalbeats', 'HUNT_WAIT_MAX' },
+  { 'slHuntSweetener', 'sl/core/rivalbeats', 'SWEETENER' },
+  { 'slHuntRep', 'sl/core/rivalbeats', 'HUNT_REP' },
+  { 'slTruceDays', 'sl/core/rivalbeats', 'TRUCE_DAYS' },
+  { 'slSeriesRep', 'sl/core/rivalbeats', 'SERIES_REP' },
+  { 'slSeriesBetX', 'sl/core/rivalbeats', 'SERIES_BET_X' },
 }
 
 local original = {}
