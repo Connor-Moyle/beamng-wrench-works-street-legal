@@ -25,6 +25,14 @@ M.TEXT = {
   ['app.partmarket'] = 'Part market', ['app.phone'] = 'Phone', ['app.messages'] = 'Messages', ['app.contacts'] = 'Contacts', ['app.cab'] = 'Cab',
   ['app.map'] = 'Map', ['app.camera'] = 'Camera', ['app.gallery'] = 'Gallery',
   ['app.contact'] = 'Contact', ['app.ad'] = 'Ad', ['app.revline'] = 'Revline', ['app.bid'] = 'Swap & Bid',
+  -- crew mates
+  ['mates.recruited_mechanic'] = '{1} from {2} is on your side now: parts and labour come cheaper.',
+  ['mates.recruited_tipster'] = '{1} from {2} is on your side now: he will tip you off about races and jobs.',
+  ['mates.recruited_scout'] = '{1} from {2} is on your side now: he will ride along and call the road and the police.',
+  ['mates.tip_race'] = 'Heard {1} is on in {2} h. Worth a look.', ['mates.tip_job'] = 'The {1} job pays {2}. Good money.',
+  ['mates.left'] = 'left', ['mates.right'] = 'right', ['mates.straight'] = 'straight on',
+  ['mates.scout_route'] = 'In {1} m turn {2}{3}.', ['mates.police_ahead'] = 'Cops ahead, about {1} m.',
+  ['mates.feature'] = 'Crew mates', ['mates.feature_text'] = 'Take a district from a rival crew and one of its people joins you: a mechanic, a tipster or a scout who rides along.',
   -- day and night
   ['phase.day'] = 'Day', ['phase.night'] = 'Night', ['phase.startNight'] = 'Start the night', ['phase.startDay'] = 'Start the day',
   ['phase.dayOver'] = 'The day is over. Start the night at a garage or in the Wait app.',
