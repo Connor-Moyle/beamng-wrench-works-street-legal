@@ -464,7 +464,7 @@
           { id: 'races', title: T('app.races', 'Races'), icon: I.flag, badge: arranged || 0, hide: has.races === false },
           { id: 'garage', title: T('app.garage', 'My cars'), icon: I.cab },
           { id: 'garagekit', title: T('app.garagekit', 'Garage'), icon: I.house },
-          { id: 'bank', title: T('app.bank', 'Bank'), icon: I.bank, hide: has.bank === false },
+          { id: 'bank', title: T('app.bank', 'Bank'), icon: I.bank, badge: unpaidTickets(), hide: has.bank === false },
           { id: 'me', title: T('app.me', 'Street cred'), icon: I.me },
           { id: 'sponsors', title: T('app.sponsors', 'Sponsors'), icon: I.sponsors, badge: d.sponsors && d.sponsors.offer ? 1 : 0, hide: !d.sponsors || has.sponsors === false },
           { id: 'calendar', title: T('app.calendar', 'Calendar'), icon: I.calendar, badge: calOpenInvites(), hide: !d.calendar || has.calendar === false },
@@ -899,7 +899,7 @@
           : ('<div class="slp-card"><h4>' + T('ui.insurance', 'Insurance') + '</h4><p>') + money(bk.premium) + T('ui.a_week_half_of_repairs', ' a week: half of repairs and impound bills over ') + money(bk.deductible) + (T('ui.from_the_next_day', ', from the next day') + '</p>') + (bk.premiumWhy ? '<p class="slp-sub">' + esc(bk.premiumWhy) + '</p>' : '') +
             ('<div class="slp-acts"><div class="slp-btn slp-tonal" data-a="insure" data-v="true">' + T('ui.insure', 'Insure') + '</div></div></div>');
       }
-      return bar(T('app.bank', 'Bank')) + ('<div class="slp-body"><div class="slp-bal"><small>' + T('ui.balance', 'Balance') + '</small><div>') + money(st.data.money) + '</div></div>' + weeklyCard() + cards +
+      return bar(T('app.bank', 'Bank')) + ('<div class="slp-body"><div class="slp-bal"><small>' + T('ui.balance', 'Balance') + '</small><div>') + money(st.data.money) + '</div></div>' + weeklyCard() + ticketsCard() + cards +
         (rows.join('') || ('<div class="slp-empty">' + T('ui.no_transactions_yet', 'No transactions yet.') + '</div>')) + '</div>';
     }
 
@@ -1230,7 +1230,7 @@
         if (c.out && c.towFee && c.where === 'Out on the street') acts.push('<div class="slp-btn slp-tonal" data-a="tow" data-v="' + c.id + ('">' + T('ui.tow_it_home', 'Tow it home ') + '&middot;' + ' ') + money(c.towFee) + '</div>');
         if (c.out && !c.impounded) acts.push('<div class="slp-btn slp-text" data-a="despawn" data-v="' + c.id + ('">' + T('ui.put_it_away', 'Put it away') + '</div>'));
         return '<div class="slp-card"><h4>' + esc(c.name) + (c.active ? ' &#9733;' : '') + '</h4><p>' + esc(c.where) + ' &middot; condition ' + Math.round((c.condition || 0) * 100) + '%' + (c.look ? ' &middot; ' + esc(c.look) : '') + (c.mastery && c.mastery.level > 0 ? ' &middot; <b>' + esc(c.mastery.label) + ' ' + c.mastery.level + '/' + c.mastery.max + '</b>' + (c.mastery.perks.length ? ' (' + esc(c.mastery.perks.join(' ')) + ')' : '') : '') +
-          (faults.length ? ('<br>' + T('ui.needs_2', 'Needs: ')) + esc(faults.join(', ')) : '') + '</p>' + careView(c) + (acts.length ? '<div class="slp-acts">' + acts.join('') + '</div>' : '') + '</div>';
+          (faults.length ? ('<br>' + T('ui.needs_2', 'Needs: ')) + esc(faults.join(', ')) : '') + '</p>' + impoundLine(c) + careView(c) + (acts.length ? '<div class="slp-acts">' + acts.join('') + '</div>' : '') + '</div>';
       });
       return bar(T('app.garage', 'My cars')) + '<div class="slp-body">' + (cards.join('') + ordered.join('') ||
         ('<div class="slp-empty">' + T('ui.you_have_no_car_the', 'You have no car. The junkyard sells cheap ones that need work, the dealership new ones. The Cab app gets you there.') + '</div>')) + '</div>';
@@ -1466,6 +1466,35 @@
         (arr(h.cars).length ? '<div class="slp-card"><h4>' + T('ui.trip_cars', 'Your cars here') + '</h4>' + arr(h.cars).map(function (c) { return '<p>' + esc(c.name) + '</p>'; }).join('') + '</div>' : '') + home + '</div>';
     }
 
+    // police batch 2 (sl_justice.summary(); tools/justice_fixture.js is the contract): the tickets on the Bank page (Pay / Contest per row, the licence suspension), the wanted poster on Street cred with the informant,
+    // and the impound line under the impounded car on My cars. Nothing without the data.
+    function justiceOf() { return obj(st.data.justice); }
+    function unpaidTickets() { return arr(justiceOf().tickets).filter(function (t) { return !t.paid; }).length; }
+    function ticketsCard() {
+      var j = justiceOf(), list = arr(j.tickets);
+      if (!list.length && !j.suspended) return '';
+      var open = unpaidTickets();
+      var rows = list.map(function (t) {
+        var tag = t.paid ? '&#10004; ' + T('ui.tk_paid', 'Paid') : t.contested ? T('ui.tk_contested', 'Contested: the lawyer is on it')
+          : t.overdue ? '<span class="slp-warn">&#9888; ' + T('ui.tk_overdue', 'Overdue') + '</span>' : T('ui.tk_due', 'Due day {1}', Number(t.due) || 0);
+        var acts = !t.paid && !t.contested ? '<div class="slp-acts"><div class="slp-btn" data-a="tkpay" data-v="' + esc(t.id) + '">' + T('ui.tk_pay', 'Pay {1}', money(t.amount)) + '</div>' +
+          '<div class="slp-btn slp-tonal" data-a="tkcontest" data-v="' + esc(t.id) + '">' + T('ui.tk_contest', 'Contest &middot; {1}', money(j.lawyerFee)) + '</div></div>' : '';
+        return '<div class="slp-kv" style="display:block;padding:8px 0"><div style="display:flex;justify-content:space-between"><span>' + T('ui.tk_day', 'Ticket, day {1}', Number(t.day) || 0) + '</span><b>' + money(t.amount) + '</b></div><div>' + tag + '</div>' + acts + '</div>';
+      }).join('');
+      return '<div class="slp-card"><h4>' + T('ui.tk_title', 'Tickets: {1} unpaid', open) + '</h4>' +
+        (j.suspended ? '<p class="slp-warn">&#9888; ' + T('ui.tk_suspended', 'Your licence is suspended until the tickets are dealt with.') + '</p>' : '') + rows + '</div>';
+    }
+    function wantedCard() {
+      var w = justiceOf().wanted;
+      if (!w) return '';
+      return '<div class="slp-card"><h4>&#9888; ' + T('ui.wanted_title', 'Wanted: {1}', esc(w.model || '')) + '</h4><p>' + T('ui.wanted_bounty', 'Bounty {1} &middot; since day {2} ({3} d ago)', money(w.bounty), Number(w.since) || 0, Number(w.days) || 0) + '</p>' +
+        (w.informant ? '<div class="slp-acts"><div class="slp-btn slp-tonal" data-a="informant" data-v="1">' + T('ui.wanted_informant', 'Use an informant &middot; {1}', money(w.informantPrice)) + '</div></div>' : '') + '</div>';
+    }
+    function impoundLine(c) {
+      var im = justiceOf().impound;
+      return im && im.standing && String(im.carId) === String(c.id) ? '<p>' + T('ui.impound_standing', 'Standing at the {1}', esc(im.place || '')) + '</p>' : '';
+    }
+
     function mePage() {
       var d = st.data, s = obj(d.stats);
       var from = d.titleRep || 0, to = d.nextRep, pct = to ? Math.max(0, Math.min(100, ((d.rep || 0) - from) / (to - from) * 100)) : 100;
@@ -1474,7 +1503,7 @@
       if (d.nextGarage && d.nextGarage.canMove) acts.push(('<div class="slp-btn" data-a="move">' + T('ui.move_to', 'Move to ')) + esc(d.nextGarage.name) + '</div>');
       if (d.roc && !d.rocChampion) acts.push('<div class="slp-btn" data-a="roc">' + (d.rocRound ? T('ui.roc_round_1_of_3', 'ROC round {1} of 3', (d.rocRound + 1)) : T('ui.enter_the_roc_middot_1', 'Enter the ROC &middot; {1}', money(d.rocEntry))) + '</div>');
       return bar(T('app.me', 'Street cred')) + '<div class="slp-body"><div class="slp-card"><h4>' + esc(d.title) + '</h4><p>' + (d.rep || 0) + ' reputation' + (to ? T('ui.middot_next_title_at_1', ' &middot; next title at {1}', to) : '') + '</p>' +
-        '<div class="slp-meter"><i style="width:' + pct.toFixed(1) + '%"></i></div></div>' + perksCard() +
+        '<div class="slp-meter"><i style="width:' + pct.toFixed(1) + '%"></i></div></div>' + perksCard() + wantedCard() +
         ('<div class="slp-card"><div class="slp-kv"><span>' + T('ui.garage', 'Garage') + '</span><b>') + esc(d.garage || '') + '</b></div>' + next +
         (d.hasRoc === false ? '' : ('<div class="slp-kv"><span>' + T('activityrules.race_of_champions', 'Race of Champions') + '</span><b>') + (d.roc ? T('ui.open_to_you', 'Open to you') : T('ui.not_yet', 'Not yet')) + '</b></div>') +
         ('<div class="slp-kv"><span>' + T('ui.cars', 'Cars') + '</span><b>') + (d.cars || 0) + '</b></div>' +
@@ -2144,6 +2173,9 @@
         case 'wait': lua('wait(' + JSON.stringify(String(v)) + ')'); break;
         case 'borrow': lua('borrow(' + Number(v) + ')'); break;
         case 'repay': lua('repay(' + Number(v) + ')'); break;
+        case 'tkpay': lua('payTicket(' + JSON.stringify(String(v)) + ')'); break;
+        case 'tkcontest': lua('contestTicket(' + JSON.stringify(String(v)) + ')'); break;
+        case 'informant': lua('informant()'); break;
         case 'paydebt': lua('payDebt(' + Number(v) + ')'); break;
         case 'spnaccept': lua('sponsorAccept()'); break;
         case 'spndecline': lua('sponsorDecline()'); break;

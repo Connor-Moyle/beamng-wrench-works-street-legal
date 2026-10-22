@@ -118,6 +118,7 @@ local function snapshot()
     cars = #s.cars, stats = s.stats,
     perks = sl_perks and sl_perks.perks and sl_perks.perks() or nil,
     calendar = sl_calendar and sl_calendar.summary and sl_calendar.summary() or nil,      -- (the Calendar app: nil with the part off or no career)
+    justice = rawget(_G, 'sl_justice') and sl_justice.summary and sl_justice.summary() or nil,      -- (police batch 2: tickets, the wanted poster, the impound line; nil with the part off)
     visit = sl_career.visit and sl_career.visit() and { name = sl_career.visit().name or sl_career.mapName(), round = sl_career.visit().round, rounds = sl_career.visit().rounds, untilDay = sl_career.visit().untilDay } or nil,      -- (on a trip: the phone shows the Event hub)
     hub = sl_career.visit and sl_career.visit() and sl_series and sl_series.hub and sl_series.hub() or nil,      -- (the paddock: standings, the next round, the cars brought)
     travelPick = travelPick,      -- (the pick-cars screen: sl_series.options(eventId) while one is open)
@@ -411,6 +412,11 @@ function M.travelConfirm(eventId, carIds, useLoaner)
   if ok then travelPick = nil end
   answer(ok, text)
 end
+-- police batch 2 (sl_justice answers ok, text like the others)
+local function justice(fn, ...) if career() and rawget(_G, 'sl_justice') and sl_justice[fn] then answer(sl_justice[fn](...)) else answer(false, strings.t('phone.trip_unavailable')) end end
+function M.payTicket(id) justice('payTicket', tostring(id)) end
+function M.contestTicket(id) justice('contestTicket', tostring(id)) end
+function M.informant() justice('informant') end
 function M.hubStart()
   if not career() then return end
   if not (sl_series and sl_series.startNext) then tripAway() return end
