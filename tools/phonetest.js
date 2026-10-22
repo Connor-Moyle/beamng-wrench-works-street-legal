@@ -1014,6 +1014,37 @@ assert.ok(calls.includes('routeGarage()'), 'Route to my garage on the home scree
   assert.ok(!phone.root.querySelector('[data-a="open"][data-v="traps"]'), 'no data: no app');
 }
 {
+  // my routes (sl_myroute.summary()): the editor with the waypoint count, the saved routes with their times, a run in progress; nothing with the part off or no data
+  const myroute = { routes: [{ id: 2, name: 'Dock loop', points: 5, length: 4200, best: 61.5, bestText: '1:01.50', runs: 3, last: 65, lastText: '1:05.00' }], draft: 2, draftMin: 4, draftMax: 8, maxRoutes: 10 };
+  phone.handle('slPhoneData', Object.assign({}, data, { myroute }));
+  phone.act('home');
+  assert.ok(phone.root.querySelector('[data-a="open"][data-v="myroute"]'), 'the My routes app is on the home screen');
+  phone.act('open', 'myroute');
+  let tx = text();
+  assert.ok(tx.includes('Dock loop') && tx.includes('4.2 km') && tx.includes('1:01.50') && tx.includes('1:05.00') && tx.includes('Waypoints dropped: 2 of 8'), 'the route and the editor: ' + tx.slice(0, 300));
+  assert.ok(!phone.root.querySelector('[data-a="routesave"]'), 'two waypoints cannot be saved yet');
+  calls.length = 0;
+  click('routedrop', '1');
+  assert.ok(calls.includes('@sl_myroute.drop()'), 'Drop waypoint here calls the module');
+  click('routerace', '2');
+  assert.ok(calls.includes('@sl_myroute.race(2)'), 'Race it names the route');
+  calls.length = 0;
+  click('routedel', '2');
+  assert.ok(!calls.some(c => c.includes('delete')), 'the first click on Delete only asks');
+  click('routedel', '2');
+  assert.ok(calls.includes('@sl_myroute.delete(2)'), 'the second deletes');
+  phone.handle('slPhoneData', Object.assign({}, data, { myroute: Object.assign({}, myroute, { draft: 4 }) }));
+  assert.ok(phone.root.querySelector('[data-a="routesave"]'), 'four waypoints can be saved');
+  phone.handle('slPhoneData', Object.assign({}, data, { myroute: Object.assign({}, myroute, { run: { id: 2, name: 'Dock loop', next: 3, points: 5, started: true, t: 12.3, clock: '0:12.30' } }) }));
+  tx = text();
+  assert.ok(tx.includes('Racing Dock loop: waypoint 3 of 5') && tx.includes('0:12.30') && !phone.root.querySelector('[data-a="routerace"]') && !phone.root.querySelector('[data-a="routedrop"]') && phone.root.querySelector('[data-a="routestop"]'), 'a run: the clock, no new race or drop, a Stop: ' + tx.slice(0, 300));
+  phone.act('home');
+  phone.handle('slPhoneData', Object.assign({}, data, { myroute, has: Object.assign({}, data.has, { myroute: false }) }));
+  assert.ok(!phone.root.querySelector('[data-a="open"][data-v="myroute"]'), 'the part off: no app');
+  phone.handle('slPhoneData', data);
+  assert.ok(!phone.root.querySelector('[data-a="open"][data-v="myroute"]'), 'no data: no app');
+}
+{
   // the danger zones (sl_danger.summary()) share the Speed traps page: the jump ladder card and the drift zones; the page works with one of them, both, or none
   const danger = { drift: [{ id: 'd1', name: 'Drift zone 1', target: 3000, best: 3500, count: 2, paid: true, metres: 5200, pay: 300 }, { id: 'd2', name: 'Drift zone 2', target: 5000, best: 0, count: 0, paid: false, metres: 900, pay: 500 }], jump: { best: 38.4, count: 5, next: 50, prize: 400 } };
   phone.handle('slPhoneData', Object.assign({}, data, { danger }));
