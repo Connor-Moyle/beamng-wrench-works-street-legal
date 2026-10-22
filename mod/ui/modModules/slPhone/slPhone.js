@@ -491,6 +491,7 @@
           { id: 'messages', title: T('app.messages', 'Messages'), icon: I.msg, badge: unread() || 0 },
           { id: 'contacts', title: T('app.contacts', 'Contacts'), icon: I.contacts },
           { id: 'cab', title: T('app.cab', 'Cab'), icon: I.cab },
+          { id: 'frjobs', title: T('app.frjobs', 'Freight runs'), icon: I.jobs, hide: !d.frjobs },
         ].map(onTrip)).replace(/<span>[^<]*<\/span>/g, '') + '</div></div>';
     }
 
@@ -1132,6 +1133,25 @@
       if (st.tab.cab === 'dealer' && st.tab.cabtier !== 'all' && p.tier !== st.tab.cabtier) return false;
       return true;
     }
+    // free-roam freight runs (sl_frjobs.summary(); tools/frjobs_fixture.js): the board's offers with a Take button, the run under way with Cancel
+    function frJobsPage() {
+      var f = obj(st.data.frjobs), a = f.active;
+      function mins(s) { return Math.max(1, Math.round((Number(s) || 0) / 60)) + ' min'; }
+      function far(m) { return m < 1000 ? Math.round(m) + ' m' : (m / 1000).toFixed(1) + ' km'; }
+      var act = a ? '<div class="slp-card"><h4>' + T('ui.fr_active', 'On a run') + ': ' + esc(a.title || '') + '</h4><p>' + esc(a.item || '') + '</p>' +
+        '<div class="slp-kv"><span>' + (Number(a.leg) === 2 ? T('ui.fr_go_drop', 'Drop at {1}', esc(a.to || '')) : T('ui.fr_go_pickup', 'Pick up at {1}', esc(a.next || ''))) + '</span><b>' + money(a.pay) + '</b></div>' +
+        '<div class="slp-acts"><div class="slp-btn slp-tonal" data-a="frcancel">' + T('ui.fr_cancel', 'Cancel the run') + '</div></div></div>' : '';
+      var offers = arr(f.offers).map(function (o) {
+        return '<div class="slp-card"><h4>' + esc(o.title || '') + '</h4><p>' + esc(o.item || '') + '</p>' +
+          '<div class="slp-kv"><span>' + T('ui.fr_from', 'From') + '</span><b>' + esc(o.from || '') + '</b></div>' +
+          '<div class="slp-kv"><span>' + T('ui.fr_to', 'To') + '</span><b>' + esc(o.to || '') + '</b></div>' +
+          '<div class="slp-kv"><span>' + far(Number(o.metres) || 0) + ' &middot; ' + mins(o.seconds) + '</span><b>' + money(o.pay) + '</b></div>' +
+          (a ? '' : '<div class="slp-acts"><div class="slp-btn" data-a="frtake" data-v="' + esc(String(o.id)) + '">' + T('ui.fr_take', 'Take') + '</div></div>') + '</div>';
+      }).join('');
+      return bar(T('app.frjobs', 'Freight runs')) + '<div class="slp-body"><p style="padding:0 16px">' + T('ui.fr_intro', 'Take a run, pick the load up and drop it where it goes. Wrench Works pays on delivery.') + '</p>' + act +
+        (offers || (a ? '' : '<div class="slp-empty">' + T('ui.fr_none', 'No runs on the board right now. Check back later.') + '</div>')) + '</div>';
+    }
+
     function cabPage() {
       var rows = arr(st.data.places).filter(cabShown).map(function (p) {
         return '<div class="slp-row" data-a="taxi" data-v="' + esc(p.id) + '"><div class="slp-av" style="background:#ffd8a8">' + I.cab.replace('<svg', '<svg style="width:22px;height:22px;fill:#5b3d00"') + '</div>' +
@@ -1902,6 +1922,7 @@
         case 'inventory': page = inventoryPage(); break;
         case 'myroute': page = myroutePage(); break;
         case 'cab': page = cabPage(); break;
+        case 'frjobs': page = frJobsPage(); break;
         case 'me': page = mePage(); break;
         case 'garage': page = garagePage(); break;
         case 'garagekit': page = garageKitPage(); break;
@@ -2225,6 +2246,8 @@
         case 'borrow': lua('borrow(' + Number(v) + ')'); break;
         case 'repay': lua('repay(' + Number(v) + ')'); break;
         case 'economy': lua('economyOptIn()'); break;
+        case 'frtake': lua('frjobAccept(' + JSON.stringify(String(v)) + ')'); break;
+        case 'frcancel': lua('frjobCancel()'); break;
         case 'paydebt': lua('payDebt(' + Number(v) + ')'); break;
         case 'spnaccept': lua('sponsorAccept()'); break;
         case 'spndecline': lua('sponsorDecline()'); break;

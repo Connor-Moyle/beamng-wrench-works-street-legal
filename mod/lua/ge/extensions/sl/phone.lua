@@ -26,6 +26,7 @@ local function freeApps()
   local out = {}      -- (no Settings app: the settings live in ESC > Mods)
   if sl_mode.enabled('maps') then out[#out + 1] = 'map' end
   if sl_mode.enabled('cab') then out[#out + 1] = 'cab' end
+  if sl_mode.enabled('jobs') and sl_frjobs and sl_frjobs.summary then out[#out + 1] = 'frjobs' end      -- (free-roam freight runs)
   return out
 end
 -- the app to open: in free roam only the free apps, else the home screen
