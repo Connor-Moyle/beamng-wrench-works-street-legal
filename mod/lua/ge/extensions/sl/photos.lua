@@ -202,7 +202,7 @@ local function claim(shot)
       local r = pc.check(c, shot)
       if r.ok then
         st.done[c.id] = true
-        sl_career.addMoney(c.money, strings.t('photoch.title'))
+        sl_career.payOut(c.money, strings.t('photoch.title'))
         stateLib.addRep(s, c.rep)
         texts[#texts + 1] = strings.t('photoch.done', c.money, c.rep)
       elseif not bestMiss or #r.reasons < #bestMiss then
@@ -239,7 +239,11 @@ function M.take()
     local okS, shot = false, nil
     if enabled() then okS, shot = pcall(M.snapshot) if not okS then shot = nil end end          -- (before the screen is cleared: it is the picture at the shutter)
     local name = M.shoot(j, v and v:getJBeamFilename() or 'photo')
-    local said = name and shot and claim(shot) or nil
+    local said
+    if name and shot then
+      local okC, res = pcall(claim, shot)          -- (a throw in the claim must not cost the saved toast)
+      if okC then said = res else pcall(log, 'E', 'sl_photos', 'photo challenge claim failed: ' .. tostring(res)) end
+    end
     toast(said or (name and strings.t('photos.photo_saved') or strings.t('photos.photo_failed')))
   end)
   return true, strings.t('photos.taking')
