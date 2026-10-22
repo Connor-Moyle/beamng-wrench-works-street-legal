@@ -128,6 +128,7 @@ function M.schedule(day, hour, seed, rep, st, opts)
     if opts.swap ~= false then add(swapEvent(d, opts.swapPlace)) end
   end
   if opts.series ~= false then for _, ev in ipairs(seriesEvents(day, rep, from, to)) do add(ev) end end
+  for _, ev in ipairs(opts.extra or {}) do add(ev) end          -- (the brand invitationals, sl_invite)
   table.sort(list, function(a, b) if a.day ~= b.day then return a.day < b.day end if (a.hour or 0) ~= (b.hour or 0) then return (a.hour or 0) < (b.hour or 0) end return a.id < b.id end)
   return list
 end

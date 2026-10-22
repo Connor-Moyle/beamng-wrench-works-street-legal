@@ -139,6 +139,16 @@ function M.onStreetLegalNewDay(day)
   end
 end
 
+-- standing with a brand from outside the sponsorship rules (an invitational)
+function M.credit(brand, points)
+  local s = career()
+  if not (s and brand and api()) then return end
+  rules.add(brandsState(s).standing, brand, points, s.day or 0)
+end
+function M.standing() local s = career() return s and brandsState(s).standing or {} end
+function M.kindOf(id) return brandKind(id) end
+function M.nameOf(id) return brandName(id) end
+
 -- the phone's buttons: take the offer, turn it down, or end the sponsorship
 function M.accept()
   local s = career()
