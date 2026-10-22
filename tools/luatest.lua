@@ -6321,6 +6321,10 @@ do
   busy = 'A race is on.'
   for _ = 1, 100 do G.onUpdate(1) end
   check('radio: in a race nothing is said, however long it takes', #said == 0)
+  _G.slrr_garage = { getPhase = function() return 'garage' end }
+  for _ = 1, 100 do G.onUpdate(1) end
+  check('radio: in a garage visit nothing is said', #said == 0)
+  _G.slrr_garage = nil
   busy, level = nil, 2
   for _ = 1, 100 do G.onUpdate(1) end
   check('radio: with the police on you nothing is said either', #said == 0)

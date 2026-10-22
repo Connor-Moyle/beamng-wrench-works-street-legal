@@ -41,6 +41,7 @@ end
 -- a race, a chase or the police: nothing is said
 local function quiet()
   if sl_career and sl_career.freeToStart and sl_career.freeToStart() then return true end
+  if slrr_garage and slrr_garage.getPhase and slrr_garage.getPhase() ~= 'idle' then return true end      -- (the car radio is off in a garage visit)
   if sl_police and sl_police.level and (sl_police.level() or 0) > 0 then return true end
   return false
 end
