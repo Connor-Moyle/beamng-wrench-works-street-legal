@@ -25,6 +25,37 @@ local function applyTuning()
   rules.UPGRADE_DAYS = tune('upgradeDays', 5)
 end
 local function on() return tune('enabled', true) end
+local function sheetOn() return tune('rapSheet', false) == true end      -- the file on each boss (campaign idea #7); off by default
+
+-- wins over the other named rivals (the third kind of milestone)
+local function othersBeaten(m, bossId)
+  local n = 0
+  for _, r in ipairs(m.list) do if r.id ~= bossId then n = n + (r.beaten or 0) end end
+  return n
+end
+
+-- the file on a boss, opened (with its baselines) the first time it is needed
+local function sheetOf(s, m, boss)
+  m.sheets = m.sheets or {}
+  if not m.sheets[boss.id] then m.sheets[boss.id] = rules.newSheet(s.stats and s.stats.earned or 0, othersBeaten(m, boss.id)) end
+  return m.sheets[boss.id]
+end
+
+-- wins at the boss's tier or above, as the boss's call counts them
+local function tierWinsFrom(m, tier)
+  local wins = 0
+  for t = tier, 5 do wins = wins + (m.tierWins[t] or 0) end
+  return wins
+end
+
+-- the lines of the file on the boss of your rank, for the screens and for the boss's call: { lines, all } or nil when there is none
+local function sheetLines(s, m)
+  local boss = rules.bossOfTier(m.list, rules.rank(m.list))
+  if not boss or boss.bossBeaten then return nil end
+  local lines, all = rules.sheetProgress(rules.sheetPlan(s.seed, boss), sheetOf(s, m, boss),
+    { wins = tierWinsFrom(m, boss.tier), earned = s.stats and s.stats.earned or 0, beatenOthers = othersBeaten(m, boss.id) })
+  return lines, all, boss
+end
 
 local function career() return sl_career and sl_career.isActive() and sl_career.getState() or nil end
 local function toast(text) guihooks.trigger('slPhoneToast', { text = text }) end
@@ -113,6 +144,10 @@ function M.onStreetLegalRaceResult(won, opponent, racerId, stake)
   local racer = racerOf(s, racerId)
   if not racer then return end
   if won then m.tierWins[racer.tier] = (m.tierWins[racer.tier] or 0) + 1 end
+  if sheetOn() then
+    local boss = rules.bossOfTier(m.list, rules.rank(m.list))
+    if boss and not boss.bossBeaten then rules.sheetRace(sheetOf(s, m, boss), won) end
+  end
   local rival = rules.byId(m.list, racerId)
   if not rival then return end
   markMet(rival)
@@ -180,7 +215,9 @@ local function proactive(s, m)
   -- the wins that count are those over racers of the boss's tier or above (a player who races the tier above has earned the call just as well)
   local wins = 0
   for t = rules.rank(m.list), 5 do wins = wins + (m.tierWins[t] or 0) end
-  local boss = not m.bossActive and rules.bossReady(m.list, s.rep, wins, s.day)
+  local sheetOk
+  if sheetOn() then local _, all = sheetLines(s, m) sheetOk = all == true end
+  local boss = not m.bossActive and rules.bossReady(m.list, s.rep, wins, s.day, sheetOk)
   if boss and not activeChallenge(s, boss.id) then
     local racer = racerOf(s, boss.id)
     local sd = rules.showdown(boss, racer)
@@ -322,7 +359,18 @@ function M.list()
       stage = rival.stage, car = met and racer and racer.car and racer.car.name or nil, preview = met and info.preview or nil, step = rules.step(rival), locked = gateBoss and nameOf(s, gateBoss) or nil,
       known = s.known[rival.id] or nil, offer = offerView(s, m, rival) }
   end
-  local result = { rivals = out, rank = rules.rank(m.list) }
+  local sheet
+  if sheetOn() then
+    local lines, all, boss = sheetLines(s, m)
+    if lines then
+      local texts = { wins = 'rivals.sheet_wins', earn = 'rivals.sheet_earn', streak = 'rivals.sheet_streak', rivals = 'rivals.sheet_rivals' }
+      sheet = { boss = boss.id, title = strings.t('rivals.sheet_title', nameOf(s, boss)), all = all, doneText = all and strings.t('rivals.sheet_done') or nil, lines = {} }
+      for _, l in ipairs(lines) do
+        sheet.lines[#sheet.lines + 1] = { text = strings.t(texts[l.kind], l.need, boss.tier), have = l.have, need = l.need, done = l.done }
+      end
+    end
+  end
+  local result = { rivals = out, rank = rules.rank(m.list), sheet = sheet }
   guihooks.trigger('slRivals', result)
   return result
 end

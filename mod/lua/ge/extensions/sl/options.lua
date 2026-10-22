@@ -128,6 +128,8 @@ M.defs = {
     desc = 'A rival who offers pink slips waits this many days for your answer. Nothing happens to your car unless you accept.' },
   { key = 'slBossWins', tab = 'The climb', group = 'Bosses', title = 'Wins before a boss calls you out', type = 'range', min = 1, max = 8, step = 1, unit = '', default = 3, advanced = true,
     desc = 'How many races you must win at a tier (or above) before its boss asks for you. Higher means a longer climb.' },
+  { key = 'slRapSheet', feature = true, tab = 'The climb', group = 'Bosses', title = 'The file on each boss', type = 'bool', default = false,
+    desc = 'Each tier boss keeps a file of three things to do before he asks for you: win races at the tier, earn money, and one more (a run of wins or beating the other named rivals). The phone shows the file on the Rivals card. Off: the boss asks once you have the wins, as before.' },
   { key = 'slBossCooldown', tab = 'The climb', group = 'Bosses', title = 'Days a boss waits after beating you', type = 'range', min = 0, max = 10, step = 1, unit = 'days', default = 3, advanced = true,
     desc = 'After you lose a boss showdown he will not ask again for this many days.' },
   { key = 'slRivalStepRaces', tab = 'The climb', group = 'Stakes', title = 'Races before a rival raises the stake', type = 'range', min = 1, max = 8, step = 1, unit = '', default = 3,

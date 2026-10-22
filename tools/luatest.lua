@@ -2362,6 +2362,13 @@ do -- the rivals extension (sl_rivals) against a mocked game: the tier gate, a r
   RVE.onStreetLegalRaceResult(true, 'x', tier1.id, 'money')
   RVE.onStreetLegalRaceResult(true, 'x', tier1.id, 'money')
   check('wins over the tier count toward its boss', s.rivals.tierWins[1] == 3)
+  setg('sl_options', { get = function(k) if k == 'slRapSheet' then return true end end })
+  RVE.list()
+  check('rap sheet: with the switch on the Rivals list carries the file on the boss of your rank, with the wins counted', rvPushed.sheet ~= nil and #rvPushed.sheet.lines == 3 and rvPushed.sheet.lines[1].have == 3
+    and rvPushed.sheet.title:find('^The file on') ~= nil and rvPushed.sheet.boss == boss1.id)
+  _G.sl_options = nil
+  RVE.list()
+  check('rap sheet: the switch off: no file on the list', rvPushed.sheet == nil)
   s.rep = 99999
   RVE.onUpdate(9)
   check('at night the boss calls you out with a showdown challenge', s.rivals.bossActive == boss1.id and #asked >= 1 and asked[#asked].id == boss1.id and s.challenges[#s.challenges].boss == true and #texts >= 1)
@@ -2438,6 +2445,31 @@ do -- the rivals extension (sl_rivals) against a mocked game: the tier gate, a r
   for name, v in pairs(saved) do _G[name] = v[1] end
   for name, v in pairs(savedLoaded) do package.loaded[name] = v[1] end
   package.loaded['sl/rivals'] = nil
+end
+do -- the rap sheet (campaign idea #7): the file on a boss, pure rules and the extension against a mocked game
+  local RV, ROS = require('sl/core/rivals'), require('sl/core/roster')
+  local list = RV.generate(11, ROS.generate(11, 36), require('sl/core/crews').CREWS)
+  local boss = RV.bossOfTier(list, 1)
+  local plan = RV.sheetPlan(11, boss)
+  check('rap sheet: three milestones, wins and earnings first, the same for the same seed and boss', #plan == 3 and plan[1].kind == 'wins' and plan[1].need == RV.BOSS_WINS and plan[2].kind == 'earn'
+    and plan[2].need == 300 and (plan[3].kind == 'streak' or plan[3].kind == 'rivals') and RV.sheetPlan(11, boss)[3].kind == plan[3].kind)
+  local kinds = {}
+  for _, bs in ipairs(list) do kinds[RV.sheetPlan(11, bs)[3].kind] = true end
+  for seed = 1, 20 do kinds[RV.sheetPlan(seed, boss)[3].kind] = true end
+  check('rap sheet: the third milestone varies with the seed', kinds.streak and kinds.rivals)
+  check('rap sheet: a higher tier asks for more earned and more rivals', RV.sheetPlan(11, RV.bossOfTier(list, 5))[2].need > plan[2].need
+    and (function() for seed = 1, 40 do local p5 = RV.sheetPlan(seed, RV.bossOfTier(list, 5)) if p5[3].kind == 'rivals' then return p5[3].need == 2 end end return true end)())
+  local sh = RV.newSheet(1000, 4)
+  local lines, all = RV.sheetProgress(plan, sh, { wins = 2, earned = 1500, beatenOthers = 5 })
+  check('rap sheet: progress counts from the baselines and caps at the need', not all and lines[1].have == 2 and not lines[1].done and lines[2].have == 300 and lines[2].need == 300 and lines[2].done)
+  RV.sheetRace(sh, true) RV.sheetRace(sh, true) RV.sheetRace(sh, false) RV.sheetRace(sh, true)
+  check('rap sheet: the streak keeps the best run, a loss resets the run', sh.best == 2 and sh.run == 1)
+  local pl = { { kind = 'wins', need = 3 }, { kind = 'earn', need = 900 }, { kind = 'streak', need = 2 } }
+  local _, doneAll = RV.sheetProgress(pl, sh, { wins = 9, earned = 5000, beatenOthers = 4 })
+  check('rap sheet: all three done is done; the wins alone are not', doneAll == true and not select(2, RV.sheetProgress(pl, RV.newSheet(0, 0), { wins = 9, earned = 0, beatenOthers = 0 })))
+  local boss1 = RV.bossOfTier(list, 1)
+  check('rap sheet: bossReady follows the sheet when it is given, the wins when not', RV.bossReady(list, 99999, 0, 99, true) == boss1 and RV.bossReady(list, 99999, 99, 99, false) == nil
+    and RV.bossReady(list, 99999, 99, 99) == boss1 and RV.bossReady(list, 99999, 0, 99) == nil)
 end
 do -- the campaign end (tier 1 to the last boss), walked offline: a player who wins every race he is offered, one race a game day at night
   local PR, ROS, RV, ST, CRW = require('sl/core/progression'), require('sl/core/roster'), require('sl/core/rivals'), require('sl/core/state'), require('sl/core/crews')
