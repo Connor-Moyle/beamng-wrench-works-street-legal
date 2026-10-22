@@ -6738,4 +6738,26 @@ do
   check('spendPlan: too little, too much and a phase that has run out are refused', P.spendPlan('day', 10, 2) == nil and P.spendPlan('day', 10, 300) == nil and P.spendPlan('day', P.endHour('day'), 30) == nil)
 end
 
+-- Seasons off: the gate answers nothing, and the callers treat that as no change (the calendar page broke on it)
+do
+  local old = { sl_career = _G.sl_career, sl_seasons = _G.sl_seasons, sl_gridrace = _G.sl_gridrace, guihooks = _G.guihooks, extensions = _G.extensions }
+  local s = { day = 8, seed = 4, rep = 100, money = 1000 }
+  _G.sl_career = { isActive = function() return true end, getState = function() return s end, hour = function() return 10 end, has = function() return false end, LEVEL = 'west_coast_usa' }
+  _G.sl_seasons = { purse = function() return nil end }
+  _G.guihooks = { trigger = function() end }
+  _G.extensions = { hook = function() end }
+  package.loaded['sl/calendar'] = nil
+  local ok, C = pcall(require, 'sl/calendar')
+  local sum, err
+  if ok then ok, sum = pcall(C.summary) else err = C end
+  check('seasons off: the calendar summary still builds (a nil purse factor is 1)', ok and type(sum) == 'table' and #sum.events > 0 and sum.events[1] ~= nil)
+  _G.sl_seasons = { purse = function() return 1.5 end }
+  local _, sum2 = pcall(C.summary)
+  local scaled = false
+  for _, ev in ipairs(sum2 and sum2.events or {}) do if ev.reward and ev.status == 'open' then scaled = ev.reward end end
+  check('seasons on: the card shows the scaled purse', scaled and scaled % 3 == 0 or scaled == false and false)
+  for k, v in pairs(old) do _G[k] = v end
+  package.loaded['sl/calendar'] = nil
+end
+
 print(string.format('lua tests passed: %d checks', passed))
