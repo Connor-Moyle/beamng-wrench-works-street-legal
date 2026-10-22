@@ -48,7 +48,7 @@ local function handOver(s)
   if #parts == 0 then return end
   local put = 0
   for _, p in ipairs(parts) do
-    local okp = pcall(slrr_garage.addShelfPart, model or car.model, { part = p.part, name = p.name, slotId = p.slotId, value = p.value, condition = p.condition })
+    local okp = pcall(slrr_garage.addShelfPart, model or car.model, { part = p.part, name = p.name, slotId = p.slotId, value = p.value, wear = 1 - p.condition })      -- (the shelf reads `wear`, 0 new to 1 worn, as the classifieds pass it)
     if okp then put = put + 1 end
   end
   if put == 0 then return end

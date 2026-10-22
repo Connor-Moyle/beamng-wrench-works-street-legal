@@ -6215,7 +6215,7 @@ do
     B.onStreetLegalNewDay(8)
     check('grabbag game side: the week turns: four jobs made it a good one, Benny texts, the box waits', state.grabbag.pending == true and state.grabbag.week == 2 and texts[#texts]:find('box of parts') ~= nil and B.summary().pending == true)
     B.onWrenchWorksGarageEntered('Garage')
-    check('grabbag game side: at the garage the parts go on the shelf of the car brought in, with a condition; the box is spent', #shelf >= 2 and shelf[1].model == 'covet' and shelf[1].p.condition ~= nil and state.grabbag.pending == false and state.grabbag.given == 1 and texts[#texts]:find('Grab bag') ~= nil)
+    check('grabbag game side: at the garage the parts go on the shelf of the car brought in, with their wear (1 - condition, as the shelf reads it); the box is spent', #shelf >= 2 and shelf[1].model == 'covet' and shelf[1].p.wear ~= nil and shelf[1].p.wear >= 0.1 and shelf[1].p.wear <= 0.65 and shelf[1].p.condition == nil and state.grabbag.pending == false and state.grabbag.given == 1 and texts[#texts]:find('Grab bag') ~= nil)
     local n = #shelf
     B.onWrenchWorksGarageEntered('Garage')
     check('grabbag game side: no second box from the same week', #shelf == n)
