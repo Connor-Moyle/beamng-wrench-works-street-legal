@@ -7944,4 +7944,38 @@ do
   for k, v in pairs(old) do _G[k] = v end
 end
 
+-- the settings of the 0.8.0 economy and the calendar: each default is the built-in number, and the rules take the numbers
+do
+  local Opt = require('sl/options')
+  local byKey = {}
+  for _, d in ipairs(Opt.defs) do byKey[d.key] = d end
+  local W, S, C, V, Cal = require('sl/core/weekly'), require('sl/core/service'), require('sl/core/contract'), require('sl/core/visit'), require('sl/core/calendar')
+  local function def(k) return byKey[k] and byKey[k].default end
+  check('settings: weekly rent and storage default to the built-in numbers', def('slWeeklyRent') == 100 and def('slWeeklyStorage') == W.STORAGE and def('slServicePrice') == 100 and def('slServiceKm') == S.INTERVAL)
+  check('settings: contracts, first-jobs bonus, perks, trips and the calendar default to the built-in numbers',
+    def('slContractBonus') == 100 and def('slContractChance') == 50 and def('slFirstBonus') == 150 and def('slPerkStrength') == 100 and def('slTravelFee') == 100 and def('slCalFee') == 100 and def('slCalPurse') == 100 and def('slCalLaps') == Cal.HOME_LAPS and def('slDressingPrice') == 1200)
+  local lines = W.lines(2, 4)
+  local half = W.lines(2, 4, 0.5, 20)
+  check('settings: the weekly bill takes the rent scale and the storage price', lines[1].amount == 150 and lines[2].amount == 80 and half[1].amount == 75 and half[2].amount == 40 and W.lines(2, 4, 0, 0)[1] == nil)
+  local j1, j2 = { pay = 1000 }, { pay = 1000 }
+  C.apply(j1, 'tight') C.apply(j2, 'tight', 0.5)
+  check('settings: the contract bonus scales the extra over the normal pay (tight pays x2: half the bonus x1.5, none x1)', j1.pay == 2000 and j2.pay == 1500 and j2.basePay == 1000 and (function() local j = { pay = 1000 } C.apply(j, 'tight', 0) return j.pay == 1000 end)())
+  local gate = true
+  for _, k in ipairs({ 'slWeeklyRent', 'slWeeklyStorage', 'slServicePrice', 'slServiceKm', 'slContractBonus', 'slContractChance', 'slFirstBonus', 'slPerkStrength', 'slTravelFee', 'slCalFee', 'slCalPurse', 'slCalLaps', 'slDressingPrice' }) do
+    local d = byKey[k]
+    if not (d and d.scope == 'gameplay' and d.type == 'range' and d.min <= d.default and d.default <= d.max) then gate = false end
+  end
+  check('settings: all of them are gameplay-scoped ranges with the default inside the range', gate)
+end
+
+-- option scopes for the Gameplay presets: the look and accessibility rows are tagged so a preset leaves them alone
+do
+  local byKey = {}
+  for _, d in ipairs(require('sl/options').defs) do byKey[d.key] = d end
+  local ok = true
+  for _, k in ipairs({ 'slPuddleCount', 'slSplashSize', 'slWetStrength', 'slRainBox', 'slWetWorld', 'slWetTarmac', 'slWetTrace', 'slPerf' }) do if not (byKey[k] and byKey[k].scope == 'graphics') then ok = false end end
+  for _, k in ipairs({ 'slMapStyle', 'slMapHeadingUp', 'slMapZoom', 'slPhoneSkin', 'slWallpaper', 'slTextScale', 'slColorBlind', 'slReduceMotion', 'slCaptions', 'slNotify' }) do if not (byKey[k] and byKey[k].scope == 'none') then ok = false end end
+  check('scopes: the graphics rows say graphics and the interface and accessibility rows say none', ok)
+end
+
 print(string.format('lua tests passed: %d checks', passed))

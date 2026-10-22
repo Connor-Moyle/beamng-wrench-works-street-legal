@@ -18,6 +18,7 @@ local OFFERS = 6               -- on the board at a time
 local STOP_RADIUS = 9          -- metres from a stop, and slow, to count as there
 local DAMAGE_FULL = 30000      -- BeamNG damage counted as a wrecked load (a hard crash is ~25000)
 
+local function optn(key, default) local v = sl_options and sl_options.get and tonumber((sl_options.get(key))) return v or default end
 local function career() return sl_career and sl_career.isActive() and sl_career.getState() or nil end
 local function toast(text) guihooks.trigger('slPhoneToast', { text = text }) if ui_message then ui_message(text, 5, 'streetLegal') end end
 
@@ -322,7 +323,7 @@ local function refresh(s, force)
     local made = 0
     for _, j in ipairs(js.offers) do
       if made >= contractLib.COUNT then break end
-      if (j.kind == 'part' or j.kind == 'courier') and not j.contract and crng:chance(0.5) and contractLib.apply(j, contractLib.pick(crng, wet)) then
+      if (j.kind == 'part' or j.kind == 'courier') and not j.contract and crng:chance(optn('slContractChance', 50) / 100) and contractLib.apply(j, contractLib.pick(crng, wet), optn('slContractBonus', 100) / 100) then
         j.title = strings.t('contract.title', j.title)
         made = made + 1
       end
@@ -420,7 +421,8 @@ end
 
 -- the first hour: "new in town" doubles job pay, tapering to nothing at 150 rep, and ends the moment
 -- the first part is bought in Wrench Works; the first two jobs of each kind pay a bonus (balance pass)
-local NEW_IN_TOWN_REP, FIRST_TIMES, FIRST_BONUS = 150, 2, 150
+local NEW_IN_TOWN_REP, FIRST_TIMES = 150, 2
+local function firstBonus() return optn('slFirstBonus', 150) end
 local function boost(s, js)
   if js.upgraded then return 1 end
   return 1 + math.max(0, 1 - (s.rep or 0) / NEW_IN_TOWN_REP)
@@ -443,7 +445,7 @@ function M.bonusPay(s, js, j, pay)
   js.kindDone = js.kindDone or {}
   local n = (js.kindDone[j.kind] or 0) + 1
   js.kindDone[j.kind] = n
-  return jobsLib.shown(pay, boost(s, js), n <= FIRST_TIMES and FIRST_BONUS or 0)
+  return jobsLib.shown(pay, boost(s, js), n <= FIRST_TIMES and firstBonus() or 0)
 end
 
 -- a job called off before it was done (no pay, no rep, not counted as done)
@@ -782,7 +784,7 @@ function M.summary()
     quarter = QUARTER[js.quarter or 1] and QUARTER[js.quarter or 1][1] or nil, dyno = DYNO[js.dyno or 1] and DYNO[js.dyno or 1][1] or nil,
     crew = js.crew and not js.crew.done and { boss = js.crew.boss, tier = js.crew.tier, need = js.crew.need, won = js.crew.won, daysLeft = js.crew.untilDay - s.day, pay = js.crew.pay } or nil,
     sponsor = (sl_sponsor and sl_sponsor.current and sl_sponsor.current()) or (js.sponsor and { name = js.sponsor.name, weekly = js.sponsor.weekly, weekWins = js.weekWins or 0 }) or nil }
-  local function shown(j, pay) return jobsLib.shown(pay, boost(s, js), ((js.kindDone or {})[j.kind] or 0) < FIRST_TIMES and FIRST_BONUS or 0) end          -- (the board, the active card and the drop all show and pay the same number)
+  local function shown(j, pay) return jobsLib.shown(pay, boost(s, js), ((js.kindDone or {})[j.kind] or 0) < FIRST_TIMES and firstBonus() or 0) end          -- (the board, the active card and the drop all show and pay the same number)
   for _, j in ipairs(js.offers) do
     out.offers[#out.offers + 1] = { id = j.id, title = j.title, item = j.item, from = j.legs[1].name, to = j.legs[#j.legs].name,
       pay = shown(j, j.pay), seconds = j.seconds, fragile = j.fragile, metres = j.metres,

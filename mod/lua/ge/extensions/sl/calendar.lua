@@ -11,13 +11,30 @@ local strings = require('sl/core/strings')
 local features = require('sl/core/features')
 local stateLib = require('sl/core/state')
 
+local function opt(key, default) local v = sl_options and sl_options.get and tonumber((sl_options.get(key))) return v or default end
 local function career() return sl_career and sl_career.isActive() and sl_career.getState() or nil end
 local function store(s) s.calendar = rules.repair(s.calendar) return s.calendar end
 local function toast(text) guihooks.trigger('slPhoneToast', { text = text }) end
 local function homeOn() return sl_career.LEVEL == 'west_coast_usa' end         -- (the dockyards layouts are West Coast's)
 local function opts() return { home = homeOn(), swap = sl_career.has('swapMeet'), extra = homeOn() and sl_invite and sl_invite.events and sl_invite.events() or nil } end
 
-local function schedule(s) return rules.schedule(s.day, sl_career.hour(), s.seed, s.rep, store(s), opts()) end
+-- the settings (Mods menu): weekend fees, purses and laps, the trip fees. One function for the events and the phone's summary of them, so the card shows what is charged and paid.
+local function scaleEvent(ev)
+  local fee, purse, trip = opt('slCalFee', 100) / 100, opt('slCalPurse', 100) / 100, opt('slTravelFee', 100) / 100
+  if ev.kind == 'weekend' and tostring(ev.id):sub(1, 8) == 'weekend:' then
+    if ev.fee then ev.fee = math.floor(ev.fee * fee + 0.5) end
+    if ev.reward then ev.reward = math.floor(ev.reward * purse + 0.5) end
+    if ev.laps then ev.laps = opt('slCalLaps', rules.HOME_LAPS) end
+  elseif ev.travel and ev.travel.needed then
+    ev.travel = { needed = true, fee = math.floor((ev.travel.fee or 0) * trip + 0.5), hours = ev.travel.hours }
+  end
+end
+local function schedule(s)
+  local list = rules.schedule(s.day, sl_career.hour(), s.seed, s.rep, store(s), opts())
+  require('sl/core/visit').FEE_PER_CAR = math.floor(200 * opt('slTravelFee', 100) / 100 + 0.5)
+  for _, ev in ipairs(list) do scaleEvent(ev) end
+  return list
+end
 
 -- the purse of an event with the season's few per cent (Seasons on); nothing for an event without a purse
 local function seasonal(ev, reward)
@@ -31,8 +48,8 @@ function M.summary()
   local s = career()
   if not s then return nil end
   local sum = rules.summary(s.day, sl_career.hour(), s.seed, s.rep, store(s), opts())
-  for _, ev in ipairs(sum.events) do          -- (Seasons: the card shows what will be paid)
-    if ev.status ~= 'done' then ev.reward = seasonal(ev, ev.reward) end
+  for _, ev in ipairs(sum.events) do          -- (the card shows what will be charged and paid: the settings, then Seasons)
+    if ev.status ~= 'done' then scaleEvent(ev) ev.reward = seasonal(ev, ev.reward) end
   end
   return sum
 end
@@ -176,7 +193,7 @@ end
 function M.onUpdate(dtReal) tick(dtReal) end
 
 function M.onStreetLegalNewDay(day) local s = career() if s then rules.sweep(store(s), day or s.day) end end
-function M.onStreetLegalStopped() running = nil tracks = {} end
+function M.onStreetLegalStopped() running = nil tracks = {} require('sl/core/visit').FEE_PER_CAR = 200 end          -- (the trip fee setting does not outlive the career)
 function M.onClientEndMission() running = nil tracks = {} end
 
 function M.status()

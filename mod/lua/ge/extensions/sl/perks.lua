@@ -13,7 +13,10 @@ end
 
 function M.factor(kind)
   if not career() then return nil end
-  return perks.factor(M.rank(), kind)
+  local f = perks.factor(M.rank(), kind)
+  local v = sl_options and sl_options.get and tonumber((sl_options.get('slPerkStrength')))
+  if v and v ~= 100 then f = 1 + (f - 1) * v / 100 end          -- (the Perk strength setting)
+  return f
 end
 
 function M.perks()
