@@ -337,6 +337,7 @@
     sponsors: svg('M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14 2 9.27l6.91-1.01z'),
     event: svg('M14.4 6 14 4H5v17h2v-7h5.6l.4 2h7V6z'),
     calendar: svg('M19 3h-1V1h-2v2H8V1H6v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm0 16H5V9h14zM5 7V5h14v2zm2 4h5v5H7z'),
+    inventory: svg('M20 7l-8-4-8 4v10l8 4 8-4zM4 7l8 4 8-4M12 11v10'),
     traps: svg('M20.38 8.57l-1.23 1.85a8 8 0 0 1-.22 7.58H5.07A8 8 0 0 1 15.58 6.85l1.85-1.23A10 10 0 0 0 3.35 19a2 2 0 0 0 1.72 1h13.85a2 2 0 0 0 1.74-1 10 10 0 0 0-.27-10.44zm-9.79 6.84a2 2 0 0 0 2.83 0l5.66-8.49-8.49 5.66a2 2 0 0 0 0 2.83z'),
     cab: svg('M18.9 6c-.2-.6-.8-1-1.4-1h-11c-.7 0-1.2.4-1.4 1L3 12v8a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-1h12v1a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-8zM6.5 16A1.5 1.5 0 1 1 8 14.5 1.5 1.5 0 0 1 6.5 16zm11 0a1.5 1.5 0 1 1 1.5-1.5 1.5 1.5 0 0 1-1.5 1.5zM5 11l1.5-4.5h11L19 11z'),
     me: svg('M12 2 4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5zm-1.5 14.5-4-4 1.4-1.4 2.6 2.6 6.1-6.1 1.4 1.4z'),
@@ -360,7 +361,7 @@
   var SLRR_ART = '/ui/modModules/slHud/slrr/icons/';
   var SLRR_ICON = { races: 'cup.png', garage: 'garage.png', bank: 'dollar.png', cab: 'city.png', me: 'roc.png' };
   function slrrIcon(name, cls) { return '<img class="slp-slrr ' + (cls || '') + '" src="' + SLRR_ART + name + '" alt="">'; }
-  var APP_COLORS = { map: '#3a7d6e', camera: '#3b6fa0', gallery: '#a05a8a', carmarket: '#2e7d4f', partmarket: '#a3322c', settings: '#5c6474', wait: '#4a5d7a', market: '#a3322c', paper: '#5b5346', bid: '#b5651d', club: '#6a2e7a', jobs: '#3d7a2e', phone: '#2e7d4f', messages: '#2f5fb3', contacts: '#7b4fb0', races: '#c2541e', bank: '#1f7a70', cab: '#b58a12', me: '#5c6474', garage: '#8a3b8f', garagekit: '#6b5b2e', traps: '#b4541a', health: '#b23a5e', help: '#4a6fa5', turf: '#7a4a2e', event: '#2f6f9f', calendar: '#2f6f9f', sponsors: '#9a6b12' };      // (every app has its own tile colour: the white icon needs a fill)
+  var APP_COLORS = { map: '#3a7d6e', camera: '#3b6fa0', gallery: '#a05a8a', carmarket: '#2e7d4f', partmarket: '#a3322c', settings: '#5c6474', wait: '#4a5d7a', market: '#a3322c', paper: '#5b5346', bid: '#b5651d', club: '#6a2e7a', jobs: '#3d7a2e', phone: '#2e7d4f', messages: '#2f5fb3', contacts: '#7b4fb0', races: '#c2541e', bank: '#1f7a70', cab: '#b58a12', me: '#5c6474', garage: '#8a3b8f', garagekit: '#6b5b2e', traps: '#b4541a', inventory: '#7a6a2e', health: '#b23a5e', help: '#4a6fa5', turf: '#7a4a2e', event: '#2f6f9f', calendar: '#2f6f9f', sponsors: '#9a6b12' };      // (every app has its own tile colour: the white icon needs a fill)
   var AV_COLORS = ['#a8c7fa', '#f2b8b5', '#c3e7c6', '#ffd8a8', '#d0bcff', '#9fe0e8', '#ffb4ab', '#e8def8'];
   var CLASS_NAMES = { beater: T('ui.beaters', 'Beaters'), compact: T('ui.compacts', 'Compacts'), muscle: T('ui.muscle', 'Muscle'), tuner: T('ui.tuners', 'Tuners'), sport: T('ui.sports_cars', 'Sports cars'), super: T('ui.supercars', 'Supercars') };
 
@@ -469,6 +470,7 @@
           { id: 'me', title: T('app.me', 'Street cred'), icon: I.me },
           { id: 'sponsors', title: T('app.sponsors', 'Sponsors'), icon: I.sponsors, badge: d.sponsors && d.sponsors.offer ? 1 : 0, hide: !d.sponsors || has.sponsors === false },
           { id: 'calendar', title: T('app.calendar', 'Calendar'), icon: I.calendar, badge: calOpenInvites(), hide: !d.calendar || has.calendar === false },
+          { id: 'inventory', title: T('app.inventory', 'Inventory'), icon: I.inventory, hide: !d.inventory || has.inventory === false },
           { id: 'traps', title: T('app.traps', 'Speed traps'), icon: I.traps, hide: !(d.traps && has.traps !== false) && !(d.danger && has.danger !== false) },
           { id: 'jobs', title: T('app.jobs', 'Jobs'), icon: I.jobs, badge: d.jobs && d.jobs.active ? 1 : 0, hide: has.jobs === false },
           { id: 'wait', title: T('app.wait', 'Wait'), icon: I.wait },
@@ -1285,6 +1287,29 @@
       }).join('') + '</div>';
     }
 
+    // the inventory (sl_inventory.summary(): { used, cap, groups = { { kind: item|can|tool|part, name, count, points, extra = { id|index, litres, size, uses, brand, wear } } } })
+    function inventoryPage() {
+      var iv = obj(st.data.inventory), groups = arr(iv.groups), used = Number(iv.used) || 0, cap = Number(iv.cap) || 0;
+      var pct = cap ? Math.min(100, Math.round(100 * used / cap)) : 0;
+      var head = '<div class="slp-card"><h4>' + T('ui.inv_boot', 'Boot') + '</h4><div class="slp-kv"><span>' + T('ui.inv_points', 'carry points') + '</span><b>' + used + ' / ' + cap + '</b></div>' +
+        '<div class="slp-meter"><i style="width:' + pct + '%"></i></div><p>' + T('ui.inv_intro', 'Car parts you buy wait here until you drive into your garage; oil, coolant, a battery, cans and tools stay until you use them.') + '</p></div>';
+      var rows = groups.map(function (g) {
+        var x = obj(g.extra), detail = '';
+        if (g.kind === 'can') detail = T('ui.inv_litres', '{1} of {2} L', Math.round(Number(x.litres) || 0), Number(x.size) || 0);
+        else if (g.kind === 'tool') detail = x.uses != null ? T('ui.inv_uses', '{1} uses left', Number(x.uses)) : '';
+        else if (g.kind === 'part') detail = (x.brand ? esc(x.brand) : '') + (Number(x.wear) > 0 ? (x.brand ? ' &middot; ' : '') + T('ui.inv_wear', '{1} % worn', Math.round(100 * Number(x.wear))) : '');
+        var key = g.kind === 'can' ? Number(x.index) : (x.id != null ? x.id : '');
+        var canUse = g.kind === 'item' && (x.id === 'oil' || x.id === 'coolant' || x.id === 'battery');
+        var canDrop = g.kind !== 'part';
+        var did = g.kind + ':' + key;
+        return '<div class="slp-row" style="min-height:48px;cursor:default"><div class="slp-rt"><b>' + esc(g.name || '') + (Number(g.count) > 1 ? ' &times;' + Number(g.count) : '') + '</b><small>' +
+          T('ui.inv_points_n', '{1} pts', Number(g.points) || 0) + (detail ? ' &middot; ' + detail : '') + '</small></div><div class="slp-acts">' +
+          (canUse ? '<div class="slp-btn slp-text" data-a="invuse" data-v="' + esc(String(x.id)) + '">' + T('ui.inv_use', 'Use') + '</div>' : '') +
+          (canDrop ? '<div class="slp-btn slp-text" data-a="invdrop" data-v="' + esc(did) + '">' + (st.invDrop === did ? T('ui.inv_drop_sure', 'Sure? Drop') : T('ui.inv_drop', 'Drop')) + '</div>' : '') + '</div></div>';
+      }).join('');
+      return bar(T('app.inventory', 'Inventory')) + '<div class="slp-body">' + head + (rows || '<div class="slp-empty">' + T('ui.inv_empty', 'Nothing in the boot.') + '</div>') + '</div>';
+    }
+
     // the speed traps and zones (sl_traps.summary(): { list = { { id, name, kind: trap|zone, target km/h, best km/h (0 = never), count, paid, metres, pay } } }): nearest first
     function trapsPage() {
       var tr = obj(st.data.traps), dg = obj(st.data.danger), hasTraps = st.data.traps && obj(st.data.has).traps !== false, hasDanger = st.data.danger && obj(st.data.has).danger !== false;
@@ -1408,7 +1433,7 @@
         var start = today - (dow - 1), cells = [];
         for (var i = 0; i < 7; i++) {
           var day = start + i, n = events.filter(function (e) { return Number(e.day) === day; }).length;
-          cells.push('<div class="slp-card" data-a="calday" data-v="' + day + '" style="margin:4px;padding:8px 4px;text-align:center;flex:1;min-width:0' + (day === today ? ';outline:2px solid #a8c7fa' : '') + '"><b>' + DAY_NAMES[i] + '</b><br><small>' + day + '</small><br>' + (n ? '<span class="slp-chip" style="margin:4px 0 0 0">' + n + '</span>' : '&nbsp;') + '</div>');
+          cells.push('<div class="slp-card" data-a="calday" data-v="' + day + '" style="margin:3px;padding:8px 2px;text-align:center;flex:1;min-width:0;overflow:hidden' + (day === today ? ';outline:2px solid #a8c7fa' : '') + '"><b>' + DAY_NAMES[i] + '</b><br><small>' + day + '</small><br>' + (n ? '<span class="slp-chip" style="margin:4px 0 0 0">' + n + '</span>' : '&nbsp;') + '</div>');
         }
         body = '<div style="display:flex;padding:0 12px">' + cells.join('') + '</div>' + (st.calDay != null ? '<div class="slp-acts" style="padding:0 16px"><div class="slp-btn slp-text" data-a="calday" data-v="">' + T('ui.cal_all_days', 'Show all days') + '</div></div>' : '') +
           events.filter(function (e) { return st.calDay == null || Number(e.day) === Number(st.calDay); }).map(function (e) { return calEventCard(c, e); }).join('');
@@ -1844,6 +1869,7 @@
         case 'sponsors': page = sponsorsPage(); break;
         case 'calendar': page = calendarPage(); break;
         case 'traps': page = trapsPage(); break;
+        case 'inventory': page = inventoryPage(); break;
         case 'cab': page = cabPage(); break;
         case 'me': page = mePage(); break;
         case 'garage': page = garagePage(); break;
@@ -2242,6 +2268,13 @@
         case 'slotplay':
           if (askOf(Number(v))) { st.visitAsk = Number(v); render(); break; }
           lua('@sl_menuTile.startFromMenu(false,' + Number(v) + ')'); st.menu = null; st.chooser = false; render(); break;
+        case 'invuse': lua('@sl_inventory.use(' + JSON.stringify(String(v)) + ')'); break;
+        case 'invdrop':
+          if (st.invDrop !== v) { st.invDrop = v; render(); break; }
+          st.invDrop = null;
+          var ip = String(v).split(':');
+          lua('@sl_inventory.discard(' + JSON.stringify(ip[0]) + ',' + (ip[0] === 'can' ? Number(ip[1]) : JSON.stringify(ip[1])) + ')');
+          break;
         case 'slotname':
           var inp = root.querySelector('.slp-slotname[data-slot="' + Number(v) + '"]');
           if (inp) lua('@sl_menuTile.renameSlot(' + Number(v) + ',' + JSON.stringify(String(inp.value || '')) + ')');

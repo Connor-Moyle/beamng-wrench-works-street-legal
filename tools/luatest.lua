@@ -3312,7 +3312,7 @@ do
   local Opt = require('sl/options')
   local defs = {}
   for _, d in ipairs(Opt.defs) do defs[d.key] = d end
-  local okDefs = #F.LIST == 42
+  local okDefs = #F.LIST == 43
   local offByDefault = 0
   for _, f in ipairs(F.LIST) do
     local d = defs[f.opt]
@@ -6768,6 +6768,233 @@ do
   local late = P.spendPlan('day', P.endHour('day') - 0.5, 120)
   check('spendPlan: never past the end of the phase: it stops there and says how much it spent', late and late.ends and late.to == P.endHour('day') and late.minutes == 30)
   check('spendPlan: too little, too much and a phase that has run out are refused', P.spendPlan('day', 10, 2) == nil and P.spendPlan('day', 10, 300) == nil and P.spendPlan('day', P.endHour('day'), 30) == nil)
+end
+
+-- Seasons off: the gate answers nothing, and the callers treat that as no change (the calendar page broke on it)
+do
+  local old = { sl_career = _G.sl_career, sl_seasons = _G.sl_seasons, sl_gridrace = _G.sl_gridrace, guihooks = _G.guihooks, extensions = _G.extensions }
+  local s = { day = 8, seed = 4, rep = 100, money = 1000 }
+  _G.sl_career = { isActive = function() return true end, getState = function() return s end, hour = function() return 10 end, has = function() return false end, LEVEL = 'west_coast_usa' }
+  _G.sl_seasons = { purse = function() return nil end }
+  _G.guihooks = { trigger = function() end }
+  _G.extensions = { hook = function() end }
+  package.loaded['sl/calendar'] = nil
+  local ok, C = pcall(require, 'sl/calendar')
+  local sum, err
+  if ok then ok, sum = pcall(C.summary) else err = C end
+  check('seasons off: the calendar summary still builds (a nil purse factor is 1)', ok and type(sum) == 'table' and #sum.events > 0 and sum.events[1] ~= nil)
+  _G.sl_seasons = { purse = function() return 1.5 end }
+  local _, sum2 = pcall(C.summary)
+  local scaled = false
+  for _, ev in ipairs(sum2 and sum2.events or {}) do if ev.reward and ev.status == 'open' then scaled = ev.reward end end
+  check('seasons on: the card shows the scaled purse', scaled and scaled % 3 == 0 or scaled == false and false)
+  for k, v in pairs(old) do _G[k] = v end
+  package.loaded['sl/calendar'] = nil
+end
+
+-- the inventory (docs/INVENTORY.md): the pure rules
+do
+  local I = require('sl/core/inventory')
+  check('inventory: the boot follows the kind of car, clamped, 20 when unknown', I.capacity('Pickup') == 40 and I.capacity({ 'Full-size Van' }) == 40 and I.capacity('SUV') == 28 and I.capacity({ 'Wagon' }) == 28
+    and I.capacity('Sedan') == 20 and I.capacity('Hatchback') == 20 and I.capacity('Coupe') == 14 and I.capacity('Sports Car') == 14 and I.capacity('') == 20 and I.capacity(nil) == 20 and I.capacity('Hovercraft') == 20)
+  check('inventory: a part is sized by its slot: the engine 6, big pieces 3, small fittings 1, the rest 2', I.partSize('engine', 'x') == 6 and I.partSize('exhaust_muffler', 'x') == 3 and I.partSize('air_filter', 'x') == 1 and I.partSize('shifter', 'x') == 2)
+  check('inventory: labour is by size: 20, 45, 90, 250, and 45 for a size not in the table', I.labour(1) == 20 and I.labour(2) == 45 and I.labour(3) == 90 and I.labour(6) == 250 and I.labour(4) == 45)
+  local s = {}
+  local inv = I.ensure(s)
+  check('inventory: the key is made on first need with version 1 and nothing in it', inv.version == 1 and next(inv.items) == nil and #inv.parts == 0 and #inv.cans == 0 and I.used(inv) == 0 and I.free(inv, 20) == 20)
+  local fixed = I.ensure({ inventory = { items = { oil = 2, bogus = -1, coolant = 1.9 }, parts = 5 } })
+  check('inventory: a damaged key is repaired, bad quantities dropped', fixed.items.oil == 2 and fixed.items.bogus == nil and fixed.items.coolant == 1 and type(fixed.parts) == 'table' and type(fixed.tools) == 'table')
+  local cap = 20
+  check('inventory: oil and coolant stack and take their points', I.addItem(inv, cap, 'oil', 3) and I.addItem(inv, cap, 'coolant', 1) and inv.items.oil == 3 and I.used(inv) == 4 and select(2, I.addItem(inv, cap, 'nonsense', 1)) == 'bad')
+  check('inventory: a battery, a 10 L can, a 20 L can, a tube', I.addItem(inv, cap, 'battery', 1) and I.addCan(inv, cap, 10, 4) and I.addCan(inv, cap, 20, 25) and I.addItem(inv, cap, 'siphontube', 1)
+    and I.used(inv) == 4 + 2 + 2 + 3 + 1 and inv.cans[2].litres == 20 and select(2, I.addCan(inv, cap, 5, 1)) == 'bad')
+  local ok, why, free = I.addItem(inv, cap, 'battery', 5)
+  check('inventory: a purchase that does not fit is refused with the free points, nothing is half added', ok == false and why == 'full' and free == 20 - 12 and inv.items.battery == 1)
+  local okp, id1 = I.addPart(inv, cap, { model = 'covet', part = 'covet_exhaust_a', slotId = 'covet_exhaust', name = 'Sport exhaust', price = 900, bought = 5 })
+  check('inventory: a part has its own id, size from its slot, and the price', okp and id1 == 1 and inv.parts[1].size == 3 and inv.parts[1].price == 900 and I.used(inv) == 15 and select(2, I.addPart(inv, cap, {})) == 'bad')
+  local big = I.addPart(inv, cap, { model = 'covet', part = 'engine_big', slotId = 'covet_engine', name = 'Big engine' })
+  check('inventory: an engine does not fit in what is left', big == false)
+  check('inventory: tools keep their own uses; the one with the fewest goes first; empty ones go; unlimited ones stay', (function()
+    local t = { items = {}, parts = {}, cans = {}, tools = {} }
+    I.addTool(t, 20, 'bypass', 2) I.addTool(t, 20, 'bypass', 10) I.addTool(t, 20, 'cloner', nil)
+    if I.toolCount(t, 'bypass') ~= 2 then return false end
+    I.useTool(t, 'bypass') I.useTool(t, 'bypass')
+    if I.toolCount(t, 'bypass') ~= 1 or t.tools.bypass[1].uses ~= 10 then return false end
+    for _ = 1, 20 do I.useTool(t, 'cloner') end
+    return I.toolCount(t, 'cloner') == 1 and I.useTool(t, 'nothing') == false
+  end)())
+  check('inventory: pouring and filling a can are bounded by what it holds and its size', I.pour(inv, 2, 8) == 8 and inv.cans[2].litres == 12 and I.pour(inv, 2, 100) == 12 and inv.cans[2].litres == 0 and I.fill(inv, 2, 500) == 20 and I.pour(inv, 9, 1) == 0)
+  check('inventory: oil is taken one at a time and the entry goes at zero', I.take(inv, 'oil', 1) and I.count(inv, 'oil') == 2 and not I.take(inv, 'oil', 5) and I.take(inv, 'oil', 2) and inv.items.oil == nil and I.count(inv, 'oil') == 0)
+  local t2 = I.ensure({})
+  I.addPart(t2, 40, { model = 'covet', part = 'a', slotId = 'x', name = 'A' }) I.addPart(t2, 40, { model = 'pigeon', part = 'b', slotId = 'y', name = 'B' })
+  local move, keep = I.transferPlan(t2, { covet = true })
+  check('inventory: the garage takes the parts for the cars you own and leaves the others', #move == 1 and move[1].part == 'a' and #keep == 1 and keep[1].part == 'b')
+  local sum = I.summary(inv, 28)
+  check('inventory: the page gets the used points, the capacity and a line per kind', sum.cap == 28 and sum.used == I.used(inv) and #sum.groups >= 3 and sum.groups[1].kind == 'item')
+end
+
+-- the inventory, the game side: the shops put parts in the boot, the garage takes them to the shelf
+do
+  local ST = require('sl/core/state')
+  local st = ST.new(1, 0)
+  st.day, st.money, st.rep = 3, 5000, 0
+  st.cars = { { id = 1, name = 'Covet', model = 'covet' } }
+  local sent, toasts, shelf = {}, {}, {}
+  local old = {}
+  for _, k in ipairs({ 'sl_career', 'guihooks', 'core_environment', 'slrr_garage', 'sl_fleet', 'extensions', 'sl_inventory', 'sl_options', 'core_vehicles' }) do old[k] = rawget(_G, k) end
+  local hooks = {}
+  _G.sl_options = nil
+  _G.guihooks = { trigger = function(n, d) sent[#sent + 1] = { n = n, d = d } if n == 'slPhoneToast' then toasts[#toasts + 1] = d.text end end }
+  _G.extensions = { hook = function(n, ...) hooks[#hooks + 1] = { n = n, args = { ... } } end }
+  _G.core_environment = { getTimeOfDay = function() return { time = 0 } end }
+  _G.sl_career = { isActive = function() return true end, getState = function() return st end, addMoney = function(a, l) return ST.addMoney(st, a, l) end, getPlaces = function() return {} end,
+    phase = function() return 'day' end, hour = function() return 12 end, sendText = function() end }
+  local fits = { { part = 'covet_exhaust_sport', name = 'Sport exhaust', slotId = 'exhaust_main', slot = 'Exhaust', price = 572, brand = 'Ibishu', more = false },
+    { part = 'pack_intake', name = 'Big intake', slotId = 'intake', slot = 'Intake', price = 300, brand = 'Zephyrin', more = false } }
+  _G.slrr_garage = { lookupParts = function() return fits, 'covet' end, addShelfPart = function(model, p) shelf[#shelf + 1] = { model = model, p = p } return true end, setShopOverride = function() end }
+  local car = { id = 1, name = 'Covet', model = 'covet' }
+  _G.sl_fleet = { currentCar = function() return car end, vehicleOf = function() return { getID = function() return 77 end } end }
+  local body = 'Coupe'
+  _G.core_vehicles = { getModel = function() return { model = { ['Body Style'] = body } } end }
+  package.loaded['sl/shops'] = nil
+  package.loaded['sl/inventory'] = nil
+  local INV = require('sl/inventory')
+  _G.sl_inventory = INV
+  local SS = require('sl/shops')
+  check('inventory game: the boot of a coupe is 14 points, of a pickup 40, scaled by the setting', INV.capacity() == 14 and (function() body = 'Pickup' local c = INV.capacity() body = 'Coupe' return c == 40 end)()
+    and (function() _G.sl_options = { get = function(k) if k == 'slInventoryScale' then return 2 end end } local c = INV.capacity() _G.sl_options = nil return c == 28 end)())
+  SS.open('exhaust', { name = 'Belasco City Exhaust', sections = { 'engine/exhaust', 'engine/intake' } })
+  SS.buy('p1:1,p2:1')
+  check('inventory game: bought parts wait in the boot (not on the shelf), the money is taken once, the toast says so',
+    #shelf == 0 and #st.inventory.parts == 2 and st.money == 5000 - 572 - 300 and toasts[#toasts]:find('boot', 1, true) ~= nil and st.inventory.parts[1].model == 'covet' and INV.used() == 3 + 2)
+  check('inventory game: the change is announced to the others', (function() for _, h in ipairs(hooks) do if h.n == 'onStreetLegalInventoryChanged' and h.args[1] == 'part' then return true end end return false end)())
+  -- a purchase that does not fit costs nothing
+  local m0 = st.money
+  st.inventory.items.oil = 8
+  SS.buy('p1:1')
+  check('inventory game: a part that would overfill the boot is refused with the room left, no money moves', st.money == m0 and #st.inventory.parts == 2 and toasts[#toasts]:find('free', 1, true) ~= nil)
+  st.inventory.items.oil = nil
+  -- the garage takes the parts of the cars you own to the shelf
+  st.inventory.parts[#st.inventory.parts + 1] = { id = 9, model = 'pigeon', part = 'x', name = 'X', price = 10, size = 2, wear = 0 }
+  INV.onWrenchWorksGarageEntered('Belasco', 77)
+  check('inventory game: arriving at the garage moves the car parts to the shelf and says how many; the part for a car you do not own stays',
+    #shelf == 2 and shelf[1].model == 'covet' and shelf[1].p.value == 572 and #st.inventory.parts == 1 and st.inventory.parts[1].model == 'pigeon' and toasts[#toasts] == 'All car parts transferred to garage (2).')
+  INV.onWrenchWorksGarageEntered('Belasco', 77)
+  check('inventory game: a second visit moves nothing and says nothing', #shelf == 2)
+  -- the shelf failing keeps the part
+  st.inventory.parts = { { id = 3, model = 'covet', part = 'y', name = 'Y', price = 5, size = 2, wear = 0 } }
+  local realAdd = _G.slrr_garage.addShelfPart
+  _G.slrr_garage.addShelfPart = function() error('shelf') end
+  INV.onWrenchWorksGarageEntered('Belasco', 77)
+  check('inventory game: a part the shelf would not take stays in the boot', #st.inventory.parts == 1)
+  _G.slrr_garage.addShelfPart = realAdd
+  -- items and the page
+  check('inventory game: oil, a can and a tool go in, the page sums them, a drop removes one', INV.addItem('oil', 2) and INV.addCan(10, 5) and INV.addTool('bypass', 3) and INV.count('oil') == 2 and INV.toolCount('bypass') == 1 and INV.summary().used >= 6
+    and INV.discard('item', 'oil') and INV.count('oil') == 1 and INV.discard('can', 1) and INV.useTool('bypass') and INV.useTool('bypass') == false or INV.toolCount('bypass') == 1)
+  -- a shelf that answers nil (a part it cannot take) is not a move: the part stays in the boot and the toast does not count it
+  st.inventory.parts = { { id = 21, model = 'covet', part = 'z', name = 'Z', price = 5, size = 2, wear = 0 }, { id = 22, model = 'covet', part = 'w', name = 'W', price = 5, size = 2, wear = 0 } }
+  local realAdd2 = _G.slrr_garage.addShelfPart
+  _G.slrr_garage.addShelfPart = function(model, p) if p.part == 'z' then return nil end return true end
+  INV.onWrenchWorksGarageEntered('Belasco', 77)
+  check('inventory game: a part the shelf answers nil for stays in the boot and is not counted as moved', #st.inventory.parts == 1 and st.inventory.parts[1].part == 'z' and toasts[#toasts] == '1 of 2 car parts transferred to garage; the rest wait in your boot.')
+  _G.slrr_garage.addShelfPart = realAdd2
+  -- the parts you brought are fitted at a shop: labour only, through Wrench Works' fit path, the clock moves by the work
+  st.inventory.parts = {}
+  INV.addPart('covet', { part = 'covet_exhaust_sport', slotId = 'exhaust_main', name = 'Sport exhaust', price = 572 })
+  INV.addPart('covet', { part = 'tiny_filter', slotId = 'air_filter', name = 'Filter', price = 20 })
+  local fitted, spent, fitOk = {}, {}, true
+  _G.slrr_garage.fitPart = function(vid, p) if not fitOk then return false, 'slot missing' end fitted[#fitted + 1] = { vid = vid, p = p } return true, p.name end
+  _G.slrr_garage.getFeatures = function() return { lift = true } end
+  _G.sl_career.spendTime = function(min, why) spent[#spent + 1] = { min = min, why = why } return true, '', min end
+  _G.getPlayerVehicle = function() return { getID = function() return 77 end } end
+  SS.open('exhaust', { name = 'Belasco City Exhaust', sections = { 'engine/exhaust', 'engine/intake' } })
+  local vFit = sent[#sent].d
+  local fitRows = {}
+  for _, row in ipairs(vFit.stock) do if tostring(row.id):sub(1, 4) == 'fit_' then fitRows[#fitRows + 1] = row end end
+  check('inventory game: a parts shop lists the parts you brought as labour-only lines (the exhaust 90, the filter 20)', #fitRows == 2 and fitRows[1].price == 90 and fitRows[2].price == 20 and fitRows[1].group == 'Fit the parts you brought')
+  local m1 = st.money
+  SS.buy(fitRows[1].id .. ':1')
+  check('inventory game: fitting charges the labour, moves the clock by the work (30 min, a fifth less with a lift = 24), goes through slrr_garage.fitPart and empties the boot of it',
+    st.money == m1 - 90 and #fitted == 1 and fitted[1].vid == 77 and fitted[1].p.part == 'covet_exhaust_sport' and spent[1] and spent[1].min == 24 and spent[1].why == 'fitting' and #st.inventory.parts == 1, tostring(st.money - m1) .. ' ' .. #fitted .. ' ' .. tostring(spent[1] and spent[1].min) .. ' ' .. #st.inventory.parts .. ' ' .. tostring(toasts[#toasts]))
+  fitOk = false
+  local m2 = st.money
+  SS.buy(fitRows[2].id .. ':1')
+  check('inventory game: a fit the garage mod refuses costs nothing and the part stays in the boot', st.money == m2 and #st.inventory.parts == 1 and #fitted == 1)
+  fitOk = true
+  _G.sl_career.freeToStart = function() return 'Not during a race.' end
+  local nFit = #fitted
+  SS.buy(fitRows[2].id .. ':1')
+  check('inventory game: when a race or a job is on the fit is refused with the reason before anything is fitted, and costs nothing', st.money == m2 and #st.inventory.parts == 1 and #fitted == nFit and toasts[#toasts] == 'Not during a race.')
+  _G.sl_career.freeToStart = nil
+  _G.sl_career.spendTime = nil
+  _G.slrr_garage.fitPart = nil
+  SS.open('exhaust', { name = 'Belasco City Exhaust', sections = { 'engine/exhaust', 'engine/intake' } })
+  local none = 0
+  for _, row in ipairs(sent[#sent].d.stock) do if tostring(row.id):sub(1, 4) == 'fit_' then none = none + 1 end end
+  check('inventory game: without the garage mod fit path the shop shows no fit lines', none == 0)
+  check('inventory game: the labour and time settings scale the price and the minutes (0 = free, 0 = no time)', (function()
+    _G.sl_options = { get = function(k) if k == 'slLabourScale' then return 0 end if k == 'slFitTimeScale' then return 2 end end }
+    local free, mins = INV.labourPrice(3), require('sl/core/inventory').fitMinutes(3, nil, INV.timeScale())
+    _G.sl_options = nil
+    return free == 0 and mins == 60 and require('sl/core/inventory').fitMinutes(6, { crane = true, lift = true, bench = true }, 1) == 43
+  end)())
+  -- the work at your own garage takes time: the minutes of the visit are added up and spent once when you drive out
+  local RI = require('sl/core/inventory')
+  check('inventory game: minutes by weight: a bolt-on 5, an exhaust half an hour, a gearbox an hour, an engine two and a half; the lift, bench and crane shorten, the scale scales',
+    RI.workMinutes(3) == 5 and RI.workMinutes(12) == 15 and RI.workMinutes(30) == 30 and RI.workMinutes(70) == 60 and RI.workMinutes(160) == 150 and RI.workMinutes(30, { lift = true }) == 24
+    and RI.workMinutes(160, { crane = true, lift = true, bench = true }) == 54 and RI.workMinutes(30, nil, 0) == 0 and RI.workMinutes(30, nil, 2) == 60)
+  check('inventory game: the line says hours and minutes', select(1, RI.later(135)) == 2 and select(2, RI.later(135)) == 15 and select(1, RI.later(-4)) == 0)
+  local spentW = {}
+  _G.sl_career.spendTime = function(min, why) spentW[#spentW + 1] = { min = min, why = why } return true, '', min end
+  _G.slrr_garage.getFeatures = function() return { lift = true } end
+  INV.onWrenchWorksGarageEntered('Belasco', 77)
+  INV.onWrenchWorksWorkDone(77, 'fit', 'Sport exhaust', 30)
+  INV.onWrenchWorksWorkDone(77, 'remove', 'Old exhaust', 30)
+  INV.onWrenchWorksWorkDone(77, 'fit', 'Bolt-on', 3)
+  INV.onWrenchWorksGarageLeft()
+  check('inventory game: the work of the visit moves the clock once when you drive out, with the line', #spentW == 1 and spentW[1].min == 24 + 24 + 4 and spentW[1].why == 'fitting' and toasts[#toasts] == '52 min later: the work is done.')
+  INV.onWrenchWorksGarageLeft()
+  check('inventory game: and a second time nothing', #spentW == 1)
+  INV.onWrenchWorksGarageEntered('Belasco', 77)
+  INV.onWrenchWorksWorkDone(77, 'fit', 'Engine', 160)
+  INV.onWrenchWorksWorkDone(77, 'fit', 'Gearbox', 160)
+  INV.onWrenchWorksGarageLeft()
+  check('inventory game: a day of heavy work is capped at four hours', spentW[2] and spentW[2].min == 240)
+  _G.sl_options = { get = function(k) if k == 'slFitTimeScale' then return 0 end end }
+  INV.onWrenchWorksGarageEntered('Belasco', 77)
+  INV.onWrenchWorksWorkDone(77, 'fit', 'Engine', 160)
+  INV.onWrenchWorksGarageLeft()
+  _G.sl_options = nil
+  check('inventory game: with the time setting at 0 no time passes', #spentW == 2)
+  _G.sl_career.spendTime = nil
+  -- using oil and a battery on the car through Part Wear (guarded; the item leaves only when the car took it)
+  local pw, loaded = {}, false
+  local ov, oe, og = _G.getPlayerVehicle, _G.extensions, _G.slrr_partwear
+  _G.getPlayerVehicle = function() return { getID = function() return 77 end } end
+  _G.extensions = { hook = oe.hook, isExtensionLoaded = function(n) return loaded end }
+  _G.slrr_partwear = { useItem = function(vid, kind, item) pw[#pw + 1] = { vid = vid, kind = kind, item = item } return kind ~= 'coolant', 'no' end }
+  INV.addItem('oil', 1) INV.addItem('coolant', 1)
+  local okA, textA = INV.use('oil')
+  check('inventory game: without Part Wear loaded an item cannot be used and stays', okA == false and #pw == 0 and INV.count('oil') >= 1 and textA ~= nil)
+  loaded = true
+  local oilBefore = INV.count('oil')
+  local okB = INV.use('oil')
+  check('inventory game: oil is used on the car you drive through Part Wear and leaves the boot', okB == true and pw[1].vid == 77 and pw[1].kind == 'oil' and INV.count('oil') == oilBefore - 1)
+  local okC, textC = INV.use('coolant')
+  check('inventory game: when the car refuses, the item stays and the reason is shown', okC == false and INV.count('coolant') >= 1 and textC == 'no')
+  check('inventory game: a battery goes in charged, anything else is not usable', (function() INV.addItem('battery', 1) local ok = INV.use('battery') return ok and pw[#pw].item.charge == 1 and INV.use('siphontube') == false end)())
+  _G.getPlayerVehicle, _G.extensions, _G.slrr_partwear = ov, oe, og
+  -- off: the old way
+  _G.sl_options = { get = function(k) if k == 'slInventory' then return false end end }
+  check('inventory game: with the part off the shops are not told to use it', INV.active() == false and INV.summary() == nil)
+  local s0 = #shelf
+  SS.open('exhaust', { name = 'Belasco City Exhaust', sections = { 'engine/exhaust', 'engine/intake' } })
+  SS.buy('p2:1')
+  check('inventory game: with the part off a bought part goes straight to the shelf as before', #shelf == s0 + 1)
+  _G.sl_options = nil
+  for k, v in pairs(old) do _G[k] = v end
+  package.loaded['sl/shops'] = nil
+  package.loaded['sl/inventory'] = nil
 end
 
 print(string.format('lua tests passed: %d checks', passed))

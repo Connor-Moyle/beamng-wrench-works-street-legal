@@ -22,7 +22,8 @@ local function schedule(s) return rules.schedule(s.day, sl_career.hour(), s.seed
 -- the purse of an event with the season's few per cent (Seasons on); nothing for an event without a purse
 local function seasonal(ev, reward)
   if not (reward and sl_seasons and sl_seasons.purse) then return reward end
-  return math.floor(reward * sl_seasons.purse(tostring(ev.id):sub(1, 5) == 'swap:' and 'meet' or 'sprint') + 0.5)
+  local f = sl_seasons.purse(tostring(ev.id):sub(1, 5) == 'swap:' and 'meet' or 'sprint') or 1          -- (the part off: the gate answers nothing)
+  return math.floor(reward * f + 0.5)
 end
 
 -- ---- the phone

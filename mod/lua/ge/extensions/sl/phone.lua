@@ -113,7 +113,7 @@ local function snapshot()
     art = sl_hud ~= nil and sl_hud.slrrArt ~= nil and sl_hud.slrrArt() or false,
     has = { clubs = sl_career.has('clubs'), crews = sl_career.has('crews'), classifieds = sl_career.has('classifieds'),
       races = require('sl/core/features').on('races'), jobs = require('sl/core/features').on('jobs'), market = require('sl/core/features').on('market'),
-      bank = require('sl/core/features').on('bank'), maps = require('sl/core/features').on('maps'), hudpill = require('sl/core/features').on('hudpill'), weekly = require('sl/core/features').on('weekly'), service = require('sl/core/features').on('service'), perks = require('sl/core/features').on('perks'), traps = require('sl/core/features').on('traps'), danger = require('sl/core/features').on('danger'), calendar = require('sl/core/features').on('calendar'), sponsors = require('sl/core/features').on('sponsors') },      -- (the parts that are switched off lose their apps)
+      bank = require('sl/core/features').on('bank'), maps = require('sl/core/features').on('maps'), hudpill = require('sl/core/features').on('hudpill'), weekly = require('sl/core/features').on('weekly'), service = require('sl/core/features').on('service'), perks = require('sl/core/features').on('perks'), traps = require('sl/core/features').on('traps'), inventory = require('sl/core/features').on('inventory'), danger = require('sl/core/features').on('danger'), calendar = require('sl/core/features').on('calendar'), sponsors = require('sl/core/features').on('sponsors') },      -- (the parts that are switched off lose their apps)
     contacts = contacts, threads = s.threads, unread = s.unread,
     challenges = challenges, ledger = ledger, places = placesOut,
     cars = #s.cars, stats = s.stats,
@@ -124,6 +124,7 @@ local function snapshot()
     hub = sl_career.visit and sl_career.visit() and sl_series and sl_series.hub and sl_series.hub() or nil,      -- (the paddock: standings, the next round, the cars brought)
     travelPick = travelPick,      -- (the pick-cars screen: sl_series.options(eventId) while one is open)
     danger = sl_danger and sl_danger.summary and sl_danger.summary() or nil,      -- (jumps and drift zones, on the Speed traps page)
+    inventory = sl_inventory and sl_inventory.summary and sl_inventory.summary() or nil,      -- (the Inventory page: nil with the part off or no career)
     traps = sl_traps and sl_traps.summary and sl_traps.summary() or nil,      -- (the Speed traps page: nil with the part off or no career)
     fleet = (function()      -- each car with its service card (sl_service.serviceOf: nil with the part off or for an unknown car)
       local list = sl_fleet and sl_fleet.list() or {}

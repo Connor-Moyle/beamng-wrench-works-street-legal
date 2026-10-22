@@ -14,6 +14,7 @@ local function career() return sl_career and sl_career.isActive() and sl_career.
 local function roster(s) if type(s.mates) ~= 'table' then s.mates = rules.new() end return s.mates end
 local function text(m) if m then sl_career.sendText('benny', m.from .. ': ' .. m.text, 3) end end
 local function on() return features.on('mates') end
+local function opt(key, default) local v = sl_options and sl_options.get and tonumber(sl_options.get(key)) return v or default end
 
 -- ---- the mechanic: parts in the shops (sl_shops), labour in the service (sl_service reads labourFactor)
 local registered = false
@@ -22,7 +23,7 @@ local PARTS_KINDS = { tyre = true, exhaust = true, parts = true, performance = t
 local function partsFactor(_, shop)
   local s = career()
   if not (s and on() and type(shop) == 'table' and PARTS_KINDS[shop.kind]) then return 1 end
-  return rules.partsFactor(roster(s))
+  return rules.has(roster(s), 'mechanic') and (1 - opt('slMatePartsCut', 5) / 100) or 1
 end
 local function register(want)
   if not want and not registered then return end          -- (nothing is touched in the shops unless this part handed them a factor)
@@ -30,7 +31,7 @@ local function register(want)
   if rawget(_G, 'sl_shops') and sl_shops.setPriceFactor then pcall(sl_shops.setPriceFactor, 'mate', want and partsFactor or nil) end
 end
 local function refreshShops() local s = career() register(s ~= nil and on() and rules.has(roster(s), 'mechanic')) end
-function M.labourFactor() local s = career() return s and on() and rules.labourFactor(roster(s)) or 1 end
+function M.labourFactor() local s = career() return s and on() and rules.has(roster(s), 'mechanic') and (1 - opt('slMateLabourCut', 10) / 100) or 1 end
 
 -- ---- recruiting
 function M.onStreetLegalDistrictTaken(districtId, crewId)
@@ -60,7 +61,7 @@ function M.onStreetLegalNewDay(day)
       local hours = (ev.day - day) * 24 + (ev.hour or 0)
       if ev.status == 'open' and hours > 0 and hours <= 48 and ev.kind ~= 'info' then world.race = { name = ev.title, hours = math.floor(hours) } break end
     end
-    text(rules.tip(roster(s), world, day, lastTipDay, 1, rngLib.new(rngLib.hash('tip:' .. day .. ':' .. tostring(s.seed or 0)))))
+    text(rules.tip(roster(s), world, day, lastTipDay, opt('slMateTips', 7) / 7, rngLib.new(rngLib.hash('tip:' .. day .. ':' .. tostring(s.seed or 0)))))
     if world.race then lastTipDay = day end
   end)
   if not ok then log('E', 'sl_mates', 'the tip failed: ' .. tostring(err)) end
@@ -86,7 +87,8 @@ function M.onUpdate(dtReal)
   if not pv then return end
   local ok, err = pcall(function()
     local p, d = pv:getPosition(), pv:getDirectionVector()
-    local w = rules.policeWarning(roster(s), os.clock(), lastWarn, patrols(), { x = p.x, y = p.y, hx = d.x, hy = d.y })
+    if lastWarn and os.clock() - lastWarn < opt('slMateWarnGap', 60) then return end          -- (the gap is a setting)
+    local w = rules.policeWarning(roster(s), os.clock(), nil, patrols(), { x = p.x, y = p.y, hx = d.x, hy = d.y })
     if w then lastWarn = w.at text(w) end
   end)
   if ok then fails = 0 else

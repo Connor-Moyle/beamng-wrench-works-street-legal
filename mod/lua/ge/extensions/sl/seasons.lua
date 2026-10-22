@@ -7,15 +7,17 @@ local M = {}
 local rules = require('sl/core/seasons')
 local features = require('sl/core/features')
 
+local function opt(key, default) local v = sl_options and sl_options.get and tonumber(sl_options.get(key)) return v or default end
 local function career() return sl_career and sl_career.isActive() and sl_career.getState() or nil end
 local function seasonOf() local s = career() return s and rules.season(s.day) or nil end
 
 -- the weather state of a phase with the season's odds (nil with the part off: sl_weather then draws its own)
-function M.forecast(seed, day, phase) return rules.forecast(seed, day, phase) end
+local function setDays() rules.DAYS_PER_SEASON = opt('slSeasonDays', 28) end          -- (the length of a season: set here, at the start and when the setting changes; the weather may ask for a forecast before this part has started, so that asks too)
+function M.forecast(seed, day, phase) setDays() return rules.forecast(seed, day, phase) end
 -- is this clear day hot (nil with the part off)
 function M.hot(state) local season = seasonOf() return season and rules.hot(season, 'day', state) or false end
 -- the factor on a purse of this kind ('sprint', 'series', 'rally', 'meet')
-function M.purse(kind) local season = seasonOf() return season and rules.purse(kind, season) or 1 end
+function M.purse(kind) local season = seasonOf() return season and (1 + (rules.purse(kind, season) - 1) * opt('slSeasonPurse', 100) / 100) or 1 end
 function M.note() local s = career() return s and rules.note(s.day) or nil end
 
 -- ---- the air: the game's own day curve gets the season's night low and day high; applied once per phase and weather, taken back when the part ends
@@ -26,7 +28,7 @@ local function apply()
   if not (s and env and env.setTemperatureProfile) then return end
   local season = rules.season(s.day)
   local state = sl_weather and sl_weather.state and sl_weather.state() or 'clear'
-  local ok, err = pcall(env.setTemperatureProfile, rules.profile(season, state))          -- (a level without the day curve ignores it)
+  local ok, err = pcall(env.setTemperatureProfile, (function() local p = rules.profile(season, state) local o = opt('slSeasonTemp', 0) return { minC = p.minC + o, maxC = p.maxC + o } end)())          -- (a level without the day curve ignores it)
   if ok then applied = true else log('W', 'sl_seasons', 'the temperature profile was refused: ' .. tostring(err)) end
   -- the fall with height only through Car Surface FX (weather.lapse), never also in the profile
   local csfx = rawget(_G, 'carSurfaceFx')
@@ -42,12 +44,12 @@ local function restore()
   applied, lapseOld = false, nil
 end
 
-function M.onStreetLegalStarted() apply() end
+function M.onStreetLegalStarted() setDays() apply() end
 function M.onStreetLegalWeather() apply() end
 function M.onStreetLegalPhase() apply() end
 function M.onStreetLegalNewDay() apply() end
-function M.onStreetLegalOption(key) if key == 'slSeasons' then if features.on('seasons') then apply() else restore() end end end
-function M.onStreetLegalStopped() restore() end
+function M.onStreetLegalOption(key) if key == 'slSeasonDays' then setDays() apply() end if key == 'slSeasons' then if features.on('seasons') then apply() else restore() end end end
+function M.onStreetLegalStopped() restore() rules.DAYS_PER_SEASON = 28 end
 function M.onClientEndMission() applied, lapseOld = false, nil end
 
 function M.status()
