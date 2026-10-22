@@ -5259,6 +5259,12 @@ do
     for r = 1, 4 do SX.report('utah-rally:1', r, { time = 400 }) end
     SX.onStreetLegalNewDay(27)
     check('series game: when every round was run it ends as done', returned[#returned] == 'done')
+    -- the first return is refused (the clock is moving), the second goes through: the visit still ends as missed
+    st.series['utah-rally:1'] = SR.newState(1)
+    local tries = {}
+    _G.sl_career.returnHome = function(how) tries[#tries + 1] = how return #tries >= 2 end
+    SX.onStreetLegalNewDay(27)
+    check('series game: a refused return is tried again and the end is still reported as missed', #tries == 2 and tries[1] == 'missed' and tries[2] == 'missed')
     local fin2
     for _, e in ipairs(events) do if e[1] == 'onStreetLegalRoundResult' and e[2].name == 'NGRC Utah Rally' then fin2 = e[2] end end
     check('series game: the hook shapes carry the series name for the banners, the points, the flags and the full series id with its cycle', fin2 and fin2.round and fin2.points ~= nil and fin2.name == 'NGRC Utah Rally' and fin2.series == 'utah-rally' and fin2.seriesId == 'utah-rally:1')

@@ -322,10 +322,9 @@ function M.onStreetLegalNewDay(day)
   -- not from inside the hook: returnHome stops the career and loads the home map while the other listeners of this hook are still being called; a moment later, retried while the clock is busy
   core_jobsystem.create(function(job)
     job.sleep(1)
+    local rounds = M.closeVisit()                      -- (once: the rounds are closed as missed by the first pass, a second pass would find none and say 'done')
     for _ = 1, 8 do
-      local rounds = M.closeVisit()
-      local ok = sl_career.returnHome(rounds > 0 and 'missed' or 'done')
-      if ok then break end
+      if sl_career.returnHome(rounds > 0 and 'missed' or 'done') then break end
       job.sleep(1)
     end
     leaving = false
