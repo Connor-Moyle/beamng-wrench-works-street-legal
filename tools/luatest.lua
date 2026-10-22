@@ -6447,7 +6447,8 @@ do
   _G.core_environment = { getTimeOfDay = function() return { time = 0 } end }
   local skipped, skipOk = {}, true
   _G.sl_career = { isActive = function() return true end, getState = function() return st end, addMoney = function(a, l) return ST.addMoney(st, a, l) end, phase = function() return 'day' end,
-    skipTime = function(w) skipped[#skipped + 1] = w if skipOk then return true, 'ok' end return false, 'Not now.' end, hour = function() return 12 end, sendText = function() end }
+    skipTime = function(w) skipped[#skipped + 1] = w if skipOk then return true, 'ok' end return false, 'Not now.' end, skipBlocked = function() if skipOk then return nil end return 'Not now.' end,
+    hour = function() return 12 end, sendText = function() end }
   local car = { id = 1, name = 'Covet', value = 9000, condition = 0.7, damage = 0, mileage = 80000, faults = { 'worn clutch' } }
   _G.sl_fleet = { currentCar = function() return car end, vehicleOf = function() return { getID = function() return 77 end } end }
   local level = { dirtName = 'muddy', scratchName = 'light' }
@@ -6500,6 +6501,14 @@ do
   m0 = st.money
   SS.buy('service_nothing:1')
   check('sl_shops: a service the mechanic cannot do costs nothing and does not move the clock', st.money == m0 and #skipped == 0)
+  -- a service that FAILS after the check: the money is refunded and the hour is not spent (62 / 19's charge audit)
+  skipped = {}
+  local realService = _G.sl_service.service
+  _G.sl_service.service = function() return false, 'broke' end
+  m0 = st.money
+  SS.buy('service_basic:1')
+  check('sl_shops: a failed mechanic service refunds the money and spends no hour', st.money == m0 and #skipped == 0)
+  _G.sl_service.service = realService
   -- a polish that fails: the wash is paid, the rest comes back
   local realRepair = _G.sl_surfacefx.repair
   _G.sl_surfacefx.repair = function() return nil end
