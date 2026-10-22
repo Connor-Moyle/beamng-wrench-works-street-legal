@@ -7,7 +7,7 @@ local M = {}
 local rules = require('sl/core/seasons')
 local features = require('sl/core/features')
 
-local function opt(key, default) local v = sl_options and sl_options.get and tonumber(sl_options.get(key)) return v or default end
+local function opt(key, default) local v = sl_options and sl_options.get and tonumber((sl_options.get(key))) return v or default end
 local function career() return sl_career and sl_career.isActive() and sl_career.getState() or nil end
 local function seasonOf() local s = career() return s and rules.season(s.day) or nil end
 

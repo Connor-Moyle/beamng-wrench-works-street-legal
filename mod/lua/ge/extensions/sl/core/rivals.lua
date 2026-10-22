@@ -81,11 +81,56 @@ function M.gatekeeper(list, tier)
 end
 
 -- the next boss asks for you: it is the boss of the tier = your rank, once you have the rep for the tier and enough wins in it
-function M.bossReady(list, rep, winsInTier, day)
+-- sheetOk: with the rap sheet on, whether the file on this boss is complete (it asks for the wins too); nil: the plain count of wins
+function M.bossReady(list, rep, winsInTier, day, sheetOk)
   local boss = M.bossOfTier(list, M.rank(list))
   if not boss or boss.bossBeaten or (boss.cooldown or 0) > (day or 0) then return nil end
   local floor = roster.TIERS[boss.tier] and roster.TIERS[boss.tier].rep[1] or 0
-  if (rep or 0) >= floor and (winsInTier or 0) >= M.BOSS_WINS then return boss end
+  local enough = sheetOk
+  if enough == nil then enough = (winsInTier or 0) >= M.BOSS_WINS end
+  if (rep or 0) >= floor and enough then return boss end
+end
+
+-- ---- the file on a boss (campaign idea #7, the rap sheet): three milestones, all done before the boss asks for you. They use what is counted already: wins at the tier or above
+-- (m.tierWins), what you have earned (s.stats.earned) and the wins over the other named rivals (rival.beaten); the streak is the one new counter.
+M.SHEET_EARN = 3           -- the earning milestone: this many times the low end of the tier's bet, earned since the file was opened
+
+local function round50(x) return math.floor(x / 50 + 0.5) * 50 end
+
+-- the three milestones of a boss: { { kind = 'wins'|'earn'|'streak'|'rivals', need } }; the third is one of two, drawn from the seed and the boss
+function M.sheetPlan(seed, boss)
+  local bet = roster.TIERS[boss.tier] and roster.TIERS[boss.tier].bet or { 100, 400 }
+  local streak = rngLib.new(rngLib.hash('sheet:' .. tostring(seed) .. ':' .. tostring(boss.id))):int(1, 2) == 1
+  return {
+    { kind = 'wins', need = M.BOSS_WINS },
+    { kind = 'earn', need = round50(bet[1] * M.SHEET_EARN) },
+    streak and { kind = 'streak', need = 2 } or { kind = 'rivals', need = (boss.tier or 1) >= 3 and 2 or 1 },
+  }
+end
+
+-- the file's own record, opened when it is first needed: what was earned and how many rivals were beaten then, and the run of wins
+function M.newSheet(earned, beatenOthers) return { earned0 = earned or 0, beaten0 = beatenOthers or 0, run = 0, best = 0 } end
+
+function M.sheetRace(sheet, won)
+  sheet.run = won and (sheet.run or 0) + 1 or 0
+  if sheet.run > (sheet.best or 0) then sheet.best = sheet.run end
+end
+
+-- progress against the plan. now = { wins = wins at the tier or above, earned = s.stats.earned, beatenOthers = wins over the other named rivals }.
+-- Returns the lines { kind, need, have (not above need), done } and whether all are done.
+function M.sheetProgress(plan, sheet, now)
+  local lines, all = {}, true
+  for _, m in ipairs(plan) do
+    local have
+    if m.kind == 'wins' then have = now.wins or 0
+    elseif m.kind == 'earn' then have = math.max(0, (now.earned or 0) - (sheet.earned0 or 0))
+    elseif m.kind == 'streak' then have = sheet.best or 0
+    else have = math.max(0, (now.beatenOthers or 0) - (sheet.beaten0 or 0)) end
+    local done = have >= m.need
+    if not done then all = false end
+    lines[#lines + 1] = { kind = m.kind, need = m.need, have = math.min(have, m.need), done = done }
+  end
+  return lines, all
 end
 
 -- the meter after a race against them. won: you won; margin: seconds; stake: 'money' | 'pink'. Close wins win respect; a big win humiliates the proud ones;

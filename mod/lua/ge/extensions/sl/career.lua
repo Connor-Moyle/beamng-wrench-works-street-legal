@@ -941,6 +941,7 @@ function M.endCareer() if active then stop() end end
 
 stop = function()
   if not active then return end
+  pcall(extensions.hook, 'onStreetLegalStopping')          -- (the career is still active and the save not yet written: a module settles what is pending into the save here, e.g. a refund)
   s.hour = hour()
   writeSave()
   connectWallet(false)
@@ -1756,6 +1757,17 @@ function M.switchPhase()
   return true, plan.day and strings.t('phase.newDay', s.day) or strings.t('phase.nightBegins')
 end
 
+-- Whether skipTime(what) would be refused right now, and why (nil when it would go ahead). Changes nothing: a shop asks before it does the work, so an hour is never spent on a job that then fails.
+function M.skipBlocked(what)
+  if not s then return strings.t('bank.no_career_running') end
+  what = tostring(what)
+  if what == 'switch' or (s.visit and s.visit.active and what == 'morning') then return nil end
+  local why = progression.skipRefusal(busyState())
+  if why then return why end
+  local plan, reason = phaseLib.waitPlan(s.phase or 'day', hour(), what)
+  if not plan then return reason end
+  return nil
+end
 function M.skipTime(what)
   if not s then return false, strings.t('bank.no_career_running') end
   what = tostring(what)

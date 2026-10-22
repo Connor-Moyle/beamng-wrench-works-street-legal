@@ -25,6 +25,37 @@ local function applyTuning()
   rules.UPGRADE_DAYS = tune('upgradeDays', 5)
 end
 local function on() return tune('enabled', true) end
+local function sheetOn() return tune('rapSheet', false) == true end      -- the file on each boss (campaign idea #7); off by default
+
+-- wins over the other named rivals (the third kind of milestone)
+local function othersBeaten(m, bossId)
+  local n = 0
+  for _, r in ipairs(m.list) do if r.id ~= bossId then n = n + (r.beaten or 0) end end
+  return n
+end
+
+-- the file on a boss, opened (with its baselines) the first time it is needed
+local function sheetOf(s, m, boss)
+  m.sheets = m.sheets or {}
+  if not m.sheets[boss.id] then m.sheets[boss.id] = rules.newSheet(s.stats and s.stats.earned or 0, othersBeaten(m, boss.id)) end
+  return m.sheets[boss.id]
+end
+
+-- wins at the boss's tier or above, as the boss's call counts them
+local function tierWinsFrom(m, tier)
+  local wins = 0
+  for t = tier, 5 do wins = wins + (m.tierWins[t] or 0) end
+  return wins
+end
+
+-- the lines of the file on the boss of your rank, for the screens and for the boss's call: { lines, all } or nil when there is none
+local function sheetLines(s, m)
+  local boss = rules.bossOfTier(m.list, rules.rank(m.list))
+  if not boss or boss.bossBeaten then return nil end
+  local lines, all = rules.sheetProgress(rules.sheetPlan(s.seed, boss), sheetOf(s, m, boss),
+    { wins = tierWinsFrom(m, boss.tier), earned = s.stats and s.stats.earned or 0, beatenOthers = othersBeaten(m, boss.id) })
+  return lines, all, boss
+end
 
 local function career() return sl_career and sl_career.isActive() and sl_career.getState() or nil end
 local function toast(text) guihooks.trigger('slPhoneToast', { text = text }) end
@@ -113,6 +144,10 @@ function M.onStreetLegalRaceResult(won, opponent, racerId, stake)
   local racer = racerOf(s, racerId)
   if not racer then return end
   if won then m.tierWins[racer.tier] = (m.tierWins[racer.tier] or 0) + 1 end
+  if sheetOn() then
+    local boss = rules.bossOfTier(m.list, rules.rank(m.list))
+    if boss and not boss.bossBeaten then rules.sheetRace(sheetOf(s, m, boss), won) end
+  end
   local rival = rules.byId(m.list, racerId)
   if not rival then return end
   markMet(rival)
@@ -171,8 +206,26 @@ local function offerView(s, m, rival)
   if not o then return nil end
   local mine = sl_fleet and sl_fleet.currentCar and sl_fleet.currentCar()
   local racer = racerOf(s, rival.id)
-  return { stake = o.stake, boss = o.boss, myCar = mine and mine.name or nil, theirCar = racer and racer.car and racer.car.name or nil }
+  local hunted
+  if o.hunt then for _, c in ipairs(s.cars or {}) do if c.id == o.hunt then hunted = c.name end end end
+  return { stake = o.stake, boss = o.boss, myCar = mine and mine.name or nil, theirCar = racer and racer.car and racer.car.name or nil, hunt = hunted, sweetener = o.sweetener }
 end
+-- the hunt (sl_rivalbeats): the rival wants the car you took back: an offer for that car, maybe with money on top for you
+function M.offerHunt(rivalId, carId, sweetener)
+  local s = career()
+  local m = s and state(s)
+  local rival = m and rules.byId(m.list, tostring(rivalId))
+  if not rival then return false end
+  m.offers = m.offers or {}
+  m.offers[rival.id] = { stake = 'pink', hunt = carId, sweetener = sweetener, day = s.day }
+  roster.pinkForced[rival.id] = true
+  local racer = racerOf(s, rival.id)
+  if racer then racer.pinkOK = true end
+  extensions.hook('onStreetLegalChanged')
+  return true
+end
+function M.hasOffer(rivalId) local s = career() local m = s and state(s) return m ~= nil and m.offers ~= nil and m.offers[tostring(rivalId)] ~= nil end
+function M.dropOffer(rivalId) local s = career() local m = s and state(s) if m and m.offers then m.offers[tostring(rivalId)] = nil roster.pinkForced[tostring(rivalId)] = nil end end
 
 local function proactive(s, m)
   local rng = rngLib.new(rngLib.hash('rivalnight:' .. tostring(s.day) .. ':' .. tostring(s.seed)))
@@ -180,7 +233,9 @@ local function proactive(s, m)
   -- the wins that count are those over racers of the boss's tier or above (a player who races the tier above has earned the call just as well)
   local wins = 0
   for t = rules.rank(m.list), 5 do wins = wins + (m.tierWins[t] or 0) end
-  local boss = not m.bossActive and rules.bossReady(m.list, s.rep, wins, s.day)
+  local sheetOk
+  if sheetOn() then local _, all = sheetLines(s, m) sheetOk = all == true end
+  local boss = not m.bossActive and rules.bossReady(m.list, s.rep, wins, s.day, sheetOk)
   if boss and not activeChallenge(s, boss.id) then
     local racer = racerOf(s, boss.id)
     local sd = rules.showdown(boss, racer)
@@ -265,10 +320,15 @@ function M.accept(id)
   if not offer then toast(strings.t('rivals.no_offer')) M.list() return false end
   local mine = sl_fleet and sl_fleet.currentCar and sl_fleet.currentCar()
   if not mine then toast(strings.t('career.pink_slips_for_which_car')) return false end
+  if offer.hunt and sl_rivalbeats and sl_rivalbeats.canAcceptHunt then      -- (the hunt: only in the car they want)
+    local okh, why = sl_rivalbeats.canAcceptHunt(rival.id, mine.id)
+    if okh == false then toast(why) return false end
+  end
   local c, answer = challenge(s, rival, 'pink')
   if not c then toast(answer and answer.text or strings.t('rivals.no_offer')) return false end
   c.boss = offer.boss
   if offer.boss then m.bossActive = rival.id end
+  if offer.hunt then c.hunt = offer.hunt if sl_rivalbeats and sl_rivalbeats.huntAccepted then sl_rivalbeats.huntAccepted(rival.id) end end
   m.offers[rival.id] = nil
   roster.pinkForced[rival.id] = nil
   toast(string.format(strings.t('rivals.pink_on'), mine.name or '?'))
@@ -287,6 +347,7 @@ function M.decline(id, forMoney)
   m.offers[rival.id] = nil
   roster.pinkForced[rival.id] = nil
   rival.meter = math.max(rules.METER[1], (rival.meter or 0) - 5)
+  if offer.hunt then if sl_rivalbeats and sl_rivalbeats.huntLapsed then sl_rivalbeats.huntLapsed(rival.id) end forMoney = false end      -- (the hunt is the car or nothing)
   toast(strings.t(forMoney and 'rivals.for_money' or 'rivals.walked_away'))
   if forMoney then
     local racer = racerOf(s, rival.id)
@@ -322,7 +383,18 @@ function M.list()
       stage = rival.stage, car = met and racer and racer.car and racer.car.name or nil, preview = met and info.preview or nil, step = rules.step(rival), locked = gateBoss and nameOf(s, gateBoss) or nil,
       known = s.known[rival.id] or nil, offer = offerView(s, m, rival) }
   end
-  local result = { rivals = out, rank = rules.rank(m.list) }
+  local sheet
+  if sheetOn() then
+    local lines, all, boss = sheetLines(s, m)
+    if lines then
+      local texts = { wins = 'rivals.sheet_wins', earn = 'rivals.sheet_earn', streak = 'rivals.sheet_streak', rivals = 'rivals.sheet_rivals' }
+      sheet = { boss = boss.id, title = strings.t('rivals.sheet_title', nameOf(s, boss)), all = all, doneText = all and strings.t('rivals.sheet_done') or nil, lines = {} }
+      for _, l in ipairs(lines) do
+        sheet.lines[#sheet.lines + 1] = { text = strings.t(texts[l.kind], l.need, boss.tier), have = l.have, need = l.need, done = l.done }
+      end
+    end
+  end
+  local result = { rivals = out, rank = rules.rank(m.list), sheet = sheet }
   guihooks.trigger('slRivals', result)
   return result
 end

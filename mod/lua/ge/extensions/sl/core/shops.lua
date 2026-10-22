@@ -23,9 +23,15 @@ M.TYPES = {
   tuner =       { title = 'Tuner',              goods = 'services', screen = 'services',  theme = { accent = '#5fb7e6', pattern = 'dyno',     icon = 'gauge' },    hours = 'shop' },
   mechanic =    { title = 'Mechanic',           goods = 'services', screen = 'services',  theme = { accent = '#b0b8c4', pattern = 'bolts',    icon = 'spanner' },  hours = 'shop' },
   accessories = { title = 'Accessories',        goods = 'given',    screen = 'catalogue', theme = { accent = '#e86fb0', pattern = 'stripes',  icon = 'star' },     hours = 'shop' },
+  carwash =     { title = 'Car wash',           goods = 'services', screen = 'services',  theme = { accent = '#4fc3f7', pattern = 'bubbles',  icon = 'drop' },     hours = 'shop' },
+  junkyard =    { title = 'Junkyard parts',     goods = 'catalog',  screen = 'catalogue', theme = { accent = '#c0a16b', pattern = 'rust',     icon = 'crate' },    hours = 'junkyard', used = true },
+  diner =       { title = 'Diner',              goods = 'given',    screen = 'catalogue', theme = { accent = '#e8a23d', pattern = 'checks',   icon = 'cup' },      hours = 'always' },
+  motel =       { title = 'Motel',              goods = 'services', screen = 'services',  theme = { accent = '#7e8fd6', pattern = 'stars',    icon = 'bed' },      hours = 'always' },
+  fence =       { title = 'The fence',          goods = 'services', screen = 'services',  theme = { accent = '#8a6d3b', pattern = 'rust',     icon = 'crate' },    hours = 'night' },
+  blackmarket = { title = 'Black market',       goods = 'given',    screen = 'catalogue', theme = { accent = '#b23a5e', pattern = 'chevrons', icon = 'badge' },    hours = 'night' },
   dealerparts = { title = 'Dealer parts',       goods = 'catalog',  screen = 'catalogue', theme = { accent = '#8ab4f8', pattern = 'badge',    icon = 'badge' },    hours = 'dealer' },
 }
-M.ORDER = { 'tyre', 'exhaust', 'parts', 'performance', 'paint', 'tuner', 'mechanic', 'accessories', 'dealerparts' }
+M.ORDER = { 'fence', 'blackmarket', 'tyre', 'exhaust', 'parts', 'performance', 'paint', 'tuner', 'mechanic', 'accessories', 'dealerparts', 'diner', 'motel', 'carwash', 'junkyard' }
 local KINDS = { 'catalogue', 'services' }
 
 -- the wording of a kind: the string keys of its tagline (under the name when there is no keeper), the add and the pay buttons (sl/shops turns them into text)
@@ -39,6 +45,12 @@ M.WORDS = {
   mechanic = { tag = 'shops.tag_mechanic', add = 'shops.word_book', buy = 'shops.word_book_pay' },
   accessories = { tag = 'shops.tag_accessories', add = 'shops.word_add', buy = 'shops.word_pay' },
   dealerparts = { tag = 'shops.tag_dealerparts', add = 'shops.word_add', buy = 'shops.word_order' },
+  fence = { tag = 'shops.tag_fence', add = 'shops.word_book', buy = 'shops.word_book_pay' },
+  blackmarket = { tag = 'shops.tag_blackmarket', add = 'shops.word_add', buy = 'shops.word_pay' },
+  carwash = { tag = 'shops.tag_carwash', add = 'shops.word_book', buy = 'shops.word_book_pay' },
+  junkyard = { tag = 'shops.tag_junkyard', add = 'shops.word_pull', buy = 'shops.word_pay' },
+  diner = { tag = 'shops.tag_diner', add = 'shops.word_order_food', buy = 'shops.word_eat' },
+  motel = { tag = 'shops.tag_motel', add = 'shops.word_book', buy = 'shops.word_book_pay' },
 }
 
 local GOODS = { tyres = true, given = true, catalog = true, services = true }
@@ -103,6 +115,7 @@ function M.normalize(kind, opts)
     for _, v in ipairs(type(list) == 'table' and list or {}) do if type(v) == 'string' and v ~= '' then out[#out + 1] = v end end
     return #out > 0 and out or nil
   end
+  s.used = t.used == true or opts.used == true          -- (second-hand parts: a day's pick of the catalogue at a discount, worn)
   s.order = t.order == true or opts.order == true       -- (special order: a deposit now, the parts after some hours)
   s.sections = texts(opts.sections) or s.sections      -- (a shop of this kind may sell other chapters: "engine/exhaust", "engine/intake")
   s.brands = texts(opts.brands)                          -- (only parts of these brands: a dealer's counter)
@@ -130,6 +143,39 @@ function M.normalize(kind, opts)
 end
 
 -- a marker's fields (a level's shops file, a scene object's dynamic fields) as the opener's table: keys are matched without case, 'hours' is "8-18"
+-- the theft shops (docs/THEFT_SHOPS_PLAN.md; the calls are Car theft's, THEFT_CONTRACT.md). The prices Connor set: a new plate $300, a stolen car's plate $700; the settings change them.
+-- A strip or a sale pays out in Car theft's own call (the line costs nothing); the others are charged by the shop and Car theft is told it was paid.
+M.THEFT = { plateLegal = 300, plateStolen = 700, stripTracker = 350, titleRate = 0.15, titleMin = 400 }
+function M.titlePrice(value) return math.max(M.THEFT.titleMin, math.floor((tonumber(value) or 0) * M.THEFT.titleRate / 10 + 0.5) * 10) end
+
+-- the fence's lines: the tools (sl_theft.tools()) and, for the hot car under the counter (sl_theft.current(): { index, value, tracked, resprayed, plated }), what can be done to it.
+-- prices = { plateStolen } from the settings
+function M.fenceServices(tools, hot, prices)
+  local out = {}
+  for _, t in ipairs(tools or {}) do
+    local desc = (t.uses and strings.t('shops.tool_uses', t.uses) or strings.t('shops.tool_unlimited')) .. ((t.have or 0) > 0 and (' - ' .. strings.t('shops.tool_have', t.have)) or '')
+    out[#out + 1] = { id = 'tool_' .. tostring(t.id), name = tostring(t.title or t.id), price = math.max(0, math.floor(tonumber(t.price) or 0)), desc = desc }
+  end
+  if type(hot) == 'table' then
+    out[#out + 1] = { id = 'fence_sell', name = strings.t('shops.svc_sell'), price = 0, desc = strings.t('shops.svc_sell_desc') }
+    out[#out + 1] = { id = 'fence_strip', name = strings.t('shops.svc_strip'), price = 0, desc = strings.t('shops.svc_strip_desc') }
+    if not hot.plated then out[#out + 1] = { id = 'fence_plates', name = strings.t('shops.svc_plates'), price = (prices and prices.plateStolen) or M.THEFT.plateStolen, desc = strings.t('shops.svc_plates_desc') } end
+    if hot.tracked then out[#out + 1] = { id = 'fence_striptracker', name = strings.t('shops.svc_striptracker'), price = M.THEFT.stripTracker, desc = strings.t('shops.svc_striptracker_desc') } end
+    if hot.resprayed and hot.plated then out[#out + 1] = { id = 'fence_title', name = strings.t('shops.svc_title'), price = M.titlePrice(hot.value), desc = strings.t('shops.svc_title_desc') } end
+  end
+  return out
+end
+
+-- the black market's day (sl_theft.blackMarket(): { index, model, name, value, era, price, sold }) as the lines of a catalogue
+function M.blackMarketStock(list)
+  local out = {}
+  for _, c in ipairs(list or {}) do
+    out[#out + 1] = { id = 'hot_' .. tostring(c.index), name = tostring(c.name or c.model), price = math.max(0, math.floor(tonumber(c.price) or 0)), group = tostring(c.era or ''), count = c.sold and 0 or 1,
+      desc = strings.t('shops.hot_desc', math.floor(tonumber(c.value) or 0)) }
+  end
+  return out
+end
+
 function M.fromMarker(fields)
   if type(fields) ~= 'table' then return nil, 'no fields' end
   local f = {}
@@ -143,6 +189,7 @@ function M.fromMarker(fields)
   elseif type(f.hours) == 'table' then o.hours = f.hours end
   if f.keeper then o.keeper = type(f.keeper) == 'table' and f.keeper or { name = tostring(f.keeper) } end
   o.stock, o.services, o.range, o.sections, o.brands, o.replaces = f.stock, f.services, f.range, f.sections, f.brands, f.replaces
+  o.gate = type(f.gate) == 'string' and f.gate or nil      -- ("gate": "fence": the marker shows only once the fence is known)
   return kind, o
 end
 
@@ -186,6 +233,64 @@ function M.resprayColour(id)
   if not hexs then return nil end
   local function c(i) return tonumber(hexs:sub(i, i + 1), 16) / 255 end
   return '#' .. hexs:lower(), c(1), c(3), c(5)
+end
+
+-- ---- the car wash: what it does for a car (level = sl_surfacefx.level: { dirtName, scratchName }); nil without Car Surface FX. There is no wax: the mod has no call to slow the dirt
+M.WASH_BASIC, M.WASH_POLISH = 15, 45
+function M.washServices(level)
+  local out = {}
+  if type(level) ~= 'table' then return out end
+  local dirty = level.dirtName ~= nil and level.dirtName ~= 'clean'
+  local scratched = level.scratchName ~= nil and level.scratchName ~= 'none'
+  if dirty then out[#out + 1] = { id = 'basicwash', name = strings.t('shops.svc_wash'), price = M.WASH_BASIC, desc = strings.t('shops.svc_wash_desc') } end
+  if dirty or scratched then out[#out + 1] = { id = 'washpolish', name = strings.t('shops.svc_washpolish'), price = scratched and M.WASH_POLISH or M.WASH_BASIC + 10, desc = strings.t('shops.svc_washpolish_desc') } end
+  return out
+end
+
+-- ---- the independent mechanic: a service at 85% of the phone's price, an hour of the clock, and an inspection ($40: the car report)
+M.MECHANIC_DISCOUNT, M.MECHANIC_HOURS, M.INSPECT_PRICE = 0.85, 1, 40
+function M.mechanicServices(options)
+  local out = {}
+  for _, o in ipairs(options or {}) do
+    if o.available ~= false then
+      out[#out + 1] = { id = 'service_' .. tostring(o.id), name = tostring(o.label or o.id), price = math.floor((tonumber(o.cost) or 0) * M.MECHANIC_DISCOUNT / 10 + 0.5) * 10, desc = strings.t('shops.svc_service_desc') }
+    end
+  end
+  out[#out + 1] = { id = 'inspect', name = strings.t('shops.svc_inspect'), price = M.INSPECT_PRICE, desc = strings.t('shops.svc_inspect_desc') }
+  return out
+end
+
+-- ---- plates (accessories): a short list of plate texts, $60 each
+M.PLATE_PRICE = 60
+M.PLATES = { 'STREET', 'NIGHT', 'SLRR', 'DRIFT', 'APEX', 'TURBO', 'RACER', 'SHIFT' }
+function M.plateStock()
+  local out = {}
+  for _, t in ipairs(M.PLATES) do out[#out + 1] = { id = 'plate_' .. t, name = strings.t('shops.plate_name', t), price = M.PLATE_PRICE, group = strings.t('shops.group_plates'), count = 1 } end
+  return out
+end
+function M.plateText(id) return type(id) == 'string' and id:match('^plate_([%u%d]+)$') or nil end
+
+-- ---- the junkyard: a day's pick of the parts that fit the car, second-hand: 35 to 65% off, worn (condition 0.3 to 0.7). The same day gives the same pick
+M.JUNK_KEEP, M.JUNK_DISC_MIN, M.JUNK_DISC_MAX = 24, 0.35, 0.65
+M.USED = { condMin = 0.3, condMax = 0.7 }
+function M.junkSample(list, day, seed)
+  local r = rng.new((day or 1) * 6151 + rng.hash(tostring(seed or '')))
+  local pool = {}
+  for i, e in ipairs(list or {}) do pool[i] = e end
+  for i = #pool, 2, -1 do local j = r:int(1, i) pool[i], pool[j] = pool[j], pool[i] end      -- (a shuffle: the pick differs from day to day)
+  local out = {}
+  for i = 1, math.min(M.JUNK_KEEP, #pool) do
+    local e = pool[i]
+    local copy = {}
+    for k, v in pairs(e) do copy[k] = v end
+    local off = r:range(math.min(M.JUNK_DISC_MIN, M.JUNK_DISC_MAX), math.max(M.JUNK_DISC_MIN, M.JUNK_DISC_MAX))
+    copy.price = math.max(1, math.floor((e.price or 0) * (1 - off) + 0.5))
+    copy.cond = r:range(M.USED.condMin, M.USED.condMax)
+    copy.wear = 1 - copy.cond
+    out[#out + 1] = copy
+  end
+  table.sort(out, function(a, b) if a.sub ~= b.sub then return tostring(a.sub) < tostring(b.sub) end return a.price < b.price end)
+  return out
 end
 
 -- ---- the tuner

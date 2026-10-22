@@ -145,6 +145,10 @@ assert.deepStrictEqual(taskbtns(), ['My cars'], 'closing a window removes its ta
 // ---- B: the top window, then the next, then the laptop
 click('tile', 'playerAbstract');
 assert.ok(text().includes('Street kid') && text().includes('140 reputation') && text().includes('Achievements 1 / 2') && text().includes('First win'), 'street cred');
+assert.ok(!text().includes('Wanted:'), 'no wanted poster without police data');
+laptop.handle('slPhoneData', Object.assign({}, laptop.state.data, { justice: require('./justice_fixture.js') }));
+assert.ok(text().includes('Wanted: Covet 1.5') && text().includes('Bounty $2,400') && text().includes('since day 39 (2 d ago)') && !$('[data-a="informant"]'), 'the wanted poster on the garage computer: the same fields, no button');
+laptop.handle('slPhoneData', Object.assign({}, laptop.state.data, { justice: null }));
 laptop.handle('slPhoneData', Object.assign({}, laptop.state.data, { trophies: require('./trophies_fixture.js') }));
 assert.ok(text().includes('Trophies: 3') && text().includes('NGRC Utah Rally') && text().includes('1st'), 'the trophy list on the garage computer');
 laptop.handle('slPhoneData', Object.assign({}, laptop.state.data, { trophies: undefined }));laptop.handle('slRivals', { rank: 2, rivals: [ { id: 'r05', name: 'Viktor "Nitro" Halasz', tier: 1, boss: true, crew: 'Ring Road Ghosts', car: 'Covet "Dodger"', meter: -80, word: 'blood', beaten: 3, youLost: 1 }, { id: 'r20', name: 'Dora Kovacs', tier: 3, crew: 'Riverbed Runners', car: 'Pickup', meter: 40, word: 'respect', beaten: 0, youLost: 2, locked: 'Viktor Halasz' } ] });
@@ -260,6 +264,21 @@ laptop.handle('slPhoneData', Object.assign({}, laptop.state.data || {}, { market
 click('tile', 'vehicleShop');
 click('mtab', 'dealers|ads');
 assert.ok(text().includes('Covet 1.5') && !text().includes('Sport exhaust'), 'Car market, Private ads: the car ads only');
+{
+  // the used-car check (same data and texts as the phone): history, the hidden-faults note and the Check the car button, then the found faults
+  const base = laptop.state.data;
+  const withCheck = (extra) => Object.assign({}, base, { market: Object.assign({}, base.market, { listings: base.market.listings.map((x) => (x.id === 'c1' ? Object.assign({}, x, extra) : x)) }) });
+  laptop.handle('slPhoneData', withCheck({ history: ['3 owners', 'No service history', 'No accident'], hidden: true, checkFee: 60, checked: false }));
+  assert.ok(text().includes('3 owners') && text().includes('No service history') && text().includes('show after a mechanic') && text().includes('Check the car') && text().includes('$60'), 'the history, the note and the check button with its fee');
+  calls.length = 0;
+  click('mkcheck', 'c1');
+  assert.ok(calls.some((c) => c.indexOf('@sl_phone.marketCheck("c1")') >= 0), 'the button asks the game: ' + calls.join(' '));
+  laptop.handle('slPhoneData', withCheck({ history: ['3 owners'], hidden: undefined, checked: true, found: [{ label: 'Battery', cost: 120 }] }));
+  assert.ok(text().includes('The mechanic found') && text().includes('Battery') && text().includes('$120') && !$$('[data-a="mkcheck"]').length, 'after the check: the faults with their costs, no button');
+  laptop.handle('slPhoneData', withCheck({ history: ['3 owners'], hidden: undefined, checked: true, found: [] }));
+  assert.ok(text().includes('found no faults'), 'a clean car says so');
+  laptop.handle('slPhoneData', base);
+}
 // the car auctions tab: lots with grade and reserve state, the bid buttons ask the game, the watch list, selling a car, and the live view is told when the tab opens and shuts
 calls.length = 0;
 click('mtab', 'dealers|auction');

@@ -32,6 +32,19 @@
     '.slp-page.slp-open{animation:slp-zoom .3s cubic-bezier(.2,.9,.25,1)}@keyframes slp-zoom{from{transform:scale(.2);opacity:0;border-radius:40px}to{transform:none;opacity:1}}',
     '@media (prefers-reduced-motion:reduce){.slp-device{transition:none !important}.slp-page.slp-open{animation:none}.slp-root *,.slp-root *:before,.slp-root *:after{transition:none!important;animation:none!important}}',
     '.slp-rm .slp-device,.slp-rm *,.slp-rm *:before,.slp-rm *:after{transition:none!important;animation:none!important}',      /* (the career option Reduce motion: the same) */
+    '.slp-crack{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:9;border-radius:36px}.slp-crack path{fill:none;stroke-linecap:round;stroke-linejoin:round}.slp-crack-dark path{stroke:rgba(0,0,0,.55);stroke-width:2.2px;vector-effect:non-scaling-stroke}.slp-crack-light path{stroke:rgba(255,255,255,.85);stroke-width:1px;vector-effect:non-scaling-stroke}.slp-crack path.slp-shard{fill:rgba(0,0,0,.28);stroke:none}',
+    '.slp-camon .slp-device,.slp-camon .slp-pill,.slp-camon .slp-hu{display:none!important}',
+    '.slp-camui{position:fixed;left:0;top:0;right:0;bottom:0;z-index:30;pointer-events:none;color:#fff;font-family:"Segoe UI","Roboto","Noto Sans",sans-serif;animation:slp-sway 5.5s ease-in-out infinite;transform-origin:50% 50%}',
+    '@keyframes slp-sway{0%,100%{transform:translate(0,0) rotate(0)}25%{transform:translate(calc(var(--slp-sway) * 3px),calc(var(--slp-sway) * -2px)) rotate(calc(var(--slp-sway) * .25deg))}50%{transform:translate(calc(var(--slp-sway) * -2px),calc(var(--slp-sway) * 2px)) rotate(calc(var(--slp-sway) * -.2deg))}75%{transform:translate(calc(var(--slp-sway) * 1.5px),calc(var(--slp-sway) * 1px)) rotate(calc(var(--slp-sway) * .15deg))}}',
+    '.slp-cambz{position:absolute;background:#050506}.slp-cbl{left:0;top:0;bottom:0;width:5.5vh;border-radius:0 3vh 3vh 0}.slp-cbl i{position:absolute;left:1.6vh;top:50%;width:1.7vh;height:1.7vh;margin-top:-.85vh;border-radius:50%;background:#15151a;box-shadow:0 0 0 .3vh #222}',
+    '.slp-cbr{right:0;top:0;bottom:0;width:3vh;border-radius:3vh 0 0 3vh}.slp-cbt{left:0;right:0;top:0;height:2.4vh}.slp-cbb{left:0;right:0;bottom:0;height:2.4vh}',
+    '.slp-camgrid i,.slp-camgrid b{position:absolute;background:rgba(255,255,255,.35);display:block}.slp-camgrid i{top:0;bottom:0;width:1px}.slp-camgrid i:nth-child(1){left:33.33%}.slp-camgrid i:nth-child(2){left:66.66%}.slp-camgrid b{left:0;right:0;height:1px}.slp-camgrid b:nth-child(3){top:33.33%}.slp-camgrid b:nth-child(4){top:66.66%}',
+    '.slp-camtop{position:absolute;left:8vh;right:6vh;top:3.4vh;display:flex;gap:2vh;align-items:center;font-size:2.2vh;text-shadow:0 1px 3px rgba(0,0,0,.8)}.slp-camtop span{pointer-events:auto;cursor:pointer;padding:.6vh 1.2vh;border-radius:2vh;background:rgba(0,0,0,.35)}.slp-camtop span:first-child{pointer-events:none;background:none;margin-right:auto}.slp-camtop .slp-on{background:rgba(255,213,79,.85);color:#3b2f00}.slp-camx{font-size:2.6vh}',
+    '.slp-camright{position:absolute;right:7vh;top:0;bottom:0;display:flex;align-items:center}.slp-camshutter{pointer-events:auto;cursor:pointer;width:11vh;height:11vh;border-radius:50%;border:.7vh solid #fff;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.2)}.slp-camshutter i{display:block;width:8vh;height:8vh;border-radius:50%;background:#fff}.slp-camshutter:active i{transform:scale(.88)}',
+    '.slp-cammodes{position:absolute;right:24vh;bottom:4.6vh;display:flex;gap:2.4vh;font-size:2vh;letter-spacing:.2vh;text-shadow:0 1px 3px rgba(0,0,0,.8)}.slp-cammodes span{opacity:.55}.slp-cammodes b{color:#ffd54f}',
+    '.slp-camzoom{position:absolute;left:50%;bottom:4.2vh;transform:translateX(-50%);display:flex;gap:1.2vh;background:rgba(0,0,0,.4);border-radius:3vh;padding:.6vh 1.2vh}.slp-camzoom span{pointer-events:auto;cursor:pointer;font-size:2.2vh;padding:.8vh 1.6vh;border-radius:2.4vh}.slp-camzoom .slp-on{background:rgba(255,255,255,.9);color:#111}',
+    '.slp-camflash{animation:none}.slp-camflash:before{content:"";position:absolute;left:0;top:0;right:0;bottom:0;background:#fff;opacity:0;animation:slp-fx .22s ease-out}@keyframes slp-fx{0%{opacity:.85}100%{opacity:0}}',
+    '.slp-camui .slp-crack{position:absolute;left:0;top:0;width:100%;height:100%}',
     '.slp-screen{position:relative;width:100%;height:100%;border-radius:36px;overflow:hidden;background:#141218;display:flex;flex-direction:column}',
     '.slp-cam{position:absolute;left:50%;top:10px;width:11px;height:11px;margin-left:-5.5px;border-radius:50%;background:#000;box-shadow:0 0 0 2px #1d1d22;z-index:5}',
     /* status bar */
@@ -298,6 +311,7 @@
     '.slp-chcard.slp-chsl{border-left-color:#ff2a6d;background:linear-gradient(160deg,rgba(46,22,40,.96),rgba(14,10,20,.96))}',
     '.slp-chcard.slp-chsl b{color:#ff8a2a}',
     '.slp-slots{max-height:180px;overflow-y:auto;margin:6px 0}.slp-slot{padding:6px 0;border-top:1px solid rgba(255,255,255,.12)}.slp-slot span{display:block;opacity:.8}',
+    '.slp-routename{width:130px;background:rgba(0,0,0,.35);color:#fff;border:1px solid rgba(255,255,255,.25);border-radius:4px;padding:2px 6px}',
     '.slp-slotname{width:110px;background:rgba(0,0,0,.35);color:#fff;border:1px solid rgba(255,255,255,.25);border-radius:4px;padding:2px 6px}',
     '.slp-chcard .slp-btn{margin-top:8px;border-radius:4px;font-family:"Overpass","Roboto",sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:.4px}',
     '.slp-chcard .slp-go{background:#ff6600;color:#1d0d00}',
@@ -334,10 +348,15 @@
     flag: svg('M14.4 6 14 4H5v17h2v-7h5.6l.4 2h7V6z'),
     bank: svg('M4 10v7h3v-7zm6 0v7h3v-7zM2 22h19v-3H2zm14-12v7h3v-7zM11.5 1 2 6v2h19V6z'),
     house: svg('M12 3 2 12h3v8h5v-6h4v6h5v-8h3z'),
+    health: svg('M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z'),
+    food: svg('M11 9H9V2H7v7H5V2H3v7c0 2.12 1.66 3.84 3.75 3.97V22h2.5v-9.03C11.34 12.84 13 11.12 13 9V2h-2v7zm5-3v8h2.5v8H21V2c-2.76 0-5 2.24-5 4z'),
+    water: svg('M12 2c-5.33 4.55-8 8.48-8 11.8 0 4.98 3.8 8.2 8 8.2s8-3.22 8-8.2c0-3.32-2.67-7.25-8-11.8z'),
+    rest: svg('M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z'),
     sponsors: svg('M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14 2 9.27l6.91-1.01z'),
     event: svg('M14.4 6 14 4H5v17h2v-7h5.6l.4 2h7V6z'),
     calendar: svg('M19 3h-1V1h-2v2H8V1H6v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm0 16H5V9h14zM5 7V5h14v2zm2 4h5v5H7z'),
     inventory: svg('M20 7l-8-4-8 4v10l8 4 8-4zM4 7l8 4 8-4M12 11v10'),
+    myroute: svg('M9 11.5A2.5 2.5 0 1 1 9 6.5a2.5 2.5 0 0 1 0 5zM9 2a6.500 6.500 0 0 0-6.500 6.500C2.500 13.400 9 21 9 21s6.500-7.600 6.500-12.500A6.500 6.500 0 0 0 9 2zm10 11h-4v2h4a1 1 0 0 1 0 2h-3v2h3a3 3 0 0 0 0-6z'),
     traps: svg('M20.38 8.57l-1.23 1.85a8 8 0 0 1-.22 7.58H5.07A8 8 0 0 1 15.58 6.85l1.85-1.23A10 10 0 0 0 3.35 19a2 2 0 0 0 1.72 1h13.85a2 2 0 0 0 1.74-1 10 10 0 0 0-.27-10.44zm-9.79 6.84a2 2 0 0 0 2.83 0l5.66-8.49-8.49 5.66a2 2 0 0 0 0 2.83z'),
     cab: svg('M18.9 6c-.2-.6-.8-1-1.4-1h-11c-.7 0-1.2.4-1.4 1L3 12v8a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-1h12v1a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-8zM6.5 16A1.5 1.5 0 1 1 8 14.5 1.5 1.5 0 0 1 6.5 16zm11 0a1.5 1.5 0 1 1 1.5-1.5 1.5 1.5 0 0 1-1.5 1.5zM5 11l1.5-4.5h11L19 11z'),
     me: svg('M12 2 4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5zm-1.5 14.5-4-4 1.4-1.4 2.6 2.6 6.1-6.1 1.4 1.4z'),
@@ -361,7 +380,7 @@
   var SLRR_ART = '/ui/modModules/slHud/slrr/icons/';
   var SLRR_ICON = { races: 'cup.png', garage: 'garage.png', bank: 'dollar.png', cab: 'city.png', me: 'roc.png' };
   function slrrIcon(name, cls) { return '<img class="slp-slrr ' + (cls || '') + '" src="' + SLRR_ART + name + '" alt="">'; }
-  var APP_COLORS = { map: '#3a7d6e', camera: '#3b6fa0', gallery: '#a05a8a', carmarket: '#2e7d4f', partmarket: '#a3322c', settings: '#5c6474', wait: '#4a5d7a', market: '#a3322c', paper: '#5b5346', bid: '#b5651d', club: '#6a2e7a', jobs: '#3d7a2e', phone: '#2e7d4f', messages: '#2f5fb3', contacts: '#7b4fb0', races: '#c2541e', bank: '#1f7a70', cab: '#b58a12', me: '#5c6474', garage: '#8a3b8f', garagekit: '#6b5b2e', traps: '#b4541a', inventory: '#7a6a2e', health: '#b23a5e', help: '#4a6fa5', turf: '#7a4a2e', event: '#2f6f9f', calendar: '#2f6f9f', sponsors: '#9a6b12', hotcars: '#6b3a3a' };      // (every app has its own tile colour: the white icon needs a fill)
+  var APP_COLORS = { map: '#3a7d6e', camera: '#3b6fa0', gallery: '#a05a8a', carmarket: '#2e7d4f', partmarket: '#a3322c', settings: '#5c6474', wait: '#4a5d7a', market: '#a3322c', paper: '#5b5346', bid: '#b5651d', club: '#6a2e7a', jobs: '#3d7a2e', phone: '#2e7d4f', messages: '#2f5fb3', contacts: '#7b4fb0', races: '#c2541e', bank: '#1f7a70', cab: '#b58a12', me: '#5c6474', garage: '#8a3b8f', garagekit: '#6b5b2e', traps: '#b4541a', inventory: '#7a6a2e', myroute: '#2f8f6a', health: '#b23a5e', help: '#4a6fa5', turf: '#7a4a2e', event: '#2f6f9f', calendar: '#2f6f9f', sponsors: '#9a6b12', hotcars: '#6b3a3a' };      // (every app has its own tile colour: the white icon needs a fill)
   var AV_COLORS = ['#a8c7fa', '#f2b8b5', '#c3e7c6', '#ffd8a8', '#d0bcff', '#9fe0e8', '#ffb4ab', '#e8def8'];
   var CLASS_NAMES = { beater: T('ui.beaters', 'Beaters'), compact: T('ui.compacts', 'Compacts'), muscle: T('ui.muscle', 'Muscle'), tuner: T('ui.tuners', 'Tuners'), sport: T('ui.sports_cars', 'Sports cars'), super: T('ui.supercars', 'Supercars') };
 
@@ -385,6 +404,40 @@
 
   var STAKE_TEXT = { race: T('ui.race_for_money', 'Race for money'), high: T('ui.high_stakes', 'High stakes'), drag: T('ui.drag_race', 'Drag race'), pink: T('crews.pink_slips', 'Pink slips') };
   var QUICK = { race: T('phone.up_for_a_race', 'Up for a race?'), high: T('phone.race_me_high_stakes', 'Race me. High stakes.'), drag: T('phone.drag_race_at_the_test', 'Drag race at the test track?'), pink: T('phone.pink_slips_you_and_me', 'Pink slips. You and me.') };
+
+  // the cracked screen (sl_phonecrack, data.crack = { stage 1..3, x, y (the impact point, 0..1), seed, strength }): spider-web lines from the impact point, drawn over the whole screen and readable through
+  function crackRng(seed) { var s = (Number(seed) >>> 0) || 1; return function () { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
+  function crackPaths(stage, x, y, seed, w, h) {      // (w x h: the field in units, the screen's own shape, so the web is round: 100 x 211 portrait, 200 x 100 sideways)
+    w = Number(w) || 100; h = Number(h) || 211;
+    stage = Math.max(1, Math.min(3, Math.floor(Number(stage) || 1)));
+    var r = crackRng(seed), cx = (Number(x) || 0.5) * w, cy = (Number(y) || 0.4) * h, unit = Math.min(w, h) / 100, n = 5 + 3 * stage, step = Math.PI * 2 / n, radials = [], rings = [];
+    for (var i = 0; i < n; i++) {
+      var a = step * i + (r() - 0.5) * step * 0.5, len = unit * (22 + r() * (18 + stage * 22)), segs = 4 + stage, pts = [{ x: cx, y: cy }];
+      for (var k = 1; k <= segs; k++) {
+        var d = len * k / segs, jitter = (r() - 0.5) * 6 * unit;
+        pts.push({ x: cx + Math.cos(a) * d - Math.sin(a) * jitter, y: cy + Math.sin(a) * d + Math.cos(a) * jitter });
+      }
+      radials.push(pts);
+    }
+    var ringAt = stage === 1 ? [2] : stage === 2 ? [2, 4] : [2, 3, 4, 5];
+    ringAt.forEach(function (idx) {
+      for (var j = 0; j < n; j++) {
+        if (stage === 1 && j % 2) continue;      // (a light crack: the rings are broken)
+        var p1 = radials[j][idx], p2 = radials[(j + 1) % n][idx];
+        if (p1 && p2) rings.push([p1, { x: (p1.x + p2.x) / 2 + (r() - 0.5) * 3 * unit, y: (p1.y + p2.y) / 2 + (r() - 0.5) * 3 * unit }, p2]);
+      }
+    });
+    function pathD(pts) { return 'M' + pts.map(function (p) { return p.x.toFixed(1) + ' ' + p.y.toFixed(1); }).join(' L'); }
+    return radials.map(pathD).concat(rings.map(pathD));
+  }
+  function crackHtml(c, land) {
+    if (!c || !(Number(c.stage) > 0)) return '';
+    var w = land ? 200 : 100, h = land ? 100 : 211, paths = crackPaths(c.stage, c.x, c.y, c.seed, w, h), body = paths.map(function (d) { return '<path d="' + d + '"/>'; }).join('');
+    var shards = '';
+    if (Number(c.stage) >= 3) shards = '<path class="slp-shard" d="M' + (c.x * w - 6).toFixed(1) + ' ' + (c.y * h - 4).toFixed(1) + ' L' + (c.x * w + 9).toFixed(1) + ' ' + (c.y * h - 2).toFixed(1) + ' L' + (c.x * w + 2).toFixed(1) + ' ' + (c.y * h + 10).toFixed(1) + ' Z"/>';
+    return '<svg class="slp-crack" data-stage="' + Math.floor(Number(c.stage)) + '" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none" style="opacity:' + Math.max(0.3, Math.min(1, Number(c.strength) || 0.85)).toFixed(2) + '"><g class="slp-crack-dark">' + body + '</g><g class="slp-crack-light">' + body + '</g>' + shards + '</svg>';
+  }
+  if (typeof window !== 'undefined') window.__slPhoneCrack = { paths: crackPaths, html: crackHtml };
 
   function createPhone(doc, lua, clock) {
     clock = clock || { set: function (f, ms) { return setTimeout(f, ms); }, clear: function (t) { clearTimeout(t); }, now: function () { return Date.now(); } };
@@ -466,12 +519,14 @@
           { id: 'races', title: T('app.races', 'Races'), icon: I.flag, badge: arranged || 0, hide: has.races === false },
           { id: 'garage', title: T('app.garage', 'My cars'), icon: I.cab },
           { id: 'garagekit', title: T('app.garagekit', 'Garage'), icon: I.house },
-          { id: 'bank', title: T('app.bank', 'Bank'), icon: I.bank, hide: has.bank === false },
+          { id: 'bank', title: T('app.bank', 'Bank'), icon: I.bank, badge: unpaidTickets(), hide: has.bank === false },
           { id: 'me', title: T('app.me', 'Street cred'), icon: I.me },
+          { id: 'health', title: T('app.health', 'Health'), icon: I.health, hide: !d.needs || has.needs === false },
           { id: 'sponsors', title: T('app.sponsors', 'Sponsors'), icon: I.sponsors, badge: d.sponsors && d.sponsors.offer ? 1 : 0, hide: !d.sponsors || has.sponsors === false },
           { id: 'hotcars', title: T('app.hotcars', 'Hot cars'), icon: I.cab, badge: arr(obj(d.hotcars).hot).filter(function (c) { return c.wanted; }).length, hide: !d.hotcars || !(arr(d.hotcars.hot).length || arr(d.hotcars.tools).length) },
           { id: 'calendar', title: T('app.calendar', 'Calendar'), icon: I.calendar, badge: calOpenInvites(), hide: !d.calendar || has.calendar === false },
           { id: 'inventory', title: T('app.inventory', 'Inventory'), icon: I.inventory, hide: !d.inventory || has.inventory === false },
+          { id: 'myroute', title: T('app.myroute', 'My routes'), icon: I.myroute, hide: !d.myroute || has.myroute === false },
           { id: 'traps', title: T('app.traps', 'Speed traps'), icon: I.traps, hide: !(d.traps && has.traps !== false) && !(d.danger && has.danger !== false) },
           { id: 'jobs', title: T('app.jobs', 'Jobs'), icon: I.jobs, badge: d.jobs && d.jobs.active ? 1 : 0, hide: has.jobs === false },
           { id: 'wait', title: T('app.wait', 'Wait'), icon: I.wait },
@@ -489,6 +544,7 @@
           { id: 'messages', title: T('app.messages', 'Messages'), icon: I.msg, badge: unread() || 0 },
           { id: 'contacts', title: T('app.contacts', 'Contacts'), icon: I.contacts },
           { id: 'cab', title: T('app.cab', 'Cab'), icon: I.cab },
+          { id: 'frjobs', title: T('app.frjobs', 'Freight runs'), icon: I.jobs, hide: !d.frjobs },
         ].map(onTrip)).replace(/<span>[^<]*<\/span>/g, '') + '</div></div>';
     }
 
@@ -835,11 +891,12 @@
       var t = obj(st.data.turf);
       var rows = arr(t.districts).map(function (d) {
         return '<div class="slp-row"><div class="slp-rt"><b>' + esc(d.name) + (d.here ? T('ui.middot_you_are_here', ' &middot; you are here') : '') + '</b><span>' +
-          (d.yours ? T('ui.yours', 'Yours') : esc(d.owner)) + ' &middot; ' + d.control + T('ui.control', '% control') + (d.home ? T('ui.middot_home_of_1', ' &middot; home of {1}', esc(d.home)) : '') + '</span></div></div>';
+          (d.yours ? T('ui.yours', 'Yours') : esc(d.owner)) + ' &middot; ' + d.control + T('ui.control', '% control') + (d.home ? T('ui.middot_home_of_1', ' &middot; home of {1}', esc(d.home)) : '') +
+          (d.yours && d.cut != null ? ' &middot; ' + T('ui.turf_cut_week', '{1} a week', money(d.cut)) + (d.base ? ' (' + T('ui.turf_base', 'base') + ')' : '') : '') + '</span></div></div>';
       }).join('');
       var crews = arr(t.crews).map(function (c) { return '<p>' + esc(c.name) + (c.leader ? T('ui.middot_led_by_1', ' &middot; led by {1}', esc(c.leader)) : '') + '</p>'; }).join('');
       return bar(T('app.turf', 'Turf')) + '<div class="slp-body">' + turfMap(t) +
-        ('<div class="slp-empty">' + T('ui.beat_a_crew_on_its', 'Beat a crew on its own streets to take the district. You hold ')) + (t.held || 0) + '.' + (t.turfWar ? T('ui.the_leaders_want_a_word', ' The leaders want a word.') : '') + '</div>' +
+        ('<div class="slp-empty">' + T('ui.beat_a_crew_on_its', 'Beat a crew on its own streets to take the district. You hold ')) + (t.held || 0) + '.' + (t.turfWar ? T('ui.the_leaders_want_a_word', ' The leaders want a word.') : '') + (t.income != null ? ' ' + T('ui.turf_income', 'Next payout: {1}', money(t.income)) : '') + '</div>' +
         (rows || ('<div class="slp-empty">' + T('ui.no_districts_on_this_map', 'No districts on this map.') + '</div>')) + ('<div class="slp-card"><h4>' + T('ui.the_crews', 'The crews') + '</h4>') + crews + '</div></div>';
     }
 
@@ -908,7 +965,7 @@
           : ('<div class="slp-card"><h4>' + T('ui.insurance', 'Insurance') + '</h4><p>') + money(bk.premium) + T('ui.a_week_half_of_repairs', ' a week: half of repairs and impound bills over ') + money(bk.deductible) + (T('ui.from_the_next_day', ', from the next day') + '</p>') + (bk.premiumWhy ? '<p class="slp-sub">' + esc(bk.premiumWhy) + '</p>' : '') +
             ('<div class="slp-acts"><div class="slp-btn slp-tonal" data-a="insure" data-v="true">' + T('ui.insure', 'Insure') + '</div></div></div>');
       }
-      return bar(T('app.bank', 'Bank')) + ('<div class="slp-body"><div class="slp-bal"><small>' + T('ui.balance', 'Balance') + '</small><div>') + money(st.data.money) + '</div></div>' + weeklyCard() + cards +
+      return bar(T('app.bank', 'Bank')) + ('<div class="slp-body"><div class="slp-bal"><small>' + T('ui.balance', 'Balance') + '</small><div>') + money(st.data.money) + '</div></div>' + weeklyCard() + ticketsCard() + cards +
         (rows.join('') || ('<div class="slp-empty">' + T('ui.no_transactions_yet', 'No transactions yet.') + '</div>')) + '</div>';
     }
 
@@ -1079,18 +1136,40 @@
           '<div class="slp-mapzoom"><div data-a="mapzoom" data-v="in">+</div><div data-a="mapzoom" data-v="out">&minus;</div></div>' +
           (r ? '<div class="slp-card"><h4>' + esc(T('ui.route_to_1', 'Route: {1}', r.name)) + '</h4><div class="slp-acts"><div class="slp-btn slp-tonal" data-a="clearroute" data-v="1">' + T('ui.clear_route', 'Clear route') + '</div></div></div>' : '') + '</div>';
       }
-      var head = '<div class="slp-card"><p>' + esc(T('ui.map_text', 'Tap a place and the route shows on the road. It clears when you get there.')) + '</p>' +
+      var head = (m.fuelNote ? '<div class="slp-card"><p class="slp-warn">' + esc(m.fuelNote) + '</p></div>' : '') + '<div class="slp-card"><p>' + esc(T('ui.map_text', 'Tap a place and the route shows on the road. It clears when you get there.')) + '</p>' +
         (r ? '<h4>' + esc(T('ui.route_to_1', 'Route: {1}', r.name)) + '</h4><div class="slp-acts"><div class="slp-btn slp-tonal" data-a="clearroute" data-v="1">' + T('ui.clear_route', 'Clear route') + '</div></div>' : '') + '</div>';
       var body = groups.map(function (g) {
         return '<div class="slp-seth">' + esc(MAP_KINDS[g.kind] || T('ui.kind_other', 'Other places')) + '</div>' + arr(g.places).map(function (p) {
-          return '<div class="slp-row" data-a="route" data-v="' + esc(p.id) + '"><div class="slp-rt"><b>' + esc(p.name) + (r && r.id === p.id ? ' &#10003;' : '') + '</b><span>' + distText(p.dist) + '</span></div><div class="slp-ib">' + I.gps + '</div></div>';
+          return '<div class="slp-row" data-a="route" data-v="' + esc(p.id) + '"><div class="slp-rt"><b>' + esc(p.name) + (r && r.id === p.id ? ' &#10003;' : '') + '</b><span>' + distText(p.dist) + (p.info ? ' &middot; ' + esc(p.info) : '') + '</span></div><div class="slp-ib">' + I.gps + '</div></div>';
         }).join('');
       }).join('');
       return bar(T('app.map', 'Map')) + tabsHtml('map', [['map', T('ui.map_tab', 'Map')], ['list', T('ui.list_tab', 'List')]]) + '<div class="slp-body">' + head + (body || '<div class="slp-empty">' + T('ui.no_places_yet', 'The map has no places yet.') + '</div>') + '</div>';
     }
+    // the week's photo challenges under the shutter (sl_photos.challenges; only when the option is on)
+    function photoChallengesHtml() {
+      var pcs = obj(st.photoChallenges);
+      if (!pcs.on) return '';
+      return '<div class="slp-card"><div class="slp-seth">' + esc(pcs.title || '') + '</div>' + arr(pcs.list).map(function (c) {
+        return '<div class="slp-row"><div class="slp-rt"><b' + (c.done ? ' style="text-decoration:line-through;opacity:.6"' : '') + '>' + esc(c.text) + '</b><span>' + esc(c.pays) + '</span></div></div>';
+      }).join('') + '</div>';
+    }
     function cameraPage() {
       return bar(T('app.camera', 'Camera')) + '<div class="slp-body"><div class="slp-card"><p>' + esc(T('ui.camera_text', 'Takes a picture of what you see, without the phone or any other screen. It is kept in the Gallery and in the folder screenshots/street_legal.')) + '</p>' +
-        '<div class="slp-acts"><div class="slp-btn" data-a="photo">' + T('ui.take_a_photo', 'Take a photo') + '</div></div></div></div>';
+        '<div class="slp-acts"><div class="slp-btn" data-a="photo">' + T('ui.take_a_photo', 'Take a photo') + '</div></div></div>' + photoChallengesHtml() + '</div>';
+    }
+    // the Camera app as a camera (sl_phonecam puts the view in first person): a full-screen sideways phone over it. data.camera = { firstPerson, sway 0..1, grid, bezel, zoomMax }
+    function camHtml() {
+      var c = obj(st.data.camera), cam = st.cam = st.cam || { zoom: 1, flash: false, grid: c.grid !== false };
+      var zooms = [1, 2, 4, 8].filter(function (z) { return z <= (Number(c.zoomMax) || 4); });
+      var sway = Math.max(0, Math.min(1, c.sway == null ? 0.5 : Number(c.sway)));
+      return '<div class="slp-camui' + (st.camFlashFx ? ' slp-camflash' : '') + '" style="--slp-sway:' + sway.toFixed(2) + '">' +
+        (c.bezel === false ? '' : '<div class="slp-cambz slp-cbl"><i></i></div><div class="slp-cambz slp-cbr"></div><div class="slp-cambz slp-cbt"></div><div class="slp-cambz slp-cbb"></div>') +
+        (cam.grid ? '<div class="slp-camgrid"><i></i><i></i><b></b><b></b></div>' : '') +
+        '<div class="slp-camtop"><span>' + two(st.data.hour || 0) + ':' + two(st.data.minute || 0) + '</span><span class="slp-camflashb' + (cam.flash ? ' slp-on' : '') + '" data-a="camflash" data-v="1" role="button" aria-label="' + T('ui.cam_flash', 'Flash') + '">&#9889; ' + T('ui.cam_flash', 'Flash') + (cam.flash ? '' : ' &#215;') + '</span><span class="slp-camgridb' + (cam.grid ? ' slp-on' : '') + '" data-a="camgrid" data-v="1" role="button">&#9638; ' + T('ui.cam_grid', 'Grid') + '</span><span class="slp-camx" data-a="home" role="button" aria-label="' + T('ui.cam_close', 'Close the camera') + '">&#10005;</span></div>' +
+        '<div class="slp-camright"><div class="slp-camshutter" data-a="photo" data-v="1" role="button" aria-label="' + T('ui.cam_shutter', 'Take a photo') + '"><i></i></div></div>' +
+        '<div class="slp-cammodes"><b>' + T('ui.cam_mode_photo', 'PHOTO') + '</b><span>' + T('ui.cam_mode_portrait', 'PORTRAIT') + '</span><span>' + T('ui.cam_mode_pano', 'PANO') + '</span><span>' + T('ui.cam_mode_video', 'VIDEO') + '</span></div>' +
+        '<div class="slp-camzoom">' + zooms.map(function (z) { return '<span class="' + (cam.zoom === z ? 'slp-on' : '') + '" data-a="camzoom" data-v="' + z + '" role="button">' + z + '&times;</span>'; }).join('') + '</div>' +
+        crackHtml(st.data.crack, true) + '</div>';
     }
     function galleryPage() {
       var list = arr(obj(st.photos).photos);
@@ -1129,6 +1208,25 @@
       if (st.tab.cab === 'dealer' && st.tab.cabtier !== 'all' && p.tier !== st.tab.cabtier) return false;
       return true;
     }
+    // free-roam freight runs (sl_frjobs.summary(); tools/frjobs_fixture.js): the board's offers with a Take button, the run under way with Cancel
+    function frJobsPage() {
+      var f = obj(st.data.frjobs), a = f.active;
+      function mins(s) { return Math.max(1, Math.round((Number(s) || 0) / 60)) + ' min'; }
+      function far(m) { return m < 1000 ? Math.round(m) + ' m' : (m / 1000).toFixed(1) + ' km'; }
+      var act = a ? '<div class="slp-card"><h4>' + T('ui.fr_active', 'On a run') + ': ' + esc(a.title || '') + '</h4><p>' + esc(a.item || '') + '</p>' +
+        '<div class="slp-kv"><span>' + (Number(a.leg) === 2 ? T('ui.fr_go_drop', 'Drop at {1}', esc(a.to || '')) : T('ui.fr_go_pickup', 'Pick up at {1}', esc(a.next || ''))) + '</span><b>' + money(a.pay) + '</b></div>' +
+        '<div class="slp-acts"><div class="slp-btn slp-tonal" data-a="frcancel">' + T('ui.fr_cancel', 'Cancel the run') + '</div></div></div>' : '';
+      var offers = arr(f.offers).map(function (o) {
+        return '<div class="slp-card"><h4>' + esc(o.title || '') + '</h4><p>' + esc(o.item || '') + '</p>' +
+          '<div class="slp-kv"><span>' + T('ui.fr_from', 'From') + '</span><b>' + esc(o.from || '') + '</b></div>' +
+          '<div class="slp-kv"><span>' + T('ui.fr_to', 'To') + '</span><b>' + esc(o.to || '') + '</b></div>' +
+          '<div class="slp-kv"><span>' + far(Number(o.metres) || 0) + ' &middot; ' + mins(o.seconds) + '</span><b>' + money(o.pay) + '</b></div>' +
+          (a ? '' : '<div class="slp-acts"><div class="slp-btn" data-a="frtake" data-v="' + esc(String(o.id)) + '">' + T('ui.fr_take', 'Take') + '</div></div>') + '</div>';
+      }).join('');
+      return bar(T('app.frjobs', 'Freight runs')) + '<div class="slp-body"><p style="padding:0 16px">' + T('ui.fr_intro', 'Take a run, pick the load up and drop it where it goes. Wrench Works pays on delivery.') + '</p>' + act +
+        (offers || (a ? '' : '<div class="slp-empty">' + T('ui.fr_none', 'No runs on the board right now. Check back later.') + '</div>')) + '</div>';
+    }
+
     function cabPage() {
       var rows = arr(st.data.places).filter(cabShown).map(function (p) {
         return '<div class="slp-row" data-a="taxi" data-v="' + esc(p.id) + '"><div class="slp-av" style="background:#ffd8a8">' + I.cab.replace('<svg', '<svg style="width:22px;height:22px;fill:#5b3d00"') + '</div>' +
@@ -1239,7 +1337,7 @@
         if (c.out && c.towFee && c.where === 'Out on the street') acts.push('<div class="slp-btn slp-tonal" data-a="tow" data-v="' + c.id + ('">' + T('ui.tow_it_home', 'Tow it home ') + '&middot;' + ' ') + money(c.towFee) + '</div>');
         if (c.out && !c.impounded) acts.push('<div class="slp-btn slp-text" data-a="despawn" data-v="' + c.id + ('">' + T('ui.put_it_away', 'Put it away') + '</div>'));
         return '<div class="slp-card"><h4>' + esc(c.name) + (c.active ? ' &#9733;' : '') + '</h4><p>' + esc(c.where) + ' &middot; condition ' + Math.round((c.condition || 0) * 100) + '%' + (c.look ? ' &middot; ' + esc(c.look) : '') + (c.mastery && c.mastery.level > 0 ? ' &middot; <b>' + esc(c.mastery.label) + ' ' + c.mastery.level + '/' + c.mastery.max + '</b>' + (c.mastery.perks.length ? ' (' + esc(c.mastery.perks.join(' ')) + ')' : '') : '') +
-          (faults.length ? ('<br>' + T('ui.needs_2', 'Needs: ')) + esc(faults.join(', ')) : '') + '</p>' + careView(c) + (acts.length ? '<div class="slp-acts">' + acts.join('') + '</div>' : '') + '</div>';
+          (faults.length ? ('<br>' + T('ui.needs_2', 'Needs: ')) + esc(faults.join(', ')) : '') + '</p>' + impoundLine(c) + careView(c) + (acts.length ? '<div class="slp-acts">' + acts.join('') + '</div>' : '') + '</div>';
       });
       return bar(T('app.garage', 'My cars')) + '<div class="slp-body">' + (cards.join('') + ordered.join('') ||
         ('<div class="slp-empty">' + T('ui.you_have_no_car_the', 'You have no car. The junkyard sells cheap ones that need work, the dealership new ones. The Cab app gets you there.') + '</div>')) + '</div>';
@@ -1264,15 +1362,20 @@
       var rv = obj(st.rivals), list = arr(rv.rivals);
       if (!list.length) return '';
       var words = { blood: T('rivals.meter_blood', 'Bad blood'), rivals: T('rivals.meter_rivals', 'Rivalry'), neutral: T('rivals.meter_neutral', 'Neutral'), respect: T('rivals.meter_respect', 'Respect'), friends: T('rivals.meter_friends', 'Friends') };
-      return '<h4>' + T('rivals.title', 'Rivals') + '</h4>' + list.map(function (r) {
+      var sh = rv.sheet, sheetHtml = !sh ? '' : '<div class="slp-card"><h4>' + esc(sh.title) + '</h4>' + arr(sh.lines).map(function (l) {
+        return '<div class="slp-kv"' + (l.done ? '' : ' style="opacity:.85"') + '><span>' + esc(l.text) + '</span><b' + (l.done ? ' class="slp-on"' : '') + '>' + (l.done ? '&#10004; ' : '') + l.have + ' / ' + l.need + '</b></div>';
+      }).join('') + (sh.doneText ? '<p>' + esc(sh.doneText) + '</p>' : '') + '</div>';
+      return sheetHtml + '<h4>' + T('rivals.title', 'Rivals') + '</h4>' + list.map(function (r) {
         var tag = r.boss ? ' &middot; ' + T('rivals.boss_star', 'Boss') + ' ' + r.tier : (r.nemesis ? ' &middot; ' + T('rivals.nemesis', 'Nemesis') : '');
         return '<div class="slp-card"' + (r.locked ? ' style="opacity:.75"' : '') + '><h4>' + (r.boss ? '&#9733; ' : '') + esc(r.name) + tag + '</h4>' +
           '<p>' + esc(r.crew || '') + (r.car ? ' &middot; ' + esc(r.car) : '') + '</p>' +
           '<div class="slp-meter"><i style="width:' + Math.round(((r.meter || 0) + 100) / 2) + '%"></i></div>' +
           '<p>' + words[r.word] + ' &middot; ' + T('ui.rival_record', 'Won {1}, lost {2}', r.beaten || 0, r.youLost || 0) + (r.locked ? ' &middot; ' + T('ui.rival_locked', 'Beat {1} to move up', esc(r.locked)) : '') + '</p>' +
-        (r.offer ? '<p class="slp-warn">' + T('ui.rival_offer', 'Pink slip offer: your {1} against their {2}', esc(r.offer.myCar || '?'), esc(r.offer.theirCar || '?')) + '</p><div class="slp-acts">' +
+        (r.offer ? '<p class="slp-warn">' + T('ui.rival_offer', 'Pink slip offer: your {1} against their {2}', esc(r.offer.myCar || '?'), esc(r.offer.theirCar || '?')) + '</p>' +
+          (r.offer.hunt ? '<p class="slp-warn">' + T('ui.rival_hunt', 'They want the {1} back', esc(r.offer.hunt)) + '</p>' : '') +
+          (Number(r.offer.sweetener) > 0 ? '<p>' + T('ui.rival_sweet', '+{1} for a win', money(r.offer.sweetener)) + '</p>' : '') + '<div class="slp-acts">' +
           '<div class="slp-btn slp-pinkbtn" data-a="rvyes" data-v="' + esc(r.id) + '">' + T('ui.rival_accept', 'Accept the pink slips') + '</div>' +
-          '<div class="slp-btn slp-tonal" data-a="rvmoney" data-v="' + esc(r.id) + '">' + T('ui.rival_money', 'Race for money instead') + '</div>' +
+          (r.offer.hunt ? '' : '<div class="slp-btn slp-tonal" data-a="rvmoney" data-v="' + esc(r.id) + '">' + T('ui.rival_money', 'Race for money instead') + '</div>') +
           '<div class="slp-btn slp-text" data-a="rvno" data-v="' + esc(r.id) + '">' + T('ui.rival_walk', 'Walk away') + '</div></div>' : '') +
           '</div>';
       }).join('');
@@ -1286,6 +1389,48 @@
         return '<div class="slp-kv"' + (x.unlocked ? '' : ' style="opacity:.6"') + '><span>' + esc(x.label || '') + '<br><small>' + esc(x.text || '') + '</small></span><b' + (x.unlocked ? ' class="slp-on"' : '') + '>' +
           (x.unlocked ? '&#10004; ' + T('ui.perk_open', 'Open') : T('ui.perk_rank', 'Rank {1}', Number(x.tier) || 0)) + '</b></div>';
       }).join('') + '</div>';
+    }
+
+    // the needs part (sl_needs.summary(): { meters = { { id: food|water|rest, value 0..100, stage: ok|nudge|handicap|problem, word } }, wellFed, effects = { blur, lag, tremor, sleepy },
+    // items = { { id, name, price } }, canEat, canNap, showMeters }): the stage is a mark as well as a colour (never colour alone)
+    var NEED_LABEL = { food: T('ui.need_food', 'Food'), water: T('ui.need_water', 'Water'), rest: T('ui.need_rest', 'Rest') };
+    var NEED_WORDS = { fed: T('ui.need_fed', 'fed'), peckish: T('ui.need_peckish', 'peckish'), hungry: T('ui.need_hungry', 'hungry'), starving: T('ui.need_starving', 'starving'),
+      fine: T('ui.need_fine', 'fine'), thirsty: T('ui.need_thirsty', 'thirsty'), parched: T('ui.need_parched', 'parched'), dehydrated: T('ui.need_dehydrated', 'dehydrated'),
+      rested: T('ui.need_rested', 'rested'), yawning: T('ui.need_yawning', 'yawning'), tired: T('ui.need_tired', 'tired'), exhausted: T('ui.need_exhausted', 'exhausted') };
+    var STAGE_MARK = { ok: '', nudge: '&middot; ', handicap: '&#9888; ', problem: '&#9660; ' };
+    var STAGE_COLOUR = { ok: '#6dd58c', nudge: '#a8c7fa', handicap: '#ffd54f', problem: '#f2b8b5' };
+    function needMeters() { var n = st.data.needs; return n && obj(st.data.has).needs !== false ? arr(n.meters) : []; }
+    function healthPage() {
+      var n = obj(st.data.needs), ef = obj(n.effects);
+      var bars = arr(n.meters).map(function (m) {
+        var stage = STAGE_MARK[m.stage] !== undefined ? m.stage : 'ok', v = Math.max(0, Math.min(100, Math.round(Number(m.value) || 0)));
+        return '<div class="slp-kv" style="display:block;padding:8px 0"><div style="display:flex;align-items:center;gap:10px"><span style="width:22px;height:22px;display:block">' + (I[m.id] || '') + '</span><b style="flex:1">' + esc(NEED_LABEL[m.id] || m.id) + '</b>' +
+          '<span style="color:' + STAGE_COLOUR[stage] + '">' + STAGE_MARK[stage] + esc(NEED_WORDS[m.word] || m.word || '') + ' &middot; ' + v + '</span></div>' +
+          '<div class="slp-meter"><i style="width:' + v + '%;background:' + STAGE_COLOUR[stage] + '"></i></div></div>';
+      }).join('');
+      var fx = [];
+      if (Number(ef.blur) > 0.02) fx.push(T('ui.need_fx_blur', 'blurred sight'));
+      if (Number(ef.lag) > 0.005) fx.push(T('ui.need_fx_lag', 'slow reactions'));
+      if (Number(ef.tremor) > 0.02) fx.push(T('ui.need_fx_tremor', 'shaky hands'));
+      if (ef.sleepy) fx.push(T('ui.need_fx_sleepy', 'heavy eyelids'));
+      var eat = n.canEat ? '<div class="slp-acts" style="flex-wrap:wrap">' + arr(n.items).map(function (it) {
+        return '<div class="slp-btn slp-stack slp-tonal" data-a="eat" data-v="' + esc(it.id) + '"><span class="slp-lbl">' + esc(it.name) + '</span><small>' + money(it.price) + '</small></div>';
+      }).join('') + '</div>' : '<p>' + T('ui.need_eat_where', 'Food and drink are sold at fuel stations.') + '</p>';
+      var nap = n.canNap ? '<div class="slp-acts">' + [1, 3, 6].map(function (h) {
+        return '<div class="slp-btn slp-tonal" data-a="nap" data-v="' + h + '">' + T('ui.need_nap_hours', 'Nap {1} h', h) + '</div>';
+      }).join('') + '</div>' : '<p>' + T('ui.need_nap_where', 'You can nap at a garage.') + '</p>';
+      return bar(T('app.health', 'Health')) + '<div class="slp-body"><div class="slp-card"><h4>' + T('ui.need_you', 'You') + (n.wellFed ? ' &middot; <span style="color:#6dd58c">&#10004; ' + T('ui.need_well_fed', 'well fed') + '</span>' : '') + '</h4>' + bars +
+        (fx.length ? '<p class="slp-warn">&#9888; ' + T('ui.need_affecting', 'Affecting you now: {1}', fx.join(', ')) + '</p>' : '') + '</div>' +
+        '<div class="slp-card"><h4>' + T('ui.need_eat', 'Eat and drink') + '</h4>' + eat + '</div><div class="slp-card"><h4>' + T('ui.need_nap', 'Sleep') + '</h4>' + nap + '</div></div>';
+    }
+    // the small icons of the pill: a meter under 40, or all three when the player asked for them (showMeters)
+    function needsPill() {
+      var n = st.data.needs;
+      if (!n) return '';
+      return needMeters().filter(function (m) { return n.showMeters || Number(m.value) < 40; }).map(function (m) {
+        var stage = STAGE_MARK[m.stage] !== undefined ? m.stage : 'ok';
+        return '<span style="display:inline-flex;align-items:center;gap:3px;color:' + STAGE_COLOUR[stage] + '"><span style="width:14px;height:14px;display:block">' + (I[m.id] || '') + '</span>' + (stage === 'problem' ? '&#9660;' : stage === 'handicap' ? '&#9888;' : '') + '</span>';
+      }).join('');
     }
 
     // the inventory (sl_inventory.summary(): { used, cap, groups = { { kind: item|can|tool|part, name, count, points, extra = { id|index, litres, size, uses, brand, wear } } } })
@@ -1309,6 +1454,32 @@
           (canDrop ? '<div class="slp-btn slp-text" data-a="invdrop" data-v="' + esc(did) + '">' + (st.invDrop === did ? T('ui.inv_drop_sure', 'Sure? Drop') : T('ui.inv_drop', 'Drop')) + '</div>' : '') + '</div></div>';
       }).join('');
       return bar(T('app.inventory', 'Inventory')) + '<div class="slp-body">' + head + (rows || '<div class="slp-empty">' + T('ui.inv_empty', 'Nothing in the boot.') + '</div>') + '</div>';
+    }
+
+    // my routes (sl_myroute.summary(): { routes = { { id, name, points, length (m), best (s, 0 = never), bestText, runs, last, lastText } }, draft (points dropped), draftMin, draftMax, maxRoutes,
+    // run = { id, name, next, points, started, t, clock } or nil })
+    function myroutePage() {
+      var m = obj(st.data.myroute), run = m.run, routes = arr(m.routes);
+      var km = function (len) { return Number(len) >= 1000 ? (len / 1000).toFixed(1) + ' km' : Math.round(len) + ' m'; };
+      var runCard = run ? '<div class="slp-card"><h4>' + T('ui.myroute_racing', 'Racing {1}: waypoint {2} of {3}', esc(run.name || ''), Math.min(Number(run.next) || 1, Number(run.points) || 1), Number(run.points) || 0) + '</h4>' +
+        '<div class="slp-kv"><span>' + (run.started ? T('ui.myroute_best', 'Best') : '') + '</span><b>' + (run.started ? esc(run.clock || '') : T('ui.myroute_to_start', 'Drive to the start of {1}', esc(run.name || ''))) + '</b></div>' +
+        '<div class="slp-btn slp-text" data-a="routestop" data-v="1">' + T('ui.myroute_stop', 'Stop') + '</div></div>' : '';
+      var draft = Number(m.draft) || 0;
+      var editor = run ? '' : '<div class="slp-card"><p>' + T('ui.myroute_intro', 'Drive to a place and drop a waypoint. Four to eight, then save: you race the route against the clock, and the best time is kept.') + '</p>' +
+        '<div class="slp-kv"><span>' + T('ui.myroute_dropped', 'Waypoints dropped: {1} of {2}', draft, Number(m.draftMax) || 8) + '</span></div>' +
+        '<div class="slp-acts"><div class="slp-btn slp-text" data-a="routedrop" data-v="1">' + T('ui.myroute_drop', 'Drop waypoint here') + '</div>' +
+        (draft ? '<div class="slp-btn slp-text" data-a="routeundo" data-v="1">' + T('ui.myroute_undo', 'Undo') + '</div><div class="slp-btn slp-text" data-a="routediscard" data-v="1">' + T('ui.myroute_discard', 'Discard') + '</div>' : '') + '</div>' +
+        (draft >= (Number(m.draftMin) || 4) ? '<div class="slp-acts"><input class="slp-routename" placeholder="' + T('ui.myroute_name', 'Name') + '" maxlength="24"><div class="slp-btn slp-text" data-a="routesave" data-v="1">' + T('ui.myroute_save', 'Save route') + '</div></div>' : '') + '</div>';
+      var cards = routes.map(function (r) {
+        return '<div class="slp-card"><h4>' + esc(r.name || '') + '</h4>' +
+          '<div class="slp-kv"><span>' + T('ui.myroute_length', 'Length') + '</span><b>' + km(r.length) + ' &middot; ' + (Number(r.points) || 0) + '</b></div>' +
+          '<div class="slp-kv"><span>' + T('ui.myroute_best', 'Best') + '</span><b>' + esc(r.bestText || '--') + '</b></div>' +
+          '<div class="slp-kv"><span>' + T('ui.myroute_last', 'Last') + '</span><b>' + esc(r.lastText || '--') + '</b></div>' +
+          '<div class="slp-kv"><span>' + T('ui.myroute_runs', 'Runs') + '</span><b>' + (Number(r.runs) || 0) + '</b></div>' +
+          '<div class="slp-acts">' + (run ? '' : '<div class="slp-btn slp-text" data-a="routerace" data-v="' + Number(r.id) + '">' + T('ui.myroute_race', 'Race it') + '</div>') +
+          '<div class="slp-btn slp-text" data-a="routedel" data-v="' + Number(r.id) + '">' + (st.routeDel === Number(r.id) ? T('ui.myroute_sure', 'Sure? Delete') : T('ui.myroute_delete', 'Delete')) + '</div></div></div>';
+      }).join('');
+      return bar(T('app.myroute', 'My routes')) + '<div class="slp-body">' + runCard + editor + (cards || '<div class="slp-empty">' + T('ui.myroute_none', 'No routes on this map yet.') + '</div>') + '</div>';
     }
 
     // the speed traps and zones (sl_traps.summary(): { list = { { id, name, kind: trap|zone, target km/h, best km/h (0 = never), count, paid, metres, pay } } }): nearest first
@@ -1382,7 +1553,7 @@
     // series = { id, name, round, rounds }, status: open|entered|missed|done|declined, reward (number or text), requires = { label, met }, reminder, expiresIn } }, series = { { id, name, map, round, rounds,
     // points, rank, nextDay } }, invites = { { id, from, text, eventId, expiresIn } } }). Three views (Agenda, Week, Series) and an event page with the actions.
     function calOpenInvites() { var c = st.data.calendar; return c && obj(st.data.has).calendar !== false ? arr(c.invites).length : 0; }
-    var CAL_KIND = { race: T('ui.cal_kind_race', 'Race'), series: T('ui.cal_kind_series', 'Series'), weekend: T('ui.cal_kind_weekend', 'Weekend'), invite: T('ui.cal_kind_invite', 'Invitation'), travel: T('ui.cal_kind_travel', 'Trip') };
+    var CAL_KIND = { race: T('ui.cal_kind_race', 'Race'), series: T('ui.cal_kind_series', 'Series'), weekend: T('ui.cal_kind_weekend', 'Weekend'), invite: T('ui.cal_kind_invite', 'Invitational'), travel: T('ui.cal_kind_travel', 'Trip') };
     var CAL_STATUS = { entered: '&#10004; ' + T('ui.cal_entered', 'Entered'), missed: '&#9660; ' + T('ui.cal_missed', 'Missed'), done: '&#10004; ' + T('ui.cal_done', 'Done'), declined: T('ui.cal_declined', 'Declined') };
     var DAY_NAMES = [T('ui.cal_mon', 'Mon'), T('ui.cal_tue', 'Tue'), T('ui.cal_wed', 'Wed'), T('ui.cal_thu', 'Thu'), T('ui.cal_fri', 'Fri'), T('ui.cal_sat', 'Sat'), T('ui.cal_sun', 'Sun')];
     function calWhen(c, e) {      // "Today 18:00", "Tomorrow", "Sat, day 13 19:00"
@@ -1395,7 +1566,7 @@
     function calEventCard(c, e) {
       var tr = obj(e.travel), st1 = CAL_STATUS[e.status] || '';
       var rq = e.requires && e.requires.label ? '<p' + (e.requires.met === false ? ' class="slp-warn"' : '') + '>' + (e.requires.met === false ? '&#9888; ' : '&#10004; ') + esc(e.requires.label) + '</p>' : '';
-      return '<div class="slp-card" data-a="calopen" data-v="' + esc(e.id) + '"><h4>' + esc(e.title || '') + ' <span class="slp-chip" style="margin:0 0 0 6px">' + (CAL_KIND[e.kind] || esc(e.kind || '')) + '</span>' + (e.reminder ? ' <span aria-label="' + T('ui.cal_reminder_on', 'Reminder on') + '">&#128276;</span>' : '') + '</h4>' +
+      return '<div class="slp-card" data-a="calopen" data-v="' + esc(e.id) + '"><h4>' + esc(e.title || '') + ' <span class="slp-chip" style="margin:0 0 0 6px">' + (e.kind === 'invite' ? '&#9733; ' : '') + (CAL_KIND[e.kind] || esc(e.kind || '')) + '</span>' + (e.reminder ? ' <span aria-label="' + T('ui.cal_reminder_on', 'Reminder on') + '">&#128276;</span>' : '') + '</h4>' +
         '<p>' + calWhen(c, e) + (e.place ? ' &middot; ' + esc(e.place) : '') + (e.series ? ' &middot; ' + T('ui.cal_round', 'round {1} of {2}', e.series.round, e.series.rounds) : '') + '</p>' +
         (tr.needed ? '<p>' + T('ui.cal_travel', 'Travel to {1}: {2} and {3} h', esc(e.map || ''), money(tr.fee), Number(tr.hours) || 0) + '</p>' : '') + rq +
         (calReward(e) ? '<p>' + T('ui.cal_reward', 'Reward') + ': <b>' + calReward(e) + '</b></p>' : '') + (st1 ? '<p><b>' + st1 + '</b></p>' : '') +
@@ -1432,6 +1603,26 @@
         (tools ? '<div class="slp-card"><h4>' + T('ui.hot_tools', 'Your tools') + '</h4>' + tools + '</div>' : '') +
         (Number(h.deliveries) > 0 ? '<p style="padding:0 16px">' + T('ui.hot_deliveries', 'Deliveries done: {1}', Number(h.deliveries)) + '</p>' : '') + '</div>';
     }
+    // the home championship (sl_season.summary(); tools/season_fixture.js): a card on the Series tab: the six rounds, the table, Enter while it can be entered, the titles won
+    function seasonCard() {
+      var sm = obj(st.data.season);
+      if (!st.data.season) return '';
+      var se = sm.season;
+      var titles = Number(sm.titles) || 0, trophies = arr(sm.trophies);
+      var trophyLine = titles > 0 ? '<p>&#127942; ' + T('ui.sn_titles', 'Titles won: {1}', titles) + (trophies.length ? ' &middot; ' + esc(trophies.slice(-1)[0].title || '') : '') + '</p>' : '';
+      if (!se) return '<div class="slp-card"><h4>' + T('ui.sn_title', 'Home championship') + '</h4><p>' + T('ui.sn_none', 'No season running. The next one opens soon: {1} for the champion.', money(sm.purse)) + '</p>' + trophyLine + '</div>';
+      var rows = arr(se.rounds).map(function (r, i) {
+        var status = r.done ? '&#10004; ' + T('ui.sn_place', 'Place {1}, {2} pts', Number(r.place) || 0, Number(r.points) || 0) : r.missed ? '&#9660; ' + T('ui.cal_missed', 'Missed') : (se.round === i + 1 ? '&#9654; ' + T('ui.sn_next', 'Next') : '');
+        return '<div class="slp-kv" style="display:block;padding:6px 0"><div style="display:flex;justify-content:space-between;gap:8px"><span>' + (r.kind === 'duel' ? '&#9876; ' : '') + esc(r.title || '') + '</span><b>' + T('ui.sn_day', 'Day {1}', Number(r.day) || 0) + '</b></div>' + (status ? '<div style="opacity:.85">' + status + '</div>' : '') + '</div>';
+      }).join('');
+      var tbl = arr(se.table).map(function (x) {
+        return '<div class="slp-kv"><span>' + (Number(x.pos) || 0) + '. ' + (x.you ? '<b>' + esc(x.name) + '</b>' : esc(x.name)) + '</span><b>' + (Number(x.points) || 0) + ' ' + T('ui.trip_pts', 'pts') + '</b></div>';
+      }).join('');
+      return '<div class="slp-card"><h4>' + T('ui.sn_title_n', 'Home championship, season {1}', Number(se.n) || 1) + '</h4><p>' + T('ui.sn_span', 'Days {1} to {2} &middot; {3} for the champion', Number(se.from) || 0, Number(se.to) || 0, money(sm.purse)) +
+        (se.entered && se.position != null ? ' &middot; ' + T('ui.sn_position', 'you are {1}', placeWord(se.position)) : '') + '</p>' + trophyLine + rows +
+        (!se.entered ? '<div class="slp-acts"><div class="slp-btn' + (se.canEnter ? '' : ' slp-off') + '" data-a="seasonenter" data-v="1">' + T('ui.sn_enter', 'Enter the season') + '</div></div>' : '') + '</div>' +
+        (tbl ? '<div class="slp-card"><h4>' + T('ui.trip_standings', 'Standings') + '</h4>' + tbl + '</div>' : '');
+    }
     function calendarPage() {
       var c = obj(st.data.calendar), events = arr(c.events).slice().sort(function (a, b) { return (a.day - b.day) || ((a.hour == null ? -1 : a.hour) - (b.hour == null ? -1 : b.hour)); });
       if (st.calEvent) {
@@ -1459,14 +1650,14 @@
         body = '<div style="display:flex;padding:0 12px">' + cells.join('') + '</div>' + (st.calDay != null ? '<div class="slp-acts" style="padding:0 16px"><div class="slp-btn slp-text" data-a="calday" data-v="">' + T('ui.cal_all_days', 'Show all days') + '</div></div>' : '') +
           events.filter(function (e) { return st.calDay == null || Number(e.day) === Number(st.calDay); }).map(function (e) { return calEventCard(c, e); }).join('');
       } else {
-        body = arr(c.series).map(function (x) {
+        body = seasonCard() + arr(c.series).map(function (x) {
           return '<div class="slp-card"><h4>' + esc(x.name || '') + '</h4>' +
             '<div class="slp-kv"><span>' + T('ui.cal_where', 'Where') + '</span><b>' + esc(x.map || '') + '</b></div>' +
             '<div class="slp-kv"><span>' + T('ui.cal_round_label', 'Round') + '</span><b>' + (Number(x.round) || 0) + ' / ' + (Number(x.rounds) || 0) + '</b></div>' +
             '<div class="slp-kv"><span>' + T('ui.cal_points', 'Points') + '</span><b>' + (Number(x.points) || 0) + '</b></div>' +
             '<div class="slp-kv"><span>' + T('ui.cal_rank', 'Position') + '</span><b>' + (x.rank != null ? Number(x.rank) : '&ndash;') + '</b></div>' +
             (x.nextDay != null ? '<p>' + T('ui.cal_next_round', 'Next round: day {1}', Number(x.nextDay)) + '</p>' : '') + '</div>';
-        }).join('') || '<div class="slp-empty">' + T('ui.cal_no_series', 'No series running. One opens each month.') + '</div>';
+        }).join('') || (st.data.season ? '' : '<div class="slp-empty">' + T('ui.cal_no_series', 'No series running. One opens each month.') + '</div>');
       }
       return bar(T('app.calendar', 'Calendar')) + '<div class="slp-tabs" style="padding:0 16px 8px">' + tabs + '</div><div class="slp-body">' + body + '</div>';
     }
@@ -1518,6 +1709,35 @@
         (arr(h.cars).length ? '<div class="slp-card"><h4>' + T('ui.trip_cars', 'Your cars here') + '</h4>' + arr(h.cars).map(function (c) { return '<p>' + esc(c.name) + '</p>'; }).join('') + '</div>' : '') + home + '</div>';
     }
 
+    // police batch 2 (sl_justice.summary(); tools/justice_fixture.js is the contract): the tickets on the Bank page (Pay / Contest per row, the licence suspension), the wanted poster on Street cred with the informant,
+    // and the impound line under the impounded car on My cars. Nothing without the data.
+    function justiceOf() { return obj(st.data.justice); }
+    function unpaidTickets() { return arr(justiceOf().tickets).filter(function (t) { return !t.paid; }).length; }
+    function ticketsCard() {
+      var j = justiceOf(), list = arr(j.tickets);
+      if (!list.length && !j.suspended) return '';
+      var open = unpaidTickets();
+      var rows = list.map(function (t) {
+        var tag = t.paid ? '&#10004; ' + T('ui.tk_paid', 'Paid') : t.contested ? T('ui.tk_contested', 'Contested: the lawyer is on it')
+          : t.overdue ? '<span class="slp-warn">&#9888; ' + T('ui.tk_overdue', 'Overdue') + '</span>' : T('ui.tk_due', 'Due day {1}', Number(t.due) || 0);
+        var acts = !t.paid && !t.contested ? '<div class="slp-acts"><div class="slp-btn" data-a="tkpay" data-v="' + esc(t.id) + '">' + T('ui.tk_pay', 'Pay {1}', money(t.amount)) + '</div>' +
+          '<div class="slp-btn slp-tonal" data-a="tkcontest" data-v="' + esc(t.id) + '">' + (String(st.tkArmed) === String(t.id) ? T('ui.tk_contest_sure', 'Sure? The lawyer costs {1} up front', money(j.lawyerFee)) : T('ui.tk_contest', 'Contest &middot; {1}', money(j.lawyerFee))) + '</div></div>' : '';
+        return '<div class="slp-kv" style="display:block;padding:8px 0"><div style="display:flex;justify-content:space-between"><span>' + T('ui.tk_day', 'Ticket, day {1}', Number(t.day) || 0) + '</span><b>' + money(t.amount) + '</b></div><div>' + tag + '</div>' + acts + '</div>';
+      }).join('');
+      return '<div class="slp-card"><h4>' + T('ui.tk_title', 'Tickets: {1} unpaid', open) + '</h4>' +
+        (j.suspended ? '<p class="slp-warn">&#9888; ' + T('ui.tk_suspended', 'Your licence is suspended until the tickets are dealt with.') + '</p>' : '') + rows + '</div>';
+    }
+    function wantedCard() {
+      var w = justiceOf().wanted;
+      if (!w) return '';
+      return '<div class="slp-card"><h4>&#9888; ' + T('ui.wanted_title', 'Wanted: {1}', esc(w.model || '')) + '</h4><p>' + T('ui.wanted_bounty', 'Bounty {1} &middot; since day {2} ({3} d ago)', money(w.bounty), Number(w.since) || 0, Number(w.days) || 0) + '</p>' +
+        (w.informant ? '<div class="slp-acts"><div class="slp-btn slp-tonal" data-a="informant" data-v="1">' + T('ui.wanted_informant', 'Use an informant &middot; {1}', money(w.informantPrice)) + '</div></div>' : '') + '</div>';
+    }
+    function impoundLine(c) {
+      var im = justiceOf().impound;
+      return im && im.standing && String(im.carId) === String(c.id) ? '<p>' + T('ui.impound_standing', 'Standing at the {1}', esc(im.place || '')) + '</p>' : '';
+    }
+
     // the trophy shelf's list (s.trophies = { { name, kind sprint|invite|series, day, place } }, newest last; tools/trophies_fixture.js): newest first, a card only when the list exists
     var TROPHY_KIND = { sprint: T('ui.trophy_sprint', 'Sprint'), invite: T('ui.trophy_invite', 'Invitational'), series: T('ui.trophy_series', 'Series') };
     function placeWord(n) { n = Number(n) || 0; var m = n % 100; var sfx = (m >= 11 && m <= 13) ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th'; return n + sfx; }
@@ -1543,7 +1763,7 @@
       if (d.nextGarage && d.nextGarage.canMove) acts.push(('<div class="slp-btn" data-a="move">' + T('ui.move_to', 'Move to ')) + esc(d.nextGarage.name) + '</div>');
       if (d.roc && !d.rocChampion) acts.push('<div class="slp-btn" data-a="roc">' + (d.rocRound ? T('ui.roc_round_1_of_3', 'ROC round {1} of 3', (d.rocRound + 1)) : T('ui.enter_the_roc_middot_1', 'Enter the ROC &middot; {1}', money(d.rocEntry))) + '</div>');
       return bar(T('app.me', 'Street cred')) + '<div class="slp-body">' + economyCard() + '<div class="slp-card"><h4>' + esc(d.title) + '</h4><p>' + (d.rep || 0) + ' reputation' + (to ? T('ui.middot_next_title_at_1', ' &middot; next title at {1}', to) : '') + '</p>' +
-        '<div class="slp-meter"><i style="width:' + pct.toFixed(1) + '%"></i></div></div>' + perksCard() + trophiesCard() +
+        '<div class="slp-meter"><i style="width:' + pct.toFixed(1) + '%"></i></div></div>' + perksCard() + wantedCard() + trophiesCard() +
         ('<div class="slp-card"><div class="slp-kv"><span>' + T('ui.garage', 'Garage') + '</span><b>') + esc(d.garage || '') + '</b></div>' + next +
         (d.hasRoc === false ? '' : ('<div class="slp-kv"><span>' + T('activityrules.race_of_champions', 'Race of Champions') + '</span><b>') + (d.roc ? T('ui.open_to_you', 'Open to you') : T('ui.not_yet', 'Not yet')) + '</b></div>') +
         ('<div class="slp-kv"><span>' + T('ui.cars', 'Cars') + '</span><b>') + (d.cars || 0) + '</b></div>' +
@@ -1823,6 +2043,7 @@
     }, true);
     doc.addEventListener('keydown', function (ev) {
       if (st.chooser && (ev.key === 'Escape' || ev.keyCode === 27)) { st.chooser = false; render(); ev.stopPropagation(); }
+      if (st.camOn && (ev.key === 'Escape' || ev.keyCode === 27)) { home(); ev.stopPropagation(); }      // (Esc leaves the camera: the previous camera comes back)
     }, true);
 
     // the fade: black, or one of SLRR's loading screens (a cab ride, the garage, the dealer)
@@ -1887,12 +2108,15 @@
         case 'bid': page = bidPage(); break;
         case 'ad': page = adPage(); break;
         case 'bank': page = bankPage(); break;
+        case 'health': page = healthPage(); break;
         case 'sponsors': page = sponsorsPage(); break;
         case 'calendar': page = calendarPage(); break;
         case 'hotcars': page = hotCarsPage(); break;
         case 'traps': page = trapsPage(); break;
         case 'inventory': page = inventoryPage(); break;
+        case 'myroute': page = myroutePage(); break;
         case 'cab': page = cabPage(); break;
+        case 'frjobs': page = frJobsPage(); break;
         case 'me': page = mePage(); break;
         case 'garage': page = garagePage(); break;
         case 'garagekit': page = garageKitPage(); break;
@@ -1903,21 +2127,24 @@
       layer.style.setProperty('--sl-zoom', zoom); layer.setAttribute('data-zoom', zoom);
       layer.classList.toggle('slp-cb', !!d.colorBlind);      // #51 colour-blind friendly colours
       layer.classList.toggle('slp-rm', !!d.reduceMotion);      // the Reduce motion option (docs/UI_STYLE.md)
+      var camNow = !!(d.active && st.open && st.app === 'camera');      // (the Camera app is a camera: first person, the phone drawn sideways over it)
+      if (camNow !== !!st.camOn) { st.camOn = camNow; if (camNow) st.cam = { zoom: 1, flash: false, grid: obj(d.camera).grid !== false }; lua(camNow ? 'cameraEnter()' : 'cameraLeave()'); }
+      layer.classList.toggle('slp-camon', camNow);
       var isHome = st.app === 'home';
       var screen = '<div class="slp-screen' + (isHome ? ' slp-home-on' : '') + '"><div class="slp-cam"></div>' +
         '<div class="slp-status">' + two(d.hour || 0) + ':' + two(d.minute || 0) + '<div class="slp-sr">' + I.signal + I.wifi + I.battery + '</div></div>' +
         (isHome ? homePage() : '<div class="slp-page">' + page + '</div>') +
         (st.call ? callPage() : '') +
-        '<div class="slp-nav"><div data-a="back">' + NAV.back + '</div><div data-a="home">' + NAV.home + '</div><div data-a="away">' + NAV.recent + '</div></div></div>';
+        '<div class="slp-nav"><div data-a="back">' + NAV.back + '</div><div data-a="home">' + NAV.home + '</div><div data-a="away">' + NAV.recent + '</div></div>' + crackHtml(d.crack, mapWanted()) + '</div>';
       var hu = st.hu;
       var huHtml = '<div class="slp-hu' + (hu && !st.open && !lotHides() && obj(d.has).hudpill !== false ? '' : ' slp-gone') + '" data-a="openthread" data-v="' + esc(hu ? hu.thread : '') + '">' +
         (hu ? avatar({ id: hu.thread, name: hu.name }) + ('<div><small>' + T('ui.messages', 'Messages ') + '&middot;' + ' now' + '</small><b>') + esc(hu.name) + '</b><span>' + esc(hu.text) + '</span></div>' : '') + '</div>';
       var html =
         '<div class="slp-pill"' + (st.open || lotHides() || obj(d.has).hudpill === false ? ' style="display:none"' : '') + '><b>' + money(d.money) + '</b><span>' + esc(d.title) + '</span>' +
-          (d.phase ? '<span>' + (d.phase === 'night' ? '&#9790;' : '&#9728;') + '</span>' : '') + (d.heat > 0 ? '<span style="color:#ff6a4a">' + '&#9650;'.repeat(d.heat) + '</span>' : '') + (d.phase === 'night' && d.atRisk > 0 ? '<span style="color:#ffb74a">+' + d.atRisk + (T('ui.at_risk', ' at risk') + '</span>') : '') + '<span>' + two(d.hour || 0) + ':' + two(d.minute || 0) + '</span></div>' +
+          (d.phase ? '<span>' + (d.phase === 'night' ? '&#9790;' : '&#9728;') + '</span>' : '') + needsPill() + (d.heat > 0 ? '<span style="color:#ff6a4a">' + '&#9650;'.repeat(d.heat) + '</span>' : '') + (d.phase === 'night' && d.atRisk > 0 ? '<span style="color:#ffb74a">+' + d.atRisk + (T('ui.at_risk', ' at risk') + '</span>') : '') + '<span>' + two(d.hour || 0) + ':' + two(d.minute || 0) + '</span></div>' +
         '<div class="slp-device@@LAND@@' + (st.open ? '' : ' slp-away') + '" style="transform:' + (st.open ? '' : 'translateY(70%) ') + 'scale(' + scale() + ')">' + screen + '</div>' +
         lotView() + garageView() + stationView() + meetView() + raceView() +
-        huHtml + reportModal() +
+        huHtml + reportModal() + (camNow ? camHtml() : '') +
         '<div class="slp-toast' + (st.toast ? '' : ' slp-gone') + '">' + esc(st.toast || '') + '</div>' +
         fadeView();
       // the game sends the data every few seconds: a screen that did not change is left alone (a rebuild between the press and the release of a click loses the
@@ -2049,6 +2276,7 @@
       st.stack.push({ app: st.app, contact: st.contact, thread: st.thread });
       st.app = app;
       if (app === 'gallery') lua('photos()');
+      if (app === 'camera') lua('photoChallenges()');
       if (app === 'contacts') lua('people()');
       if (app === 'map') { st.tab.map = 'map'; st.mapAt = Date.now(); lua('mapPlaces()'); }      // (the Map app opens on the map)
       if (app === 'help' && !arr(st.help).length) lua('requestHelp()');
@@ -2215,9 +2443,18 @@
         case 'wait': lua('wait(' + JSON.stringify(String(v)) + ')'); break;
         case 'borrow': lua('borrow(' + Number(v) + ')'); break;
         case 'repay': lua('repay(' + Number(v) + ')'); break;
+        case 'tkpay': lua('payTicket(' + JSON.stringify(String(v)) + ')'); break;
+        case 'tkcontest':
+          if (String(st.tkArmed) !== String(v)) { st.tkArmed = String(v); render(); break; }      // (the lawyer's fee is paid up front: ask once more)
+          st.tkArmed = null; lua('contestTicket(' + JSON.stringify(String(v)) + ')'); break;
+        case 'informant': lua('informant()'); break;
         case 'economy': lua('economyOptIn()'); break;
         case 'theftact': lua('theftAct("' + (v === 'jam' ? 'jam' : 'pull') + '")'); break;
+        case 'frtake': lua('frjobAccept(' + JSON.stringify(String(v)) + ')'); break;
+        case 'frcancel': lua('frjobCancel()'); break;
         case 'paydebt': lua('payDebt(' + Number(v) + ')'); break;
+        case 'eat': lua('eat(' + JSON.stringify(String(v)) + ')'); break;
+        case 'nap': lua('nap(' + Number(v) + ')'); break;
         case 'spnaccept': lua('sponsorAccept()'); break;
         case 'spndecline': lua('sponsorDecline()'); break;
         case 'spnquit':
@@ -2231,6 +2468,10 @@
         case 'calenter': lua('calendarEnter(' + JSON.stringify(String(v)) + ')'); break;
         case 'caldecline': lua('calendarDecline(' + JSON.stringify(String(v)) + ')'); st.calEvent = null; break;
         case 'calremind': var cr = String(v).split('|'); lua('calendarRemind(' + JSON.stringify(cr[0]) + ',' + (cr[1] === 'true' ? 'true' : 'false') + ')'); break;
+        case 'seasonenter': lua('seasonEnter()'); break;
+        case 'camzoom': st.cam = st.cam || {}; st.cam.zoom = Number(v) || 1; lua('cameraZoom(' + (Number(v) || 1) + ')'); render(); break;
+        case 'camflash': st.cam = st.cam || {}; st.cam.flash = !st.cam.flash; render(); break;
+        case 'camgrid': st.cam = st.cam || {}; st.cam.grid = !st.cam.grid; render(); break;
         case 'caltravel': st.pickDismissed = null; lua('travelPick(' + JSON.stringify(String(v)) + ')'); break;
         case 'pickcar':
           var ps = arr(st.pickSel).slice(), pi = ps.indexOf(String(v));
@@ -2297,6 +2538,19 @@
           st.invDrop = null;
           var ip = String(v).split(':');
           lua('@sl_inventory.discard(' + JSON.stringify(ip[0]) + ',' + (ip[0] === 'can' ? Number(ip[1]) : JSON.stringify(ip[1])) + ')');
+          break;
+        case 'routedrop': lua('@sl_myroute.drop()'); break;
+        case 'routeundo': lua('@sl_myroute.undo()'); break;
+        case 'routediscard': lua('@sl_myroute.discard()'); break;
+        case 'routestop': lua('@sl_myroute.cancel()'); break;
+        case 'routerace': lua('@sl_myroute.race(' + Number(v) + ')'); break;
+        case 'routesave':
+          var rn = root.querySelector('.slp-routename');
+          lua('@sl_myroute.save(' + JSON.stringify(String(rn && rn.value || '')) + ')');
+          break;
+        case 'routedel':
+          if (st.routeDel !== Number(v)) { st.routeDel = Number(v); toast(T('ui.click_again_to_delete_that', 'Click again to delete that career for good.')); render(); break; }
+          st.routeDel = null; lua('@sl_myroute.delete(' + Number(v) + ')');
           break;
         case 'slotname':
           var inp = root.querySelector('.slp-slotname[data-slot="' + Number(v) + '"]');
@@ -2423,6 +2677,7 @@
         case 'slStation': st.station = data.open ? data : null; render(); break;
         case 'slGarage': st.garage = data.open ? data : null; render(); break;
         case 'slPhotos': st.photos = data; render(); break;
+        case 'slPhotoChallenges': st.photoChallenges = data; render(); break;
         case 'slMap': st.map = data; render(); break;
         case 'slPeople': st.people = data; render(); break;
         case 'slHelp': st.help = arr(data && data.pages); render(); break;
@@ -2470,7 +2725,7 @@
         probe.onload = function () { phone.handle('slArt'); };
         probe.src = '/ui/modModules/slHud/slrr/icons/cup.png';
       });
-      ['slPhoneData', 'slPhoneSkin', 'slPhoneToggle', 'slPhoneGo', 'slPhoneCall', 'slPhoneCallReply', 'slPhoneNotify', 'slPhoneToast', 'slFade', 'slLotBars', 'slLotData', 'slMeet', 'slRace', 'slMenu', 'slrrGarageState', 'slStation', 'slGarage', 'slPhotos', 'slMap', 'slPeople', 'slLaptopDealers', 'slAuctions', 'slRivals', 'slLaptopOffers', 'slHelp', 'slStrings', 'slMapsTiles', 'slMapsPose', 'slMapsRoute', 'slMapsPlaces', 'slMapsOptions'].forEach(function (name) {
+      ['slPhoneData', 'slPhoneSkin', 'slPhoneToggle', 'slPhoneGo', 'slPhoneCall', 'slPhoneCallReply', 'slPhoneNotify', 'slPhoneToast', 'slFade', 'slLotBars', 'slLotData', 'slMeet', 'slRace', 'slMenu', 'slrrGarageState', 'slStation', 'slGarage', 'slPhotos', 'slPhotoChallenges', 'slMap', 'slPeople', 'slLaptopDealers', 'slAuctions', 'slRivals', 'slLaptopOffers', 'slHelp', 'slStrings', 'slMapsTiles', 'slMapsPose', 'slMapsRoute', 'slMapsPlaces', 'slMapsOptions'].forEach(function (name) {
         $rootScope.$on(name, function (ev, data) { phone.handle(name, data); });
       });
       if (window.bngApi) window.bngApi.engineLua('if sl_phone then sl_phone.request() end if sl_menuTile then sl_menuTile.request() end');

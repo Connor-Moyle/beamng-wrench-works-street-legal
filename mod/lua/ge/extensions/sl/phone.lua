@@ -26,6 +26,7 @@ local function freeApps()
   local out = {}      -- (no Settings app: the settings live in ESC > Mods)
   if sl_mode.enabled('maps') then out[#out + 1] = 'map' end
   if sl_mode.enabled('cab') then out[#out + 1] = 'cab' end
+  if sl_mode.enabled('jobs') and sl_frjobs and sl_frjobs.summary then out[#out + 1] = 'frjobs' end      -- (free-roam freight runs)
   return out
 end
 -- the app to open: in free roam only the free apps, else the home screen
@@ -46,6 +47,7 @@ local function freeSnapshot()
     weather = sl_mode.enabled('weather') and sl_weather and sl_weather.forecast and sl_weather.forecast() or nil,
     textScale = require('sl/core/strings').textScale(sl_options and sl_options.get and sl_options.get('slTextScale')),
     colorBlind = sl_options ~= nil and sl_options.get ~= nil and sl_options.get('slColorBlind') == true,
+    frjobs = sl_frjobs and sl_frjobs.summary and sl_frjobs.summary() or nil,          -- (free-roam freight runs: nil unless the Jobs free-roam switch is on)
     has = { clubs = false, crews = false, classifieds = false, races = false, jobs = false, market = false, bank = false, maps = sl_mode.enabled('maps'), hudpill = false },
     places = placesOut, contacts = {}, threads = {}, fleet = {}, cars = 0,
     mapName = (function() local lvl = getCurrentLevelIdentifier and getCurrentLevelIdentifier() local m = lvl and progression.MAPS and progression.MAPS[lvl] return m and m.name or lvl end)(),
@@ -113,19 +115,26 @@ local function snapshot()
     art = sl_hud ~= nil and sl_hud.slrrArt ~= nil and sl_hud.slrrArt() or false,
     has = { clubs = sl_career.has('clubs'), crews = sl_career.has('crews'), classifieds = sl_career.has('classifieds'),
       races = require('sl/core/features').on('races'), jobs = require('sl/core/features').on('jobs'), market = require('sl/core/features').on('market'),
-      bank = require('sl/core/features').on('bank'), maps = require('sl/core/features').on('maps'), hudpill = require('sl/core/features').on('hudpill'), weekly = require('sl/core/features').on('weekly'), service = require('sl/core/features').on('service'), perks = require('sl/core/features').on('perks'), traps = require('sl/core/features').on('traps'), inventory = require('sl/core/features').on('inventory'), danger = require('sl/core/features').on('danger'), calendar = require('sl/core/features').on('calendar'), sponsors = require('sl/core/features').on('sponsors') },      -- (the parts that are switched off lose their apps)
+      bank = require('sl/core/features').on('bank'), maps = require('sl/core/features').on('maps'), hudpill = require('sl/core/features').on('hudpill'), weekly = require('sl/core/features').on('weekly'), service = require('sl/core/features').on('service'), perks = require('sl/core/features').on('perks'), traps = require('sl/core/features').on('traps'), inventory = require('sl/core/features').on('inventory'), myroute = require('sl/core/features').on('myroute'), danger = require('sl/core/features').on('danger'), calendar = require('sl/core/features').on('calendar'), sponsors = require('sl/core/features').on('sponsors'), needs = require('sl/core/features').on('needs') },      -- (the parts that are switched off lose their apps)
     contacts = contacts, threads = s.threads, unread = s.unread,
     challenges = challenges, ledger = ledger, places = placesOut,
     cars = #s.cars, stats = s.stats,
     perks = sl_perks and sl_perks.perks and sl_perks.perks() or nil,
+    needs = sl_needs and sl_needs.summary and sl_needs.summary() or nil,      -- (the Health page and the pill icons: nil with the part off or no career)
     trophies = type(s.trophies) == 'table' and s.trophies or nil,      -- (the trophy shelf's list, written at a win; nil until there is one)
     calendar = sl_calendar and sl_calendar.summary and sl_calendar.summary() or nil,      -- (the Calendar app: nil with the part off or no career)
     hotcars = rawget(_G, 'sl_theft') and sl_theft.summary and sl_theft.summary() or nil,      -- (the Hot cars list: nil with the part off or no career)
+    justice = rawget(_G, 'sl_justice') and sl_justice.summary and sl_justice.summary() or nil,      -- (police batch 2: tickets, the wanted poster, the impound line; nil with the part off)
+    season = rawget(_G, 'sl_season') and sl_season.summary and sl_season.summary() or nil,      -- (the home championship: nil with the part off or no career)
+    crack = rawget(_G, 'sl_phonecrack') and sl_phonecrack.view and sl_phonecrack.view() or nil,      -- (the cracked screen: nil when whole or the part is off)
+    camera = { firstPerson = sl_options and sl_options.get and sl_options.get('slCamFirstPerson') ~= false, sway = sl_options and sl_options.get and tonumber(sl_options.get('slCamSway')) or 0.5,
+      grid = sl_options and sl_options.get and sl_options.get('slCamGrid') ~= false, bezel = sl_options and sl_options.get and sl_options.get('slCamBezel') ~= false, zoomMax = sl_options and sl_options.get and tonumber(sl_options.get('slCamZoomMax')) or 4 },
     visit = sl_career.visit and sl_career.visit() and { name = sl_career.visit().name or sl_career.mapName(), round = sl_career.visit().round, rounds = sl_career.visit().rounds, untilDay = sl_career.visit().untilDay } or nil,      -- (on a trip: the phone shows the Event hub)
     hub = sl_career.visit and sl_career.visit() and sl_series and sl_series.hub and sl_series.hub() or nil,      -- (the paddock: standings, the next round, the cars brought)
     travelPick = travelPick,      -- (the pick-cars screen: sl_series.options(eventId) while one is open)
     danger = sl_danger and sl_danger.summary and sl_danger.summary() or nil,      -- (jumps and drift zones, on the Speed traps page)
     inventory = sl_inventory and sl_inventory.summary and sl_inventory.summary() or nil,      -- (the Inventory page: nil with the part off or no career)
+    myroute = sl_myroute and sl_myroute.summary and sl_myroute.summary() or nil,      -- (the My routes page: nil with the part off or no career)
     traps = sl_traps and sl_traps.summary and sl_traps.summary() or nil,      -- (the Speed traps page: nil with the part off or no career)
     fleet = (function()      -- each car with its service card (sl_service.serviceOf: nil with the part off or for an unknown car)
       local list = sl_fleet and sl_fleet.list() or {}
@@ -284,9 +293,9 @@ function M.mapPlaces()
   liveRoute()
   local list = {}
   for id, p in pairs((inCareer and sl_career.allPlaces or sl_career.freeRoamPlaces or sl_career.allPlaces)() or {}) do
-    if p.pos and (inCareer or M.FREE_KINDS[p.kind]) then list[#list + 1] = { id = id, name = p.name, kind = p.kind, x = p.pos.x, y = p.pos.y } end
+    if p.pos and (inCareer or M.FREE_KINDS[p.kind]) then list[#list + 1] = { id = id, name = p.name, kind = p.kind, x = p.pos.x, y = p.pos.y, info = p.kind == 'gas' and sl_fuelrange and sl_fuelrange.priceText and sl_fuelrange.priceText() or nil } end
   end
-  guihooks.trigger('slMap', { groups = mapLib.groups(list, playerAt()), route = route and { id = route.id, name = route.name } or nil })
+  guihooks.trigger('slMap', { groups = mapLib.groups(list, playerAt()), route = route and { id = route.id, name = route.name } or nil, fuelNote = sl_fuelrange and sl_fuelrange.mapNote and sl_fuelrange.mapNote(playerAt()) or nil })
 end
 
 -- the Contacts app's people: rivals (sl_rivals), the crews' leaders you know, the dealers on the map
@@ -350,6 +359,7 @@ local function routeStep(dtReal)
 end
 
 function M.photos() if sl_photos then sl_photos.list() end end
+function M.photoChallenges() if sl_photos then sl_photos.challenges() end end
 function M.takePhoto() if sl_photos then answer(sl_photos.take()) end end
 function M.setWallpaper(which, file) if sl_photos then answer(sl_photos.setWallpaper(tostring(which), file ~= '' and tostring(file) or false)) end end
 function M.upgrade(id) if career() and sl_upgrades then answer(sl_upgrades.buy(tostring(id))) end end
@@ -389,6 +399,8 @@ function M.watchReplay() if career() and sl_replay then answer(sl_replay.watch()
 function M.saveClip() if career() and sl_replay then answer(sl_replay.save()) end end
 function M.enterLeague(kind) if career() and sl_clubs then answer(sl_clubs.enter(tostring(kind))) end end
 function M.borrow(amount) if career() and sl_bank then answer(sl_bank.borrow(tonumber(amount))) end end
+function M.eat(itemId) if career() and sl_needs and sl_needs.eat then sl_needs.eat(tostring(itemId)) wantSend = true end end      -- (sl_needs shows its own toast)
+function M.nap(hours) if career() and sl_needs and sl_needs.nap then sl_needs.nap(tonumber(hours)) wantSend = true end end
 -- the Calendar's actions (sl_calendar answers ok, text: the toast is the phone's own)
 function M.calendarEnter(eventId, carIds) if career() and sl_calendar and sl_calendar.enter then answer(sl_calendar.enter(tostring(eventId), type(carIds) == 'table' and carIds or nil)) end end
 function M.calendarDecline(eventId) if career() and sl_calendar and sl_calendar.decline then answer(sl_calendar.decline(tostring(eventId))) end end
@@ -415,6 +427,13 @@ function M.travelConfirm(eventId, carIds, useLoaner)
   if ok then travelPick = nil end
   answer(ok, text)
 end
+-- police batch 2 (sl_justice answers ok, text like the others)
+local function justice(fn, ...) if career() and rawget(_G, 'sl_justice') and sl_justice[fn] then answer(sl_justice[fn](...)) else answer(false, strings.t('phone.trip_unavailable')) end end
+-- (a ticket's id is a number in sl_justice; the phone sends it as text)
+function M.payTicket(id) justice('payTicket', tonumber(id) or id) end
+function M.contestTicket(id) justice('contestTicket', tonumber(id) or id) end
+function M.informant() justice('informant') end
+function M.seasonEnter() if career() and rawget(_G, 'sl_season') and sl_season.enter then answer(sl_season.enter()) else answer(false, strings.t('phone.trip_unavailable')) end end
 function M.hubStart()
   if not career() then return end
   if not (sl_series and sl_series.startNext) then tripAway() return end
@@ -442,6 +461,12 @@ function M.theftAct(kind)
 end
 function M.payDebt(amount) if career() and sl_weekly then answer(sl_weekly.payDebt(tonumber(amount))) end end
 function M.repay(amount) if career() and sl_bank then answer(sl_bank.repay(tonumber(amount))) end end
+function M.frjobAccept(id) if sl_frjobs and sl_frjobs.accept then answer(sl_frjobs.accept(tostring(id))) end end          -- (free roam: take a freight run)
+function M.frjobCancel() if sl_frjobs and sl_frjobs.cancel then answer(sl_frjobs.cancel()) end end
+-- the Camera app as a camera (sl_phonecam: first person while the app is open, the old camera back after)
+function M.cameraEnter() if rawget(_G, 'sl_phonecam') then sl_phonecam.enter() end end
+function M.cameraLeave() if rawget(_G, 'sl_phonecam') then sl_phonecam.leave() end end
+function M.cameraZoom(z) if rawget(_G, 'sl_phonecam') then sl_phonecam.zoom(tonumber(z)) end end
 function M.economyOptIn() if career() and sl_career.optInEconomy then answer(sl_career.optInEconomy()) end end      -- (the offer card's button: ok, text; the text is the toast)
 function M.insure(on) if career() and sl_bank then answer(sl_bank.insure(on == true or on == 'true')) end end
 function M.takeJob(id) if career() and sl_jobs then answer(sl_jobs.take(tostring(id))) end end

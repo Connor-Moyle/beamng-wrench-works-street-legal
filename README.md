@@ -61,9 +61,13 @@ At night, walk up to the owner of a parked car at a meet and press **Talk to <na
 - **Heat** (1-5) is how much the police want you. It exists only at night, rises with street races, near misses and chases, and the hotter it is the more patrols, the harder to shake, and roadblocks from 4.
 - Reputation earned at night is **at risk** until you bank it at a garage (or by starting the day). Busted: a fine, the unbanked reputation, and at heat 4-5 the car is impounded.
 - **Clubs** run seven-day seasons (a night race and a day track event each day), **crews** hold the districts of the map (phone > Turf), and a **swap meet** fills a car park on weekend nights.
+- **Police batch 2** (on by default): a pull-over at heat 1 can be a ticket you pay or contest in court (three overdue suspend the licence), a record from heat 4 puts your car on a wanted poster that outlives the day, the impound lot at the Belasco police station (pay by day or cut the fence at night for a chase from the gate), the box and the PIT manoeuvre in a pursuit, and patrol shifts on the Jobs board (from 300 reputation; the game's suspects run from you and you are paid by how fast each arrest comes).
+- **Car theft** (off by default): on foot by a parked car at night, a break-in by the era of the car (a pin, a wire, a bypass box), an alarm and witnesses, a stolen car that may carry a tracker, plates bought at the accessories counter ($300 legal, $700 for a stolen car), the fence at the docks at night and the black market. Hot cars have their own phone app.
 
 ## The phone and the laptop
 
+
+More apps and cards since 0.8.0: the Calendar with its Series tab (the race series and the home championship), the Health app (needs), Hot cars (theft), trophies and wanted posters on Street cred, camera challenges, a cracked screen after a hard crash, and the Maps app's fuel-range line. Every page has a long-name and small-screen check (`tools/phone_audit.js`).
 The phone (K) has Races, My cars, Bank, Street cred, Jobs, Wait, Settings, Club, Turf, Car market, Part market and Help, with Messages, Contacts, Phone and Cab in the dock. Garage computers (and the other computers on the map) open a Windows-style laptop with the same markets, your cars, the bank and Help, and the garage's own tools.
 
 ## Money, wear and used cars
@@ -74,6 +78,7 @@ The phone (K) has Races, My cars, Bank, Street cred, Jobs, Wait, Settings, Club,
 - **Contracts and tier perks** (on by default): a few part runs and courier parcels carry terms and pay 1.6 to 2.2 times as much when you keep them; each boss you beat gives a lasting advantage (cheaper upgrades and services, better job pay, lower fines, a higher loan limit).
 - **Speed traps and danger zones** (on by default): six traps and two zones on long roads record your speed against a target, the longest jump you fly pays at 20, 40, 70 and 110 m, and two drift zones score your drifting; the first time you beat a target it pays.
 - **Used-car checks** (on by default): a private ad shows the history of a car but not its faults; a mechanic's check for a fee shows them and what each costs to fix.
+- **Shops and the inventory** (on by default): parts, paint, tyres, exhausts and special orders at shops with their own screens; what you buy waits in the boot of your car until you reach the garage. **Freight runs** (on by default) are loads between the game's own delivery businesses on the Jobs board; **turf income**, **My route**, **Crew mates**, **Seasons**, **fuel siphoning** and the **car radio DJ** are off by default.
 
 ## Street Legal in free roam (all off by default)
 
@@ -85,7 +90,9 @@ ESC > Mods > Street Legal > Screens and texts > Phone skin: **Classic** (default
 
 ## Settings
 
-All settings are in the pause menu: **ESC > Mods**. The Street Legal page has tabs: Difficulty (police, pay, hardcore mode, wear rate), Street racing, Clock and weather (the clock speed, weather and the wet roads), Screens and texts (the **Street Legal dashboard**, the phone skin, text size), Accessibility, Free roam, Parts of the game and Developer (a **performance overlay** for reporting stutters). Nothing is set on the phone, the laptop or the game's Options page. **Parts of the game** also lists, on the Active features page, what is switched on: spectators, billboards, ambient sounds, puddles, achievements, tips, car and part markets, rally, races and drag, clubs, crews, the tow truck, the taxi ride, the bank, the hospital, the HUD pill, the laptops, Maps, garage upgrades, jobs, weekly costs, servicing and wear, used-car checks, contracts, tier perks, speed traps, danger zones, barn finds, brand sponsorships, the calendar, career travel, shops, hill duels, the grab bag, car theft and cinematic moments (and Needs, off by default); each is on by default (except Needs) and can be switched off without losing anything in the save.
+Every number of a feature is a row in the Mods menu (amounts, chances, prices, timers), tagged gameplay, graphics or none: the Gameplay presets (Easy, Normal, Hardcore) read the gameplay rows only; Normal is the defaults.
+
+All settings are in the pause menu: **ESC > Mods**. The Street Legal page has tabs: Difficulty (police, pay, hardcore mode, wear rate), Street racing, Clock and weather (the clock speed, weather and the wet roads), Screens and texts (the **Street Legal dashboard**, the phone skin, text size), Accessibility, Free roam, Parts of the game and Developer (a **performance overlay** for reporting stutters). Nothing is set on the phone, the laptop or the game's Options page. **Parts of the game** also lists, on the Active features page, what is switched on: cracked phone screen, spectators at races, sponsor billboards, ambient sounds, puddles and splashes, achievements, getting-started tips, car and part markets, rally stages, street races and drag racing, clubs, crews and turf, tow truck, taxi ride, bank, hospital, HUD phone pill, laptops, maps, garage upgrades, used-car checks, contracts, car mastery, tier perks, inventory, speed traps, danger zones, barn finds, brand sponsorships, brand invitationals, rival story beats, career travel, servicing and wear, weekly costs, cinematic moments, shops, freight runs, jobs, hill duels, grab bag, championship season, calendar, style shows. Off by default: car radio DJ, turf income, my route, crew mates, seasons, car theft, fuel siphoning, needs: hunger, thirst and sleep. Each can be switched off without losing anything in the save; a part with numbers also has them as rows.
 
 ## Multiplayer (BeamMP)
 

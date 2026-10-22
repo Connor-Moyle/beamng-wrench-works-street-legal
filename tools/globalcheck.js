@@ -11,7 +11,7 @@ const GAME = {
 };
 // Street Legal: the game's extensions are globals named by prefix (sl_career, core_groundMarkers, gameplay_police, slrrDrivers ...), and a few engine functions
 const EXTENSION = /^(sl_|slrr|core_|gameplay_|freeroam_|ui_|career_|util_|sl[A-Z])/;
-GAME.ge.push(...'String nop map spawn settings quatFromDir quat quatFromAxisAngle ColorF ColorI GBitmap jsonDecode MatrixF Point2F castRayStatic writeFile serialize translateLanguage debugDrawer getCurrentLevelIdentifier energyStorage partCondition beamstate powertrain damageTracker bullettime commands simTimeAuthority resetGameplay debug returnToMainMenu loadJsonMaterialsFile getObjectsByClass VariableRegistry worldReadyState tableMergeRecursive createScreenshot2 collectgarbage deepcopy vec3 getPlayerVehicle spawnPrefab removePrefab gameplay_parking'.split(' '));
+GAME.ge.push(...'String nop map spawn settings quatFromDir quat quatFromAxisAngle ColorF ColorI GBitmap jsonDecode MatrixF Point2F GFXDevice castRayStatic writeFile serialize translateLanguage debugDrawer getCurrentLevelIdentifier energyStorage partCondition beamstate powertrain damageTracker bullettime commands simTimeAuthority resetGameplay debug returnToMainMenu loadJsonMaterialsFile getObjectsByClass VariableRegistry worldReadyState tableMergeRecursive createScreenshot2 collectgarbage deepcopy vec3 getPlayerVehicle spawnPrefab removePrefab gameplay_parking'.split(' '));
 GAME.vehicle.push(...'vec3 energyStorage tableMergeRecursive deepcopy serialize guihooks map settings quat quatFromDir beamstate powertrain damageTracker input controller drivetrain thrusters hydros ai partCondition'.split(' '));
 const root = process.argv[2] || path.join(__dirname, '..', 'mod', 'lua');
 const files = [];

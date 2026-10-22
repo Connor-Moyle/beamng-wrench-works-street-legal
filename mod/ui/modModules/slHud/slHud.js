@@ -19,7 +19,7 @@
     '.slh-status{position:absolute;left:50%;top:1.4vh;transform:translateX(-50%);padding:5px 16px;border-radius:16px;background:rgba(20,18,24,.72);color:#eee;font-size:15px;display:flex;gap:12px;align-items:center}',
     '.slh-status,.slh-perf{zoom:var(--sl-zoom,1)}',
     '.slh-perf{position:fixed;left:8px;top:8px;z-index:60;padding:6px 10px;border-radius:6px;background:rgba(0,0,0,.6);color:#e8e8e8;font:12px/1.35 Consolas,monospace;pointer-events:none;white-space:pre}',
-    '.slh-heat{color:#ff4a2a;letter-spacing:2px}.slh-heat i{font-style:normal;color:#55505a}',
+    '.slh-fuel-low{color:#ffb03a}.slh-fuel-critical,.slh-fuel-empty{color:#ff4a2a}.slh-heat{color:#ff4a2a;letter-spacing:2px}.slh-heat i{font-style:normal;color:#55505a}',
     '.slh-chase{display:flex;gap:6px;align-items:center}.slh-bar{display:inline-block;width:90px;height:8px;border-radius:4px;background:#3a3640;overflow:hidden}.slh-bar b{display:block;height:100%;background:#4ad2ff}.slh-bar.slh-bust b{background:#ff4a2a}.slh-strip{color:#ffd23a;font-weight:bold}',
   ].join('\n');
 
@@ -430,6 +430,7 @@
       var html = '<span>' + (night ? '&#9790; ' + (labels.night || 'Night') : '&#9728; ' + (labels.day || 'Day')) + '</span>' +
         (heat > 0 || night ? '<span class="slh-heat" title="' + (labels.heat || 'Heat {1}').replace('{1}', heat) + '">' + flames + ' ' + heat + '</span>' : '') +
         chaseHtml(d.chase) +
+        (d.fuel ? '<span class="slh-fuel slh-fuel-' + d.fuel.level + '" title="' + (labels.fuelTip || 'Fuel range') + '">&#9981; ' + (labels.fuel || '{1} km').replace('{1}', d.fuel.range) + '</span>' : '') +
         (night && d.atRisk > 0 ? '<span title="' + (labels.atRiskTip || 'Reputation you lose if you are busted; a garage banks it') + '">' + (labels.atRisk || '+{1} rep at risk').replace('{1}', d.atRisk) + '</span>' : '');
       if (html !== last.status) { last.status = html; status.innerHTML = html; draws++; } else skips++;
       status.classList.remove('slh-gone');

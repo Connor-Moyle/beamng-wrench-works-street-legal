@@ -325,13 +325,29 @@
         '<div class="sll-kv"><span>' + T('ui.known_faults', 'Known faults') + '</span><b>' + (arr(rp.faults).length ? esc(arr(rp.faults).join(', ')) : 'none') + '</b></div>' + secs +
         '<div class="sll-kv"><span><b>' + T('ui.repair_estimate_to_95', 'Repair estimate, to 95 %') + '</b></span><b>' + money(rp.total) + '</b></div></div></div></div>';
     }
+    // used-car checks (sl_classifieds): the ad tells the history; the faults and the report show after a paid mechanic's check (same data and texts as the phone)
+    function usedCheckL(l) {
+      var lines = arr(l.history);
+      if (!lines.length && !l.hidden && !l.checked) return '';
+      var html = '<div class="sll-props"><b>' + T('ui.history', 'History') + '</b></div>' + lines.map(function (x) { return '<div class="sll-props">' + esc(x) + '</div>'; }).join('');
+      if (l.hidden) {
+        html += '<div class="sll-props" style="color:#f2b8b5">&#9888; ' + T('ui.hidden_faults', 'The faults and the car report show after a mechanic has checked the car.') + '</div>' +
+          '<div class="sll-acts"><div class="sll-btn sll-tonal" data-a="mkcheck" data-v="' + esc(l.id) + '">' + T('ui.check_car', 'Check the car') + ' &middot; ' + money(l.checkFee) + '</div></div>';
+      } else if (l.checked) {
+        var found = arr(l.found);
+        html += found.length ? '<div class="sll-props">' + T('ui.faults_found', 'The mechanic found:') + '</div>' + found.map(function (f) {
+          return '<div class="sll-kv"><span>' + esc(f.label || '') + '</span><b>' + money(f.cost) + '</b></div>';
+        }).join('') : '<div class="sll-props">' + T('ui.no_faults_found', 'The mechanic found no faults.') + '</div>';
+      }
+      return html;
+    }
     function adCardL(l) {
       var tells = arr(l.tells).length ? '<div class="sll-props" style="color:#f2b8b5">&#9888; ' + arr(l.tells).map(esc).join(' &middot; ') + '</div>' : '';
       if (l.car) {
         return '<div class="sll-card sll-listing">' + pic(l) + '<div class="sll-li"><h4>' + (l.year ? l.year + ' ' : '') + esc(l.name) + '</h4><div class="sll-brand">' + esc(l.brand || '') + '</div>' +
           '<div class="sll-props">' + facts(l) + '</div><div class="sll-props">' + esc(l.seller) + ' ' + '&#9733;'.repeat(l.rating || 0) + (l.metres != null ? T('ui.middot_1_away', ' &middot; {1} away', dist(l.metres)) : '') +
           (l.hours ? T('ui.middot_delivered_in_about_1', ' &middot; delivered in about {1} h', l.hours) : '') + ' &middot; condition ' + l.condition + '%' + (l.faults ? T('ui.middot_1_fault_2', ' &middot; {1} fault{2}', l.faults, (l.faults > 1 ? 's' : '')) : '') + '</div>' + tells +
-          '<div class="sll-props"><b>' + money(l.ask) + '</b>' + (l.agreed ? T('ui.agreed', ' (agreed)') : '') + ' &middot; deposit ' + money(l.deposit) + '</div>' + reportBlock('ad:' + l.id, l.report, l.history) + mkButtons(l) + '</div></div>';
+          '<div class="sll-props"><b>' + money(l.ask) + '</b>' + (l.agreed ? T('ui.agreed', ' (agreed)') : '') + ' &middot; deposit ' + money(l.deposit) + '</div>' + usedCheckL(l) + reportBlock('ad:' + l.id, l.report, l.history) + mkButtons(l) + '</div></div>';
       }
       return '<div class="sll-card sll-listing">' + partPicL(l) + '<div class="sll-li"><h4>' + (l.rare ? '&#9733; ' : '') + esc(l.name) + '</h4><p>' + partMetaL(l) + ' &middot; ' + l.condition + T('ui.condition_middot', '% condition &middot; ') + esc(l.seller) + ' ' + '&#9733;'.repeat(l.rating || 0) +
         ' &middot; ' + Math.max(0, l.hoursLeft | 0) + (T('ui.h_left', ' h left') + '</p>') + tells + '<p><b>' + money(l.ask) + '</b>' + (l.agreed ? T('ui.agreed', ' (agreed)') : '') + ' &middot; deposit ' + money(l.deposit) + '</p>' + mkButtons(l) + '</div></div>';
@@ -516,6 +532,12 @@
       }).join('');
     }
 
+    // the wanted poster (sl_justice.summary().wanted, the same data as the phone's Street cred page; no button on the computer)
+    function wantedCardL() {
+      var w = obj(obj(st.data.justice).wanted);
+      if (!w.model) return '';
+      return '<div class="sll-card"><h4>&#9888; ' + T('ui.wanted_title', 'Wanted: {1}', esc(w.model)) + '</h4><p>' + T('ui.wanted_bounty', 'Bounty {1} &middot; since day {2} ({3} d ago)', money(w.bounty), Number(w.since) || 0, Number(w.days) || 0) + '</p></div>';
+    }
     // the trophy shelf's list (s.trophies = { { name, kind sprint|invite|series, day, place } }, newest last; tools/trophies_fixture.js): newest first, a card only when the list exists
     var TROPHY_KIND = { sprint: T('ui.trophy_sprint', 'Sprint'), invite: T('ui.trophy_invite', 'Invitational'), series: T('ui.trophy_series', 'Series') };
     function placeWord(n) { n = Number(n) || 0; var m = n % 100; var sfx = (m >= 11 && m <= 13) ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th'; return n + sfx; }
@@ -539,7 +561,7 @@
         }).join('') + '</div>';
       }
       return body('<div class="sll-card"><h4>' + esc(d.title) + '</h4><p>' + (d.rep || 0) + ' reputation' + (to ? T('ui.middot_next_title_at_1', ' &middot; next title at {1}', to) : '') + '</p>' +
-        '<div class="sll-meter"><i style="width:' + pct.toFixed(1) + '%"></i></div></div>' + trophiesCardL() +
+        '<div class="sll-meter"><i style="width:' + pct.toFixed(1) + '%"></i></div></div>' + wantedCardL() + trophiesCardL() +
         ('<div class="sll-card"><div class="sll-kv"><span>' + T('ui.garage', 'Garage') + '</span><b>') + esc(d.garage || '') + '</b></div>' + next +
         ('<div class="sll-kv"><span>' + T('ui.cars', 'Cars') + '</span><b>') + (d.cars || 0) + '</b></div>' +
         ('<div class="sll-kv"><span>' + T('ui.races', 'Races') + '</span><b>') + (s.races || 0) + ' (' + (s.wins || 0) + (T('ui.won_2', ' won)') + '</b></div>') +
@@ -793,6 +815,7 @@
         case 'awatch': var aw = String(v).split('|'); lua('@sl_carauctions.watch(' + JSON.stringify(aw[0]) + ',' + (aw[1] === '1' ? 'true' : 'false') + ')'); break;
         case 'asell': var as = String(v).split('|'); lua('@sl_carauctions.sell(' + Number(as[0]) + ',' + Number(as[1]) + ')'); break;
         case 'mkoffer': var op = String(v).split('|'); lua('@sl_phone.marketOffer(' + JSON.stringify(op[0]) + ',' + Number(op[1]) + ')'); break;
+        case 'mkcheck': lua('@sl_phone.marketCheck(' + JSON.stringify(String(v)) + ')'); break;
         case 'mkbuy': var bp = String(v).split('|'); lua('@sl_phone.marketBuy(' + JSON.stringify(bp[0]) + ',' + JSON.stringify(bp[1]) + ')'); break;
         case 'mkbid': lua('@sl_phone.marketBid(' + JSON.stringify(String(v)) + ')'); break;
         case 'mkmeet': lua('@sl_phone.buyAtMeet(' + JSON.stringify(String(v)) + ')'); break;

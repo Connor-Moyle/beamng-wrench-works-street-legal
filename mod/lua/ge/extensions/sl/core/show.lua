@@ -119,9 +119,17 @@ function M.score(inp)
   return { criteria = c, used = used, missing = missing, total = total }
 end
 
+-- the settings (the Mods rows, all optional): { fee, hour, prize (a multiplier of the purse), tipAt (the points a criterion must lose before the judges name it), stand (seconds to stand at the marker) }
+local function within(v, d, lo, hi) v = tonumber(v) if not v or v ~= v then return d end return math.max(lo, math.min(hi, v)) end
+function M.config(c)
+  c = type(c) == 'table' and c or {}
+  return { fee = math.floor(within(c.fee, M.FEE, 0, 1000) + 0.5), hour = math.floor(within(c.hour, M.HOUR, 18, 23) + 0.5), prize = within(c.prize, 1, 0.25, 3), tipAt = within(c.tipAt, 3, 0, 20), stand = within(c.stand, 1.2, 0.2, 10) }
+end
+
 -- ---- the judges' words: a band 1 (poor) to 4 (excellent) per criterion and the one thing to put right first (the criterion that loses the most weighted points)
 function M.band(x) return x < 0.35 and 1 or (x < 0.55 and 2 or (x < 0.75 and 3 or 4)) end
-function M.lines(result)
+function M.lines(result, cfg)
+  local tipAt = M.config(cfg).tipAt
   local out, worst, wd = {}, nil, 0
   for _, id in ipairs(M.ORDER) do
     local s = result.criteria[id]
@@ -131,7 +139,7 @@ function M.lines(result)
       if deficit > wd + 1e-9 then worst, wd = id, deficit end
     end
   end
-  local tip = (worst and wd >= 3) and strings.t('show.' .. worst .. '_tip') or nil
+  local tip = (worst and wd >= tipAt) and strings.t('show.' .. worst .. '_tip') or nil
   return out, tip, worst
 end
 
@@ -179,23 +187,25 @@ end
 
 -- ---- the prize: money and reputation by tier and place (nothing past the third)
 local function round10(x) return math.floor(x / 10 + 0.5) * 10 end
-function M.prize(tier, place)
+function M.prize(tier, place, cfg)
+  local scale = M.config(cfg).prize
   tier = clamp(math.floor(tonumber(tier) or 1), 1, #M.PURSE)
   local share = M.SHARE[place]
   if not share then return 0, 0 end
-  return round10(M.PURSE[tier] * share), math.floor((M.REP_BASE + M.REP_TIER * tier) * share + 0.5)
+  return round10(M.PURSE[tier] * share * scale), math.floor((M.REP_BASE + M.REP_TIER * tier) * share + 0.5)
 end
 
 -- ---- the calendar event of a Saturday night (nil on other days): spots = a list of meet spot names (the career's), seed = the career's seed
-function M.event(day, seed, spots, rep)
+function M.event(day, seed, spots, rep, cfg)
+  cfg = M.config(cfg)
   if weekly.dayOfWeek(day) ~= M.DOW then return nil end
   local week = weekly.week(day)
   local list = (type(spots) == 'table' and #spots > 0) and spots or { strings.t('show.default_spot') }
   local i = ((week + (tonumber(seed) or 0)) % #list) + 1
   local spot = list[i]
   local tier = M.tierOf(rep)
-  return { id = 'show:' .. i .. ':' .. week, title = strings.t('show.title', spot), kind = 'show', day = day, hour = M.HOUR, place = spot, map = nil,
-    travel = { needed = false, fee = 0, hours = 0 }, series = nil, reward = strings.t('show.reward', M.PURSE[tier]), fee = M.FEE, week = week, spot = spot,
+  return { id = 'show:' .. i .. ':' .. week, title = strings.t('show.title', spot), kind = 'show', day = day, hour = cfg.hour, place = spot, map = nil,
+    travel = { needed = false, fee = 0, hours = 0 }, series = nil, reward = strings.t('show.reward', round10(M.PURSE[tier] * cfg.prize)), fee = cfg.fee, week = week, spot = spot,
     requires = nil }
 end
 

@@ -4,7 +4,7 @@ local M = {}
 
 local strings = require('sl/core/strings')
 
-local HOURS = { shop = { 8, 18 }, dealer = { 9, 17 }, junkyard = { 8, 17 }, scrapyard = { 8, 17 } }
+local HOURS = { shop = { 8, 18 }, dealer = { 9, 17 }, junkyard = { 8, 17 }, scrapyard = { 8, 17 }, night = { 20, 5 } }      -- (night wraps past midnight: the fence and the black market)
 
 local function hour(time) return (time * 24 + 12) % 24 end
 
@@ -13,6 +13,7 @@ function M.isOpen(kind, time)
   local h = HOURS[kind]
   if not h then return true end
   local now = hour(time)
+  if h[1] > h[2] then return now >= h[1] or now < h[2] end      -- (a window across midnight)
   return now >= h[1] and now < h[2]
 end
 

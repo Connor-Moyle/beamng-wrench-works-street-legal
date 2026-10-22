@@ -14,6 +14,9 @@ local drawcache = require('sl/core/drawcache')
 
 local DAMAGE_FULL = 30000                 -- BeamNG damage of a wrecked car (sl_jobs uses the same: a hard crash is about 25000)
 local standFor, cool, kinds = 0, 0, nil
+-- the Mods rows (Street Legal > Style shows)
+local function opt(key) return sl_options and sl_options.get and sl_options.get(key) or nil end
+local function cfg() return rules.config({ fee = opt('slShowFee'), hour = opt('slShowHour'), prize = opt('slShowPrize'), tipAt = opt('slShowTip'), stand = opt('slShowStand') }) end
 local last                                -- the last judging, kept for the phone: { place, total, lines, tip, top3, spot, prize, rep }
 
 local function career() return sl_career and sl_career.isActive() and sl_career.getState() or nil end
@@ -43,7 +46,7 @@ function M.eventToday(s)
   s = s or career()
   if not s then return nil end
   local list = spots()
-  local ev = rules.event(s.day, s.seed, spotNames(list), s.rep)
+  local ev = rules.event(s.day, s.seed, spotNames(list), s.rep, cfg())
   if not ev then return nil end
   local idx = tonumber(tostring(ev.id):match('^show:(%d+):'))
   local place = idx and list[idx]
@@ -165,7 +168,7 @@ end
 local function judge(s, inputs)
   local result = rules.score(inputs)
   if not result.total then return nil end
-  local lines, tip = rules.lines(result)
+  local lines, tip = rules.lines(result, cfg())
   return { result = result, lines = lines, tip = tip }
 end
 
@@ -205,11 +208,11 @@ function M.begin(eventId)
   if not j then say(strings.t('show.nothing_to_judge'), 5) return false end
   -- the entry: taken here, unless the player already entered on the phone (the calendar's enter() charged ev.fee and keeps the entry in s.calendar.entered, read-only here)
   local entered = type(s.calendar) == 'table' and type(s.calendar.entered) == 'table' and s.calendar.entered[ev.id]
-  if not entered and not sl_career.addMoney(-rules.FEE, strings.t('show.title', ev.place)) then say(strings.t('show.no_money', rules.FEE), 5) return false end
+  if not entered and not sl_career.addMoney(-cfg().fee, strings.t('show.title', ev.place)) then say(strings.t('show.no_money', cfg().fee), 5) return false end
   local tier = rules.tierOf(s.rep)
   local field = rules.field(s.seed, ev.week, tier)
   local placeNo, top3 = rules.rank(j.result.total, j.result.used, field, strings.t('show.you'))
-  local money, rep = rules.prize(tier, placeNo)
+  local money, rep = rules.prize(tier, placeNo, cfg())
   if money > 0 then sl_career.payOut(money, strings.t('show.title', ev.place)) end
   if rep > 0 then stateLib.addRep(s, rep) end
   local rec = { place = placeNo, total = j.result.total, prize = money, rep = rep, spot = ev.place, day = s.day, week = ev.week, tier = tier }
@@ -241,7 +244,8 @@ function M.onUpdate(dtReal)
   if not s or sl_career.LEVEL ~= 'west_coast_usa' then return end
   cool = math.max(0, cool - dtReal)
   local hour = sl_career.hour and sl_career.hour() or 0
-  if not (hour >= rules.HOUR and hour <= rules.HOUR + rules.LATE_H) then standFor = 0 return end      -- (an idle frame builds nothing)
+  local startH = tonumber(opt('slShowHour')) or rules.HOUR
+  if not (hour >= startH and hour <= startH + rules.LATE_H) then standFor = 0 return end      -- (an idle frame builds nothing)
   if not (cachedKey and cachedKey.day == s.day and cachedKey.seed == s.seed and cachedKey.rep == s.rep) then
     cachedKey = { day = s.day, seed = s.seed, rep = s.rep }
     cachedEv, cachedPlace = M.eventToday(s)
@@ -258,14 +262,14 @@ function M.onUpdate(dtReal)
     -- (drawn every frame: its positions and its label are built once per event, not once per frame)
     local m = drawcache.get('show:' .. tostring(ev.id) .. ':' .. tostring(ev.place), function()
       local pos = vec3(place.pos.x, place.pos.y, place.pos.z)
-      return { pos = pos, top = pos + vec3(0, 0, 6), label = pos + vec3(0, 0, 7), text = String(strings.t('show.title', ev.place) .. ' - $' .. rules.FEE) }
+      return { pos = pos, top = pos + vec3(0, 0, 6), label = pos + vec3(0, 0, 7), text = String(strings.t('show.title', ev.place) .. ' - $' .. cfg().fee) }
     end)
     debugDrawer:drawCylinder(m.pos, m.top, 0.3, marker)
     debugDrawer:drawTextAdvanced(m.label, m.text, marker, true, false, markerBg)
   end
   if d < rules.START_REACH * 0.1 and cool <= 0 and v:getVelocity():length() < 1.5 then
     standFor = standFor + dtReal
-    if standFor > 1.2 then standFor = 0 cool = 10 M.begin(ev.id) end
+    if standFor > cfg().stand then standFor = 0 cool = 10 M.begin(ev.id) end
   else
     standFor = 0
   end

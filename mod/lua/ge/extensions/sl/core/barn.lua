@@ -12,7 +12,7 @@ M.APART = 800               -- m between two spots
 M.FOUND_RADIUS = 35         -- m: close enough to find it
 M.MIN_REP = 100
 M.REUSE_DAYS = 30           -- a spot whose car was bought or went off the market holds a new one after this many days
-M.GAP = { 3, 6 }            -- days between two rumours
+M.GAP_MIN, M.GAP_MAX = 3, 6     -- days between two rumours
 M.PRICE_SHARE = 0.22        -- of the car's value
 M.CONDITION = { 0.12, 0.3 }
 

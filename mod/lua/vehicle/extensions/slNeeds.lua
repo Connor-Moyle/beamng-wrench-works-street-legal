@@ -10,12 +10,13 @@ local lag, tremor = 0, 0
 local KEYS = { steering = true, throttle = true, brake = true }
 local target, cur, extra = {}, {}, {}
 local t = 0
+local nodLeft = 0      -- seconds of a micro-sleep to go: the throttle is let go, the steering and the brake hold, what the driver does meanwhile applies when he is awake again
 
 local function install()
   if input.slNeedsEvent then return end
   input.slNeedsEvent = input.event
   input.event = function(itype, value, ...)
-    if KEYS[itype] and (lag > 0 or (tremor > 0 and itype == 'steering')) then
+    if KEYS[itype] and (lag > 0 or nodLeft > 0 or (tremor > 0 and itype == 'steering')) then
       target[itype], extra[itype] = value, { ... }
       if cur[itype] == nil then cur[itype] = value end
       return
@@ -39,7 +40,30 @@ function M.set(l, tr)
 end
 function M.get() return lag, tremor end
 
+-- let go of everything at once: a switch of car, a reset, the career ending, the part switched off
+function M.release()
+  if nodLeft > 0 then
+    nodLeft = 0
+    for k in pairs(KEYS) do flush(k) end
+  end
+end
+
+-- a micro-sleep of `seconds` (at most a second and a half: the game side asks for 0.5 to 1)
+function M.nod(seconds)
+  nodLeft = math.max(nodLeft, math.min(1.5, tonumber(seconds) or 0))
+  if nodLeft > 0 then install() end
+end
+
 function M.updateGFX(dt)
+  if nodLeft > 0 then
+    nodLeft = nodLeft - dt
+    if nodLeft > 0 then
+      if input.slNeedsEvent then input.slNeedsEvent('throttle', 0) end
+      return
+    end
+    nodLeft = 0
+    for k in pairs(KEYS) do flush(k) end      -- (awake: the last input of each pedal and of the steering applies)
+  end
   if lag <= 0 and tremor <= 0 then return end
   t = t + dt
   for itype in pairs(KEYS) do
@@ -54,6 +78,6 @@ function M.updateGFX(dt)
   end
 end
 
-function M.onReset() for k in pairs(KEYS) do target[k], cur[k], extra[k] = nil, nil, nil end end
+function M.onReset() nodLeft = 0 for k in pairs(KEYS) do target[k], cur[k], extra[k] = nil, nil, nil end end
 
 return M
