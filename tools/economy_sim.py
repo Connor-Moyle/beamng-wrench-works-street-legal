@@ -384,11 +384,57 @@ class Player:
             if self.money <= 0: self.broke += 0          # (counted at arrests)
         return self
 
-def main():
+SEED = int(os.environ.get('SEED', '0'))          # which set of players: the players' streams are seeded 1000 x SEED + their number
+
+def population(seed):
     players = []
     for i in range(PLAYERS + PLAYERS // 3):
         style = ['racer', 'mixed', 'worker', 'borrower'][i % 4]
-        players.append(Player(i, style).run(60 * HOURS))
+        players.append(Player(i + 1000 * seed, style).run(60 * HOURS))
+    return players
+
+def metrics(players):
+    out = {}
+    for style in ['racer', 'mixed', 'worker', 'borrower']:
+        ps = [p for p in players if p.style == style]
+        worth = [p.money - (p.loan[1] if p.loan else 0) for p in ps]
+        out[style + ' net worth (median)'] = statistics.median(worth)
+        out[style + ' floor minutes (median)'] = statistics.median([getattr(p, 'broke_min', 0) for p in ps])
+        out[style + ' floor minutes (worst)'] = max(getattr(p, 'broke_min', 0) for p in ps)
+        out[style + ' under $300 at the end'] = sum(1 for p in ps if p.money < 300)
+    return out
+
+def spread(values):
+    v = sorted(values)
+    return statistics.median(v), v[0], v[-1]
+
+def multi(n):
+    """--seeds N [--json file]: N independent populations; each number as median and range over the seeds. Same code, same numbers; a change of the rules moves the median by more than the range or it says nothing."""
+    runs = [metrics(population(k)) for k in range(n)]
+    table = {key: spread([r[key] for r in runs]) for key in runs[0]}
+    if '--json' in sys.argv:
+        import json
+        json.dump(table, open(sys.argv[sys.argv.index('--json') + 1], 'w'), indent=1)
+    print('%d seeds of %d players, %d h each: median (lowest - highest over the seeds)' % (n, PLAYERS + PLAYERS // 3, HOURS))
+    for key, (m, lo, hi) in table.items(): print('  %-34s %9.0f  (%.0f - %.0f)' % (key, m, lo, hi))
+
+def diff(a, b):
+    """--diff before.json after.json: each number's change in the median, and whether the two ranges overlap (overlap: no real change)."""
+    import json
+    A, B = json.load(open(a)), json.load(open(b))
+    print('%-34s %10s %10s %9s' % ('', 'before', 'after', 'change'))
+    for key in A:
+        if key not in B: continue
+        (ma, la, ha), (mb, lb, hb) = A[key], B[key]
+        real = hb < la or lb > ha
+        print('%-34s %10.0f %10.0f %+9.0f %s' % (key, ma, mb, mb - ma, 'REAL' if real else '(within the spread)'))
+
+def main():
+    if '--diff' in sys.argv:
+        i = sys.argv.index('--diff'); diff(sys.argv[i + 1], sys.argv[i + 2]); return
+    if '--seeds' in sys.argv:
+        multi(int(sys.argv[sys.argv.index('--seeds') + 1])); return
+    players = population(SEED)
     keys = ['car 1', 'first upgrade', 'lift', 'workbench', 'dyno', 'car 2', 'car 3', 'car 4', 'rep 150', 'rep 300', 'rep 500', 'rep 800', 'rep 1000', 'rep 1500', 'garage 2', 'rep 3000', 'garage 3', 'rep 6000', 'ROC open']
     print('Milestones (real minutes of play; median and 10-90 %; n = players who got there in HOURS h)')
     for style in ['racer', 'mixed', 'worker', 'borrower']:
