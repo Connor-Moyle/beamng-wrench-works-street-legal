@@ -4175,6 +4175,9 @@ do
     check('banners: the show podium has a title by place and the three names', b3.title == '2nd place' and b3.subtitle == '1. Ava   2. You   3. Cy')
     check('banners: the show podium: place 1 is the winner, 3 is third, 6 is a plain place, no place is nothing', select(1, sc3.showBanner({ place = 1 })) == 'show_win' and select(1, sc3.showBanner({ place = 3 })) == 'show_3' and select(1, sc3.showBanner({ place = 6 })) == 'show_other' and sc3.showBanner({}) == nil)
   end
+  sent = {}
+  H.onStreetLegalSeasonFinished({ position = 1, points = 60 }) H.onStreetLegalSeasonFinished({ pos = 2 }) H.onStreetLegalSeasonFinished(nil) H.onStreetLegalSeasonFinished({ position = 6 })
+  check('banners: the end of a home championship shows the series banners (win, podium, over); odd data shows nothing', sent[1] == 'series_win' and sent[2] == 'series_podium' and sent[3] == 'series_end' and #sent == 3)
   check('banners: a hook with odd arguments does not throw', pcall(function() H.onStreetLegalBusted(nil, nil, nil) H.onStreetLegalCarAdded(nil) H.onStreetLegalGarageMoved() end))
   _G.guihooks = saved
   package.loaded['sl/scenes'] = nil
