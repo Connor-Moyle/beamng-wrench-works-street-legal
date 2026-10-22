@@ -2059,6 +2059,7 @@ M.TEXT = {
   ["streets.you_beat_s_d_d"] = "You beat %s: +$%d, %+d reputation.",
   ["streets.you_won_the_roc_champion"] = "You won the ROC. Champion of Valo City. I always said you had it in you. (I did not.)",
   ["streets.you_won_the_s_off"] = "You won the %s off %s. It is waiting at your garage.",
+  ["tow.refund"] = "Tow cancelled: the fee is back",
   ["tow.the_truck_dropped_you_and"] = "The truck dropped you and the car at your garage.",
   ["tow.the_truck_has_your_car"] = "The truck has your car. It will be on your garage forecourt.",
   ["tutorial.benny_says_you_are_new"] = "Benny says you are new. $100, {1}. Nothing fancy.",

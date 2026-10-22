@@ -22,6 +22,12 @@ local leaving = {}             -- truck id -> seconds until it is gone
 local function toast(text) guihooks.trigger('slPhoneToast', { text = text }) end
 local function rightHand() return not map.getRoadRules().rightHandDrive end
 local function drop(id) local v = getObjectByID(id) if v then v:delete() end end
+-- the fee was paid when the truck was sent: a tow that ends without the car being taken (the car is gone, the career stops, the level ends) gives it back, once
+local function refund(t)
+  if not (t and (t.fee or 0) > 0 and not t.refunded) then return end
+  t.refunded = true
+  if sl_career and sl_career.isActive and sl_career.isActive() then sl_career.addMoney(t.fee, strings.t('tow.refund')) end
+end
 
 local function laneNear(pos, minD, maxD)
   local others = {}
@@ -93,7 +99,7 @@ function M.onUpdate(dtReal)
   end
   if not call then return end
   local truck, car = getObjectByID(call.truck), getObjectByID(call.car)
-  if not car then if truck then drop(call.truck) end call = nil return end       -- (the car went some other way)
+  if not car then if truck then drop(call.truck) end refund(call) call = nil return end       -- (the car is gone: no tow, no fee)
   if not truck then load() return end
   call.waited = call.waited + dtReal
   if (truck:getPosition() - car:getPosition()):length() < ARRIVE_RADIUS then load() return end
@@ -107,11 +113,12 @@ end
 function M.busy() return call ~= nil end
 
 function M.onStreetLegalStopped()
-  if call then drop(call.truck) end
+  if call then drop(call.truck) refund(call) end
   for id in pairs(leaving) do drop(id) end
   call, leaving = nil, {}
 end
-function M.onClientEndMission() call, leaving = nil, {} end
+function M.onClientEndMission() refund(call) call, leaving = nil, {} end
+function M.testCall(c) call = c end      -- (for the tests: a tow on its way without a truck)
 
 -- (the Mods menu's Parts of the game: with this part off, the hooks above do nothing)
 require('sl/core/features').gate('tow', M, nil, nil, { 'send' })

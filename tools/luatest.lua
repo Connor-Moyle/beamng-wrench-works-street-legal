@@ -7759,6 +7759,29 @@ do
   package.loaded['sl/shops'] = nil
 end
 
+-- money charged first, then a result: a tow that never takes the car gives the fee back (the car is gone, the career stops, the level ends)
+do
+  local old = {}
+  for _, k in ipairs({ 'sl_career', 'guihooks', 'getObjectByID', 'getPlayerVehicle', 'map' }) do old[k] = rawget(_G, k) end
+  local money = 1000
+  _G.guihooks = { trigger = function() end }
+  _G.getObjectByID = function() return nil end
+  _G.sl_career = { isActive = function() return true end, addMoney = function(a) money = money + a return true end }
+  package.loaded['sl/tow'] = nil
+  local TW = require('sl/tow')
+  TW.testCall({ truck = 5, carId = 'c1', car = 6, waited = 0, fee = 300 })
+  TW.onUpdate(1)
+  check('fee leaks: the car is gone before the truck arrives, the fee comes back', money == 1300 and TW.busy() == false, tostring(money))
+  TW.testCall({ truck = 5, carId = 'c1', car = 6, waited = 0, fee = 300 })
+  TW.onClientEndMission()
+  check('fee leaks: the level ends under a tow, the fee comes back once', money == 1600 and TW.busy() == false, tostring(money))
+  TW.testCall({ truck = 5, carId = 'c1', car = 6, waited = 0, fee = 300 })
+  TW.onStreetLegalStopped()
+  TW.onClientEndMission()
+  check('fee leaks: the career stops under a tow, the fee comes back once (not again at the level end)', money == 1900, tostring(money))
+  package.loaded['sl/tow'] = nil
+  for k, v in pairs(old) do _G[k] = v end
+end
 -- money charged first, then a result: a bought car that can never be built is cancelled and refunded
 do
   local DR = require('sl/core/dealers')
