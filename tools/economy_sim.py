@@ -29,6 +29,16 @@ DAY_MIN = 30.0            # real minutes per in-game day (BeamNG's TimeOfDay day
 NIGHT = (20, 5)           # night hours, as progression.isNight
 CITY_SPEED = 11.0         # m/s average across town, stops included
 START_MONEY = 5000
+# --preset easy|normal|hardcore: the built-in Gameplay presets (docs/GAMEPLAY_PRESETS.md) as far as the sim has the numbers: the pay of jobs, shows and invitationals (slEconomy), the money a new career starts
+# with (slStartMoney), the wear rate (slWearRate half / normal / double: the wear scale), how fast the heat cools (slHeatCool) and the fines. normal is every factor 1: the same numbers as without the flag.
+PRESETS = {
+    'easy': dict(pay=1.5, start=8000, wear=0.5, cool=2.0, fine=0.67),
+    'normal': dict(pay=1.0, start=5000, wear=1.0, cool=1.0, fine=1.0),
+    'hardcore': dict(pay=0.75, start=2500, wear=2.0, cool=0.5, fine=1.5),
+}
+PRESET = PRESETS[sys.argv[sys.argv.index('--preset') + 1]] if '--preset' in sys.argv else PRESETS['normal']
+START_MONEY = PRESET['start']
+PAY = PRESET['pay']
 TIERS = [  # roster.TIERS: rep range, bet range
     dict(rep=(0, 150), bet=(100, 400)), dict(rep=(150, 600), bet=(300, 1000)), dict(rep=(600, 1800), bet=(800, 3000)),
     dict(rep=(1800, 4000), bet=(2500, 8000)), dict(rep=(4000, 9000), bet=(6000, 20000))]
@@ -49,6 +59,10 @@ if '--old' in sys.argv:
     TUNE.update(race_rep_base=20, job_rep=6, fine_base=400, fine_offence=300, fine_racing=1000, heat_decay_per_min=0.0, crush_pay=150,
                 hot_base=1000, hot_per_km=600, test_top=1500, test_slope=4000)
 CARS = [(6000, 1), (15000, 2), (30000, 3), (60000, 4), (120000, 5), (250000, 6)]
+WEAR_SCALE *= PRESET['wear']
+TUNE['heat_decay_per_min'] *= PRESET['cool']
+for _k in ('fine_base', 'fine_offence', 'fine_racing'):
+    TUNE[_k] *= PRESET['fine']
 
 def is_night(h): return h >= NIGHT[0] or h < NIGHT[1]
 
@@ -199,6 +213,7 @@ class Player:
         purse = SHOW_PURSE[tier - 1]
         share = {1: 1.0, 2: 0.5, 3: 0.25}.get(place, 0.0)
         prize = round(purse * share, -1)
+        prize = round(prize * PAY)
         self.money += prize - SHOW_FEE
         self.rep += int((12 + 8 * tier) * share + 0.5)
         self.book('show', prize - SHOW_FEE, 14)          # the drive to the spot, the parking and the judging
@@ -237,6 +252,7 @@ class Player:
         if v['day'] == d:
             place = self.r.choices([1, 2, 3, 4], [0.40, 0.25, 0.15, 0.20])[0]
             money, standing = {1: (3000, 100), 2: (1800, 60), 3: (1000, 30), 4: (300, 10)}[place]
+            money = round(money * PAY)
             self.money += money; v['money'] += money; v['standing'] += standing; v['trophies'] += place == 1
             self.standing += standing
             self.book('invitational', money, 25)
@@ -285,6 +301,7 @@ class Player:
         minutes = min_fn(self.r)
         if self.r.random() < fail: pay = 0
         if not night_only: pay = round(pay * DAY_PAY, -1)     # sl_jobs.refresh: every day job's pay x jobsLib.DAY_PAY
+        pay = round(pay * PAY, -1) if PAY != 1 else pay          # the preset's pay (slEconomy)
         if pay and BOOST:                   # sl_jobs: "new in town" and the first-time bonus
             n = self.kind_done[name] = self.kind_done.get(name, 0) + 1
             mult = 1 if self.upgraded else 1 + max(0, 1 - self.rep / 150)
