@@ -5085,6 +5085,17 @@ do
   check('show game: a second try in the same week is refused and costs nothing', SX.begin() == false and st.money == moneyAfter)
   local sum = SX.summary()
   check('show game: the summary has the last judging and the history', sum and sum.last and sum.last.place == rec.place and sum.history[ev.week] == rec)
+  check('show game: an entry already paid on the phone is not charged again at the marker', (function()
+    local d0 = st.day
+    st.day = 27
+    local ev2 = SX.eventToday(st)
+    st.calendar = { entered = { [ev2.id] = true } }
+    local m0 = st.money
+    local ok = SX.begin(ev2.id)
+    st.calendar = nil
+    st.day = d0
+    return ok == true and st.show.history[ev2.week] ~= nil and st.money - m0 == st.show.history[ev2.week].prize
+  end)())
 
   -- the next Saturday, with a source missing
   st.day = 13

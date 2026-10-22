@@ -202,7 +202,9 @@ function M.begin(eventId)
   if not v then return false end
   local j = judge(s, M.inputs(v))
   if not j then say(strings.t('show.nothing_to_judge'), 5) return false end
-  if not sl_career.addMoney(-rules.FEE, strings.t('show.title', ev.place)) then say(strings.t('show.no_money', rules.FEE), 5) return false end
+  -- the entry: taken here, unless the player already entered on the phone (the calendar's enter() charged ev.fee and keeps the entry in s.calendar.entered, read-only here)
+  local entered = type(s.calendar) == 'table' and type(s.calendar.entered) == 'table' and s.calendar.entered[ev.id]
+  if not entered and not sl_career.addMoney(-rules.FEE, strings.t('show.title', ev.place)) then say(strings.t('show.no_money', rules.FEE), 5) return false end
   local tier = rules.tierOf(s.rep)
   local field = rules.field(s.seed, ev.week, tier)
   local placeNo, top3 = rules.rank(j.result.total, j.result.used, field, strings.t('show.you'))
