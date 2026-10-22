@@ -5359,6 +5359,9 @@ do
   _G.sl_career, _G.extensions, _G.guihooks, _G.sl_fleet, _G.getPlayerVehicle, _G.gameplay_missions_missions, _G.gameplay_missions_missionManager, _G.core_jobsystem, _G.ui_message, _G.sl_gridrace =
     old.c, old.e, old.g, old.f, old.pv, old.mi, old.mm, old.cj, old.um, old.gr
   package.loaded['sl/series'] = nil
+  _G.sl_career, _G.extensions, _G.guihooks, _G.sl_fleet, _G.getPlayerVehicle, _G.gameplay_missions_missions, _G.gameplay_missions_missionManager, _G.core_jobsystem, _G.ui_message, _G.sl_gridrace =
+    old.c, old.e, old.g, old.f, old.pv, old.mi, old.mm, old.cj, old.um, old.gr
+  package.loaded['sl/series'] = nil
 end
 
 -- shops: kinds, normalising, markers, stock, prices, checkout (sl/core/shops)
@@ -5685,8 +5688,8 @@ do
   SS = require('sl/shops')
   local act = {}
   SS.onActivityAcceptGatherData({ { placeId = 'dealer' }, { placeId = 'junkyard' }, { type = 'other' } }, act)
-  check('sl_shops: a dealer with brands on its sign gets a Parts counter button naming them; other places get none',
-    #act == 1 and act[1].buttonLabel == 'Parts counter (Bruckell, Gavril, Ibishu)' and act[1].heading == 'Jefferson Motors' and act[1].sorting.id == 'dealer')
+  check('sl_shops: a dealer with brands on its sign gets a Parts counter button naming them (the junkyard its own Parts yard button, no other place one)',
+    #act == 2 and act[2].buttonLabel == 'Parts yard' and act[1].buttonLabel == 'Parts counter (Bruckell, Gavril, Ibishu)' and act[1].heading == 'Jefferson Motors' and act[1].sorting.id == 'dealer')
   act[1].buttonFun()
   v = sent[#sent].d
   check('sl_shops: the counter sells the parts of those brands that fit the player car (the Ibishu part, not the Zephyrin one)', v.kind == 'dealerparts' and #v.stock == 1 and v.stock[1].brand == 'Ibishu' and asked[#asked].brands[3] == 'Ibishu')
@@ -5901,6 +5904,348 @@ do
   check('sl_shops: after a week without delivery the deposit is back, with a text', #st.shopOrders == 0 and st.money == depositMoney + 450)
 
   for k, val in pairs(old) do _G[k] = val end
+  package.loaded['sl/shops'] = nil
+end
+
+-- needs batch 2: the rules (diner, motel, fridge, bed, meal plan, ledger line, micro-sleeps)
+do
+  local N = require('sl/core/needs')
+  local n = N.repair({ food = 20, water = 20, rest = 20 })
+  check('needs: a repaired save has the new fields', n.spentWeek == 0 and n.plan == false and n.fridgeDay == nil)
+  check('needs: the diner sells drink, coffee, meal and big meal; the fuel station does not sell the big meal', N.DINER_ORDER[4] == 'bigmeal' and N.ITEMS.bigmeal.price == 25 and N.ITEM_ORDER[4] ~= 'bigmeal')
+  check('needs: a meal costs 12, on the plan nothing, a drink always 2', N.price('meal', false) == 12 and N.price('meal', true) == 0 and N.price('bigmeal', true) == 0 and N.price('drink', true) == 2 and N.price('zzz', false) == 0)
+  local ok, price = N.eatAt(n, 'bigmeal', false)
+  check('needs: a big meal fills food and adds water, and is added to the week', ok and price == 25 and n.food == 100 and n.water == 60 and n.spentWeek == 25)
+  ok, price = N.eatAt(n, 'meal', true)
+  check('needs: a meal on the plan costs nothing and adds nothing to the week', ok and price == 0 and n.spentWeek == 25)
+  local bad, p0 = N.eatAt(n, 'nothing', false)
+  check('needs: a thing the counter does not have changes nothing', bad == false and p0 == 0 and n.spentWeek == 25)
+  local m = N.repair({ food = 100, water = 10, rest = 10 })
+  check('needs: the fridge fills water, tops food to 60, once a day', N.fridge(m, 5) == true and m.water == 100 and m.food == 100 and N.fridge(m, 5) == false and N.fridge(m, 6) == true)
+  local low = N.repair({ food = 10, water = 10, rest = 100 })
+  N.fridge(low, 1)
+  check('needs: the fridge tops food to 60 when it was lower', low.food == 60 and low.water == 100)
+  check('needs: sleep is in a bed at a garage that has one, on the couch at one that has not, in the car elsewhere', N.sleepPlace(true, true) == 'bed' and N.sleepPlace(true, false) == 'couch' and N.sleepPlace(false, true) == 'car')
+  local tired = N.repair({ food = 100, water = 100, rest = 5 })
+  check('needs: a motel room is a full sleep', N.motel(tired) > 90 and tired.rest == 100 and N.MOTEL.price == 40)
+  local w = N.repair({ spentWeek = 137.4 })
+  local line = N.takeWeek(w)
+  check('needs: the ledger takes the week\'s food and drink as a line and starts the week again', line.amount == 137 and w.spentWeek == 0 and N.takeWeek(w) == nil)
+  check('needs: the meal plan bills 60 a week while it is on', N.planBill({ plan = true }) == 60 and N.planBill({ plan = false }) == 0)
+
+  -- micro-sleeps
+  local seq = { 0.0, 0.0, 0.5, 1.0 }
+  local i = 0
+  local function rnd() i = i + 1 return seq[(i - 1) % #seq + 1] end
+  local st = {}
+  local ctx = { on = true, rest = 3, speed = 20, blocked = false }
+  local out = N.microStep(st, 1, ctx, rnd)
+  check('micro: the first step only sets the wait (25 s at the shortest)', out == nil and st.wait == 24)
+  for _ = 1, 23 do N.microStep(st, 1, ctx, rnd) end
+  check('micro: nothing before the wait is over', st.wait == 1)
+  local nod = N.microStep(st, 1, ctx, rnd)
+  check('micro: then a nod of half a second to a second, and a new wait is set', nod ~= nil and nod >= N.MICRO.secMin and nod <= N.MICRO.secMax and st.wait >= N.MICRO.gapMin)
+  local st2 = { wait = 0.5 }
+  check('micro: never with the switch off', N.microStep(st2, 5, { on = false, rest = 3, speed = 20 }, rnd) == nil and st2.wait == 0.5)
+  check('micro: never when rest is only low (not the problem stage)', N.microStep(st2, 5, { on = true, rest = 15, speed = 20 }, rnd) == nil and st2.wait == 0.5)
+  check('micro: never when the car is slow', N.microStep(st2, 5, { on = true, rest = 3, speed = 3 }, rnd) == nil and st2.wait == 0.5)
+  check('micro: never when blocked (a race, a job, just after a spawn), and the wait does not run down', N.microStep(st2, 5, { on = true, rest = 3, speed = 20, blocked = true }, rnd) == nil and st2.wait == 0.5)
+  package.loaded['sl/core/needs'] = nil
+end
+
+-- needs batch 2: the game side (sl/needs): the diner, the motel, the fridge and the bed, the injury link, the hospital, the meal plan and the ledger, micro-sleeps
+do
+  local ST = require('sl/core/state')
+  local st = ST.new(1, 0)
+  st.day, st.money = 5, 1000
+  local old = {}
+  for _, k in ipairs({ 'sl_career', 'guihooks', 'extensions', 'sl_options', 'sl_upgrades', 'sl_shops', 'slrrInjury', 'getPlayerVehicle', 'sl_streets', 'sl_jobs' }) do old[k] = rawget(_G, k) end
+  local toasts, provided, skipped, queued, healed, fullHeal = {}, {}, {}, {}, {}, 0
+  local opts = { slNeeds = true, slNeedsMicrosleep = false }
+  local hasBed, hasFridge = false, false
+  local atGarage = true
+  local skipOk = true
+  local injured = { injured = true, recoverySeconds = 0 }
+  local P = { __sub = function(a, b) return { length = function() return math.sqrt((a.x - b.x) ^ 2 + (a.y - b.y) ^ 2) end } end }
+  local function vec(x, y) return setmetatable({ x = x, y = y, z = 0 }, P) end
+  local garagePlace = { kind = 'garage', pos = vec(0, 0) }
+  _G.guihooks = { trigger = function(n, d) if n == 'slPhoneToast' then toasts[#toasts + 1] = d.text end end }
+  _G.extensions = { hook = function() end }
+  _G.sl_options = { get = function(k) return opts[k] end }
+  _G.sl_career = { isActive = function() return true end, getState = function() return st end, addMoney = function(a, l) return ST.addMoney(st, a, l) end, hour = function() return 12 end,
+    skipTime = function(what) skipped[#skipped + 1] = what if skipOk then return true, 'ok' end return false, 'Not now.' end, sendText = function() end,
+    getPlaces = function() return atGarage and { g = garagePlace } or {} end, isNight = function() return false end }
+  _G.sl_upgrades = { features = function() return { bed = hasBed, fridge = hasFridge } end }
+  _G.sl_shops = { provide = function(kind, def) provided[kind] = def return true end }
+  _G.slrrInjury = { healFor = function(sec) healed[#healed + 1] = sec return 0 end, getState = function() return injured end, heal = function() fullHeal = fullHeal + 1 end }
+  local car = { getPosition = function() return vec(1, 1) end, getJBeamFilename = function() return 'covet' end, getVelocity = function() return { length = function() return 20 end } end,
+    queueLuaCommand = function(_, c) queued[#queued + 1] = c end, getID = function() return 7 end }
+  _G.getPlayerVehicle = function() return car end
+  package.loaded['sl/needs'] = nil
+  package.loaded['sl/core/features'] = nil
+  local N = require('sl/needs')
+  local R = require('sl/core/needs')
+  st.needs = R.repair({ food = 10, water = 10, rest = 10 })
+
+  N.onStreetLegalStarted()
+  check('needs: the diner and the motel are given to the shops', provided.diner and provided.motel and provided.diner.stock and provided.motel.services)
+
+  local stock = provided.diner.stock()
+  local byId = {}
+  for _, it in ipairs(stock) do byId[it.id] = it end
+  check('needs: the diner sells a drink, coffee, a meal, a big meal and the meal plan, with what each does', #stock == 5 and byId.meal.price == 12 and byId.bigmeal.price == 25 and byId.meal.specs[1].text == '+60' and byId.mealplan.price == 0 and byId.mealplan.count == 1)
+  provided.diner.buy({ { id = 'meal', qty = 1 }, { id = 'drink', qty = 2 } })
+  local n = st.needs
+  check('needs: a sale at the diner is eaten, you sit for twenty minutes, and it counts in the week', n.food == 70 and n.water == 10 + 20 + 70 and skipped[#skipped] == '0.33' and n.spentWeek == 12 + 4)
+  local keepFood, keepWater, keepSpent = n.food, n.water, n.spentWeek
+  n.food = 0
+  provided.diner.buy({ { id = 'snack', qty = 5000 } })
+  check('needs: a quantity from the screen is held to ten', n.spentWeek == keepSpent + 30)
+  n.food, n.water, n.spentWeek = keepFood, keepWater, keepSpent
+  skipOk = false
+  provided.diner.buy({ { id = 'coffee', qty = 1 } })
+  check('needs: when the clock may not move you eat standing, and it still counts', toasts[#toasts] ~= nil and n.rest == 20)
+  skipOk = true
+  provided.diner.buy({ { id = 'mealplan', qty = 1 } })
+  check('needs: the meal plan is taken from the diner menu', n.plan == true)
+  stock = provided.diner.stock()
+  local meal
+  for _, it in ipairs(stock) do if it.id == 'meal' then meal = it end if it.id == 'mealplan' then byId.mealplan = it end end
+  check('needs: on the plan a meal is free and the menu offers to cancel it', meal.price == 0 and byId.mealplan.name:find('Cancel', 1, true) ~= nil)
+  check('needs: the ledger bills the plan and shows the food and drink of the week once', N.weeklyBill().amount == 60 and N.weeklyBill().id == 'mealplan' and N.weeklyInfo().amount == 19 and N.weeklyInfo() == nil)
+  provided.diner.buy({ { id = 'mealplan', qty = 1 } })
+  check('needs: and cancelled again, no bill', n.plan == false and N.weeklyBill() == nil)
+
+  -- the motel
+  skipped = {}
+  local sv = provided.motel.services()
+  check('needs: the motel offers a room for 40', #sv == 1 and sv[1].id == 'room' and sv[1].price == 40)
+  n.rest = 5
+  check('needs: a room is a full sleep, the clock runs on six hours, the driver heals', provided.motel.buy() == true and n.rest == 100 and skipped[1] == '6' and healed[#healed] == 720 and fullHeal == 1)
+  skipOk = false
+  n.rest = 5
+  local okRoom = provided.motel.buy()
+  check('needs: a room is refused when the clock may not run (a race, a job, the police)', okRoom == false and n.rest == 5)
+  skipOk = true
+  injured = { injured = true, recoverySeconds = 300 }
+  provided.motel.buy()
+  check('needs: a limb is not healed while recovery is left', fullHeal == 1)
+  _G.slrrInjury.healFor = nil
+  n.rest = 5
+  check('needs: without the add-on call the sleep still works', provided.motel.buy() == true and n.rest == 100)
+
+  -- the night: a bed, a couch, the car; the fridge
+  hasBed, hasFridge = false, false
+  n.rest, n.food, n.water = 0, 20, 20
+  N.onStreetLegalPhase('day')
+  check('needs: waking up at a garage without a bed: the couch (18 an hour)', n.rest == 54 and n.food == 20)
+  hasBed, hasFridge = true, true
+  n.rest = 0
+  N.onStreetLegalPhase('day')
+  check('needs: with a bed 27 an hour, and breakfast from the fridge (water full, food to 60)', n.rest == 81 and n.water == 100 and n.food == 60)
+  n.food, n.water, n.rest = 20, 20, 0
+  N.onStreetLegalPhase('day')
+  check('needs: the fridge gives once a day only', n.water == 20 and n.food == 20 and n.rest == 81)
+  atGarage = false
+  hasBed = true
+  n.rest = 0
+  N.onStreetLegalPhase('day')
+  check('needs: away from a garage you sleep in the car (9 an hour) whatever the garage has', n.rest == 27)
+  atGarage = true
+  hasFridge = false
+  check('needs: no fridge, no fridge use', ({ N.useFridge() })[1] == false)
+  hasFridge = true
+  n.fridgeDay = nil
+  n.water = 10
+  check('needs: the fridge button works once a day at the garage', ({ N.useFridge() })[1] == true and n.water == 100 and ({ N.useFridge() })[1] == false)
+
+  -- the hospital
+  n.food, n.water, n.rest = 5, 5, 5
+  N.hospital()
+  check('needs: the hospital sets the meters to at least 70', n.food == 70 and n.water == 70 and n.rest == 70)
+  n.food = 90
+  N.hospital()
+  check('needs: and never lowers one', n.food == 90)
+
+  -- micro-sleeps: their own switch, never blocked ones
+  n.food, n.water, n.rest = 100, 100, 3
+  local realRandom = math.random
+  math.random = function() return 0 end
+  local function run(seconds) for _ = 1, math.floor(seconds / 0.6) do N.onUpdate(0.6) end end
+  local before = #queued
+  opts.slNeedsMicrosleep = false
+  run(120)
+  check('needs: with the switch off there is no nod', #queued == before or not queued[#queued]:find('nod', 1, true))
+  opts.slNeedsMicrosleep = true
+  local clock = 100
+  local realClock = os.clock
+  os.clock = function() return clock end
+  N.onStreetLegalStarted()          -- (a quiet half minute after a start)
+  run(20)
+  local nods = 0
+  for _, c in ipairs(queued) do if c:find('slNeeds.nod(', 1, true) then nods = nods + 1 end end
+  check('needs: no nod in the quiet seconds after a start', nods == 0)
+  clock = clock + 40
+  run(40)
+  nods = 0
+  for _, c in ipairs(queued) do if c:find('slNeeds.nod(', 1, true) then nods = nods + 1 end end
+  check('needs: an exhausted driver at speed nods off, once, for under a second or so', nods >= 1)
+  local count = nods
+  _G.sl_jobs = { active = function() return true end }
+  run(200)
+  nods = 0
+  for _, c in ipairs(queued) do if c:find('slNeeds.nod(', 1, true) then nods = nods + 1 end end
+  check('needs: never on a job (or in a race)', nods == count)
+  _G.sl_jobs = nil
+  os.clock = realClock
+  math.random = realRandom
+
+  -- the part off: nothing is sold, nothing is billed
+  opts.slNeeds = false
+  local offStock = provided.diner.stock()
+  check('needs: with the part off the diner is empty', offStock == nil or #offStock == 0)
+  check('needs: and the motel and the ledger do nothing', provided.motel.buy() == false and N.weeklyBill() == nil and N.weeklyInfo() == nil)
+
+  for k, val in pairs(old) do _G[k] = val end
+  package.loaded['sl/needs'] = nil
+  package.loaded['sl/core/features'] = nil
+end
+
+-- shops step 4: the car wash, the independent mechanic, plates, the junkyard
+do
+  local SH = require('sl/core/shops')
+  check('shops: a car wash and a junkyard are kinds with their own themes', SH.type('carwash').theme.icon == 'drop' and SH.type('junkyard').theme.pattern == 'rust' and SH.type('junkyard').used == true and SH.normalize('junkyard', {}).used == true and SH.normalize('exhaust', {}).used == false)
+  check('shops: the car wash offers a wash for a dirty car, a wash and polish for a dirty or scratched one, nothing for a clean unscratched car',
+    #SH.washServices({ dirtName = 'muddy', scratchName = 'none' }) == 2 and SH.washServices({ dirtName = 'muddy', scratchName = 'light' })[2].price == 45 and SH.washServices({ dirtName = 'muddy', scratchName = 'none' })[2].price == 25
+    and #SH.washServices({ dirtName = 'clean', scratchName = 'light' }) == 1 and #SH.washServices({ dirtName = 'clean', scratchName = 'none' }) == 0 and #SH.washServices(nil) == 0)
+  local ms = SH.mechanicServices({ { id = 'basic', label = 'Basic service', cost = 200 }, { id = 'full', label = 'Overhaul', cost = 700, available = true }, { id = 'x', label = 'Hidden', cost = 1, available = false } })
+  check('shops: the independent mechanic charges 85% of the phone price, adds an inspection, and leaves out what is not available', #ms == 3 and ms[1].id == 'service_basic' and ms[1].price == 170 and ms[2].price == 600 and ms[3].id == 'inspect' and ms[3].price == 40)
+  local plates = SH.plateStock()
+  check('shops: plates are a short list, one of each, $60, and an id gives its text back', #plates == 8 and plates[1].price == 60 and plates[1].count == 1 and SH.plateText('plate_APEX') == 'APEX' and SH.plateText('plate_ape x') == nil and SH.plateText('wash') == nil)
+  local list = {}
+  for i = 1, 40 do list[i] = { part = 'p' .. i, name = 'Part ' .. i, price = 1000, sub = (i % 2 == 0) and 'exhaust' or 'intake', slotId = 's' .. i } end
+  local a, a2, b = SH.junkSample(list, 5, 'Yard'), SH.junkSample(list, 5, 'Yard'), SH.junkSample(list, 6, 'Yard')
+  local ok = #a == 24
+  for _, e in ipairs(a) do if not (e.price >= 340 and e.price <= 660 and e.cond >= 0.3 and e.cond <= 0.7 and math.abs(e.wear - (1 - e.cond)) < 1e-9) then ok = false end end
+  local same = true
+  for i = 1, #a do if a[i].part ~= a2[i].part or a[i].price ~= a2[i].price then same = false end end
+  local differs = false
+  for i = 1, #a do if a[i].part ~= b[i].part then differs = true end end
+  check('shops: a junkyard picks 24 of the parts, 35 to 65% off, worn, the same on the same day and another on the next', ok and same and differs)
+  check('shops: the junkyard leaves the catalogue entries alone (it copies)', list[1].price == 1000 and list[1].cond == nil)
+  package.loaded['sl/core/shops'] = nil
+
+  local ST = require('sl/core/state')
+  local st = ST.new(1, 0)
+  st.day, st.money, st.rep = 4, 3000, 0
+  local sent, toasts, old = {}, {}, {}
+  for _, k in ipairs({ 'sl_career', 'guihooks', 'core_environment', 'slrr_garage', 'sl_fleet', 'sl_surfacefx', 'sl_service', 'core_vehicles', 'extensions' }) do old[k] = rawget(_G, k) end
+  _G.guihooks = { trigger = function(n, d) sent[#sent + 1] = { n = n, d = d } if n == 'slPhoneToast' then toasts[#toasts + 1] = d.text end end }
+  _G.extensions = { hook = function() end }
+  _G.core_environment = { getTimeOfDay = function() return { time = 0 } end }
+  local skipped, skipOk = {}, true
+  _G.sl_career = { isActive = function() return true end, getState = function() return st end, addMoney = function(a, l) return ST.addMoney(st, a, l) end, phase = function() return 'day' end,
+    skipTime = function(w) skipped[#skipped + 1] = w if skipOk then return true, 'ok' end return false, 'Not now.' end, hour = function() return 12 end, sendText = function() end }
+  local car = { id = 1, name = 'Covet', value = 9000, condition = 0.7, damage = 0, mileage = 80000, faults = { 'worn clutch' } }
+  _G.sl_fleet = { currentCar = function() return car end, vehicleOf = function() return { getID = function() return 77 end } end }
+  local level = { dirtName = 'muddy', scratchName = 'light' }
+  local washed, repaired = {}, {}
+  _G.sl_surfacefx = { level = function() return level end, washOff = function(v) washed[#washed + 1] = v return true end, repair = function(v) repaired[#repaired + 1] = v return true end }
+  local serviced = {}
+  _G.sl_service = { serviceOf = function() return { options = { { id = 'basic', label = 'Basic service', cost = 200, available = true }, { id = 'full', label = 'Overhaul', cost = 700, available = true } } } end,
+    service = function(id, opt, factor) serviced[#serviced + 1] = { id = id, opt = opt, factor = factor } return true, 'Done: ' .. opt end }
+  local plates = {}
+  _G.core_vehicles = { setPlateText = function(t, v) plates[#plates + 1] = { t = t, v = v } end }
+  local shelf = {}
+  local fits = { { part = 'covet_a', name = 'A', slotId = 's1', slot = 'Slot 1', price = 1000, brand = 'Ibishu' }, { part = 'covet_b', name = 'B', slotId = 's2', slot = 'Slot 2', price = 800, brand = 'Ibishu' } }
+  _G.slrr_garage = { lookupParts = function() return fits, 'covet' end, addShelfPart = function(model, p) shelf[#shelf + 1] = { model = model, p = p } end }
+  package.loaded['sl/shops'] = nil
+  local SS = require('sl/shops')
+
+  -- the car wash
+  SS.open('carwash', { name = 'Apex' })
+  local v = sent[#sent].d
+  check('sl_shops: the car wash offers a wash and a wash and polish for a dirty scratched car', #v.services == 2 and v.services[1].id == 'basicwash' and v.services[2].price == 45)
+  local m0 = st.money
+  SS.buy('washpolish:1')
+  check('sl_shops: a wash and polish is paid, the car is washed and its scratches buffed out', st.money == m0 - 45 and washed[1] == 77 and repaired[1] == 77)
+  level = { dirtName = 'clean', scratchName = 'none' }
+  SS.open('carwash', {})
+  check('sl_shops: a clean car is told there is nothing to wash', #sent[#sent].d.services == 0 and sent[#sent].d.note ~= nil)
+  level = { dirtName = 'muddy', scratchName = 'light' }
+
+  -- the independent mechanic
+  SS.open('mechanic', { name = 'Gus Garage' })
+  v = sent[#sent].d
+  check('sl_shops: the mechanic offers the services at 85% and an inspection', #v.services == 3 and v.services[1].price == 170 and v.services[3].id == 'inspect')
+  m0 = st.money
+  SS.buy('service_basic:1')
+  check('sl_shops: a service is charged once (the shop price), takes an hour of the clock, and is done at no second charge', st.money == m0 - 170 and skipped[#skipped] == '1' and serviced[1].opt == 'basic' and serviced[1].factor == 0)
+  skipOk = false
+  m0 = st.money
+  SS.buy('service_full:1')
+  check('sl_shops: when the clock may not move the service is refused and refunded', st.money == m0 and #serviced == 1)
+  skipOk = true
+  m0 = st.money
+  SS.buy('inspect:1')
+  local res = sent[#sent - 1] and sent[#sent - 1].n == 'slShopResult' and sent[#sent - 1].d or nil
+  local found
+  for _, e in ipairs(sent) do if e.n == 'slShopResult' then found = e.d end end
+  check('sl_shops: an inspection is paid and shows the car report in the result panel', st.money == m0 - 40 and found and found.lines[1].label ~= nil and found.lines[2].text:find('worn clutch', 1, true) ~= nil)
+
+  -- a service that cannot be done does not spend the hour
+  skipped = {}
+  m0 = st.money
+  SS.buy('service_nothing:1')
+  check('sl_shops: a service the mechanic cannot do costs nothing and does not move the clock', st.money == m0 and #skipped == 0)
+  -- a polish that fails: the wash is paid, the rest comes back
+  local realRepair = _G.sl_surfacefx.repair
+  _G.sl_surfacefx.repair = function() return nil end
+  SS.open('carwash', {})
+  m0 = st.money
+  SS.buy('washpolish:1')
+  check('sl_shops: a wash and polish whose polish fails is charged as the wash only', st.money == m0 - 15 or st.money == m0 - 25)
+  _G.sl_surfacefx.repair = realRepair
+
+  -- plates
+  SS.open('accessories', {})
+  v = sent[#sent].d
+  check('sl_shops: accessories without stock sell plates', #v.stock == 8 and v.stock[1].price == 60)
+  m0 = st.money
+  SS.buy('plate_APEX:1')
+  check('sl_shops: a plate is paid and set on the car', st.money == m0 - 60 and plates[1].t == 'APEX' and plates[1].v == 77)
+  SS.open('accessories', { stock = { { id = 'x', name = 'Own', price = 5 } } })
+  check('sl_shops: a shop that brings its own goods does not sell plates', #sent[#sent].d.stock == 1 and sent[#sent].d.stock[1].id == 'x')
+
+  -- the junkyard
+  SS.open('junkyard', { name = 'Quarry Road Wrecks' })
+  v = sent[#sent].d
+  check('sl_shops: the junkyard lists a second-hand pick of the parts that fit the car, cheaper and worn', #v.stock == 2 and v.stock[1].cond >= 0.3 and v.stock[1].cond <= 0.7 and v.stock[1].count == 1 and v.stock[1].price < 800 + 1)
+  m0 = st.money
+  SS.buy('p1:1')
+  check('sl_shops: a pulled part goes on the shelf with its wear', #shelf == 1 and shelf[1].p.wear and shelf[1].p.wear >= 0.3 and shelf[1].p.wear <= 0.7 and st.money < m0)
+
+  for k, val in pairs(old) do _G[k] = val end
+  package.loaded['sl/shops'] = nil
+end
+
+-- shops step 4: the junkyard parts yard button on the lot's marker
+do
+  local ST = require('sl/core/state')
+  local st = ST.new(1, 0)
+  st.day = 3
+  local old = { c = rawget(_G, 'sl_career'), g = rawget(_G, 'guihooks') }
+  local opened = {}
+  _G.guihooks = { trigger = function(n, d) if n == 'slShopOpen' then opened[#opened + 1] = d end end }
+  _G.sl_career = { isActive = function() return true end, getState = function() return st end, getPlaces = function() return { junkyard = { id = 'junkyard', kind = 'junkyard', name = 'Quarry Road Wrecks', pos = { 1, 2, 3 } }, dealer = { id = 'd', kind = 'dealer', name = 'Dealer' } } end }
+  package.loaded['sl/shops'] = nil
+  local SS = require('sl/shops')
+  local act = {}
+  SS.onActivityAcceptGatherData({ { placeId = 'junkyard' }, { placeId = 'd' } }, act)
+  check('sl_shops: the junkyard lot gets a Parts yard button (the dealer none without brands)', #act == 1 and act[1].buttonLabel == 'Parts yard' and act[1].heading == 'Quarry Road Wrecks')
+  act[1].buttonFun()
+  check('sl_shops: it opens the junkyard shop', opened[#opened] and opened[#opened].kind == 'junkyard')
+  _G.sl_career, _G.guihooks = old.c, old.g
   package.loaded['sl/shops'] = nil
 end
 

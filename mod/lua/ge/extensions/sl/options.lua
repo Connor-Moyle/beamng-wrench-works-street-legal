@@ -262,6 +262,8 @@ M.defs = {
     desc = 'How long fitting a part takes on the clock (a bolt-on a few minutes, an exhaust half an hour, an engine hours): 1 is normal, 0 means no time passes.' },
   { key = 'slLabourScale', tab = 'Inventory', group = 'Inventory', title = 'Fitting labour at shops', type = 'range', min = 0, max = 3, step = 0.25, default = 1, unit = 'x',
     desc = 'What a shop charges to fit the parts you brought (labour only): 1 is normal, 0 is free.' },
+  { key = 'slNeedsMicrosleep', tab = 'Needs', group = 'Effects', title = 'Micro-sleeps when exhausted', type = 'bool', default = false,
+    desc = 'A driver who is exhausted nods off for half a second to a second now and then at speed: the pedals and steering are let go for that moment. Never in a race or on a job, and never in the first seconds after you get into a car. Off by default: this one can cost you a crash.' },
   { key = 'slNeedsShow', tab = 'Needs', group = 'Needs', title = 'Show the meters always', type = 'bool', default = false,
     desc = 'The three meters on the phone pill at all times, not only when one is low.' },
 }

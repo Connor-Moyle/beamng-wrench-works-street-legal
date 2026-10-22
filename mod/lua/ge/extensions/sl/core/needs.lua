@@ -36,6 +36,9 @@ function M.repair(n)
   n = type(n) == 'table' and n or {}
   for _, k in ipairs({ 'food', 'water', 'rest' }) do n[k] = clamp(tonumber(n[k]) or 100, 0, 100) end
   n.fedHours = math.max(0, tonumber(n.fedHours) or 0)
+  n.spentWeek = math.max(0, tonumber(n.spentWeek) or 0)      -- food and drink bought this week (the ledger line)
+  n.plan = n.plan == true                                      -- the meal plan
+  n.fridgeDay = tonumber(n.fridgeDay)                          -- the day the fridge was last used
   n.told = type(n.told) == 'table' and n.told or {}
   return n
 end
@@ -130,6 +133,73 @@ function M.sleep(n, hours, where)
   local before = n.rest
   n.rest = clamp(n.rest + rate * math.max(0, tonumber(hours) or 0), 0, 100)
   return n.rest - before
+end
+
+-- ---- batch 2: the diner, the motel, the fridge and the bed, the meal plan, the ledger line, micro-sleeps
+M.ITEMS.bigmeal = { name = strings.t('needs.item_bigmeal'), price = 25, food = 100, water = 40 }
+M.DINER_ORDER = { 'drink', 'coffee', 'meal', 'bigmeal' }        -- what a diner sells (the fuel station sells ITEM_ORDER)
+M.SIT_HOURS = 0.33                                              -- sitting down to eat: twenty minutes of the clock
+M.MOTEL = { price = 40, hours = 6, where = 'bed' }              -- a room: six hours in a bed (27 an hour) is a full sleep
+M.FRIDGE = { water = 100, food = 60 }                           -- the garage fridge, once a day: water full, food to 60
+M.MEAL_PLAN = { weekly = 60, covers = { meal = true, bigmeal = true } }
+M.MICRO = { minSpeed = 8, gapMin = 25, gapMax = 70, secMin = 0.5, secMax = 1.0, grace = 30 }      -- m/s, seconds between nods, how long a nod is, quiet seconds after a spawn or a switch
+
+-- the price of an item at the counter: a meal on the plan is already paid
+function M.price(itemId, plan)
+  local it = M.ITEMS[itemId]
+  if not it then return 0 end
+  if plan and M.MEAL_PLAN.covers[itemId] then return 0 end
+  return it.price
+end
+
+-- eating at a counter: like eat, but with the plan, and what is paid is added to the week's food and drink. Returns ok, price, text
+function M.eatAt(n, itemId, plan)
+  local price = M.price(itemId, plan)
+  local ok, _, text = M.eat(n, itemId)
+  if not ok then return false, 0, text end
+  n.spentWeek = (n.spentWeek or 0) + price
+  return true, price, text
+end
+
+-- the garage fridge: once a day. Returns true when it gave something
+function M.fridge(n, day)
+  if n.fridgeDay == day then return false end
+  n.fridgeDay = day
+  n.water = math.max(n.water, M.FRIDGE.water)
+  n.food = math.max(n.food, M.FRIDGE.food)
+  return true
+end
+
+-- where the night's sleep is: a bed (the garage has one), the couch (a garage), the car
+function M.sleepPlace(atGarage, hasBed)
+  if atGarage then return hasBed and 'bed' or 'couch' end
+  return 'car'
+end
+
+-- a motel room: a full sleep. Returns the rest gained
+function M.motel(n) return M.sleep(n, M.MOTEL.hours, M.MOTEL.where) end
+
+-- the week's food and drink as a ledger line (an informational line: it was paid when bought), and the week starts again: { label key, amount } or nil
+function M.takeWeek(n)
+  local spent = math.floor((n.spentWeek or 0) + 0.5)
+  n.spentWeek = 0
+  if spent <= 0 then return nil end
+  return { amount = spent }
+end
+
+-- the weekly bill of the meal plan: M.MEAL_PLAN.weekly while it is on
+function M.planBill(n) return n.plan and M.MEAL_PLAN.weekly or 0 end
+
+-- micro-sleeps (their own switch, off by default): a short nod at the wheel of a driver who is exhausted. st = { wait, quiet } kept by the caller; ctx = { on, rest, speed, blocked };
+-- rnd() gives 0..1; dt in seconds. Returns the length of a nod in seconds, or nil. Never when the switch is off, rest is not in the problem stage, the car is slow, or blocked
+-- (a race or a job, the first seconds after a spawn or a switch: ctx.blocked). The wait only runs down while a nod would be allowed.
+function M.microStep(st, dt, ctx, rnd)
+  st.wait = st.wait or (M.MICRO.gapMin + (M.MICRO.gapMax - M.MICRO.gapMin) * rnd())
+  if not (ctx.on and M.stage(ctx.rest) == 'problem' and (ctx.speed or 0) >= M.MICRO.minSpeed and not ctx.blocked) then return nil end
+  st.wait = st.wait - dt
+  if st.wait > 0 then return nil end
+  st.wait = M.MICRO.gapMin + (M.MICRO.gapMax - M.MICRO.gapMin) * rnd()
+  return M.MICRO.secMin + (M.MICRO.secMax - M.MICRO.secMin) * rnd()
 end
 
 function M.wellFed(n) return (n.fedHours or 0) >= M.WELL_FED_HOURS end

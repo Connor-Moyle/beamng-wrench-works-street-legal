@@ -24,6 +24,9 @@ WEEKLY = '--noweekly' not in sys.argv      # the weekly costs of core/weekly.lua
 BOOST = '--noboost' not in sys.argv     # the early-game boost in sl_jobs
 SHOPS = '--noshops' not in sys.argv     # what the shops of sl_shops take (docs/SHOPS_REWORK.md step 3): (price, how often a week) of the services a player buys now and then; a guess to check in game
 SHOP_WEEK = [('wash', 15, 3.0), ('scratch polish', 120, 0.6), ('dyno run', 90, 0.4), ('respray', 450, 0.08), ('special order (performance)', 1500, 0.12)]
+NEEDS = '--needs' in sys.argv           # the Needs part (off by default in the game): food and drink every day: two drinks (2), a snack (3) and a meal (12) = $19 a day; --plan: the meal plan ($60 a week) pays the meals
+NEEDS_PLAN = '--plan' in sys.argv
+NEEDS_WEEK = (60 + 7 * 7) if NEEDS_PLAN else 7 * 19      # the plan: $60 + drinks and a snack every day ($7); without: $19 a day
 SHOP_SPONSOR = float(os.environ.get('SHOP_FACTOR', '1.0'))      # a sponsor's price factor (sl_shops.setPriceFactor), 0.9 = ten per cent off
 DAY_MIN = 30.0            # real minutes per in-game day (BeamNG's TimeOfDay dayLength; verify in game)
 NIGHT = (20, 5)           # night hours, as progression.isNight
@@ -155,6 +158,9 @@ class Player:
                 bill = {1: 0, 2: int(os.environ.get("RENT2", "150")), 3: int(os.environ.get("RENT3", "400"))}.get(self.garage, 700)
                 bill += 40 * max(0, CARS_KEPT - 2)       # core/weekly STORAGE for each car beyond two
                 self.money -= min(self.money, bill)     # (a shortfall is a debt in the game; here it is just not paid, the floor check shows who runs dry)
+            if NEEDS and self.day() % 7 == 0:               # the Needs part: the food and drink of the week (buying is by choice: nothing is bought with the last dollars)
+                cost = min(self.money, NEEDS_WEEK)
+                self.money -= cost; self.needs_spent = getattr(self, 'needs_spent', 0) + cost
             if SHOPS and self.day() % 7 == 0 and self.car is not None:      # the shops: a player buys what they can well afford (three times the price in the pocket), never the last dollars
                 for name, price, per_week in SHOP_WEEK:
                     price = price * SHOP_SPONSOR
@@ -468,6 +474,9 @@ def main():
         bm = sorted(getattr(p, 'broke_min', 0) for p in ps)
         print('Floor (%s): minutes under $300 after the first 20: median %d, worst %d; players who ended under $300: %d of %d'
               % (style, statistics.median(bm), bm[-1], sum(1 for p in ps if p.money < 300), len(ps)))
+    if NEEDS:
+        eaten = sorted(getattr(p, 'needs_spent', 0) for p in players)
+        print('Needs (%s): median spend over the run $%d (10-90 %%: $%d-$%d)' % ('meal plan' if NEEDS_PLAN else 'no plan', statistics.median(eaten), eaten[len(eaten) // 10], eaten[len(eaten) * 9 // 10]))
     if SHOPS:
         spent = sorted(getattr(p, 'shop_spent', 0) for p in players)
         earned = sorted(sum(m for m, _ in p.earned.values()) for p in players)

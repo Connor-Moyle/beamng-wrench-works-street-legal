@@ -72,7 +72,7 @@ function M.serviceOf(carId)
 end
 
 -- pay for a service: option 'basic' or 'full'. Returns ok, text.
-function M.service(carId, optionId)
+function M.service(carId, optionId, factor)      -- factor: the price times this (0: the caller has charged already, the independent mechanic); nil = the price as it is
   local s = career()
   local car = s and carById(s, tonumber(carId))
   if not car then return false, strings.t('service.no_car') end
@@ -80,12 +80,13 @@ function M.service(carId, optionId)
   local opt
   for _, o in ipairs(info.options) do if o.id == optionId then opt = o end end
   if not opt then return false, strings.t('service.no_such_service') end
-  if not sl_career.addMoney(-opt.cost, opt.label) then return false, strings.t('career.not_enough_money') end
+  local cost = math.floor(opt.cost * (tonumber(factor) or 1) + 0.5)
+  if cost > 0 and not sl_career.addMoney(-cost, opt.label) then return false, strings.t('career.not_enough_money') end
   local c, sv = figures(car)
   if optionId == 'full' then svc.doOverhaul(sv, c.engineKm, car.mileage, c.abuse) else svc.doBasic(sv, c.engineKm, car.mileage) end
   sl_carcare.note(car, strings.t('service.noted', opt.label))
   extensions.hook('onStreetLegalChanged')
-  return true, strings.t('service.done', opt.label, opt.cost)
+  return true, strings.t('service.done', opt.label, cost)
 end
 
 -- the same factor to Part Wear (setWearRate) and the CSFX tyres (setWearScale), when they are there and have the call; sent at the start, on a change, and again every few seconds
