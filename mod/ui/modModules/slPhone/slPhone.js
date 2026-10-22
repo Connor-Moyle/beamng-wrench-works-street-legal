@@ -1079,9 +1079,17 @@
       }).join('');
       return bar(T('app.map', 'Map')) + tabsHtml('map', [['map', T('ui.map_tab', 'Map')], ['list', T('ui.list_tab', 'List')]]) + '<div class="slp-body">' + head + (body || '<div class="slp-empty">' + T('ui.no_places_yet', 'The map has no places yet.') + '</div>') + '</div>';
     }
+    // the week's photo challenges under the shutter (sl_photos.challenges; only when the option is on)
+    function photoChallengesHtml() {
+      var pcs = obj(st.photoChallenges);
+      if (!pcs.on) return '';
+      return '<div class="slp-card"><div class="slp-seth">' + esc(pcs.title || '') + '</div>' + arr(pcs.list).map(function (c) {
+        return '<div class="slp-row"><div class="slp-rt"><b' + (c.done ? ' style="text-decoration:line-through;opacity:.6"' : '') + '>' + esc(c.text) + '</b><span>' + esc(c.pays) + '</span></div></div>';
+      }).join('') + '</div>';
+    }
     function cameraPage() {
       return bar(T('app.camera', 'Camera')) + '<div class="slp-body"><div class="slp-card"><p>' + esc(T('ui.camera_text', 'Takes a picture of what you see, without the phone or any other screen. It is kept in the Gallery and in the folder screenshots/street_legal.')) + '</p>' +
-        '<div class="slp-acts"><div class="slp-btn" data-a="photo">' + T('ui.take_a_photo', 'Take a photo') + '</div></div></div></div>';
+        '<div class="slp-acts"><div class="slp-btn" data-a="photo">' + T('ui.take_a_photo', 'Take a photo') + '</div></div></div>' + photoChallengesHtml() + '</div>';
     }
     function galleryPage() {
       var list = arr(obj(st.photos).photos);
@@ -1978,6 +1986,7 @@
       st.stack.push({ app: st.app, contact: st.contact, thread: st.thread });
       st.app = app;
       if (app === 'gallery') lua('photos()');
+      if (app === 'camera') lua('photoChallenges()');
       if (app === 'contacts') lua('people()');
       if (app === 'map') { st.tab.map = 'map'; st.mapAt = Date.now(); lua('mapPlaces()'); }      // (the Map app opens on the map)
       if (app === 'help' && !arr(st.help).length) lua('requestHelp()');
@@ -2343,6 +2352,7 @@
         case 'slStation': st.station = data.open ? data : null; render(); break;
         case 'slGarage': st.garage = data.open ? data : null; render(); break;
         case 'slPhotos': st.photos = data; render(); break;
+        case 'slPhotoChallenges': st.photoChallenges = data; render(); break;
         case 'slMap': st.map = data; render(); break;
         case 'slPeople': st.people = data; render(); break;
         case 'slHelp': st.help = arr(data && data.pages); render(); break;
@@ -2389,7 +2399,7 @@
         probe.onload = function () { phone.handle('slArt'); };
         probe.src = '/ui/modModules/slHud/slrr/icons/cup.png';
       });
-      ['slPhoneData', 'slPhoneSkin', 'slPhoneToggle', 'slPhoneGo', 'slPhoneCall', 'slPhoneCallReply', 'slPhoneNotify', 'slPhoneToast', 'slFade', 'slLotBars', 'slLotData', 'slMeet', 'slRace', 'slMenu', 'slStation', 'slGarage', 'slPhotos', 'slMap', 'slPeople', 'slLaptopDealers', 'slAuctions', 'slRivals', 'slLaptopOffers', 'slHelp', 'slStrings', 'slMapsTiles', 'slMapsPose', 'slMapsRoute', 'slMapsPlaces', 'slMapsOptions'].forEach(function (name) {
+      ['slPhoneData', 'slPhoneSkin', 'slPhoneToggle', 'slPhoneGo', 'slPhoneCall', 'slPhoneCallReply', 'slPhoneNotify', 'slPhoneToast', 'slFade', 'slLotBars', 'slLotData', 'slMeet', 'slRace', 'slMenu', 'slStation', 'slGarage', 'slPhotos', 'slPhotoChallenges', 'slMap', 'slPeople', 'slLaptopDealers', 'slAuctions', 'slRivals', 'slLaptopOffers', 'slHelp', 'slStrings', 'slMapsTiles', 'slMapsPose', 'slMapsRoute', 'slMapsPlaces', 'slMapsOptions'].forEach(function (name) {
         $rootScope.$on(name, function (ev, data) { phone.handle(name, data); });
       });
       if (window.bngApi) window.bngApi.engineLua('if sl_phone then sl_phone.request() end if sl_menuTile then sl_menuTile.request() end');
