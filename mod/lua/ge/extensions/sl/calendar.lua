@@ -145,6 +145,7 @@ local function finished(eventId, res)
   if res.place == 1 then s.trophies = require('sl/core/trophies').add(s.trophies, ev.title, 'sprint', s.day, 1) end
   if money > 0 then sl_career.payOut(money, strings.t('calendar.purse_1', ev.title)) end
   if rep > 0 then stateLib.addRep(s, rep) end
+  extensions.hook('onStreetLegalCalendarRace', eventId, res.place, res.grid)      -- (the season counts the round)
   toast(res.place and strings.t('calendar.you_finished_1_in_2_3_4_rep', require('sl/core/gridrace').placeWord(res.place), ev.title, money, rep) or strings.t('calendar.you_did_not_finish_1', ev.title))
   extensions.hook('onStreetLegalChanged')
 end
@@ -172,6 +173,7 @@ local function tickBody()
   end
   for _, ev in ipairs(rules.missed(list, st, s.day, sl_career.hour())) do
     sl_career.sendText('benny', strings.t('calendar.you_missed_1', ev.title), 1)
+    extensions.hook('onStreetLegalCalendarMissed', ev.id)
     extensions.hook('onStreetLegalChanged')
   end
   if running or not (sl_gridrace and sl_gridrace.start) or sl_gridrace.running() then return end
