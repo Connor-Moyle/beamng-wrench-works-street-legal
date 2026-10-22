@@ -2378,6 +2378,7 @@
         case 'slLaptopOffers': st.offers = data; render(); break;
         case 'slRace': st.race = data.on ? data : null; render(); break;
         case 'slMenu': st.menu = data.show ? data : null; render(); break;
+        case 'slrrGarageState': if (data && data.phase && data.phase !== 'idle' && st.open) setOpen(false, true); break;      // (Wrench Works' garage: its screens take the right of the view, the phone is put away while a visit is on)
         case 'slArt': st.slrrArt = true; render(); break;
       }
     }
@@ -2413,7 +2414,7 @@
         probe.onload = function () { phone.handle('slArt'); };
         probe.src = '/ui/modModules/slHud/slrr/icons/cup.png';
       });
-      ['slPhoneData', 'slPhoneSkin', 'slPhoneToggle', 'slPhoneGo', 'slPhoneCall', 'slPhoneCallReply', 'slPhoneNotify', 'slPhoneToast', 'slFade', 'slLotBars', 'slLotData', 'slMeet', 'slRace', 'slMenu', 'slStation', 'slGarage', 'slPhotos', 'slMap', 'slPeople', 'slLaptopDealers', 'slAuctions', 'slRivals', 'slLaptopOffers', 'slHelp', 'slStrings', 'slMapsTiles', 'slMapsPose', 'slMapsRoute', 'slMapsPlaces', 'slMapsOptions'].forEach(function (name) {
+      ['slPhoneData', 'slPhoneSkin', 'slPhoneToggle', 'slPhoneGo', 'slPhoneCall', 'slPhoneCallReply', 'slPhoneNotify', 'slPhoneToast', 'slFade', 'slLotBars', 'slLotData', 'slMeet', 'slRace', 'slMenu', 'slrrGarageState', 'slStation', 'slGarage', 'slPhotos', 'slMap', 'slPeople', 'slLaptopDealers', 'slAuctions', 'slRivals', 'slLaptopOffers', 'slHelp', 'slStrings', 'slMapsTiles', 'slMapsPose', 'slMapsRoute', 'slMapsPlaces', 'slMapsOptions'].forEach(function (name) {
         $rootScope.$on(name, function (ev, data) { phone.handle(name, data); });
       });
       if (window.bngApi) window.bngApi.engineLua('if sl_phone then sl_phone.request() end if sl_menuTile then sl_menuTile.request() end');
