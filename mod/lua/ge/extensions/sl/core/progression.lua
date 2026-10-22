@@ -107,6 +107,7 @@ M.UPGRADES = {
   { id = 'paint', name = strings.t('progression.paint_booth'), price = 5000, desc = strings.t('progression.paint_liveries_and_tint_at') },
   { id = 'shelves', name = strings.t('progression.parts_shelves'), price = 1000, desc = strings.t('progression.three_times_the_shelf_space') },
   { id = 'photo', name = strings.t('progression.photo_corner'), price = 800, desc = strings.t('progression.photo_mode_in_the_garage') },
+  { id = 'dressing', name = strings.t('progression.garage_dressing'), price = 1200, desc = strings.t('progression.garage_dressing_desc') },
 }
 M.GARAGE_COMES_WITH = { [2] = { lift = true, workbench = true, crane = true }, [3] = { lift = true, workbench = true, crane = true } }
 M.SHELF = { base = 12, shelves = 40 }       -- parts per model on the shelf
@@ -119,7 +120,7 @@ function M.garageFeatures(bought, level)
   local has = {}
   for k, v in pairs(M.GARAGE_COMES_WITH[level or 1] or {}) do has[k] = v end
   for k, v in pairs(bought or {}) do if v then has[k] = true end end
-  return { lift = has.lift == true, crane = has.crane == true, workbench = has.workbench == true, dyno = has.dyno == true, paint = has.paint == true, photo = has.photo == true,
+  return { lift = has.lift == true, crane = has.crane == true, workbench = has.workbench == true, dyno = has.dyno == true, paint = has.paint == true, photo = has.photo == true, dressing = has.dressing == true,
     shelfSize = has.shelves and M.SHELF.shelves or M.SHELF.base, repairFactor = has.workbench and 1 or M.MOBILE_MECHANIC }
 end
 
