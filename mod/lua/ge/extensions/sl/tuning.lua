@@ -6,7 +6,7 @@ local M = {}
 local KEYS = {
   ['rivals.enabled'] = 'slRivals', ['rivals.escalateChance'] = 'slRivalEscalate', ['rivals.tauntChance'] = 'slRivalTaunt', ['rivals.reactionChance'] = 'slRivalReactions',
   ['rivals.offerDays'] = 'slRivalOfferDays', ['rivals.bossWins'] = 'slBossWins', ['rivals.bossCooldown'] = 'slBossCooldown', ['rivals.stepRaces'] = 'slRivalStepRaces',
-  ['rivals.upgradeDays'] = 'slRivalUpgradeDays', ['auctions.lots'] = 'slAuctionLots', ['auctions.weekday'] = 'slAuctionDay', ['auctions.fromHour'] = 'slAuctionFrom',
+  ['rivals.upgradeDays'] = 'slRivalUpgradeDays', ['rivals.rapSheet'] = 'slRapSheet', ['auctions.lots'] = 'slAuctionLots', ['auctions.weekday'] = 'slAuctionDay', ['auctions.fromHour'] = 'slAuctionFrom',
   ['auctions.toHour'] = 'slAuctionTo', ['auctions.yardLots'] = 'slYardLots', ['auctions.liveSeconds'] = 'slAuctionLive',
 }
 M.KEYS = KEYS

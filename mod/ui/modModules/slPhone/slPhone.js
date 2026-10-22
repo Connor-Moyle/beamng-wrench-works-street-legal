@@ -1348,7 +1348,10 @@
       var rv = obj(st.rivals), list = arr(rv.rivals);
       if (!list.length) return '';
       var words = { blood: T('rivals.meter_blood', 'Bad blood'), rivals: T('rivals.meter_rivals', 'Rivalry'), neutral: T('rivals.meter_neutral', 'Neutral'), respect: T('rivals.meter_respect', 'Respect'), friends: T('rivals.meter_friends', 'Friends') };
-      return '<h4>' + T('rivals.title', 'Rivals') + '</h4>' + list.map(function (r) {
+      var sh = rv.sheet, sheetHtml = !sh ? '' : '<div class="slp-card"><h4>' + esc(sh.title) + '</h4>' + arr(sh.lines).map(function (l) {
+        return '<div class="slp-kv"' + (l.done ? '' : ' style="opacity:.85"') + '><span>' + esc(l.text) + '</span><b' + (l.done ? ' class="slp-on"' : '') + '>' + (l.done ? '&#10004; ' : '') + l.have + ' / ' + l.need + '</b></div>';
+      }).join('') + (sh.doneText ? '<p>' + esc(sh.doneText) + '</p>' : '') + '</div>';
+      return sheetHtml + '<h4>' + T('rivals.title', 'Rivals') + '</h4>' + list.map(function (r) {
         var tag = r.boss ? ' &middot; ' + T('rivals.boss_star', 'Boss') + ' ' + r.tier : (r.nemesis ? ' &middot; ' + T('rivals.nemesis', 'Nemesis') : '');
         return '<div class="slp-card"' + (r.locked ? ' style="opacity:.75"' : '') + '><h4>' + (r.boss ? '&#9733; ' : '') + esc(r.name) + tag + '</h4>' +
           '<p>' + esc(r.crew || '') + (r.car ? ' &middot; ' + esc(r.car) : '') + '</p>' +
