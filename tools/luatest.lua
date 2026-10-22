@@ -6658,6 +6658,8 @@ do
   check('fuel range: only the car you drive talks', #toasts == 4 and F.hud(88).level == 'critical')
   F.onReport(77, { engineKm = 5 })
   check('fuel range: a car with no fuel tank reports no litres and gets nothing', true)
+  local dtl = F.detail(77)
+  check('fuel range: the detail for the phone has the range, the litres, the planning figure and whether it was measured', dtl and dtl.range and dtl.litres == 6 and dtl.l100 > 0 and dtl.measured == true and dtl.level and F.detail(99) == nil)
   check('fuel range: the price shows the cheapest grade', F.priceText() == 'from $1.45/L')
   F.onVehicleDestroyed(77)
   check('fuel range: a destroyed car is forgotten', F.hud(77) == nil)

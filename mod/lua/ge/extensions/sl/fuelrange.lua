@@ -65,11 +65,11 @@ function M.onReport(vid, t)
   local track = tracks[vid]
   if not track then track = R.newTrack() tracks[vid] = track end
   R.push(track, t.engineKm, t.fuelLitres)
-  local perKm = R.consumption(track)
+  local perKm, measured = R.consumption(track)
   local range = R.range(t.fuelLitres, perKm)
   local frac = type(t.fuelLevel) == 'number' and t.fuelLevel or (t.fuelCapacity and t.fuelCapacity > 0 and t.fuelLitres / t.fuelCapacity) or nil
   local level = R.level(frac, t.fuelLitres, range)
-  shown[vid] = { range = R.display(range), level = level, litres = t.fuelLitres }
+  shown[vid] = { range = R.display(range), level = level, litres = t.fuelLitres, l100 = perKm * 100, measured = measured == true, frac = frac }
   if level == 'ok' then told[vid] = nil
   elseif R.worse(level, told[vid]) then told[vid] = level announce(vid, level, range or 0) end
 end
@@ -80,6 +80,15 @@ function M.hud(vid)
   local s = shown[vid]
   if not (s and s.range) then return nil end
   return { range = s.range, level = s.level }
+end
+
+-- the full record for a screen that wants more than the HUD mark (the phone's Cars page): { range km (rounded as the dashboard does), litres, l100 (litres per 100 km planned with),
+-- measured (true: from the car's own use, false: the 9 L per 100 km guess until about 3 km are driven), level, frac }, or nil (switch off, no report yet, or a car with no fuel tank)
+function M.detail(vid)
+  if not on() then return nil end
+  local s = shown[vid]
+  if not (s and s.range) then return nil end
+  return { range = s.range, litres = s.litres, l100 = math.floor(s.l100 * 10 + 0.5) / 10, measured = s.measured, level = s.level, frac = s.frac }
 end
 
 -- for the Map app: when the car you drive is low, a line with the nearest station
