@@ -9,6 +9,8 @@
     { "id": "smash_auto", "kind": "parts", "name": "Smash Auto Repairs", "pos": [-607.6, 120.9, 102.0], "replaces": "smashAutoRepairs",
       "sections": ["body/bumpers_f", "body/bumpers_r", "body/hoods", "body/fenders", "body/doors", "body/trunk", "body/roof", "body/glass", "body/lights_f", "body/lights_r", "body/bulbs", "body/mirrors", "body/wings", "body/aero"],
       "keeper": { "name": "Moe", "line": "Panels, not miracles." } },
+    { "id": "apex_wash", "kind": "carwash", "name": "Apex Wash", "pos": [-190.48, 515.85, 74.85], "keeper": { "name": "Dot", "line": "Ten minutes and you will not know it." } },
+    { "id": "shuffleboard_garage", "kind": "mechanic", "name": "Shuffleboard Garage", "pos": [-254.54, -53.42, 120.86], "keeper": { "name": "Gus", "line": "Cheaper than the big shops. Slower, too." } },
     { "id": "diner", "kind": "diner", "name": "The Diner", "pos": [-654.2, 139.25, 116.67], "keeper": { "name": "Flo", "line": "Sit down, you look tired." } },
     { "id": "mountainview_motel", "kind": "motel", "name": "Mountainview Motel", "pos": [-541.25, 133.73, 100.4], "keeper": { "name": "Walt", "line": "Quiet rooms, thin walls." } },
     { "id": "fast_automotive", "kind": "performance", "name": "Fast Automotive", "pos": [291.4, -142.4, 143.8], "replaces": "fastAutomotive",

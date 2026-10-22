@@ -5245,8 +5245,8 @@ do
   SS = require('sl/shops')
   local act = {}
   SS.onActivityAcceptGatherData({ { placeId = 'dealer' }, { placeId = 'junkyard' }, { type = 'other' } }, act)
-  check('sl_shops: a dealer with brands on its sign gets a Parts counter button naming them; other places get none',
-    #act == 1 and act[1].buttonLabel == 'Parts counter (Bruckell, Gavril, Ibishu)' and act[1].heading == 'Jefferson Motors' and act[1].sorting.id == 'dealer')
+  check('sl_shops: a dealer with brands on its sign gets a Parts counter button naming them (the junkyard its own Parts yard button, no other place one)',
+    #act == 2 and act[2].buttonLabel == 'Parts yard' and act[1].buttonLabel == 'Parts counter (Bruckell, Gavril, Ibishu)' and act[1].heading == 'Jefferson Motors' and act[1].sorting.id == 'dealer')
   act[1].buttonFun()
   v = sent[#sent].d
   check('sl_shops: the counter sells the parts of those brands that fit the player car (the Ibishu part, not the Zephyrin one)', v.kind == 'dealerparts' and #v.stock == 1 and v.stock[1].brand == 'Ibishu' and asked[#asked].brands[3] == 'Ibishu')
@@ -5666,6 +5666,130 @@ do
   for k, val in pairs(old) do _G[k] = val end
   package.loaded['sl/needs'] = nil
   package.loaded['sl/core/features'] = nil
+end
+
+-- shops step 4: the car wash, the independent mechanic, plates, the junkyard
+do
+  local SH = require('sl/core/shops')
+  check('shops: a car wash and a junkyard are kinds with their own themes', SH.type('carwash').theme.icon == 'drop' and SH.type('junkyard').theme.pattern == 'rust' and SH.type('junkyard').used == true and SH.normalize('junkyard', {}).used == true and SH.normalize('exhaust', {}).used == false)
+  check('shops: the car wash offers a wash for a dirty car, a wash and polish for a dirty or scratched one, nothing for a clean unscratched car',
+    #SH.washServices({ dirtName = 'muddy', scratchName = 'none' }) == 2 and SH.washServices({ dirtName = 'muddy', scratchName = 'light' })[2].price == 45 and SH.washServices({ dirtName = 'muddy', scratchName = 'none' })[2].price == 25
+    and #SH.washServices({ dirtName = 'clean', scratchName = 'light' }) == 1 and #SH.washServices({ dirtName = 'clean', scratchName = 'none' }) == 0 and #SH.washServices(nil) == 0)
+  local ms = SH.mechanicServices({ { id = 'basic', label = 'Basic service', cost = 200 }, { id = 'full', label = 'Overhaul', cost = 700, available = true }, { id = 'x', label = 'Hidden', cost = 1, available = false } })
+  check('shops: the independent mechanic charges 85% of the phone price, adds an inspection, and leaves out what is not available', #ms == 3 and ms[1].id == 'service_basic' and ms[1].price == 170 and ms[2].price == 600 and ms[3].id == 'inspect' and ms[3].price == 40)
+  local plates = SH.plateStock()
+  check('shops: plates are a short list, one of each, $60, and an id gives its text back', #plates == 8 and plates[1].price == 60 and plates[1].count == 1 and SH.plateText('plate_APEX') == 'APEX' and SH.plateText('plate_ape x') == nil and SH.plateText('wash') == nil)
+  local list = {}
+  for i = 1, 40 do list[i] = { part = 'p' .. i, name = 'Part ' .. i, price = 1000, sub = (i % 2 == 0) and 'exhaust' or 'intake', slotId = 's' .. i } end
+  local a, a2, b = SH.junkSample(list, 5, 'Yard'), SH.junkSample(list, 5, 'Yard'), SH.junkSample(list, 6, 'Yard')
+  local ok = #a == 24
+  for _, e in ipairs(a) do if not (e.price >= 340 and e.price <= 660 and e.cond >= 0.3 and e.cond <= 0.7 and math.abs(e.wear - (1 - e.cond)) < 1e-9) then ok = false end end
+  local same = true
+  for i = 1, #a do if a[i].part ~= a2[i].part or a[i].price ~= a2[i].price then same = false end end
+  local differs = false
+  for i = 1, #a do if a[i].part ~= b[i].part then differs = true end end
+  check('shops: a junkyard picks 24 of the parts, 35 to 65% off, worn, the same on the same day and another on the next', ok and same and differs)
+  check('shops: the junkyard leaves the catalogue entries alone (it copies)', list[1].price == 1000 and list[1].cond == nil)
+  package.loaded['sl/core/shops'] = nil
+
+  local ST = require('sl/core/state')
+  local st = ST.new(1, 0)
+  st.day, st.money, st.rep = 4, 3000, 0
+  local sent, toasts, old = {}, {}, {}
+  for _, k in ipairs({ 'sl_career', 'guihooks', 'core_environment', 'slrr_garage', 'sl_fleet', 'sl_surfacefx', 'sl_service', 'core_vehicles', 'extensions' }) do old[k] = rawget(_G, k) end
+  _G.guihooks = { trigger = function(n, d) sent[#sent + 1] = { n = n, d = d } if n == 'slPhoneToast' then toasts[#toasts + 1] = d.text end end }
+  _G.extensions = { hook = function() end }
+  _G.core_environment = { getTimeOfDay = function() return { time = 0 } end }
+  local skipped, skipOk = {}, true
+  _G.sl_career = { isActive = function() return true end, getState = function() return st end, addMoney = function(a, l) return ST.addMoney(st, a, l) end, phase = function() return 'day' end,
+    skipTime = function(w) skipped[#skipped + 1] = w if skipOk then return true, 'ok' end return false, 'Not now.' end, hour = function() return 12 end, sendText = function() end }
+  local car = { id = 1, name = 'Covet', value = 9000, condition = 0.7, damage = 0, mileage = 80000, faults = { 'worn clutch' } }
+  _G.sl_fleet = { currentCar = function() return car end, vehicleOf = function() return { getID = function() return 77 end } end }
+  local level = { dirtName = 'muddy', scratchName = 'light' }
+  local washed, repaired = {}, {}
+  _G.sl_surfacefx = { level = function() return level end, washOff = function(v) washed[#washed + 1] = v return true end, repair = function(v) repaired[#repaired + 1] = v return true end }
+  local serviced = {}
+  _G.sl_service = { serviceOf = function() return { options = { { id = 'basic', label = 'Basic service', cost = 200, available = true }, { id = 'full', label = 'Overhaul', cost = 700, available = true } } } end,
+    service = function(id, opt, factor) serviced[#serviced + 1] = { id = id, opt = opt, factor = factor } return true, 'Done: ' .. opt end }
+  local plates = {}
+  _G.core_vehicles = { setPlateText = function(t, v) plates[#plates + 1] = { t = t, v = v } end }
+  local shelf = {}
+  local fits = { { part = 'covet_a', name = 'A', slotId = 's1', slot = 'Slot 1', price = 1000, brand = 'Ibishu' }, { part = 'covet_b', name = 'B', slotId = 's2', slot = 'Slot 2', price = 800, brand = 'Ibishu' } }
+  _G.slrr_garage = { lookupParts = function() return fits, 'covet' end, addShelfPart = function(model, p) shelf[#shelf + 1] = { model = model, p = p } end }
+  package.loaded['sl/shops'] = nil
+  local SS = require('sl/shops')
+
+  -- the car wash
+  SS.open('carwash', { name = 'Apex' })
+  local v = sent[#sent].d
+  check('sl_shops: the car wash offers a wash and a wash and polish for a dirty scratched car', #v.services == 2 and v.services[1].id == 'basicwash' and v.services[2].price == 45)
+  local m0 = st.money
+  SS.buy('washpolish:1')
+  check('sl_shops: a wash and polish is paid, the car is washed and its scratches buffed out', st.money == m0 - 45 and washed[1] == 77 and repaired[1] == 77)
+  level = { dirtName = 'clean', scratchName = 'none' }
+  SS.open('carwash', {})
+  check('sl_shops: a clean car is told there is nothing to wash', #sent[#sent].d.services == 0 and sent[#sent].d.note ~= nil)
+  level = { dirtName = 'muddy', scratchName = 'light' }
+
+  -- the independent mechanic
+  SS.open('mechanic', { name = 'Gus Garage' })
+  v = sent[#sent].d
+  check('sl_shops: the mechanic offers the services at 85% and an inspection', #v.services == 3 and v.services[1].price == 170 and v.services[3].id == 'inspect')
+  m0 = st.money
+  SS.buy('service_basic:1')
+  check('sl_shops: a service is charged once (the shop price), takes an hour of the clock, and is done at no second charge', st.money == m0 - 170 and skipped[#skipped] == '1' and serviced[1].opt == 'basic' and serviced[1].factor == 0)
+  skipOk = false
+  m0 = st.money
+  SS.buy('service_full:1')
+  check('sl_shops: when the clock may not move the service is refused and refunded', st.money == m0 and #serviced == 1)
+  skipOk = true
+  m0 = st.money
+  SS.buy('inspect:1')
+  local res = sent[#sent - 1] and sent[#sent - 1].n == 'slShopResult' and sent[#sent - 1].d or nil
+  local found
+  for _, e in ipairs(sent) do if e.n == 'slShopResult' then found = e.d end end
+  check('sl_shops: an inspection is paid and shows the car report in the result panel', st.money == m0 - 40 and found and found.lines[1].label ~= nil and found.lines[2].text:find('worn clutch', 1, true) ~= nil)
+
+  -- plates
+  SS.open('accessories', {})
+  v = sent[#sent].d
+  check('sl_shops: accessories without stock sell plates', #v.stock == 8 and v.stock[1].price == 60)
+  m0 = st.money
+  SS.buy('plate_APEX:1')
+  check('sl_shops: a plate is paid and set on the car', st.money == m0 - 60 and plates[1].t == 'APEX' and plates[1].v == 77)
+  SS.open('accessories', { stock = { { id = 'x', name = 'Own', price = 5 } } })
+  check('sl_shops: a shop that brings its own goods does not sell plates', #sent[#sent].d.stock == 1 and sent[#sent].d.stock[1].id == 'x')
+
+  -- the junkyard
+  SS.open('junkyard', { name = 'Quarry Road Wrecks' })
+  v = sent[#sent].d
+  check('sl_shops: the junkyard lists a second-hand pick of the parts that fit the car, cheaper and worn', #v.stock == 2 and v.stock[1].cond >= 0.3 and v.stock[1].cond <= 0.7 and v.stock[1].count == 1 and v.stock[1].price < 800 + 1)
+  m0 = st.money
+  SS.buy('p1:1')
+  check('sl_shops: a pulled part goes on the shelf with its wear', #shelf == 1 and shelf[1].p.wear and shelf[1].p.wear >= 0.3 and shelf[1].p.wear <= 0.7 and st.money < m0)
+
+  for k, val in pairs(old) do _G[k] = val end
+  package.loaded['sl/shops'] = nil
+end
+
+-- shops step 4: the junkyard parts yard button on the lot's marker
+do
+  local ST = require('sl/core/state')
+  local st = ST.new(1, 0)
+  st.day = 3
+  local old = { c = rawget(_G, 'sl_career'), g = rawget(_G, 'guihooks') }
+  local opened = {}
+  _G.guihooks = { trigger = function(n, d) if n == 'slShopOpen' then opened[#opened + 1] = d end end }
+  _G.sl_career = { isActive = function() return true end, getState = function() return st end, getPlaces = function() return { junkyard = { id = 'junkyard', kind = 'junkyard', name = 'Quarry Road Wrecks', pos = { 1, 2, 3 } }, dealer = { id = 'd', kind = 'dealer', name = 'Dealer' } } end }
+  package.loaded['sl/shops'] = nil
+  local SS = require('sl/shops')
+  local act = {}
+  SS.onActivityAcceptGatherData({ { placeId = 'junkyard' }, { placeId = 'd' } }, act)
+  check('sl_shops: the junkyard lot gets a Parts yard button (the dealer none without brands)', #act == 1 and act[1].buttonLabel == 'Parts yard' and act[1].heading == 'Quarry Road Wrecks')
+  act[1].buttonFun()
+  check('sl_shops: it opens the junkyard shop', opened[#opened] and opened[#opened].kind == 'junkyard')
+  _G.sl_career, _G.guihooks = old.c, old.g
+  package.loaded['sl/shops'] = nil
 end
 
 print(string.format('lua tests passed: %d checks', passed))

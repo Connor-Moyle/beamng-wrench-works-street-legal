@@ -8,12 +8,14 @@ Street Legal draws every shop with one screen (`ui/modModules/slShop`) that chan
 |---|---|---|
 | `tyre` | catalogue | the tyre ranges of Street Legal (`range`: `torres`, `race`, or all); buying fits the set on your car through Car Surface FX (it needs that mod) |
 | `exhaust`, `parts`, `performance`, `dealerparts` | catalogue | parts that fit the player's car, read from Wrench Works (`slrr_garage.lookupParts`; Wrench Works 1.8.7 or later). Bought parts go on the shelf of the car's model. Give `stock` instead and the shop sells your own list |
-| `accessories` | catalogue | the stock you give |
+| `accessories` | catalogue | the stock you give; without any, plates for $60 (eight texts) that are set on the car |
 | `paint` | services | what the state of the player's car calls for (Car Surface FX): Wash ($15, when the car is dirty), Scratch polish ($80 light, $190 heavy), and a Respray in one of eight colours ($450: the car comes out clean and unscratched; the paint goes on through the game's vehicle colours). Give `services` instead and the shop sells your list |
 | `tuner` | services | a Dyno run ($90): the car runs on the rollers through Wrench Works' vehicle side and the screen shows the peak power and torque and the curve. Needs Wrench Works |
 | `diner` | catalogue | drinks, coffee, meals and a meal plan: the stock is the Needs part's (drink, coffee, meal, big meal; what each gives is shown), a sale is eaten and you sit down for twenty minutes of the clock (the clock may refuse in a race, on a job or with the police on you: you eat standing). Open day and night. Needs the Needs part, which is off by default |
 | `motel` | services | a room for the night ($40): a full sleep, the clock runs on up to six hours (or to the end of the phase); refused when the clock may not move. Open day and night. Needs the Needs part |
-| `mechanic` | services | the services you give (none built in yet) |
+| `mechanic` | services | the independent mechanic: your car's basic service and overhaul at 85% of the phone's price (an hour of the clock; refused in a race, on a job or with the police on you) and an Inspection ($40) that shows the car report. Give `services` instead and the shop sells your list |
+| `carwash` | services | a wash ($15) for a dirty car, a wash and polish ($45; $25 with no scratches) for a dirty or scratched one (Car Surface FX). No wax: the mod has no call to slow the dirt |
+| `junkyard` | catalogue | a second-hand pick (24 parts, a different pick each day) of the parts that fit the car, 35 to 65% off and worn (condition 0.3 to 0.7), one of each; they go on the shelf with their wear. The junkyard's lot gets a "Parts yard" button beside Look at the cars |
 
 A mod can add its own kind with `sl_shops.define` (below).
 

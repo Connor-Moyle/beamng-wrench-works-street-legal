@@ -76,6 +76,8 @@
     stripes: function (c) { return '<path d="M-10 60L30-10M10 60L50-10M30 60L70-10" stroke="' + c + '" stroke-width="5" fill="none"/>'; },
     checks: function (c) { return '<path d="M0 0h20v20H0zM20 20h20v20H20z" fill="' + c + '" opacity=".5"/>'; },
     stars: function (c) { return '<g fill="' + c + '"><circle cx="8" cy="10" r="1.5"/><circle cx="30" cy="26" r="2.5"/><circle cx="50" cy="8" r="1.2"/><circle cx="18" cy="46" r="2"/><circle cx="46" cy="44" r="1.5"/></g>'; },
+    bubbles: function (c) { return '<g fill="none" stroke="' + c + '" stroke-width="2"><circle cx="10" cy="44" r="6"/><circle cx="34" cy="30" r="9"/><circle cx="50" cy="10" r="4"/><circle cx="20" cy="14" r="3"/></g>'; },
+    rust: function (c) { return '<path d="M0 50l12-14 10 8 14-20 12 10 12-14" stroke="' + c + '" stroke-width="3" fill="none"/><circle cx="14" cy="12" r="4" fill="' + c + '" opacity=".6"/>'; },
     badge: function (c) { return '<path d="M30 4l22 8v18c0 14-10 22-22 26C18 52 8 44 8 30V12z" stroke="' + c + '" stroke-width="2.5" fill="none"/>'; },
   };
   var ICONS = {
@@ -89,6 +91,8 @@
     star: '<path d="M24 4l6 13 14 2-10 10 3 14-13-7-13 7 3-14L4 19l14-2z" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linejoin="round"/>',
     cup: '<path d="M8 14h26v14a10 10 0 0 1-10 10h-6A10 10 0 0 1 8 28zM34 18h4a5 5 0 0 1 0 10h-4M14 6v4M21 6v4M28 6v4" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linejoin="round"/>',
     bed: '<path d="M4 36V14M4 30h40v6M4 30V22h18v8M26 30v-10h14a4 4 0 0 1 4 4v6" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linejoin="round"/>',
+    drop: '<path d="M24 4c8 12 14 19 14 27a14 14 0 0 1-28 0c0-8 6-15 14-27z" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linejoin="round"/>',
+    crate: '<path d="M6 14l18-8 18 8v22l-18 8-18-8zM6 14l18 8 18-8M24 22v22" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linejoin="round"/>',
     badge: '<path d="M24 4l17 6v14c0 10-8 16-17 20C15 40 7 34 7 24V10z" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linejoin="round"/>',
   };
   function iconSvg(name) { return '<svg viewBox="0 0 48 48" aria-hidden="true">' + (ICONS[name] || ICONS.wrench) + '</svg>'; }

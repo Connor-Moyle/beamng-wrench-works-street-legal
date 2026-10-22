@@ -68,6 +68,19 @@ end
 -- an option of 9e's style kit (Reduce motion): absent in a build that does not have it yet, which reads as off
 local function optionOn(key) return sl_options ~= nil and sl_options.get ~= nil and sl_options.get(key) == true end
 
+-- accessories without a stock of their own sell plates: a plate text on the player's car (core_vehicles.setPlateText)
+local function plateBuy(lines)
+  local car, vid = playerCar()
+  if not (car and vid and core_vehicles and core_vehicles.setPlateText) then return false end
+  for _, l in ipairs(lines or {}) do
+    local text = rules.plateText(l.id)
+    if text and not pcall(core_vehicles.setPlateText, text, vid) then return false end
+  end
+  toast(strings.t('shops.plate_done'))
+  return true
+end
+providers.accessories = { stock = function() return rules.plateStock() end, buy = plateBuy }
+
 local function brandsText(list) return table.concat(list or {}, ', ') end
 
 -- the stock of a catalogue shop: the parts that fit the player's car (Wrench Works, read only), one line each. Returns the lines, the entries by line id, the car's model and a note that says why there is
@@ -78,11 +91,12 @@ local function catalogStock(shop)
   if not (car and vid) then return {}, {}, nil, strings.t('shops.bring_car') end
   local list, model = slrr_garage.lookupParts(vid, { sections = shop.sections, brands = shop.brands })
   if type(list) ~= 'table' then return {}, {}, nil, strings.t('shops.no_parts_data') end
+  if shop.used then local s0 = career() list = rules.junkSample(list, s0 and s0.day or 1, shop.name) end      -- (second-hand: a day's pick, cheaper, worn)
   local lines, entries = {}, {}
   for i, e in ipairs(list) do
     local id = 'p' .. i
     entries[id] = e
-    lines[#lines + 1] = { id = id, name = e.name, group = e.slot, price = e.price, brand = e.brand, count = 4, desc = e.more and strings.t('shops.has_options') or nil }
+    lines[#lines + 1] = { id = id, name = e.name, group = e.slot, price = e.price, brand = e.brand, count = shop.used and 1 or 4, cond = shop.used and e.cond or nil, desc = e.more and strings.t('shops.has_options') or nil }
   end
   local note
   if #lines == 0 then
@@ -101,6 +115,17 @@ local function serviceList(shop)
     local level = sl_surfacefx.level(vid)
     if not level then return {}, strings.t('shops.need_csfx') end
     return rules.paintServices(level), nil
+  elseif shop.kind == 'carwash' then
+    if not (sl_surfacefx and sl_surfacefx.level) then return {}, strings.t('shops.need_csfx') end
+    if not (car and vid) then return {}, strings.t('shops.bring_car') end
+    local level = sl_surfacefx.level(vid)
+    if not level then return {}, strings.t('shops.need_csfx') end
+    local list = rules.washServices(level)
+    return list, #list == 0 and strings.t('shops.no_wash') or nil
+  elseif shop.kind == 'mechanic' then
+    if not (car and vid) then return {}, strings.t('shops.bring_car') end
+    local info = sl_service and sl_service.serviceOf and sl_service.serviceOf(car.id)
+    return rules.mechanicServices(info and info.options or {}), nil
   elseif shop.kind == 'tuner' then
     if not (car and vid) then return {}, strings.t('shops.bring_car') end
     if not (slrr_garage and slrr_garage.lookupParts) then return {}, strings.t('shops.need_ww') end      -- (the dyno is the garage mod's: slrrGarageVeh)
@@ -119,6 +144,27 @@ local function perform(line)
     return true
   elseif id == 'polish' then
     if not (sl_surfacefx and sl_surfacefx.repair and sl_surfacefx.repair(vid)) then return false, strings.t('shops.need_csfx') end
+    return true
+  elseif id == 'basicwash' or id == 'washpolish' then
+    if not (sl_surfacefx and sl_surfacefx.washOff and sl_surfacefx.washOff(vid)) then return false, strings.t('shops.need_csfx') end
+    if id == 'washpolish' and sl_surfacefx.repair then sl_surfacefx.repair(vid) end
+    return true
+  elseif id:match('^service_') then      -- the independent mechanic: an hour of the clock (refused in a race, on a job, with the police on you), then the service at the shop's price
+    local option = id:match('^service_(.+)$')
+    if not (sl_service and sl_service.service) then return false, strings.t('shops.not_here') end
+    local okT, why = sl_career.skipTime(tostring(rules.MECHANIC.hours))
+    if not okT then return false, strings.t('shops.mechanic_busy', tostring(why)) end
+    local ok, text = sl_service.service(car.id, option, 0)      -- (the shop has charged its own price: no second charge)
+    return ok == true, ok and text or strings.t('shops.not_here')
+  elseif id == 'inspect' then
+    local okR, report = pcall(function() return require('sl/core/carreport').build(car) end)
+    if not okR or type(report) ~= 'table' then return false, strings.t('shops.not_here') end
+    local faults = {}
+    for _, f in ipairs(report.faults or {}) do if #faults < 6 then faults[#faults + 1] = type(f) == 'table' and tostring(f.name or f.label or '?') or tostring(f) end end
+    guihooks.trigger('slShopResult', { title = strings.t('shops.inspect_result'), lines = {
+      { label = strings.t('shops.inspect_condition'), text = tostring(report.label or math.floor((report.condition or 0) * 100 + 0.5) .. '%') },
+      { label = strings.t('shops.inspect_faults'), text = #faults > 0 and table.concat(faults, ', ') or strings.t('shops.inspect_none') },
+      { label = strings.t('shops.inspect_total'), text = '$' .. tostring(math.floor(tonumber(report.total) or 0)) } } })
     return true
   elseif id == 'dyno' then
     local veh = getObjectByID and getObjectByID(vid)
@@ -192,6 +238,8 @@ function M.open(kind, opts)
   local shop, why = rules.normalize(kind, opts)
   if not shop then return false, why end
   local provider = providers[kind]
+  local ownStock = type(opts) == 'table' and type(opts.stock) == 'table' and #opts.stock > 0      -- (the opener gave its own goods: the kind's sale is not for them)
+  if provider and provider.stock and ownStock and shop.goods == 'given' then provider = { buy = nil, services = provider.services } end
   if provider and shop.goods == 'given' and #shop.stock == 0 and provider.stock then
     local list, note = provider.stock(shop)
     for _, it in ipairs(list or {}) do shop.stock[#shop.stock + 1] = it end
@@ -300,7 +348,7 @@ function M.buy(text)
       local e = at.entries[l.id]
       for _ = 1, l.qty do
         if not failed then
-          local ok = pcall(slrr_garage.addShelfPart, at.model, { part = e.part, name = e.name, slotId = e.slotId, value = l.each })
+          local ok = pcall(slrr_garage.addShelfPart, at.model, { part = e.part, name = e.name, slotId = e.slotId, value = l.each, wear = e.wear })
           if ok then paid = paid + l.each else failed = true end
         end
       end
@@ -390,6 +438,14 @@ function M.onActivityAcceptGatherData(elemData, activityData)
         icon = 'poi_arrival_round', heading = place.name, preheadings = { strings.t('shops.dealer_parts_heading') },
         sorting = { type = 'slrrPlace', id = place.id },
         buttonLabel = strings.t('shops.parts_counter', brandsText(brands)), buttonFun = function() M.open('dealerparts', { name = place.name, brands = brands, id = 'dealer:' .. tostring(place.id), pos = place.pos }) end,
+        buttonSoundClass = 'bng_hover_generic',
+      })
+    end
+    if place and place.kind == 'junkyard' then      -- the junkyard's lot has a parts yard beside the cars
+      table.insert(activityData, {
+        icon = 'poi_arrival_round', heading = place.name, preheadings = { strings.t('shops.yard_heading') },
+        sorting = { type = 'slrrPlace', id = place.id },
+        buttonLabel = strings.t('shops.parts_yard'), buttonFun = function() M.open('junkyard', { name = place.name, id = 'yard:' .. tostring(place.id), pos = place.pos }) end,
         buttonSoundClass = 'bng_hover_generic',
       })
     end
