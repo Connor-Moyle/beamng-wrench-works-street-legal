@@ -286,9 +286,11 @@
     // opens a panel of its own (reportModal) that fits the screen: a header with a close button and a body that scrolls, one collapsible row per
     // section with its condition, worst fault and repair estimate.
     var reports = {};                      // key -> the report, kept while the buttons are drawn so the panel can show it
-    function reportBlock(key, rp) {
+    var reportHist = {};                   // key -> the history lines of the ad (shown at the top of the panel)
+    function reportBlock(key, rp, history) {
       if (!rp || !rp.sections) return '';
       reports[key] = rp;
+      reportHist[key] = arr(history);
       return '<div class="sll-acts"><div class="sll-btn sll-tonal" data-a="report" data-v="' + esc(key) + '">' + T('ui.show_full_car_report', 'Show full car report') + '</div></div>';
     }
     function repWorst(rp) {
@@ -298,8 +300,10 @@
     }
     function repOpen(rp, id) { return st.repSec[id] !== undefined ? !!st.repSec[id] : id === repWorst(rp); }
     function reportModal() {
-      var rp = st.repOpen && reports[st.repOpen];
+      var rp = st.repOpen && (reports[st.repOpen] || st.repKeep);      // (the report as it was when the button was pressed, if a data push dropped it meanwhile)
       if (!rp) return '';
+      var hist = arr(reportHist[st.repOpen]);
+      var nothing = !(Number(rp.total) > 0) && !arr(rp.faults).length ? '<p>' + T('ui.nothing_more_to_report', 'Nothing more to report: no faults and no repair needed.') + '</p>' : '';
       var secs = arr(rp.sections).map(function (sc) {
         var open = repOpen(rp, sc.id);
         var worst = null;
@@ -316,6 +320,7 @@
       return '<div class="sll-repmodal"><div class="sll-reppanel"><div class="sll-rephead"><b>' + T('ui.car_report', 'Car report') + '</b><span>' + rp.condition + '% ' + esc(rp.label) + '</span>' +
         '<div class="sll-btn sll-tonal" data-a="reportclose">' + T('ui.close', 'Close') + '</div></div><div class="sll-repbody">' +
         '<div class="sll-kv"><span>' + T('ui.overall', 'Overall') + '</span><b>' + rp.condition + '% ' + esc(rp.label) + '</b></div>' +
+        hist.map(function (x) { return '<p>' + esc(x) + '</p>'; }).join('') + nothing +
         '<div class="sll-kv"><span>' + T('ui.mileage', 'Mileage') + '</span><b>' + Number(rp.mileage || 0).toLocaleString() + ' km</b></div><div class="sll-kv"><span>' + T('ui.dents_and_damage', 'Dents and damage') + '</span><b>' + esc(dm.label) + ' (' + (dm.amount || 0) + '%)</b></div>' +
         '<div class="sll-kv"><span>' + T('ui.known_faults', 'Known faults') + '</span><b>' + (arr(rp.faults).length ? esc(arr(rp.faults).join(', ')) : 'none') + '</b></div>' + secs +
         '<div class="sll-kv"><span><b>' + T('ui.repair_estimate_to_95', 'Repair estimate, to 95 %') + '</b></span><b>' + money(rp.total) + '</b></div></div></div></div>';
@@ -326,7 +331,7 @@
         return '<div class="sll-card sll-listing">' + pic(l) + '<div class="sll-li"><h4>' + (l.year ? l.year + ' ' : '') + esc(l.name) + '</h4><div class="sll-brand">' + esc(l.brand || '') + '</div>' +
           '<div class="sll-props">' + facts(l) + '</div><div class="sll-props">' + esc(l.seller) + ' ' + '&#9733;'.repeat(l.rating || 0) + (l.metres != null ? T('ui.middot_1_away', ' &middot; {1} away', dist(l.metres)) : '') +
           (l.hours ? T('ui.middot_delivered_in_about_1', ' &middot; delivered in about {1} h', l.hours) : '') + ' &middot; condition ' + l.condition + '%' + (l.faults ? T('ui.middot_1_fault_2', ' &middot; {1} fault{2}', l.faults, (l.faults > 1 ? 's' : '')) : '') + '</div>' + tells +
-          '<div class="sll-props"><b>' + money(l.ask) + '</b>' + (l.agreed ? T('ui.agreed', ' (agreed)') : '') + ' &middot; deposit ' + money(l.deposit) + '</div>' + reportBlock('ad:' + l.id, l.report) + mkButtons(l) + '</div></div>';
+          '<div class="sll-props"><b>' + money(l.ask) + '</b>' + (l.agreed ? T('ui.agreed', ' (agreed)') : '') + ' &middot; deposit ' + money(l.deposit) + '</div>' + reportBlock('ad:' + l.id, l.report, l.history) + mkButtons(l) + '</div></div>';
       }
       return '<div class="sll-card sll-listing">' + partPicL(l) + '<div class="sll-li"><h4>' + (l.rare ? '&#9733; ' : '') + esc(l.name) + '</h4><p>' + partMetaL(l) + ' &middot; ' + l.condition + T('ui.condition_middot', '% condition &middot; ') + esc(l.seller) + ' ' + '&#9733;'.repeat(l.rating || 0) +
         ' &middot; ' + Math.max(0, l.hoursLeft | 0) + (T('ui.h_left', ' h left') + '</p>') + tells + '<p><b>' + money(l.ask) + '</b>' + (l.agreed ? T('ui.agreed', ' (agreed)') : '') + ' &middot; deposit ' + money(l.deposit) + '</p>' + mkButtons(l) + '</div></div>';
@@ -790,7 +795,7 @@
         case 'helpindex': st.helpId = null; render(); break;
         case 'league': lua('@sl_phone.enterLeague(' + JSON.stringify(String(v)) + ')'); break;
         case 'dealer': st.dview = 'offers'; st.offers = { name: T('ui.dealer', 'Dealer'), offers: [], dealer: v }; st.note = ''; focusKey = null; lua('@sl_dealers.offers(' + JSON.stringify(v) + ')'); render(); break;
-        case 'report': st.repOpen = v; st.repSec = {}; render(); break;
+        case 'report': st.repOpen = v; st.repKeep = reports[v] || null; st.repSec = {}; render(); break;
         case 'reportclose': st.repOpen = null; render(); break;
         case 'repsec': var rpOpen = st.repOpen && reports[st.repOpen]; if (rpOpen) { st.repSec[v] = !repOpen(rpOpen, v); render(); } break;
         case 'offer': st.dview = 'offer'; st.offerId = v; st.note = ''; focusKey = null; render(); break;

@@ -589,6 +589,15 @@ assert.ok(text().includes('Pessima'), 'back to the list');
   assert.ok(text().includes('The mechanic found') && text().includes('Battery') && text().includes('$120') && !phone.root.querySelector('[data-a="mkcheck"]'), 'after the check: the faults with their costs, no button');
   phone.handle('slPhoneData', withCheck({ history: ['3 owners'], hidden: undefined, checked: true, found: [] }));
   assert.ok(text().includes('found no faults'), 'a clean car says so');
+  // the full car report of a CHECKED, fault-free car (rc2: "Show full car report" showed nothing): Lua sends its empty lists as {}, the history stays on the card, the panel opens
+  const cleanRep = { condition: 90, label: 'Good', mileage: 42000, damage: { amount: 0, label: 'None' }, faults: {}, total: 0,
+    sections: [{ id: 'engine', title: 'Engine', condition: 90, label: 'Good', estimate: 0, faults: {}, parts: [{ name: 'Block', condition: 90, label: 'Good' }] }, { id: 'body', title: 'Body', condition: 88, label: 'Good', estimate: 0, faults: {}, parts: [{ name: 'Hood', condition: 88, label: 'Good' }] }] };
+  phone.handle('slPhoneData', withCheck({ history: ['3 owners', 'Full service history'], hidden: undefined, checked: true, found: {}, report: cleanRep }));
+  assert.ok(text().includes('3 owners') && text().includes('Full service history') && phone.root.querySelector('[data-a="report"][data-v="ad:c1"]'), 'a checked clean car: the history and the report button are on the ad');
+  click('report', 'ad:c1');
+  assert.ok(phone.root.querySelector('.slp-repmodal') && text().includes('Car report') && text().includes('90% Good') && text().includes('42,000 km'), 'the report panel opens for a clean checked car: ' + text().slice(0, 200));
+  assert.ok(text().includes('3 owners') && text().includes('Full service history') && text().includes('Nothing more to report'), 'the panel always shows the history lines, and says when there is nothing more to report');
+  click('reportclose');
   phone.handle('slPhoneData', base);
 }
 calls.length = 0;
