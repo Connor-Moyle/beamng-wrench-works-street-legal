@@ -22,6 +22,7 @@ SPONSOR = '--nosponsor' not in sys.argv       # core/brands.lua: standing from w
 SHOW = '--noshow' not in sys.argv      # core/show.lua: the Saturday Style show (a purse by place, entered when the car is in show shape)
 WEEKLY = '--noweekly' not in sys.argv      # the weekly costs of core/weekly.lua
 BOOST = '--noboost' not in sys.argv     # the early-game boost in sl_jobs
+THEFT = '--notheft' not in sys.argv     # sl_theft (docs/CAR_THEFT.md): a night thief at 300 rep: one break-in now and then, the car sold hot to the fence; the tracker and the bust risk
 SHOPS = '--noshops' not in sys.argv     # what the shops of sl_shops take (docs/SHOPS_REWORK.md step 3): (price, how often a week) of the services a player buys now and then; a guess to check in game
 SHOP_WEEK = [('wash', 15, 3.0), ('scratch polish', 120, 0.6), ('dyno run', 90, 0.4), ('respray', 450, 0.08), ('special order (performance)', 1500, 0.12)]
 SHOP_SPONSOR = float(os.environ.get('SHOP_FACTOR', '1.0'))      # a sponsor's price factor (sl_shops.setPriceFactor), 0.9 = ten per cent off
@@ -294,6 +295,30 @@ class Player:
         self.spend(minutes)
         return True
 
+    def theft(self):
+        """sl_theft: a break-in on foot at night (old or 1990s car), the tool's wear, the tracker (core/theft TRACKER_*), a bust loses the car and pays the fine, the fence pays a third hot"""
+        if not THEFT or self.rep < 300 or not is_night(self.hour()): return False
+        r = self.r
+        old = r.random() < 0.5
+        value = r.uniform(4000, 15000) if old else r.uniform(8000, 30000)
+        wear = 0 if old else 60                                         # the bypass box: $600 for 10 uses
+        self.money -= wear
+        minutes = 4 + (0.5 if old else 0.8)
+        if r.random() > (0.85 ** 2 if old else 0.7 ** 3):              # every stage must go right (CHANCE_OLD / CHANCE_MID)
+            self.heat = min(1, self.heat + 0.2)                        # the alarm
+            self.book('car theft (night)', -wear, minutes); self.spend(minutes); return True
+        tracked = r.random() < (0.05 if old else 0.25)
+        busted = r.random() < (0.4 if tracked else 0.1)
+        if busted:
+            fine = police_fine(False); paid = min(self.money, fine)
+            self.money -= paid; self.fines += paid; self.rep -= 25; self.heat = min(1, self.heat + 0.2)
+            if paid < fine: self.broke += 1
+            self.book('car theft (night)', -wear - paid, minutes + 3); self.spend(minutes + 3); return True
+        pay = round(value * 0.2, -1)                                    # SELL_HOT at the fence (a third paid $331 a minute, twice any job)
+        self.money += pay; self.rep += 4
+        self.book('car theft (night)', pay - wear, minutes + 3); self.spend(minutes + 3)
+        return True
+
     def sprint(self):
         if not is_night(self.hour()): return False
         stars = self.r.choice([0, 1, 1, 2, 2, 3])
@@ -376,6 +401,7 @@ class Player:
         roll = self.r.random()
         if roll < w and self.race(): return
         if roll < w + 0.1 and self.sprint(): return
+        if self.style != 'worker' and roll > 0.85 and self.theft(): return
         if self.style != 'racer' and roll > 0.92 and self.flip(): return
         if not self.job(): self.spend(5)             # nothing on: time passes
 
@@ -472,6 +498,9 @@ def main():
         spent = sorted(getattr(p, 'shop_spent', 0) for p in players)
         earned = sorted(sum(m for m, _ in p.earned.values()) for p in players)
         print('Shops (SHOP_WEEK, factor %.2f): median spend over the run $%d (10-90 %%: $%d-$%d), %.1f %% of the median income $%d' % (SHOP_SPONSOR, statistics.median(spent), spent[len(spent) // 10], spent[len(spent) * 9 // 10], 100 * statistics.median(spent) / max(1, statistics.median(earned)), statistics.median(earned)))
+    if THEFT:
+        th = [p.earned.get('car theft (night)', [0, 0])[0] for p in players if 'car theft (night)' in p.earned]
+        print('Theft (THEFT): thieves %d of %d, median take over the run $%d (worst $%d); black market all-in (45 %% + respray $800 + plates $700 + title 15 %%) for a $6k / $30k / $120k car: $%d / $%d / $%d against the dealer' % (len(th), len(players), statistics.median(th) if th else 0, min(th) if th else 0, *[round(v * 0.6 + 1500) for v in (6000, 30000, 120000)]))
     fines = [p.fines for p in players]
     print('\nPolice: median fines over the run $%d; players who could not pay a fine at least once: %d of %d' % (statistics.median(fines), sum(1 for p in players if p.broke), len(players)))
     if '--plot' in sys.argv:
