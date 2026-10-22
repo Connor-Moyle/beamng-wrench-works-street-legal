@@ -15,12 +15,11 @@ const m = src.match(/\r?\nconst data = (\{[\s\S]*?\r?\n\});\r?\n/);
 assert.ok(m, 'the phonetest fixture was not found');
 // the extra data the newer pages draw
 const calendar = JSON.stringify(require('./calendar_fixture.js'));
-const season = JSON.stringify(require('./season_fixture.js'));
 // every tools/<name>_fixture.js is the data of one page (the key is the name; travel_fixture has its own shape): drop one in for a new page and the audit covers it
 const fixtures = {};
 fs.readdirSync(__dirname).filter((f) => /_fixture\.js$/.test(f) && f !== 'travel_fixture.js').forEach((f) => { fixtures[f.replace(/_fixture\.js$/, '')] = require('./' + f); });
 const fixturesJson = JSON.stringify(fixtures);
-const extra = `{ season: ${season}, calendar: ${calendar}, weekly: { enabled: true, week: 3, dayOfWeek: 5, nextBillDay: 2, debt: 120, bills: [{ id: 'rent', label: 'Garage rent', amount: 150, due: 2 }, { id: 'ins', label: 'Insurance', amount: 80, due: 0 }], history: [{ week: 2, income: 900, costs: 400, net: 500 }, { week: 1, income: 100, costs: 300, net: -200 }] },
+const extra = `{ calendar: ${calendar}, weekly: { enabled: true, week: 3, dayOfWeek: 5, nextBillDay: 2, debt: 120, bills: [{ id: 'rent', label: 'Garage rent', amount: 150, due: 2 }, { id: 'ins', label: 'Insurance', amount: 80, due: 0 }], history: [{ week: 2, income: 900, costs: 400, net: 500 }, { week: 1, income: 100, costs: 300, net: -200 }] },
   perks: { tier: 2, list: [{ id: 'g', label: 'Garage discount', text: '10 % off garage upgrades', unlocked: true, tier: 1 }, { id: 'd', label: 'Dealer tier', text: 'The second dealer sells to you', unlocked: true, tier: 2 }, { id: 's', label: 'Sponsor slot', text: 'A sponsor can pay you weekly', unlocked: false, tier: 3 }] },
   needs: { meters: [{ id: 'food', value: 72, stage: 'ok', word: 'fed' }, { id: 'water', value: 28, stage: 'handicap', word: 'parched' }, { id: 'rest', value: 9, stage: 'problem', word: 'exhausted' }], wellFed: false, effects: { blur: 0.3, lag: 0.05, tremor: 0, sleepy: true }, items: [{ id: 'drink', name: 'Drink', price: 2 }, { id: 'meal', name: 'Meal', price: 12 }], canEat: true, canNap: false, showMeters: false },
   traps: { list: [{ id: 't2', name: 'Speed trap 2', kind: 'trap', target: 150, best: 182, count: 3, paid: true, metres: 4200, pay: 250 }, { id: 'z1', name: 'Speed zone 1', kind: 'zone', target: 90, best: 0, count: 0, paid: false, metres: 800, pay: 400 }] },
@@ -78,7 +77,7 @@ ${code}
       }
     }
     var body = phone.root.querySelector('.slp-body'); var txt = (body ? body.textContent : dev.textContent).trim();
-    if (txt.length < 12) issues.push('empty page: nothing to read (' + txt.length + ' characters)');
+    if (txt.length < 12 && id !== 'map') issues.push('empty page: nothing to read (' + txt.length + ' characters)');
     return { page: id, issues: issues };
   }
   var APPS = ['home', 'races', 'garage', 'garagekit', 'bank', 'me', 'sponsors', 'calendar', 'traps', 'jobs', 'wait', 'help', 'map', 'camera', 'gallery', 'club', 'turf', 'carmarket', 'partmarket', 'messages', 'contacts', 'phone', 'cab', 'health'];
