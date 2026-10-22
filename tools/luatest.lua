@@ -7697,6 +7697,11 @@ do
   m0 = st.money
   SS.buy('hot_1:1,hot_2:1')
   check('fence game: when the second car fails only its price comes back', st.money == m0 - 4050, tostring(st.money - m0))
+  -- one car in the cart and it cannot be handed over: the money ends exactly as it was (the counter refunds once)
+  SS.open('blackmarket', { name = 'The Pier Market' })
+  m0 = st.money
+  SS.buy('hot_2:1')
+  check('fence game: a cart of one failing car is refunded once, not twice', st.money == m0, tostring(st.money - m0))
   _G.sl_theft.blackMarket, _G.sl_theft.buyHot = realBM, realBuy
   -- the plate counter on the accessories shop
   _G.sl_career.phase = function() return 'day' end

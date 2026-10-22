@@ -128,21 +128,26 @@ providers.blackmarket = {
     return list, #list == 0 and strings.t('shops.nothing_today') or nil
   end,
   buy = function(lines)
-    -- the counter charged the whole cart: a car that was not handed over is refunded on its own (returning false would refund the cars already parked outside too)
-    local handed = 0
+    -- the counter charged the whole cart. Nothing handed over: answer false and the counter refunds all of it. Some handed over: the cars that were not are refunded here on their own
+    -- and the answer is true (false would refund the cars already parked outside too, and refunding here as well as answering false would pay twice)
+    local handed, failed = 0, {}
     for _, l in ipairs(lines or {}) do
       local idx = tonumber(tostring(l.id):match('^hot_(%d+)$'))
       local ok, text = false, nil
       if idx then ok, text = sl_theft.buyHot(idx, true) end
       if ok == false or not idx then
-        if (l.sum or 0) > 0 then sl_career.addMoney(l.sum, strings.t('shops.refund', 'The market')) end
+        failed[#failed + 1] = l
         toast(text or strings.t('shops.not_here'))
       else
         handed = handed + 1
         if text then toast(text) end
       end
     end
-    return handed > 0
+    if handed == 0 then return false end
+    for _, l in ipairs(failed) do
+      if (l.sum or 0) > 0 then sl_career.addMoney(l.sum, strings.t('shops.refund', 'The market')) end
+    end
+    return true
   end,
 }
 
