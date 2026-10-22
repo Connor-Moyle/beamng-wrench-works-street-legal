@@ -22,9 +22,10 @@ function M.onUpdate(dtReal)
     return
   end
   local t0 = now()
-  log('I', 'sl_teardown', string.format('%s: start (%d more waiting)', label, rules.pending(q)))
+  -- warning level on purpose: this line must reach beamng.log (and stay in it) even if the game dies in the job; a crash log then names the last job started
+  log('W', 'sl_teardown', string.format('%s: start (%d more waiting)', label, rules.pending(q)))
   local ok, err = pcall(fn)
-  log(ok and 'I' or 'W', 'sl_teardown', string.format('%s: %s in %.1f ms', label, ok and 'done' or ('failed: ' .. tostring(err)), (now() - t0) * 1000))
+  log('W', 'sl_teardown', string.format('%s: %s in %.1f ms', label, ok and 'done' or ('failed: ' .. tostring(err)), (now() - t0) * 1000))
 end
 
 function M.onClientEndMission() rules.clear(q) end          -- (the level takes what is on it with it)
