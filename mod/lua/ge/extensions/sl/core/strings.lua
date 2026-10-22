@@ -1077,6 +1077,7 @@ M.TEXT = {
   ["bank.the_bank_took_the_s"] = "The bank took the %s. It is in the impound until you pay what you owed: $%d (phone, My cars).",
   ["bank.the_bank_wanted_d_this"] = "The bank wanted $%d this week and you did not have it. They will try again next week.",
   ["bank.the_first_week_is_d"] = "The first week is $%d.",
+  ["jobs.freight_run"] = "Freight run",
   ["bank.the_insurance_pays_d_of"] = "The insurance pays $%d of that.",
   ["bank.the_loan_is_paid_off"] = "The loan is paid off.",
   ["billboards.club_1"] = "Club {1}",

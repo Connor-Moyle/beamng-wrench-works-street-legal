@@ -3312,7 +3312,7 @@ do
   local Opt = require('sl/options')
   local defs = {}
   for _, d in ipairs(Opt.defs) do defs[d.key] = d end
-  local okDefs = #F.LIST == 46
+  local okDefs = #F.LIST == 47
   local offByDefault = 0
   for _, f in ipairs(F.LIST) do
     local d = defs[f.opt]
@@ -3776,10 +3776,12 @@ do
   _G.sl_fleet = nil
   _G.sl_career = { isActive = function() return true end, getState = function() return st end, phase = function() return 'day' end, getPlaces = function() return places end,
     addMoney = function(a, l) return ST.addMoney(st, a, l) end, payOut = function(a, l) return ST.addMoney(st, a, l) end }
+  _G.freeroam_facilities = { getFacilities = function() return { deliveryProviders = { { id = 'a', name = 'A Yard' }, { id = 'b', name = 'B Depot' }, { id = 'c', name = 'C Works' } } } end,
+    getParkingSpotsForFacility = function(p) return { { pos = { x = ({ a = 0, b = 3000, c = 6000 })[p.id], y = 0, z = 0 } } } end }
   package.loaded['sl/jobs'] = nil
   local okJ, JB = pcall(require, 'sl/jobs')
   if okJ then
-    local contracts, plain, seeds = 0, 0, 0
+    local contracts, plain, seeds, freight = 0, 0, 0, 0
     for seed = 1, 12 do
       st.seed, st.jobs, st.day = seed, nil, 3 + seed
       local sm = JB.summary()
@@ -3788,10 +3790,12 @@ do
           contracts = contracts + 1
           if not (o.pay > o.contract.basePay and o.title:find('Contract', 1, true) and (o.contract.req ~= 'rain')) then contracts = -1000 end
         else plain = plain + 1 end
+        if o.title == 'Freight run' and o.from and o.to and o.from ~= o.to then freight = freight + 1 end
       end
       if #sm.offers > 0 then seeds = seeds + 1 end
     end
     check('contract: the board has some contracts with the higher pay, never more than two a board, and never rain on a dry day', contracts > 0 and plain > 0 and seeds >= 6, tostring(contracts) .. ' ' .. tostring(plain) .. ' ' .. tostring(seeds))
+    check('freight: the board offers freight runs between the stock delivery sites (a stubbed facilities list)', freight > 0)
     st.rep, st.seed, st.jobs, st.day = 50, 1, nil, 40
     local few = 0
     for _, o in ipairs(JB.summary().offers) do if o.contract then few = few + 1 end end
@@ -3804,6 +3808,7 @@ do
   else
     check('contract: sl_jobs loads in the test', false, tostring(JB))
   end
+  _G.freeroam_facilities = nil
   _G.sl_career, _G.extensions, _G.guihooks, _G.FS, _G.sl_weather, _G.sl_options, _G.sl_fleet = old.c, old.e, old.g, old.fs, old.w, old.o, old.f
   package.loaded['sl/jobs'] = nil
 end
@@ -7976,6 +7981,24 @@ do
   for _, k in ipairs({ 'slPuddleCount', 'slSplashSize', 'slWetStrength', 'slRainBox', 'slWetWorld', 'slWetTarmac', 'slWetTrace', 'slPerf' }) do if not (byKey[k] and byKey[k].scope == 'graphics') then ok = false end end
   for _, k in ipairs({ 'slMapStyle', 'slMapHeadingUp', 'slMapZoom', 'slPhoneSkin', 'slWallpaper', 'slTextScale', 'slColorBlind', 'slReduceMotion', 'slCaptions', 'slNotify' }) do if not (byKey[k] and byKey[k].scope == 'none') then ok = false end end
   check('scopes: the graphics rows say graphics and the interface and accessibility rows say none', ok)
+end
+
+-- freight runs between the stock delivery sites (sl/core/jobs freight)
+do
+  local J = require('sl/core/jobs')
+  local rngLib = require('sl/core/rng')
+  local sites = { { id = 'site:a', name = 'A Yard', x = 0, y = 0, z = 0 }, { id = 'site:b', name = 'B Depot', x = 3000, y = 0, z = 0 }, { id = 'site:c', name = 'C Works', x = 100, y = 50, z = 0 } }
+  local j = J.freight(sites, rngLib.new(5))
+  check('freight: a run between two different sites at least the least distance apart, kind freight, a load from the list', j and j.kind == 'freight' and j.from ~= j.to and j.metres >= J.MIN_METRES and (function() for _, it in ipairs(J.FREIGHT_ITEMS) do if it == j.item then return true end end end)())
+  local plain = J.make('courier', sites[1], sites[2], rngLib.new(5))
+  local f = J.freight({ sites[1], sites[2] }, rngLib.new(5))
+  local f2 = J.freight({ sites[1], sites[2] }, rngLib.new(5), 2)
+  check('freight: it pays a little more than a parcel over the same distance, and the pay setting scales it', f and f2 and f.pay >= plain.pay and f2.pay >= f.pay * 1.8)
+  check('freight: fewer than two sites, or sites too close together, give no run', J.freight({ sites[1] }, rngLib.new(5)) == nil and J.freight({ sites[1], sites[3] }, rngLib.new(5)) == nil and J.freight({ sites[1], sites[3] }, rngLib.new(5), 1, 50) ~= nil)
+  local Opt = require('sl/options')
+  local byKey = {}
+  for _, d in ipairs(Opt.defs) do byKey[d.key] = d end
+  check('freight: the settings default to the built-in numbers and are gameplay-scoped', byKey.slFreightPay.default == 100 and byKey.slFreightMin.default == J.MIN_METRES and byKey.slFreightPay.scope == 'gameplay' and require('sl/core/splitphase').phaseOf('jobs', 'freight') == 'day')
 end
 
 print(string.format('lua tests passed: %d checks', passed))
