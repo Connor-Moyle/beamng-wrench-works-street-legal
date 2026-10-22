@@ -1,6 +1,8 @@
 # Changelog
 
-## 0.8.1 (unreleased; needs Wrench Works 1.8.5)
+## 0.8.1 (needs Wrench Works 1.8.5)
+
+What was built after 0.8.0: race series on other maps, shops, the calendar, brand sponsorships, barn finds and more. Every entry that says "not yet seen in the game" is built and tested offline only.
 
 ### Changes
 - **Wet roads and walls now changes the terrain layers only** (a texture swap): the 300 or so material reloads for walls, roofs, pavements and leaves, which are what lost the graphics device at High graphics in heavy rain, no longer run (unless a hidden options key is set for experiments). One test at High graphics, with the terrain layers only and heavy rain forced, ran 366 s without a crash (every earlier run with the material edits crashed within 52 to 96 s of the rain). That is one run: the setting stays off by default, and walls and roofs no longer get wet. The notes are in docs/WET_WORLD_HIGH_CRASH.md.
