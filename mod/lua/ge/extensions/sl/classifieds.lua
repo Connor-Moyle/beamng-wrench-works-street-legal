@@ -532,7 +532,13 @@ function M.buy(id, how)
   js.offers = js.offers or {}
   js.offers[#js.offers + 1] = job
   local ok, text = sl_jobs.take(job.id)
-  return ok, ok and string.format(strings.t('classifieds.deposit_d_paid_s_is'), deposit, l.seller) or text
+  if not ok then      -- (the job board refused it, injuries or a race: the board keeps only some kinds of offer overnight, so the deposit would be lost and the listing gone: all of it goes back)
+    for i, o in ipairs(js.offers) do if o == job then table.remove(js.offers, i) break end end
+    l.taken = nil
+    sl_career.addMoney(deposit, strings.t('classifieds.revline_deposit_1', (l.item.name)))
+    return false, text
+  end
+  return true, string.format(strings.t('classifieds.deposit_d_paid_s_is'), deposit, l.seller)
 end
 
 -- sell one of your shelf parts: on Revline (buyers make offers) or at auction (sold at the last bid, or back to the

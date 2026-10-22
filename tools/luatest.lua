@@ -1418,6 +1418,19 @@ do
   skip('morning')                                   -- across 06:00: the day counter moves, the order is still due
   check('and a wait until the morning across the day change delivers it too', #state.orders == 0 and #built == builtBefore + 2)
 
+  -- a pickup deposit paid and the job board then refuses the job (injuries, a race): the deposit comes back and the listing is open again
+  do
+    local oldJobs = rawget(_G, 'sl_jobs')
+    local C = require('sl/classifieds')
+    state.money, state.jobs = 500, nil
+    state.market.listings = { { id = 'm9', kind = 'part', channel = 'app', ask = 200, seller = 'Eve', where = { x = 10, y = 0, z = 0 }, item = { name = 'Intake', model = 'covet', part = 'x', slotId = 's' }, wear = 0 } }
+    sl_fleet.currentCar = function() return state.cars[1] or {} end
+    _G.sl_jobs = { take = function() return false, 'Not with those injuries: rest first.' end }
+    local ok9, text9 = C.buy('m9', 'pickup')
+    check('pickup deposit: a job the board refuses gives the deposit back, leaves no offer and the listing open', ok9 == false and state.money == 500 and not state.market.listings[1].taken and #(state.jobs and state.jobs.offers or {}) == 0, tostring(state.money))
+    _G.sl_jobs = oldJobs
+  end
+
   -- used-car checks: a private car ad shows its history but not its faults until a mechanic has looked
   do
     local U = require('sl/core/usedcar')
@@ -7759,6 +7772,18 @@ do
   package.loaded['sl/shops'] = nil
 end
 
+-- money charged first, then a result: a factory order that can never be built is cancelled and refunded
+do
+  local FA = require('sl/core/factory')
+  local orders = {}
+  local order = { name = 'Gone Trim', price = 15500 }
+  orders[1] = order
+  local gone, back
+  for _ = 1, FA.MAX_BUILD_TRIES - 1 do gone, back = FA.buildFailed(orders, order) end
+  check('fee leaks: a factory order keeps trying while there are tries left', gone == false and #orders == 1)
+  gone, back = FA.buildFailed(orders, order)
+  check('fee leaks: after the last try the factory order is cancelled and the price is the refund', gone == true and back == 15500 and #orders == 0, tostring(back))
+end
 -- money charged first, then a result: a tow that never takes the car gives the fee back (the car is gone, the career stops, the level ends)
 do
   local old = {}
