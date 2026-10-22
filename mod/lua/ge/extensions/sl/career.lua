@@ -1800,16 +1800,16 @@ function M.spendTime(minutes, reason)
   if core_jobsystem and core_jobsystem.create and guihooks then
     switching = true
     core_jobsystem.create(function(job)
-      local ok, err = pcall(moveClock, plan.to, job)
+      local ok, err = pcall(function() moveClock(plan.to, job) lastHour = hour() end)
+      switching = false                                 -- (released first, whatever happened: a lock left set would refuse every later wait)
       if not ok then log('E', logTag, 'the time could not be moved: ' .. tostring(err)) end
-      lastHour = hour()
-      switching = false
+      pcall(extensions.hook, 'onStreetLegalTimeSpent', plan.minutes, tostring(reason or ''))          -- (after the move: a listener reading the hour sees the new time)
     end)
   else
     setHour(plan.to)
+    extensions.hook('onStreetLegalTimeSpent', plan.minutes, tostring(reason or ''))
   end
   changed()
-  extensions.hook('onStreetLegalTimeSpent', plan.minutes, tostring(reason or ''))
   return true, strings.t('career.time_spent', plan.minutes), plan.minutes
 end
 
