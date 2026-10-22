@@ -47,6 +47,7 @@ ${code}
   document.body.appendChild(phone.root);
   phone.handle('slPhoneData', data);
   phone.handle('slPhoneToggle');
+  Object.keys(fx).forEach(function (k) { var f = fx[k]; if (f && f._hook) phone.handle(f._hook, f); });      // (a fixture with `_hook` is the payload of that guihook: slMap, slPhotoChallenges, slRivals ...)
   function rgba(c) { var m = /rgba?\(([^)]+)\)/.exec(c); if (!m) return null; var p = m[1].split(',').map(parseFloat); return { r: p[0], g: p[1], b: p[2], a: p.length > 3 ? p[3] : 1 }; }
   function lum(c) { function f(v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); } return 0.2126 * f(c.r) + 0.7152 * f(c.g) + 0.0722 * f(c.b); }
   function bgOf(el) {
@@ -81,6 +82,7 @@ ${code}
     return { page: id, issues: issues };
   }
   var APPS = ['home', 'races', 'garage', 'garagekit', 'bank', 'me', 'sponsors', 'calendar', 'traps', 'jobs', 'wait', 'help', 'map', 'camera', 'gallery', 'club', 'turf', 'carmarket', 'partmarket', 'messages', 'contacts', 'phone', 'cab', 'health'];
+  Object.keys(fx).forEach(function (k) { var f = fx[k]; if (f && f._app && APPS.indexOf(f._app) < 0) APPS.push(f._app); });      // (and `_app` is the page it shows)
   var results = [];
   APPS.forEach(function (id) { try { phone.act('home'); if (id !== 'home') phone.act('open', id); results.push(audit(id)); } catch (e) { results.push({ page: id, issues: ['could not open: ' + e.message] }); } });
   ['week', 'series'].forEach(function (tab) { try { phone.act('home'); phone.act('open', 'calendar'); phone.act('caltab', tab); results.push(audit('calendar:' + tab)); } catch (e) { results.push({ page: 'calendar:' + tab, issues: ['could not open: ' + e.message] }); } });
