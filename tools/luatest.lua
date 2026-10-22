@@ -3310,7 +3310,7 @@ do
   local Opt = require('sl/options')
   local defs = {}
   for _, d in ipairs(Opt.defs) do defs[d.key] = d end
-  local okDefs = #F.LIST == 36
+  local okDefs = #F.LIST == 37
   local offByDefault = 0
   for _, f in ipairs(F.LIST) do
     local d = defs[f.opt]
@@ -6111,7 +6111,8 @@ do
   check('patrol: on a shift the suspects keep coming by day', C.patrolVars({ strictness = 0.1, suspectFrequency = 0 }, true).suspectFrequency == 1 and C.patrolVars({ strictness = 0.1, suspectFrequency = 0 }, false).suspectFrequency == 0)
   do
     local old = { c = _G.sl_career, j = _G.sl_jobs, p = _G.sl_police, o = _G.sl_options, gh = _G.guihooks, um = _G.ui_message, pv = _G.getPlayerVehicle, gt = _G.gameplay_traffic, id = _G.getObjectByID, lg = _G.log, js = _G.core_jobsystem, gw = _G.gameplay_walk, gm = _G.core_groundMarkers, v3 = _G.vec3 }
-    local v3 = function(x, y, z) return setmetatable({ x = x, y = y, z = z }, { __index = { length = function(p) return math.sqrt(p.x * p.x + p.y * p.y + p.z * p.z) end } }) end
+    local v3
+    v3 = function(x, y, z) return setmetatable({ x = x, y = y, z = z }, { __sub = function(a, b) return v3(a.x - b.x, a.y - b.y, a.z - b.z) end, __index = { length = function(p) return math.sqrt(p.x * p.x + p.y * p.y + p.z * p.z) end } }) end
     _G.vec3 = v3
     local state = { day = 3, rep = 400, money = 500, jobs = { offers = {}, done = 0, earned = 0 } }
     local texts, finished, role, randomEvents, refreshed = {}, nil, nil, false, 0
@@ -6128,7 +6129,8 @@ do
     _G.gameplay_traffic = { getTrafficVars = function() return { enableRandomEvents = randomEvents } end, setTrafficVars = function(t) randomEvents = t.enableRandomEvents end,
       getTrafficData = function() return { [500] = { damage = damage, setRole = function(_, r) role = r end } } end }
     local deleted = 0
-    _G.getObjectByID = function(id) if id == 500 then return { delete = function() deleted = deleted + 1 end } end end
+    local far = {}
+    _G.getObjectByID = function(id) if id == 500 then return { delete = function() deleted = deleted + 1 end } end return { getPosition = function() return far[id] and v3(900, 0, 0) or v3(10, 0, 0) end } end
     _G.log = function() end
     _G.core_jobsystem = { create = function(f) f({ sleep = function() end }) end }
     _G.gameplay_walk = { setWalkingMode = function() end }
@@ -6150,6 +6152,9 @@ do
     check('patrol game side: an arrest is counted and paid by its speed, an escape is not', Pz.status():find('arrests 1') ~= nil and texts[#texts]:find('got away') ~= nil)
     Pz.onPursuitAction(500, 'arrest', {})
     check('patrol game side: the player own car is never a suspect', Pz.status():find('arrests 1') ~= nil)
+    far[11] = true
+    Pz.onPursuitAction(11, 'start', {}) Pz.onPursuitAction(11, 'arrest', {})
+    check('patrol game side: an arrest by the AI patrols across the map (the reviewer case) is not yours', Pz.status():find('arrests 1') ~= nil)
     Pz.onPursuitAction(9, 'start', {}) Pz.onPursuitAction(9, 'arrest', {}) Pz.onPursuitAction(10, 'start', {}) Pz.onPursuitAction(10, 'arrest', {})
     pos = v3(300, 0, 84)
     Pz.onUpdate(0.6)
@@ -6170,6 +6175,63 @@ do
     check('patrol game side: the job dropped: the shift ends and the suspects are off', not Pz.active() and randomEvents == false)
     _G.sl_career, _G.sl_jobs, _G.sl_police, _G.sl_options, _G.guihooks, _G.ui_message, _G.getPlayerVehicle, _G.gameplay_traffic, _G.getObjectByID, _G.log, _G.core_jobsystem, _G.gameplay_walk, _G.core_groundMarkers, _G.vec3 = old.c, old.j, old.p, old.o, old.gh, old.um, old.pv, old.gt, old.id, old.lg, old.js, old.gw, old.gm, old.v3
     package.loaded['sl/patrol'] = nil
+  end
+end
+
+-- the grab bag (sl/core/grabbag): a good week, the pick from the parts that fit, the hand-over at the garage with stubs
+do
+  local G = require('sl/core/grabbag')
+  local rngLib = require('sl/core/rng')
+  check('grabbag: a good week is three jobs, two wins or $2,000 earned', G.goodWeek(G.mark(0, 0, 0), G.mark(3, 0, 0)) and G.goodWeek(G.mark(5, 1, 100), G.mark(5, 3, 100)) and G.goodWeek(G.mark(0, 0, 500), G.mark(0, 0, 2500)) and not G.goodWeek(G.mark(0, 0, 0), G.mark(2, 1, 1999)) and not G.goodWeek(nil, G.mark(9, 9, 9)))
+  local list = { { part = 'a', name = 'Air filter', slotId = 'filter', price = 60 }, { part = 'b', name = 'Pads', slotId = 'pads', price = 120 }, { part = 'c', name = 'Pads sport', slotId = 'pads', price = 300 }, { part = 'd', name = 'Turbo', slotId = 'turbo', price = 4000 }, { part = 'e', name = 'Shock', slotId = 'shock', price = 200 } }
+  local box = G.pick(list, rngLib.new(rngLib.hash('box1')))
+  local okBox = #box >= 2 and #box <= 4
+  local slots = {}
+  for _, p in ipairs(box) do if p.part == 'd' or slots[p.slotId] or p.condition < 0.35 or p.condition > 0.9 or p.value <= 0 then okBox = false end slots[p.slotId] = true end
+  check('grabbag: the box is two to four cheap parts of distinct slots with a used condition and value', okBox)
+  local fixed = G.pick(list, rngLib.new(rngLib.hash('box2')), 10)
+  check('grabbag: the pool bounds the box (three distinct slots under the price cap); an empty list gives nothing', #fixed == 3 and #G.pick({}, rngLib.new(1)) == 0)
+  check('grabbag: the names line', G.names({ { name = 'Pads', condition = 0.5 } }) == 'Pads (50%)')
+  do
+    local old = { c = _G.sl_career, f = _G.sl_fleet, g = _G.slrr_garage, o = _G.sl_options, gh = _G.guihooks, ex = _G.extensions, lg = _G.log }
+    local state = { day = 1, seed = 3, jobs = { done = 0 }, stats = { wins = 0, earned = 0 }, cars = { { id = 1, model = 'covet', name = 'Covet' } } }
+    local texts, shelf = {}, {}
+    _G.sl_career = { isActive = function() return true end, getState = function() return state end, sendText = function(_, t) texts[#texts + 1] = t end }
+    _G.sl_fleet = { currentCar = function() return state.cars[1] end, vehicleOf = function() return { getID = function() return 77 end } end }
+    _G.slrr_garage = { lookupParts = function() return list, 'covet' end, addShelfPart = function(model, p) shelf[#shelf + 1] = { model = model, p = p } return true end }
+    local on = true
+    _G.sl_options = { get = function(k) if k == 'slGrabBag' then return on end return nil end }
+    _G.guihooks = { trigger = function(name, d) if name == 'slPhoneToast' then texts[#texts + 1] = d.text end end }
+    _G.extensions = { hook = function() end }
+    _G.log = function() end
+    package.loaded['sl/grabbag'] = nil
+    local B = require('sl/grabbag')
+    B.onStreetLegalNewDay(1)
+    check('grabbag game side: the first day marks the week and judges nothing', state.grabbag.week == 1 and state.grabbag.pending == false and #texts == 0)
+    state.jobs.done = 4
+    B.onStreetLegalNewDay(5)
+    check('grabbag game side: a day inside the week judges nothing', state.grabbag.pending == false)
+    state.day = 8
+    B.onStreetLegalNewDay(8)
+    check('grabbag game side: the week turns: four jobs made it a good one, Benny texts, the box waits', state.grabbag.pending == true and state.grabbag.week == 2 and texts[#texts]:find('box of parts') ~= nil and B.summary().pending == true)
+    B.onWrenchWorksGarageEntered('Garage')
+    check('grabbag game side: at the garage the parts go on the shelf of the car brought in, with a condition; the box is spent', #shelf >= 2 and shelf[1].model == 'covet' and shelf[1].p.condition ~= nil and state.grabbag.pending == false and state.grabbag.given == 1 and texts[#texts]:find('Grab bag') ~= nil)
+    local n = #shelf
+    B.onWrenchWorksGarageEntered('Garage')
+    check('grabbag game side: no second box from the same week', #shelf == n)
+    state.day = 15
+    B.onStreetLegalNewDay(15)
+    check('grabbag game side: a quiet week leaves no box', state.grabbag.pending == false and state.grabbag.week == 3)
+    state.stats.wins = 2
+    state.day = 22
+    B.onStreetLegalNewDay(22)
+    _G.slrr_garage = nil
+    B.onWrenchWorksGarageEntered('Garage')
+    check('grabbag game side: without the garage mod the box waits', state.grabbag.pending == true and #shelf == n)
+    on = false
+    check('grabbag game side: the part off: no summary', B.summary() == nil)
+    _G.sl_career, _G.sl_fleet, _G.slrr_garage, _G.sl_options, _G.guihooks, _G.extensions, _G.log = old.c, old.f, old.g, old.o, old.gh, old.ex, old.lg
+    package.loaded['sl/grabbag'] = nil
   end
 end
 
