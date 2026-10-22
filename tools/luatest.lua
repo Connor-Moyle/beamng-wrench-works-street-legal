@@ -5829,6 +5829,14 @@ do
   check('sl_shops: no answer after 20 seconds: refunded, and the player is told', st.money == m3b and toasts[#toasts]:find('dyno', 1, true) ~= nil)
   SS.onWrenchWorksDyno(77, { maxPower = 99, maxPowerRPM = 1, maxTorque = 1, maxTorqueRPM = 1, power = { 1, 2 } })
   check('sl_shops: a late answer shows nothing', sent[#sent].n ~= 'slShopResult')
+  -- the screen is closed while the run is waiting for its answer: the run is refunded once, not lost
+  SS.open('tuner', {})
+  local m3c = st.money
+  SS.buy('dyno:1')
+  SS.close()
+  check('sl_shops: closing the shop during a dyno run refunds it', st.money == m3c)
+  SS.close()
+  check('sl_shops: closing twice refunds once', st.money == m3c)
   os.clock = realClock
   SS.open('tuner', {})
   SS.buy('dyno:1')

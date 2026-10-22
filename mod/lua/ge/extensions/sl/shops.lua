@@ -386,6 +386,8 @@ end
 
 function M.close()
   if not at then return end
+  -- a dyno run still waiting for its answer: the screen that would show it is gone, so the run is refunded (the update loop would never see it again)
+  if at.dynoVid and (at.dynoPaid or 0) > 0 and career() then sl_career.addMoney(at.dynoPaid, strings.t('shops.refund', at.shop.name)) end
   at = nil
   guihooks.trigger('slShopClose', {})
 end
