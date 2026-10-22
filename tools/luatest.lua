@@ -7689,6 +7689,15 @@ do
   m0 = st.money
   SS.buy('hot_2:1')
   check('fence game: a car that is sold costs nothing', st.money == m0)
+  -- two cars in one cart, the second cannot be handed over: only that one is refunded (the first is parked outside and stays paid)
+  local realBM, realBuy = _G.sl_theft.blackMarket, _G.sl_theft.buyHot
+  _G.sl_theft.blackMarket = function() return { { index = 1, model = 'covet', name = 'Covet', value = 9000, era = 'mid', price = 4050 }, { index = 2, model = 'pessima', name = 'Pessima', value = 3000, era = 'old', price = 1350 } } end
+  _G.sl_theft.buyHot = function(i, paid) if i == 2 then return false, 'No room.' end return true, 'Parked outside.' end
+  SS.open('blackmarket', { name = 'The Pier Market' })
+  m0 = st.money
+  SS.buy('hot_1:1,hot_2:1')
+  check('fence game: when the second car fails only its price comes back', st.money == m0 - 4050, tostring(st.money - m0))
+  _G.sl_theft.blackMarket, _G.sl_theft.buyHot = realBM, realBuy
   -- the plate counter on the accessories shop
   _G.sl_career.phase = function() return 'day' end
   tod = 0
