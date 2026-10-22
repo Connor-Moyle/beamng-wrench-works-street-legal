@@ -2944,6 +2944,7 @@ end
 do -- the free-roam switches in the Mods menu list (sl/options) and the game side (sl/mode)
   local Op = require('sl/options')
   local Mo = require('sl/core/mode')
+  do local seen, dup = {}, nil for _, d in ipairs(Op.defs) do if seen[d.key] then dup = d.key end seen[d.key] = true end check('options: no setting key twice (the Mods menu registry refuses a field id twice: Cinematic moments was listed by its own row and as a part)', dup == nil, dup) end
   local oldR, oldW = rawget(_G, 'jsonReadFile'), rawget(_G, 'jsonWriteFile')
   _G.jsonReadFile, _G.jsonWriteFile = function() return {} end, function() return true end
   local all = true
