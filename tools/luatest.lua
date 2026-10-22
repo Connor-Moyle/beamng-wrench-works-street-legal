@@ -3310,7 +3310,7 @@ do
   local Opt = require('sl/options')
   local defs = {}
   for _, d in ipairs(Opt.defs) do defs[d.key] = d end
-  local okDefs = #F.LIST == 35
+  local okDefs = #F.LIST == 36
   local offByDefault = 0
   for _, f in ipairs(F.LIST) do
     local d = defs[f.opt]
@@ -4595,6 +4595,13 @@ do
     G.startRound({ series = 'jv-offroad:2', round = 3, def = { track = 'johnson_valley/timeTrial/005-dunerace', laps = 2, field = 'offroad' }, rivals = 2 })
     G.onVehicleSwitched(100, 7)
     check('gridrace game side: a vehicle change in a round aborts it to sl_series', aborted == 'aborted' and reported == nil and G.running() == nil)
+    -- (the reviewer's case) a named rival whose car does not build aborts the race: no duel against a pool car, done gets aborted
+    events, built, deleted, result = {}, {}, {}, nil
+    raceObj.ticks, raceObj.states = 0, {}
+    _G.sl_streets = { buildRacerCar = function(id, pos, rot, cb) cb(nil) return true end }
+    local okr2 = G.start({ layer = '003', name = 'Duel', laps = 1, rival = 'ra', grid = 1 }, function(r) result = r end)
+    check('gridrace game side: a rival car that does not build aborts the race before the start, nothing built from the pool', okr2 and result ~= nil and result.aborted == true and #built == 0 and G.running() == nil and table.concat(events, '|'):find('fade false') ~= nil)
+    _G.sl_streets = nil
     _G.sl_series = nil
     -- the class scan runs in the background from the career start (the reviewer's case: not inside the first race's fade)
     package.loaded['sl/gridrace'] = nil

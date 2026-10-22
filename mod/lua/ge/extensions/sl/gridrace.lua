@@ -11,6 +11,8 @@
 --             introFwd/finishFwd.camPath.json when it has them), name = 'the title', laps = 3, purse = 800 (shown only),
 --             field = 'offroad' (a roster of ours, sl/core/gridrace.ROSTERS; nil: the AI pool in the player's class), grid = n (a cap on the AI cars) }
 --     done(result) once, result = { place = 1.. or nil (a DNF or an abort), time = seconds, grid = cars on the grid, aborted = true|nil }
+--     rival = <racer id> (the one AI car is that rival's own car, built by sl_streets.buildRacerCar; the pool fills the rest of the grid),
+--     onTick = function(ctx, dt) (called after the race object's update while the race runs, ctx = { race, playerId, ais }: a scorer such as the hill duel)
 --   sl_gridrace.startRound(ctx) -> ok, why    the series interface (docs/DESIGN_CAREER_TRAVEL.md section 11.2): ctx.def.track, .laps, .field, .title;
 --     reports to sl_series.report(ctx.series, ctx.round, { place, time, dnf, racers }) once, or sl_series.abort(ctx.series, ctx.round, why)
 --   sl_gridrace.abort()        ends a running race (a career stop, a level end, a vehicle change); done gets { aborted = true }
@@ -147,6 +149,17 @@ local function build(job)
   local want = rules.gridSize(opt('slGridCars', rules.MAX), #sps + 1)
   if tonumber(spec.grid) then want = math.min(want, math.max(0, math.floor(spec.grid))) end
   if not spec.field then scanSome(1e9, job.slFadeT0 + rules.BUILD_S * 0.5) end      -- (the classes still unread: up to half the budget, then what is known)
+  -- a named rival first: their own car (sl_streets builds racers' cars), on the first slot, waited for inside the budget
+  if spec.rival and sl_streets and sl_streets.buildRacerCar and sps[1] then
+    local sp, veh = table.remove(sps, 1), nil
+    local started = sl_streets.buildRacerCar(spec.rival, sp.pos + vec3(0, 0, 0.5), sp.rot, function(v) veh = v or false end)
+    while started and veh == nil and os.clock() - job.slFadeT0 < rules.BUILD_S do job.sleep(0.1) end
+    if not veh then error('the rival car did not build') end      -- (never a race against a pool car in the rival's place: the pcall around build() aborts and pays nothing)
+    sp:moveResetVehicleTo(veh:getID(), false, false)
+    veh:queueLuaCommand('controller.setFreeze(1) electrics.setLightsState(1)')
+    c.ais[#c.ais + 1] = { id = veh:getID(), aggression = rules.aggression(s and s.rep or 0) }
+    want = math.max(0, want - 1)
+  end
   local field = rules.field(rules.candidatesFor(spec.field, candidates), playerClass(c.playerId), want, rng)
   local aggression = rules.aggression(s and s.rep or 0)
   for i, f in ipairs(field) do
@@ -238,6 +251,7 @@ function M.onUpdate(dtReal, dtSim)
   local ok, err = pcall(function() c.race:onUpdate(dt) end)
   if not ok then log('E', 'sl_gridrace', tostring(err)) M.abort() return end
   local st = c.race.states[c.playerId]
+  if c.spec.onTick then local okt, errt = pcall(c.spec.onTick, { race = c.race, playerId = c.playerId, ais = c.ais }, dt) if not okt then log('E', 'sl_gridrace', 'onTick: ' .. tostring(errt)) end end
   if st and st.complete then finishRace(st.placement, st.endTime) return end
   if c.t > rules.MAX_RACE_S then finishRace(nil, c.t) end
 end
