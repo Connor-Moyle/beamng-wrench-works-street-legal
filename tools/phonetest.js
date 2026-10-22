@@ -1181,6 +1181,17 @@ assert.ok(/target\.focus\(\{ preventScroll: true \}\)/.test(code) && !/target\.f
   assert.ok(text().includes('Trophies: 0') && text().includes('No trophies yet'), 'an empty list says so');
   phone.handle('slPhoneData', data);
   assert.ok(!text().includes('Trophies:'), 'no list: no card');
+  // the per-save economy offer (tools/economy_fixture.js): a card with one button only while the snapshot carries the text
+  const ef = require('./economy_fixture.js');
+  phone.act('home');
+  phone.handle('slPhoneData', Object.assign({}, data, ef));
+  phone.act('open', 'me');
+  assert.ok(text().includes('New in 0.8.0') && text().includes('Turn them on for this career?') && phone.root.querySelector('[data-a="economy"]'), 'an old save: the offer card on Street cred');
+  calls.length = 0; click('economy', '1');
+  assert.ok(calls.includes('economyOptIn()'), 'the button calls the game: ' + calls.join(' '));
+  phone.handle('slPhoneData', Object.assign({}, data, { economyOffer: null }));
+  assert.ok(!text().includes('New in 0.8.0') && !phone.root.querySelector('[data-a="economy"]'), 'a new career or after the opt-in: no card');
+  phone.handle('slPhoneData', data);
   phone.act('home');
 }
 console.log('phone test passed');

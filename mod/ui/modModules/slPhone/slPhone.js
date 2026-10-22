@@ -1483,6 +1483,12 @@
       }).join('');
       return '<div class="slp-card"><h4>' + T('ui.trophies', 'Trophies: {1}', list.length) + '</h4>' + (rows || '<p>' + T('ui.trophy_none', 'No trophies yet. Win an invitational or a series.') + '</p>') + '</div>';
     }
+    // a save from before the 0.8.0 economy is offered it (data.economyOffer = the text, only for such a save): one card, one button
+    function economyCard() {
+      var t = st.data.economyOffer;
+      if (!t) return '';
+      return '<div class="slp-card"><h4>' + T('ui.economy_title', 'New in 0.8.0') + '</h4><p>' + esc(t) + '</p><div class="slp-acts"><div class="slp-btn" data-a="economy" data-v="1">' + T('ui.economy_on', 'Turn them on') + '</div></div></div>';
+    }
     function mePage() {
       var d = st.data, s = obj(d.stats);
       var from = d.titleRep || 0, to = d.nextRep, pct = to ? Math.max(0, Math.min(100, ((d.rep || 0) - from) / (to - from) * 100)) : 100;
@@ -1490,7 +1496,7 @@
       var acts = [];
       if (d.nextGarage && d.nextGarage.canMove) acts.push(('<div class="slp-btn" data-a="move">' + T('ui.move_to', 'Move to ')) + esc(d.nextGarage.name) + '</div>');
       if (d.roc && !d.rocChampion) acts.push('<div class="slp-btn" data-a="roc">' + (d.rocRound ? T('ui.roc_round_1_of_3', 'ROC round {1} of 3', (d.rocRound + 1)) : T('ui.enter_the_roc_middot_1', 'Enter the ROC &middot; {1}', money(d.rocEntry))) + '</div>');
-      return bar(T('app.me', 'Street cred')) + '<div class="slp-body"><div class="slp-card"><h4>' + esc(d.title) + '</h4><p>' + (d.rep || 0) + ' reputation' + (to ? T('ui.middot_next_title_at_1', ' &middot; next title at {1}', to) : '') + '</p>' +
+      return bar(T('app.me', 'Street cred')) + '<div class="slp-body">' + economyCard() + '<div class="slp-card"><h4>' + esc(d.title) + '</h4><p>' + (d.rep || 0) + ' reputation' + (to ? T('ui.middot_next_title_at_1', ' &middot; next title at {1}', to) : '') + '</p>' +
         '<div class="slp-meter"><i style="width:' + pct.toFixed(1) + '%"></i></div></div>' + perksCard() + trophiesCard() +
         ('<div class="slp-card"><div class="slp-kv"><span>' + T('ui.garage', 'Garage') + '</span><b>') + esc(d.garage || '') + '</b></div>' + next +
         (d.hasRoc === false ? '' : ('<div class="slp-kv"><span>' + T('activityrules.race_of_champions', 'Race of Champions') + '</span><b>') + (d.roc ? T('ui.open_to_you', 'Open to you') : T('ui.not_yet', 'Not yet')) + '</b></div>') +
@@ -2161,6 +2167,7 @@
         case 'wait': lua('wait(' + JSON.stringify(String(v)) + ')'); break;
         case 'borrow': lua('borrow(' + Number(v) + ')'); break;
         case 'repay': lua('repay(' + Number(v) + ')'); break;
+        case 'economy': lua('economyOptIn()'); break;
         case 'paydebt': lua('payDebt(' + Number(v) + ')'); break;
         case 'spnaccept': lua('sponsorAccept()'); break;
         case 'spndecline': lua('sponsorDecline()'); break;
