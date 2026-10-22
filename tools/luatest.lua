@@ -5020,4 +5020,100 @@ do
   check('show: the bands', S.band(0) == 1 and S.band(0.34) == 1 and S.band(0.35) == 2 and S.band(0.55) == 3 and S.band(0.75) == 4 and S.band(1) == 4)
 end
 
+-- the Style show, the game side (sl/show): the inputs from the other mods through guarded calls, the judging, the payout, once a week, the part switch, the hook
+do
+  local ST = require('sl/core/state')
+  local st = ST.new(1, 0)
+  st.day, st.seed, st.rep, st.money = 6, 7, 160, 1000
+  local keys = { 'c', 'e', 'g', 'pv', 'um', 'cm', 'cv', 'br', 'sf', 'cc', 'pw', 'sc', 'jr', 'op', 'gp' }
+  local names = { c = 'sl_career', e = 'extensions', g = 'guihooks', pv = 'getPlayerVehicle', um = 'ui_message', cm = 'core_vehicle_manager', cv = 'core_vehicles', br = 'slrr_brands', sf = 'sl_surfacefx',
+    cc = 'sl_carcare', pw = 'slrr_partwear', sc = 'sl_scenes', jr = 'jsonReadFile', op = 'sl_options', gp = 'slrr_garageParts' }
+  local old = {}
+  for _, k in ipairs(keys) do old[k] = rawget(_G, names[k]) end
+  local paid, hooks, toasts, scenes, hour = 0, {}, {}, {}, 21.5
+  _G.guihooks = { trigger = function(_, d) toasts[#toasts + 1] = d and d.text end }
+  _G.ui_message = nil
+  _G.extensions = { hook = function(name, a, b, c) hooks[#hooks + 1] = { name, a, b, c } end }
+  _G.sl_options = nil
+  _G.sl_career = { isActive = function() return true end, getState = function() return st end, LEVEL = 'west_coast_usa', hour = function() return hour end,
+    getPlaces = function() return { a = { id = 'm2', name = 'Hilltop', kind = 'meet', pos = { x = 100, y = 0, z = 0 } }, b = { id = 'm1', name = 'Marina', kind = 'meet', pos = { x = 0, y = 0, z = 0 } }, c = { id = 'x', kind = 'garage', pos = { x = 5, y = 5, z = 0 } } } end,
+    addMoney = function(a) if st.money + a < 0 then return false end st.money = st.money + a return true end,
+    payOut = function(a) paid = paid + a st.money = st.money + a return true end }
+  local vehicle = { getID = function() return 55 end, getJBeamFilename = function() return 'covet' end }
+  _G.getPlayerVehicle = function() return vehicle end
+  local tree = { id = 'covet', chosenPartName = 'covet_body', children = {
+    wheel_F = { id = 'wheel_F', chosenPartName = 'acme_wheel_5', children = {} }, intake = { id = 'intake', chosenPartName = 'acme_intake', children = {} },
+    turbo = { id = 'turbo', chosenPartName = 'acme_turbo', children = {} }, brakes = { id = 'brakes', chosenPartName = 'acme_brakes', children = {} }, plain = { id = 'seat', chosenPartName = 'covet_seat', children = {} } } }
+  _G.core_vehicle_manager = { getVehicleData = function() return { config = { paints = { { baseColor = { 0.2, 0.6, 0.9, 1 }, metallic = 0.7, roughness = 0.2, clearcoat = 1, clearcoatRoughness = 0.1 } }, partsTree = tree } } end }
+  _G.core_vehicles = { getModel = function() return { model = { paints = { red = { baseColor = { 1, 0, 0, 1 } } } } } end }
+  _G.slrr_brands = { ofPart = function(n) return n:find('^acme_') and 'acme' or nil end, list = function() return { { id = 'acme', kind = 'aftermarket' } } end,
+    familyOf = function(n, ctx) return n:find('wheel') and 'wheels' or 'general' end }
+  _G.sl_surfacefx = { level = function() return { dirt = 0.1, scratches = 0 } end }
+  _G.sl_carcare = { damageOf = function() return 3000 end }
+  _G.slrr_partwear = { conditionsOf = function() return { parts = { { kind = 'paint', condition = 0.9 }, { kind = 'damper', condition = 0.6 } } } end }
+  _G.sl_scenes = { play = function(style, data) scenes[#scenes + 1] = { style, data } return true end }
+  local oldCF, oldCI = rawget(_G, 'ColorF'), rawget(_G, 'ColorI')
+  _G.ColorF, _G.ColorI = function() return {} end, function() return {} end
+  package.loaded['sl/show'] = nil
+  local SX = require('sl/show')
+  local rules = require('sl/core/show')
+
+  local ev = SX.eventToday(st)
+  check('show game: on a Saturday there is an event at one of the meet spots, in a fixed order of their ids', ev and ev.kind == 'show' and (ev.place == 'Marina' or ev.place == 'Hilltop') and ev.pos ~= nil)
+  st.day = 5
+  check('show game: on other days there is none and nothing can start', SX.eventToday(st) == nil and SX.begin() == false)
+  st.day = 6
+
+  local inp = SX.inputs(vehicle)
+  check('show game: the inputs come from the other mods', inp.paint and inp.paint.changed == true and math.abs(inp.paint.condition - 0.9) < 1e-9 and inp.parts.acme == 4 and inp.wheels.aftermarket == true
+    and inp.clean.dirt == 0.1 and math.abs(inp.body - 0.1) < 1e-9 and #inp.wear == 2)
+  local pv = SX.preview()
+  check('show game: the preview judges the car with no entry and no charge', pv and pv.total and pv.total > 40 and #pv.lines == 6 and st.money == 1000 and #hooks == 0)
+
+  local beforeRep = st.rep
+  check('show game: the show is run: entry paid, a place, the prize and the reputation, the result kept', SX.begin() == true)
+  local rec = st.show.history[ev.week]
+  check('show game: the record has the place, the total, the prize and the spot', rec and rec.place >= 1 and rec.total == pv.total and rec.spot == ev.place and rec.tier == 2)
+  local money, rep = rules.prize(2, rec.place)
+  check('show game: the money and the reputation follow the place', st.money == 1000 - rules.FEE + money and paid == money and st.rep == beforeRep + rep and rec.prize == money and rec.rep == rep)
+  local fired
+  for _, h in ipairs(hooks) do if h[1] == 'onStreetLegalShowResult' and h[2] == ev.id and h[3] == rec.place and h[4] and h[4].place == rec.place then fired = true end end
+  check('show game: the result hook is fired with the event id', fired == true)
+  check('show game: the podium scene is asked for with the place and the names', scenes[1] and scenes[1][1] == 'showpodium' and scenes[1][2].place == rec.place and #scenes[1][2].names >= 1)
+  check('show game: the toasts carry the result and the thing to do first', #toasts >= 1 and toasts[1]:find(tostring(rec.total), 1, true) ~= nil)
+  local moneyAfter = st.money
+  check('show game: a second try in the same week is refused and costs nothing', SX.begin() == false and st.money == moneyAfter)
+  local sum = SX.summary()
+  check('show game: the summary has the last judging and the history', sum and sum.last and sum.last.place == rec.place and sum.history[ev.week] == rec)
+
+  -- the next Saturday, with a source missing
+  st.day = 13
+  _G.slrr_partwear, _G.slrr_brands, _G.sl_surfacefx = nil, nil, nil
+  local inp2 = SX.inputs(vehicle)
+  check('show game: without Part Wear, brands and Car Surface FX the criteria drop and the rest remain', inp2.parts == nil and inp2.clean == nil and inp2.wear == nil and inp2.paint ~= nil and inp2.body ~= nil)
+  check('show game: and it still judges', SX.begin() == true and st.show.history[2] ~= nil)
+  -- nothing to judge: no charge
+  st.day = 20
+  _G.core_vehicle_manager, _G.sl_carcare, _G.slrr_garageParts = { getVehicleData = function() return nil end }, nil, nil
+  local m = st.money
+  check('show game: a car with nothing readable is not judged and not charged', SX.begin() == false and st.money == m)
+  -- the part switch
+  _G.core_vehicle_manager = old.cm
+  _G.sl_options = { get = function(k) if k == 'slShow' then return false end end }
+  check('show game: with the part off nothing answers', SX.begin() == nil and SX.preview() == nil and SX.summary() == nil)
+  _G.sl_options = nil
+  -- the free-roam / nil safety of every hook
+  check('show game: the hooks survive nil arguments and no career', (function()
+    local c = _G.sl_career
+    _G.sl_career = { isActive = function() return false end }
+    SX.onUpdate(nil) SX.onStreetLegalStopped() SX.onClientEndMission()
+    local ok = SX.begin() == false and SX.preview() == nil and SX.summary() == nil
+    _G.sl_career = c
+    return ok
+  end)())
+  _G.ColorF, _G.ColorI = oldCF, oldCI
+  for _, k in ipairs(keys) do _G[names[k]] = old[k] end
+  package.loaded['sl/show'] = nil
+end
+
 print(string.format('lua tests passed: %d checks', passed))

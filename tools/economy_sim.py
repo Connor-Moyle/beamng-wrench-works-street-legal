@@ -19,6 +19,7 @@ CARS_KEPT = int(sys.argv[sys.argv.index('--cars') + 1]) if '--cars' in sys.argv 
 WEAR_SCALE = float(os.environ.get("WEAR_SCALE", "40"))   # core/service.lua SCALE
 WEAR = '--nowear' not in sys.argv          # core/service.lua: wear x40 paid back as repairs, and a basic service every 150 km
 SPONSOR = '--nosponsor' not in sys.argv       # core/brands.lua: standing from wins, a sponsorship at 100 with a retainer and a parts discount
+SHOW = '--noshow' not in sys.argv      # core/show.lua: the Saturday Style show (a purse by place, entered when the car is in show shape)
 WEEKLY = '--noweekly' not in sys.argv      # the weekly costs of core/weekly.lua
 BOOST = '--noboost' not in sys.argv     # the early-game boost in sl_jobs
 DAY_MIN = 30.0            # real minutes per in-game day (BeamNG's TimeOfDay dayLength; verify in game)
@@ -31,6 +32,8 @@ TIERS = [  # roster.TIERS: rep range, bet range
 GARAGES = [(175, 6000), (1000, 25000)]   # = progression.garages (balance pass: garage 2 in about 5 h of play, was never inside 12 h)
 ROC = dict(rep=6000, entry=50000)
 # cars by class: (value new, how well it races 1..6)
+SHOW_W = dict(paint=0.25, wheels=0.15, parts=0.20, clean=0.15, body=0.15, wear=0.10)       # core/show.lua WEIGHTS
+SHOW_MEAN, SHOW_PURSE, SHOW_FEE = [0.40, 0.50, 0.60, 0.70, 0.80], [300, 500, 800, 1100, 1500], 60
 TUNE = dict(               # the game's numbers since the balance pass (DESIGN3_jobs.md); --old: before it
     race_rep_base=35,       # progression.raceResult: rep for a win = base + bet/100 (x1.5 at night)
     job_rep=10,             # sl_jobs: rep per job done
@@ -161,6 +164,33 @@ class Player:
         if not self.series or self.t - self.series[-1][0] >= 5: self.series.append((self.t, self.money, self.rep))
         if self.t > 20 and self.money < 300: self.broke_min = getattr(self, 'broke_min', 0) + minutes   # the floor check
 
+    def show(self):
+        # core/show.lua: Saturday night, entry $60; six criteria with the weights of show.WEIGHTS; the field is seeded around the tier mean (show.TIER_MEAN); a 1st/2nd/3rd place
+        # pays the purse, half, a quarter and reputation 12 + 8 x tier (half, quarter). The simulated player enters when the car is in show shape: a car bought, 2+ bolt-ons.
+        if self.car is None or self.money < SHOW_FEE + 300 or self.perf < 0.5: return False
+        tier = self.tier()
+        w = SHOW_W
+        paint = 0.45 + (0.30 if 'paint' in self.kit else 0.0)
+        mine = dict(paint=paint, wheels=0.45 + (0.40 if self.perf > 0.8 else 0.0) + 0.1, parts=min(1.0, 0.55 * self.perf / 1.5 + 0.35 * min(1.0, self.perf / 1.5)),
+                    clean=0.62 + (0.30 if self.r.random() < 0.5 else 0.0), body=0.85, wear=0.85)
+        total = sum(w[k] * min(1.0, max(0.0, mine[k] + self.r.uniform(-0.07, 0.07))) for k in w)
+        n = min(11, 7 + tier - 1)
+        better = 0
+        for _ in range(n):
+            skill = min(0.97, max(0.05, SHOW_MEAN[tier - 1] + self.r.uniform(-0.18, 0.18)))
+            rival = sum(w[k] * min(1.0, max(0.0, skill + self.r.uniform(-0.22, 0.22))) for k in w)
+            if rival >= total: better += 1
+        place = better + 1
+        purse = SHOW_PURSE[tier - 1]
+        share = {1: 1.0, 2: 0.5, 3: 0.25}.get(place, 0.0)
+        prize = round(purse * share, -1)
+        self.money += prize - SHOW_FEE
+        self.rep += int((12 + 8 * tier) * share + 0.5)
+        self.book('show', prize - SHOW_FEE, 14)          # the drive to the spot, the parking and the judging
+        self.shows = getattr(self, 'shows', 0) + 1
+        self.spend(14)
+        return True
+
     def tier(self):
         t = 0
         for i, d in enumerate(TIERS):
@@ -290,6 +320,9 @@ class Player:
             self.crew_done = True
         # a player with the reputation for the next garage saves for it: no new parts, car or kit until it is bought
         # (the first week's curve is read off these players; an owner of a garage 2 who never saved would never see it)
+        if SHOW and (self.day() + 1) % 7 == 6 and getattr(self, 'show_day', -1) != self.day() and self.r.random() < 0.7:
+            self.show_day = self.day()
+            if self.show(): return
         saving = self.garage < len(GARAGES) + 1 and self.car is not None and self.rep >= GARAGES[self.garage - 1][0]
         if not saving and self.car is not None and self.perf < 1.5 and self.r.random() < 0.15 and self.part(): return
         nxt = min(5, (self.car or 0) + 1)

@@ -79,6 +79,7 @@ M.TEXT = {
   ['show.wear_3'] = 'A little wear, well kept.',
   ['show.wear_4'] = 'Everything fresh.',
   ['show.wear_tip'] = 'The worn parts show: replace or service them in the garage.',
+  ['show.you'] = 'You',
   ['show.title'] = 'Style show: {1}',
   ['show.reward'] = 'Prizes for the top three, up to ${1}',
   ['show.default_spot'] = 'the marina car park',
