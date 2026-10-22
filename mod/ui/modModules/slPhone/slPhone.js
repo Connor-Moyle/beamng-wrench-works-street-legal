@@ -32,6 +32,19 @@
     '.slp-page.slp-open{animation:slp-zoom .3s cubic-bezier(.2,.9,.25,1)}@keyframes slp-zoom{from{transform:scale(.2);opacity:0;border-radius:40px}to{transform:none;opacity:1}}',
     '@media (prefers-reduced-motion:reduce){.slp-device{transition:none !important}.slp-page.slp-open{animation:none}.slp-root *,.slp-root *:before,.slp-root *:after{transition:none!important;animation:none!important}}',
     '.slp-rm .slp-device,.slp-rm *,.slp-rm *:before,.slp-rm *:after{transition:none!important;animation:none!important}',      /* (the career option Reduce motion: the same) */
+    '.slp-crack{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:9;border-radius:36px}.slp-crack path{fill:none;stroke-linecap:round;stroke-linejoin:round}.slp-crack-dark path{stroke:rgba(0,0,0,.55);stroke-width:2.2px;vector-effect:non-scaling-stroke}.slp-crack-light path{stroke:rgba(255,255,255,.85);stroke-width:1px;vector-effect:non-scaling-stroke}.slp-crack path.slp-shard{fill:rgba(0,0,0,.28);stroke:none}',
+    '.slp-camon .slp-device,.slp-camon .slp-pill,.slp-camon .slp-hu{display:none!important}',
+    '.slp-camui{position:fixed;left:0;top:0;right:0;bottom:0;z-index:30;pointer-events:none;color:#fff;font-family:"Segoe UI","Roboto","Noto Sans",sans-serif;animation:slp-sway 5.5s ease-in-out infinite;transform-origin:50% 50%}',
+    '@keyframes slp-sway{0%,100%{transform:translate(0,0) rotate(0)}25%{transform:translate(calc(var(--slp-sway) * 3px),calc(var(--slp-sway) * -2px)) rotate(calc(var(--slp-sway) * .25deg))}50%{transform:translate(calc(var(--slp-sway) * -2px),calc(var(--slp-sway) * 2px)) rotate(calc(var(--slp-sway) * -.2deg))}75%{transform:translate(calc(var(--slp-sway) * 1.5px),calc(var(--slp-sway) * 1px)) rotate(calc(var(--slp-sway) * .15deg))}}',
+    '.slp-cambz{position:absolute;background:#050506}.slp-cbl{left:0;top:0;bottom:0;width:5.5vh;border-radius:0 3vh 3vh 0}.slp-cbl i{position:absolute;left:1.6vh;top:50%;width:1.7vh;height:1.7vh;margin-top:-.85vh;border-radius:50%;background:#15151a;box-shadow:0 0 0 .3vh #222}',
+    '.slp-cbr{right:0;top:0;bottom:0;width:3vh;border-radius:3vh 0 0 3vh}.slp-cbt{left:0;right:0;top:0;height:2.4vh}.slp-cbb{left:0;right:0;bottom:0;height:2.4vh}',
+    '.slp-camgrid i,.slp-camgrid b{position:absolute;background:rgba(255,255,255,.35);display:block}.slp-camgrid i{top:0;bottom:0;width:1px}.slp-camgrid i:nth-child(1){left:33.33%}.slp-camgrid i:nth-child(2){left:66.66%}.slp-camgrid b{left:0;right:0;height:1px}.slp-camgrid b:nth-child(3){top:33.33%}.slp-camgrid b:nth-child(4){top:66.66%}',
+    '.slp-camtop{position:absolute;left:8vh;right:6vh;top:3.4vh;display:flex;gap:2vh;align-items:center;font-size:2.2vh;text-shadow:0 1px 3px rgba(0,0,0,.8)}.slp-camtop span{pointer-events:auto;cursor:pointer;padding:.6vh 1.2vh;border-radius:2vh;background:rgba(0,0,0,.35)}.slp-camtop span:first-child{pointer-events:none;background:none;margin-right:auto}.slp-camtop .slp-on{background:rgba(255,213,79,.85);color:#3b2f00}.slp-camx{font-size:2.6vh}',
+    '.slp-camright{position:absolute;right:7vh;top:0;bottom:0;display:flex;align-items:center}.slp-camshutter{pointer-events:auto;cursor:pointer;width:11vh;height:11vh;border-radius:50%;border:.7vh solid #fff;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.2)}.slp-camshutter i{display:block;width:8vh;height:8vh;border-radius:50%;background:#fff}.slp-camshutter:active i{transform:scale(.88)}',
+    '.slp-cammodes{position:absolute;right:24vh;bottom:4.6vh;display:flex;gap:2.4vh;font-size:2vh;letter-spacing:.2vh;text-shadow:0 1px 3px rgba(0,0,0,.8)}.slp-cammodes span{opacity:.55}.slp-cammodes b{color:#ffd54f}',
+    '.slp-camzoom{position:absolute;left:50%;bottom:4.2vh;transform:translateX(-50%);display:flex;gap:1.2vh;background:rgba(0,0,0,.4);border-radius:3vh;padding:.6vh 1.2vh}.slp-camzoom span{pointer-events:auto;cursor:pointer;font-size:2.2vh;padding:.8vh 1.6vh;border-radius:2.4vh}.slp-camzoom .slp-on{background:rgba(255,255,255,.9);color:#111}',
+    '.slp-camflash{animation:none}.slp-camflash:before{content:"";position:absolute;left:0;top:0;right:0;bottom:0;background:#fff;opacity:0;animation:slp-fx .22s ease-out}@keyframes slp-fx{0%{opacity:.85}100%{opacity:0}}',
+    '.slp-camui .slp-crack{position:absolute;left:0;top:0;width:100%;height:100%}',
     '.slp-screen{position:relative;width:100%;height:100%;border-radius:36px;overflow:hidden;background:#141218;display:flex;flex-direction:column}',
     '.slp-cam{position:absolute;left:50%;top:10px;width:11px;height:11px;margin-left:-5.5px;border-radius:50%;background:#000;box-shadow:0 0 0 2px #1d1d22;z-index:5}',
     /* status bar */
@@ -387,6 +400,40 @@
 
   var STAKE_TEXT = { race: T('ui.race_for_money', 'Race for money'), high: T('ui.high_stakes', 'High stakes'), drag: T('ui.drag_race', 'Drag race'), pink: T('crews.pink_slips', 'Pink slips') };
   var QUICK = { race: T('phone.up_for_a_race', 'Up for a race?'), high: T('phone.race_me_high_stakes', 'Race me. High stakes.'), drag: T('phone.drag_race_at_the_test', 'Drag race at the test track?'), pink: T('phone.pink_slips_you_and_me', 'Pink slips. You and me.') };
+
+  // the cracked screen (sl_phonecrack, data.crack = { stage 1..3, x, y (the impact point, 0..1), seed, strength }): spider-web lines from the impact point, drawn over the whole screen and readable through
+  function crackRng(seed) { var s = (Number(seed) >>> 0) || 1; return function () { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
+  function crackPaths(stage, x, y, seed, w, h) {      // (w x h: the field in units, the screen's own shape, so the web is round: 100 x 211 portrait, 200 x 100 sideways)
+    w = Number(w) || 100; h = Number(h) || 211;
+    stage = Math.max(1, Math.min(3, Math.floor(Number(stage) || 1)));
+    var r = crackRng(seed), cx = (Number(x) || 0.5) * w, cy = (Number(y) || 0.4) * h, unit = Math.min(w, h) / 100, n = 5 + 3 * stage, step = Math.PI * 2 / n, radials = [], rings = [];
+    for (var i = 0; i < n; i++) {
+      var a = step * i + (r() - 0.5) * step * 0.5, len = unit * (22 + r() * (18 + stage * 22)), segs = 4 + stage, pts = [{ x: cx, y: cy }];
+      for (var k = 1; k <= segs; k++) {
+        var d = len * k / segs, jitter = (r() - 0.5) * 6 * unit;
+        pts.push({ x: cx + Math.cos(a) * d - Math.sin(a) * jitter, y: cy + Math.sin(a) * d + Math.cos(a) * jitter });
+      }
+      radials.push(pts);
+    }
+    var ringAt = stage === 1 ? [2] : stage === 2 ? [2, 4] : [2, 3, 4, 5];
+    ringAt.forEach(function (idx) {
+      for (var j = 0; j < n; j++) {
+        if (stage === 1 && j % 2) continue;      // (a light crack: the rings are broken)
+        var p1 = radials[j][idx], p2 = radials[(j + 1) % n][idx];
+        if (p1 && p2) rings.push([p1, { x: (p1.x + p2.x) / 2 + (r() - 0.5) * 3 * unit, y: (p1.y + p2.y) / 2 + (r() - 0.5) * 3 * unit }, p2]);
+      }
+    });
+    function pathD(pts) { return 'M' + pts.map(function (p) { return p.x.toFixed(1) + ' ' + p.y.toFixed(1); }).join(' L'); }
+    return radials.map(pathD).concat(rings.map(pathD));
+  }
+  function crackHtml(c, land) {
+    if (!c || !(Number(c.stage) > 0)) return '';
+    var w = land ? 200 : 100, h = land ? 100 : 211, paths = crackPaths(c.stage, c.x, c.y, c.seed, w, h), body = paths.map(function (d) { return '<path d="' + d + '"/>'; }).join('');
+    var shards = '';
+    if (Number(c.stage) >= 3) shards = '<path class="slp-shard" d="M' + (c.x * w - 6).toFixed(1) + ' ' + (c.y * h - 4).toFixed(1) + ' L' + (c.x * w + 9).toFixed(1) + ' ' + (c.y * h - 2).toFixed(1) + ' L' + (c.x * w + 2).toFixed(1) + ' ' + (c.y * h + 10).toFixed(1) + ' Z"/>';
+    return '<svg class="slp-crack" data-stage="' + Math.floor(Number(c.stage)) + '" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none" style="opacity:' + Math.max(0.3, Math.min(1, Number(c.strength) || 0.85)).toFixed(2) + '"><g class="slp-crack-dark">' + body + '</g><g class="slp-crack-light">' + body + '</g>' + shards + '</svg>';
+  }
+  if (typeof window !== 'undefined') window.__slPhoneCrack = { paths: crackPaths, html: crackHtml };
 
   function createPhone(doc, lua, clock) {
     clock = clock || { set: function (f, ms) { return setTimeout(f, ms); }, clear: function (t) { clearTimeout(t); }, now: function () { return Date.now(); } };
@@ -1095,6 +1142,20 @@
     function cameraPage() {
       return bar(T('app.camera', 'Camera')) + '<div class="slp-body"><div class="slp-card"><p>' + esc(T('ui.camera_text', 'Takes a picture of what you see, without the phone or any other screen. It is kept in the Gallery and in the folder screenshots/street_legal.')) + '</p>' +
         '<div class="slp-acts"><div class="slp-btn" data-a="photo">' + T('ui.take_a_photo', 'Take a photo') + '</div></div></div></div>';
+    }
+    // the Camera app as a camera (sl_phonecam puts the view in first person): a full-screen sideways phone over it. data.camera = { firstPerson, sway 0..1, grid, bezel, zoomMax }
+    function camHtml() {
+      var c = obj(st.data.camera), cam = st.cam = st.cam || { zoom: 1, flash: false, grid: c.grid !== false };
+      var zooms = [1, 2, 4, 8].filter(function (z) { return z <= (Number(c.zoomMax) || 4); });
+      var sway = Math.max(0, Math.min(1, c.sway == null ? 0.5 : Number(c.sway)));
+      return '<div class="slp-camui' + (st.camFlashFx ? ' slp-camflash' : '') + '" style="--slp-sway:' + sway.toFixed(2) + '">' +
+        (c.bezel === false ? '' : '<div class="slp-cambz slp-cbl"><i></i></div><div class="slp-cambz slp-cbr"></div><div class="slp-cambz slp-cbt"></div><div class="slp-cambz slp-cbb"></div>') +
+        (cam.grid ? '<div class="slp-camgrid"><i></i><i></i><b></b><b></b></div>' : '') +
+        '<div class="slp-camtop"><span>' + two(st.data.hour || 0) + ':' + two(st.data.minute || 0) + '</span><span class="slp-camflashb' + (cam.flash ? ' slp-on' : '') + '" data-a="camflash" data-v="1" role="button" aria-label="' + T('ui.cam_flash', 'Flash') + '">&#9889; ' + T('ui.cam_flash', 'Flash') + (cam.flash ? '' : ' &#215;') + '</span><span class="slp-camgridb' + (cam.grid ? ' slp-on' : '') + '" data-a="camgrid" data-v="1" role="button">&#9638; ' + T('ui.cam_grid', 'Grid') + '</span><span class="slp-camx" data-a="home" role="button" aria-label="' + T('ui.cam_close', 'Close the camera') + '">&#10005;</span></div>' +
+        '<div class="slp-camright"><div class="slp-camshutter" data-a="photo" data-v="1" role="button" aria-label="' + T('ui.cam_shutter', 'Take a photo') + '"><i></i></div></div>' +
+        '<div class="slp-cammodes"><b>' + T('ui.cam_mode_photo', 'PHOTO') + '</b><span>' + T('ui.cam_mode_portrait', 'PORTRAIT') + '</span><span>' + T('ui.cam_mode_pano', 'PANO') + '</span><span>' + T('ui.cam_mode_video', 'VIDEO') + '</span></div>' +
+        '<div class="slp-camzoom">' + zooms.map(function (z) { return '<span class="' + (cam.zoom === z ? 'slp-on' : '') + '" data-a="camzoom" data-v="' + z + '" role="button">' + z + '&times;</span>'; }).join('') + '</div>' +
+        crackHtml(st.data.crack, true) + '</div>';
     }
     function galleryPage() {
       var list = arr(obj(st.photos).photos);
@@ -1852,6 +1913,7 @@
     }, true);
     doc.addEventListener('keydown', function (ev) {
       if (st.chooser && (ev.key === 'Escape' || ev.keyCode === 27)) { st.chooser = false; render(); ev.stopPropagation(); }
+      if (st.camOn && (ev.key === 'Escape' || ev.keyCode === 27)) { home(); ev.stopPropagation(); }      // (Esc leaves the camera: the previous camera comes back)
     }, true);
 
     // the fade: black, or one of SLRR's loading screens (a cab ride, the garage, the dealer)
@@ -1933,12 +1995,15 @@
       layer.style.setProperty('--sl-zoom', zoom); layer.setAttribute('data-zoom', zoom);
       layer.classList.toggle('slp-cb', !!d.colorBlind);      // #51 colour-blind friendly colours
       layer.classList.toggle('slp-rm', !!d.reduceMotion);      // the Reduce motion option (docs/UI_STYLE.md)
+      var camNow = !!(d.active && st.open && st.app === 'camera');      // (the Camera app is a camera: first person, the phone drawn sideways over it)
+      if (camNow !== !!st.camOn) { st.camOn = camNow; if (camNow) st.cam = { zoom: 1, flash: false, grid: obj(d.camera).grid !== false }; lua(camNow ? 'cameraEnter()' : 'cameraLeave()'); }
+      layer.classList.toggle('slp-camon', camNow);
       var isHome = st.app === 'home';
       var screen = '<div class="slp-screen' + (isHome ? ' slp-home-on' : '') + '"><div class="slp-cam"></div>' +
         '<div class="slp-status">' + two(d.hour || 0) + ':' + two(d.minute || 0) + '<div class="slp-sr">' + I.signal + I.wifi + I.battery + '</div></div>' +
         (isHome ? homePage() : '<div class="slp-page">' + page + '</div>') +
         (st.call ? callPage() : '') +
-        '<div class="slp-nav"><div data-a="back">' + NAV.back + '</div><div data-a="home">' + NAV.home + '</div><div data-a="away">' + NAV.recent + '</div></div></div>';
+        '<div class="slp-nav"><div data-a="back">' + NAV.back + '</div><div data-a="home">' + NAV.home + '</div><div data-a="away">' + NAV.recent + '</div></div>' + crackHtml(d.crack, mapWanted()) + '</div>';
       var hu = st.hu;
       var huHtml = '<div class="slp-hu' + (hu && !st.open && !lotHides() && obj(d.has).hudpill !== false ? '' : ' slp-gone') + '" data-a="openthread" data-v="' + esc(hu ? hu.thread : '') + '">' +
         (hu ? avatar({ id: hu.thread, name: hu.name }) + ('<div><small>' + T('ui.messages', 'Messages ') + '&middot;' + ' now' + '</small><b>') + esc(hu.name) + '</b><span>' + esc(hu.text) + '</span></div>' : '') + '</div>';
@@ -1947,7 +2012,7 @@
           (d.phase ? '<span>' + (d.phase === 'night' ? '&#9790;' : '&#9728;') + '</span>' : '') + (d.heat > 0 ? '<span style="color:#ff6a4a">' + '&#9650;'.repeat(d.heat) + '</span>' : '') + (d.phase === 'night' && d.atRisk > 0 ? '<span style="color:#ffb74a">+' + d.atRisk + (T('ui.at_risk', ' at risk') + '</span>') : '') + '<span>' + two(d.hour || 0) + ':' + two(d.minute || 0) + '</span></div>' +
         '<div class="slp-device@@LAND@@' + (st.open ? '' : ' slp-away') + '" style="transform:' + (st.open ? '' : 'translateY(70%) ') + 'scale(' + scale() + ')">' + screen + '</div>' +
         lotView() + garageView() + stationView() + meetView() + raceView() +
-        huHtml + reportModal() +
+        huHtml + reportModal() + (camNow ? camHtml() : '') +
         '<div class="slp-toast' + (st.toast ? '' : ' slp-gone') + '">' + esc(st.toast || '') + '</div>' +
         fadeView();
       // the game sends the data every few seconds: a screen that did not change is left alone (a rebuild between the press and the release of a click loses the
@@ -2262,6 +2327,9 @@
         case 'calenter': lua('calendarEnter(' + JSON.stringify(String(v)) + ')'); break;
         case 'caldecline': lua('calendarDecline(' + JSON.stringify(String(v)) + ')'); st.calEvent = null; break;
         case 'calremind': var cr = String(v).split('|'); lua('calendarRemind(' + JSON.stringify(cr[0]) + ',' + (cr[1] === 'true' ? 'true' : 'false') + ')'); break;
+        case 'camzoom': st.cam = st.cam || {}; st.cam.zoom = Number(v) || 1; lua('cameraZoom(' + (Number(v) || 1) + ')'); render(); break;
+        case 'camflash': st.cam = st.cam || {}; st.cam.flash = !st.cam.flash; render(); break;
+        case 'camgrid': st.cam = st.cam || {}; st.cam.grid = !st.cam.grid; render(); break;
         case 'caltravel': st.pickDismissed = null; lua('travelPick(' + JSON.stringify(String(v)) + ')'); break;
         case 'pickcar':
           var ps = arr(st.pickSel).slice(), pi = ps.indexOf(String(v));

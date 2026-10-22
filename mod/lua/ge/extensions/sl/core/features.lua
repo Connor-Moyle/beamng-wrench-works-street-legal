@@ -6,6 +6,7 @@ local M = {}
 
 -- id, option key, title, what the player gets when it is off (the note under the switch)
 M.LIST = {
+  { id = 'phonecrack', opt = 'slPhoneCrack', title = 'Cracked phone screen', desc = 'A hard crash cracks the glass of your phone (and the HUD phone); repairing the car mends it. Off: the screen stays whole.' },
   { id = 'spectators', opt = 'slSpectators', title = 'Spectators at races', desc = 'Small crowds at the start and the finish of races. Off: nobody watches.' },
   { id = 'billboards', opt = 'slBillboards', title = 'Sponsor billboards', desc = 'The billboards along the road show your sponsor or club. Off: the game\'s own billboards stay as they are.' },
   { id = 'ambience', opt = 'slAmbience', title = 'Ambient sounds', desc = 'Waves at the water, the roar of a wide road, a crowd in town. Off: only the game\'s own sounds.' },

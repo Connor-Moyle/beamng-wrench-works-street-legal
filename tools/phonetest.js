@@ -1274,6 +1274,64 @@ assert.ok(/target\.focus\(\{ preventScroll: true \}\)/.test(code) && !/target\.f
   assert.ok(phone.state.open === true, 'an idle garage state leaves it alone');
   phone.handle('slPhoneToggle');
 }
+{
+  // the cracked screen (tools/crack_fixture.js): the overlay over the whole screen with the stage's web, the strength as its opacity, nothing for a whole screen
+  const cf = require('./crack_fixture.js'), K = win.__slPhoneCrack;
+  phone.act('home');
+  phone.handle('slPhoneData', Object.assign({}, data, { crack: cf }));
+  let svg = phone.root.querySelector('.slp-screen > .slp-crack');
+  assert.ok(svg && svg.getAttribute('data-stage') === '2' && parseFloat(svg.style.opacity) === 0.85, 'a stage 2 crack is drawn over the screen at the strength of the setting');
+  assert.ok(svg.querySelectorAll('.slp-crack-light path').length === svg.querySelectorAll('.slp-crack-dark path').length && svg.querySelectorAll('.slp-crack-light path').length > 11, 'a dark and a light line for every crack line');
+  assert.ok(text().includes('Street cred') || phone.root.querySelector('[data-a="open"]'), 'the phone is still readable through it (the overlay takes no clicks)');
+  assert.ok(/pointer-events:none/.test(win.document.querySelector('style').textContent.match(/\.slp-crack\{[^}]*\}/)[0]), 'the overlay does not take clicks');
+  assert.deepStrictEqual(K.paths(2, 0.42, 0.36, 20481), K.paths(2, 0.42, 0.36, 20481), 'the same seed draws the same web');
+  assert.notDeepStrictEqual(K.paths(2, 0.42, 0.36, 1), K.paths(2, 0.42, 0.36, 2), 'another seed another web');
+  const n1 = K.paths(1, 0.5, 0.5, 5).length, n2 = K.paths(2, 0.5, 0.5, 5).length, n3 = K.paths(3, 0.5, 0.5, 5).length;
+  assert.ok(n1 < n2 && n2 < n3, 'a worse crash has more lines: ' + [n1, n2, n3]);
+  assert.ok(K.paths(3, 0.5, 0.5, 5, 100, 100)[0].startsWith('M50.0 50.0'), 'the web starts at the impact point');
+  phone.handle('slPhoneData', Object.assign({}, data, { crack: Object.assign({}, cf, { stage: 3, strength: 0.3 }) }));
+  svg = phone.root.querySelector('.slp-crack');
+  assert.ok(svg.getAttribute('data-stage') === '3' && parseFloat(svg.style.opacity) === 0.3 && svg.querySelector('.slp-shard'), 'stage 3: shards too, a faint overlay at low strength');
+  phone.handle('slPhoneData', Object.assign({}, data, { crack: null }));
+  assert.ok(!phone.root.querySelector('.slp-crack'), 'a whole screen has no overlay');
+  phone.handle('slPhoneData', Object.assign({}, data, { crack: { stage: 0 } }));
+  assert.ok(!phone.root.querySelector('.slp-crack'), 'stage 0: no overlay');
+  phone.handle('slPhoneData', data);
+}
+{
+  // the Camera app as a camera (tools/camera_fixture.js): opening it asks for the first-person view and draws the sideways phone; leaving puts the camera back
+  const cam = require('./camera_fixture.js'), cf = require('./crack_fixture.js');
+  if (!phone.state.open) phone.handle('slPhoneToggle');
+  phone.act('home');
+  phone.handle('slPhoneData', Object.assign({}, data, { camera: cam }));
+  calls.length = 0;
+  phone.act('open', 'camera');
+  assert.ok(calls.includes('cameraEnter()'), 'the Camera app asks for the first-person view: ' + calls.join(' '));
+  assert.ok(phone.root.classList.contains('slp-camon') || phone.root.querySelector('.slp-camon') || phone.root.querySelector('.slp-camui'), 'the camera screen is up');
+  const ui = phone.root.querySelector('.slp-camui');
+  assert.ok(ui && ui.querySelector('[data-a="photo"]') && ui.querySelector('.slp-camgrid') && ui.querySelector('.slp-cambz') && ui.querySelector('[data-a="camflash"]') && ui.querySelectorAll('[data-a="camzoom"]').length === 3, 'shutter, grid, bezel, flash and zoom 1x 2x 4x (zoomMax 4)');
+  assert.ok(ui.getAttribute('style').includes('--slp-sway:0.50'), 'the sway setting is on the frame');
+  calls.length = 0;
+  click('camzoom', '2');
+  assert.ok(calls.includes('cameraZoom(2)') && phone.root.querySelector('[data-a="camzoom"][data-v="2"]').classList.contains('slp-on'), 'a zoom button sets the zoom through the game');
+  click('camflash', '1');
+  assert.ok(phone.root.querySelector('.slp-camflashb').classList.contains('slp-on'), 'the flash toggles');
+  click('camgrid', '1');
+  assert.ok(!phone.root.querySelector('.slp-camgrid'), 'the grid toggles off');
+  calls.length = 0;
+  click('photo', '1');
+  assert.ok(calls.includes('takePhoto()'), 'the shutter is the app’s own photo: ' + calls.join(' '));
+  calls.length = 0;
+  win.document.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  assert.ok(calls.includes('cameraLeave()') && !phone.root.querySelector('.slp-camui'), 'Esc leaves the camera too');
+  phone.act('open', 'camera');
+  phone.handle('slPhoneData', Object.assign({}, data, { camera: Object.assign({}, cam, { bezel: false, zoomMax: 1, sway: 0 }), crack: cf }));
+  assert.ok(!phone.root.querySelector('.slp-cambz') && phone.root.querySelectorAll('[data-a="camzoom"]').length === 1 && phone.root.querySelector('.slp-camui .slp-crack'), 'no bezel, one zoom step, and a cracked phone has its cracks over the camera too');
+  calls.length = 0;
+  click('home', undefined);
+  assert.ok(calls.includes('cameraLeave()') && !phone.root.querySelector('.slp-camui'), 'leaving the app puts the camera back and the screen away: ' + calls.join(' '));
+  phone.handle('slPhoneData', data);
+}
 console.log('phone test passed');
 
 // a page to look at: the phone in several states side by side
