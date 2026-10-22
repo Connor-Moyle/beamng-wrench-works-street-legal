@@ -1349,7 +1349,7 @@
     // series = { id, name, round, rounds }, status: open|entered|missed|done|declined, reward (number or text), requires = { label, met }, reminder, expiresIn } }, series = { { id, name, map, round, rounds,
     // points, rank, nextDay } }, invites = { { id, from, text, eventId, expiresIn } } }). Three views (Agenda, Week, Series) and an event page with the actions.
     function calOpenInvites() { var c = st.data.calendar; return c && obj(st.data.has).calendar !== false ? arr(c.invites).length : 0; }
-    var CAL_KIND = { race: T('ui.cal_kind_race', 'Race'), series: T('ui.cal_kind_series', 'Series'), weekend: T('ui.cal_kind_weekend', 'Weekend'), invite: T('ui.cal_kind_invite', 'Invitation'), travel: T('ui.cal_kind_travel', 'Trip') };
+    var CAL_KIND = { race: T('ui.cal_kind_race', 'Race'), series: T('ui.cal_kind_series', 'Series'), weekend: T('ui.cal_kind_weekend', 'Weekend'), invite: T('ui.cal_kind_invite', 'Invitational'), travel: T('ui.cal_kind_travel', 'Trip') };
     var CAL_STATUS = { entered: '&#10004; ' + T('ui.cal_entered', 'Entered'), missed: '&#9660; ' + T('ui.cal_missed', 'Missed'), done: '&#10004; ' + T('ui.cal_done', 'Done'), declined: T('ui.cal_declined', 'Declined') };
     var DAY_NAMES = [T('ui.cal_mon', 'Mon'), T('ui.cal_tue', 'Tue'), T('ui.cal_wed', 'Wed'), T('ui.cal_thu', 'Thu'), T('ui.cal_fri', 'Fri'), T('ui.cal_sat', 'Sat'), T('ui.cal_sun', 'Sun')];
     function calWhen(c, e) {      // "Today 18:00", "Tomorrow", "Sat, day 13 19:00"
@@ -1362,7 +1362,7 @@
     function calEventCard(c, e) {
       var tr = obj(e.travel), st1 = CAL_STATUS[e.status] || '';
       var rq = e.requires && e.requires.label ? '<p' + (e.requires.met === false ? ' class="slp-warn"' : '') + '>' + (e.requires.met === false ? '&#9888; ' : '&#10004; ') + esc(e.requires.label) + '</p>' : '';
-      return '<div class="slp-card" data-a="calopen" data-v="' + esc(e.id) + '"><h4>' + esc(e.title || '') + ' <span class="slp-chip" style="margin:0 0 0 6px">' + (CAL_KIND[e.kind] || esc(e.kind || '')) + '</span>' + (e.reminder ? ' <span aria-label="' + T('ui.cal_reminder_on', 'Reminder on') + '">&#128276;</span>' : '') + '</h4>' +
+      return '<div class="slp-card" data-a="calopen" data-v="' + esc(e.id) + '"><h4>' + esc(e.title || '') + ' <span class="slp-chip" style="margin:0 0 0 6px">' + (e.kind === 'invite' ? '&#9733; ' : '') + (CAL_KIND[e.kind] || esc(e.kind || '')) + '</span>' + (e.reminder ? ' <span aria-label="' + T('ui.cal_reminder_on', 'Reminder on') + '">&#128276;</span>' : '') + '</h4>' +
         '<p>' + calWhen(c, e) + (e.place ? ' &middot; ' + esc(e.place) : '') + (e.series ? ' &middot; ' + T('ui.cal_round', 'round {1} of {2}', e.series.round, e.series.rounds) : '') + '</p>' +
         (tr.needed ? '<p>' + T('ui.cal_travel', 'Travel to {1}: {2} and {3} h', esc(e.map || ''), money(tr.fee), Number(tr.hours) || 0) + '</p>' : '') + rq +
         (calReward(e) ? '<p>' + T('ui.cal_reward', 'Reward') + ': <b>' + calReward(e) + '</b></p>' : '') + (st1 ? '<p><b>' + st1 + '</b></p>' : '') +
