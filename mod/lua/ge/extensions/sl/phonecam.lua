@@ -2,7 +2,7 @@
 -- draws a full-screen sideways phone over it (bezel, shutter, zoom, flash, grid: slPhone.js); leaving the app (Back, Home, Esc, closing the phone) puts the previous camera and its field of view back
 -- exactly. The zoom is the camera's field of view. The picture itself is the Camera app's own (sl_photos.take: the UI is hidden for it, so the frame is the plain view: the photo challenges read the
 -- same picture). Settings (Mods > Street Legal > Screens and texts > Phone camera): the first-person view on/off, the hand sway, the grid, the bezel, the highest zoom. On foot the view is left as it
--- is (the walking camera is Drivers' to say). Not seen in the game.
+-- is (the walker's view is the game's unicycle camera, already first person); the zoom there is the game's own on-foot zoom (core_camera.setCameraUnicycleZoom), put back to 0 when the app closes. Not seen in the game.
 
 local M = {}
 
@@ -25,6 +25,7 @@ function M.enter()
   prev.base = prev.fov
   local v = getPlayerVehicle and getPlayerVehicle(0)
   local walking = gameplay_walk and gameplay_walk.isWalking and gameplay_walk.isWalking()
+  prev.walking = walking == true
   if opt('slCamFirstPerson', true) and v and not walking and prev.cam ~= 'driver' then
     if pcall(core_camera.setByName, 0, 'driver', false) then
       prev.switched = true
@@ -41,7 +42,12 @@ function M.zoom(z)
   if not prev or not prev.base then return false end
   local max = math.max(1, math.min(8, tonumber(opt('slCamZoomMax', 4)) or 4))
   z = math.max(1, math.min(max, tonumber(z) or 1))
-  pcall(core_camera.setFOV, 0, prev.base / z)
+  if prev.walking then      -- (on foot: the game's own zoom, 0..1 from its 55 degrees to 27)
+    pcall(core_camera.setCameraUnicycleZoom, max > 1 and (z - 1) / (max - 1) or 0, 0)
+    prev.zoomed = z > 1
+  else
+    pcall(core_camera.setFOV, 0, prev.base / z)
+  end
   return true
 end
 
@@ -51,7 +57,9 @@ function M.leave()
   prev = nil
   if core_camera then
     if p.switched and p.cam then pcall(core_camera.setByName, 0, p.cam, false) end
-    if p.fov then pcall(core_camera.setFOV, 0, p.fov) end
+    if p.walking then
+      if p.zoomed then pcall(core_camera.setCameraUnicycleZoom, 0, 0) end
+    elseif p.fov then pcall(core_camera.setFOV, 0, p.fov) end
   end
   return true
 end
