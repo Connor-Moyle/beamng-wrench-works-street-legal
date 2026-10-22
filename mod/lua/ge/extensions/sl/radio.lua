@@ -14,6 +14,7 @@ local function career() return sl_career and sl_career.isActive() and sl_career.
 local radio = rules.new()
 local rng = rngLib.new(os.time())
 local clock, timer, registered = 0, 0, false
+local failures = 0        -- frames in a row that threw: after five the DJ goes quiet for the session
 
 -- the car radio's side (slrr_carRadio.status(): { on, station, text, id }); nil without the radio
 local function status()
@@ -47,9 +48,12 @@ local function quiet()
 end
 
 local function news(kind, args)
-  local s = career()
-  if not s or not kind then return end
-  rules.push(radio, kind, args, s.day or 0)
+  local ok, err = pcall(function()
+    local s = career()
+    if not s or not kind then return end
+    rules.push(radio, kind, args, s.day or 0)
+  end)
+  if not ok then log('E', 'sl_radio', 'news: ' .. tostring(err)) end
 end
 
 function M.onStreetLegalRaceResult(won, opponent, _, stake) news(rules.fromRace(won, opponent, stake)) end
@@ -63,10 +67,7 @@ function M.onStreetLegalDistrictTaken(_, crewId)
   news('district', { c and c.name and c.name:gsub('^%l', string.upper) or '?' })
 end
 
-function M.onUpdate(dt)
-  timer = timer + (dt or 0)
-  if timer < 1 then return end
-  clock, timer = clock + timer, 0
+local function tick()
   local s = career()
   if not s then return end
   register()
@@ -75,11 +76,21 @@ function M.onUpdate(dt)
   if text and ui_message then ui_message(text, 7, 'slrrRadio') end
 end
 
+function M.onUpdate(dt)
+  timer = timer + (dt or 0)
+  if timer < 1 or failures >= 5 then return end
+  clock, timer = clock + timer, 0
+  local ok, err = pcall(tick)
+  if ok then failures = 0 return end
+  failures = failures + 1
+  log('E', 'sl_radio', 'update: ' .. tostring(err) .. (failures >= 5 and ' (the DJ is off for this session)' or ''))
+end
+
 -- for the phone and the tester
 function M.status() return { registered = registered, news = #radio.queue, spoke = radio.spoke, onAir = onAir() } end
 
 function M.onStreetLegalStopped() unregister() radio = rules.new() clock, timer = 0, 0 end
-function M.onStreetLegalStarted() radio = rules.new() end
+function M.onStreetLegalStarted() radio = rules.new() failures = 0 end
 function M.onClientEndMission() registered = false radio = rules.new() end
 
 require('sl/core/features').gate('radio', M, nil, nil, { 'status' })

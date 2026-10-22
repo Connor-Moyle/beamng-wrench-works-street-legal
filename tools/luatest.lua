@@ -6336,6 +6336,14 @@ do
   radioState = { on = false }
   for _ = 1, 200 do G.onUpdate(1) end
   check('radio: with the radio off nothing is said and the news waits', #said == 1)
+  -- an error in the update does not repeat for ever: five in a row and the DJ is off
+  local boom = 0
+  _G.sl_police = { level = function() boom = boom + 1 error('boom') end }
+  radioState = { on = true, id = 'sl_fm', text = true }
+  for _ = 1, 20 do G.onUpdate(1) end
+  check('radio: five failed updates in a row switch the DJ off for the session', boom == 5)
+  G.onStreetLegalStarted()
+  _G.sl_police = { level = function() return 0 end }
   G.onStreetLegalStopped()
   check('radio: stopping withdraws the station', #registered == 0)
   _G.slrr_carRadio = nil
