@@ -260,6 +260,21 @@ laptop.handle('slPhoneData', Object.assign({}, laptop.state.data || {}, { market
 click('tile', 'vehicleShop');
 click('mtab', 'dealers|ads');
 assert.ok(text().includes('Covet 1.5') && !text().includes('Sport exhaust'), 'Car market, Private ads: the car ads only');
+{
+  // the used-car check (same data and texts as the phone): history, the hidden-faults note and the Check the car button, then the found faults
+  const base = laptop.state.data;
+  const withCheck = (extra) => Object.assign({}, base, { market: Object.assign({}, base.market, { listings: base.market.listings.map((x) => (x.id === 'c1' ? Object.assign({}, x, extra) : x)) }) });
+  laptop.handle('slPhoneData', withCheck({ history: ['3 owners', 'No service history', 'No accident'], hidden: true, checkFee: 60, checked: false }));
+  assert.ok(text().includes('3 owners') && text().includes('No service history') && text().includes('show after a mechanic') && text().includes('Check the car') && text().includes('$60'), 'the history, the note and the check button with its fee');
+  calls.length = 0;
+  click('mkcheck', 'c1');
+  assert.ok(calls.some((c) => c.indexOf('@sl_phone.marketCheck("c1")') >= 0), 'the button asks the game: ' + calls.join(' '));
+  laptop.handle('slPhoneData', withCheck({ history: ['3 owners'], hidden: undefined, checked: true, found: [{ label: 'Battery', cost: 120 }] }));
+  assert.ok(text().includes('The mechanic found') && text().includes('Battery') && text().includes('$120') && !$$('[data-a="mkcheck"]').length, 'after the check: the faults with their costs, no button');
+  laptop.handle('slPhoneData', withCheck({ history: ['3 owners'], hidden: undefined, checked: true, found: [] }));
+  assert.ok(text().includes('found no faults'), 'a clean car says so');
+  laptop.handle('slPhoneData', base);
+}
 // the car auctions tab: lots with grade and reserve state, the bid buttons ask the game, the watch list, selling a car, and the live view is told when the tab opens and shuts
 calls.length = 0;
 click('mtab', 'dealers|auction');
