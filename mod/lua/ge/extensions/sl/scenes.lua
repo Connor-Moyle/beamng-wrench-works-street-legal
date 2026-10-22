@@ -87,6 +87,7 @@ function M.play(style, data)
   local ok, shown = pcall(function()
     if not features.on('scenes') or not guihooks then return false end
     if active then return false end                           -- (not over a full-screen scene)
+    if style == 'showpodium' then style, data = scenes.showBanner(data) if not style then return false end end
     local spec = scenes.banner(style, data, reduced(), strings.t)
     if not spec then return false end
     guihooks.trigger('slScene', spec)
@@ -124,6 +125,11 @@ function M.onStreetLegalHeatUp(newLevel) M.play('heat', { level = newLevel }) en
 function M.onStreetLegalCarAdded(car) M.play('reveal', { name = type(car) == 'table' and car.name or nil }) end
 function M.onStreetLegalGarageMoved(_, toLevel) M.play('tier', { level = toLevel }) end
 function M.onStreetLegalRaceGo() M.play('go') end
+-- the calendar's reminder (24 h and 1 h before an event): a banner, never blocking
+function M.onStreetLegalCalendarReminder(event, hoursLeft) M.play('reminder', { name = type(event) == 'table' and event.title or nil, level = tonumber(hoursLeft) }) end
+-- the series (sl_series): each round, then the whole series, skipped by the same keys, never blocking
+function M.onStreetLegalRoundResult(r) local style, data = scenes.roundBanner(r) if style then M.play(style, data) end end
+function M.onStreetLegalSeriesFinished(r) local style, data = scenes.seriesBanner(r) if style then M.play(style, data) end end
 -- Wrench Works' garage (WW 1.8.8 and later; an older Wrench Works never calls these): the garage's name, then the street
 function M.onWrenchWorksGarageEntered(siteName) M.play('garage_in', { name = siteName }) end
 function M.onWrenchWorksGarageLeft() M.play('garage_out') end

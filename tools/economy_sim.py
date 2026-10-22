@@ -18,8 +18,12 @@ DAY_PAY = float(os.environ.get('DAY_PAY', '1.35'))     # = core/jobs.lua DAY_PAY
 CARS_KEPT = int(sys.argv[sys.argv.index('--cars') + 1]) if '--cars' in sys.argv else 1      # cars stored for the weekly storage bill (the sim plays one)
 WEAR_SCALE = float(os.environ.get("WEAR_SCALE", "40"))   # core/service.lua SCALE
 WEAR = '--nowear' not in sys.argv          # core/service.lua: wear x40 paid back as repairs, and a basic service every 150 km
+SPONSOR = '--nosponsor' not in sys.argv       # core/brands.lua: standing from wins, a sponsorship at 100 with a retainer and a parts discount
 WEEKLY = '--noweekly' not in sys.argv      # the weekly costs of core/weekly.lua
 BOOST = '--noboost' not in sys.argv     # the early-game boost in sl_jobs
+SHOPS = '--noshops' not in sys.argv     # what the shops of sl_shops take (docs/SHOPS_REWORK.md step 3): (price, how often a week) of the services a player buys now and then; a guess to check in game
+SHOP_WEEK = [('wash', 15, 3.0), ('scratch polish', 120, 0.6), ('dyno run', 90, 0.4), ('respray', 450, 0.08), ('special order (performance)', 1500, 0.12)]
+SHOP_SPONSOR = float(os.environ.get('SHOP_FACTOR', '1.0'))      # a sponsor's price factor (sl_shops.setPriceFactor), 0.9 = ten per cent off
 DAY_MIN = 30.0            # real minutes per in-game day (BeamNG's TimeOfDay dayLength; verify in game)
 NIGHT = (20, 5)           # night hours, as progression.isNight
 CITY_SPEED = 11.0         # m/s average across town, stops included
@@ -101,6 +105,8 @@ class Player:
         self.crew = None                    # [tier, wins needed, pay]
         self.loan = None                    # core/bank: [borrowed, owed, nextDue day, missed]
         self.repossessed = 0
+        self.standing, self.sponsor = 0.0, None          # brand standing (the sim plays one brand), the sponsorship {since, strikes, wins}
+        self.weekWins, self.sponsorPaid = 0, 0
         if style == 'borrower':             # takes the full loan at once (core/bank.loanLimit at 0 rep, the first garage, a $3,000 starter car)
             self.loan = [4500, 4500, 7, 0]
             self.money += 4500
@@ -124,10 +130,30 @@ class Player:
             self.money -= min(self.money, WEAR_SCALE / 40 * 4.6e-4 * value / 3 * minutes * 0.7 + (30 + 0.002 * value) * km / 150)
         if self.day() != before:
             self.heat *= 0.7                            # police: heat cools daily
+            if SPONSOR:                                 # core/brands + sl_sponsor: decay 1 a day; an offer at 100 (taken); every 7th day since: the wins of the week
+                self.standing = max(0.0, self.standing - 1)
+                if not self.sponsor and self.standing >= 100:
+                    self.sponsor = {'since': self.day(), 'strikes': 0}
+                elif self.sponsor and (self.day() - self.sponsor['since']) % 7 == 0 and self.day() != self.sponsor['since']:
+                    need = 3 if self.standing >= 300 else 2
+                    if self.weekWins >= need:
+                        pay = min(1500, round(150 + self.standing * 0.5, -1))
+                        self.money += pay; self.sponsorPaid += pay; self.sponsor['strikes'] = 0
+                    else:
+                        self.sponsor['strikes'] += 1
+                        if self.sponsor['strikes'] >= 3: self.sponsor, self.standing = None, max(0.0, self.standing - 30)
+                    self.weekWins = 0
             if WEEKLY and self.day() % 7 == 0:          # core/weekly: garage rent (storage of cars beyond two is not simulated: the sim holds one car)
                 bill = {1: 0, 2: int(os.environ.get("RENT2", "150")), 3: int(os.environ.get("RENT3", "400"))}.get(self.garage, 700)
                 bill += 40 * max(0, CARS_KEPT - 2)       # core/weekly STORAGE for each car beyond two
                 self.money -= min(self.money, bill)     # (a shortfall is a debt in the game; here it is just not paid, the floor check shows who runs dry)
+            if SHOPS and self.day() % 7 == 0 and self.car is not None:      # the shops: a player buys what they can well afford (three times the price in the pocket), never the last dollars
+                for name, price, per_week in SHOP_WEEK:
+                    price = price * SHOP_SPONSOR
+                    count = int(per_week) + (1 if self.r.random() < per_week - int(per_week) else 0)
+                    for _ in range(count):
+                        if self.money >= 3 * price:
+                            self.money -= price; self.shop_spent = getattr(self, 'shop_spent', 0) + price
             if self.loan:                               # core/bank: interest, the weekly quarter, two warnings
                 self.loan[1] = min(self.loan[0] * 1.5, round(self.loan[1] * 1.03))
                 if self.day() >= self.loan[2]:
@@ -182,6 +208,7 @@ class Player:
         night = is_night(self.hour())
         minutes = 7 + self.r.uniform(0, 3)
         self.money += bet if won else -bet
+        if won and SPONSOR: self.standing += 10; self.weekWins += 1
         self.rep += race_rep(won, bet, night, opp_rep, self.rep)
         self.book('street race', bet if won else -bet, minutes)
         if won and self.crew and opp_tier + 1 >= self.crew[0]:
@@ -233,6 +260,7 @@ class Player:
     def part(self):
         price = self.r.uniform(600, 1500)
         if self.money < price + 800: return False
+        if SPONSOR and self.sponsor: price *= (0.85 if self.standing >= 300 else 0.90)          # the brand's parts: the sim buys all its parts from the sponsor
         self.money -= price; self.perf += price / 6000; self.upgraded = True
         self.mark('first upgrade')
         self.spend(4)
@@ -337,9 +365,15 @@ def main():
         worth = sorted(p.money - (p.loan[1] if p.loan else 0) for p in ps)
         print('Net worth at the end (%s): median $%d; repossessions %d; loans still open %d'
               % (style, statistics.median(worth), sum(p.repossessed for p in ps), sum(1 for p in ps if p.loan)))
+        spn = sorted(p.sponsorPaid for p in ps)
+        print('Sponsor retainer paid (%s): median $%d, with a sponsor at the end: %d of %d' % (style, statistics.median(spn), sum(1 for p in ps if p.sponsor), len(ps)))
         bm = sorted(getattr(p, 'broke_min', 0) for p in ps)
         print('Floor (%s): minutes under $300 after the first 20: median %d, worst %d; players who ended under $300: %d of %d'
               % (style, statistics.median(bm), bm[-1], sum(1 for p in ps if p.money < 300), len(ps)))
+    if SHOPS:
+        spent = sorted(getattr(p, 'shop_spent', 0) for p in players)
+        earned = sorted(sum(m for m, _ in p.earned.values()) for p in players)
+        print('Shops (SHOP_WEEK, factor %.2f): median spend over the run $%d (10-90 %%: $%d-$%d), %.1f %% of the median income $%d' % (SHOP_SPONSOR, statistics.median(spent), spent[len(spent) // 10], spent[len(spent) * 9 // 10], 100 * statistics.median(spent) / max(1, statistics.median(earned)), statistics.median(earned)))
     fines = [p.fines for p in players]
     print('\nPolice: median fines over the run $%d; players who could not pay a fine at least once: %d of %d' % (statistics.median(fines), sum(1 for p in players if p.broke), len(players)))
     if '--plot' in sys.argv:

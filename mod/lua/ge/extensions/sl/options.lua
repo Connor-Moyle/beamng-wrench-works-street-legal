@@ -85,6 +85,16 @@ M.defs = {
     desc = strings.t('options.at_heat_3_and_above') },
   { key = 'slPoliceBreakers', feature = true, career = true, tab = 'Police chase', group = strings.t('options.pursuit_breakers'), title = strings.t('options.pursuit_breakers'), type = 'bool', default = true,
     desc = strings.t('options.marked_spots_on_straight_roads') },
+  { key = 'slPoliceLevels', feature = true, tab = 'Police chase', group = 'Pursuit levels', title = 'Pursuit level follows the heat', type = 'bool', default = true,
+    desc = 'A chase starts at pursuit level 1 at heat 1 and 2, level 2 at heat 3 and 4, level 3 at heat 5, with more patrols joining the hotter you are, and the game climbs a level sooner. Off: every chase starts at level 1 with the nearest patrol.' },
+  { key = 'slPoliceFinish', feature = true, career = true, tab = 'Police chase', group = 'Pursuit levels', title = 'Police at the finish', type = 'bool', default = true,
+    desc = 'When a night street race ends, a patrol near the route may be waiting (the chance grows with the heat). Off: patrols only join at the start.' },
+  { key = 'slPoliceHide', feature = true, tab = 'Police chase', group = 'Hiding and cooling down', title = 'Hiding spots and cool-down', type = 'bool', default = true,
+    desc = 'Parked out of sight at a garage or a fuel station the police lose you three times as fast. After an escape they leave you alone for a minute and a half and the heat cools fast. A repaint at night takes one heat level off, once a night.' },
+  { key = 'slPoliceChatter', feature = true, tab = 'Police chase', group = 'Radio', title = 'Police radio (text)', type = 'bool', default = true,
+    desc = 'Short radio lines on screen during a chase: the pursuit starting, units joining, visual lost and regained, a roadblock, spikes, the end.' },
+  { key = 'slPoliceUnits', feature = true, tab = 'Police chase', group = 'Units', title = 'More police units at high heat', type = 'bool', default = true,
+    desc = 'From heat 3 a highway patrol car can be among the patrols, from heat 4 an unmarked car and a police van, all from the game. Off: the three usual patrol cars.' },
   { key = 'slPoliceStripYaw', advanced = true, tab = 'Developer', group = 'Police chase', title = strings.t('options.chase_prop_turn'), type = 'choice', default = '0',
     options = { { id = '0', label = '0' }, { id = '90', label = '90' } }, desc = strings.t('options.turns_the_strip_and_the') },
   { key = 'slNightRaceKinds', feature = true, tab = 'Night traffic', group = strings.t('options.race_kinds'), title = strings.t('options.race_kinds'), type = 'bool', default = true,
@@ -195,6 +205,10 @@ M.defs = {
     desc = 'The cars of the nearest dealer, junkyard or scrapyard are built while the screen is black (the career start, a fast travel, a cab ride) and kept hidden until you look at the lot, so the lot opens without the freeze per car. Off: a lot builds its cars when you open it.' },
   { key = 'slLotCars', tab = 'World', group = 'Performance', title = 'Most cars on a lot', type = 'range', min = 2, max = 6, step = 1, default = 6, unit = '',
     desc = 'How many cars a lot shows at most. Fewer cars: less to build and less physics while you look.' },
+  { key = 'slGridCars', tab = 'World', group = 'Performance', title = 'Cars against you in a grid race', type = 'range', min = 3, max = 7, step = 1, default = 6, unit = '',
+    desc = 'How many AI cars line up with you in a weekend race (the calendar) and the other grid races. Fewer cars: a shorter black screen while the grid builds and less physics in the race.' },
+  { key = 'slGridCams', tab = 'World', group = 'Performance', title = 'Camera flights at a grid race', type = 'bool', default = true,
+    desc = 'The layout camera flight before the start and after the finish of a grid race. Off: straight to the countdown and the result.' },
   { key = 'slLotDents', tab = 'World', group = 'Performance', title = 'Dents on lot cars', type = 'bool', default = true,
     desc = 'Used cars on a lot are bent where their report says. Off: the row builds faster; the dents still count in the report and the price.' },
   -- the Needs part (sl_needs; its on/off switch is in Parts of the game)
@@ -229,11 +243,16 @@ local PRESETS = {
   slReplay = { performance = false, balanced = true, quality = true, max = true },
   slMarkers = { performance = false, balanced = true, quality = true, max = true },
   slLotCars = { performance = 4, balanced = 6, quality = 6, max = 6 },
+  slGridCars = { performance = 3, balanced = 5, quality = 6, max = 7 },
   slLotDents = { performance = false, balanced = true, quality = true, max = true },
 }
 -- the parts of the game that can be switched off (sl/core/features: each is gated by its extension): one bool each, on by default, listed on the Active features page
+local haveKey = {}
+for _, d in ipairs(M.defs) do haveKey[d.key] = true end
 for _, f in ipairs(require('sl/core/features').LIST) do
+  if not haveKey[f.opt] then      -- (a part with its own row above, like Cinematic moments, is not listed twice: the registry refuses a field id twice)
   M.defs[#M.defs + 1] = { key = f.opt, feature = true, title = f.title, type = 'bool', default = f.default ~= false, tab = 'Parts of the game', group = 'Parts of the game', desc = f.desc }      -- (a part may ship off: features.LIST default = false)
+  end
 end
 -- Street Legal in free roam (sl/core/mode, sl_mode): the master switch and one per feature, all off by default; a feature needs the master and its own switch
 for _, f in ipairs(require('sl/core/mode').FEATURES()) do

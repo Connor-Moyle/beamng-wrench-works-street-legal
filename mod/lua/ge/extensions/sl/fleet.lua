@@ -407,6 +407,7 @@ function M.sell(carId, to)
   local s = career()
   local car = s and carById(s, carId)
   if not car then return false, strings.t('carcare.no_such_car') end
+  if car.loaner then return false, strings.t('series.loaner_not_yours') end
   local veh = M.vehicleOf(carId)
   local parts = veh and builder.partsValue(veh:getID())
   local price = to == 'scrap' and market.scrapValue(car, parts) or market.resaleValue(car, parts)

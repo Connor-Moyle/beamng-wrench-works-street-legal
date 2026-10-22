@@ -1,0 +1,15 @@
+{
+  "level": "west_coast_usa",
+  "_note": "The first shops on West Coast USA, at the same buildings as Wrench Works' parts counters (their blue markers; 'replaces' tells Wrench Works to leave its own screen to ours there). Positions are the counters' own.",
+  "shops": [
+    { "id": "torres_tires", "kind": "tyre", "name": "Torres Tires", "pos": [-582.1, 136.4, 101.2], "replaces": "torresTires", "range": "torres",
+      "keeper": { "name": "Gus", "line": "Tread tells the truth." } },
+    { "id": "belasco_exhaust", "kind": "exhaust", "name": "Belasco City Exhaust", "pos": [-572.7, 158.9, 100.5], "replaces": "exhaustShop",
+      "sections": ["engine/exhaust", "engine/intake"], "keeper": { "name": "Rosa", "line": "It should sound like a promise." } },
+    { "id": "smash_auto", "kind": "parts", "name": "Smash Auto Repairs", "pos": [-607.6, 120.9, 102.0], "replaces": "smashAutoRepairs",
+      "sections": ["body/bumpers_f", "body/bumpers_r", "body/hoods", "body/fenders", "body/doors", "body/trunk", "body/roof", "body/glass", "body/lights_f", "body/lights_r", "body/bulbs", "body/mirrors", "body/wings", "body/aero"],
+      "keeper": { "name": "Moe", "line": "Panels, not miracles." } },
+    { "id": "fast_automotive", "kind": "performance", "name": "Fast Automotive", "pos": [291.4, -142.4, 143.8], "replaces": "fastAutomotive",
+      "sections": ["engine/blocks", "engine/internals", "engine/forced", "engine/nitrous", "engine/management", "engine/transmission", "engine/clutch", "engine/cooling", "engine/fuel", "engine/mounts", "running/differentials", "running/driveline"] }
+  ]
+}
