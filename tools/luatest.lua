@@ -3312,7 +3312,7 @@ do
   local Opt = require('sl/options')
   local defs = {}
   for _, d in ipairs(Opt.defs) do defs[d.key] = d end
-  local okDefs = #F.LIST == 50
+  local okDefs = #F.LIST == 51
   local offByDefault = 0
   for _, f in ipairs(F.LIST) do
     local d = defs[f.opt]
@@ -8632,6 +8632,108 @@ do
   check('fence game: when the fence becomes known the game marker list is rebuilt', cleared == 1)
   for k, v2 in pairs(old) do _G[k] = v2 end
   package.loaded['sl/shops'] = nil
+end
+
+-- the rival story beats (sl/core/rivalbeats): the hunt's stages and sweetener, the accept guard, the crew series; sl/rivalbeats with stubs
+do
+  local RB = require('sl/core/rivalbeats')
+  local R = require('sl/core/rng')
+  local h = RB.newHunt('r1', 7, 10, 20000, R.new(R.hash('h')))
+  check('beats: a new hunt waits two to five days, nothing before', h.nextDay >= 12 and h.nextDay <= 15 and RB.huntDue(h, 11) == nil and h.stage == 0)
+  local k1, st1 = RB.huntDue(h, h.nextDay)
+  check('beats: the first text on its day, no sweetener; an offer standing blocks the next', k1 == 'hunt' and st1 == 1 and (function() h.stage, h.offered = 1, true return RB.sweetener(h) == 0 and RB.huntDue(h, 30) == nil end)())
+  RB.lapse(h, 20)
+  local k2, st2 = RB.huntDue(h, 23)
+  check('beats: lapsed, the second text three days on with the sweetener (25 % of the value, to the hundred), the third doubles it, then they give up', RB.huntDue(h, 22) == nil and k2 == 'hunt2' and st2 == 2 and (function() h.stage = 2 return RB.sweetener(h) == 5000 end)() and (function() h.stage = 3 return RB.sweetener(h) == 10000 end)() and (function() RB.lapse(h, 30) local k = RB.huntDue(h, 33) return k == 'hunt_gone' end)())
+  check('beats: accept only in the hunted car while the offer stands', (function() h.offered, h.done = true, nil return RB.canAccept(h, 7) and not RB.canAccept(h, 8) and not RB.canAccept(h, nil) end)() and (function() h.offered = nil return not RB.canAccept(h, 7) end)() and not RB.canAccept(nil, 7))
+  local members = { { id = 'a', skill = 0.5 }, { id = 'b', skill = 0.9 }, { id = 'lead', skill = 0.7 }, { id = 'c', skill = 0.6 } }
+  local racers = RB.seriesRacers(members, 'lead')
+  check('beats: the three nights take the best two and the leader last', #racers == 3 and racers[1] == 'b' and racers[2] == 'c' and racers[3] == 'lead')
+  local sr = RB.newSeries('kings', 'd1', racers, 10)
+  check('beats: the nights run in order; two wins is respect; a sent night not raced by the next day is missed', RB.seriesRacer(sr) == 'b' and (function() sr.sentDay = 10 return RB.seriesMissed(sr, 11) and not RB.seriesMissed(sr, 10) end)() and (function() RB.seriesRecord(sr, true) RB.seriesRecord(sr, false) return not RB.seriesOver(sr) and RB.seriesRacer(sr) == 'lead' end)() and (function() RB.seriesRecord(sr, true) local ok, w = RB.seriesVerdict(sr) return RB.seriesOver(sr) and ok and w == 2 end)())
+  check('beats: the bet is 1.5 x the racer middle, to 50; the truce lasts 14 days', RB.seriesBet({ betMin = 100, betMax = 300 }) == 300 and RB.seriesBet({}) == 300 and RB.truceUntil(10) == 24 and RB.inTruce({ kings = 24 }, 'kings', 23) and not RB.inTruce({ kings = 24 }, 'kings', 24) and not RB.inTruce({}, 'kings', 1))
+  -- the game side
+  do
+    local old = { c = _G.sl_career, gh = _G.guihooks, ex = _G.extensions, lg = _G.log, rv = _G.sl_rivals, cw = _G.sl_crews, o = _G.sl_options }
+    local ST = require('sl/core/state')
+    local s = ST.new(5, 0)
+    s.day, s.money, s.rep = 10, 1000, 500
+    s.racers = { { id = 'r1', name = 'Ray', skill = 0.6, betMin = 100, betMax = 300, tier = 2 }, { id = 'k1', name = 'Kay', skill = 0.9, betMin = 100, betMax = 300 }, { id = 'k2', name = 'Kim', skill = 0.5, betMin = 100, betMax = 300 }, { id = 'kl', name = 'Lee', skill = 0.7, betMin = 200, betMax = 400 } }
+    s.cars = { { id = 1, name = 'My Covet', value = 6000 } }
+    s.rivals = { list = { { id = 'r1', persona = 'cocky', meter = 0, tier = 2, told = {} } }, tierWins = {}, lastTextDay = -1 }
+    local texts, hooks, offers, asked = {}, {}, {}, {}
+    local sw = { slRivalBeats = true }
+    _G.sl_options = { get = function(k) return sw[k] end }
+    _G.sl_career = { isActive = function() return true end, getState = function() return s end, sendText = function(thread, text) texts[#texts + 1] = { thread = thread, text = text } end,
+      payOut = function(a) s.money = s.money + a return true end,
+      challenge = function(id, kind) asked[#asked + 1] = id local c = { id = id .. ':' .. s.day, racer = id, bet = 100 } s.challenges[#s.challenges + 1] = c return { accept = true, challenge = c } end }
+    _G.guihooks = { trigger = function(name, d) if name == 'slPhoneToast' then texts[#texts + 1] = { thread = 'toast', text = d.text } end end }
+    _G.extensions = { hook = function(name) hooks[#hooks + 1] = name end }
+    _G.log = function() end
+    _G.sl_rivals = { offerHunt = function(id, carId, sweet) offers[id] = { hunt = carId, sweetener = sweet } return true end, hasOffer = function(id) return offers[id] ~= nil end, dropOffer = function(id) offers[id] = nil end }
+    local crewC = { territory = { d1 = { home = 'kings' } }, leader = { kings = 'kl' }, member = { k1 = 'kings', k2 = 'kings', kl = 'kings' }, angry = { kings = 9 }, callouts = { { crew = 'kings', district = 'd1' } } }
+    _G.sl_crews = { ensure = function() return crewC end }
+    package.loaded['sl/rivalbeats'] = nil
+    local B = require('sl/rivalbeats')
+    -- the hunt: a pink win over the rival, the fleet adds their car
+    B.onStreetLegalRaceResult(true, 'Ray', 'r1', 'pink')
+    local won = { id = 2, name = 'Ray Pessima', value = 20000 }
+    s.cars[#s.cars + 1] = won
+    B.onStreetLegalCarAdded(won)
+    local hunt = s.rivals.hunts.r1
+    check('beats game: the pink win tags the car and opens a hunt that waits', won.wonFrom == 'r1' and hunt ~= nil and hunt.carId == 2 and hunt.nextDay >= 12 and hunt.stage == 0)
+    B.onStreetLegalNewDay(11)
+    local quiet = #texts == 0 and offers.r1 == nil
+    s.day = hunt.nextDay
+    B.onStreetLegalNewDay(s.day)
+    check('beats game: on the day the rival texts in their voice and the offer for the car stands on the card', quiet and #texts == 1 and texts[1].thread == 'r1' and texts[1].text:find('Rivals card') ~= nil and offers.r1 ~= nil and offers.r1.hunt == 2 and offers.r1.sweetener == 0 and hunt.offered and s.known.r1)
+    local okg, why = B.canAcceptHunt('r1', 1)
+    check('beats game: the guard refuses the wrong car and names the right one; the right one passes; a rival without a hunt passes', okg == false and why:find('Ray Pessima') ~= nil and B.canAcceptHunt('r1', 2) == true and B.canAcceptHunt('nobody', 1) == true)
+    -- walked away: the offer goes; three days later the second text with the sweetener
+    B.huntLapsed('r1')
+    offers.r1 = nil
+    s.day = s.day + 3
+    B.onStreetLegalNewDay(s.day)
+    check('beats game: the second text carries the sweetener ($5,000) and the offer is back', #texts == 2 and texts[2].text:find('5000') ~= nil and offers.r1 ~= nil and offers.r1.sweetener == 5000 and hunt.stage == 2)
+    -- accepted and won: the sweetener paid once, rep, the text; the hunt is over for good
+    B.huntAccepted('r1')
+    s.money, s.rep = 1000, 500
+    B.onStreetLegalRaceResult(true, 'Ray', 'r1', 'pink')
+    check('beats game: the hunt race won: the sweetener paid, 15 rep, the won text, done', s.money == 6000 and s.rep == 515 and #texts == 3 and texts[3].thread == 'r1' and hunt.done and not hunt.racing)
+    s.day = s.day + 10
+    B.onStreetLegalNewDay(s.day)
+    check('beats game: a finished hunt is silent', #texts == 3)
+    -- a second hunt on another rival: sold the car: the text and the meter
+    s.rivals.list[2] = { id = 'r2', persona = 'cool', meter = 0, tier = 3, told = {} }
+    s.racers[#s.racers + 1] = { id = 'r2', name = 'Zed', skill = 0.6 }
+    B.onStreetLegalRaceResult(true, 'Zed', 'r2', 'pink')
+    local won2 = { id = 3, name = 'Zed Bolide', value = 30000 }
+    s.cars[#s.cars + 1] = won2
+    B.onStreetLegalCarAdded(won2)
+    table.remove(s.cars, 3)
+    B.onStreetLegalCarSold(won2, 1, 'private')
+    check('beats game: the car sold before the race: the rival hears, the meter drops, the hunt is done', s.rivals.hunts.r2.done and s.rivals.list[2].meter == -10 and texts[#texts].thread == 'r2')
+    -- the three nights: the crew home district taken
+    B.onStreetLegalDistrictTaken('d1', 'kings')
+    local sr = s.rivals.crewSeries
+    check('beats game: taking a crew home district opens the three nights (best two, the leader last) and the leader calls in a cool voice', sr ~= nil and sr.racers[1] == 'k1' and sr.racers[2] == 'k2' and sr.racers[3] == 'kl' and texts[#texts].thread == 'kl' and texts[#texts].text:find('3') ~= nil and s.rivals.seriesDone.kings)
+    s.day = s.day + 1
+    B.onStreetLegalNewDay(s.day)
+    check('beats game: the first night is an arranged race at 1.5 x the bet, night only, with a toast', asked[#asked] == 'k1' and s.challenges[#s.challenges].bet == 300 and s.challenges[#s.challenges].nightOnly and sr.sentDay == s.day and texts[#texts].text:find('Night 1') ~= nil)
+    B.onStreetLegalRaceResult(true, 'Kay', 'k1', 'money')
+    s.day = s.day + 1
+    B.onStreetLegalNewDay(s.day)
+    s.day = s.day + 1
+    B.onStreetLegalNewDay(s.day)      -- (the second night not raced: a loss)
+    check('beats game: a won night counts; a night sent and not raced counts as a loss and the third is sent', sr.results[1] == true and sr.results[2] == false and sr.night == 3 and asked[#asked] == 'kl' and s.challenges[#s.challenges].bet == 450)
+    s.rep = 500
+    B.onStreetLegalRaceResult(true, 'Lee', 'kl', 'money')
+    check('beats game: two of three: respect, 40 rep, the truce (call-outs dropped, the crew not angry, no raids for 14 days)', s.rivals.crewSeries == nil and s.rep == 540 and s.rivals.truce.kings == s.day + 14 and B.truce('kings') == true and crewC.angry.kings == nil and #crewC.callouts == 0 and texts[#texts - 1].thread == 'kl' and texts[#texts - 1].text:find('2') ~= nil and texts[#texts].text:find('14 days') ~= nil)
+    B.onStreetLegalDistrictTaken('d1', 'kings')
+    check('beats game: the series does not repeat for the same crew; the part off answers nothing', s.rivals.crewSeries == nil and (function() sw.slRivalBeats = false return B.summary() == nil and B.canAcceptHunt('r1', 1) == nil end)())
+    _G.sl_career, _G.guihooks, _G.extensions, _G.log, _G.sl_rivals, _G.sl_crews, _G.sl_options = old.c, old.gh, old.ex, old.lg, old.rv, old.cw, old.o
+    package.loaded['sl/rivalbeats'] = nil
+  end
 end
 
 print(string.format('lua tests passed: %d checks', passed))

@@ -24,6 +24,7 @@ WEEKLY = '--noweekly' not in sys.argv
 SEASON = '--noseason' not in sys.argv      # sl_calendar weekend races and sl_season: the championship season (six rounds, a prize every three weeks)      # the weekly costs of core/weekly.lua
 BOOST = '--noboost' not in sys.argv     # the early-game boost in sl_jobs
 THEFT = '--notheft' not in sys.argv     # sl_theft (docs/CAR_THEFT.md): a night thief at 300 rep: one break-in now and then, the car sold hot to the fence; the tracker and the bust risk
+BEATS = '--nobeats' not in sys.argv     # sl_rivalbeats: the hunt's sweetener and the crew nights
 SHOPS = '--noshops' not in sys.argv     # what the shops of sl_shops take (docs/SHOPS_REWORK.md step 3): (price, how often a week) of the services a player buys now and then; a guess to check in game
 SHOP_WEEK = [('wash', 15, 3.0), ('scratch polish', 120, 0.6), ('dyno run', 90, 0.4), ('respray', 450, 0.08), ('special order (performance)', 1500, 0.12)]
 NEEDS = '--needs' in sys.argv           # the Needs part (off by default in the game): food and drink every day: two drinks (2), a snack (3) and a meal (12) = $19 a day; --plan: the meal plan ($60 a week) pays the meals
@@ -347,6 +348,21 @@ class Player:
         pay = round(value * 0.2, -1)                                    # SELL_HOT at the fence (a third paid $331 a minute, twice any job)
         self.money += pay; self.rep += 4
         self.book('car theft (night)', pay - wear, minutes + 3); self.spend(minutes + 3)
+    def beats(self):
+        """sl_rivalbeats: a pink-slip car won leads to a hunt (the rival's offer for the car; a sweetener of 25 % of its value on the second text, doubled on the third) and a beaten crew's three nights at 1.5 x the bet"""
+        if not BEATS or not is_night(self.hour()) or self.car is None: return False
+        r = self.r
+        if r.random() < 0.5:                       # the hunt race: the car on the line (its value), the sweetener on a win at stage 2/3
+            value = CARS[self.car][0]
+            stage = r.choice([1, 2, 2, 3])
+            sweet = round(value * 0.25 * (2 if stage == 3 else 1), -2) if stage >= 2 else 0
+            if r.random() < 0.5: self.money += sweet; self.rep += 15; self.book('rival hunt (night)', sweet, 8)
+            else: self.rep -= 5; self.book('rival hunt (night)', 0, 8)          # (the car goes back: the sim keeps one car, so only the rep moves)
+        else:                                      # a night of the three
+            bet = round(r.uniform(100, 300) * 1.5, -2)
+            if r.random() < 0.55: self.money += bet; self.rep += 10; self.book('crew nights (night)', bet, 6)
+            else: self.money -= bet; self.book('crew nights (night)', -bet, 6)
+        self.spend(8)
         return True
 
     def sprint(self):
@@ -433,6 +449,7 @@ class Player:
         if roll < w and self.race(): return
         if roll < w + 0.1 and self.sprint(): return
         if self.style != 'worker' and roll > 0.85 and self.theft(): return
+        if self.style != 'worker' and self.rep >= 800 and roll > 0.9 and self.beats(): return
         if self.style != 'racer' and roll > 0.92 and self.flip(): return
         if not self.job(): self.spend(5)             # nothing on: time passes
 

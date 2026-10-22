@@ -104,6 +104,16 @@ M.MAP = {
   { 'slTheftToolUsesX', 'sl/core/theft', 'TOOL_USES_X' },
   { 'slTheftDeliveryPayX', 'sl/core/theft', 'DELIVERY_PAY_X' },
   { 'slTheftDeliveryHeat', 'sl/core/theft', 'DELIVERY_HEAT' },
+  { 'slHuntWaitMin', 'sl/core/rivalbeats', 'HUNT_WAIT_MIN' },
+  { 'slHuntWaitMax', 'sl/core/rivalbeats', 'HUNT_WAIT_MAX' },
+  { 'slHuntSweetener', 'sl/core/rivalbeats', 'SWEETENER' },
+  { 'slHuntAgainDays', 'sl/core/rivalbeats', 'HUNT_AGAIN' },
+  { 'slHuntMeterGone', 'sl/core/rivalbeats', 'METER_GONE' },
+  { 'slHuntMeterSold', 'sl/core/rivalbeats', 'METER_SOLD' },
+  { 'slHuntRep', 'sl/core/rivalbeats', 'HUNT_REP' },
+  { 'slTruceDays', 'sl/core/rivalbeats', 'TRUCE_DAYS' },
+  { 'slSeriesRep', 'sl/core/rivalbeats', 'SERIES_REP' },
+  { 'slSeriesBetX', 'sl/core/rivalbeats', 'SERIES_BET_X' },
 }
 
 local original = {}
