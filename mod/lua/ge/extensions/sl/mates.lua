@@ -17,7 +17,13 @@ local function on() return features.on('mates') end
 
 -- ---- the mechanic: parts in the shops (sl_shops), labour in the service (sl_service reads labourFactor)
 local registered = false
-local function partsFactor() local s = career() return s and on() and rules.partsFactor(roster(s)) or 1 end
+-- the shop kinds that sell parts (sl/core/shops TYPES with catalogue goods); the services, the food and the rest are not the mechanic's to cut
+local PARTS_KINDS = { tyre = true, exhaust = true, parts = true, performance = true, dealerparts = true }
+local function partsFactor(_, shop)
+  local s = career()
+  if not (s and on() and type(shop) == 'table' and PARTS_KINDS[shop.kind]) then return 1 end
+  return rules.partsFactor(roster(s))
+end
 local function register(want)
   if not want and not registered then return end          -- (nothing is touched in the shops unless this part handed them a factor)
   registered = want
