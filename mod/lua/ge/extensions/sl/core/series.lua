@@ -78,6 +78,22 @@ function M.placeInField(field, time)
   return place
 end
 
+-- who may enter: the models that suit each class (docs/INVITATIONAL_INVENTORY.md section 2: the models that ship rally, race or off-road configs). 'road' takes any car.
+M.CLASS_MODELS = {
+  rally = { autobello = true, bolide = true, covet = true, etki = true, legran = true, midsize = true, miramar = true, pessima = true, scintilla = true, sunburst2 = true, sbr = true,
+    vivace = true, wendover = true, bx = true, lansdale = true, hopper = true, pickup = true },
+  offroad = { pickup = true, hopper = true, utv = true, fullsize = true, rockbouncer = true, roamer = true, bluebuck = true, burnside = true, barstow = true, midtruck = true, md_series = true,
+    moonhawk = true, bx = true, atv = true },
+}
+-- may this car (a career car record) enter the series? Returns true, or false and the reason
+function M.fits(def, car)
+  if car.loaner then return true end
+  local list = M.CLASS_MODELS[def.class]
+  if not list then return true end
+  if list[car.model] then return true end
+  return false, strings.t('series.needs_' .. def.class)
+end
+
 function M.newState(carId) return { entered = true, car = carId, results = {} } end
 
 -- a round's result into the state. result = { place, time, dnf, racers, missed }. Returns the round's record { place, time, points, dnf, missed, racers }.

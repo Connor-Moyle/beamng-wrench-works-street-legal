@@ -5011,8 +5011,10 @@ do
       check('visit: starting a career that holds a visit asks first, and loads no level', okq == false and why == 'visit' and #started == nStarted)
       local slotInfo = C.slotVisit('qa')
       check('visit: the main menu can read the visit of a slot', slotInfo and slotInfo.level == 'utah' and slotInfo.round == 1 and slotInfo.rounds == 4 and slotInfo.verdict == 'ask')
+      local moneyAfterTrip = C.getState().money
       level = 'west_coast_usa'
       C.start(false, 'qa', nil, 'home')
+      check('visit: a trip that never began gives its fee back when it is called off', C.getState().money == moneyAfterTrip + 700, tostring(C.getState().money) .. ' vs ' .. tostring(moneyAfterTrip))
       check('visit: choosing home goes to the home map, the visit is gone, the cars are in the garage and the end is announced as missed', #started >= nStarted and C.LEVEL == 'west_coast_usa' and C.getState().visit == nil
         and C.getState().cars[1].out == false)
       local ended
@@ -5194,6 +5196,48 @@ do
     SX.onStreetLegalVisitEnded(visit, 'done', { { id = 9, deposit = 1070, damage = { nodes = { [1] = 5 } } } })
     check('series game: a damaged loaner keeps the deposit', st.money == m0)
     for i = #st.cars, 1, -1 do if st.cars[i].loaner then table.remove(st.cars, i) end end
+  end
+  -- the trip planned from a calendar event: options and confirm
+  do
+    local ev = { id = 'utah-rally:2:r1', title = 'NGRC Utah Rally: SS1 River', place = 'Utah paddock', day = 40, series = { id = 'utah-rally:2', name = 'NGRC Utah Rally', round = 1, rounds = 4 }, travel = { needed = true, fee = 800, hours = 6 } }
+    _G.sl_calendar = { event = function(id) if id == ev.id then return ev end if id == 'utah-rally:2:r3' then local e = {} for k, v in pairs(ev) do e[k] = v end e.id, e.series = id, { id = 'utah-rally:2', name = 'x', round = 3, rounds = 4 } return e end end }
+    local visitWas = _G.sl_career.visit
+    _G.sl_career.visit = function() return nil end          -- (at home: planning the trip)
+    st.series['utah-rally:2'] = nil
+    st.cars = { { id = 1, name = 'Covet', model = 'covet' }, { id = 2, name = 'Pickup', model = 'dumptruck' } }
+    st.money = 5000
+    local o = SX.options('utah-rally:2:r1')
+    check('series game: the options list the cars with whether they fit the series and why not, the fees and the limits', o and o.eventId == ev.id and o.fee == 800 and o.perCar == 200 and o.max == 3 and #o.cars == 2
+      and o.cars[1].fits == true and o.cars[2].fits == false and o.cars[2].why:find('rally', 1, true) ~= nil and o.loaner == nil and o.refuse == nil)
+    st.cars = { { id = 2, name = 'Truck', model = 'dumptruck' } }
+    o = SX.options(ev.id)
+    check('series game: with no car that fits a loaner is offered, with its deposit', o.loaner and o.loaner.deposit == 1000 and o.loaner.name:find('sunburst2', 1, true) ~= nil)
+    check('series game: only the first round enters a series; an unknown event is refused', SX.options('utah-rally:2:r3').refuse ~= nil and SX.options('nope') == nil)
+    local spec
+    _G.sl_career.depart = function(sp) spec = sp return true, 'On the way' end
+    st.cars = { { id = 1, name = 'Covet', model = 'covet' }, { id = 2, name = 'Pickup', model = 'dumptruck' } }
+    local okc, textc = SX.confirm(ev.id, { 1 }, false)
+    check('series game: confirming enters the series and sends the career on the trip with the series, the first day, the entry and the fit rule', okc and spec.level == 'utah' and spec.series == 'utah-rally:2' and spec.entry == 800
+      and spec.firstDay == 40 and spec.untilDay == 44 and spec.rounds == 4 and spec.cars[1] == 1 and st.series['utah-rally:2'] and st.series['utah-rally:2'].car == 1 and spec.fits({ model = 'covet' }) == true)
+    check('series game: the fit rule refuses a truck and takes a loaner', (spec.fits({ model = 'dumptruck' })) == false and spec.fits({ model = 'dumptruck', loaner = true }) == true)
+    st.series['utah-rally:2'] = nil
+    check('series game: no car chosen is refused', SX.confirm(ev.id, {}, false) == false)
+    _G.sl_career.depart = function() return false, 'refused' end
+    local okr = SX.confirm(ev.id, { 1 }, false)
+    check('series game: a refused trip leaves nothing entered', okr == false and st.series['utah-rally:2'] == nil)
+    st.cars = { { id = 2, name = 'Truck', model = 'dumptruck' } }
+    st.nextCarId = 10
+    st.money = 5000
+    local before = st.money
+    local okl, textl = SX.confirm(ev.id, {}, true)
+    local nc = {} for _, c in ipairs(st.cars) do nc[#nc + 1] = tostring(c.id) .. (c.loaner and 'L' or '') end
+    local anyLoaner = false
+    for _, c in ipairs(st.cars) do if c.loaner then anyLoaner = true end end
+    check('series game: a refused trip with a loaner gives the loaner and its deposit back', okl == false and not anyLoaner and st.money == before, tostring(okl) .. ' ' .. tostring(textl) .. ' ' .. table.concat(nc, ',') .. ' ' .. st.money .. ' ' .. before)
+    st.money = 5000
+    _G.sl_career.depart = nil
+    _G.sl_calendar = nil
+    _G.sl_career.visit = visitWas
   end
   -- closing a visit: the rounds left are missed and the series is closed; the days running out sends the career home
   do

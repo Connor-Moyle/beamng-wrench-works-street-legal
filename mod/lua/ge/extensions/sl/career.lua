@@ -784,6 +784,7 @@ local function begin()
   connectWallet(true)
   places = nil
   local visiting = s.visit and s.visit.active == true
+  if visiting then s.visit.arrived = true end          -- (the trip began: the fee is spent)
   if visiting then places = {} else loadPlaces() end          -- (no place of the home world exists on the visited map)
   ensureCelestial()
   ensureBigMap()
@@ -890,6 +891,8 @@ function M.start(fresh, n, level, choice)
   if s.visit and s.visit.active then
     local verdict = visitLib.recover(s.visit, s.day or 1, levelInstalled(s.visit.level))
     if verdict == 'home' or (verdict == 'ask' and choice == 'home') then
+      local fee = (s.visit.arrived ~= true and tonumber(s.visit.fee) or 0)          -- (the trip never began: the fee comes back)
+      if fee > 0 then stateLib.addMoney(s, fee, strings.t('visit.fee_back'), now()) end
       local was, loaners = visitLib.finish(s)
       visitEnded = { was = was, how = 'missed', loaners = loaners }          -- (the round that was running counts as missed; the cars are in the garage)
     else
@@ -1573,7 +1576,7 @@ function M.depart(spec)
   if not ok then return false, why end
   local fee = visitLib.fee(spec.entry, #spec.cars)
   if not stateLib.addMoney(s, -fee, strings.t('visit.fee_label', mapOf(spec.level).name), now()) then return false, strings.t('visit.cannot_afford', fee) end
-  local visit = visitLib.new({ level = spec.level, event = spec.event, cars = spec.cars, day = s.day, untilDay = spec.untilDay or (s.day + 7), rounds = spec.rounds, round = 1, home = s.level, series = spec.series, firstDay = spec.firstDay })
+  local visit = visitLib.new({ level = spec.level, event = spec.event, cars = spec.cars, day = s.day, untilDay = spec.untilDay or (s.day + 7), rounds = spec.rounds, round = 1, home = s.level, series = spec.series, firstDay = spec.firstDay, fee = fee })
   stop()                                   -- (the cars out at home are noted in the save first, then dropped below)
   visitLib.depart(s, visit)
   local h = (s.hour or 12) + visitLib.TRAVEL_HOURS                   -- the trip takes hours; the day hooks catch up by date (bills, reviews)
@@ -1587,6 +1590,7 @@ end
 -- the way home (always possible): the visit's cars go to the garage, the career starts again on the home map
 function M.returnHome(how)
   if not active then return false, strings.t('bank.no_career_running') end
+  if switching then return false, strings.t('career.one_moment') end          -- (the clock is moving: a moment)
   if not (s.visit and s.visit.active) then return false, strings.t('visit.not_on_a_trip') end
   if sl_series and sl_series.closeVisit and (sl_series.closeVisit() or 0) > 0 and (how == nil or how == 'done') then how = 'missed' end      -- (rounds left: the visit ends as missed)
   if how == 'forfeit' then how = 'missed' end
@@ -1677,9 +1681,10 @@ local function visitSleep()
     guihooks.trigger('slFade', { on = true })
     core_jobsystem.create(function(job)
       job.sleep(0.6)
-      moveClock(7, job)
+      local ok, err = pcall(moveClock, 7, job)
+      if not ok then log('E', logTag, 'the morning could not be set: ' .. tostring(err)) end
       lastHour = hour()
-      switching = false
+      switching = false                                 -- (released whatever happened: a lock left set would stop every later phase change)
       job.sleep(0.3)
       guihooks.trigger('slFade', { on = false })
     end)

@@ -31,7 +31,7 @@ end
 
 -- a new visit
 function M.new(spec)
-  return { active = true, level = spec.level, event = spec.event, series = spec.series, firstDay = spec.firstDay or spec.day, cars = spec.cars, fromDay = spec.day, untilDay = spec.untilDay, round = spec.round or 1,
+  return { active = true, fee = spec.fee, arrived = false, level = spec.level, event = spec.event, series = spec.series, firstDay = spec.firstDay or spec.day, cars = spec.cars, fromDay = spec.day, untilDay = spec.untilDay, round = spec.round or 1,
     rounds = spec.rounds or 1, home = spec.home }
 end
 
