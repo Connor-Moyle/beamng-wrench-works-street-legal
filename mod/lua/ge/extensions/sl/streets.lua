@@ -17,6 +17,7 @@ local progression = require('sl/core/progression')
 local carsLib = require('sl/core/cars')
 local spawnplan = require('sl/core/spawnplan')
 local stateLib = require('sl/core/state')
+local drawcache = require('sl/core/drawcache')
 local showshine = require('sl/core/showshine')
 local builder = require('sl/carBuilder')
 local racesLib = require('sl/core/races')
@@ -551,15 +552,23 @@ end
 
 -- whose name hangs over their car (so you know who you are flashing)
 local labelColor, labelBg = ColorF(1, 0.8, 0.3, 1), ColorI(0, 0, 0, 170)
+local labelUp
 local function drawLabels(s)
   if not next(cruisers) and not meet then return end            -- (the closure below was built every frame for nothing)
   local v = getPlayerVehicle(0)
   if not v then return end
+  local vp = v:getPosition()
   local function label(racerId, vid, extra)
     local c = getObjectByID(vid)
     local r = stateLib.racer(s, racerId)
-    if c and r and (c:getPosition() - v:getPosition()):length() < 60 then
-      debugDrawer:drawTextAdvanced(c:getPosition() + vec3(0, 0, 2.2), String(roster.displayName(r) .. (extra or '')), labelColor, true, false, labelBg)
+    if c and r then
+      local cp = c:getPosition()
+      if (cp - vp):length() < 60 then
+        -- (the text is built once per racer: a String object and a concatenation every frame for each label was garbage)
+        local text = drawcache.get('label:' .. tostring(racerId) .. ':' .. tostring(extra), function() return String(roster.displayName(r) .. (extra or '')) end)
+        labelUp = labelUp or vec3(0, 0, 2.2)
+        debugDrawer:drawTextAdvanced(cp + labelUp, text, labelColor, true, false, labelBg)
+      end
     end
   end
   for id, vid in pairs(cruisers) do label(id, vid, '  (flash to race)') end
@@ -900,8 +909,12 @@ local function updateMeet(s, dt)
   end
   -- a marker over the meet so it can be found (the map's own markers do it where they are)
   if not slrrValoPois and v and (v:getPosition() - meet.place.pos):length() < 400 then
-    debugDrawer:drawCylinder(meet.place.pos, meet.place.pos + vec3(0, 0, 4), 0.25, ColorF(0.7, 0.2, 1, 0.5))
-    debugDrawer:drawTextAdvanced(meet.place.pos + vec3(0, 0, 4.5), String(strings.t('streets.car_meet')), ColorF(1, 1, 1, 1), true, false, ColorI(60, 0, 90, 200))
+    local m = drawcache.get('meet:' .. tostring(meet.place.id or meet.place.name), function()
+      return { top = meet.place.pos + vec3(0, 0, 4), label = meet.place.pos + vec3(0, 0, 4.5), text = String(strings.t('streets.car_meet')),
+        ring = ColorF(0.7, 0.2, 1, 0.5), white = ColorF(1, 1, 1, 1), bg = ColorI(60, 0, 90, 200) }
+    end)
+    debugDrawer:drawCylinder(meet.place.pos, m.top, 0.25, m.ring)
+    debugDrawer:drawTextAdvanced(m.label, m.text, m.white, true, false, m.bg)
   end
 end
 

@@ -10,6 +10,7 @@ local strings = require('sl/core/strings')
 local rules = require('sl/core/show')
 local stateLib = require('sl/core/state')
 local weekly = require('sl/core/weekly')
+local drawcache = require('sl/core/drawcache')
 
 local DAMAGE_FULL = 30000                 -- BeamNG damage of a wrecked car (sl_jobs uses the same: a hard crash is about 25000)
 local standFor, cool, kinds = 0, 0, nil
@@ -251,11 +252,16 @@ function M.onUpdate(dtReal)
   if sl_career.freeToStart and sl_career.freeToStart() then standFor = 0 return end         -- (not in a chase, a job or a race)
   local v = playerCar()
   if not v then standFor = 0 return end
-  local pos = vec3(place.pos.x, place.pos.y, place.pos.z)
-  local d = (pos - v:getPosition()):length()
+  local vp = v:getPosition()
+  local d = math.sqrt((place.pos.x - vp.x) ^ 2 + (place.pos.y - vp.y) ^ 2 + (place.pos.z - vp.z) ^ 2)
   if d < 500 and debugDrawer then
-    debugDrawer:drawCylinder(pos, pos + vec3(0, 0, 6), 0.3, marker)
-    debugDrawer:drawTextAdvanced(pos + vec3(0, 0, 7), String(strings.t('show.title', ev.place) .. ' - $' .. rules.FEE), marker, true, false, markerBg)
+    -- (drawn every frame: its positions and its label are built once per event, not once per frame)
+    local m = drawcache.get('show:' .. tostring(ev.id) .. ':' .. tostring(ev.place), function()
+      local pos = vec3(place.pos.x, place.pos.y, place.pos.z)
+      return { pos = pos, top = pos + vec3(0, 0, 6), label = pos + vec3(0, 0, 7), text = String(strings.t('show.title', ev.place) .. ' - $' .. rules.FEE) }
+    end)
+    debugDrawer:drawCylinder(m.pos, m.top, 0.3, marker)
+    debugDrawer:drawTextAdvanced(m.label, m.text, marker, true, false, markerBg)
   end
   if d < rules.START_REACH * 0.1 and cool <= 0 and v:getVelocity():length() < 1.5 then
     standFor = standFor + dtReal

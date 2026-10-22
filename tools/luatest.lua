@@ -6259,4 +6259,56 @@ do
   package.loaded['sl/seasons'] = nil
 end
 
+-- per-frame markers: the draw cache hands back what was built, builds again only for a new key, and starts over past its cap
+do
+  local DC = require('sl/core/drawcache')
+  DC.clear()
+  local built = 0
+  local function mk(n) return function() built = built + 1 return { n = n } end end
+  local a1 = DC.get('a', mk(1))
+  local a2 = DC.get('a', mk(2))
+  check('drawcache: the same key gives the same object and builds once', a1 == a2 and a1.n == 1 and built == 1)
+  check('drawcache: another key builds another', DC.get('b', mk(3)).n == 3 and built == 2 and DC.size() == 2)
+  DC.clear()
+  check('drawcache: clear forgets', DC.size() == 0 and DC.get('a', mk(4)).n == 4)
+  DC.clear()
+  for i = 1, DC.CAP + 5 do DC.get('k' .. i, mk(i)) end
+  check('drawcache: past the cap it starts over instead of growing', DC.size() <= DC.CAP and DC.size() > 0)
+  DC.clear()
+end
+
+-- the car show marker is drawn every frame: its objects are built once per event (the show's game test above leaves its stubs, so this one has its own)
+do
+  local saved = { vec3 = rawget(_G, 'vec3'), String = rawget(_G, 'String'), debugDrawer = rawget(_G, 'debugDrawer'), ColorF = rawget(_G, 'ColorF'), ColorI = rawget(_G, 'ColorI'),
+    sl_career = rawget(_G, 'sl_career'), getPlayerVehicle = rawget(_G, 'getPlayerVehicle'), guihooks = rawget(_G, 'guihooks'), extensions = rawget(_G, 'extensions'), sl_options = rawget(_G, 'sl_options') }
+  local made, strs, draws = 0, 0, 0
+  local V = {}
+  V.__index = V
+  V.__add = function(a, b) made = made + 1 return setmetatable({ x = a.x + b.x, y = a.y + b.y, z = a.z + b.z }, V) end
+  _G.vec3 = function(x, y, z) made = made + 1 return setmetatable({ x = x, y = y, z = z }, V) end
+  _G.String = function(s) strs = strs + 1 return s end
+  _G.ColorF, _G.ColorI = function() return {} end, function() return {} end
+  _G.debugDrawer = { drawCylinder = function() draws = draws + 1 end, drawTextAdvanced = function() draws = draws + 1 end }
+  _G.guihooks, _G.extensions, _G.sl_options = { trigger = function() end }, { hook = function() end }, nil
+  local st = { seed = 5, day = 6, rep = 400, money = 1000, cars = {}, show = { history = {} }, known = {} }
+  _G.sl_career = { isActive = function() return true end, getState = function() return st end, LEVEL = 'west_coast_usa', hour = function() return 21.5 end,
+    getPlaces = function() return { b = { id = 'm1', name = 'Marina', kind = 'meet', pos = { x = 0, y = 0, z = 0 } } } end, freeToStart = function() return false end }
+  local car = { getID = function() return 55 end, getJBeamFilename = function() return 'covet' end, getPosition = function() return setmetatable({ x = 50, y = 0, z = 0 }, V) end,
+    getVelocity = function() return setmetatable({ x = 0, y = 0, z = 0 }, V) end }
+  car.getVelocity = function() return { length = function() return 0 end } end
+  _G.getPlayerVehicle = function() return car end
+  package.loaded['sl/show'] = nil
+  local SX = require('sl/show')
+  local ok = pcall(function()
+    SX.onUpdate(0.016)
+    local m1, s1, d1 = made, strs, draws
+    for _ = 1, 20 do SX.onUpdate(0.016) end
+    check('show marker: drawn every frame (2 calls a frame)', d1 >= 2 and draws - d1 == 40)
+    check('show marker: no vec3 and no String built after the first frame', made == m1 and strs == s1)
+  end)
+  package.loaded['sl/show'] = nil
+  for k, v in pairs(saved) do _G[k] = v end
+  check('show marker: the stubbed run did not fail', ok)
+end
+
 print(string.format('lua tests passed: %d checks', passed))
