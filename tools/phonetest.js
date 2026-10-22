@@ -1007,6 +1007,41 @@ calls.length = 0;
 click('routegarage', '1');
 assert.ok(calls.includes('routeGarage()'), 'Route to my garage on the home screen');
 {
+  // the needs part: the Health app, the pill icons, the eat and nap buttons; nothing when the part is off or there is no data
+  const needs = { meters: [{ id: 'food', value: 72, stage: 'ok', word: 'fed' }, { id: 'water', value: 28, stage: 'handicap', word: 'parched' }, { id: 'rest', value: 9, stage: 'problem', word: 'exhausted' }],
+    wellFed: false, effects: { blur: 0.3, lag: 0.05, tremor: 0, sleepy: true }, items: [{ id: 'drink', name: 'Drink', price: 2 }, { id: 'meal', name: 'Meal', price: 12 }], canEat: true, canNap: false, showMeters: false };
+  phone.handle('slPhoneData', Object.assign({}, data, { needs }));
+  phone.act('home');
+  assert.ok(phone.root.querySelector('[data-a="open"][data-v="health"]'), 'the Health app is on the home screen');
+  phone.act('open', 'health');
+  let tx = text();
+  assert.ok(tx.includes('Food') && tx.includes('fed') && tx.includes('72') && tx.includes('Water') && tx.includes('parched') && tx.includes('28') && tx.includes('Rest') && tx.includes('exhausted') && tx.includes('9'), 'three meters with their words and numbers: ' + tx.slice(0, 200));
+  assert.ok(tx.includes('Affecting you now: blurred sight, slow reactions, heavy eyelids') && !tx.includes('shaky hands'), 'what is affecting you, only what is on');
+  assert.ok(tx.includes('⚠') && tx.includes('▼'), 'the stage is a mark as well as a colour (handicap and problem)');
+  assert.ok(phone.root.querySelector('[data-a="eat"][data-v="drink"]') && phone.root.querySelector('[data-a="eat"][data-v="meal"]') && tx.includes('$12'), 'Eat buttons with their prices when near a fuel station');
+  assert.ok(!phone.root.querySelector('[data-a="nap"]') && tx.includes('You can nap at a garage.'), 'no Nap buttons away from a garage, with the hint');
+  calls.length = 0;
+  click('eat', 'meal');
+  assert.ok(calls.some((c) => c.indexOf('eat("meal")') >= 0), 'Eat asks the game: ' + calls.join(' '));
+  phone.handle('slPhoneData', Object.assign({}, data, { needs: Object.assign({}, needs, { canEat: false, canNap: true, wellFed: true }) }));
+  tx = text();
+  assert.ok(phone.root.querySelectorAll('[data-a="nap"]').length === 3 && tx.includes('Nap 3 h') && !phone.root.querySelector('[data-a="eat"]') && tx.includes('well fed') && tx.includes('Food and drink are sold at fuel stations.'), 'Nap 1, 3 and 6 h at a garage; well fed shown');
+  calls.length = 0;
+  click('nap', '6');
+  assert.ok(calls.some((c) => c.indexOf('nap(6)') >= 0), 'Nap asks the game: ' + calls.join(' '));
+  phone.act('home');
+  const pill = phone.root.querySelector('.slp-pill');
+  assert.ok(pill && pill.querySelectorAll('svg').length === 2, 'the pill shows the two meters under 40 and not the third: ' + (pill ? pill.querySelectorAll('svg').length : 'no pill'));
+  phone.handle('slPhoneData', Object.assign({}, data, { needs: Object.assign({}, needs, { showMeters: true }) }));
+  assert.ok(phone.root.querySelector('.slp-pill').querySelectorAll('svg').length === 3, 'with the setting on, all three');
+  phone.handle('slPhoneData', Object.assign({}, data, { needs: Object.assign({}, needs, { meters: needs.meters.map((m) => Object.assign({}, m, { value: 80, stage: 'ok' })) }) }));
+  assert.ok(phone.root.querySelector('.slp-pill').querySelectorAll('svg').length === 0, 'nothing in the pill while every meter is fine');
+  phone.handle('slPhoneData', Object.assign({}, data, { needs, has: Object.assign({}, data.has, { needs: false }) }));
+  assert.ok(!phone.root.querySelector('[data-a="open"][data-v="health"]') && phone.root.querySelector('.slp-pill').querySelectorAll('svg').length === 0, 'the part off: no app, no icons');
+  phone.handle('slPhoneData', data);
+  assert.ok(!phone.root.querySelector('[data-a="open"][data-v="health"]'), 'no data: no app');
+}
+{
   // the speed traps and zones (sl_traps.summary()): nearest first, target, best (met = marked), times, reward or Paid; nothing with the part off or no data
   const traps = { list: [{ id: 't2', name: 'Speed trap 2', kind: 'trap', target: 150, best: 182, count: 3, paid: true, metres: 4200, pay: 250 }, { id: 'z1', name: 'Speed zone 1', kind: 'zone', target: 90, best: 0, count: 0, paid: false, metres: 800, pay: 400 }] };
   phone.handle('slPhoneData', Object.assign({}, data, { traps }));

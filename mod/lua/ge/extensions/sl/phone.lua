@@ -115,11 +115,12 @@ local function snapshot()
     art = sl_hud ~= nil and sl_hud.slrrArt ~= nil and sl_hud.slrrArt() or false,
     has = { clubs = sl_career.has('clubs'), crews = sl_career.has('crews'), classifieds = sl_career.has('classifieds'),
       races = require('sl/core/features').on('races'), jobs = require('sl/core/features').on('jobs'), market = require('sl/core/features').on('market'),
-      bank = require('sl/core/features').on('bank'), maps = require('sl/core/features').on('maps'), hudpill = require('sl/core/features').on('hudpill'), weekly = require('sl/core/features').on('weekly'), service = require('sl/core/features').on('service'), perks = require('sl/core/features').on('perks'), traps = require('sl/core/features').on('traps'), inventory = require('sl/core/features').on('inventory'), myroute = require('sl/core/features').on('myroute'), danger = require('sl/core/features').on('danger'), calendar = require('sl/core/features').on('calendar'), sponsors = require('sl/core/features').on('sponsors') },      -- (the parts that are switched off lose their apps)
+      bank = require('sl/core/features').on('bank'), maps = require('sl/core/features').on('maps'), hudpill = require('sl/core/features').on('hudpill'), weekly = require('sl/core/features').on('weekly'), service = require('sl/core/features').on('service'), perks = require('sl/core/features').on('perks'), traps = require('sl/core/features').on('traps'), inventory = require('sl/core/features').on('inventory'), myroute = require('sl/core/features').on('myroute'), danger = require('sl/core/features').on('danger'), calendar = require('sl/core/features').on('calendar'), sponsors = require('sl/core/features').on('sponsors'), needs = require('sl/core/features').on('needs') },      -- (the parts that are switched off lose their apps)
     contacts = contacts, threads = s.threads, unread = s.unread,
     challenges = challenges, ledger = ledger, places = placesOut,
     cars = #s.cars, stats = s.stats,
     perks = sl_perks and sl_perks.perks and sl_perks.perks() or nil,
+    needs = sl_needs and sl_needs.summary and sl_needs.summary() or nil,      -- (the Health page and the pill icons: nil with the part off or no career)
     trophies = type(s.trophies) == 'table' and s.trophies or nil,      -- (the trophy shelf's list, written at a win; nil until there is one)
     calendar = sl_calendar and sl_calendar.summary and sl_calendar.summary() or nil,      -- (the Calendar app: nil with the part off or no career)
     justice = rawget(_G, 'sl_justice') and sl_justice.summary and sl_justice.summary() or nil,      -- (police batch 2: tickets, the wanted poster, the impound line; nil with the part off)
@@ -397,6 +398,8 @@ function M.watchReplay() if career() and sl_replay then answer(sl_replay.watch()
 function M.saveClip() if career() and sl_replay then answer(sl_replay.save()) end end
 function M.enterLeague(kind) if career() and sl_clubs then answer(sl_clubs.enter(tostring(kind))) end end
 function M.borrow(amount) if career() and sl_bank then answer(sl_bank.borrow(tonumber(amount))) end end
+function M.eat(itemId) if career() and sl_needs and sl_needs.eat then sl_needs.eat(tostring(itemId)) wantSend = true end end      -- (sl_needs shows its own toast)
+function M.nap(hours) if career() and sl_needs and sl_needs.nap then sl_needs.nap(tonumber(hours)) wantSend = true end end
 -- the Calendar's actions (sl_calendar answers ok, text: the toast is the phone's own)
 function M.calendarEnter(eventId, carIds) if career() and sl_calendar and sl_calendar.enter then answer(sl_calendar.enter(tostring(eventId), type(carIds) == 'table' and carIds or nil)) end end
 function M.calendarDecline(eventId) if career() and sl_calendar and sl_calendar.decline then answer(sl_calendar.decline(tostring(eventId))) end end
