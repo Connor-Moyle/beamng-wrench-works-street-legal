@@ -18,7 +18,9 @@ local function hint(text) if guihooks and guihooks.message then pcall(guihooks.m
 local near                    -- { vid, dist, own, tank } the car in reach of the walking player, refreshed four times a second
 local session                 -- the siphon or pour running: { mode = 'take'|'pour', vid, can (a record of s.inventory.cans), own, acc, busy, noticeT }
 local held = { take = false, pour = false }
-local tickT, hintT = 0, 0
+local tickT, hintT, tankT = 0, 0, 0
+local fails, dead = 0, false      -- (errors in the tick: after FAIL_MAX the part stops until the career restarts)
+local FAIL_MAX = 5
 
 local function vehOf(vid) return be and be.getObjectByID and be:getObjectByID(vid) end
 
@@ -80,7 +82,7 @@ local function findNear(s)
   if not pos then return nil end
   local best
   for _, veh in ipairs(getAllVehicles and getAllVehicles() or {}) do
-    if veh:getID() ~= (me and me:getID()) then
+    if veh:getID() ~= (me and me:getID()) and (veh:getPosition() - pos):length() < 30 then      -- (a car further than 30 m is never in reach: its box is not read)
       local d = distTo(veh, pos)
       if d <= rules.REACH and (not best or d < best.dist) then best = { vid = veh:getID(), dist = d } end
     end
@@ -172,7 +174,7 @@ local function step(s, dt)
   if not ok then ses.busy = false stop(strings.t('siphon.no_fuel_tank')) end
 end
 
-function M.onUpdate(dt)
+local function tick(dt)
   dt = tonumber(dt) or 0
   local s = career()
   if not s then session, near = nil, nil return end
@@ -198,10 +200,16 @@ function M.onUpdate(dt)
   end
   if tickT < 0.25 then return end
   tickT = 0
+  local was = near
   near = findNear(s)
   if near then
     local vid = near.vid
-    requestTank(vid, function(tank) if near and near.vid == vid then near.tank = tank end end)
+    if was and was.vid == vid then near.tank = was.tank end                  -- (the same car: its tank stays, read again about once a second)
+    tankT = tankT + 0.25
+    if not near.tank or tankT >= 1 then
+      tankT = 0
+      requestTank(vid, function(tank) if near and near.vid == vid then near.tank = tank end end)
+    end
     hintT = hintT + 0.25
     if hintT >= 1 then
       hintT = 0
@@ -210,10 +218,21 @@ function M.onUpdate(dt)
   end
 end
 
+function M.onUpdate(dt)
+  if dead then return end
+  local ok, err = pcall(tick, dt)
+  if not ok then
+    fails = fails + 1
+    session, near = nil, nil
+    if log then log('E', 'sl_siphon', 'tick failed (' .. fails .. '): ' .. tostring(err)) end
+    if fails >= FAIL_MAX then dead = true end
+  end
+end
+
 function M.status()
   return string.format('near %s, session %s, tube %d', near and (near.vid .. (near.own and ' (own)' or '')) or 'none', session and session.mode or 'none', tubeCount())
 end
-function M.onStreetLegalStopped() session, near, held.take, held.pour = nil, nil, false, false end
+function M.onStreetLegalStopped() session, near, held.take, held.pour, fails, dead = nil, nil, false, false, 0, false end
 function M.onClientEndMission() session, near = nil, nil end
 
 features.gate('siphon', M, nil, nil, { 'hold', 'holdSiphon', 'holdPour', 'status' })

@@ -29,6 +29,7 @@ Fuel is an energy storage (`lua/vehicle/energyStorage/fuelTank.lua`) in the car'
 Taking fuel from other people's cars is a crime in the world the career plays in.
 - **Own cars** (any car in the player's garage list): free, no risk, no rep; just the can.
 - **Parked or lot cars and traffic that has stopped**: risk per 10 seconds of siphoning = `siphonRisk` x base (0.10 at night, 0.25 by day) x witnesses (1 + 0.5 per pedestrian-like witness within 25 m, from ab's witness query), x 2 within sight of a police unit. A noticed siphon: the player gets heat (like a street race, `heat.RACE`-sized), a fine or a rep loss (a5's ledger), the owner of a traffic car honks and drives off (no violence; a tow/impound is not triggered by siphoning alone).
+- **Current limit:** until ab's witness query exists, passing moving cars within 25 m x the noise setting are the only witnesses; a car with a police car in sight is the same risk as a lonely one. `slSiphonRisk` is the player's lever.
 - Interfaces needed from ab: `sl_crime.witnesses(pos, radius)` (count and police yes/no) or the existing heat/phase helpers, and a way to add heat and a record ("fuel theft") to the rap sheet (idea #7). Until ab's rules exist the fallback is the police-within-60 m rule only.
 - Nothing ever hurts the player physically.
 

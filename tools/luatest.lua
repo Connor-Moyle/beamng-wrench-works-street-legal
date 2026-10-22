@@ -4027,6 +4027,27 @@ do
   SX.holdSiphon(true)
   check('siphon game: with the own-cars switch off it is refused', last() == 'Siphoning your own cars is switched off.' and SX.status():find('session none') ~= nil)
   SX.holdSiphon(false)
+  -- the tank is read about once a second while a car stays near, not at every scan
+  SX.onStreetLegalStopped()
+  local reads = 0
+  local realRequest = _G.core_vehicleBridge.requestValue
+  _G.core_vehicleBridge.requestValue = function(...) reads = reads + 1 return realRequest(...) end
+  for _ = 1, 8 do SX.onUpdate(0.25) end                       -- two seconds of scans
+  check('siphon game: the tank of a car that stays near is read about once a second', reads >= 1 and reads <= 3)
+  _G.core_vehicleBridge.requestValue = realRequest
+  -- an error in the tick never raises and stops the part after a few
+  local realAll = _G.getAllVehicles
+  _G.getAllVehicles = function() error('boom') end
+  local raised = false
+  for _ = 1, 12 do if not pcall(SX.onUpdate, 0.3) then raised = true end end
+  _G.getAllVehicles = realAll
+  check('siphon game: an error in the tick does not raise, and after five the part stops until the career restarts', not raised and (function()
+    SX.onUpdate(0.3)
+    return SX.status():find('near none') ~= nil
+  end)())
+  SX.onStreetLegalStopped()
+  SX.onUpdate(0.3)
+  check('siphon game: a restart brings the part back', SX.status():find('near 2') ~= nil)
   -- the part switch
   _G.sl_options = { get = function(k) if k == 'slSiphon' then return false end end }
   ownCarId, night = nil, false
