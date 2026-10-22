@@ -33,6 +33,7 @@ M.LIST = {
   { id = 'home', title = strings.t('achievements.their_own_front_door'), desc = strings.t('achievements.take_a_crew_s_home'), check = function(s) for _, t in pairs(s.crews and s.crews.territory or {}) do if t.home and t.owner == 'player' then return true end end return false end },
   { id = 'king', title = strings.t('achievements.king_of_valo'), desc = strings.t('achievements.win_the_turf_war_against'), check = function(s) return s.crews ~= nil and s.crews.king ~= nil end },
   { id = 'flip', title = 'Flipper', desc = strings.t('achievements.sell_a_car_for_more'), check = function(s) return jobs(s).flip ~= nil and (jobs(s).flip.flips or 0) >= 1 end },
+  { id = 'my_route', title = 'Trailblazer', desc = strings.t('achievements.own_route'), check = function(s) for _, lv in pairs(s.myroutes and s.myroutes.levels or {}) do if #(lv.list or {}) > 0 then return true end end return false end },
   { id = 'activities_5', title = 'Explorer', desc = strings.t('achievements.complete_five_different_activities'), check = function(s) return count(s.activitiesDone) >= 5 end },
 }
 

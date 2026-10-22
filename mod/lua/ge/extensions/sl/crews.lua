@@ -12,6 +12,8 @@ local crews = require('sl/core/crews')
 local rngLib = require('sl/core/rng')
 local roster = require('sl/core/roster')
 local stateLib = require('sl/core/state')
+local income = require('sl/core/turfincome')
+local turfOn, turfExpect        -- (turf income, defined below; the summary above them uses both)
 
 -- nothing runs, is sent or is shown on a map that cannot host it (progression.MAPS has); the code and the save stay
 local function career() return sl_career and sl_career.isActive() and sl_career.has('crews') and sl_career.getState() or nil end
@@ -154,8 +156,8 @@ local function sendCallouts(s, c)
       end
       local racer = pick and stateLib.racer(s, pick)
       local race = raceIn(c, co.district)
-      co.racer = pick or false
       if racer and race then
+        co.racer = pick           -- (marked as sent only when it is: a call-out no race can carry is tried again until it expires, and costs nothing)
         s.known[racer.id] = true
         for i = #s.challenges, 1, -1 do if s.challenges[i].racer == racer.id then table.remove(s.challenges, i) end end
         local pink = home and s.activeCar ~= nil
@@ -232,6 +234,7 @@ local function turfWarCheck(s, c)
   end
   for _, id in ipairs(holding) do if #order < 3 then order[#order + 1] = id end end
   for _, id in ipairs(beaten) do if #order < 3 then order[#order + 1] = id end end
+  if #order == 0 then return end         -- (no crew has a leader to meet: there is no war to start)
   c.turfWar = { stage = 1, order = order }
   sl_career.sendText('benny', strings.t('crews.the_crew_leaders_have_noticed'), 3)
 end
@@ -270,6 +273,7 @@ end
 
 local function doRaid(s, c)
   local r = c.raid
+  if r and c.king then c.raid = nil return end         -- (a raid planned before the crown does not come)
   if not r or s.day < r.day or (sl_career.hour and sl_career.hour() or 0) < RAID_HOUR then return end
   c.raid = nil
   c.raided = c.raided or {}
@@ -376,7 +380,66 @@ function M.summary()
     members[#members + 1] = { name = cr.name, leader = lead and roster.displayName(lead) or nil }
   end
   local pp = v and v:getPosition()
-  return { districts = list, crews = members, held = crews.held(c.territory), turfWar = crews.turfWarReady(c.territory), you = pp and { x = pp.x, y = pp.y } or nil }
+  local exp = turfOn() and turfExpect(s, c) or nil
+  if exp then for _, d in ipairs(list) do d.cut = exp.byDistrict[d.id]; d.base = exp.base == d.id or nil end end
+  return { income = exp and exp.total or nil, districts = list, crews = members, held = crews.held(c.territory), turfWar = crews.turfWarReady(c.territory), you = pp and { x = pp.x, y = pp.y } or nil }
+end
+
+-- ---- turf income (Mods > Parts of the game > Turf income, off by default; rules in sl/core/turfincome). The weekly bill run (sl_weekly) asks for the week's cuts first.
+turfOn = function() return require('sl/core/features').on('turf') end
+
+-- the district with the third garage, when it is held: the base (a bigger cut, half the raid cost)
+local function baseDistrict(s, c)
+  if (s.garageLevel or 1) < 3 then return nil end
+  local ok, sites = pcall(require, 'slrr/garageSites')
+  local wanted = require('sl/core/progression').garages[s.garageLevel]
+  wanted = wanted and wanted.site
+  for _, g in ipairs(ok and sites.getSites() or {}) do
+    if g.id == wanted and g.spot then
+      local d = crews.districtOf(c.districts or {}, g.spot.x, g.spot.y)
+      return d and d.id or nil
+    end
+  end
+end
+
+local function turfOptions(s, c, day)
+  local callouts, names = {}, {}
+  for _, co in ipairs(c.callouts or {}) do if co.racer then callouts[co.district] = true end end        -- (a challenge sent and not answered)
+  for _, d in ipairs(c.districts or {}) do names[d.id] = d.name end
+  return { base = baseDistrict(s, c), callouts = callouts, angry = income.angryCount(c.angry, day, 7), king = c.king ~= nil and c.king ~= false, names = names,
+    rng = rngLib.new(rngLib.hash('turf:' .. tostring(day) .. ':' .. tostring(s.seed))) }
+end
+
+-- the week's cuts on the bill day: the result of income.week (lines, total, raids) with the money NOT yet paid: sl_weekly pays it and writes the ledger. nil with the part off or no crews
+function M.turfWeek(s, day)
+  if not turfOn() then return nil end
+  local c = s and M.ensure(s)
+  if not c then return nil end
+  day = day or s.day or 1
+  if c.turfDay and day <= c.turfDay then return nil end      -- (a bill day is paid and raided once, however often the run comes round)
+  c.turfDay = day
+  local out = income.week(c.territory, turfOptions(s, c, day))
+  local angryIds = {}
+  for crewId, since in pairs(c.angry or {}) do if day - since <= 7 then angryIds[#angryIds + 1] = crewId end end
+  table.sort(angryIds)
+  for i, r in ipairs(out.raids) do
+    local who = crews.crew(angryIds[(i - 1) % math.max(1, #angryIds) + 1])
+    sl_career.sendText('benny', string.format(strings.t('crews.turf_raid_text'), r.name, ((who and who.name or strings.t('crews.some_crew')):gsub('^%l', string.upper))), 2)
+  end
+  return out
+end
+
+-- what the held districts would pay now: { total, byDistrict = { [id] = cut } } for the Turf app (no roll, no change)
+turfExpect = function(s, c)
+  local opts = turfOptions(s, c, s.day or 1)
+  local by, total = {}, 0
+  for id, e in pairs(c.territory) do
+    if e.owner == 'player' then
+      local cut = opts.callouts[id] and 0 or income.cut(e, opts.base == id)
+      by[id], total = cut, total + cut
+    end
+  end
+  return { total = total, byDistrict = by, base = opts.base }
 end
 
 function M.onStreetLegalStarted() local s = career() if s then M.ensure(s) end end

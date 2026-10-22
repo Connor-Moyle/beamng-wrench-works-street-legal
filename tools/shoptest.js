@@ -77,7 +77,7 @@ click('buy');
 assert.strictEqual(calls[calls.length - 1], '@sl_shops.buy("buff:1")');
 const parts = win.__slShopParts;
 parts.themes.forEach((t) => assert(parts.patternSvg(t, '#123456').indexOf('#123456') > 0, 'pattern ' + t + ' uses the accent'));
-['tyre', 'exhaust', 'wrench', 'engine', 'paint', 'gauge', 'spanner', 'star', 'badge'].forEach((i) => assert(parts.iconSvg(i).indexOf('<path') > 0 || parts.iconSvg(i).indexOf('<circle') > 0, 'icon ' + i));
+['tyre', 'exhaust', 'wrench', 'engine', 'paint', 'gauge', 'spanner', 'star', 'badge', 'cup', 'bed', 'drop', 'crate'].forEach((i) => assert(parts.iconSvg(i).indexOf('<path') > 0 || parts.iconSvg(i).indexOf('<circle') > 0, 'icon ' + i));
 // a catalogue shop with no stock says where parts come from
 shop.handle('slShopOpen', { kind: 'exhaust', title: 'Exhaust shop', name: 'Pipe Dreams', goods: 'catalog', screen: 'catalogue', money: 100, theme: { accent: '#e9855b', pattern: 'pipes', icon: 'exhaust' }, stock: [], services: [] });
 assert(/shops\.ui_catalog_note/.test($('.slsh-note').textContent), 'an empty catalogue shop explains itself');

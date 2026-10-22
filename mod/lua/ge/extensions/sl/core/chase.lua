@@ -192,7 +192,7 @@ function M.heading(vx, vy)
   return HEADINGS[math.floor((a + 22.5) / 45) % 8 + 1]
 end
 M.CHATTER = { start = 'police.radio_start', backup = 'police.radio_backup', lost = 'police.radio_lost', visual = 'police.radio_visual', roadblock = 'police.radio_roadblock',
-              strip = 'police.radio_strip', evade = 'police.radio_evade', arrest = 'police.radio_arrest' }
+              strip = 'police.radio_strip', evade = 'police.radio_evade', arrest = 'police.radio_arrest', box = 'police.radio_box', pit = 'police.radio_pit' }
 -- -> key, unit, car, where, heading
 function M.chatter(event, ctx)
   local key = M.CHATTER[event]
@@ -212,5 +212,105 @@ function M.configsFor(level)
   for _, u in ipairs(M.UNITS) do if lvl(level) >= u[3] then out[#out + 1] = { u[1], u[2] } end end
   return out
 end
+
+-- ---- police batch 2 (P8-P10): tickets and court, the wanted record, the impound lot (the game side is sl/justice.lua)
+M.PULLOVER_S = 5                      -- seconds from the siren to a stop for a ticket instead of a bust
+M.STOPPED_MS = 1.5
+M.TICKET_BASE, M.TICKET_OFFENCE = 120, 60
+M.LAWYER_FEE = 150
+M.CONTEST_WITH, M.CONTEST_WITHOUT = 0.6, 0.25      -- the chance to win with and without evidence (a saved race recording)
+M.LOST_RAISE = 1.5
+M.SUSPEND_AT = 3                      -- overdue unpaid tickets for a licence suspension
+M.TICKET_KEEP = 7                     -- days a paid ticket stays on the phone
+function M.isTicket(maxMode, stoppedAfter) return (tonumber(maxMode) or 9) <= 1 and stoppedAfter ~= nil and stoppedAfter <= M.PULLOVER_S end
+function M.ticketFine(offences) return M.TICKET_BASE + M.TICKET_OFFENCE * math.max(1, tonumber(offences) or 1) end
+function M.newTicket(id, day, offences)
+  local n = math.max(1, tonumber(offences) or 1)
+  return { id = id, day = day, offences = n, amount = M.ticketFine(n), due = day + 1, paid = false, contested = false }
+end
+-- the unpaid tickets whose court day has passed
+function M.overdue(tickets, day)
+  local out = {}
+  for _, t in ipairs(tickets or {}) do if not t.paid and (t.due or 0) < (day or 0) then out[#out + 1] = t end end
+  return out
+end
+function M.suspended(tickets, day) return #M.overdue(tickets, day) >= M.SUSPEND_AT end
+-- a contested ticket: won (cleared) or lost (half as much again, the court day a day later); roll in 0..1
+function M.contest(t, evidence, roll)
+  t.contested = true
+  local won = (roll or 1) < (evidence and M.CONTEST_WITH or M.CONTEST_WITHOUT)
+  if won then t.paid = true t.won = true
+  else t.amount = math.floor(t.amount * M.LOST_RAISE / 10 + 0.5) * 10 t.due = (t.due or 0) + 1 end
+  return won
+end
+function M.sweepTickets(tickets, day)
+  for i = #tickets, 1, -1 do local t = tickets[i] if t.paid and (t.paidDay or t.day or 0) < day - M.TICKET_KEEP then table.remove(tickets, i) end end
+end
+-- the suspension on the pursuit variables: the police watch by day as at night
+function M.suspendedVars(v, suspended) if suspended then v.strictness = 1 end return v end
+
+M.WANTED_LEVEL = 4
+function M.bounty(level) return 500 + 250 * math.max(0, lvl(level) - 3) end
+function M.wantedRecord(car, day, level) return { carId = car.id, name = car.name, model = car.model, day = day, level = lvl(level), bounty = M.bounty(level) } end
+M.RECOGNISE_M, M.RECOGNISE_EVERY = 25, 60
+function M.recognised(dist, speed, sinceLast) return (dist or 1e9) <= M.RECOGNISE_M and (speed or 0) > 2 and (sinceLast or 0) >= M.RECOGNISE_EVERY end
+function M.informantPrice(bounty) return math.floor((bounty or 0) / 2 / 10 + 0.5) * 10 end
+
+M.LOT_BUILD_WITHIN = 300
+M.FENCE_HEAT = 0.75                   -- heat level 4
+function M.fenceBounty(owed, level) return math.max(M.bounty(level), tonumber(owed) or 0) end
+
+-- ---- P5: box and PIT (the game side is sl/pursuit.lua): who, when
+M.BOX_MODE, M.PIT_MODE = 2, 3
+M.BOX_AGGR, M.PIT_AGGR, M.BASE_AGGR = 0.6, 1.5, 0.85
+M.BOX_SPEED_PLUS = 1                  -- m/s over the player's speed the boxer may do (it keeps pace, it does not run away)
+M.PIT_S, M.PIT_EVERY = 6, 45
+M.PIT_MIN_MS = 16.7                   -- 60 km/h
+M.STRAIGHT_SAMPLES, M.STRAIGHT_DEG = 4, 12      -- two seconds of headings at half-second ticks, within 12 degrees: a straight
+local function sortedByDist(cops)
+  local ids = {}
+  for id in pairs(cops or {}) do ids[#ids + 1] = id end
+  table.sort(ids, function(a, b) return cops[a] < cops[b] end)
+  return ids
+end
+-- the boxer: the second-nearest unit at level 2 and above (the nearest keeps chasing); nil below or with one unit
+function M.boxUnit(mode, cops)
+  if (tonumber(mode) or 0) < M.BOX_MODE then return nil end
+  local ids = sortedByDist(cops)
+  return ids[2]
+end
+function M.pitUnit(cops) return sortedByDist(cops)[1] end
+function M.pitDue(mode, speed, straight, sinceLast)
+  return (tonumber(mode) or 0) >= M.PIT_MODE and (speed or 0) >= M.PIT_MIN_MS and straight == true and (sinceLast or 0) >= M.PIT_EVERY
+end
+-- headings in degrees (M.heading); a straight when every sample is within STRAIGHT_DEG of the first
+function M.isStraight(headings)
+  if type(headings) ~= 'table' or #headings < M.STRAIGHT_SAMPLES then return false end
+  local first = headings[1]
+  for i = 2, #headings do
+    local d = math.abs(headings[i] - first) % 360
+    if math.min(d, 360 - d) > M.STRAIGHT_DEG then return false end
+  end
+  return true
+end
+
+-- ---- P12: the patrol shift (the game side is sl/patrol.lua): the job, the pay by arrest time, the damage charge
+M.PATROL = { unlock = 300, shiftS = 600, arrests = 3, earlyS = 60, radius = 22, reach = 80, car = 'fullsize', config = 'vehicles/fullsize/police.pc',
+             base = 180, arrestPay = 220, arrestDrop = 2, arrestMin = 80, slowAfter = 20, damageFree = 500, damagePer = 20, damageMax = 400 }
+-- an arrest pays its full price when it came within slowAfter seconds of the chase's start, then $2 less a second, never under the floor
+function M.arrestPay(seconds) return math.max(M.PATROL.arrestMin, M.PATROL.arrestPay - M.PATROL.arrestDrop * math.max(0, (tonumber(seconds) or 0) - M.PATROL.slowAfter)) end
+function M.patrolPay(arrests)
+  local total = M.PATROL.base
+  for _, sec in ipairs(arrests or {}) do total = total + M.arrestPay(sec) end
+  return math.floor(total / 10 + 0.5) * 10
+end
+-- the borrowed car comes back: a charge for the damage on it (the traffic data's damage figure), nothing for a scrape
+function M.damageCharge(damage)
+  if (tonumber(damage) or 0) <= M.PATROL.damageFree then return 0 end
+  return math.min(M.PATROL.damageMax, math.floor((damage - M.PATROL.damageFree) / M.PATROL.damagePer))
+end
+function M.shiftOver(elapsed, arrests) return (elapsed or 0) >= M.PATROL.shiftS or (arrests or 0) >= M.PATROL.arrests end
+-- the pursuit variables while you wear the badge: suspects keep coming, by day too
+function M.patrolVars(v, active) if active then v.suspectFrequency = 1 v.strictness = math.max(v.strictness or 0, 0.5) end return v end
 
 return M

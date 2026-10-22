@@ -32,6 +32,19 @@
     '.slp-page.slp-open{animation:slp-zoom .3s cubic-bezier(.2,.9,.25,1)}@keyframes slp-zoom{from{transform:scale(.2);opacity:0;border-radius:40px}to{transform:none;opacity:1}}',
     '@media (prefers-reduced-motion:reduce){.slp-device{transition:none !important}.slp-page.slp-open{animation:none}.slp-root *,.slp-root *:before,.slp-root *:after{transition:none!important;animation:none!important}}',
     '.slp-rm .slp-device,.slp-rm *,.slp-rm *:before,.slp-rm *:after{transition:none!important;animation:none!important}',      /* (the career option Reduce motion: the same) */
+    '.slp-crack{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:9;border-radius:36px}.slp-crack path{fill:none;stroke-linecap:round;stroke-linejoin:round}.slp-crack-dark path{stroke:rgba(0,0,0,.55);stroke-width:2.2px;vector-effect:non-scaling-stroke}.slp-crack-light path{stroke:rgba(255,255,255,.85);stroke-width:1px;vector-effect:non-scaling-stroke}.slp-crack path.slp-shard{fill:rgba(0,0,0,.28);stroke:none}',
+    '.slp-camon .slp-device,.slp-camon .slp-pill,.slp-camon .slp-hu{display:none!important}',
+    '.slp-camui{position:fixed;left:0;top:0;right:0;bottom:0;z-index:30;pointer-events:none;color:#fff;font-family:"Segoe UI","Roboto","Noto Sans",sans-serif;animation:slp-sway 5.5s ease-in-out infinite;transform-origin:50% 50%}',
+    '@keyframes slp-sway{0%,100%{transform:translate(0,0) rotate(0)}25%{transform:translate(calc(var(--slp-sway) * 3px),calc(var(--slp-sway) * -2px)) rotate(calc(var(--slp-sway) * .25deg))}50%{transform:translate(calc(var(--slp-sway) * -2px),calc(var(--slp-sway) * 2px)) rotate(calc(var(--slp-sway) * -.2deg))}75%{transform:translate(calc(var(--slp-sway) * 1.5px),calc(var(--slp-sway) * 1px)) rotate(calc(var(--slp-sway) * .15deg))}}',
+    '.slp-cambz{position:absolute;background:#050506}.slp-cbl{left:0;top:0;bottom:0;width:5.5vh;border-radius:0 3vh 3vh 0}.slp-cbl i{position:absolute;left:1.6vh;top:50%;width:1.7vh;height:1.7vh;margin-top:-.85vh;border-radius:50%;background:#15151a;box-shadow:0 0 0 .3vh #222}',
+    '.slp-cbr{right:0;top:0;bottom:0;width:3vh;border-radius:3vh 0 0 3vh}.slp-cbt{left:0;right:0;top:0;height:2.4vh}.slp-cbb{left:0;right:0;bottom:0;height:2.4vh}',
+    '.slp-camgrid i,.slp-camgrid b{position:absolute;background:rgba(255,255,255,.35);display:block}.slp-camgrid i{top:0;bottom:0;width:1px}.slp-camgrid i:nth-child(1){left:33.33%}.slp-camgrid i:nth-child(2){left:66.66%}.slp-camgrid b{left:0;right:0;height:1px}.slp-camgrid b:nth-child(3){top:33.33%}.slp-camgrid b:nth-child(4){top:66.66%}',
+    '.slp-camtop{position:absolute;left:8vh;right:6vh;top:3.4vh;display:flex;gap:2vh;align-items:center;font-size:2.2vh;text-shadow:0 1px 3px rgba(0,0,0,.8)}.slp-camtop span{pointer-events:auto;cursor:pointer;padding:.6vh 1.2vh;border-radius:2vh;background:rgba(0,0,0,.35)}.slp-camtop span:first-child{pointer-events:none;background:none;margin-right:auto}.slp-camtop .slp-on{background:rgba(255,213,79,.85);color:#3b2f00}.slp-camx{font-size:2.6vh}',
+    '.slp-camright{position:absolute;right:7vh;top:0;bottom:0;display:flex;align-items:center}.slp-camshutter{pointer-events:auto;cursor:pointer;width:11vh;height:11vh;border-radius:50%;border:.7vh solid #fff;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.2)}.slp-camshutter i{display:block;width:8vh;height:8vh;border-radius:50%;background:#fff}.slp-camshutter:active i{transform:scale(.88)}',
+    '.slp-cammodes{position:absolute;right:24vh;bottom:4.6vh;display:flex;gap:2.4vh;font-size:2vh;letter-spacing:.2vh;text-shadow:0 1px 3px rgba(0,0,0,.8)}.slp-cammodes span{opacity:.55}.slp-cammodes b{color:#ffd54f}',
+    '.slp-camzoom{position:absolute;left:50%;bottom:4.2vh;transform:translateX(-50%);display:flex;gap:1.2vh;background:rgba(0,0,0,.4);border-radius:3vh;padding:.6vh 1.2vh}.slp-camzoom span{pointer-events:auto;cursor:pointer;font-size:2.2vh;padding:.8vh 1.6vh;border-radius:2.4vh}.slp-camzoom .slp-on{background:rgba(255,255,255,.9);color:#111}',
+    '.slp-camflash{animation:none}.slp-camflash:before{content:"";position:absolute;left:0;top:0;right:0;bottom:0;background:#fff;opacity:0;animation:slp-fx .22s ease-out}@keyframes slp-fx{0%{opacity:.85}100%{opacity:0}}',
+    '.slp-camui .slp-crack{position:absolute;left:0;top:0;width:100%;height:100%}',
     '.slp-screen{position:relative;width:100%;height:100%;border-radius:36px;overflow:hidden;background:#141218;display:flex;flex-direction:column}',
     '.slp-cam{position:absolute;left:50%;top:10px;width:11px;height:11px;margin-left:-5.5px;border-radius:50%;background:#000;box-shadow:0 0 0 2px #1d1d22;z-index:5}',
     /* status bar */
@@ -77,6 +90,7 @@
     '.slp-ph.slp-on{border-color:#a8c7fa}',
     '.slp-bigph{margin:10px 12px;border-radius:14px;width:calc(100% - 24px);aspect-ratio:16/9;background:#211f26 center/cover no-repeat}',
     '.slp-empty{padding:40px 30px;text-align:center;color:#938f99;font-size:14px;line-height:1.5}',
+    '.slp-btn.slp-stack{flex-direction:column;height:auto;min-height:40px;padding:8px 16px;border-radius:16px;line-height:1.25;text-align:center}.slp-stack .slp-lbl{font-weight:500}.slp-stack small{display:block;font-weight:400;opacity:.85;white-space:normal}',      /* (a button with a label and a note under it: one column, as tall as it needs, never a 40 px pill with the note beside the label) */
     '.slp-btn{display:inline-flex;align-items:center;justify-content:center;height:40px;padding:0 20px;border-radius:20px;background:#a8c7fa;color:#062e6f;font-size:14px;font-weight:500;cursor:pointer;border:none}',
     '.slp-btn.slp-tonal{background:#3a3f4b;color:#d7e3ff}',
     '.slp-btn.slp-text{background:none;color:#a8c7fa;padding:0 12px}',
@@ -297,6 +311,7 @@
     '.slp-chcard.slp-chsl{border-left-color:#ff2a6d;background:linear-gradient(160deg,rgba(46,22,40,.96),rgba(14,10,20,.96))}',
     '.slp-chcard.slp-chsl b{color:#ff8a2a}',
     '.slp-slots{max-height:180px;overflow-y:auto;margin:6px 0}.slp-slot{padding:6px 0;border-top:1px solid rgba(255,255,255,.12)}.slp-slot span{display:block;opacity:.8}',
+    '.slp-routename{width:130px;background:rgba(0,0,0,.35);color:#fff;border:1px solid rgba(255,255,255,.25);border-radius:4px;padding:2px 6px}',
     '.slp-slotname{width:110px;background:rgba(0,0,0,.35);color:#fff;border:1px solid rgba(255,255,255,.25);border-radius:4px;padding:2px 6px}',
     '.slp-chcard .slp-btn{margin-top:8px;border-radius:4px;font-family:"Overpass","Roboto",sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:.4px}',
     '.slp-chcard .slp-go{background:#ff6600;color:#1d0d00}',
@@ -336,6 +351,8 @@
     sponsors: svg('M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14 2 9.27l6.91-1.01z'),
     event: svg('M14.4 6 14 4H5v17h2v-7h5.6l.4 2h7V6z'),
     calendar: svg('M19 3h-1V1h-2v2H8V1H6v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm0 16H5V9h14zM5 7V5h14v2zm2 4h5v5H7z'),
+    inventory: svg('M20 7l-8-4-8 4v10l8 4 8-4zM4 7l8 4 8-4M12 11v10'),
+    myroute: svg('M9 11.5A2.5 2.5 0 1 1 9 6.5a2.5 2.5 0 0 1 0 5zM9 2a6.500 6.500 0 0 0-6.500 6.500C2.500 13.400 9 21 9 21s6.500-7.600 6.500-12.500A6.500 6.500 0 0 0 9 2zm10 11h-4v2h4a1 1 0 0 1 0 2h-3v2h3a3 3 0 0 0 0-6z'),
     traps: svg('M20.38 8.57l-1.23 1.85a8 8 0 0 1-.22 7.58H5.07A8 8 0 0 1 15.58 6.85l1.85-1.23A10 10 0 0 0 3.35 19a2 2 0 0 0 1.72 1h13.85a2 2 0 0 0 1.74-1 10 10 0 0 0-.27-10.44zm-9.79 6.84a2 2 0 0 0 2.83 0l5.66-8.49-8.49 5.66a2 2 0 0 0 0 2.83z'),
     cab: svg('M18.9 6c-.2-.6-.8-1-1.4-1h-11c-.7 0-1.2.4-1.4 1L3 12v8a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-1h12v1a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-8zM6.5 16A1.5 1.5 0 1 1 8 14.5 1.5 1.5 0 0 1 6.5 16zm11 0a1.5 1.5 0 1 1 1.5-1.5 1.5 1.5 0 0 1-1.5 1.5zM5 11l1.5-4.5h11L19 11z'),
     me: svg('M12 2 4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5zm-1.5 14.5-4-4 1.4-1.4 2.6 2.6 6.1-6.1 1.4 1.4z'),
@@ -359,7 +376,7 @@
   var SLRR_ART = '/ui/modModules/slHud/slrr/icons/';
   var SLRR_ICON = { races: 'cup.png', garage: 'garage.png', bank: 'dollar.png', cab: 'city.png', me: 'roc.png' };
   function slrrIcon(name, cls) { return '<img class="slp-slrr ' + (cls || '') + '" src="' + SLRR_ART + name + '" alt="">'; }
-  var APP_COLORS = { map: '#3a7d6e', camera: '#3b6fa0', gallery: '#a05a8a', carmarket: '#2e7d4f', partmarket: '#a3322c', settings: '#5c6474', wait: '#4a5d7a', market: '#a3322c', paper: '#5b5346', bid: '#b5651d', club: '#6a2e7a', jobs: '#3d7a2e', phone: '#2e7d4f', messages: '#2f5fb3', contacts: '#7b4fb0', races: '#c2541e', bank: '#1f7a70', cab: '#b58a12', me: '#5c6474', garage: '#8a3b8f', garagekit: '#6b5b2e', traps: '#b4541a', health: '#b23a5e', help: '#4a6fa5', turf: '#7a4a2e', event: '#2f6f9f', calendar: '#2f6f9f', sponsors: '#9a6b12' };      // (every app has its own tile colour: the white icon needs a fill)
+  var APP_COLORS = { map: '#3a7d6e', camera: '#3b6fa0', gallery: '#a05a8a', carmarket: '#2e7d4f', partmarket: '#a3322c', settings: '#5c6474', wait: '#4a5d7a', market: '#a3322c', paper: '#5b5346', bid: '#b5651d', club: '#6a2e7a', jobs: '#3d7a2e', phone: '#2e7d4f', messages: '#2f5fb3', contacts: '#7b4fb0', races: '#c2541e', bank: '#1f7a70', cab: '#b58a12', me: '#5c6474', garage: '#8a3b8f', garagekit: '#6b5b2e', traps: '#b4541a', inventory: '#7a6a2e', myroute: '#2f8f6a', health: '#b23a5e', help: '#4a6fa5', turf: '#7a4a2e', event: '#2f6f9f', calendar: '#2f6f9f', sponsors: '#9a6b12' };      // (every app has its own tile colour: the white icon needs a fill)
   var AV_COLORS = ['#a8c7fa', '#f2b8b5', '#c3e7c6', '#ffd8a8', '#d0bcff', '#9fe0e8', '#ffb4ab', '#e8def8'];
   var CLASS_NAMES = { beater: T('ui.beaters', 'Beaters'), compact: T('ui.compacts', 'Compacts'), muscle: T('ui.muscle', 'Muscle'), tuner: T('ui.tuners', 'Tuners'), sport: T('ui.sports_cars', 'Sports cars'), super: T('ui.supercars', 'Supercars') };
 
@@ -383,6 +400,40 @@
 
   var STAKE_TEXT = { race: T('ui.race_for_money', 'Race for money'), high: T('ui.high_stakes', 'High stakes'), drag: T('ui.drag_race', 'Drag race'), pink: T('crews.pink_slips', 'Pink slips') };
   var QUICK = { race: T('phone.up_for_a_race', 'Up for a race?'), high: T('phone.race_me_high_stakes', 'Race me. High stakes.'), drag: T('phone.drag_race_at_the_test', 'Drag race at the test track?'), pink: T('phone.pink_slips_you_and_me', 'Pink slips. You and me.') };
+
+  // the cracked screen (sl_phonecrack, data.crack = { stage 1..3, x, y (the impact point, 0..1), seed, strength }): spider-web lines from the impact point, drawn over the whole screen and readable through
+  function crackRng(seed) { var s = (Number(seed) >>> 0) || 1; return function () { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
+  function crackPaths(stage, x, y, seed, w, h) {      // (w x h: the field in units, the screen's own shape, so the web is round: 100 x 211 portrait, 200 x 100 sideways)
+    w = Number(w) || 100; h = Number(h) || 211;
+    stage = Math.max(1, Math.min(3, Math.floor(Number(stage) || 1)));
+    var r = crackRng(seed), cx = (Number(x) || 0.5) * w, cy = (Number(y) || 0.4) * h, unit = Math.min(w, h) / 100, n = 5 + 3 * stage, step = Math.PI * 2 / n, radials = [], rings = [];
+    for (var i = 0; i < n; i++) {
+      var a = step * i + (r() - 0.5) * step * 0.5, len = unit * (22 + r() * (18 + stage * 22)), segs = 4 + stage, pts = [{ x: cx, y: cy }];
+      for (var k = 1; k <= segs; k++) {
+        var d = len * k / segs, jitter = (r() - 0.5) * 6 * unit;
+        pts.push({ x: cx + Math.cos(a) * d - Math.sin(a) * jitter, y: cy + Math.sin(a) * d + Math.cos(a) * jitter });
+      }
+      radials.push(pts);
+    }
+    var ringAt = stage === 1 ? [2] : stage === 2 ? [2, 4] : [2, 3, 4, 5];
+    ringAt.forEach(function (idx) {
+      for (var j = 0; j < n; j++) {
+        if (stage === 1 && j % 2) continue;      // (a light crack: the rings are broken)
+        var p1 = radials[j][idx], p2 = radials[(j + 1) % n][idx];
+        if (p1 && p2) rings.push([p1, { x: (p1.x + p2.x) / 2 + (r() - 0.5) * 3 * unit, y: (p1.y + p2.y) / 2 + (r() - 0.5) * 3 * unit }, p2]);
+      }
+    });
+    function pathD(pts) { return 'M' + pts.map(function (p) { return p.x.toFixed(1) + ' ' + p.y.toFixed(1); }).join(' L'); }
+    return radials.map(pathD).concat(rings.map(pathD));
+  }
+  function crackHtml(c, land) {
+    if (!c || !(Number(c.stage) > 0)) return '';
+    var w = land ? 200 : 100, h = land ? 100 : 211, paths = crackPaths(c.stage, c.x, c.y, c.seed, w, h), body = paths.map(function (d) { return '<path d="' + d + '"/>'; }).join('');
+    var shards = '';
+    if (Number(c.stage) >= 3) shards = '<path class="slp-shard" d="M' + (c.x * w - 6).toFixed(1) + ' ' + (c.y * h - 4).toFixed(1) + ' L' + (c.x * w + 9).toFixed(1) + ' ' + (c.y * h - 2).toFixed(1) + ' L' + (c.x * w + 2).toFixed(1) + ' ' + (c.y * h + 10).toFixed(1) + ' Z"/>';
+    return '<svg class="slp-crack" data-stage="' + Math.floor(Number(c.stage)) + '" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none" style="opacity:' + Math.max(0.3, Math.min(1, Number(c.strength) || 0.85)).toFixed(2) + '"><g class="slp-crack-dark">' + body + '</g><g class="slp-crack-light">' + body + '</g>' + shards + '</svg>';
+  }
+  if (typeof window !== 'undefined') window.__slPhoneCrack = { paths: crackPaths, html: crackHtml };
 
   function createPhone(doc, lua, clock) {
     clock = clock || { set: function (f, ms) { return setTimeout(f, ms); }, clear: function (t) { clearTimeout(t); }, now: function () { return Date.now(); } };
@@ -468,6 +519,8 @@
           { id: 'me', title: T('app.me', 'Street cred'), icon: I.me },
           { id: 'sponsors', title: T('app.sponsors', 'Sponsors'), icon: I.sponsors, badge: d.sponsors && d.sponsors.offer ? 1 : 0, hide: !d.sponsors || has.sponsors === false },
           { id: 'calendar', title: T('app.calendar', 'Calendar'), icon: I.calendar, badge: calOpenInvites(), hide: !d.calendar || has.calendar === false },
+          { id: 'inventory', title: T('app.inventory', 'Inventory'), icon: I.inventory, hide: !d.inventory || has.inventory === false },
+          { id: 'myroute', title: T('app.myroute', 'My routes'), icon: I.myroute, hide: !d.myroute || has.myroute === false },
           { id: 'traps', title: T('app.traps', 'Speed traps'), icon: I.traps, hide: !(d.traps && has.traps !== false) && !(d.danger && has.danger !== false) },
           { id: 'jobs', title: T('app.jobs', 'Jobs'), icon: I.jobs, badge: d.jobs && d.jobs.active ? 1 : 0, hide: has.jobs === false },
           { id: 'wait', title: T('app.wait', 'Wait'), icon: I.wait },
@@ -485,6 +538,7 @@
           { id: 'messages', title: T('app.messages', 'Messages'), icon: I.msg, badge: unread() || 0 },
           { id: 'contacts', title: T('app.contacts', 'Contacts'), icon: I.contacts },
           { id: 'cab', title: T('app.cab', 'Cab'), icon: I.cab },
+          { id: 'frjobs', title: T('app.frjobs', 'Freight runs'), icon: I.jobs, hide: !d.frjobs },
         ].map(onTrip)).replace(/<span>[^<]*<\/span>/g, '') + '</div></div>';
     }
 
@@ -619,9 +673,11 @@
     // (here) opens a panel of its own (reportModal) that fits the screen: a header with a close button and a body that scrolls, one collapsible
     // row per section with its condition, worst fault and repair estimate.
     var reports = {};                      // key -> the report, kept while the buttons are drawn so the panel can show it
-    function reportBlock(key, rp) {
+    var reportHist = {};                   // key -> the history lines of the ad (shown at the top of the panel)
+    function reportBlock(key, rp, history) {
       if (!rp || !rp.sections) return '';
       reports[key] = rp;
+      reportHist[key] = arr(history);
       return '<div class="slp-acts"><div class="slp-btn slp-tonal" data-a="report" data-v="' + esc(key) + '">' + T('ui.show_full_car_report', 'Show full car report') + '</div></div>';
     }
     function repWorst(rp) {                // the section in the worst condition: open when the panel opens
@@ -631,8 +687,10 @@
     }
     function repOpen(rp, id) { return st.repSec[id] !== undefined ? !!st.repSec[id] : id === repWorst(rp); }
     function reportModal() {
-      var rp = st.repOpen && reports[st.repOpen];
+      var rp = st.repOpen && (reports[st.repOpen] || st.repKeep);      // (the report as it was when the button was pressed, if a data push dropped it meanwhile)
       if (!rp) return '';
+      var hist = arr(reportHist[st.repOpen]);
+      var nothing = !(Number(rp.total) > 0) && !arr(rp.faults).length ? '<p>' + T('ui.nothing_more_to_report', 'Nothing more to report: no faults and no repair needed.') + '</p>' : '';
       var secs = arr(rp.sections).map(function (sc) {
         var open = repOpen(rp, sc.id);
         var worst = null;
@@ -649,6 +707,7 @@
       return '<div class="slp-repmodal"><div class="slp-reppanel"><div class="slp-rephead"><b>' + T('ui.car_report', 'Car report') + '</b><span>' + rp.condition + '% ' + esc(rp.label) + '</span>' +
         '<div class="slp-btn slp-tonal" data-a="reportclose">' + T('ui.close', 'Close') + '</div></div><div class="slp-repbody">' +
         '<div class="slp-kv"><span>' + T('ui.overall', 'Overall') + '</span><b>' + rp.condition + '% ' + esc(rp.label) + '</b></div>' +
+        hist.map(function (x) { return '<p>' + esc(x) + '</p>'; }).join('') + nothing +
         '<div class="slp-kv"><span>' + T('ui.mileage', 'Mileage') + '</span><b>' + Number(rp.mileage || 0).toLocaleString() + ' km</b></div><div class="slp-kv"><span>' + T('ui.dents_and_damage', 'Dents and damage') + '</span><b>' + esc(dm.label) + ' (' + (dm.amount || 0) + '%)</b></div>' +
         '<div class="slp-kv"><span>' + T('ui.known_faults', 'Known faults') + '</span><b>' + (arr(rp.faults).length ? esc(arr(rp.faults).join(', ')) : 'none') + '</b></div>' + secs +
         '<div class="slp-kv"><span><b>' + T('ui.repair_estimate_to_95', 'Repair estimate, to 95 %') + '</b></span><b>' + money(rp.total) + '</b></div></div></div></div>';
@@ -677,7 +736,7 @@
         '<p>' + esc(l.seller) + ' ' + '&#9733;'.repeat(l.rating || 0) + (l.metres != null ? T('ui.middot_1_away', ' &middot; {1} away', adDist(l.metres)) : '') + (l.hours ? T('ui.middot_delivered_in_about_1', ' &middot; delivered in about {1} h', l.hours) : '') +
         ' &middot; ' + l.condition + T('ui.condition', '% condition') + (l.faults ? T('ui.middot_1_fault_2', ' &middot; {1} fault{2}', l.faults, (l.faults > 1 ? 's' : '')) : '') + ' &middot; ' + Math.max(0, l.hoursLeft | 0) + (T('ui.h_left', ' h left') + '</p>') + tells +
         '<p><b>' + money(l.ask) + '</b>' + (l.agreed ? T('ui.agreed', ' (agreed)') : '') + ' &middot; deposit ' + money(l.deposit) + (l.delivery != null ? T('ui.middot_delivery_1', ' &middot; delivery +{1}', money(l.delivery)) : '') + '</p>' +
-        usedCheck(l) + reportBlock('ad:' + l.id, l.report) +
+        usedCheck(l) + reportBlock('ad:' + l.id, l.report, l.history) +
         adButtons(l).replace('<div class="slp-acts">', '<div class="slp-acts"><div class="slp-btn slp-tonal" data-a="adview" data-v="' + esc(l.id) + ('">' + T('ui.details', 'Details') + '</div>')) + '</div>';
     }
     // the detail view: the picture, every spec, the seller and the price
@@ -691,7 +750,7 @@
         row(T('ui.brand', 'Brand'), esc(l.brand)) + row(T('ui.year', 'Year'), l.year) + row(T('ui.mileage', 'Mileage'), l.mileage != null ? Number(l.mileage).toLocaleString() + ' km' : null) + row(T('ui.condition_2', 'Condition'), l.condition + '%') +
         row(T('ui.power', 'Power'), sp.power ? Math.round(sp.power) + ' PS' : null) + row(T('ui.weight', 'Weight'), sp.weight ? Math.round(sp.weight).toLocaleString() + ' kg' : null) +
         row(T('ui.transmission', 'Transmission'), esc(sp.transmission)) + row(T('ui.drivetrain', 'Drivetrain'), esc(sp.drivetrain)) + row(T('ui.fuel', 'Fuel'), esc(sp.fuel)) + row(T('ui.body', 'Body'), esc(sp.body)) +
-        row(T('ui.top_speed', 'Top speed'), sp.topSpeed ? Math.round(sp.topSpeed * 3.6) + ' km/h' : null) + (faults.length ? row(T('ui.needs', 'Needs'), esc(faults.join(', '))) : '') + usedCheck(l) + reportBlock('ad:' + l.id, l.report) + '</div>' +
+        row(T('ui.top_speed', 'Top speed'), sp.topSpeed ? Math.round(sp.topSpeed * 3.6) + ' km/h' : null) + (faults.length ? row(T('ui.needs', 'Needs'), esc(faults.join(', '))) : '') + usedCheck(l) + reportBlock('ad:' + l.id, l.report, l.history) + '</div>' +
         '<div class="slp-card">' + row(T('ui.seller', 'Seller'), esc(l.seller) + ' ' + '&#9733;'.repeat(l.rating || 0)) + row(T('ui.distance', 'Distance'), l.metres != null ? adDist(l.metres) : null) +
         row(T('ui.delivery', 'Delivery'), l.hours ? T('ui.to_your_garage_in_about', 'to your garage in about {1} h', l.hours) : null) + row(T('ui.asking', 'Asking'), money(l.ask)) + row(T('ui.deposit_pick_up', 'Deposit (pick up)'), money(l.deposit)) +
         (l.delivery != null ? row(T('ui.delivery_fee', 'Delivery fee'), money(l.delivery)) : '') + adButtons(l) + '</div></div>';
@@ -826,11 +885,12 @@
       var t = obj(st.data.turf);
       var rows = arr(t.districts).map(function (d) {
         return '<div class="slp-row"><div class="slp-rt"><b>' + esc(d.name) + (d.here ? T('ui.middot_you_are_here', ' &middot; you are here') : '') + '</b><span>' +
-          (d.yours ? T('ui.yours', 'Yours') : esc(d.owner)) + ' &middot; ' + d.control + T('ui.control', '% control') + (d.home ? T('ui.middot_home_of_1', ' &middot; home of {1}', esc(d.home)) : '') + '</span></div></div>';
+          (d.yours ? T('ui.yours', 'Yours') : esc(d.owner)) + ' &middot; ' + d.control + T('ui.control', '% control') + (d.home ? T('ui.middot_home_of_1', ' &middot; home of {1}', esc(d.home)) : '') +
+          (d.yours && d.cut != null ? ' &middot; ' + T('ui.turf_cut_week', '{1} a week', money(d.cut)) + (d.base ? ' (' + T('ui.turf_base', 'base') + ')' : '') : '') + '</span></div></div>';
       }).join('');
       var crews = arr(t.crews).map(function (c) { return '<p>' + esc(c.name) + (c.leader ? T('ui.middot_led_by_1', ' &middot; led by {1}', esc(c.leader)) : '') + '</p>'; }).join('');
       return bar(T('app.turf', 'Turf')) + '<div class="slp-body">' + turfMap(t) +
-        ('<div class="slp-empty">' + T('ui.beat_a_crew_on_its', 'Beat a crew on its own streets to take the district. You hold ')) + (t.held || 0) + '.' + (t.turfWar ? T('ui.the_leaders_want_a_word', ' The leaders want a word.') : '') + '</div>' +
+        ('<div class="slp-empty">' + T('ui.beat_a_crew_on_its', 'Beat a crew on its own streets to take the district. You hold ')) + (t.held || 0) + '.' + (t.turfWar ? T('ui.the_leaders_want_a_word', ' The leaders want a word.') : '') + (t.income != null ? ' ' + T('ui.turf_income', 'Next payout: {1}', money(t.income)) : '') + '</div>' +
         (rows || ('<div class="slp-empty">' + T('ui.no_districts_on_this_map', 'No districts on this map.') + '</div>')) + ('<div class="slp-card"><h4>' + T('ui.the_crews', 'The crews') + '</h4>') + crews + '</div></div>';
     }
 
@@ -1083,6 +1143,20 @@
       return bar(T('app.camera', 'Camera')) + '<div class="slp-body"><div class="slp-card"><p>' + esc(T('ui.camera_text', 'Takes a picture of what you see, without the phone or any other screen. It is kept in the Gallery and in the folder screenshots/street_legal.')) + '</p>' +
         '<div class="slp-acts"><div class="slp-btn" data-a="photo">' + T('ui.take_a_photo', 'Take a photo') + '</div></div></div></div>';
     }
+    // the Camera app as a camera (sl_phonecam puts the view in first person): a full-screen sideways phone over it. data.camera = { firstPerson, sway 0..1, grid, bezel, zoomMax }
+    function camHtml() {
+      var c = obj(st.data.camera), cam = st.cam = st.cam || { zoom: 1, flash: false, grid: c.grid !== false };
+      var zooms = [1, 2, 4, 8].filter(function (z) { return z <= (Number(c.zoomMax) || 4); });
+      var sway = Math.max(0, Math.min(1, c.sway == null ? 0.5 : Number(c.sway)));
+      return '<div class="slp-camui' + (st.camFlashFx ? ' slp-camflash' : '') + '" style="--slp-sway:' + sway.toFixed(2) + '">' +
+        (c.bezel === false ? '' : '<div class="slp-cambz slp-cbl"><i></i></div><div class="slp-cambz slp-cbr"></div><div class="slp-cambz slp-cbt"></div><div class="slp-cambz slp-cbb"></div>') +
+        (cam.grid ? '<div class="slp-camgrid"><i></i><i></i><b></b><b></b></div>' : '') +
+        '<div class="slp-camtop"><span>' + two(st.data.hour || 0) + ':' + two(st.data.minute || 0) + '</span><span class="slp-camflashb' + (cam.flash ? ' slp-on' : '') + '" data-a="camflash" data-v="1" role="button" aria-label="' + T('ui.cam_flash', 'Flash') + '">&#9889; ' + T('ui.cam_flash', 'Flash') + (cam.flash ? '' : ' &#215;') + '</span><span class="slp-camgridb' + (cam.grid ? ' slp-on' : '') + '" data-a="camgrid" data-v="1" role="button">&#9638; ' + T('ui.cam_grid', 'Grid') + '</span><span class="slp-camx" data-a="home" role="button" aria-label="' + T('ui.cam_close', 'Close the camera') + '">&#10005;</span></div>' +
+        '<div class="slp-camright"><div class="slp-camshutter" data-a="photo" data-v="1" role="button" aria-label="' + T('ui.cam_shutter', 'Take a photo') + '"><i></i></div></div>' +
+        '<div class="slp-cammodes"><b>' + T('ui.cam_mode_photo', 'PHOTO') + '</b><span>' + T('ui.cam_mode_portrait', 'PORTRAIT') + '</span><span>' + T('ui.cam_mode_pano', 'PANO') + '</span><span>' + T('ui.cam_mode_video', 'VIDEO') + '</span></div>' +
+        '<div class="slp-camzoom">' + zooms.map(function (z) { return '<span class="' + (cam.zoom === z ? 'slp-on' : '') + '" data-a="camzoom" data-v="' + z + '" role="button">' + z + '&times;</span>'; }).join('') + '</div>' +
+        crackHtml(st.data.crack, true) + '</div>';
+    }
     function galleryPage() {
       var list = arr(obj(st.photos).photos);
       var body = list.length ? '<div class="slp-photos">' + list.map(function (p) {
@@ -1120,6 +1194,25 @@
       if (st.tab.cab === 'dealer' && st.tab.cabtier !== 'all' && p.tier !== st.tab.cabtier) return false;
       return true;
     }
+    // free-roam freight runs (sl_frjobs.summary(); tools/frjobs_fixture.js): the board's offers with a Take button, the run under way with Cancel
+    function frJobsPage() {
+      var f = obj(st.data.frjobs), a = f.active;
+      function mins(s) { return Math.max(1, Math.round((Number(s) || 0) / 60)) + ' min'; }
+      function far(m) { return m < 1000 ? Math.round(m) + ' m' : (m / 1000).toFixed(1) + ' km'; }
+      var act = a ? '<div class="slp-card"><h4>' + T('ui.fr_active', 'On a run') + ': ' + esc(a.title || '') + '</h4><p>' + esc(a.item || '') + '</p>' +
+        '<div class="slp-kv"><span>' + (Number(a.leg) === 2 ? T('ui.fr_go_drop', 'Drop at {1}', esc(a.to || '')) : T('ui.fr_go_pickup', 'Pick up at {1}', esc(a.next || ''))) + '</span><b>' + money(a.pay) + '</b></div>' +
+        '<div class="slp-acts"><div class="slp-btn slp-tonal" data-a="frcancel">' + T('ui.fr_cancel', 'Cancel the run') + '</div></div></div>' : '';
+      var offers = arr(f.offers).map(function (o) {
+        return '<div class="slp-card"><h4>' + esc(o.title || '') + '</h4><p>' + esc(o.item || '') + '</p>' +
+          '<div class="slp-kv"><span>' + T('ui.fr_from', 'From') + '</span><b>' + esc(o.from || '') + '</b></div>' +
+          '<div class="slp-kv"><span>' + T('ui.fr_to', 'To') + '</span><b>' + esc(o.to || '') + '</b></div>' +
+          '<div class="slp-kv"><span>' + far(Number(o.metres) || 0) + ' &middot; ' + mins(o.seconds) + '</span><b>' + money(o.pay) + '</b></div>' +
+          (a ? '' : '<div class="slp-acts"><div class="slp-btn" data-a="frtake" data-v="' + esc(String(o.id)) + '">' + T('ui.fr_take', 'Take') + '</div></div>') + '</div>';
+      }).join('');
+      return bar(T('app.frjobs', 'Freight runs')) + '<div class="slp-body"><p style="padding:0 16px">' + T('ui.fr_intro', 'Take a run, pick the load up and drop it where it goes. Wrench Works pays on delivery.') + '</p>' + act +
+        (offers || (a ? '' : '<div class="slp-empty">' + T('ui.fr_none', 'No runs on the board right now. Check back later.') + '</div>')) + '</div>';
+    }
+
     function cabPage() {
       var rows = arr(st.data.places).filter(cabShown).map(function (p) {
         return '<div class="slp-row" data-a="taxi" data-v="' + esc(p.id) + '"><div class="slp-av" style="background:#ffd8a8">' + I.cab.replace('<svg', '<svg style="width:22px;height:22px;fill:#5b3d00"') + '</div>' +
@@ -1164,7 +1257,7 @@
       car = car || arr(st.data.fleet).filter(function (c) { return c.seated && c.tyres && arr(c.tyres.offers).length; })[0];
       if (!car) return '';
       var offers = arr(car.tyres.offers).filter(function (o) { return !o.current; }).map(function (o) {
-        return '<div class="slp-btn slp-tonal" data-a="tyreswap" data-v="' + esc(o.id) + '">' + esc(tyreName(o.id)) + '<br><small>' + money(o.price) + '</small></div>';
+        return '<div class="slp-btn slp-stack slp-tonal" data-a="tyreswap" data-v="' + esc(o.id) + '"><span class="slp-lbl">' + esc(tyreName(o.id)) + '</span><small>' + money(o.price) + '</small></div>';
       }).join('');
       return '<div class="slp-card" style="margin:6px 0 4px 0"><h4>' + T('ui.swap_tyres', 'Swap tyres') + '</h4><p>' + T('ui.swap_tyres_text', 'The crew changes the set where you stand. The car must be stopped.') + '</p>' +
         '<div class="slp-acts" style="flex-wrap:wrap">' + offers + '</div></div>';
@@ -1181,7 +1274,7 @@
       }).join('');
       var opts = arr(sv.options).map(function (o) {
         var ok = o.available !== false;
-        return '<div class="slp-btn slp-tonal' + (ok ? '' : ' slp-off') + '"' + (ok ? ' data-a="service" data-v="' + c.id + '|' + esc(o.id) + '"' : '') + '>' + esc(o.label || o.id) + '<br><small>' + money(o.cost) + (o.why ? ' &middot; ' + esc(o.why) : '') + '</small></div>';
+        return '<div class="slp-btn slp-stack slp-tonal' + (ok ? '' : ' slp-off') + '"' + (ok ? ' data-a="service" data-v="' + c.id + '|' + esc(o.id) + '"' : '') + '><span class="slp-lbl">' + esc(o.label || o.id) + '</span><small>' + money(o.cost) + (o.why ? ' &middot; ' + esc(o.why) : '') + '</small></div>';
       }).join('');
       var factor = Number(sv.wearFactor) || 1;
       return '<div class="slp-card" style="margin:6px 0 4px 0"><h4>' + (sv.due ? '&#9888; ' + T('ui.service_due', 'Service due') : T('ui.service', 'Service')) + '</h4><p>' +
@@ -1277,6 +1370,55 @@
         return '<div class="slp-kv"' + (x.unlocked ? '' : ' style="opacity:.6"') + '><span>' + esc(x.label || '') + '<br><small>' + esc(x.text || '') + '</small></span><b' + (x.unlocked ? ' class="slp-on"' : '') + '>' +
           (x.unlocked ? '&#10004; ' + T('ui.perk_open', 'Open') : T('ui.perk_rank', 'Rank {1}', Number(x.tier) || 0)) + '</b></div>';
       }).join('') + '</div>';
+    }
+
+    // the inventory (sl_inventory.summary(): { used, cap, groups = { { kind: item|can|tool|part, name, count, points, extra = { id|index, litres, size, uses, brand, wear } } } })
+    function inventoryPage() {
+      var iv = obj(st.data.inventory), groups = arr(iv.groups), used = Number(iv.used) || 0, cap = Number(iv.cap) || 0;
+      var pct = cap ? Math.min(100, Math.round(100 * used / cap)) : 0;
+      var head = '<div class="slp-card"><h4>' + T('ui.inv_boot', 'Boot') + '</h4><div class="slp-kv"><span>' + T('ui.inv_points', 'carry points') + '</span><b>' + used + ' / ' + cap + '</b></div>' +
+        '<div class="slp-meter"><i style="width:' + pct + '%"></i></div><p>' + T('ui.inv_intro', 'Car parts you buy wait here until you drive into your garage; oil, coolant, a battery, cans and tools stay until you use them.') + '</p></div>';
+      var rows = groups.map(function (g) {
+        var x = obj(g.extra), detail = '';
+        if (g.kind === 'can') detail = T('ui.inv_litres', '{1} of {2} L', Math.round(Number(x.litres) || 0), Number(x.size) || 0);
+        else if (g.kind === 'tool') detail = x.uses != null ? T('ui.inv_uses', '{1} uses left', Number(x.uses)) : '';
+        else if (g.kind === 'part') detail = (x.brand ? esc(x.brand) : '') + (Number(x.wear) > 0 ? (x.brand ? ' &middot; ' : '') + T('ui.inv_wear', '{1} % worn', Math.round(100 * Number(x.wear))) : '');
+        var key = g.kind === 'can' ? Number(x.index) : (x.id != null ? x.id : '');
+        var canUse = g.kind === 'item' && (x.id === 'oil' || x.id === 'coolant' || x.id === 'battery');
+        var canDrop = g.kind !== 'part';
+        var did = g.kind + ':' + key;
+        return '<div class="slp-row" style="min-height:48px;cursor:default"><div class="slp-rt"><b>' + esc(g.name || '') + (Number(g.count) > 1 ? ' &times;' + Number(g.count) : '') + '</b><small>' +
+          T('ui.inv_points_n', '{1} pts', Number(g.points) || 0) + (detail ? ' &middot; ' + detail : '') + '</small></div><div class="slp-acts">' +
+          (canUse ? '<div class="slp-btn slp-text" data-a="invuse" data-v="' + esc(String(x.id)) + '">' + T('ui.inv_use', 'Use') + '</div>' : '') +
+          (canDrop ? '<div class="slp-btn slp-text" data-a="invdrop" data-v="' + esc(did) + '">' + (st.invDrop === did ? T('ui.inv_drop_sure', 'Sure? Drop') : T('ui.inv_drop', 'Drop')) + '</div>' : '') + '</div></div>';
+      }).join('');
+      return bar(T('app.inventory', 'Inventory')) + '<div class="slp-body">' + head + (rows || '<div class="slp-empty">' + T('ui.inv_empty', 'Nothing in the boot.') + '</div>') + '</div>';
+    }
+
+    // my routes (sl_myroute.summary(): { routes = { { id, name, points, length (m), best (s, 0 = never), bestText, runs, last, lastText } }, draft (points dropped), draftMin, draftMax, maxRoutes,
+    // run = { id, name, next, points, started, t, clock } or nil })
+    function myroutePage() {
+      var m = obj(st.data.myroute), run = m.run, routes = arr(m.routes);
+      var km = function (len) { return Number(len) >= 1000 ? (len / 1000).toFixed(1) + ' km' : Math.round(len) + ' m'; };
+      var runCard = run ? '<div class="slp-card"><h4>' + T('ui.myroute_racing', 'Racing {1}: waypoint {2} of {3}', esc(run.name || ''), Math.min(Number(run.next) || 1, Number(run.points) || 1), Number(run.points) || 0) + '</h4>' +
+        '<div class="slp-kv"><span>' + (run.started ? T('ui.myroute_best', 'Best') : '') + '</span><b>' + (run.started ? esc(run.clock || '') : T('ui.myroute_to_start', 'Drive to the start of {1}', esc(run.name || ''))) + '</b></div>' +
+        '<div class="slp-btn slp-text" data-a="routestop" data-v="1">' + T('ui.myroute_stop', 'Stop') + '</div></div>' : '';
+      var draft = Number(m.draft) || 0;
+      var editor = run ? '' : '<div class="slp-card"><p>' + T('ui.myroute_intro', 'Drive to a place and drop a waypoint. Four to eight, then save: you race the route against the clock, and the best time is kept.') + '</p>' +
+        '<div class="slp-kv"><span>' + T('ui.myroute_dropped', 'Waypoints dropped: {1} of {2}', draft, Number(m.draftMax) || 8) + '</span></div>' +
+        '<div class="slp-acts"><div class="slp-btn slp-text" data-a="routedrop" data-v="1">' + T('ui.myroute_drop', 'Drop waypoint here') + '</div>' +
+        (draft ? '<div class="slp-btn slp-text" data-a="routeundo" data-v="1">' + T('ui.myroute_undo', 'Undo') + '</div><div class="slp-btn slp-text" data-a="routediscard" data-v="1">' + T('ui.myroute_discard', 'Discard') + '</div>' : '') + '</div>' +
+        (draft >= (Number(m.draftMin) || 4) ? '<div class="slp-acts"><input class="slp-routename" placeholder="' + T('ui.myroute_name', 'Name') + '" maxlength="24"><div class="slp-btn slp-text" data-a="routesave" data-v="1">' + T('ui.myroute_save', 'Save route') + '</div></div>' : '') + '</div>';
+      var cards = routes.map(function (r) {
+        return '<div class="slp-card"><h4>' + esc(r.name || '') + '</h4>' +
+          '<div class="slp-kv"><span>' + T('ui.myroute_length', 'Length') + '</span><b>' + km(r.length) + ' &middot; ' + (Number(r.points) || 0) + '</b></div>' +
+          '<div class="slp-kv"><span>' + T('ui.myroute_best', 'Best') + '</span><b>' + esc(r.bestText || '--') + '</b></div>' +
+          '<div class="slp-kv"><span>' + T('ui.myroute_last', 'Last') + '</span><b>' + esc(r.lastText || '--') + '</b></div>' +
+          '<div class="slp-kv"><span>' + T('ui.myroute_runs', 'Runs') + '</span><b>' + (Number(r.runs) || 0) + '</b></div>' +
+          '<div class="slp-acts">' + (run ? '' : '<div class="slp-btn slp-text" data-a="routerace" data-v="' + Number(r.id) + '">' + T('ui.myroute_race', 'Race it') + '</div>') +
+          '<div class="slp-btn slp-text" data-a="routedel" data-v="' + Number(r.id) + '">' + (st.routeDel === Number(r.id) ? T('ui.myroute_sure', 'Sure? Delete') : T('ui.myroute_delete', 'Delete')) + '</div></div></div>';
+      }).join('');
+      return bar(T('app.myroute', 'My routes')) + '<div class="slp-body">' + runCard + editor + (cards || '<div class="slp-empty">' + T('ui.myroute_none', 'No routes on this map yet.') + '</div>') + '</div>';
     }
 
     // the speed traps and zones (sl_traps.summary(): { list = { { id, name, kind: trap|zone, target km/h, best km/h (0 = never), count, paid, metres, pay } } }): nearest first
@@ -1402,7 +1544,7 @@
         var start = today - (dow - 1), cells = [];
         for (var i = 0; i < 7; i++) {
           var day = start + i, n = events.filter(function (e) { return Number(e.day) === day; }).length;
-          cells.push('<div class="slp-card" data-a="calday" data-v="' + day + '" style="margin:4px;padding:8px 4px;text-align:center;flex:1;min-width:0' + (day === today ? ';outline:2px solid #a8c7fa' : '') + '"><b>' + DAY_NAMES[i] + '</b><br><small>' + day + '</small><br>' + (n ? '<span class="slp-chip" style="margin:4px 0 0 0">' + n + '</span>' : '&nbsp;') + '</div>');
+          cells.push('<div class="slp-card" data-a="calday" data-v="' + day + '" style="margin:3px;padding:8px 2px;text-align:center;flex:1;min-width:0;overflow:hidden' + (day === today ? ';outline:2px solid #a8c7fa' : '') + '"><b>' + DAY_NAMES[i] + '</b><br><small>' + day + '</small><br>' + (n ? '<span class="slp-chip" style="margin:4px 0 0 0">' + n + '</span>' : '&nbsp;') + '</div>');
         }
         body = '<div style="display:flex;padding:0 12px">' + cells.join('') + '</div>' + (st.calDay != null ? '<div class="slp-acts" style="padding:0 16px"><div class="slp-btn slp-text" data-a="calday" data-v="">' + T('ui.cal_all_days', 'Show all days') + '</div></div>' : '') +
           events.filter(function (e) { return st.calDay == null || Number(e.day) === Number(st.calDay); }).map(function (e) { return calEventCard(c, e); }).join('');
@@ -1495,6 +1637,23 @@
       return im && im.standing && String(im.carId) === String(c.id) ? '<p>' + T('ui.impound_standing', 'Standing at the {1}', esc(im.place || '')) + '</p>' : '';
     }
 
+    // the trophy shelf's list (s.trophies = { { name, kind sprint|invite|series, day, place } }, newest last; tools/trophies_fixture.js): newest first, a card only when the list exists
+    var TROPHY_KIND = { sprint: T('ui.trophy_sprint', 'Sprint'), invite: T('ui.trophy_invite', 'Invitational'), series: T('ui.trophy_series', 'Series') };
+    function placeWord(n) { n = Number(n) || 0; var m = n % 100; var sfx = (m >= 11 && m <= 13) ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th'; return n + sfx; }
+    function trophiesCard() {
+      var list = st.data.trophies;
+      if (!Array.isArray(list)) return '';
+      var rows = list.slice().reverse().map(function (t) {
+        return '<div class="slp-kv"><span>&#127942; ' + esc(t.name || '') + '<br><small>' + (TROPHY_KIND[t.kind] || esc(t.kind || '')) + ' &middot; ' + T('ui.trophy_day', 'day {1}', Number(t.day) || 0) + '</small></span><b>' + placeWord(t.place) + '</b></div>';
+      }).join('');
+      return '<div class="slp-card"><h4>' + T('ui.trophies', 'Trophies: {1}', list.length) + '</h4>' + (rows || '<p>' + T('ui.trophy_none', 'No trophies yet. Win an invitational or a series.') + '</p>') + '</div>';
+    }
+    // a save from before the 0.8.0 economy is offered it (data.economyOffer = the text, only for such a save): one card, one button
+    function economyCard() {
+      var t = st.data.economyOffer;
+      if (!t) return '';
+      return '<div class="slp-card"><h4>' + T('ui.economy_title', 'New in 0.8.0') + '</h4><p>' + esc(t) + '</p><div class="slp-acts"><div class="slp-btn" data-a="economy" data-v="1">' + T('ui.economy_on', 'Turn them on') + '</div></div></div>';
+    }
     function mePage() {
       var d = st.data, s = obj(d.stats);
       var from = d.titleRep || 0, to = d.nextRep, pct = to ? Math.max(0, Math.min(100, ((d.rep || 0) - from) / (to - from) * 100)) : 100;
@@ -1502,8 +1661,8 @@
       var acts = [];
       if (d.nextGarage && d.nextGarage.canMove) acts.push(('<div class="slp-btn" data-a="move">' + T('ui.move_to', 'Move to ')) + esc(d.nextGarage.name) + '</div>');
       if (d.roc && !d.rocChampion) acts.push('<div class="slp-btn" data-a="roc">' + (d.rocRound ? T('ui.roc_round_1_of_3', 'ROC round {1} of 3', (d.rocRound + 1)) : T('ui.enter_the_roc_middot_1', 'Enter the ROC &middot; {1}', money(d.rocEntry))) + '</div>');
-      return bar(T('app.me', 'Street cred')) + '<div class="slp-body"><div class="slp-card"><h4>' + esc(d.title) + '</h4><p>' + (d.rep || 0) + ' reputation' + (to ? T('ui.middot_next_title_at_1', ' &middot; next title at {1}', to) : '') + '</p>' +
-        '<div class="slp-meter"><i style="width:' + pct.toFixed(1) + '%"></i></div></div>' + perksCard() + wantedCard() +
+      return bar(T('app.me', 'Street cred')) + '<div class="slp-body">' + economyCard() + '<div class="slp-card"><h4>' + esc(d.title) + '</h4><p>' + (d.rep || 0) + ' reputation' + (to ? T('ui.middot_next_title_at_1', ' &middot; next title at {1}', to) : '') + '</p>' +
+        '<div class="slp-meter"><i style="width:' + pct.toFixed(1) + '%"></i></div></div>' + perksCard() + wantedCard() + trophiesCard() +
         ('<div class="slp-card"><div class="slp-kv"><span>' + T('ui.garage', 'Garage') + '</span><b>') + esc(d.garage || '') + '</b></div>' + next +
         (d.hasRoc === false ? '' : ('<div class="slp-kv"><span>' + T('activityrules.race_of_champions', 'Race of Champions') + '</span><b>') + (d.roc ? T('ui.open_to_you', 'Open to you') : T('ui.not_yet', 'Not yet')) + '</b></div>') +
         ('<div class="slp-kv"><span>' + T('ui.cars', 'Cars') + '</span><b>') + (d.cars || 0) + '</b></div>' +
@@ -1651,7 +1810,7 @@
       if (!g || !g.open) return '';
       var pick = st.fuelPick || 'premium';
       var grades = arr(g.fuels).map(function (f) {
-        return '<div class="slp-btn' + (f.id === pick ? '' : ' slp-tonal') + '" data-a="fuelpick" data-v="' + esc(f.id) + '">' + esc(f.name) + '<br><small>$' + Number(f.price).toFixed(2) + '/L</small></div>';
+        return '<div class="slp-btn slp-stack' + (f.id === pick ? '' : ' slp-tonal') + '" data-a="fuelpick" data-v="' + esc(f.id) + '"><span class="slp-lbl">' + esc(f.name) + '</span><small>$' + Number(f.price).toFixed(2) + '/L</small></div>';
       }).join('');
       var tank = g.car ? T('ui.your_1_2_3_4', 'Your {1}: {2}{3}{4}', esc(g.car), (g.tank != null ? Math.round(g.tank * 100) + '% full' : ''), (g.inTank ? ' &middot; ' + esc(g.inTank) : ''), (g.litresToFull != null ? ' &middot; ' + Math.round(g.litresToFull) + ' L to fill' : '')) : T('ui.come_in_your_car_to', 'Come in your car to fill it up.');
       var shop = arr(g.items).map(function (it) {
@@ -1783,6 +1942,7 @@
     }, true);
     doc.addEventListener('keydown', function (ev) {
       if (st.chooser && (ev.key === 'Escape' || ev.keyCode === 27)) { st.chooser = false; render(); ev.stopPropagation(); }
+      if (st.camOn && (ev.key === 'Escape' || ev.keyCode === 27)) { home(); ev.stopPropagation(); }      // (Esc leaves the camera: the previous camera comes back)
     }, true);
 
     // the fade: black, or one of SLRR's loading screens (a cab ride, the garage, the dealer)
@@ -1850,7 +2010,10 @@
         case 'sponsors': page = sponsorsPage(); break;
         case 'calendar': page = calendarPage(); break;
         case 'traps': page = trapsPage(); break;
+        case 'inventory': page = inventoryPage(); break;
+        case 'myroute': page = myroutePage(); break;
         case 'cab': page = cabPage(); break;
+        case 'frjobs': page = frJobsPage(); break;
         case 'me': page = mePage(); break;
         case 'garage': page = garagePage(); break;
         case 'garagekit': page = garageKitPage(); break;
@@ -1861,12 +2024,15 @@
       layer.style.setProperty('--sl-zoom', zoom); layer.setAttribute('data-zoom', zoom);
       layer.classList.toggle('slp-cb', !!d.colorBlind);      // #51 colour-blind friendly colours
       layer.classList.toggle('slp-rm', !!d.reduceMotion);      // the Reduce motion option (docs/UI_STYLE.md)
+      var camNow = !!(d.active && st.open && st.app === 'camera');      // (the Camera app is a camera: first person, the phone drawn sideways over it)
+      if (camNow !== !!st.camOn) { st.camOn = camNow; if (camNow) st.cam = { zoom: 1, flash: false, grid: obj(d.camera).grid !== false }; lua(camNow ? 'cameraEnter()' : 'cameraLeave()'); }
+      layer.classList.toggle('slp-camon', camNow);
       var isHome = st.app === 'home';
       var screen = '<div class="slp-screen' + (isHome ? ' slp-home-on' : '') + '"><div class="slp-cam"></div>' +
         '<div class="slp-status">' + two(d.hour || 0) + ':' + two(d.minute || 0) + '<div class="slp-sr">' + I.signal + I.wifi + I.battery + '</div></div>' +
         (isHome ? homePage() : '<div class="slp-page">' + page + '</div>') +
         (st.call ? callPage() : '') +
-        '<div class="slp-nav"><div data-a="back">' + NAV.back + '</div><div data-a="home">' + NAV.home + '</div><div data-a="away">' + NAV.recent + '</div></div></div>';
+        '<div class="slp-nav"><div data-a="back">' + NAV.back + '</div><div data-a="home">' + NAV.home + '</div><div data-a="away">' + NAV.recent + '</div></div>' + crackHtml(d.crack, mapWanted()) + '</div>';
       var hu = st.hu;
       var huHtml = '<div class="slp-hu' + (hu && !st.open && !lotHides() && obj(d.has).hudpill !== false ? '' : ' slp-gone') + '" data-a="openthread" data-v="' + esc(hu ? hu.thread : '') + '">' +
         (hu ? avatar({ id: hu.thread, name: hu.name }) + ('<div><small>' + T('ui.messages', 'Messages ') + '&middot;' + ' now' + '</small><b>') + esc(hu.name) + '</b><span>' + esc(hu.text) + '</span></div>' : '') + '</div>';
@@ -1875,7 +2041,7 @@
           (d.phase ? '<span>' + (d.phase === 'night' ? '&#9790;' : '&#9728;') + '</span>' : '') + (d.heat > 0 ? '<span style="color:#ff6a4a">' + '&#9650;'.repeat(d.heat) + '</span>' : '') + (d.phase === 'night' && d.atRisk > 0 ? '<span style="color:#ffb74a">+' + d.atRisk + (T('ui.at_risk', ' at risk') + '</span>') : '') + '<span>' + two(d.hour || 0) + ':' + two(d.minute || 0) + '</span></div>' +
         '<div class="slp-device@@LAND@@' + (st.open ? '' : ' slp-away') + '" style="transform:' + (st.open ? '' : 'translateY(70%) ') + 'scale(' + scale() + ')">' + screen + '</div>' +
         lotView() + garageView() + stationView() + meetView() + raceView() +
-        huHtml + reportModal() +
+        huHtml + reportModal() + (camNow ? camHtml() : '') +
         '<div class="slp-toast' + (st.toast ? '' : ' slp-gone') + '">' + esc(st.toast || '') + '</div>' +
         fadeView();
       // the game sends the data every few seconds: a screen that did not change is left alone (a rebuild between the press and the release of a click loses the
@@ -2149,7 +2315,7 @@
         case 'watchreplay': lua('watchReplay()'); break;
         case 'saveclip': lua('saveClip()'); break;
         case 'adview': go('ad', { adId: v }); break;
-        case 'report': st.repOpen = v; st.repSec = {}; render(); break;
+        case 'report': st.repOpen = v; st.repKeep = reports[v] || null; st.repSec = {}; render(); break;
         case 'reportclose': st.repOpen = null; render(); break;
         case 'repsec': var rpOpen = st.repOpen && reports[st.repOpen]; if (rpOpen) { st.repSec[v] = !repOpen(rpOpen, v); render(); } break;
         case 'workon': lua('workOn(' + Number(v) + ')'); st.garage = null; break;
@@ -2178,6 +2344,9 @@
           if (String(st.tkArmed) !== String(v)) { st.tkArmed = String(v); render(); break; }      // (the lawyer's fee is paid up front: ask once more)
           st.tkArmed = null; lua('contestTicket(' + JSON.stringify(String(v)) + ')'); break;
         case 'informant': lua('informant()'); break;
+        case 'economy': lua('economyOptIn()'); break;
+        case 'frtake': lua('frjobAccept(' + JSON.stringify(String(v)) + ')'); break;
+        case 'frcancel': lua('frjobCancel()'); break;
         case 'paydebt': lua('payDebt(' + Number(v) + ')'); break;
         case 'spnaccept': lua('sponsorAccept()'); break;
         case 'spndecline': lua('sponsorDecline()'); break;
@@ -2192,6 +2361,9 @@
         case 'calenter': lua('calendarEnter(' + JSON.stringify(String(v)) + ')'); break;
         case 'caldecline': lua('calendarDecline(' + JSON.stringify(String(v)) + ')'); st.calEvent = null; break;
         case 'calremind': var cr = String(v).split('|'); lua('calendarRemind(' + JSON.stringify(cr[0]) + ',' + (cr[1] === 'true' ? 'true' : 'false') + ')'); break;
+        case 'camzoom': st.cam = st.cam || {}; st.cam.zoom = Number(v) || 1; lua('cameraZoom(' + (Number(v) || 1) + ')'); render(); break;
+        case 'camflash': st.cam = st.cam || {}; st.cam.flash = !st.cam.flash; render(); break;
+        case 'camgrid': st.cam = st.cam || {}; st.cam.grid = !st.cam.grid; render(); break;
         case 'caltravel': st.pickDismissed = null; lua('travelPick(' + JSON.stringify(String(v)) + ')'); break;
         case 'pickcar':
           var ps = arr(st.pickSel).slice(), pi = ps.indexOf(String(v));
@@ -2252,6 +2424,26 @@
         case 'slotplay':
           if (askOf(Number(v))) { st.visitAsk = Number(v); render(); break; }
           lua('@sl_menuTile.startFromMenu(false,' + Number(v) + ')'); st.menu = null; st.chooser = false; render(); break;
+        case 'invuse': lua('@sl_inventory.use(' + JSON.stringify(String(v)) + ')'); break;
+        case 'invdrop':
+          if (st.invDrop !== v) { st.invDrop = v; render(); break; }
+          st.invDrop = null;
+          var ip = String(v).split(':');
+          lua('@sl_inventory.discard(' + JSON.stringify(ip[0]) + ',' + (ip[0] === 'can' ? Number(ip[1]) : JSON.stringify(ip[1])) + ')');
+          break;
+        case 'routedrop': lua('@sl_myroute.drop()'); break;
+        case 'routeundo': lua('@sl_myroute.undo()'); break;
+        case 'routediscard': lua('@sl_myroute.discard()'); break;
+        case 'routestop': lua('@sl_myroute.cancel()'); break;
+        case 'routerace': lua('@sl_myroute.race(' + Number(v) + ')'); break;
+        case 'routesave':
+          var rn = root.querySelector('.slp-routename');
+          lua('@sl_myroute.save(' + JSON.stringify(String(rn && rn.value || '')) + ')');
+          break;
+        case 'routedel':
+          if (st.routeDel !== Number(v)) { st.routeDel = Number(v); toast(T('ui.click_again_to_delete_that', 'Click again to delete that career for good.')); render(); break; }
+          st.routeDel = null; lua('@sl_myroute.delete(' + Number(v) + ')');
+          break;
         case 'slotname':
           var inp = root.querySelector('.slp-slotname[data-slot="' + Number(v) + '"]');
           if (inp) lua('@sl_menuTile.renameSlot(' + Number(v) + ',' + JSON.stringify(String(inp.value || '')) + ')');
@@ -2388,6 +2580,7 @@
         case 'slLaptopOffers': st.offers = data; render(); break;
         case 'slRace': st.race = data.on ? data : null; render(); break;
         case 'slMenu': st.menu = data.show ? data : null; render(); break;
+        case 'slrrGarageState': if (data && data.phase && data.phase !== 'idle' && st.open) setOpen(false, true); break;      // (Wrench Works' garage: its screens take the right of the view, the phone is put away while a visit is on)
         case 'slArt': st.slrrArt = true; render(); break;
       }
     }
@@ -2423,7 +2616,7 @@
         probe.onload = function () { phone.handle('slArt'); };
         probe.src = '/ui/modModules/slHud/slrr/icons/cup.png';
       });
-      ['slPhoneData', 'slPhoneSkin', 'slPhoneToggle', 'slPhoneGo', 'slPhoneCall', 'slPhoneCallReply', 'slPhoneNotify', 'slPhoneToast', 'slFade', 'slLotBars', 'slLotData', 'slMeet', 'slRace', 'slMenu', 'slStation', 'slGarage', 'slPhotos', 'slMap', 'slPeople', 'slLaptopDealers', 'slAuctions', 'slRivals', 'slLaptopOffers', 'slHelp', 'slStrings', 'slMapsTiles', 'slMapsPose', 'slMapsRoute', 'slMapsPlaces', 'slMapsOptions'].forEach(function (name) {
+      ['slPhoneData', 'slPhoneSkin', 'slPhoneToggle', 'slPhoneGo', 'slPhoneCall', 'slPhoneCallReply', 'slPhoneNotify', 'slPhoneToast', 'slFade', 'slLotBars', 'slLotData', 'slMeet', 'slRace', 'slMenu', 'slrrGarageState', 'slStation', 'slGarage', 'slPhotos', 'slMap', 'slPeople', 'slLaptopDealers', 'slAuctions', 'slRivals', 'slLaptopOffers', 'slHelp', 'slStrings', 'slMapsTiles', 'slMapsPose', 'slMapsRoute', 'slMapsPlaces', 'slMapsOptions'].forEach(function (name) {
         $rootScope.$on(name, function (ev, data) { phone.handle(name, data); });
       });
       if (window.bngApi) window.bngApi.engineLua('if sl_phone then sl_phone.request() end if sl_menuTile then sl_menuTile.request() end');

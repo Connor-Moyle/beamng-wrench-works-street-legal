@@ -185,8 +185,10 @@ local function finishRound(rec, round)
   st.finished, st.paid = true, true
   local purse = def.purse or 0
   local prize = rules.prize(def, mine and mine.pos or 99, purse)
+  if sl_seasons and sl_seasons.purse then prize.money = math.floor(prize.money * (sl_seasons.purse(def.class == 'rally' and 'rally' or 'series') or 1) + 0.5) end          -- (Seasons)
   if prize.money > 0 then sl_career.payOut(prize.money, strings.t('series.prize_label', def.id)) end
   if prize.rep > 0 then stateLib.addRep(s, prize.rep) end
+  if mine and mine.pos == 1 then s.trophies = require('sl/core/trophies').add(s.trophies, strings.t('series.title_' .. def.id), 'series', s.day, 1) end
   local podium = {}
   for i = 1, math.min(3, #list) do podium[i] = { name = list[i].name, points = list[i].points, you = list[i].you } end
   toast(strings.t('series.finished', mine and mine.pos or '-', prize.money))

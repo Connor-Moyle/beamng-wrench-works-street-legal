@@ -13,6 +13,7 @@ local M = {}
 local strings = require('sl/core/strings')
 
 local heatLib = require('sl/core/heat')
+local drawcache = require('sl/core/drawcache')
 local chaseLib = require('sl/core/chase')
 local spawnplan = require('sl/core/spawnplan')
 local rngLib = require('sl/core/rng')
@@ -47,6 +48,7 @@ function M.level() return heatLib.level(M.heat()) end
 
 local function addHeat(x)
   local s = state()
+  if sl_patrol and sl_patrol.active and sl_patrol.active() then return end      -- (P12: no heat while you wear the badge)
   if s and night() then
     local before = heatLib.level(s.heat or 0)
     s.heat = heatLib.raised(s.heat, x)
@@ -67,13 +69,16 @@ local function applyVars()
   if not (gameplay_police and gameplay_police.setPoliceVars) then return end
   local level = M.level()
   local levels = opt('slPoliceLevels')
-  local key = tostring(phase()) .. level .. tostring(levels)
+  local suspended = sl_justice ~= nil and sl_justice.suspended ~= nil and sl_justice.suspended() == true      -- (P8: a suspended licence: the police watch by day too)
+  local patrol = sl_patrol ~= nil and sl_patrol.active ~= nil and sl_patrol.active() == true                   -- (P12: on a patrol shift the suspects keep coming)
+  local key = tostring(phase()) .. level .. tostring(levels) .. tostring(suspended) .. tostring(patrol)
   if key == appliedVars then return end
   appliedVars = key
-  local vars = chaseLib.vars(phase(), level)
+  local vars = chaseLib.patrolVars(chaseLib.suspendedVars(chaseLib.vars(phase(), level), suspended), patrol)
   if levels and phase() == 'night' then vars.scoreLevels = chaseLib.scoreLevels(level) end      -- (P1: the hotter, the sooner the game's chase climbs a level)
   gameplay_police.setPoliceVars(vars)
 end
+function M.refreshVars() appliedVars = nil applyVars() end      -- (sl_patrol: the shift starts or ends)
 
 -- ---- P6: radio chatter (text): the game's message line, and the last lines for the dashboard (chaseState.chatter)
 local radio = {}
@@ -97,6 +102,7 @@ local function say(event, ctx)
   while #radio > 3 do table.remove(radio, 1) end
   if ui_message then ui_message(text, 4, 'slPoliceRadio') end
 end
+function M.radioSay(event, ctx) say(event, ctx) end      -- (sl_pursuit: the box and PIT lines)
 function M.radio() return radio end
 
 local nodeAround              -- (defined below)
@@ -337,8 +343,10 @@ local function breakerWatch()
     local d = math.sqrt((s.x - p.x) ^ 2 + (s.y - p.y) ^ 2)
     if d < nearD then near, nearD = s, d end
     if d < 300 and debugDrawer then
-      local pulse = 0.5 + 0.5 * math.sin(os.clock() * 4)
-      debugDrawer:drawCylinder(vec3(s.x, s.y, s.z), vec3(s.x, s.y, s.z + 7), 0.35, ColorF(1, 0.55, 0.1, 0.35 + 0.35 * pulse))
+      -- (the post's two points and the colour are built once and the colour's alpha is moved, not a new vec3 pair and ColorF for every post every frame)
+      local post = drawcache.get('breaker:' .. s.x .. ',' .. s.y, function() return { vec3(s.x, s.y, s.z), vec3(s.x, s.y, s.z + 7), ColorF(1, 0.55, 0.1, 0.5) } end)
+      post[3].a = 0.35 + 0.35 * (0.5 + 0.5 * math.sin(os.clock() * 4))
+      debugDrawer:drawCylinder(post[1], post[2], 0.35, post[3])
     end
   end
   if wallOut and os.clock() - wallAt > 25 then parkWall() end
@@ -457,6 +465,8 @@ local function updatePatrols()
 end
 
 -- for the tests (run_lua): a patrol 80-160 m from you and a chase started with it. Returns the words for the log.
+-- a chase from where the player stands (the impound lot's fence, P10): the tester's debugChase does the same
+function M.chaseFromHere() return M.debugChase() end
 function M.debugChase()
   local v = getPlayerVehicle(0)
   if not (v and gameplay_police and gameplay_traffic) then return 'no player or no police' end

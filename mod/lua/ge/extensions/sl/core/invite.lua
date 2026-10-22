@@ -25,9 +25,9 @@ M.RACE_CARS = {
 
 -- may a brand invite the player now? info = { count (given so far), pending (an invitation is open), last (the day of the last one), day, brand, standing, sponsorWeeks }
 function M.eligible(info)
-  if (info.count or 0) >= M.MAX or info.pending or not info.brand then return false end
-  if info.last and (info.day or 0) - info.last < M.GAP then return false end
-  return (info.standing or 0) >= M.STANDING_MIN or (info.sponsorWeeks or 0) >= M.WEEKS_MIN
+  if (info.count or 0) >= (info.max or M.MAX) or info.pending or not info.brand then return false end
+  if info.last and (info.day or 0) - info.last < (info.gap or M.GAP) then return false end
+  return (info.standing or 0) >= (info.min or M.STANDING_MIN) or (info.sponsorWeeks or 0) >= M.WEEKS_MIN
 end
 
 -- the car the brand lends: a race config of one of its own models (ofCar(model) -> maker id), else the first of the list
@@ -45,11 +45,12 @@ function M.new(n, brand, day, car)
 end
 
 -- the brand that invites: the sponsor of four weeks, else the maker with the best standing from 250 (standing = { [brand] = { standing } }, kindOf(id) -> 'maker'|...)
-function M.pickBrand(standing, sponsor, day, kindOf)
+function M.pickBrand(standing, sponsor, day, kindOf, min)
+  min = min or M.STANDING_MIN
   if sponsor and sponsor.brand and (day - (sponsor.since or day)) >= M.WEEKS_MIN * 7 then return sponsor.brand end
   local best, bestStanding
   for id, e in pairs(standing or {}) do
-    if kindOf(id) == 'maker' and (tonumber(e.standing) or 0) >= M.STANDING_MIN and (not best or (tonumber(e.standing) or 0) > bestStanding or ((tonumber(e.standing) or 0) == bestStanding and id < best)) then best, bestStanding = id, tonumber(e.standing) or 0 end
+    if kindOf(id) == 'maker' and (tonumber(e.standing) or 0) >= min and (not best or (tonumber(e.standing) or 0) > bestStanding or ((tonumber(e.standing) or 0) == bestStanding and id < best)) then best, bestStanding = id, tonumber(e.standing) or 0 end
   end
   return best
 end
@@ -61,10 +62,11 @@ function M.event(inv, title, place)
 end
 
 -- the reward of a place (nil place: did not finish): money, reputation, standing with the brand, and the trophy for a win
-function M.reward(place)
+function M.reward(place, scale)
   local table_ = { [1] = { money = 3000, rep = 60, standing = 100 }, [2] = { money = 1800, rep = 35, standing = 60 }, [3] = { money = 1000, rep = 20, standing = 30 } }
   local r = place and table_[place] or { money = place and 300 or 0, rep = place and 5 or 0, standing = place and 10 or 0 }
-  return { money = r.money, rep = r.rep, standing = r.standing, trophy = place == 1 }
+  scale = tonumber(scale) or 1
+  return { money = math.floor(r.money * scale + 0.5), rep = r.rep, standing = math.floor(r.standing * scale + 0.5), trophy = place == 1 }
 end
 
 return M

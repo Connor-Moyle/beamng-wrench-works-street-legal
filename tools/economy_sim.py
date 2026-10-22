@@ -24,6 +24,9 @@ WEEKLY = '--noweekly' not in sys.argv      # the weekly costs of core/weekly.lua
 BOOST = '--noboost' not in sys.argv     # the early-game boost in sl_jobs
 SHOPS = '--noshops' not in sys.argv     # what the shops of sl_shops take (docs/SHOPS_REWORK.md step 3): (price, how often a week) of the services a player buys now and then; a guess to check in game
 SHOP_WEEK = [('wash', 15, 3.0), ('scratch polish', 120, 0.6), ('dyno run', 90, 0.4), ('respray', 450, 0.08), ('special order (performance)', 1500, 0.12)]
+NEEDS = '--needs' in sys.argv           # the Needs part (off by default in the game): food and drink every day: two drinks (2), a snack (3) and a meal (12) = $19 a day; --plan: the meal plan ($60 a week) pays the meals
+NEEDS_PLAN = '--plan' in sys.argv
+NEEDS_WEEK = (60 + 7 * 7) if NEEDS_PLAN else 7 * 19      # the plan: $60 + drinks and a snack every day ($7); without: $19 a day
 SHOP_SPONSOR = float(os.environ.get('SHOP_FACTOR', '1.0'))      # a sponsor's price factor (sl_shops.setPriceFactor), 0.9 = ten per cent off
 DAY_MIN = 30.0            # real minutes per in-game day (BeamNG's TimeOfDay dayLength; verify in game)
 NIGHT = (20, 5)           # night hours, as progression.isNight
@@ -41,6 +44,7 @@ TUNE = dict(               # the game's numbers since the balance pass (DESIGN3_
     race_rep_base=35,       # progression.raceResult: rep for a win = base + bet/100 (x1.5 at night)
     job_rep=10,             # sl_jobs: rep per job done
     fine_base=250, fine_offence=150, fine_racing=500,    # progression.policeFine
+    ticket_base=120, ticket_offence=60, pullover=0.35,    # core/chase: a pull-over at level 1 is a ticket (police batch 2); the share of caught chases that are pull-overs at night
     heat_decay_per_min=0.01,  # sl_police: heat cooling per real minute (on top of the daily x0.7)
     crush_pay=250, hot_base=400, hot_per_km=220, test_top=1200, test_slope=3000,
 )
@@ -61,6 +65,7 @@ def race_rep(won, bet, night, opp_rep, my_rep, pink=False):          # progressi
     return round(rep)
 
 def police_fine(racing): return TUNE['fine_base'] + TUNE['fine_offence'] + (TUNE['fine_racing'] if racing else 0)
+def ticket_fine(): return TUNE['ticket_base'] + TUNE['ticket_offence']
 
 # jobs: (name, unlock rep, night only, pay(dist m, rng) -> $, minutes(dist, rng), rep on success, fail chance)
 def job_part(d, r):
@@ -78,6 +83,7 @@ JOBS = [
     ('test driver', 600, False, lambda r: (round(TUNE['test_top'] - (r.uniform(1.15, 1.35) - 1.15) * TUNE['test_slope'], -2), 0.3), lambda r, d=None: 6.0, 6),
     # day job variety (sl_jobs scrapparts / tow / dealerdrive; the taxi's pay carries an average comfort tip of a quarter of the fare)
     ('scrapyard parts', 0, False, lambda r: (lambda d: (round(max(120, d / 1000 * 140 * 1.5), -1), 0.06))(r.uniform(1200, 3000)), lambda r, d=None: 2 + r.uniform(1200, 3000) / CITY_SPEED / 60, 6),
+    ('patrol shift', 300, False, lambda r: (round(180 + sum(max(80, 220 - 2 * max(0, r.uniform(15, 120) - 20)) for _ in range(r.choice([1, 2, 2, 3]))) - r.choice([0, 0, 40, 120]), -1), 0.12), lambda r, d=None: 13 + r.uniform(0, 3), 6),      # sl_patrol: a ten-minute shift, one to three arrests paid by speed, a damage charge now and then
     ('tow job', 300, False, lambda r: (lambda d: (round(240 + d / 1000 * 180, -1), 0.1))(r.uniform(600, 2500)), lambda r, d=None: 3 + r.uniform(600, 2500) / 6 / 60, 6),
     ('dealer delivery', 200, False, lambda r: (lambda d: (320 + round(d / 1000 * 120, -1), 0.15))(r.uniform(800, 3000)), lambda r, d=None: 2 + r.uniform(800, 3000) / CITY_SPEED / 60, 6),
     ('hot car (night)', 1000, True, lambda r: (TUNE['hot_base'] + round(r.uniform(1000, 3000) / 1000 * TUNE['hot_per_km'], -2), 0.25), lambda r, d=None: 3 + r.uniform(1000, 3000) / CITY_SPEED / 60, 6),
@@ -152,6 +158,9 @@ class Player:
                 bill = {1: 0, 2: int(os.environ.get("RENT2", "150")), 3: int(os.environ.get("RENT3", "400"))}.get(self.garage, 700)
                 bill += 40 * max(0, CARS_KEPT - 2)       # core/weekly STORAGE for each car beyond two
                 self.money -= min(self.money, bill)     # (a shortfall is a debt in the game; here it is just not paid, the floor check shows who runs dry)
+            if NEEDS and self.day() % 7 == 0:               # the Needs part: the food and drink of the week (buying is by choice: nothing is bought with the last dollars)
+                cost = min(self.money, NEEDS_WEEK)
+                self.money -= cost; self.needs_spent = getattr(self, 'needs_spent', 0) + cost
             if SHOPS and self.day() % 7 == 0 and self.car is not None:      # the shops: a player buys what they can well afford (three times the price in the pocket), never the last dollars
                 for name, price, per_week in SHOP_WEEK:
                     price = price * SHOP_SPONSOR
@@ -263,7 +272,7 @@ class Player:
         self.heat = min(1, self.heat + 0.12)
         if self.r.random() < (0.15 + 0.55 * self.heat) * (1 if night else 0.3):
             if self.r.random() < 0.4:
-                fine = police_fine(True)
+                fine = ticket_fine() if (night and self.r.random() < TUNE['pullover']) else police_fine(True)
                 paid = min(self.money, fine)
                 self.money -= paid; self.fines += paid; self.rep -= 25; self.heat = min(1, self.heat + 0.2)
                 if paid < fine: self.broke += 1
@@ -384,11 +393,97 @@ class Player:
             if self.money <= 0: self.broke += 0          # (counted at arrests)
         return self
 
-def main():
+SEED = int(os.environ.get('SEED', '0'))          # which set of players: the players' streams are seeded 1000 x SEED + their number
+
+def population(seed):
     players = []
     for i in range(PLAYERS + PLAYERS // 3):
         style = ['racer', 'mixed', 'worker', 'borrower'][i % 4]
-        players.append(Player(i, style).run(60 * HOURS))
+        players.append(Player(i + 1000 * seed, style).run(60 * HOURS))
+    return players
+
+def metrics(players):
+    out = {}
+    for style in ['racer', 'mixed', 'worker', 'borrower']:
+        ps = [p for p in players if p.style == style]
+        worth = [p.money - (p.loan[1] if p.loan else 0) for p in ps]
+        out[style + ' net worth (median)'] = statistics.median(worth)
+        out[style + ' floor minutes (median)'] = statistics.median([getattr(p, 'broke_min', 0) for p in ps])
+        out[style + ' floor minutes (worst)'] = max(getattr(p, 'broke_min', 0) for p in ps)
+        out[style + ' under $300 at the end'] = sum(1 for p in ps if p.money < 300)
+    return out
+
+def spread(values):
+    v = sorted(values)
+    return statistics.median(v), v[0], v[-1]
+
+def multi(n):
+    """--seeds N [--json file]: N independent populations; each number as median and range over the seeds. Same code, same numbers; a change of the rules moves the median by more than the range or it says nothing."""
+    runs = [metrics(population(k)) for k in range(n)]
+    table = {key: spread([r[key] for r in runs]) for key in runs[0]}
+    if '--json' in sys.argv:
+        import json
+        json.dump(table, open(sys.argv[sys.argv.index('--json') + 1], 'w'), indent=1)
+    print('%d seeds of %d players, %d h each: median (lowest - highest over the seeds)' % (n, PLAYERS + PLAYERS // 3, HOURS))
+    for key, (m, lo, hi) in table.items(): print('  %-34s %9.0f  (%.0f - %.0f)' % (key, m, lo, hi))
+
+def diff(a, b):
+    """--diff before.json after.json: each number's change in the median, and whether the two ranges overlap (overlap: no real change)."""
+    import json
+    A, B = json.load(open(a)), json.load(open(b))
+    print('%-34s %10s %10s %9s' % ('', 'before', 'after', 'change'))
+    for key in A:
+        if key not in B: continue
+        (ma, la, ha), (mb, lb, hb) = A[key], B[key]
+        real = hb < la or lb > ha
+        print('%-34s %10.0f %10.0f %+9.0f %s' % (key, ma, mb, mb - ma, 'REAL' if real else '(within the spread)'))
+
+def turf_check(n):
+    """--turf [--seeds N]: the late game with turf income (docs/TURF_INCOME_PLAN.md). Not the 12 h sim (garage 3 is outside it): a year of weeks for a player who holds 2 to 6 districts at
+    60 to 100 % control, with the rules of core/turfincome.lua mirrored here (cut = 100 x control, +50 % at the base, a raid chance 12 % + 8 % per angry crew costing the cut and 15 control,
+    10 control won back a week by racing there, an unanswered call-out 15 % of district-weeks). Prints the weekly turf money against the garage-3 rent and storage and against the weekly pay
+    of the populations the sim plays (the sim's own median over the same seeds). Acceptance: 40 to 100 % of garage-3 costs at 4 to 6 districts, and far below the weekly pay."""
+    import random
+    garage3 = 400 + 40 * max(0, CARS_KEPT - 2)
+    rows, pay = [], []
+    for seed in range(n):
+        rng = random.Random(seed)
+        pops = population(seed)
+        weeks = HOURS * 60 / DAY_MIN / 7
+        pay.append(statistics.median(sum(m for m, _ in p.earned.values()) / weeks for p in pops))
+        for k in (2, 3, 4, 5, 6):
+            money, lost, raids = 0.0, 0.0, 0
+            control = [rng.uniform(60, 100) for _ in range(k)]
+            base = 0 if rng.random() < 0.5 else -1
+            angry = rng.choice((0, 1, 2))
+            for _week in range(52):
+                for i in range(k):
+                    cut = 100 * control[i] / 100 * (1.5 if i == base else 1.0)
+                    cut = int(cut / 10 + 0.5) * 10
+                    if rng.random() < min(0.5, 0.12 + 0.08 * angry):
+                        raids += 1; lost += cut
+                        control[i] = max(1, control[i] - 15 * (0.5 if i == base else 1))
+                    elif rng.random() < 0.15:
+                        lost += cut
+                    else:
+                        money += cut
+                    control[i] = min(100, control[i] + 10)
+            rows.append((k, money / 52, lost / 52, raids / 52))
+    print('Turf income over a year of weeks (%d seeds): garage 3 rent+storage $%d a week; the sim median weekly pay $%d' % (n, garage3, statistics.median(pay)))
+    for k in (2, 3, 4, 5, 6):
+        got = [r for r in rows if r[0] == k]
+        m = statistics.median(r[1] for r in got)
+        print('  %d districts held: $%4d a week paid (%3.0f %% of garage 3, %4.1f %% of the weekly pay), $%3d a week lost to raids and call-outs, %.2f raids a week'
+              % (k, m, 100 * m / garage3, 100 * m / max(1, statistics.median(pay)), statistics.median(r[2] for r in got), statistics.median(r[3] for r in got)))
+
+def main():
+    if '--turf' in sys.argv:
+        turf_check(int(sys.argv[sys.argv.index('--seeds') + 1]) if '--seeds' in sys.argv else 3); return
+    if '--diff' in sys.argv:
+        i = sys.argv.index('--diff'); diff(sys.argv[i + 1], sys.argv[i + 2]); return
+    if '--seeds' in sys.argv:
+        multi(int(sys.argv[sys.argv.index('--seeds') + 1])); return
+    players = population(SEED)
     keys = ['car 1', 'first upgrade', 'lift', 'workbench', 'dyno', 'car 2', 'car 3', 'car 4', 'rep 150', 'rep 300', 'rep 500', 'rep 800', 'rep 1000', 'rep 1500', 'garage 2', 'rep 3000', 'garage 3', 'rep 6000', 'ROC open']
     print('Milestones (real minutes of play; median and 10-90 %; n = players who got there in HOURS h)')
     for style in ['racer', 'mixed', 'worker', 'borrower']:
@@ -419,6 +514,9 @@ def main():
         bm = sorted(getattr(p, 'broke_min', 0) for p in ps)
         print('Floor (%s): minutes under $300 after the first 20: median %d, worst %d; players who ended under $300: %d of %d'
               % (style, statistics.median(bm), bm[-1], sum(1 for p in ps if p.money < 300), len(ps)))
+    if NEEDS:
+        eaten = sorted(getattr(p, 'needs_spent', 0) for p in players)
+        print('Needs (%s): median spend over the run $%d (10-90 %%: $%d-$%d)' % ('meal plan' if NEEDS_PLAN else 'no plan', statistics.median(eaten), eaten[len(eaten) // 10], eaten[len(eaten) * 9 // 10]))
     if SHOPS:
         spent = sorted(getattr(p, 'shop_spent', 0) for p in players)
         earned = sorted(sum(m for m, _ in p.earned.values()) for p in players)

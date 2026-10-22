@@ -235,11 +235,12 @@ local function sync()
   local key = tostring(s.day) .. ':' .. phase
   if key == lastKey then return end
   lastKey = key
-  stateId = rules.forecast(s.seed, s.day, phase)
+  local seasons = rawget(_G, 'sl_seasons')
+  stateId = seasons and seasons.forecast and seasons.forecast(s.seed, s.day, phase) or rules.forecast(s.seed, s.day, phase)          -- (the season's odds, with the Seasons part on)
   gustSeed = type(s.seed) == 'number' and s.seed or 0
   levelId = stateId == 'rain' and rules.level(s.seed, s.day, phase) or nil
   local np, nd = rules.after(phase, s.day)
-  nextId = rules.forecast(s.seed, nd, np)
+  nextId = seasons and seasons.forecast and seasons.forecast(s.seed, nd, np) or rules.forecast(s.seed, nd, np)
   local st = rules.resolve(stateId, levelId)
   -- clear skies are the level's own fog, high cloud and speeds, and a lighter cloud cover than its default
   if st.id == 'rain' then lastRain = st end
@@ -259,7 +260,7 @@ function M.grip() return source() and math.min(current and current.grip or 1, ru
 function M.forecast()
   local s = source()
   if not s then return nil end
-  return { state = stateId, level = levelId, name = rules.state(stateId).name, text = rules.text(s.phase or 'day', stateId, nextId, levelId), wet = stateId == 'rain' }
+  return { state = stateId, level = levelId, name = rules.state(stateId).name, text = rules.text(s.phase or 'day', stateId, nextId, levelId) .. (sl_seasons and sl_seasons.note and sl_seasons.note() and (' ' .. sl_seasons.note()) or ''), wet = stateId == 'rain' }
 end
 
 -- the car's tyres take the grip (the player's own car; a car swapped in is told at the next look)

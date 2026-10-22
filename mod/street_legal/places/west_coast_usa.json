@@ -1,402 +1,430 @@
 {
- "west_coast_usa": {
-  "places": [
-   {
-    "id": "dealer",
-    "kind": "dealer",
-    "name": "Jefferson Motors",
-    "pos": [
-     -391.76,
-     169.35,
-     100.58
-    ],
-    "dir": [
-     -0.905,
-     -0.425
-    ],
-    "display": [
-     -393.12,
-     172.25,
-     100.6
-    ],
-    "displayDir": [
-     -0.905,
-     -0.425
-    ],
-    "displays": [
-     {
-      "pos": [
-       -393.12,
-       172.25,
-       100.6
-      ],
-      "dir": [
-       -0.905,
-       -0.425
-      ],
-      "z_check": true
-     },
-     {
-      "pos": [
-       -394.48,
-       175.14,
-       100.6
-      ],
-      "dir": [
-       -0.905,
-       -0.425
-      ],
-      "z_check": true
-     },
-     {
-      "pos": [
-       -395.84,
-       178.04,
-       100.6
-      ],
-      "dir": [
-       -0.905,
-       -0.425
-      ],
-      "z_check": true
-     },
-     {
-      "pos": [
-       -397.2,
-       180.93,
-       100.6
-      ],
-      "dir": [
-       -0.905,
-       -0.425
-      ],
-      "z_check": true
-     }
+  "west_coast_usa": {
+    "places": [
+      {
+        "id": "dealer",
+        "kind": "dealer",
+        "name": "Jefferson Motors",
+        "pos": [
+          -391.76,
+          169.35,
+          100.58
+        ],
+        "dir": [
+          -0.905,
+          -0.425
+        ],
+        "display": [
+          -393.12,
+          172.25,
+          100.6
+        ],
+        "displayDir": [
+          -0.905,
+          -0.425
+        ],
+        "displays": [
+          {
+            "pos": [
+              -393.12,
+              172.25,
+              100.6
+            ],
+            "dir": [
+              -0.905,
+              -0.425
+            ],
+            "z_check": true
+          },
+          {
+            "pos": [
+              -394.48,
+              175.14,
+              100.6
+            ],
+            "dir": [
+              -0.905,
+              -0.425
+            ],
+            "z_check": true
+          },
+          {
+            "pos": [
+              -395.84,
+              178.04,
+              100.6
+            ],
+            "dir": [
+              -0.905,
+              -0.425
+            ],
+            "z_check": true
+          },
+          {
+            "pos": [
+              -397.2,
+              180.93,
+              100.6
+            ],
+            "dir": [
+              -0.905,
+              -0.425
+            ],
+            "z_check": true
+          }
+        ]
+      },
+      {
+        "id": "junkyard",
+        "kind": "junkyard",
+        "name": "Quarry Road Wrecks",
+        "pos": [
+          707.64,
+          -823.07,
+          157.66
+        ],
+        "dir": [
+          -1.0,
+          0.03
+        ],
+        "z_check": true,
+        "display": [
+          690.0,
+          -822.5,
+          158.4
+        ],
+        "displayDir": [
+          1.0,
+          -0.03
+        ],
+        "displays": [
+          {
+            "pos": [
+              690.0,
+              -816.0,
+              158.4
+            ],
+            "dir": [
+              1.0,
+              -0.03
+            ],
+            "z_check": true
+          },
+          {
+            "pos": [
+              690.0,
+              -822.5,
+              158.4
+            ],
+            "dir": [
+              1.0,
+              -0.03
+            ],
+            "z_check": true
+          },
+          {
+            "pos": [
+              690.0,
+              -829.0,
+              158.4
+            ],
+            "dir": [
+              1.0,
+              -0.03
+            ],
+            "z_check": true
+          },
+          {
+            "pos": [
+              682.0,
+              -816.0,
+              158.2
+            ],
+            "dir": [
+              1.0,
+              -0.03
+            ],
+            "z_check": true
+          },
+          {
+            "pos": [
+              682.0,
+              -822.5,
+              158.2
+            ],
+            "dir": [
+              1.0,
+              -0.03
+            ],
+            "z_check": true
+          },
+          {
+            "pos": [
+              682.0,
+              -829.0,
+              158.2
+            ],
+            "dir": [
+              1.0,
+              -0.03
+            ],
+            "z_check": true
+          }
+        ]
+      },
+      {
+        "id": "scrapyard",
+        "kind": "scrapyard",
+        "name": "Sealbrik Industrial Scrap",
+        "pos": [
+          -531.99,
+          75.07,
+          99.49
+        ],
+        "dir": [
+          0.953,
+          0.304
+        ],
+        "display": [
+          -571.85,
+          28.62,
+          100.53
+        ],
+        "displayDir": [
+          -0.711,
+          -0.703
+        ],
+        "displays": [
+          {
+            "pos": [
+              -571.85,
+              28.62,
+              100.53
+            ],
+            "dir": [
+              -0.711,
+              -0.703
+            ]
+          },
+          {
+            "pos": [
+              -567.0,
+              33.5,
+              100.5
+            ],
+            "dir": [
+              -0.711,
+              -0.703
+            ],
+            "z_check": true
+          },
+          {
+            "pos": [
+              -576.7,
+              23.7,
+              100.5
+            ],
+            "dir": [
+              -0.711,
+              -0.703
+            ],
+            "z_check": true
+          }
+        ]
+      },
+      {
+        "id": "meet_docks",
+        "kind": "meet",
+        "name": "Dockyards",
+        "pos": [
+          57.34,
+          709.18,
+          74.82
+        ],
+        "dir": [
+          0.54,
+          -0.84
+        ],
+        "display": [
+          45.0,
+          690.0,
+          74.8
+        ],
+        "displayDir": [
+          0.54,
+          -0.84
+        ],
+        "z_check": true
+      },
+      {
+        "id": "meet_chinatown",
+        "kind": "meet",
+        "name": "Chinatown lot",
+        "pos": [
+          -712.71,
+          537.43,
+          119.59
+        ],
+        "dir": [
+          -0.707,
+          -0.707
+        ],
+        "display": [
+          -681.56,
+          506.24,
+          117.88
+        ],
+        "displayDir": [
+          -0.721,
+          -0.692
+        ]
+      },
+      {
+        "id": "meet_paddock",
+        "kind": "meet",
+        "name": "Race track paddock",
+        "pos": [
+          261.39,
+          -315.33,
+          145.08
+        ],
+        "dir": [
+          0.0,
+          1.0
+        ],
+        "z_check": true,
+        "display": [
+          261.0,
+          -300.0,
+          145.1
+        ],
+        "displayDir": [
+          0.0,
+          1.0
+        ]
+      },
+      {
+        "id": "meet_plaza",
+        "kind": "meet",
+        "name": "Riverway Plaza car park",
+        "pos": [
+          -433.53,
+          241.14,
+          100.89
+        ],
+        "dir": [
+          0.706,
+          0.708
+        ],
+        "display": [
+          -429.33,
+          341.63,
+          101.8
+        ],
+        "displayDir": [
+          1.0,
+          -0.007
+        ]
+      },
+      {
+        "id": "hospital",
+        "kind": "hospital",
+        "name": "Belasco General",
+        "pos": [
+          -291.22,
+          459.74,
+          83.36
+        ],
+        "dir": [
+          -0.707,
+          -0.707
+        ]
+      },
+      {
+        "id": "valet_motel",
+        "kind": "valet",
+        "name": "Mountainview Motel valet",
+        "pos": [
+          -541.25,
+          133.73,
+          100.4
+        ],
+        "dir": [
+          0.714,
+          -0.7
+        ],
+        "bays": [
+          [
+            -529.6,
+            132.2,
+            100.4,
+            -0.77
+          ],
+          [
+            -516.4,
+            119.2,
+            100.4,
+            -0.77
+          ]
+        ],
+        "z_check": true
+      },
+      {
+        "id": "carwash_apex",
+        "kind": "carwash",
+        "name": "Apex Wash",
+        "pos": [
+          -190.48,
+          515.85,
+          74.85
+        ],
+        "dir": [
+          1.0,
+          0.002
+        ]
+      },
+      {
+        "id": "carwash_nodeoline",
+        "kind": "carwash",
+        "name": "Nodeoline Wash",
+        "pos": [
+          -491.22,
+          123.36,
+          100.3
+        ],
+        "dir": [
+          -0.962,
+          -0.272
+        ]
+      },
+      {
+        "id": "impound",
+        "kind": "impound",
+        "name": "Belasco police impound",
+        "pos": [
+          -731.13,
+          760.61,
+          84.0
+        ],
+        "dir": [
+          0.0,
+          -1.0
+        ],
+        "displays": [
+          {
+            "pos": [
+              -731.13,
+              744.0,
+              84.0
+            ],
+            "dir": [
+              0.0,
+              -1.0
+            ],
+            "z_check": true
+          }
+        ]
+      }
     ]
-   },
-   {
-    "id": "junkyard",
-    "kind": "junkyard",
-    "name": "Quarry Road Wrecks",
-    "pos": [
-     707.64,
-     -823.07,
-     157.66
-    ],
-    "dir": [
-     -1.0,
-     0.03
-    ],
-    "z_check": true,
-    "display": [
-     690.0,
-     -822.5,
-     158.4
-    ],
-    "displayDir": [
-     1.0,
-     -0.03
-    ],
-    "displays": [
-     {
-      "pos": [
-       690.0,
-       -816.0,
-       158.4
-      ],
-      "dir": [
-       1.0,
-       -0.03
-      ],
-      "z_check": true
-     },
-     {
-      "pos": [
-       690.0,
-       -822.5,
-       158.4
-      ],
-      "dir": [
-       1.0,
-       -0.03
-      ],
-      "z_check": true
-     },
-     {
-      "pos": [
-       690.0,
-       -829.0,
-       158.4
-      ],
-      "dir": [
-       1.0,
-       -0.03
-      ],
-      "z_check": true
-     },
-     {
-      "pos": [
-       682.0,
-       -816.0,
-       158.2
-      ],
-      "dir": [
-       1.0,
-       -0.03
-      ],
-      "z_check": true
-     },
-     {
-      "pos": [
-       682.0,
-       -822.5,
-       158.2
-      ],
-      "dir": [
-       1.0,
-       -0.03
-      ],
-      "z_check": true
-     },
-     {
-      "pos": [
-       682.0,
-       -829.0,
-       158.2
-      ],
-      "dir": [
-       1.0,
-       -0.03
-      ],
-      "z_check": true
-     }
-    ]
-   },
-   {
-    "id": "scrapyard",
-    "kind": "scrapyard",
-    "name": "Sealbrik Industrial Scrap",
-    "pos": [
-     -531.99,
-     75.07,
-     99.49
-    ],
-    "dir": [
-     0.953,
-     0.304
-    ],
-    "display": [
-     -571.85,
-     28.62,
-     100.53
-    ],
-    "displayDir": [
-     -0.711,
-     -0.703
-    ],
-    "displays": [
-     {
-      "pos": [
-       -571.85,
-       28.62,
-       100.53
-      ],
-      "dir": [
-       -0.711,
-       -0.703
-      ]
-     },
-     {
-      "pos": [
-       -567.0,
-       33.5,
-       100.5
-      ],
-      "dir": [
-       -0.711,
-       -0.703
-      ],
-      "z_check": true
-     },
-     {
-      "pos": [
-       -576.7,
-       23.7,
-       100.5
-      ],
-      "dir": [
-       -0.711,
-       -0.703
-      ],
-      "z_check": true
-     }
-    ]
-   },
-   {
-    "id": "meet_docks",
-    "kind": "meet",
-    "name": "Dockyards",
-    "pos": [
-     57.34,
-     709.18,
-     74.82
-    ],
-    "dir": [
-     0.54,
-     -0.84
-    ],
-    "display": [
-     45.0,
-     690.0,
-     74.8
-    ],
-    "displayDir": [
-     0.54,
-     -0.84
-    ],
-    "z_check": true
-   },
-   {
-    "id": "meet_chinatown",
-    "kind": "meet",
-    "name": "Chinatown lot",
-    "pos": [
-     -712.71,
-     537.43,
-     119.59
-    ],
-    "dir": [
-     -0.707,
-     -0.707
-    ],
-    "display": [
-     -681.56,
-     506.24,
-     117.88
-    ],
-    "displayDir": [
-     -0.721,
-     -0.692
-    ]
-   },
-   {
-    "id": "meet_paddock",
-    "kind": "meet",
-    "name": "Race track paddock",
-    "pos": [
-     261.39,
-     -315.33,
-     145.08
-    ],
-    "dir": [
-     0.0,
-     1.0
-    ],
-    "z_check": true,
-    "display": [
-     261.0,
-     -300.0,
-     145.1
-    ],
-    "displayDir": [
-     0.0,
-     1.0
-    ]
-   },
-   {
-    "id": "meet_plaza",
-    "kind": "meet",
-    "name": "Riverway Plaza car park",
-    "pos": [
-     -433.53,
-     241.14,
-     100.89
-    ],
-    "dir": [
-     0.706,
-     0.708
-    ],
-    "display": [
-     -429.33,
-     341.63,
-     101.8
-    ],
-    "displayDir": [
-     1.0,
-     -0.007
-    ]
-   },
-   {
-    "id": "hospital",
-    "kind": "hospital",
-    "name": "Belasco General",
-    "pos": [
-     -291.22,
-     459.74,
-     83.36
-    ],
-    "dir": [
-     -0.707,
-     -0.707
-    ]
-   },
-   {
-    "id": "valet_motel",
-    "kind": "valet",
-    "name": "Mountainview Motel valet",
-    "pos": [
-     -541.25,
-     133.73,
-     100.4
-    ],
-    "dir": [
-     0.714,
-     -0.7
-    ],
-    "bays": [
-     [
-      -529.6,
-      132.2,
-      100.4,
-      -0.77
-     ],
-     [
-      -516.4,
-      119.2,
-      100.4,
-      -0.77
-     ]
-    ],
-    "z_check": true
-   },
-   {
-    "id": "carwash_apex",
-    "kind": "carwash",
-    "name": "Apex Wash",
-    "pos": [
-     -190.48,
-     515.85,
-     74.85
-    ],
-    "dir": [
-     1.0,
-     0.002
-    ]
-   },
-   {
-    "id": "carwash_nodeoline",
-    "kind": "carwash",
-    "name": "Nodeoline Wash",
-    "pos": [
-     -491.22,
-     123.36,
-     100.3
-    ],
-    "dir": [
-     -0.962,
-     -0.272
-    ]
-   }
-  ]
- }
+  }
 }
