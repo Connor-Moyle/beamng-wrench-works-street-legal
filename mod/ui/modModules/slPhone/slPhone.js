@@ -1408,7 +1408,7 @@
         var start = today - (dow - 1), cells = [];
         for (var i = 0; i < 7; i++) {
           var day = start + i, n = events.filter(function (e) { return Number(e.day) === day; }).length;
-          cells.push('<div class="slp-card" data-a="calday" data-v="' + day + '" style="margin:4px;padding:8px 4px;text-align:center;flex:1;min-width:0' + (day === today ? ';outline:2px solid #a8c7fa' : '') + '"><b>' + DAY_NAMES[i] + '</b><br><small>' + day + '</small><br>' + (n ? '<span class="slp-chip" style="margin:4px 0 0 0">' + n + '</span>' : '&nbsp;') + '</div>');
+          cells.push('<div class="slp-card" data-a="calday" data-v="' + day + '" style="margin:3px;padding:8px 2px;text-align:center;flex:1;min-width:0;overflow:hidden' + (day === today ? ';outline:2px solid #a8c7fa' : '') + '"><b>' + DAY_NAMES[i] + '</b><br><small>' + day + '</small><br>' + (n ? '<span class="slp-chip" style="margin:4px 0 0 0">' + n + '</span>' : '&nbsp;') + '</div>');
         }
         body = '<div style="display:flex;padding:0 12px">' + cells.join('') + '</div>' + (st.calDay != null ? '<div class="slp-acts" style="padding:0 16px"><div class="slp-btn slp-text" data-a="calday" data-v="">' + T('ui.cal_all_days', 'Show all days') + '</div></div>' : '') +
           events.filter(function (e) { return st.calDay == null || Number(e.day) === Number(st.calDay); }).map(function (e) { return calEventCard(c, e); }).join('');
