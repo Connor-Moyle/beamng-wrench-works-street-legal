@@ -7833,4 +7833,115 @@ do
   check('carreport: a section estimate is its fault cost plus its wear cost (a battery fault is the fault cost of the engine section, the rest is wear)', eng and eng.estimate == eng.faultCost + eng.wearCost and eng.faultCost == math.floor(0.05 * 8000 / 10 + 0.5) * 10 and eng.wearCost >= 0)
 end
 
+-- the end-of-career queue: GPU-touching restores one at a time (sl/core/teardown, sl/teardown)
+do
+  local T = require('sl/core/teardown')
+  local q, ran = T.new(), {}
+  check('teardown: the first job waits the first second, the next one the gap', T.defer(q, 'a', function() ran[#ran + 1] = 'a' end, 10) and T.defer(q, 'b', function() ran[#ran + 1] = 'b' end, 10.2)
+    and T.due(q, 10.5) == nil and T.pending(q) == 2)
+  local l1, f1 = T.due(q, 11.0)
+  check('teardown: at 1 s the first runs and the second has to wait 1.5 s', l1 == 'a' and T.due(q, 12.0) == nil and (T.due(q, 12.6)) == 'b')
+  check('teardown: a second job with the same label replaces the first', (function()
+    local q2 = T.new()
+    T.defer(q2, 'x', function() return 1 end, 0) T.defer(q2, 'x', function() return 2 end, 0)
+    local _, f = T.due(q2, 5)
+    return T.pending(q2) == 0 and f() == 2
+  end)())
+  check('teardown: no more than the maximum are kept; clear forgets them', (function()
+    local q3 = T.new()
+    for i = 1, T.MAX + 3 do T.defer(q3, 'j' .. i, function() end, 0) end
+    local n = T.pending(q3)
+    T.clear(q3)
+    return n == T.MAX and T.pending(q3) == 0 and T.due(q3, 100) == nil
+  end)())
+
+  -- the game side: logs before and after, skips when a career runs again, drops at the level's end
+  local old = { sl_career = rawget(_G, 'sl_career'), log = rawget(_G, 'log') }
+  local lines, clock, careerOn = {}, 0, false
+  _G.log = function(level, tag, text) lines[#lines + 1] = level .. ' ' .. tag .. ' ' .. text end
+  _G.sl_career = { isActive = function() return careerOn end }
+  local realClock = os.clock
+  os.clock = function() return clock end
+  package.loaded['sl/teardown'] = nil
+  local X = require('sl/teardown')
+  local done = {}
+  X.defer('one', function() done[#done + 1] = 'one' end)
+  X.defer('two', function() done[#done + 1] = 'two' end)
+  X.onUpdate(0.016)
+  check('teardown game: nothing runs in the frame it is asked', #done == 0 and X.status().pending == 2)
+  clock = 1.1 X.onUpdate(0.016)
+  check('teardown game: the first runs after a second, with a line before and a line after', #done == 1 and done[1] == 'one' and lines[1]:find('one: start', 1, true) and lines[2]:find('one: done in', 1, true))
+  clock = 1.5 X.onUpdate(0.016)
+  check('teardown game: and the second not before the gap', #done == 1)
+  careerOn = true clock = 2.7 X.onUpdate(0.016)
+  check('teardown game: a job is skipped when a career is running again, and says so', #done == 1 and lines[#lines]:find('two: skipped', 1, true))
+  careerOn = false
+  X.defer('three', function() error('boom') end)
+  X.defer('four', function() done[#done + 1] = 'four' end)
+  clock = 4.3 X.onUpdate(0.016)
+  check('teardown game: a job that throws is logged as failed and does not stop the queue', lines[#lines]:find('three: failed', 1, true) and lines[#lines]:find('boom', 1, true))
+  clock = 5.9 X.onUpdate(0.016)
+  check('teardown game: the next one still runs', done[#done] == 'four')
+  X.defer('five', function() done[#done + 1] = 'five' end)
+  X.onClientEndMission()
+  clock = 20 X.onUpdate(0.016)
+  check('teardown game: the level ending drops what is waiting', X.status().pending == 0 and done[#done] == 'four')
+  os.clock = realClock
+  _G.sl_career, _G.log = old.sl_career, old.log
+  package.loaded['sl/teardown'] = nil
+end
+
+-- a career that stops and starts again before the queue ran: the restores are dropped, the state still describes the ORIGINAL world, so the next stop puts the original back (not the swapped one)
+do
+  local old = { sl_career = rawget(_G, 'sl_career'), sl_jobs = rawget(_G, 'sl_jobs'), scenetree = rawget(_G, 'scenetree'), FS = rawget(_G, 'FS'), log = rawget(_G, 'log'), sl_teardown = rawget(_G, 'sl_teardown') }
+  local fields, reloads = { baseColorMap = 'art/original.color.dds' }, 0
+  local mat = { getField = function(_, k) return fields[k] end, setField = function(_, k, _, v) fields[k] = v end, reload = function() reloads = reloads + 1 end }
+  local active = true
+  _G.log = function() end
+  _G.sl_career = { isActive = function() return active end, getState = function() return { club = nil } end, LEVEL = 'west_coast_usa' }
+  _G.sl_jobs = { summary = function() return { sponsor = { name = 'Nightrun Energy' } } end }
+  _G.scenetree = { findObject = function(n) return n == 'billboards' and mat or nil end }
+  _G.FS = { fileExists = function() return true end }
+  local clock = 0
+  local realClock = os.clock
+  os.clock = function() return clock end
+  package.loaded['sl/teardown'] = nil
+  _G.sl_teardown = require('sl/teardown')
+  package.loaded['sl/billboards'] = nil
+  package.loaded['sl/core/features'] = package.loaded['sl/core/features']
+  local B = require('sl/billboards')
+  B.onStreetLegalStarted()
+  check('billboards: the career puts the sponsor atlas on the material', fields.baseColorMap:find('nightrun-energy', 1, true) and B.current() == 'Nightrun Energy')
+  active = false
+  B.onStreetLegalStopped()
+  check('billboards: the stop queues the restore, nothing is reloaded in the same frame', fields.baseColorMap:find('nightrun-energy', 1, true) and sl_teardown.status().pending == 1)
+  active = true clock = 1.2 sl_teardown.onUpdate(0.016)
+  check('billboards: a career that started again before the job: the job is skipped and the atlas stays (the new career owns it)', sl_teardown.status().pending == 0 and fields.baseColorMap:find('nightrun-energy', 1, true) and B.current() == 'Nightrun Energy')
+  active = false clock = 5
+  B.onStreetLegalStopped()
+  clock = 6.2 sl_teardown.onUpdate(0.016)
+  check('billboards: the next stop puts back the ORIGINAL atlas, not the one of the first career', fields.baseColorMap == 'art/original.color.dds' and B.current() == nil)
+  os.clock = realClock
+  for k, v in pairs(old) do _G[k] = v end
+  package.loaded['sl/billboards'] = nil
+  package.loaded['sl/teardown'] = nil
+end
+
+-- the puddle planes are deleted fifty at a time from the queue, and the last step does the rest of the clean-up
+do
+  local old = { deleteObject = rawget(_G, 'deleteObject'), FS = rawget(_G, 'FS'), sl_teardown = rawget(_G, 'sl_teardown'), getPlayerVehicle = rawget(_G, 'getPlayerVehicle') }
+  local deleted = 0
+  _G.deleteObject = function(o) if o then deleted = deleted + 1 end end
+  _G.FS = { removeFile = function() end, fileExists = function() return false end }
+  _G.getPlayerVehicle = function() return nil end
+  _G.sl_teardown = nil
+  local fx = require('sl/puddlefx')
+  local list = {}
+  for i = 1, 120 do list[i] = { obj = { delete = function() deleted = deleted + 1 end } } end
+  fx._testPuddles(list)
+  check('puddle planes: a batch deletes at most fifty and says how many are left', fx.clearBatch(50) == 70 and deleted == 50)
+  check('puddle planes: the second batch another fifty, the third the rest and the clean-up', fx.clearBatch(50) == 20 and deleted == 100 and fx.clearBatch(50) == 0 and deleted == 120)
+  for k, v in pairs(old) do _G[k] = v end
+end
+
 print(string.format('lua tests passed: %d checks', passed))
