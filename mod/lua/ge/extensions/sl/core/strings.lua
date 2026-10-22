@@ -689,6 +689,7 @@ M.TEXT = {
   ["service.sec_engine"] = "Engine", ["service.sec_drivetrain"] = "Drivetrain", ["service.sec_suspension"] = "Suspension", ["service.sec_brakes"] = "Brakes",
   ["service.sec_wheels"] = "Wheels", ["service.sec_exhaust"] = "Exhaust", ["service.sec_body"] = "Body", ["service.sec_electrics"] = "Electrics", ["service.sec_other"] = "Other",
   ["service.basic"] = "Basic service", ["service.overhaul"] = "Full overhaul",
+  ["service.full_same"] = "Same price as the basic service: no section is worn yet, so there is nothing more to rebuild.",
   ["service.no_bench"] = "Costs half as much again without a workbench in your garage.",
   ["service.no_car"] = "No such car.", ["service.no_such_service"] = "No such service.",
   ["service.noted"] = "{1}", ["service.done"] = "{1}: ${2}.",

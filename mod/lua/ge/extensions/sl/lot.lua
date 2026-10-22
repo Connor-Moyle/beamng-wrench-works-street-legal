@@ -1034,7 +1034,8 @@ local function update(dt)
   end
   -- walked or driven off (or taken a cab) while the lot was open: it closes
   if lot then
-    if (v:getPosition() - lot.place.pos):length() > 30 then M.close() end
+    local away = (v:getPosition() - lot.place.pos):length()
+    if away > 30 then log('I', 'sl_lot', string.format('the lot closed: the player is %.0f m from it (the limit is 30 m)', away)) M.close() end
     return
   end
   -- the map marks the lots with the game's own markers: then they open from its prompt (below)

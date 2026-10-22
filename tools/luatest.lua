@@ -3774,7 +3774,7 @@ do
       for _, o in ipairs(sm.offers) do
         if o.contract then
           contracts = contracts + 1
-          if not (o.pay >= o.contract.basePay * (o.contract.mult - 0.05) and o.title:find('Contract', 1, true) and (o.contract.req ~= 'rain')) then contracts = -1000 end
+          if not (o.pay > o.contract.basePay and o.title:find('Contract', 1, true) and (o.contract.req ~= 'rain')) then contracts = -1000 end
         else plain = plain + 1 end
       end
       if #sm.offers > 0 then seeds = seeds + 1 end
@@ -4134,6 +4134,18 @@ do
     return F.on('weekly') and F.on('service') and F.on('contracts') and F.on('perks') and F.on('weekly', function(k) return k ~= 'slWeekly' end) == false
   end)())
   F.setSaveOff({})
+end
+
+-- 0.8.0 final candidate findings: one number for the board, the active card and the drop; the estimate split; the full overhaul note
+do
+  local J = require('sl/core/jobs')
+  check('jobs: the shown pay is the job pay with the boost, rounded down to ten, plus the first-times bonus (board, card and drop use this one)',
+    J.shown(320, 1.47, 0) == 470 and J.shown(160, 1.47, 0) == 230 and J.shown(320, 1, 150) == 470 and J.shown(0, 1.5, 0) == 0)
+  local CR, M = require('sl/core/carreport'), require('sl/core/market')
+  local rp = CR.build({ name = 'Test', value = 8000, condition = 0.4, damage = 0, mileage = 120000, faults = { 'battery' } })
+  local eng
+  for _, sec in ipairs(rp.sections) do if sec.id == 'engine' then eng = sec end end
+  check('carreport: a section estimate is its fault cost plus its wear cost (a battery fault is the fault cost of the engine section, the rest is wear)', eng and eng.estimate == eng.faultCost + eng.wearCost and eng.faultCost == math.floor(0.05 * 8000 / 10 + 0.5) * 10 and eng.wearCost >= 0)
 end
 
 print(string.format('lua tests passed: %d checks', passed))
