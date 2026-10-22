@@ -112,7 +112,7 @@ local function deliverySites()
       out[#out + 1] = { id = 'site:' .. tostring(p.id or p.name), name = tostring(p.name or p.id or 'Depot'), x = spot.pos.x, y = spot.pos.y, z = spot.pos.z, radius = STOP_RADIUS }
     end
   end
-  siteCache[level] = out
+  if #out > 0 then siteCache[level] = out end          -- (an empty list is not kept: the facilities may not have been loaded yet the first time)
   return out
 end
 
