@@ -3817,7 +3817,7 @@ do
   local m = K.bump(nil, 12, true)
   local m2 = K.bump({ km = m.km, clean = m.clean }, 5, false)
   check('mastery: the odometer count never goes back and a clean run adds one', m.km == 12 and m.clean == 1 and m2.km == 12 and m2.clean == 1 and K.bump({ km = 12, clean = 1 }, 30, true).km == 30 and K.bump({ km = 12 }, 'x', false).km == 12)
-  check('mastery: the card view has the label and perks only from level 1', #K.view({}).perks == 0 and #K.view({ clean = 5 }).perks == 3 and not K.view({ clean = 5 }).perks[1]:find('^mastery%.') and not K.view({ km = 8000 }).label:find('^mastery%.') and K.view({ clean = 5 }).toNext == 200)
+  check('mastery: the card view has the label and perks only from level 1', #K.view({}).perks == 0 and #K.view({ clean = 5 }).perks == 4 and not K.view({ clean = 5 }).perks[1]:find('^mastery%.') and not K.view({ km = 8000 }).label:find('^mastery%.') and K.view({ clean = 5 }).toNext == 200)
   check('mastery: the best possible stack with the tier perks stays under a quarter off the service price', K.factor('service', 5) * require('sl/core/perks').factor(6, 'service') > 0.75)
 end
 

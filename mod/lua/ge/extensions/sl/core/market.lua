@@ -220,7 +220,7 @@ function M.resaleValue(car, partsNow)
   if M.rebuilt(car) then v = math.floor(v * M.REBUILT_PREMIUM / 50) * 50 end
   local mf = M.masteryFactor and M.masteryFactor(car)          -- (car mastery: sl_mastery sets it while the part is on)
   if mf and mf > 1 then      -- (never past what you paid for it: mastery makes a sale less bad, not a profit)
-    local top = car.boughtFor and car.boughtFor > 0 and math.max(v, math.floor(car.boughtFor / 50) * 50) or math.huge
+    local top = car.boughtFor and car.boughtFor > 0 and math.max(v, math.floor(car.boughtFor / 50) * 50) or v      -- (no price paid, a gift or a barn find: no bonus)
     v = math.min(math.floor(v * mf / 50) * 50, top)
   end
   return v

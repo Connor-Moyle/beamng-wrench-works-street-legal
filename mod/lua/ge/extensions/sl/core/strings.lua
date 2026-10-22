@@ -794,7 +794,7 @@ M.TEXT = {
   ["traps.trap_result"] = "{1}: {2} km/h (target {3}).", ["traps.zone_result"] = "{1}: {2} km/h on average (target {3}).",
   ["traps.paid"] = "{1}", ["traps.target_met"] = "Target met: ${1}.", ["traps.new_best"] = "A new personal best.",
   ["mastery.level_0"] = "New to you", ["mastery.level_1"] = "Familiar", ["mastery.level_2"] = "Comfortable", ["mastery.level_3"] = "Well known", ["mastery.level_4"] = "Mastered", ["mastery.level_5"] = "One with the car",
-  ["mastery.perk_insurance"] = "Insurance {1}% cheaper while you drive it.", ["mastery.perk_trade"] = "Sells for {1}% more to a private buyer.", ["mastery.perk_service"] = "Its service and tyres cost {1}% less.",
+  ["mastery.perk_insurance"] = "Insurance {1}% cheaper while you drive it.", ["mastery.perk_trade"] = "Sells for {1}% more to a private buyer.", ["mastery.perk_service"] = "Its service card costs {1}% less.", ["mastery.perk_tyres"] = "Tyres at the tyre shops cost {1}% less.",
   ["perks.trade"] = "Trade prices", ["perks.trade_text"] = "Garage upgrades cost 10% less.",
   ["perks.mechanic"] = "Friendly mechanic", ["perks.mechanic_text"] = "Services cost 15% less.",
   ["perks.name"] = "A name on the street", ["perks.name_text"] = "Jobs pay 10% more.",

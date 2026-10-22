@@ -22,6 +22,8 @@ Thresholds: 100, 300, 600, 1000, 1600 points. About 500 km plus 25 clean runs re
 
 All factors are multiplied with the tier perks (#6), never added. Worst case together with tier 6: service 0.85 x 0.90 = 0.77.
 
+Notes: the km count keeps its highest value, so after an engine swap or an odometer reset the km progress waits until the new odometer passes the old maximum (the points already earned stay). A clean run is any race result (win, loss) with no wreck since the previous result; a race the game never reports (a DNF that sends no result) earns nothing. A car with no recorded price paid (gift, barn find) gets no trade-in bonus.
+
 ## Why it is no loop or exploit
 The trade-in bonus is held at what you paid for the car (`car.boughtFor`; market.resaleValue is already capped at 90 % of it), so buy-drive-sell cannot profit; it only makes the sale less bad. Kilometres count only from the odometer while driving, clean runs only on finished races (a fresh race a minute pays the normal race rules). Insurance saving is at most $8 of the $80 base a week.
 

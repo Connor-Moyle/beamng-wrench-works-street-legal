@@ -56,6 +56,7 @@ function M.view(m)
       strings.t('mastery.perk_insurance', math.floor(-M.PER_LEVEL.insurance * lv * 100 + 0.5)),
       strings.t('mastery.perk_trade', string.format('%.1f', M.PER_LEVEL.trade * lv * 100)),
       strings.t('mastery.perk_service', math.floor(-M.PER_LEVEL.service * lv * 100 + 0.5)),
+      strings.t('mastery.perk_tyres', math.floor(-M.PER_LEVEL.tyres * lv * 100 + 0.5)),
     }
   end
   return out
