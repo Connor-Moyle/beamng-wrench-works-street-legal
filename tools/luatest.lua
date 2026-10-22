@@ -7801,9 +7801,10 @@ do
   TW.onClientEndMission()
   check('fee leaks: the level ends under a tow, the fee comes back once', money == 1600 and TW.busy() == false, tostring(money))
   TW.testCall({ truck = 5, carId = 'c1', car = 6, waited = 0, fee = 300 })
+  _G.sl_career.isActive = function() return false end      -- (the career is no longer active when its stop hook runs)
   TW.onStreetLegalStopped()
   TW.onClientEndMission()
-  check('fee leaks: the career stops under a tow, the fee comes back once (not again at the level end)', money == 1900, tostring(money))
+  check('fee leaks: quitting under a tow loses the fee and nothing is paid twice or into a stopped career', money == 1600 and TW.busy() == false, tostring(money))
   package.loaded['sl/tow'] = nil
   for k, v in pairs(old) do _G[k] = v end
 end

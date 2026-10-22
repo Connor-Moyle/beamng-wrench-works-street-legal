@@ -22,7 +22,8 @@ local leaving = {}             -- truck id -> seconds until it is gone
 local function toast(text) guihooks.trigger('slPhoneToast', { text = text }) end
 local function rightHand() return not map.getRoadRules().rightHandDrive end
 local function drop(id) local v = getObjectByID(id) if v then v:delete() end end
--- the fee was paid when the truck was sent: a tow that ends without the car being taken (the car is gone, the career stops, the level ends) gives it back, once
+-- the fee was paid when the truck was sent: a tow that ends without the car being taken (the car is gone, the level ends) gives it back, once. (A career that is stopped is not here: the save is
+-- written and the career is no longer active before the stop hook runs, so a refund there could not be paid; quitting under a tow loses the fee.)
 local function refund(t)
   if not (t and (t.fee or 0) > 0 and not t.refunded) then return end
   t.refunded = true
@@ -113,7 +114,7 @@ end
 function M.busy() return call ~= nil end
 
 function M.onStreetLegalStopped()
-  if call then drop(call.truck) refund(call) end
+  if call then drop(call.truck) end
   for id in pairs(leaving) do drop(id) end
   call, leaving = nil, {}
 end
