@@ -6229,7 +6229,7 @@ do
   check('needs: the fridge tops food to 60 when it was lower', low.food == 60 and low.water == 100)
   check('needs: sleep is in a bed at a garage that has one, on the couch at one that has not, in the car elsewhere', N.sleepPlace(true, true) == 'bed' and N.sleepPlace(true, false) == 'couch' and N.sleepPlace(false, true) == 'car')
   local tired = N.repair({ food = 100, water = 100, rest = 5 })
-  check('needs: a motel room is a full sleep', N.motel(tired) > 90 and tired.rest == 100 and N.MOTEL.price == 40)
+  check('needs: a motel room is a full sleep', N.motel(tired) > 90 and tired.rest == 100 and N.MOTEL_PRICE == 40)
   local w = N.repair({ spentWeek = 137.4 })
   local line = N.takeWeek(w)
   check('needs: the ledger takes the week\'s food and drink as a line and starts the week again', line.amount == 137 and w.spentWeek == 0 and N.takeWeek(w) == nil)
@@ -9089,6 +9089,56 @@ do
   check('photos game side: the next week draws again with nothing done', save.photoChallenges.week == week + 1 and sent[#sent].data.list[2].done == false)
   _G.sl_career, _G.sl_options, _G.guihooks, _G.getPlayerVehicle = old.c, old.o, old.gh, old.pv
   package.loaded['sl/photos'] = nil
+end
+
+-- settings coverage (the new rows are gameplay rows that set the constants of the rules through sl_balance)
+do
+  local Opt = require('sl/options')
+  local byKey = {}
+  for _, d in ipairs(Opt.defs) do byKey[d.key] = d end
+  local B = require('sl/balance')
+  local okRows, missing = true, nil
+  for _, e in ipairs(B.MAP) do
+    local d = byKey[e[1]]
+    if not d then okRows, missing = false, e[1] break end
+  end
+  check('coverage: every row of the balance map is an option', okRows, missing)
+  local mapped = {}
+  for _, e in ipairs(B.MAP) do mapped[e[1]] = e end
+  local newOnes = { 'slTurfCut', 'slTurfBase', 'slTurfRaid', 'slTurfRaidAngry', 'slTurfRaidControl', 'slRouteMin', 'slRouteMax', 'slRouteCap', 'slRouteApart', 'slRouteLength', 'slRadioGap', 'slRadioIdle', 'slRadioAge',
+    'slMechanicDiscount', 'slMechanicHours', 'slInspectPrice', 'slYardDiscountMin', 'slYardDiscountMax', 'slYardPick', 'slWashBasic', 'slWashPolish', 'slPlateText', 'slDinerPrices', 'slMotelPrice' }
+  local allGood = true
+  for _, k in ipairs(newOnes) do
+    local d, e = byKey[k], mapped[k]
+    if not (d and e and d.scope == 'gameplay' and d.type == 'range' and d.min and d.max and d.default >= d.min and d.default <= d.max) then allGood = false end
+    if d and e then
+      local mod = require(e[2])
+      if mod[e[3]] ~= d.default then allGood = false end      -- (the row's default is what the rules were written with)
+    end
+  end
+  check('coverage: the new rows are gameplay ranges whose defaults are the rules\' own numbers', allGood)
+  check('coverage: Easy and Hardcore values sit inside the row\'s range', (function()
+    for _, d in pairs(byKey) do
+      if type(d.gameplay) == 'table' then
+        for _, v in pairs(d.gameplay) do if type(v) == 'number' and (v < d.min or v > d.max) then return false end end
+      end
+    end
+    return true
+  end)())
+  -- a changed row reaches the rules
+  local saved = _G.sl_options
+  _G.sl_options = { get = function(k) if k == 'slTurfCut' then return 150 end if k == 'slMotelPrice' then return 55 end if k == 'slMechanicDiscount' then return 0.7 end end }
+  B.apply()
+  local T, N, S = require('sl/core/turfincome'), require('sl/core/needs'), require('sl/core/shops')
+  check('coverage: the balance map carries a turf cut, a motel price and the mechanic discount into the rules', T.CUT_MAX == 150 and T.cut({ owner = 'player', control = 100 }) == 150 and N.MOTEL_PRICE == 55
+    and S.mechanicServices({ { id = 'basic', label = 'Basic', cost = 200 } })[1].price == 140)
+  N.PRICE_SCALE = 2
+  check('coverage: the diner price scale doubles a meal', N.price('meal') == 24)
+  _G.sl_options = { get = function() return nil end }
+  B.apply()
+  check('coverage: with the rows unset the rules go back to their own numbers', T.CUT_MAX == 100 and N.MOTEL_PRICE == 40 and S.MECHANIC_DISCOUNT == 0.85)
+  N.PRICE_SCALE = 1
+  _G.sl_options = saved
 end
 
 print(string.format('lua tests passed: %d checks', passed))

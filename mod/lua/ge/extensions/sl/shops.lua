@@ -243,7 +243,7 @@ local function perform(line)
     local offered = false
     for _, o in ipairs(info and info.options or {}) do if o.id == option and o.available ~= false then offered = true end end
     if not offered then return false, strings.t('shops.no_such_service') end
-    local okT, why = sl_career.skipTime(tostring(rules.MECHANIC.hours))
+    local okT, why = sl_career.skipTime(tostring(math.max(1, math.floor(rules.MECHANIC_HOURS + 0.5))))
     if not okT then return false, strings.t('shops.mechanic_busy', tostring(why)) end
     local ok, text = sl_service.service(car.id, option, 0)      -- (the shop has charged its own price: no second charge)
     return ok == true, ok and text or strings.t('shops.not_here')

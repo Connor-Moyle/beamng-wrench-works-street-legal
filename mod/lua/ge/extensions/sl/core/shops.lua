@@ -248,15 +248,15 @@ function M.washServices(level)
 end
 
 -- ---- the independent mechanic: a service at 85% of the phone's price, an hour of the clock, and an inspection ($40: the car report)
-M.MECHANIC = { discount = 0.85, hours = 1, inspect = 40 }
+M.MECHANIC_DISCOUNT, M.MECHANIC_HOURS, M.INSPECT_PRICE = 0.85, 1, 40
 function M.mechanicServices(options)
   local out = {}
   for _, o in ipairs(options or {}) do
     if o.available ~= false then
-      out[#out + 1] = { id = 'service_' .. tostring(o.id), name = tostring(o.label or o.id), price = math.floor((tonumber(o.cost) or 0) * M.MECHANIC.discount / 10 + 0.5) * 10, desc = strings.t('shops.svc_service_desc') }
+      out[#out + 1] = { id = 'service_' .. tostring(o.id), name = tostring(o.label or o.id), price = math.floor((tonumber(o.cost) or 0) * M.MECHANIC_DISCOUNT / 10 + 0.5) * 10, desc = strings.t('shops.svc_service_desc') }
     end
   end
-  out[#out + 1] = { id = 'inspect', name = strings.t('shops.svc_inspect'), price = M.MECHANIC.inspect, desc = strings.t('shops.svc_inspect_desc') }
+  out[#out + 1] = { id = 'inspect', name = strings.t('shops.svc_inspect'), price = M.INSPECT_PRICE, desc = strings.t('shops.svc_inspect_desc') }
   return out
 end
 
@@ -271,18 +271,19 @@ end
 function M.plateText(id) return type(id) == 'string' and id:match('^plate_([%u%d]+)$') or nil end
 
 -- ---- the junkyard: a day's pick of the parts that fit the car, second-hand: 35 to 65% off, worn (condition 0.3 to 0.7). The same day gives the same pick
-M.USED = { keep = 24, discountMin = 0.35, discountMax = 0.65, condMin = 0.3, condMax = 0.7 }
+M.JUNK_KEEP, M.JUNK_DISC_MIN, M.JUNK_DISC_MAX = 24, 0.35, 0.65
+M.USED = { condMin = 0.3, condMax = 0.7 }
 function M.junkSample(list, day, seed)
   local r = rng.new((day or 1) * 6151 + rng.hash(tostring(seed or '')))
   local pool = {}
   for i, e in ipairs(list or {}) do pool[i] = e end
   for i = #pool, 2, -1 do local j = r:int(1, i) pool[i], pool[j] = pool[j], pool[i] end      -- (a shuffle: the pick differs from day to day)
   local out = {}
-  for i = 1, math.min(M.USED.keep, #pool) do
+  for i = 1, math.min(M.JUNK_KEEP, #pool) do
     local e = pool[i]
     local copy = {}
     for k, v in pairs(e) do copy[k] = v end
-    local off = r:range(M.USED.discountMin, M.USED.discountMax)
+    local off = r:range(math.min(M.JUNK_DISC_MIN, M.JUNK_DISC_MAX), math.max(M.JUNK_DISC_MIN, M.JUNK_DISC_MAX))
     copy.price = math.max(1, math.floor((e.price or 0) * (1 - off) + 0.5))
     copy.cond = r:range(M.USED.condMin, M.USED.condMax)
     copy.wear = 1 - copy.cond
