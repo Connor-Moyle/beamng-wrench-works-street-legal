@@ -256,6 +256,12 @@ M.defs = {
     desc = 'A faint shake on the steering when you are hungry.' },
   { key = 'slNeedsReduceMotion', tab = 'Needs', group = 'Effects', title = 'Reduce motion', type = 'bool', default = false,
     desc = 'No screen blur from needs (the Driver Injuries add-on has its own Reduce motion switch, which also counts).' },
+  { key = 'slInventoryScale', tab = 'Inventory', group = 'Inventory', title = 'Boot size', type = 'range', min = 0.5, max = 2, step = 0.25, default = 1, unit = 'x',
+    desc = 'How much your car carries: 1 is normal (a pickup carries more than a small coupe), 2 is twice as much, 0.5 half.' },
+  { key = 'slFitTimeScale', tab = 'Inventory', group = 'Inventory', title = 'Time to fit parts', type = 'range', min = 0, max = 3, step = 0.25, default = 1, unit = 'x',
+    desc = 'How long fitting a part takes on the clock (a bolt-on a few minutes, an exhaust half an hour, an engine hours): 1 is normal, 0 means no time passes.' },
+  { key = 'slLabourScale', tab = 'Inventory', group = 'Inventory', title = 'Fitting labour at shops', type = 'range', min = 0, max = 3, step = 0.25, default = 1, unit = 'x',
+    desc = 'What a shop charges to fit the parts you brought (labour only): 1 is normal, 0 is free.' },
   { key = 'slNeedsShow', tab = 'Needs', group = 'Needs', title = 'Show the meters always', type = 'bool', default = false,
     desc = 'The three meters on the phone pill at all times, not only when one is low.' },
 }

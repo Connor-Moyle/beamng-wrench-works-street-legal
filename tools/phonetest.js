@@ -613,6 +613,33 @@ phone.handle('slPhoneData', Object.assign({}, data, { turf: { held: 1, turfWar: 
 phone.act('home');
 phone.act('open', 'turf');
 assert.ok(text().includes('The Docks') && text().includes('you are here') && text().includes('home of the North End crew') && text().includes('led by Nina'), 'Turf lists districts and crews');
+// the Inventory page: the boot bar, a row per item with Use / Drop, parts without Drop, two clicks to drop; nothing with the part off
+{
+  const inv = require('./inventory_fixture.js');
+  phone.handle('slPhoneData', Object.assign({}, data, { inventory: inv }));
+  phone.act('home');
+  assert.ok(phone.root.querySelector('[data-a="open"][data-v="inventory"]'), 'the Inventory app is on the home screen');
+  phone.act('open', 'inventory');
+  const tx = text();
+  assert.ok(tx.includes('14 / 28') && tx.includes('Engine oil') && tx.includes('4 of 10 L') && tx.includes('13 uses left') && tx.includes('Ibishu') && tx.includes('35 % worn'), 'the boot, the oil, the can, the tool uses, the part brand and wear: ' + tx.slice(0, 300));
+  assert.ok(phone.root.querySelector('[data-a="invuse"][data-v="oil"]') && phone.root.querySelector('[data-a="invuse"][data-v="battery"]') && !phone.root.querySelector('[data-a="invuse"][data-v="bypass"]'), 'oil and battery can be used, a tool not');
+  assert.strictEqual(phone.root.querySelectorAll('[data-a="invdrop"]').length, 4, 'items, the can and the tool can be dropped, the two parts not');
+  calls.length = 0;
+  click('invuse', 'oil');
+  assert.ok(calls.includes('@sl_inventory.use("oil")'), 'Use calls the module');
+  click('invdrop', 'can:1');
+  assert.ok(!calls.some(c => c.indexOf('discard') >= 0), 'the first click on Drop only asks');
+  click('invdrop', 'can:1');
+  assert.ok(calls.includes('@sl_inventory.discard("can",1)'), 'the second drops the can');
+  click('invdrop', 'item:oil');
+  click('invdrop', 'item:oil');
+  assert.ok(calls.includes('@sl_inventory.discard("item","oil")'), 'an item by id');
+  phone.handle('slPhoneData', Object.assign({}, data, { inventory: { used: 0, cap: 20, groups: [] } }));
+  assert.ok(text().includes('Nothing in the boot.'), 'an empty boot says so');
+  phone.act('home');
+  phone.handle('slPhoneData', Object.assign({}, data, { inventory: inv, has: Object.assign({}, data.has, { inventory: false }) }));
+  assert.ok(!phone.root.querySelector('[data-a="open"][data-v="inventory"]'), 'the part off: no app');
+}
 // #48 the last race's replay on the Races page
 phone.handle('slPhoneData', Object.assign({}, data, { replay: { name: 'Quarry sprint', saved: false } }));
 phone.act('home');
