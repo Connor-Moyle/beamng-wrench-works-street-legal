@@ -103,6 +103,10 @@ end
 
 -- ---- photo challenges (campaign idea #3; rules in sl/core/photochallenge, design in the control repo: docs/PHOTO_CHALLENGES.md). The option Photo challenges is off by default.
 local function enabled() return sl_options and sl_options.get and sl_options.get('slPhotoChallenges') == true end
+local function limits()      -- the three rows of the camera page: challenges a week, the radius of "at a place", the pay
+  local get = sl_options and sl_options.get
+  if get then pc.configure(get('slPhotoPerWeek'), get('slPhotoRadius'), get('slPhotoPay')) end
+end
 local function career() return sl_career and sl_career.isActive() and sl_career.getState() or nil end
 
 -- the paint of a car as r, g, b in 0..1, from its part config (the same place Wrench Works reads paints); nil when unreadable (unverified for every car)
@@ -175,6 +179,7 @@ local function weekList(s)
   for id, p in pairs(all) do if p.name then ids[#ids + 1] = id end end
   table.sort(ids)
   for _, id in ipairs(ids) do ctx.places[#ctx.places + 1] = { id = id, name = all[id].name } end
+  limits()
   s.photoChallenges = { week = week, list = pc.pool(s.seed, week, ctx), done = {} }
   return s.photoChallenges
 end
@@ -196,6 +201,7 @@ local function claim(shot)
   local s = career()
   if not enabled() or not s or not shot then return nil end
   local st = weekList(s)
+  limits()
   local texts, bestMiss = {}, nil
   for _, c in ipairs(st.list) do
     if not st.done[c.id] then

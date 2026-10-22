@@ -5973,6 +5973,13 @@ do
   local bare = P.pool(1, 1, {})
   check('photo: a player with nothing to match still gets a time-of-day challenge', #bare == 3 and bare[1].band ~= nil and bare[1].colour == nil)
   check('photo: the line reads', P.describe({ id = 'x', colour = 'red', hpMax = 120, place = 'pier', placeName = 'the Pier', band = 'sunset' }) == 'Photograph your red car under 120 hp at the Pier at sunset.')
+  P.configure(6, 150, 2)
+  local p3 = P.pay({ parts = {} })
+  check('photo: the settings set the week size, the place radius and the pay scale, clamped', P.PER_WEEK == 6 and P.PLACE_R == 150 and P.PAY_SCALE == 2 and p3.money == 260)
+  P.configure(99, 5, 0)
+  check('photo: out-of-range settings are clamped', P.PER_WEEK == 6 and P.PLACE_R == 30 and P.PAY_SCALE == 0.25)
+  P.configure(nil, nil, nil)
+  check('photo: no value gives the defaults', P.PER_WEEK == 3 and P.PLACE_R == 80 and P.PAY_SCALE == 1)
 end
 
 -- photo challenges, game side: the phone's list follows the option, is drawn once a week and kept in the save

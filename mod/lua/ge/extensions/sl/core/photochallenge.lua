@@ -12,6 +12,14 @@ M.PER_WEEK = 3
 M.PLACE_R = 80                -- metres from a place's middle that count as "at" it
 M.MIN_HEIGHT = 0.20           -- the car's box must be this share of the picture's height
 M.MIN_CORNERS = 3             -- corners of the car's box in the picture, and corners a ray reaches
+M.PAY_SCALE = 1               -- what a done challenge pays, times this
+
+-- the player's settings (Mods menu): challenges a week (the list of a week already made keeps its size), the radius of "at a place", the pay scale; clamped here
+function M.configure(perWeek, radius, payScale)
+  M.PER_WEEK = math.floor(math.max(1, math.min(6, tonumber(perWeek) or 3)) + 0.5)
+  M.PLACE_R = math.max(30, math.min(200, tonumber(radius) or 80))
+  M.PAY_SCALE = math.max(0.25, math.min(4, tonumber(payScale) or 1))
+end
 
 M.COLOURS = { 'red', 'orange', 'yellow', 'green', 'blue', 'white', 'black', 'silver' }
 M.BANDS = { 'dawn', 'day', 'sunset', 'night' }
@@ -87,7 +95,7 @@ end
 -- what a done challenge pays: more parts, more money and rep
 function M.pay(ch)
   local n = math.max(1, #M.partsOf(ch))
-  return { money = 40 + 90 * n, rep = math.min(3, n) }
+  return { money = math.floor((40 + 90 * n) * M.PAY_SCALE + 0.5), rep = math.min(3, n) }
 end
 
 -- one car of the snapshot against the challenge: { picture = { seen, clear, big }, colour = bool|nil, power = ..., place = ..., time = ..., ok }
