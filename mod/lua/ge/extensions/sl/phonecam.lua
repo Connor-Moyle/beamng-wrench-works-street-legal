@@ -67,6 +67,7 @@ end
 -- the player left the car or the level ended in the middle of it: the camera is the game's again
 function M.onVehicleSwitched() if prev then M.leave() end end
 function M.onClientEndMission() prev = nil end
+function M.onStreetLegalStopped() if prev then M.leave() end end      -- (the career stopped on the same level: the zoom and the camera go back)
 function M.onExtensionUnloaded() if prev then M.leave() end end
 
 return M

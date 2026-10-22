@@ -61,10 +61,7 @@ function M.clear(why)
   return true
 end
 
-function M.onUpdate(dtReal)
-  timer = timer + (dtReal or 0)
-  if timer < 0.25 then return end
-  timer = 0
+local function tick()
   local s = career()
   if not s then last = nil return end
   local now = reading()
@@ -82,6 +79,24 @@ function M.onUpdate(dtReal)
   end
   last = now
 end
+
+local failures = 0
+function M.onUpdate(dtReal)
+  if failures >= 3 then return end      -- (a tick that keeps failing is stopped, not repeated forever)
+  timer = timer + (dtReal or 0)
+  if timer < 0.25 then return end
+  timer = 0
+  local ok, err = pcall(tick)
+  if not ok then
+    failures = failures + 1
+    log('E', 'sl_phonecrack', 'tick failed (' .. failures .. '/3): ' .. tostring(err))
+  end
+end
+
+-- another car: its damage reading is not a crash of this one (the first reading after a switch or a respawn only sets the baseline)
+function M.onVehicleSwitched() last = nil end
+function M.onVehicleResetted() last = nil end
+function M.onVehicleActiveChanged() last = nil end
 
 -- Injury hooked a crash that hurt the driver: at least a stage 1 crack
 function M.onSlrrDriverInjured(vehId, injuries)
