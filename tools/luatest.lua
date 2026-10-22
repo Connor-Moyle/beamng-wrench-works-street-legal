@@ -8964,4 +8964,119 @@ do
   package.loaded['sl/tyrecare'] = nil
 end
 
+-- photo challenges (campaign idea #3): colour families, hour bands, the frame, the verdict, the weekly pool
+do
+  local P = require('sl/core/photochallenge')
+  check('photo: colour families', P.colourFamily(0.8, 0.05, 0.05) == 'red' and P.colourFamily(0.1, 0.2, 0.8) == 'blue' and P.colourFamily(0.1, 0.6, 0.15) == 'green'
+    and P.colourFamily(0.95, 0.95, 0.93) == 'white' and P.colourFamily(0.03, 0.03, 0.04) == 'black' and P.colourFamily(0.55, 0.55, 0.57) == 'silver'
+    and P.colourFamily(0.95, 0.85, 0.1) == 'yellow' and P.colourFamily(0.95, 0.5, 0.05) == 'orange' and P.colourFamily(0.5, 0.2, 0.7) == 'other')
+  check('photo: hour bands', P.hourBand(6) == 'dawn' and P.hourBand(12) == 'day' and P.hourBand(18.5) == 'sunset' and P.hourBand(23) == 'night' and P.hourBand(3) == 'night' and P.hourBand(24 + 12) == 'day')
+  -- the camera at the origin looking along +y; a car box 4 m ahead is in frame and 1.4 m tall (about 35 % of a picture of 60 degrees)
+  local cam = { pos = { 0, 0, 0 }, fwd = { 0, 1, 0 }, right = { 1, 0, 0 }, up = { 0, 0, 1 }, tanX = math.tan(math.rad(30)) * 16 / 9, tanY = math.tan(math.rad(30)) }
+  local function box(cx, cy, cz, w, l, h)
+    local c = {}
+    for _, dx in ipairs({ -w / 2, w / 2 }) do for _, dy in ipairs({ -l / 2, l / 2 }) do for _, dz in ipairs({ 0, h }) do c[#c + 1] = { cx + dx, cy + dy, cz + dz } end end end
+    return c
+  end
+  local allClear = { true, true, true, true, true, true, true, true }
+  local near = P.visible(cam, box(0, 8, -0.7, 1.8, 4.2, 1.4), allClear)
+  check('photo: a car dead ahead is seen, clear and big enough', near.seen and near.clear and near.big and near.height > 0.2, near.height)
+  local far = P.visible(cam, box(0, 80, -0.7, 1.8, 4.2, 1.4), allClear)
+  check('photo: a car far away is seen but too small', far.seen and far.clear and not far.big)
+  check('photo: a car behind the camera is not seen', not P.visible(cam, box(0, -8, -0.7, 1.8, 4.2, 1.4), allClear).seen)
+  check('photo: a car far off to the side is not seen', not P.visible(cam, box(60, 8, -0.7, 1.8, 4.2, 1.4), allClear).seen)
+  check('photo: a wall in front (no ray reaches) is not clear; an unknown ray is not clear', not P.visible(cam, box(0, 8, -0.7, 1.8, 4.2, 1.4), { false, false, false, false, false, false, false, false }).clear
+    and not P.visible(cam, box(0, 8, -0.7, 1.8, 4.2, 1.4), nil).clear)
+  local ch = { id = 'w1_1', own = true, colour = 'red', hpMax = 120, place = 'pier', band = 'sunset' }
+  local function shot(over)
+    local s = { cam = cam, hour = 18, places = { pier = { 0, 10, 0 } }, cars = { { own = true, corners = box(0, 8, -0.7, 1.8, 4.2, 1.4), rayClear = allClear, rgb = { 0.8, 0.05, 0.05 }, hp = 90, pos = { 0, 8, 0 } } } }
+    for k, v in pairs(over or {}) do s[k] = v end
+    return s
+  end
+  check('photo: a red car under 120 hp at the pier at sunset passes', P.check(ch, shot()).ok)
+  check('photo: the wrong hour says time', (function() local r = P.check(ch, shot({ hour = 12 })) return not r.ok and r.reasons[1] == 'photoch.why_time' end)())
+  check('photo: too far from the place says place', (function() local s = shot({ places = { pier = { 500, 500, 0 } } }) local r = P.check(ch, s) return not r.ok and r.reasons[1] == 'photoch.why_place' end)())
+  check('photo: too much power says power', (function() local s = shot() s.cars[1].hp = 200 local r = P.check(ch, s) return not r.ok and r.reasons[1] == 'photoch.why_power' end)())
+  check('photo: another colour says colour', (function() local s = shot() s.cars[1].rgb = { 0.1, 0.2, 0.8 } local r = P.check(ch, s) return not r.ok and r.reasons[1] == 'photoch.why_colour' end)())
+  check('photo: no ray reaching says blocked', (function() local s = shot() s.cars[1].rayClear = {} local r = P.check(ch, s) return not r.ok and r.reasons[1] == 'photoch.why_blocked' end)())
+  check('photo: a small car says come closer', (function() local s = shot() s.cars[1].corners = box(0, 80, -0.7, 1.8, 4.2, 1.4) local r = P.check(ch, s) return not r.ok and r.reasons[1] == 'photoch.why_small' end)())
+  check('photo: an own-car challenge ignores other cars; no cars at all says so', (function()
+    local s = shot() s.cars[1].own = false
+    local r = P.check(ch, s)
+    return not r.ok and r.reasons[1] == 'photoch.why_no_car' and P.check(ch, { cam = cam, hour = 18, cars = {} }).reasons[1] == 'photoch.why_no_car'
+  end)())
+  check('photo: pay grows with the parts, one to three rep', P.pay({ band = 'day' }).money == 130 and P.pay(ch).money == 400 and P.pay(ch).rep == 3 and P.pay({ colour = 'red' }).rep == 1)
+  local ctx = { ownColours = { 'red', 'blue' }, ownHp = { 90, 240 }, places = { { id = 'pier', name = 'the Pier' }, { id = 'yard', name = 'the Yard' } } }
+  local a, b2 = P.pool(77, 3, ctx), P.pool(77, 3, ctx)
+  check('photo: three a week, the same for a seed and week, different for another week', #a == 3 and #b2 == 3 and a[1].id == b2[1].id and P.describe(a[1]) == P.describe(b2[1]) and (function()
+    local c2 = P.pool(77, 4, ctx)
+    for i = 1, 3 do if P.describe(c2[i]) ~= P.describe(a[i]) then return true end end
+    return false
+  end)())
+  check('photo: no two the same in a week, every one has a part and a pay', (function()
+    for w = 1, 40 do
+      local list, seen = P.pool(w, w, ctx), {}
+      if #list ~= 3 then return false end
+      for _, c in ipairs(list) do
+        local d = P.describe(c)
+        if seen[d] or #P.partsOf(c) == 0 or c.money < 130 or c.rep < 1 then return false end
+        seen[d] = true
+      end
+    end
+    return true
+  end)())
+  check('photo: only what the player can meet is asked: colours of owned cars, power around owned cars', (function()
+    for w = 1, 60 do
+      for _, c in ipairs(P.pool(5, w, ctx)) do
+        if c.colour and c.colour ~= 'red' and c.colour ~= 'blue' then return false end
+        if c.hpMax and c.hpMax <= 90 then return false end
+        if c.hpMin and c.hpMin >= 240 then return false end
+      end
+    end
+    return true
+  end)())
+  local bare = P.pool(1, 1, {})
+  check('photo: a player with nothing to match still gets a time-of-day challenge', #bare == 3 and bare[1].band ~= nil and bare[1].colour == nil)
+  check('photo: the line reads', P.describe({ id = 'x', colour = 'red', hpMax = 120, place = 'pier', placeName = 'the Pier', band = 'sunset' }) == 'Photograph your red car under 120 hp at the Pier at sunset.')
+  P.configure(6, 150, 2)
+  local p3 = P.pay({ parts = {} })
+  check('photo: the settings set the week size, the place radius and the pay scale, clamped', P.PER_WEEK == 6 and P.PLACE_R == 150 and P.PAY_SCALE == 2 and p3.money == 260)
+  P.configure(99, 5, 0)
+  check('photo: out-of-range settings are clamped', P.PER_WEEK == 6 and P.PLACE_R == 30 and P.PAY_SCALE == 0.25)
+  P.configure(nil, nil, nil)
+  check('photo: no value gives the defaults', P.PER_WEEK == 3 and P.PLACE_R == 80 and P.PAY_SCALE == 1)
+end
+
+-- photo challenges, game side: the phone's list follows the option, is drawn once a week and kept in the save
+do
+  local old = { c = _G.sl_career, o = _G.sl_options, gh = _G.guihooks, pv = _G.getPlayerVehicle }
+  local save = { day = 9, seed = 5 }
+  local sent = {}
+  local on = false
+  _G.sl_career = { isActive = function() return true end, getState = function() return save end,
+    getPlaces = function() return { pier = { name = 'the Pier', at = { x = 1, y = 2, z = 3 } }, yard = { name = 'the Yard', at = { x = 5, y = 6, z = 7 } } } end }
+  _G.sl_options = { get = function(k) return k == 'slPhotoChallenges' and on or nil end }
+  _G.guihooks = { trigger = function(name, data) sent[#sent + 1] = { name = name, data = data } end }
+  _G.getPlayerVehicle = function() return nil end
+  package.loaded['sl/photos'] = nil
+  local PH = require('sl/photos')
+  PH.challenges()
+  check('photos game side: the option off: the phone gets on = false and the save is untouched', sent[#sent].name == 'slPhotoChallenges' and sent[#sent].data.on == false and save.photoChallenges == nil)
+  on = true
+  PH.challenges()
+  local d = sent[#sent].data
+  check('photos game side: on: three challenges with text and pay, none done', d.on == true and #d.list == 3 and d.list[1].text:find('^Photograph') ~= nil and d.list[1].pays:find('rep') ~= nil and not d.list[1].done)
+  local week, firstText = save.photoChallenges.week, d.list[1].text
+  PH.challenges()
+  check('photos game side: asked again the same week: the same list', save.photoChallenges.week == week and sent[#sent].data.list[1].text == firstText)
+  save.photoChallenges.done[save.photoChallenges.list[2].id] = true
+  PH.challenges()
+  check('photos game side: a done challenge is marked done', sent[#sent].data.list[2].done == true and sent[#sent].data.list[1].done == false)
+  save.day = 15
+  PH.challenges()
+  check('photos game side: the next week draws again with nothing done', save.photoChallenges.week == week + 1 and sent[#sent].data.list[2].done == false)
+  _G.sl_career, _G.sl_options, _G.guihooks, _G.getPlayerVehicle = old.c, old.o, old.gh, old.pv
+  package.loaded['sl/photos'] = nil
+end
+
 print(string.format('lua tests passed: %d checks', passed))

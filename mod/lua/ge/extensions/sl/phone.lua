@@ -357,6 +357,7 @@ local function routeStep(dtReal)
 end
 
 function M.photos() if sl_photos then sl_photos.list() end end
+function M.photoChallenges() if sl_photos then sl_photos.challenges() end end
 function M.takePhoto() if sl_photos then answer(sl_photos.take()) end end
 function M.setWallpaper(which, file) if sl_photos then answer(sl_photos.setWallpaper(tostring(which), file ~= '' and tostring(file) or false)) end end
 function M.upgrade(id) if career() and sl_upgrades then answer(sl_upgrades.buy(tostring(id))) end end
