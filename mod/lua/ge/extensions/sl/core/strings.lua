@@ -869,7 +869,7 @@ M.TEXT = {
   ["siphon.no_car_near"] = "No car in reach.", ["siphon.need_tube"] = "You need a siphon tube.", ["siphon.need_can"] = "You need a jerry can.", ["siphon.no_fuel_tank"] = "This car has no fuel to take.",
   ["siphon.own_off"] = "Siphoning your own cars is switched off.", ["siphon.can_wrong_or_full"] = "Your can is full or holds another fuel.", ["siphon.started"] = "Siphoning: keep holding.",
   ["siphon.pour_own_only"] = "You can only pour fuel into your own car.", ["siphon.nothing_to_pour"] = "Nothing to pour: the can is empty, another fuel, or the tank is full.",
-  ["siphon.seen"] = "Somebody saw you.", ["siphon.too_far"] = "You walked away.", ["siphon.tank_dry"] = "The tank is as empty as it gets.", ["siphon.can_full"] = "The can is full.",
+  ["siphon.car_running"] = "That car is being driven.", ["siphon.not_fair_game"] = "You cannot take fuel from that car.", ["siphon.seen"] = "Somebody saw you.", ["siphon.too_far"] = "You walked away.", ["siphon.tank_dry"] = "The tank is as empty as it gets.", ["siphon.can_full"] = "The can is full.",
   ["siphon.can_empty"] = "The can is empty.", ["siphon.tank_full"] = "The tank is full.", ["siphon.prompt"] = "Hold the siphon key to take fuel", ["siphon.prompt_own"] = "Hold the siphon key to take fuel, the pour key to pour",
   ["perks.trade"] = "Trade prices", ["perks.trade_text"] = "Garage upgrades cost 10% less.",
   ["perks.mechanic"] = "Friendly mechanic", ["perks.mechanic_text"] = "Services cost 15% less.",

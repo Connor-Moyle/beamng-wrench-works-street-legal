@@ -4027,6 +4027,37 @@ do
   SX.holdSiphon(true)
   check('siphon game: with the own-cars switch off it is refused', last() == 'Siphoning your own cars is switched off.' and SX.status():find('session none') ~= nil)
   SX.holdSiphon(false)
+  -- ab's theft rules, when they answer: not fair game / running refuse, the exposure decides every ten seconds
+  ownCarId = nil
+  _G.sl_theft = { fairGame = function() return false, 'own' end, exposure = function() return { witness = true } end }
+  SX.onStreetLegalStopped()
+  SX.onUpdate(0.3)
+  SX.holdSiphon(true)
+  check('siphon game: a car the theft rules call not fair game is refused', last() == 'You cannot take fuel from that car.' and SX.status():find('session none') ~= nil)
+  SX.holdSiphon(false)
+  _G.sl_theft.fairGame = function() return false, 'running' end
+  SX.holdSiphon(true)
+  check('siphon game: a running car is refused', last() == 'That car is being driven.' and SX.status():find('session none') ~= nil)
+  SX.holdSiphon(false)
+  _G.sl_theft.fairGame = function() return true end
+  local exposures = 0
+  _G.sl_theft.exposure = function() exposures = exposures + 1 return { witness = exposures >= 2 } end
+  night, st.heat = true, 0
+  can.litres, can.fuel = 0, nil
+  SX.holdSiphon(true)
+  seconds(9)
+  check('siphon game: with the theft rules the exposure is asked every ten seconds, not before', exposures == 0 and SX.status():find('session take') ~= nil)
+  seconds(1)
+  check('siphon game: a first exposure with nobody about lets it go on', exposures == 1 and SX.status():find('session take') ~= nil)
+  seconds(10)
+  check('siphon game: a witness found by the theft rules stops it, and their heat is theirs (none added here)', exposures == 2 and SX.status():find('session none') ~= nil and last() == 'Somebody saw you.' and (st.heat or 0) == 0)
+  SX.holdSiphon(false)
+  _G.sl_theft = { fairGame = function() return nil end, exposure = function() return nil end }      -- (the part off: nil means the rules here)
+  night = false
+  SX.holdSiphon(true)
+  check('siphon game: when the theft rules answer nil the rules here apply', SX.status():find('session take') ~= nil)
+  SX.holdSiphon(false)
+  _G.sl_theft = nil
   -- the tank is read about once a second while a car stays near, not at every scan
   SX.onStreetLegalStopped()
   local reads = 0

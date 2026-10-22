@@ -50,6 +50,16 @@ local function isOwn(s, vid)
   return false
 end
 
+-- ab's theft rules (sl_theft, the Car theft part), when they answer: fairGame(vid) -> ok, reason ('own' a car that is not for taking, 'running' a moving one) and exposure(vid, noise) -> { witness, alarm }
+-- with the heat and the alarm applied by them. nil (no theft part, an error) means: use the rules here.
+local function theftCall(name, ...)
+  local f = rawget(_G, 'sl_theft') and sl_theft[name]
+  if type(f) ~= 'function' then return nil end
+  local ok, a, b = pcall(f, ...)
+  if not ok then return nil end
+  return a, b
+end
+
 local function tubeCount() return sl_inventory and sl_inventory.count and sl_inventory.count('siphontube') or 0 end
 
 -- the first can that can take from this tank (partly filled of the same fuel first), the first with fuel that can be poured into it
@@ -110,13 +120,17 @@ function M.hold(mode, down)
     if tubeCount() < 1 then toast(strings.t('siphon.need_tube')) return end
     if not near.tank then toast(strings.t('siphon.no_fuel_tank')) return end
     if near.own and opt('slSiphonOwn', true) == false then toast(strings.t('siphon.own_off')) return end
+    local fair, why = nil, nil
+    if not near.own then fair, why = theftCall('fairGame', near.vid) end
+    if fair == false then toast(strings.t(why == 'running' and 'siphon.car_running' or 'siphon.not_fair_game')) return end
+    near.theft = fair == true
     local can = canFor(s, 'take', near.tank)
     if not can then
       local any = #invRules.ensure(s).cans > 0
       toast(strings.t(any and 'siphon.can_wrong_or_full' or 'siphon.need_can'))
       return
     end
-    session = { mode = 'take', vid = near.vid, can = can, own = near.own, acc = 0, noticeT = 0 }
+    session = { mode = 'take', vid = near.vid, can = can, own = near.own, acc = 0, noticeT = 0, theft = near.theft, exposeT = 0 }
     toast(strings.t('siphon.started'))
   else
     if not near.own then toast(strings.t('siphon.pour_own_only')) return end
@@ -141,9 +155,9 @@ local function witnesses(pos, vid)
   return n * math.max(0, math.min(1, tonumber(opt('slSiphonNoise', 0.5)) or 0.5)) * 2
 end
 
-local function notice(s)
+local function notice(s, applied)
   toast(strings.t('siphon.seen'))
-  if sl_career.isNight and sl_career.isNight() then s.heat = heat.raised(s.heat, 0.08) end      -- (heat is a night thing)
+  if not applied and sl_career.isNight and sl_career.isNight() then s.heat = heat.raised(s.heat, 0.08) end      -- (heat is a night thing; the theft rules apply their own)
   extensions.hook('onStreetLegalFuelTheft', session and session.vid)
   stop()
 end
@@ -189,7 +203,14 @@ local function tick(dt)
     if session.acc >= 1 and not session.busy then
       local a = session.acc
       session.acc = 0
-      if not session.own and session.mode == 'take' then                  -- somebody else car: the risk of being noticed
+      if not session.own and session.mode == 'take' and session.theft then      -- the theft rules decide every ten seconds (witnesses and the car alarm, their heat)
+        session.exposeT = (session.exposeT or 0) + a
+        if session.exposeT >= 10 then
+          session.exposeT = 0
+          local ex = theftCall('exposure', session.vid, tonumber(opt('slSiphonNoise', 0.5)) or 0.5)
+          if type(ex) == 'table' and (ex.witness or ex.alarm) then notice(s, true) return end
+        end
+      elseif not session.own and session.mode == 'take' then                  -- somebody else car: the risk of being noticed
         local night = sl_career.isNight and sl_career.isNight() or false
         local r = rules.risk(night, witnesses(pos, session.vid), false, tonumber(opt('slSiphonRisk', 1)) or 1)
         if math.random() < rules.noticed(r, a) then notice(s) return end
