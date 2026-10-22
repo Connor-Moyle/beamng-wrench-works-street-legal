@@ -878,6 +878,12 @@ assert.ok(!phone.root.querySelector('.slp-tyrecar'), 'a car without tyre data sh
   assert.ok(t.includes('Service due') && t.includes('6200 km since the last service (every 5000 km)') && t.includes('parts wear 1.4 times as fast'), 'due, the km and the wear factor: ' + t.slice(0, 300));
   assert.ok(t.includes('Engine') && t.includes('30%') && t.includes('Brakes') && t.includes('80%') && phone.root.querySelector('.slp-warn'), 'the sections, the low one marked');
   assert.ok(phone.root.querySelector('[data-a="service"][data-v="8|basic"]') && !phone.root.querySelector('[data-a="service"][data-v="8|full"]') && t.includes('$900'), 'an available service has a button, an unavailable one is shown without');
+  const sb = phone.root.querySelector('[data-a="service"][data-v="8|basic"]');
+  const lbl = sb.querySelector('.slp-lbl');
+  assert.ok(sb.classList.contains('slp-stack') && lbl && lbl.textContent === 'Basic service' && sb.querySelector('small') && sb.querySelector('small').textContent.includes('$120') && !sb.querySelector('br'), 'a service button: the label in its own node, the note under it, no line break between flex items');
+  const cssAll = [...win.document.querySelectorAll('style')].map((x) => x.textContent).join('');
+  assert.ok(/\.slp-btn\.slp-stack\{flex-direction:column;height:auto/.test(cssAll), 'the stacked button CSS: a column as tall as it needs (not a 40 px pill)');
+  assert.ok(!/class="slp-btn[^"]*"[^>]*>[^<]*<br><small>/.test(code), 'no button puts a line break and a note between flex items any more');
   calls.length = 0;
   click('service', '8|basic');
   assert.ok(calls.includes('service(8,"basic")'), 'the button asks the game for service(8,"basic"): ' + calls.join(' '));

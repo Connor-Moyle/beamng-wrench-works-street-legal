@@ -76,6 +76,7 @@
     '.slp-ph.slp-on{border-color:#a8c7fa}',
     '.slp-bigph{margin:10px 12px;border-radius:14px;width:calc(100% - 24px);aspect-ratio:16/9;background:#211f26 center/cover no-repeat}',
     '.slp-empty{padding:40px 30px;text-align:center;color:#938f99;font-size:14px;line-height:1.5}',
+    '.slp-btn.slp-stack{flex-direction:column;height:auto;min-height:40px;padding:8px 16px;border-radius:16px;line-height:1.25;text-align:center}.slp-stack .slp-lbl{font-weight:500}.slp-stack small{display:block;font-weight:400;opacity:.85;white-space:normal}',      /* (a button with a label and a note under it: one column, as tall as it needs, never a 40 px pill with the note beside the label) */
     '.slp-btn{display:inline-flex;align-items:center;justify-content:center;height:40px;padding:0 20px;border-radius:20px;background:#a8c7fa;color:#062e6f;font-size:14px;font-weight:500;cursor:pointer;border:none}',
     '.slp-btn.slp-tonal{background:#3a3f4b;color:#d7e3ff}',
     '.slp-btn.slp-text{background:none;color:#a8c7fa;padding:0 12px}',
@@ -1155,7 +1156,7 @@
       car = car || arr(st.data.fleet).filter(function (c) { return c.seated && c.tyres && arr(c.tyres.offers).length; })[0];
       if (!car) return '';
       var offers = arr(car.tyres.offers).filter(function (o) { return !o.current; }).map(function (o) {
-        return '<div class="slp-btn slp-tonal" data-a="tyreswap" data-v="' + esc(o.id) + '">' + esc(tyreName(o.id)) + '<br><small>' + money(o.price) + '</small></div>';
+        return '<div class="slp-btn slp-stack slp-tonal" data-a="tyreswap" data-v="' + esc(o.id) + '"><span class="slp-lbl">' + esc(tyreName(o.id)) + '</span><small>' + money(o.price) + '</small></div>';
       }).join('');
       return '<div class="slp-card" style="margin:6px 0 4px 0"><h4>' + T('ui.swap_tyres', 'Swap tyres') + '</h4><p>' + T('ui.swap_tyres_text', 'The crew changes the set where you stand. The car must be stopped.') + '</p>' +
         '<div class="slp-acts" style="flex-wrap:wrap">' + offers + '</div></div>';
@@ -1172,7 +1173,7 @@
       }).join('');
       var opts = arr(sv.options).map(function (o) {
         var ok = o.available !== false;
-        return '<div class="slp-btn slp-tonal' + (ok ? '' : ' slp-off') + '"' + (ok ? ' data-a="service" data-v="' + c.id + '|' + esc(o.id) + '"' : '') + '>' + esc(o.label || o.id) + '<br><small>' + money(o.cost) + (o.why ? ' &middot; ' + esc(o.why) : '') + '</small></div>';
+        return '<div class="slp-btn slp-stack slp-tonal' + (ok ? '' : ' slp-off') + '"' + (ok ? ' data-a="service" data-v="' + c.id + '|' + esc(o.id) + '"' : '') + '><span class="slp-lbl">' + esc(o.label || o.id) + '</span><small>' + money(o.cost) + (o.why ? ' &middot; ' + esc(o.why) : '') + '</small></div>';
       }).join('');
       var factor = Number(sv.wearFactor) || 1;
       return '<div class="slp-card" style="margin:6px 0 4px 0"><h4>' + (sv.due ? '&#9888; ' + T('ui.service_due', 'Service due') : T('ui.service', 'Service')) + '</h4><p>' +
@@ -1457,7 +1458,7 @@
       if (!g || !g.open) return '';
       var pick = st.fuelPick || 'premium';
       var grades = arr(g.fuels).map(function (f) {
-        return '<div class="slp-btn' + (f.id === pick ? '' : ' slp-tonal') + '" data-a="fuelpick" data-v="' + esc(f.id) + '">' + esc(f.name) + '<br><small>$' + Number(f.price).toFixed(2) + '/L</small></div>';
+        return '<div class="slp-btn slp-stack' + (f.id === pick ? '' : ' slp-tonal') + '" data-a="fuelpick" data-v="' + esc(f.id) + '"><span class="slp-lbl">' + esc(f.name) + '</span><small>$' + Number(f.price).toFixed(2) + '/L</small></div>';
       }).join('');
       var tank = g.car ? T('ui.your_1_2_3_4', 'Your {1}: {2}{3}{4}', esc(g.car), (g.tank != null ? Math.round(g.tank * 100) + '% full' : ''), (g.inTank ? ' &middot; ' + esc(g.inTank) : ''), (g.litresToFull != null ? ' &middot; ' + Math.round(g.litresToFull) + ' L to fill' : '')) : T('ui.come_in_your_car_to', 'Come in your car to fill it up.');
       var shop = arr(g.items).map(function (it) {
