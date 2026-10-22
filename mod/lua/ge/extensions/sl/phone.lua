@@ -121,6 +121,8 @@ local function snapshot()
     trophies = type(s.trophies) == 'table' and s.trophies or nil,      -- (the trophy shelf's list, written at a win; nil until there is one)
     calendar = sl_calendar and sl_calendar.summary and sl_calendar.summary() or nil,      -- (the Calendar app: nil with the part off or no career)
     crack = rawget(_G, 'sl_phonecrack') and sl_phonecrack.view and sl_phonecrack.view() or nil,      -- (the cracked screen: nil when whole or the part is off)
+    camera = { firstPerson = sl_options and sl_options.get and sl_options.get('slCamFirstPerson') ~= false, sway = sl_options and sl_options.get and tonumber(sl_options.get('slCamSway')) or 0.5,
+      grid = sl_options and sl_options.get and sl_options.get('slCamGrid') ~= false, bezel = sl_options and sl_options.get and sl_options.get('slCamBezel') ~= false, zoomMax = sl_options and sl_options.get and tonumber(sl_options.get('slCamZoomMax')) or 4 },
     visit = sl_career.visit and sl_career.visit() and { name = sl_career.visit().name or sl_career.mapName(), round = sl_career.visit().round, rounds = sl_career.visit().rounds, untilDay = sl_career.visit().untilDay } or nil,      -- (on a trip: the phone shows the Event hub)
     hub = sl_career.visit and sl_career.visit() and sl_series and sl_series.hub and sl_series.hub() or nil,      -- (the paddock: standings, the next round, the cars brought)
     travelPick = travelPick,      -- (the pick-cars screen: sl_series.options(eventId) while one is open)
@@ -432,6 +434,10 @@ function M.sponsorDecline() if career() and sl_sponsor then answer(sl_sponsor.de
 function M.sponsorQuit() if career() and sl_sponsor then answer(sl_sponsor.quit()) end end
 function M.payDebt(amount) if career() and sl_weekly then answer(sl_weekly.payDebt(tonumber(amount))) end end
 function M.repay(amount) if career() and sl_bank then answer(sl_bank.repay(tonumber(amount))) end end
+-- the Camera app as a camera (sl_phonecam: first person while the app is open, the old camera back after)
+function M.cameraEnter() if rawget(_G, 'sl_phonecam') then sl_phonecam.enter() end end
+function M.cameraLeave() if rawget(_G, 'sl_phonecam') then sl_phonecam.leave() end end
+function M.cameraZoom(z) if rawget(_G, 'sl_phonecam') then sl_phonecam.zoom(tonumber(z)) end end
 function M.economyOptIn() if career() and sl_career.optInEconomy then answer(sl_career.optInEconomy()) end end      -- (the offer card's button: ok, text; the text is the toast)
 function M.insure(on) if career() and sl_bank then answer(sl_bank.insure(on == true or on == 'true')) end end
 function M.takeJob(id) if career() and sl_jobs then answer(sl_jobs.take(tostring(id))) end end

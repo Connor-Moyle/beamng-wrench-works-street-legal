@@ -1229,6 +1229,40 @@ assert.ok(/target\.focus\(\{ preventScroll: true \}\)/.test(code) && !/target\.f
   assert.ok(!phone.root.querySelector('.slp-crack'), 'stage 0: no overlay');
   phone.handle('slPhoneData', data);
 }
+{
+  // the Camera app as a camera (tools/camera_fixture.js): opening it asks for the first-person view and draws the sideways phone; leaving puts the camera back
+  const cam = require('./camera_fixture.js'), cf = require('./crack_fixture.js');
+  if (!phone.state.open) phone.handle('slPhoneToggle');
+  phone.act('home');
+  phone.handle('slPhoneData', Object.assign({}, data, { camera: cam }));
+  calls.length = 0;
+  phone.act('open', 'camera');
+  assert.ok(calls.includes('cameraEnter()'), 'the Camera app asks for the first-person view: ' + calls.join(' '));
+  assert.ok(phone.root.classList.contains('slp-camon') || phone.root.querySelector('.slp-camon') || phone.root.querySelector('.slp-camui'), 'the camera screen is up');
+  const ui = phone.root.querySelector('.slp-camui');
+  assert.ok(ui && ui.querySelector('[data-a="photo"]') && ui.querySelector('.slp-camgrid') && ui.querySelector('.slp-cambz') && ui.querySelector('[data-a="camflash"]') && ui.querySelectorAll('[data-a="camzoom"]').length === 3, 'shutter, grid, bezel, flash and zoom 1x 2x 4x (zoomMax 4)');
+  assert.ok(ui.getAttribute('style').includes('--slp-sway:0.50'), 'the sway setting is on the frame');
+  calls.length = 0;
+  click('camzoom', '2');
+  assert.ok(calls.includes('cameraZoom(2)') && phone.root.querySelector('[data-a="camzoom"][data-v="2"]').classList.contains('slp-on'), 'a zoom button sets the zoom through the game');
+  click('camflash', '1');
+  assert.ok(phone.root.querySelector('.slp-camflashb').classList.contains('slp-on'), 'the flash toggles');
+  click('camgrid', '1');
+  assert.ok(!phone.root.querySelector('.slp-camgrid'), 'the grid toggles off');
+  calls.length = 0;
+  click('photo', '1');
+  assert.ok(calls.includes('takePhoto()'), 'the shutter is the app’s own photo: ' + calls.join(' '));
+  calls.length = 0;
+  win.document.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  assert.ok(calls.includes('cameraLeave()') && !phone.root.querySelector('.slp-camui'), 'Esc leaves the camera too');
+  phone.act('open', 'camera');
+  phone.handle('slPhoneData', Object.assign({}, data, { camera: Object.assign({}, cam, { bezel: false, zoomMax: 1, sway: 0 }), crack: cf }));
+  assert.ok(!phone.root.querySelector('.slp-cambz') && phone.root.querySelectorAll('[data-a="camzoom"]').length === 1 && phone.root.querySelector('.slp-camui .slp-crack'), 'no bezel, one zoom step, and a cracked phone has its cracks over the camera too');
+  calls.length = 0;
+  click('home', undefined);
+  assert.ok(calls.includes('cameraLeave()') && !phone.root.querySelector('.slp-camui'), 'leaving the app puts the camera back and the screen away: ' + calls.join(' '));
+  phone.handle('slPhoneData', data);
+}
 console.log('phone test passed');
 
 // a page to look at: the phone in several states side by side
