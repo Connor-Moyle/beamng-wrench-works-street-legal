@@ -161,7 +161,6 @@ local workMin = 0
 
 -- the parts for the cars you own go on the garage shelf when you drive in; the rest wait
 function M.onWrenchWorksGarageEntered()
-  workMin = 0
   local s = career()
   if not s or not features.on('inventory') or not (slrr_garage and slrr_garage.addShelfPart) then return end
   local inv = rules.ensure(s)
@@ -191,6 +190,7 @@ end
 
 -- driving out of the garage: the work of the visit moves the clock once (a fade and a line "2 h 15 min later"); never during a race, job or chase (the clock refuses and no time passes)
 function M.onWrenchWorksGarageLeft()
+  if slrr_garage and slrr_garage.bayMoving and slrr_garage.bayMoving() then return end      -- (moving to another bay leaves and re-enters: the minutes wait for the real drive-out)
   local minutes = math.min(rules.VISIT_MAX, workMin)
   workMin = 0
   if minutes < 5 or not (career() and sl_career.spendTime) then return end
