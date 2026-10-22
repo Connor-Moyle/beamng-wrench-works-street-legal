@@ -156,8 +156,8 @@ local function sendCallouts(s, c)
       end
       local racer = pick and stateLib.racer(s, pick)
       local race = raceIn(c, co.district)
-      co.racer = pick or false
       if racer and race then
+        co.racer = pick           -- (marked as sent only when it is: a call-out no race can carry is tried again until it expires, and costs nothing)
         s.known[racer.id] = true
         for i = #s.challenges, 1, -1 do if s.challenges[i].racer == racer.id then table.remove(s.challenges, i) end end
         local pink = home and s.activeCar ~= nil
@@ -234,6 +234,7 @@ local function turfWarCheck(s, c)
   end
   for _, id in ipairs(holding) do if #order < 3 then order[#order + 1] = id end end
   for _, id in ipairs(beaten) do if #order < 3 then order[#order + 1] = id end end
+  if #order == 0 then return end         -- (no crew has a leader to meet: there is no war to start)
   c.turfWar = { stage = 1, order = order }
   sl_career.sendText('benny', strings.t('crews.the_crew_leaders_have_noticed'), 3)
 end
@@ -272,6 +273,7 @@ end
 
 local function doRaid(s, c)
   local r = c.raid
+  if r and c.king then c.raid = nil return end         -- (a raid planned before the crown does not come)
   if not r or s.day < r.day or (sl_career.hour and sl_career.hour() or 0) < RAID_HOUR then return end
   c.raid = nil
   c.raided = c.raided or {}

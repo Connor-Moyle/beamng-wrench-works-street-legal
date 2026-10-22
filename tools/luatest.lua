@@ -7398,4 +7398,115 @@ do
   package.loaded['sl/weekly'] = nil
 end
 
+-- crews end to end (the audit of call-outs, the turf war and the king, on the clustered districts of a map with no districts file)
+do
+  local ST = require('sl/core/state')
+  local old = {}
+  for _, k in ipairs({ 'sl_career', 'guihooks', 'extensions', 'sl_options', 'sl_crews', 'getPlayerVehicle', 'getCurrentLevelIdentifier', 'sl_fleet', 'jsonReadFile' }) do old[k] = rawget(_G, k) end
+  local st, sent, races, hour, pos
+  local function setup(held)
+    st = ST.new(3, 0)
+    st.day, st.money = 10, 5000
+    sent, hour, pos = {}, 12, { x = 0, y = 0 }
+    races = {}
+    local places = {}
+    for i = 1, 12 do places[i] = { name = 'Place ' .. i, kind = 'shop', pos = { x = (i % 4) * 900, y = math.floor(i / 4) * 900 } } end
+    _G.sl_options, _G.sl_crews, _G.getCurrentLevelIdentifier, _G.jsonReadFile = nil, nil, function() return 'testmap' end, function() return nil end
+    _G.guihooks = { trigger = function() end }
+    _G.extensions = { hook = function() end }
+    _G.getPlayerVehicle = function() return { getPosition = function() return pos end } end
+    _G.sl_fleet = { vehicleOf = function() return nil end, atGarage = function() return false end }
+    _G.sl_career = { isActive = function() return true end, getState = function() return st end, has = function() return true end, getPlaces = function() return places end,
+      racesList = function() return races end, sendText = function(who, t) sent[#sent + 1] = { who = who, text = t } end, hour = function() return hour end,
+      addMoney = function(a, l) return ST.addMoney(st, a, l) end, payOut = function(a, l) return ST.addMoney(st, a, l) end, mapText = function(t) return t end }
+    package.loaded['sl/crews'] = nil
+    local C = require('sl/crews')
+    local c = C.ensure(st)
+    local n = 0
+    for _, d in ipairs(c.districts) do
+      local t = c.territory[d.id]
+      if n < held then t.owner, t.control, n = 'player', 80, n + 1 end
+    end
+    return C, c
+  end
+  local function tick(C, n) for _ = 1, n or 1 do C.onUpdate(5) end end
+
+  local C, c = setup(0)
+  local homes = 0
+  for _, t in pairs(c.territory) do if t.home then homes = homes + 1 end end
+  check('crews e2e: a map with no districts file gets districts from its places, every crew a home', #c.districts >= 4 and homes == 4)
+
+  -- a call-out in a district no race starts in: it is not punished (the challenge was never sent) and it is tried again
+  local d1 = c.districts[1].id
+  c.territory[d1].owner, c.territory[d1].control = 'player', 80
+  local crewId
+  for id in pairs(c.leader) do crewId = id break end
+  c.callouts = { { crew = crewId, district = d1, day = st.day } }
+  races = { { id = 'far', name = 'Far sprint', start = { x = 99999, y = 99999 }, missionId = 'm' } }
+  tick(C)
+  check('crews e2e: a call-out with no race in its district is not marked as sent', c.callouts[1].racer == nil)
+  C.onStreetLegalNewDay(st.day + 2)
+  check('crews e2e: and costs nothing when it was never sent', c.territory[d1].control == 80 and c.territory[d1].owner == 'player')
+
+  -- a call-out with a race: a night-only challenge is sent, ignored it costs control, answered it goes
+  C, c = setup(1)
+  d1 = nil
+  for id, t in pairs(c.territory) do if t.owner == 'player' then d1 = id end end
+  local cd
+  for _, d in ipairs(c.districts) do if d.id == d1 then cd = d.centre end end
+  crewId = nil
+  crewId = next(c.leader)
+  c.callouts = { { crew = crewId, district = d1, day = st.day } }
+  races = { { id = 'here', name = 'Here sprint', start = { x = cd.x, y = cd.y }, missionId = 'm' } }
+  tick(C)
+  local ch
+  for _, x in ipairs(st.challenges) do if x.callout == d1 then ch = x end end
+  check('crews e2e: a call-out with a race in its district becomes a night challenge and a text', ch and ch.nightOnly == true and #sent == 1, tostring(ch) .. ' ' .. #sent .. ' ' .. tostring(crewId) .. ' ' .. tostring(d1) .. ' ' .. tostring(c.callouts[1] and c.callouts[1].racer) .. ' ' .. #st.challenges)
+  C.onStreetLegalNewDay(st.day + 2)
+  check('crews e2e: ignored for a day and a night it costs 10 control and the challenge goes', c.territory[d1].control == 70 and #c.callouts == 0)
+
+  -- the turf war: four districts held; with no leaders it must not start
+  C, c = setup(4)
+  local leaders = c.leader
+  c.leader = {}
+  tick(C)
+  check('crews e2e: a crew with no leader cannot be fought: the turf war does not start with nobody to meet', c.turfWar == nil)
+  c.leader = leaders
+  tick(C, 2)
+  check('crews e2e: with leaders the turf war starts with three of them in order and the first is called', c.turfWar and #c.turfWar.order == 3 and c.turfWar.stage == 1)
+  races = { { id = 'r1', name = 'Race 1', start = { x = 0, y = 0 }, missionId = 'm' } }
+  tick(C)
+  local first = c.turfWar.order[1]
+  local leaderId = c.leader[first]
+  local called
+  for _, x in ipairs(st.challenges) do if x.turfWar == first then called = x end end
+  check('crews e2e: the first leader challenges you for a bet', called and called.racer == leaderId and called.bet > 0)
+  -- win all three: the king
+  local kings = 0
+  local ex = _G.extensions
+  _G.extensions = { hook = function(n) if n == 'onStreetLegalKingOfValo' then kings = kings + 1 end end }
+  for stage = 1, 3 do
+    local id = c.leader[c.turfWar and c.turfWar.order[c.turfWar.stage] or first]
+    C.onStreetLegalRaceStarted()
+    C.onStreetLegalRaceResult(true, 'x', id, 'money')
+  end
+  _G.extensions = ex
+  check('crews e2e: three wins make you the king, every district yours at 100, once', c.king ~= nil and c.turfWar == nil and kings == 1 and (function() for _, t in pairs(c.territory) do if t.owner ~= 'player' or t.control ~= 100 then return false end end return true end)())
+  -- king and a raid that was already planned: nothing happens
+  c.raid = { crew = first, day = st.day }
+  hour = 23
+  sent = {}
+  tick(C)
+  check('crews e2e: a king is not raided by a plan made before the crown', c.raid == nil and #sent == 0)
+  -- a lost turf war race: off for a week
+  C, c = setup(4)
+  tick(C, 2)
+  local f2 = c.turfWar.order[1]
+  C.onStreetLegalRaceStarted()
+  C.onStreetLegalRaceResult(false, 'x', c.leader[f2], 'money')
+  check('crews e2e: losing a leader ends the war for a week', c.turfWar == nil and c.turfWarAfter == st.day + 7)
+  for k, v in pairs(old) do _G[k] = v end
+  package.loaded['sl/crews'] = nil
+end
+
 print(string.format('lua tests passed: %d checks', passed))
