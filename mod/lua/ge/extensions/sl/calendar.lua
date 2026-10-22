@@ -112,6 +112,7 @@ local function finished(eventId, res)
   if not s or res.aborted then return end
   local ev = rules.find(schedule(s), eventId)
   if not ev then return end
+  if sl_seasons and sl_seasons.purse and ev.reward then ev.reward = math.floor(ev.reward * sl_seasons.purse(ev.id:sub(1, 5) == 'swap:' and 'meet' or 'sprint') + 0.5) end          -- (Seasons: a few per cent by season)
   local money, rep = rules.result(store(s), ev, res.place)
   if money > 0 then sl_career.payOut(money, strings.t('calendar.purse_1', ev.title)) end
   if rep > 0 then stateLib.addRep(s, rep) end

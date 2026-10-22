@@ -3311,14 +3311,14 @@ do
   local Opt = require('sl/options')
   local defs = {}
   for _, d in ipairs(Opt.defs) do defs[d.key] = d end
-  local okDefs = #F.LIST == 39
+  local okDefs = #F.LIST == 40
   local offByDefault = 0
   for _, f in ipairs(F.LIST) do
     local d = defs[f.opt]
     if not (d and d.type == 'bool' and d.default == (f.default ~= false) and d.feature == true and d.title == f.title and f.desc ~= '') then okDefs = false end
     if f.default == false then offByDefault = offByDefault + 1 end
   end
-  check('parts: every part has an option, one bool, on by default unless the part says off (needs), tagged for the Active features page', okDefs and offByDefault == 2 and F.get('needs').default == false and F.get('mates').default == false)
+  check('parts: every part has an option, one bool, on by default unless the part says off (needs), tagged for the Active features page', okDefs and offByDefault == 3 and F.get('needs').default == false and F.get('mates').default == false and F.get('seasons').default == false)
   local off = { slJobs = false }
   local function get(k) return off[k] end
   check('parts: on unless the option is false; a missing option system is on', F.on('jobs', get) == false and F.on('races', get) == true and F.on('jobs', function() return nil end) == true and F.on('nope', get) == true)
@@ -6233,6 +6233,30 @@ do
   check('mates: the shop factor is withdrawn at the end', factor == nil)
   for k, v in pairs(old) do _G[k] = v end
   package.loaded['sl/mates'] = nil
+end
+
+-- the seasons' game side (sl/seasons): the profile on the game's day curve, the lapse through Car Surface FX, both taken back, the hot summer day, the purse factors
+do
+  local old = { sl_career = _G.sl_career, core_environment = _G.core_environment, carSurfaceFx = _G.carSurfaceFx, sl_weather = _G.sl_weather, log = _G.log }
+  local s = { day = 90, seed = 5 }          -- day 90 is winter (days 85-112)
+  local profile, resets, lapse = nil, 0, false
+  _G.sl_career = { isActive = function() return true end, getState = function() return s end }
+  _G.core_environment = { setTemperatureProfile = function(p) profile = p end, resetTemperatureProfile = function() resets = resets + 1 end }
+  _G.carSurfaceFx = { setSetting = function(g, k, v) local o = lapse lapse = v return o end }
+  _G.sl_weather = { state = function() return 'rain' end }
+  _G.log = function() end
+  package.loaded['sl/seasons'] = nil
+  local Z = require('sl/seasons')
+  Z.onStreetLegalStarted()
+  check('seasons: winter rain sets the night low and day high on the game curve; the lapse is switched on', profile and profile.minC == 3 and profile.maxC == 8 and lapse == true)
+  check('seasons: purses by season (winter sprint +8 %, winter show -10 %), hot only on clear summer days', Z.purse('sprint') == 1.08 and Z.purse('meet') == 0.9 and Z.hot('clear') == false)
+  s.day = 40
+  check('seasons: day 40 is summer: a clear day is hot, a rainy one not', Z.hot('clear') == true and Z.hot('rain') == false and Z.purse('series') == 1.05)
+  check('seasons: the forecast is the season\'s draw and the note names the season', Z.forecast(5, 90, 'day') ~= nil and Z.note():find('Summer', 1, true) ~= nil)
+  Z.onStreetLegalStopped()
+  check('seasons: at the end the profile is reset and the lapse put back', resets == 1 and lapse == false)
+  for k, v in pairs(old) do _G[k] = v end
+  package.loaded['sl/seasons'] = nil
 end
 
 print(string.format('lua tests passed: %d checks', passed))
