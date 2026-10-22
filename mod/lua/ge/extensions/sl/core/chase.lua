@@ -216,7 +216,7 @@ end
 -- ---- police batch 2 (P8-P10): tickets and court, the wanted record, the impound lot (the game side is sl/justice.lua)
 M.PULLOVER_S = 5                      -- seconds from the siren to a stop for a ticket instead of a bust
 M.STOPPED_MS = 1.5
-M.TICKET_BASE, M.TICKET_OFFENCE = 120, 60
+M.TICKET_BASE, M.TICKET_OFFENCE, M.TICKET_DUE_DAYS = 120, 60, 1
 M.LAWYER_FEE = 150
 M.CONTEST_WITH, M.CONTEST_WITHOUT = 0.6, 0.25      -- the chance to win with and without evidence (a saved race recording)
 M.LOST_RAISE = 1.5
@@ -226,7 +226,7 @@ function M.isTicket(maxMode, stoppedAfter) return (tonumber(maxMode) or 9) <= 1 
 function M.ticketFine(offences) return M.TICKET_BASE + M.TICKET_OFFENCE * math.max(1, tonumber(offences) or 1) end
 function M.newTicket(id, day, offences)
   local n = math.max(1, tonumber(offences) or 1)
-  return { id = id, day = day, offences = n, amount = M.ticketFine(n), due = day + 1, paid = false, contested = false }
+  return { id = id, day = day, offences = n, amount = M.ticketFine(n), due = day + M.TICKET_DUE_DAYS, paid = false, contested = false }
 end
 -- the unpaid tickets whose court day has passed
 function M.overdue(tickets, day)
@@ -250,11 +250,12 @@ end
 function M.suspendedVars(v, suspended) if suspended then v.strictness = 1 end return v end
 
 M.WANTED_LEVEL = 4
-function M.bounty(level) return 500 + 250 * math.max(0, lvl(level) - 3) end
+M.BOUNTY_BASE, M.BOUNTY_STEP, M.INFORMANT_SHARE = 500, 250, 0.5
+function M.bounty(level) return M.BOUNTY_BASE + M.BOUNTY_STEP * math.max(0, lvl(level) - 3) end
 function M.wantedRecord(car, day, level) return { carId = car.id, name = car.name, model = car.model, day = day, level = lvl(level), bounty = M.bounty(level) } end
 M.RECOGNISE_M, M.RECOGNISE_EVERY = 25, 60
 function M.recognised(dist, speed, sinceLast) return (dist or 1e9) <= M.RECOGNISE_M and (speed or 0) > 2 and (sinceLast or 0) >= M.RECOGNISE_EVERY end
-function M.informantPrice(bounty) return math.floor((bounty or 0) / 2 / 10 + 0.5) * 10 end
+function M.informantPrice(bounty) return math.floor((bounty or 0) * M.INFORMANT_SHARE / 10 + 0.5) * 10 end
 
 M.LOT_BUILD_WITHIN = 300
 M.FENCE_HEAT = 0.75                   -- heat level 4
@@ -295,8 +296,10 @@ function M.isStraight(headings)
 end
 
 -- ---- P12: the patrol shift (the game side is sl/patrol.lua): the job, the pay by arrest time, the damage charge
-M.PATROL = { unlock = 300, shiftS = 600, arrests = 3, earlyS = 60, radius = 22, reach = 80, car = 'fullsize', config = 'vehicles/fullsize/police.pc',
-             base = 180, arrestPay = 220, arrestDrop = 2, arrestMin = 80, slowAfter = 20, damageFree = 500, damagePer = 20, damageMax = 400 }
+M.PATROL_SHIFT_S, M.PATROL_ARRESTS, M.PATROL_BASE, M.PATROL_ARREST_PAY = 600, 3, 180, 220      -- (the Mods rows; PATROL reads them below)
+local PATROL_ROWS = { shiftS = 'PATROL_SHIFT_S', arrests = 'PATROL_ARRESTS', base = 'PATROL_BASE', arrestPay = 'PATROL_ARREST_PAY' }
+M.PATROL = setmetatable({ unlock = 300, earlyS = 60, radius = 22, reach = 80, car = 'fullsize', config = 'vehicles/fullsize/police.pc',
+             arrestDrop = 2, arrestMin = 80, slowAfter = 20, damageFree = 500, damagePer = 20, damageMax = 400 }, { __index = function(_, k) return PATROL_ROWS[k] and M[PATROL_ROWS[k]] or nil end })
 -- an arrest pays its full price when it came within slowAfter seconds of the chase's start, then $2 less a second, never under the floor
 function M.arrestPay(seconds) return math.max(M.PATROL.arrestMin, M.PATROL.arrestPay - M.PATROL.arrestDrop * math.max(0, (tonumber(seconds) or 0) - M.PATROL.slowAfter)) end
 function M.patrolPay(arrests)

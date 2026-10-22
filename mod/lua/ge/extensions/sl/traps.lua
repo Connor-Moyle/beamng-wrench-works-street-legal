@@ -39,9 +39,9 @@ local function result(s, t, kmh)
   e.rec[t.id] = rec
   local line = strings.t(t.kind == 'zone' and 'traps.zone_result' or 'traps.trap_result', t.name, math.floor(kmh), t.target)
   if info.first then
-    sl_career.payOut(rules.PAY[t.kind], strings.t('traps.paid', t.name))
+    sl_career.payOut(rules.pay(t.kind), strings.t('traps.paid', t.name))
     require('sl/core/state').addRep(s, rules.REP)
-    line = line .. ' ' .. strings.t('traps.target_met', rules.PAY[t.kind])
+    line = line .. ' ' .. strings.t('traps.target_met', rules.pay(t.kind))
   elseif info.best and rec.count > 1 then
     line = line .. ' ' .. strings.t('traps.new_best')
   end
@@ -98,7 +98,7 @@ function M.summary()
   for _, t in ipairs(st.list) do
     local rec = st.rec[t.id] or {}
     list[#list + 1] = { id = t.id, name = t.name, kind = t.kind, target = t.target, best = rec.best or 0, count = rec.count or 0, paid = rec.paid == true, x = t.x, y = t.y,
-      metres = p and math.floor(math.sqrt((t.x - p.x) ^ 2 + (t.y - p.y) ^ 2)) or nil, pay = rules.PAY[t.kind] }
+      metres = p and math.floor(math.sqrt((t.x - p.x) ^ 2 + (t.y - p.y) ^ 2)) or nil, pay = rules.pay(t.kind) }
   end
   return { list = list }
 end
