@@ -77,6 +77,11 @@ M.PAGES = {
     'Walk up to an owner on foot and press the prompt (Talk to the owner). They tell you a story and make an offer: a tip, a race word or a car for sale. Nothing opens by itself while you walk through. The music is loudest at one car and the crowd murmur is in the middle.',
     'At high heat (4 or 5) the police can raid a meet: you get a text, the cars and people scatter and the heat goes up a little. Keep your heat low near a meet.',
   } },
+  { id = 'show', title = 'Style shows', body = {
+    'On Saturday nights, from nine, there is a Style show at one of the meet spots. Drive your car to the marker and stand on it: the entry is $60. Judges score the car on paint and finish, wheels, aftermarket parts (a full set from one maker scores best), cleanliness, body damage and wear, against a field of rival cars. The top three win a purse and reputation (up to $1500 at the top of the ladder).',
+    'After the judging the result card says what the judges thought of each part of the car and what to put right first: wash the car, repair the body, respray it, fit matching parts, replace the worn ones. If a mod the judges look at is not installed, that part of the score is left out and the others count for more.',
+    '- Style shows (Mods > Street Legal > Parts of the game): switch the shows off if you do not want them.',
+  } },
   { id = 'jobs', title = 'Jobs', body = {
     'The Jobs app lists what is on offer now. Taking one gives you a destination or a task, and it pays when you finish: couriers, taxi, parts runs, test drives, dyno and quarter-mile jobs and more. Most jobs are by day; a few shady ones are by night.',
     'Some jobs need a car you own, some a certain reputation. Finish the job you are on before you take another.',
