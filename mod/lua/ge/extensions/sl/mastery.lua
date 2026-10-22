@@ -10,6 +10,12 @@ local market = require('sl/core/market')
 
 local function career() return sl_career and sl_career.isActive and sl_career.isActive() and sl_career.getState() or nil end
 local function carById(s, id) for _, c in ipairs(s and s.cars or {}) do if c.id == id then return c end end end
+-- the Mods rows (Street Legal > Car mastery), read at each call: the settings are numbers, not state
+local function cfg()
+  local function o(key) return sl_options and sl_options.get and sl_options.get(key) or nil end
+  return { kmPerPoint = o('slMasteryKm'), cleanPoints = o('slMasteryClean'), thresholdScale = o('slMasteryScale'), insurance = o('slMasteryInsurance'), trade = o('slMasteryTrade'),
+    service = o('slMasteryService'), tyres = o('slMasteryTyres') }
+end
 local function activeCar() local s = career() return s and carById(s, s.activeCar) end
 
 -- the counters of a car with the odometer folded in (the odometer is the car record's care.engineKm; it never counts backwards)
@@ -19,13 +25,13 @@ local function sync(car)
   return car.mastery
 end
 
-function M.levelOf(car) return car and mastery.level(sync(car)) or 0 end
+function M.levelOf(car) return car and mastery.level(sync(car), cfg()) or 0 end
 
 -- the view for My cars and the car card: { level, max, points, toNext, label, perks }
 function M.of(carId)
   local s = career()
   local car = s and carById(s, carId)
-  return car and mastery.view(sync(car)) or nil
+  return car and mastery.view(sync(car), cfg()) or nil
 end
 
 -- the multiplier for a kind: of the given car record, or the car being driven
@@ -33,7 +39,7 @@ function M.factor(kind, car)
   if not career() then return nil end
   car = car or activeCar()
   if not car then return 1 end
-  return mastery.factor(kind, M.levelOf(car))
+  return mastery.factor(kind, M.levelOf(car), cfg())
 end
 
 -- a finished race: a clean run when the car has not been wrecked since the last one
