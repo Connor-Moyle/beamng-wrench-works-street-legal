@@ -74,6 +74,16 @@ function M.nextDue(s, now)
   for _, o in ipairs(s.orders or {}) do if o.due <= now + 0.05 then return o end end      -- (three minutes of slack: the clock is read back from the sky's float)
 end
 
+-- a car that cannot be built (its model is gone, a mod was removed) must not keep the money for ever: after MAX_BUILD_TRIES failed builds the order is cancelled and what was paid for the car
+-- (the offer's price) goes back. Returns false while there are tries left; true and the amount when the order is cancelled
+M.MAX_BUILD_TRIES = 20
+function M.buildFailed(s, order)
+  order.tries = (tonumber(order.tries) or 0) + 1
+  if order.tries < M.MAX_BUILD_TRIES then return false end
+  M.remove(s, order)
+  return true, math.max(0, math.floor(tonumber(order.offer and order.offer.price) or 0))
+end
+
 function M.remove(s, order)
   for i, o in ipairs(s.orders or {}) do if o == order then table.remove(s.orders, i) return true end end
   return false

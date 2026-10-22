@@ -7759,6 +7759,17 @@ do
   package.loaded['sl/shops'] = nil
 end
 
+-- money charged first, then a result: a bought car that can never be built is cancelled and refunded
+do
+  local DR = require('sl/core/dealers')
+  local s = { orders = {} }
+  local order = DR.place(s, { id = 'x1', name = 'Gone Car', price = 4200 }, 'd1', 100, 0)
+  local gone, back
+  for i = 1, DR.MAX_BUILD_TRIES - 1 do gone, back = DR.buildFailed(s, order) end
+  check('fee leaks: a car that fails to build keeps its order while there are tries left', gone == false and #s.orders == 1)
+  gone, back = DR.buildFailed(s, order)
+  check('fee leaks: after the last try the order is cancelled and the price is the refund', gone == true and back == 4200 and #s.orders == 0, tostring(back))
+end
 -- money charged first, then a result: the entry fees of the drag strip and the map's activities
 do
   local old = {}

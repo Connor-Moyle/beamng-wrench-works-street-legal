@@ -119,6 +119,12 @@ local function deliver(s, order)
     if not veh then
       retryAt = os.clock() + 30               -- (the order stays; try again)
       building = false
+      local gone, back = rules.buildFailed(s, order)
+      if gone then      -- (the car cannot be built at all: the order is cancelled and the price comes back)
+        if back > 0 then sl_career.addMoney(back, strings.t('dealers.order_cancelled', (order.offer and order.offer.name) or '?')) end
+        sl_career.sendText('benny', string.format(strings.t('dealers.order_cancelled_text'), (order.offer and order.offer.name) or '?', back), 2)
+        extensions.hook('onStreetLegalChanged')
+      end
       return
     end
     local active = s.activeCar
