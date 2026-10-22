@@ -876,7 +876,7 @@ M.TEXT = {
   ["gridrace.you_finished_1"] = "You finished {1}.", ["gridrace.did_not_finish"] = "Did not finish.", ["gridrace.go_1_laps"] = "Go! {1} laps.", ["gridrace.to_the_grid"] = "To the grid.",
   ["gridrace.no_car"] = "You need a car on the grid.", ["gridrace.no_race_object"] = "The game has no race object here.", ["gridrace.no_track"] = "No layout with a grid here.",
   ["hillduel.hill_duel"] = "Hill duel", ["hillduel.hill_duel_1"] = "Hill duel: {1}", ["hillduel.pin_desc"] = "At night: a duel against a rival on this hill road, scored by points. The leader scores while 25 m or more ahead, the follower while 12 m or less behind; off the road costs.",
-  ["hillduel.duel_against_1_for_2"] = "Hill duel against {1} for ${2}", ["hillduel.score_1_2"] = "You {1} : {2} them", ["hillduel.called_off"] = "The duel was called off.",
+  ["hillduel.duel_against_1_for_2"] = "Hill duel against {1} for ${2}", ["hillduel.score_1_2"] = "You {1} : {2} them", ["hillduel.called_off"] = "The duel was called off.", ["hillduel.walked_out_1"] = "You walked out of the duel: the ${1} stake is gone.",
   ["hillduel.you_won_1_2_3"] = "You won the hill duel ({1}): ${2} and {3} reputation.", ["hillduel.you_lost_1_2"] = "You lost the hill duel ({1}): ${2}.", ["hillduel.at_night"] = "Hill duels run at night.",
   ["hillduel.no_such_road"] = "No such road.", ["hillduel.duel_1_against_2_3"] = "{1}: hill duel against {2} for ${3}. The leader scores from 25 m ahead, the follower within 12 m.",
   ["needs.no_career"] = "No career.", ["needs.nap_at_garage"] = "You can only nap at a garage.", ["needs.eat_at_station"] = "Food and drink are sold at fuel stations.",

@@ -154,12 +154,11 @@ local function build(job)
     local sp, veh = table.remove(sps, 1), nil
     local started = sl_streets.buildRacerCar(spec.rival, sp.pos + vec3(0, 0, 0.5), sp.rot, function(v) veh = v or false end)
     while started and veh == nil and os.clock() - job.slFadeT0 < rules.BUILD_S do job.sleep(0.1) end
-    if veh then
-      sp:moveResetVehicleTo(veh:getID(), false, false)
-      veh:queueLuaCommand('controller.setFreeze(1) electrics.setLightsState(1)')
-      c.ais[#c.ais + 1] = { id = veh:getID(), aggression = rules.aggression(s and s.rep or 0) }
-      want = math.max(0, want - 1)
-    end
+    if not veh then error('the rival car did not build') end      -- (never a race against a pool car in the rival's place: the pcall around build() aborts and pays nothing)
+    sp:moveResetVehicleTo(veh:getID(), false, false)
+    veh:queueLuaCommand('controller.setFreeze(1) electrics.setLightsState(1)')
+    c.ais[#c.ais + 1] = { id = veh:getID(), aggression = rules.aggression(s and s.rep or 0) }
+    want = math.max(0, want - 1)
   end
   local field = rules.field(rules.candidatesFor(spec.field, candidates), playerClass(c.playerId), want, rng)
   local aggression = rules.aggression(s and s.rep or 0)

@@ -4588,6 +4588,13 @@ do
     G.startRound({ series = 'jv-offroad:2', round = 3, def = { track = 'johnson_valley/timeTrial/005-dunerace', laps = 2, field = 'offroad' }, rivals = 2 })
     G.onVehicleSwitched(100, 7)
     check('gridrace game side: a vehicle change in a round aborts it to sl_series', aborted == 'aborted' and reported == nil and G.running() == nil)
+    -- (the reviewer's case) a named rival whose car does not build aborts the race: no duel against a pool car, done gets aborted
+    events, built, deleted, result = {}, {}, {}, nil
+    raceObj.ticks, raceObj.states = 0, {}
+    _G.sl_streets = { buildRacerCar = function(id, pos, rot, cb) cb(nil) return true end }
+    local okr2 = G.start({ layer = '003', name = 'Duel', laps = 1, rival = 'ra', grid = 1 }, function(r) result = r end)
+    check('gridrace game side: a rival car that does not build aborts the race before the start, nothing built from the pool', okr2 and result ~= nil and result.aborted == true and #built == 0 and G.running() == nil and table.concat(events, '|'):find('fade false') ~= nil)
+    _G.sl_streets = nil
     _G.sl_series = nil
     -- the class scan runs in the background from the career start (the reviewer's case: not inside the first race's fade)
     package.loaded['sl/gridrace'] = nil
@@ -5901,7 +5908,28 @@ do
     spec, done = nil, nil
     D.start('mountain')
     done({ aborted = true })
-    check('hillduel game side: an abort pays nothing and says so', state.money == money0 + 400 and texts[#texts]:find('called off') ~= nil)
+    check('hillduel game side: an abort before the start pays nothing and says so', state.money == money0 + 400 and texts[#texts]:find('called off') ~= nil)
+    -- (the reviewer's cases) a walk-out after the start costs the bet; a loss never takes more than the wallet; the hooks survive a bad racers table
+    spec, done = nil, nil
+    D.start('cell')
+    spec.onTick(ctx, 1)
+    done({ aborted = true })
+    check('hillduel game side: leaving a duel after the start costs the bet', state.money == money0 + 200 and texts[#texts]:find('walked out') ~= nil)
+    spec, done = nil, nil
+    state.money = 300
+    D.start('cell')
+    state.money = 50
+    pos[2] = v3(40, 0, 0)
+    spec.onTick({ race = { states = { [1] = { placement = 2, isOnRoad = true }, [2] = { placement = 1, isOnRoad = true } }, getVehiclePosition = function(_, id) return pos[id] end }, playerId = 1, ais = { { id = 2 } } }, 1)
+    done({ place = 2, time = 100, grid = 2 })
+    check('hillduel game side: a lost bet is floored by the wallet', state.money == 0, 'money ' .. tostring(state.money) .. ' status ' .. D.status() .. ' spec ' .. tostring(spec ~= nil) .. ' texts ' .. tostring(texts[#texts]))
+    state.racers = { { id = 'bad' } }
+    local e2, a2 = {}, {}
+    D.onGetRawPoiListForLevel('west_coast_usa', e2)
+    D.onActivityAcceptGatherData({ { duelRoad = 'cell' } }, a2)
+    check('hillduel game side: a malformed racers table does not throw out of the game hooks', #e2 == 3 and #a2 == 1)
+    state.racers = { { id = 'ra', rep = 150, name = 'Ra', betMin = 100, betMax = 300 } }
+    state.money = money0 + 400
     on = false
     check('hillduel game side: the part off: no pins, no start', (function() local e = {} D.onGetRawPoiListForLevel('west_coast_usa', e) return #e == 0 end)() and D.start('cell') == nil)
     _G.sl_career, _G.sl_gridrace, _G.sl_options, _G.guihooks, _G.extensions, _G.jsonReadFile, _G.vec3, _G.quat, _G.ui_message, _G.gameplay_rawPois = old.c, old.g, old.o, old.gh, old.ex, old.jr, old.v3, old.q, old.um, old.rp

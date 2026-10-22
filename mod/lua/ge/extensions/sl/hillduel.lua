@@ -37,7 +37,7 @@ local function offerFor(s, road)
 end
 
 -- ---- the pins and the prompt
-function M.onGetRawPoiListForLevel(level, elements)
+local function pins(level, elements)
   local s = career()
   if not s or not night() or not home() or level ~= sl_career.LEVEL then return end
   for _, road in ipairs(rules.ROADS) do
@@ -55,11 +55,15 @@ function M.onGetRawPoiListForLevel(level, elements)
     end
   end
 end
+function M.onGetRawPoiListForLevel(level, elements)
+  local ok, err = pcall(pins, level, elements)
+  if not ok then log('E', 'sl_hillduel', 'pins: ' .. tostring(err)) end
+end
 local function refreshPins() if gameplay_rawPois and gameplay_rawPois.clear then gameplay_rawPois.clear() end end
 function M.onStreetLegalPhase() refreshPins() end
 function M.onStreetLegalStarted() refreshPins() end
 
-function M.onActivityAcceptGatherData(elemData, activityData)
+local function prompt(elemData, activityData)
   local s = career()
   if not s or not night() then return end
   for _, elem in ipairs(elemData or {}) do
@@ -79,8 +83,13 @@ function M.onActivityAcceptGatherData(elemData, activityData)
   end
 end
 
+function M.onActivityAcceptGatherData(elemData, activityData)
+  local ok, err = pcall(prompt, elemData, activityData)
+  if not ok then log('E', 'sl_hillduel', 'prompt: ' .. tostring(err)) end
+end
+
 -- ---- the duel
-local duel = nil        -- { road, rival, bet, score, said }
+local duel = nil        -- { road, rival, bet, score, said, started }
 
 local function tick(ctx, dt)
   local d = duel
@@ -89,6 +98,7 @@ local function tick(ctx, dt)
   local themId = ctx.ais and ctx.ais[1] and ctx.ais[1].id
   local them = themId and ctx.race.states[themId]
   if not me or not them then return end
+  d.started = true
   local ahead = nil
   if me.placement and them.placement and me.placement ~= them.placement then ahead = me.placement < them.placement and 'me' or 'them' end
   local pm, pt = ctx.race:getVehiclePosition(ctx.playerId), ctx.race:getVehiclePosition(themId)
@@ -101,9 +111,22 @@ local function finished(res)
   local d = duel
   duel = nil
   local s = career()
-  if not d or not s or res.aborted then if d then toast(strings.t('hillduel.called_off')) end return end
+  if not d or not s then return end
+  if res.aborted then
+    -- called off before the start (the rival did not build, the fade failed): nothing; after the start (leaving the car, a switch): the bet is lost, a duel is not walked out of
+    if d.started then
+      local lost = math.min(d.bet, math.max(0, s.money or 0))
+      if lost > 0 then sl_career.addMoney(-lost, strings.t('hillduel.hill_duel')) end
+      toast(strings.t('hillduel.walked_out_1', lost))
+    else
+      toast(strings.t('hillduel.called_off'))
+    end
+    extensions.hook('onStreetLegalChanged')
+    return
+  end
   local won = rules.winner(d.score, res.place) == 'me'
   local money, rep = rules.payout(won, d.bet)
+  if money < 0 then money = -math.min(d.bet, math.max(0, s.money or 0)) end      -- (a loss is floored by the wallet)
   if money > 0 then sl_career.payOut(money, strings.t('hillduel.hill_duel')) elseif money < 0 then sl_career.addMoney(money, strings.t('hillduel.hill_duel')) end
   stateLib.addRep(s, rep)
   if sl_career.afterRace then pcall(sl_career.afterRace, d.rival.id, won, math.abs(d.score.me - d.score.them)) end
