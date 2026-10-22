@@ -247,8 +247,12 @@ local PRESETS = {
   slLotDents = { performance = false, balanced = true, quality = true, max = true },
 }
 -- the parts of the game that can be switched off (sl/core/features: each is gated by its extension): one bool each, on by default, listed on the Active features page
+local haveKey = {}
+for _, d in ipairs(M.defs) do haveKey[d.key] = true end
 for _, f in ipairs(require('sl/core/features').LIST) do
+  if not haveKey[f.opt] then      -- (a part with its own row above, like Cinematic moments, is not listed twice: the registry refuses a field id twice)
   M.defs[#M.defs + 1] = { key = f.opt, feature = true, title = f.title, type = 'bool', default = f.default ~= false, tab = 'Parts of the game', group = 'Parts of the game', desc = f.desc }      -- (a part may ship off: features.LIST default = false)
+  end
 end
 -- Street Legal in free roam (sl/core/mode, sl_mode): the master switch and one per feature, all off by default; a feature needs the master and its own switch
 for _, f in ipairs(require('sl/core/mode').FEATURES()) do
