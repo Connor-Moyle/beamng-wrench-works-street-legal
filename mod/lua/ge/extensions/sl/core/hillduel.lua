@@ -50,9 +50,10 @@ end
 function M.text(sc) return strings.t('hillduel.score_1_2', math.floor(sc.me + 0.5), math.floor(sc.them + 0.5)) end
 
 -- the stake: the middle of the rival's range, to 50
+M.BET_X, M.BET_MIN = 1, 50      -- (the Mods rows: the stake against the rival's range, and its floor)
 function M.bet(racer)
   local lo, hi = tonumber(racer and racer.betMin) or 100, tonumber(racer and racer.betMax) or 300
-  return math.max(50, math.floor((lo + hi) / 2 / 50 + 0.5) * 50)
+  return math.max(M.BET_MIN, math.floor((lo + hi) / 2 * M.BET_X / 50 + 0.5) * 50)
 end
 
 -- money and reputation of the result

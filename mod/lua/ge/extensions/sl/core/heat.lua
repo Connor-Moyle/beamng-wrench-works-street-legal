@@ -51,7 +51,8 @@ end
 
 -- from level 4 a bust impounds the car whether you can pay or not; the fee grows with the level
 function M.impounds(ph, level) return ph == 'night' and (level or 0) >= 4 end
-function M.impoundFee(level) return 600 + 200 * math.max(0, (level or 0) - 3) end
+M.IMPOUND_BASE, M.IMPOUND_STEP = 600, 200
+function M.impoundFee(level) return M.IMPOUND_BASE + M.IMPOUND_STEP * math.max(0, (level or 0) - 3) end
 
 -- reputation earned since the last bank is at risk, at night
 function M.atRisk(ph, rep, banked)

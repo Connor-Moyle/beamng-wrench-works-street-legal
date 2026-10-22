@@ -11,7 +11,8 @@ M.ZONE_MIN = 350            -- m: the shortest link a zone is put on
 M.APART = 600               -- m between two traps / zones
 M.HALF = 8                  -- m: half the width of a gate
 M.TRAPS, M.ZONES = 6, 2     -- how many
-M.PAY = { trap = 250, zone = 400 }
+M.PAY_TRAP, M.PAY_ZONE = 250, 400
+function M.pay(kind) return kind == 'zone' and M.PAY_ZONE or M.PAY_TRAP end
 M.REP = 5
 M.ZONE_MAX_TIME = 120       -- s from the first gate to the second
 

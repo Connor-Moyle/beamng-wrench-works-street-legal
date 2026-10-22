@@ -4,8 +4,8 @@
 
 local M = {}
 
-M.GOOD = { jobs = 3, wins = 2, earned = 2000 }     -- any one of these over the week
-M.PARTS = { 2, 4 }                                 -- parts in a box
+M.GOOD_JOBS, M.GOOD_WINS, M.GOOD_EARNED = 3, 2, 2000     -- any one of these over the week (the Mods rows)
+M.PARTS_MIN, M.PARTS_MAX = 2, 4                          -- parts in a box
 M.CONDITION = { 0.35, 0.9 }                        -- used: from rough to nearly new
 M.MAX_VALUE = 1500                                 -- a part dearer than this (new) stays out of the box
 
@@ -19,7 +19,7 @@ function M.mark(jobsDone, wins, earned) return { jobs = tonumber(jobsDone) or 0,
 function M.goodWeek(before, after)
   if type(before) ~= 'table' or type(after) ~= 'table' then return false end
   local jobs, wins, earned = (after.jobs or 0) - (before.jobs or 0), (after.wins or 0) - (before.wins or 0), (after.earned or 0) - (before.earned or 0)
-  return jobs >= M.GOOD.jobs or wins >= M.GOOD.wins or earned >= M.GOOD.earned
+  return jobs >= M.GOOD_JOBS or wins >= M.GOOD_WINS or earned >= M.GOOD_EARNED
 end
 
 -- the parts of the box from the list of parts that fit the car ({ part, name, slotId, price, brand }): distinct slots, cheap enough, each with a
@@ -29,7 +29,7 @@ function M.pick(list, rng, count)
   for _, e in ipairs(list or {}) do
     if type(e) == 'table' and e.part and (tonumber(e.price) or 0) <= M.MAX_VALUE then pool[#pool + 1] = e end
   end
-  local n = math.min(count or rng:int(M.PARTS[1], M.PARTS[2]), #pool)
+  local n = math.min(count or rng:int(M.PARTS_MIN, math.max(M.PARTS_MIN, M.PARTS_MAX)), #pool)
   local out, slots = {}, {}
   while #pool > 0 and #out < n do
     local e = table.remove(pool, rng:int(#pool))

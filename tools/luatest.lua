@@ -8173,4 +8173,22 @@ do
   end
 end
 
+-- the settings pass (Connor: everything configurable): the switch-only features got amount rows; each is a field the rules read when used
+do
+  local CH, HT, HD, GB, BN, TR = require('sl/core/chase'), require('sl/core/heat'), require('sl/core/hillduel'), require('sl/core/grabbag'), require('sl/core/barn'), require('sl/core/traps')
+  local b0 = CH.bounty(5)
+  CH.BOUNTY_STEP = 1000
+  check('settings: the bounty step row reaches the bounty', b0 == 1000 and CH.bounty(5) == 2500 and CH.informantPrice(2500) == 1250)
+  CH.BOUNTY_STEP = 250
+  CH.TICKET_DUE_DAYS = 3
+  check('settings: the ticket due days row reaches a new ticket', CH.newTicket(1, 10, 1).due == 13)
+  CH.TICKET_DUE_DAYS = 1
+  check('settings: the patrol rows read through the PATROL table', CH.PATROL.shiftS == 600 and CH.PATROL.base == 180 and CH.PATROL.car == 'fullsize' and (function() CH.PATROL_ARREST_PAY = 300 local p = CH.arrestPay(0) CH.PATROL_ARREST_PAY = 220 return p == 300 end)())
+  check('settings: the impound fee rows', HT.impoundFee(4) == 800 and (function() HT.IMPOUND_BASE = 100 local f = HT.impoundFee(3) HT.IMPOUND_BASE = 600 return f == 100 end)())
+  check('settings: the duel stake factor and floor', HD.bet({ betMin = 100, betMax = 300 }) == 200 and (function() HD.BET_X = 2 local b = HD.bet({ betMin = 100, betMax = 300 }) HD.BET_X = 1 HD.BET_MIN = 500 local c = HD.bet({ betMin = 100, betMax = 300 }) HD.BET_MIN = 50 return b == 400 and c == 500 end)())
+  check('settings: the grab bag week rows reach the good-week rule', GB.goodWeek(GB.mark(0, 0, 0), GB.mark(3, 0, 0)) and not GB.goodWeek(GB.mark(0, 0, 0), GB.mark(2, 1, 1000)) and (function() GB.GOOD_JOBS = 1 local g = GB.goodWeek(GB.mark(0, 0, 0), GB.mark(1, 0, 0)) GB.GOOD_JOBS = 3 return g end)())
+  check('settings: the trap pay by kind', TR.pay('trap') == 250 and TR.pay('zone') == 400 and (function() TR.PAY_ZONE = 999 local p = TR.pay('zone') TR.PAY_ZONE = 400 return p == 999 end)())
+  check('settings: the barn gap rows', BN.GAP_MIN == 3 and BN.GAP_MAX == 6)
+end
+
 print(string.format('lua tests passed: %d checks', passed))

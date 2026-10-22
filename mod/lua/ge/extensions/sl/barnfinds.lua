@@ -53,7 +53,7 @@ function M.onStreetLegalNewDay(day)
   local rng = rngLib.new(rngLib.hash('barnhint:' .. day .. ':' .. tostring(s.seed)))
   local free = {}
   for _, sp in ipairs(e.spots) do if not sp.listing then free[#free + 1] = sp end end
-  b.nextHint = day + rng:int(rules.GAP[1], rules.GAP[2])
+  b.nextHint = day + rng:int(rules.GAP_MIN, math.max(rules.GAP_MIN, rules.GAP_MAX))
   if #free == 0 then return end
   local spot = free[rng:int(#free)]
   local id, name = sl_classifieds.addBarn(spot, rng:int(1, 1000000))
