@@ -13,6 +13,7 @@ local M = {}
 local strings = require('sl/core/strings')
 
 local heatLib = require('sl/core/heat')
+local drawcache = require('sl/core/drawcache')
 local chaseLib = require('sl/core/chase')
 local spawnplan = require('sl/core/spawnplan')
 local rngLib = require('sl/core/rng')
@@ -342,8 +343,10 @@ local function breakerWatch()
     local d = math.sqrt((s.x - p.x) ^ 2 + (s.y - p.y) ^ 2)
     if d < nearD then near, nearD = s, d end
     if d < 300 and debugDrawer then
-      local pulse = 0.5 + 0.5 * math.sin(os.clock() * 4)
-      debugDrawer:drawCylinder(vec3(s.x, s.y, s.z), vec3(s.x, s.y, s.z + 7), 0.35, ColorF(1, 0.55, 0.1, 0.35 + 0.35 * pulse))
+      -- (the post's two points and the colour are built once and the colour's alpha is moved, not a new vec3 pair and ColorF for every post every frame)
+      local post = drawcache.get('breaker:' .. s.x .. ',' .. s.y, function() return { vec3(s.x, s.y, s.z), vec3(s.x, s.y, s.z + 7), ColorF(1, 0.55, 0.1, 0.5) } end)
+      post[3].a = 0.35 + 0.35 * (0.5 + 0.5 * math.sin(os.clock() * 4))
+      debugDrawer:drawCylinder(post[1], post[2], 0.35, post[3])
     end
   end
   if wallOut and os.clock() - wallAt > 25 then parkWall() end

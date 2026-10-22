@@ -131,12 +131,17 @@ local function begin(stage, v)
 end
 
 local marker, markerBg = ColorF(1, 0.55, 0.1, 0.6), ColorI(40, 20, 0, 190)
+local drawcache = require('sl/core/drawcache')
 local function drawStart(stage, v)
   local p = stage.points[1]
-  local pos = vec3(p[1], p[2], p[3])
-  if (pos - v:getPosition()):length() > 500 then return end
-  debugDrawer:drawCylinder(pos, pos + vec3(0, 0, 6), 0.3, marker)
-  debugDrawer:drawTextAdvanced(pos + vec3(0, 0, 7), String(string.format(strings.t('rally.rally_s_d_m_d'), stage.name, stage.length or 0, rules.ENTRY_FEE)), marker, true, false, markerBg)
+  local vp = v:getPosition()
+  if math.sqrt((p[1] - vp.x) ^ 2 + (p[2] - vp.y) ^ 2 + (p[3] - vp.z) ^ 2) > 500 then return end
+  local m = drawcache.get('rally:' .. tostring(stage.id or stage.name), function()
+    local pos = vec3(p[1], p[2], p[3])
+    return { pos = pos, top = pos + vec3(0, 0, 6), label = pos + vec3(0, 0, 7), text = String(string.format(strings.t('rally.rally_s_d_m_d'), stage.name, stage.length or 0, rules.ENTRY_FEE)) }
+  end)
+  debugDrawer:drawCylinder(m.pos, m.top, 0.3, marker)
+  debugDrawer:drawTextAdvanced(m.label, m.text, marker, true, false, markerBg)
 end
 
 local function running(dt)
