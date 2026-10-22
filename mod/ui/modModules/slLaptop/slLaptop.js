@@ -516,6 +516,17 @@
       }).join('');
     }
 
+    // the trophy shelf's list (s.trophies = { { name, kind sprint|invite|series, day, place } }, newest last; tools/trophies_fixture.js): newest first, a card only when the list exists
+    var TROPHY_KIND = { sprint: T('ui.trophy_sprint', 'Sprint'), invite: T('ui.trophy_invite', 'Invitational'), series: T('ui.trophy_series', 'Series') };
+    function placeWord(n) { n = Number(n) || 0; var m = n % 100; var sfx = (m >= 11 && m <= 13) ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th'; return n + sfx; }
+    function trophiesCardL() {
+      var list = st.data.trophies;
+      if (!Array.isArray(list)) return '';
+      var rows = list.slice().reverse().map(function (t) {
+        return '<div class="sll-kv"><span>&#127942; ' + esc(t.name || '') + '<br><small>' + (TROPHY_KIND[t.kind] || esc(t.kind || '')) + ' &middot; ' + T('ui.trophy_day', 'day {1}', Number(t.day) || 0) + '</small></span><b>' + placeWord(t.place) + '</b></div>';
+      }).join('');
+      return '<div class="sll-card"><h4>' + T('ui.trophies', 'Trophies: {1}', list.length) + '</h4>' + (rows || '<p>' + T('ui.trophy_none', 'No trophies yet. Win an invitational or a series.') + '</p>') + '</div>';
+    }
     function credBody() {
       var d = st.data, s = obj(d.stats);
       var from = d.titleRep || 0, to = d.nextRep, pct = to ? Math.max(0, Math.min(100, ((d.rep || 0) - from) / (to - from) * 100)) : 100;
@@ -528,7 +539,7 @@
         }).join('') + '</div>';
       }
       return body('<div class="sll-card"><h4>' + esc(d.title) + '</h4><p>' + (d.rep || 0) + ' reputation' + (to ? T('ui.middot_next_title_at_1', ' &middot; next title at {1}', to) : '') + '</p>' +
-        '<div class="sll-meter"><i style="width:' + pct.toFixed(1) + '%"></i></div></div>' +
+        '<div class="sll-meter"><i style="width:' + pct.toFixed(1) + '%"></i></div></div>' + trophiesCardL() +
         ('<div class="sll-card"><div class="sll-kv"><span>' + T('ui.garage', 'Garage') + '</span><b>') + esc(d.garage || '') + '</b></div>' + next +
         ('<div class="sll-kv"><span>' + T('ui.cars', 'Cars') + '</span><b>') + (d.cars || 0) + '</b></div>' +
         ('<div class="sll-kv"><span>' + T('ui.races', 'Races') + '</span><b>') + (s.races || 0) + ' (' + (s.wins || 0) + (T('ui.won_2', ' won)') + '</b></div>') +

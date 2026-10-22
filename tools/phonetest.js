@@ -1168,6 +1168,21 @@ assert.ok(calls.includes('routeGarage()'), 'Route to my garage on the home scree
 }
 // BUGS_1018 #9: the phone's own focus never scrolls the screen (a plain focus() brought the Home button into view and left the home grid 171 px down); jsdom has no scrolling, so the call is what is checked
 assert.ok(/target\.focus\(\{ preventScroll: true \}\)/.test(code) && !/target\.focus\(\)/.test(code), 'the phone focuses its controls with preventScroll');
+{
+  // the trophy list on Street cred (tools/trophies_fixture.js): newest first, kind and day, the place; no card without the list
+  const tf = require('./trophies_fixture.js');
+  phone.act('home');
+  phone.handle('slPhoneData', Object.assign({}, data, { trophies: tf }));
+  phone.act('open', 'me');
+  let tx = text();
+  assert.ok(tx.includes('Trophies: 3') && tx.includes('NGRC Utah Rally') && tx.includes('Series') && tx.includes('day 58') && tx.includes('1st') && tx.includes('2nd') && tx.includes('Invitational'), 'the trophies: ' + tx.slice(0, 300));
+  assert.ok(tx.indexOf('NGRC Utah Rally') < tx.indexOf('Hirochi invitational') && tx.indexOf('Hirochi invitational') < tx.indexOf('Dockyards 3-lap sprint'), 'newest first');
+  phone.handle('slPhoneData', Object.assign({}, data, { trophies: [] }));
+  assert.ok(text().includes('Trophies: 0') && text().includes('No trophies yet'), 'an empty list says so');
+  phone.handle('slPhoneData', data);
+  assert.ok(!text().includes('Trophies:'), 'no list: no card');
+  phone.act('home');
+}
 console.log('phone test passed');
 
 // a page to look at: the phone in several states side by side
