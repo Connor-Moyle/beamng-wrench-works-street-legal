@@ -81,7 +81,9 @@ local function restore()
   if current ~= nil and original then setAtlas(nil) end
   current, original, composing = nil, nil, nil
 end
-function M.onStreetLegalStopped() restore() end
+function M.onStreetLegalStopped()
+  if sl_teardown then sl_teardown.defer('billboards atlas', restore) else restore() end      -- (the atlas goes back one second after the stop, not in the same frame as the other restores)
+end
 function M.onClientEndMission() current, original, composing, failed = nil, nil, nil, nil end
 function M.onExtensionUnloaded() restore() end
 

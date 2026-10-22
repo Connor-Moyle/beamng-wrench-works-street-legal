@@ -6965,4 +6965,62 @@ do
   package.loaded['sl/inventory'] = nil
 end
 
+-- the end-of-career queue: GPU-touching restores one at a time (sl/core/teardown, sl/teardown)
+do
+  local T = require('sl/core/teardown')
+  local q, ran = T.new(), {}
+  check('teardown: the first job waits the first second, the next one the gap', T.defer(q, 'a', function() ran[#ran + 1] = 'a' end, 10) and T.defer(q, 'b', function() ran[#ran + 1] = 'b' end, 10.2)
+    and T.due(q, 10.5) == nil and T.pending(q) == 2)
+  local l1, f1 = T.due(q, 11.0)
+  check('teardown: at 1 s the first runs and the second has to wait 1.5 s', l1 == 'a' and T.due(q, 12.0) == nil and (T.due(q, 12.6)) == 'b')
+  check('teardown: a second job with the same label replaces the first', (function()
+    local q2 = T.new()
+    T.defer(q2, 'x', function() return 1 end, 0) T.defer(q2, 'x', function() return 2 end, 0)
+    local _, f = T.due(q2, 5)
+    return T.pending(q2) == 0 and f() == 2
+  end)())
+  check('teardown: no more than the maximum are kept; clear forgets them', (function()
+    local q3 = T.new()
+    for i = 1, T.MAX + 3 do T.defer(q3, 'j' .. i, function() end, 0) end
+    local n = T.pending(q3)
+    T.clear(q3)
+    return n == T.MAX and T.pending(q3) == 0 and T.due(q3, 100) == nil
+  end)())
+
+  -- the game side: logs before and after, skips when a career runs again, drops at the level's end
+  local old = { sl_career = rawget(_G, 'sl_career'), log = rawget(_G, 'log') }
+  local lines, clock, careerOn = {}, 0, false
+  _G.log = function(level, tag, text) lines[#lines + 1] = level .. ' ' .. tag .. ' ' .. text end
+  _G.sl_career = { isActive = function() return careerOn end }
+  local realClock = os.clock
+  os.clock = function() return clock end
+  package.loaded['sl/teardown'] = nil
+  local X = require('sl/teardown')
+  local done = {}
+  X.defer('one', function() done[#done + 1] = 'one' end)
+  X.defer('two', function() done[#done + 1] = 'two' end)
+  X.onUpdate(0.016)
+  check('teardown game: nothing runs in the frame it is asked', #done == 0 and X.status().pending == 2)
+  clock = 1.1 X.onUpdate(0.016)
+  check('teardown game: the first runs after a second, with a line before and a line after', #done == 1 and done[1] == 'one' and lines[1]:find('one: start', 1, true) and lines[2]:find('one: done in', 1, true))
+  clock = 1.5 X.onUpdate(0.016)
+  check('teardown game: and the second not before the gap', #done == 1)
+  careerOn = true clock = 2.7 X.onUpdate(0.016)
+  check('teardown game: a job is skipped when a career is running again, and says so', #done == 1 and lines[#lines]:find('two: skipped', 1, true))
+  careerOn = false
+  X.defer('three', function() error('boom') end)
+  X.defer('four', function() done[#done + 1] = 'four' end)
+  clock = 4.3 X.onUpdate(0.016)
+  check('teardown game: a job that throws is logged as failed and does not stop the queue', lines[#lines]:find('three: failed', 1, true) and lines[#lines]:find('boom', 1, true))
+  clock = 5.9 X.onUpdate(0.016)
+  check('teardown game: the next one still runs', done[#done] == 'four')
+  X.defer('five', function() done[#done + 1] = 'five' end)
+  X.onClientEndMission()
+  clock = 20 X.onUpdate(0.016)
+  check('teardown game: the level ending drops what is waiting', X.status().pending == 0 and done[#done] == 'four')
+  os.clock = realClock
+  _G.sl_career, _G.log = old.sl_career, old.log
+  package.loaded['sl/teardown'] = nil
+end
+
 print(string.format('lua tests passed: %d checks', passed))
