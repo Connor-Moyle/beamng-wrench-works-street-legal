@@ -36,7 +36,7 @@ end
 
 -- ---- the hunt
 local pendingWin = nil      -- { racerId, at }: a pink win over a rival; the fleet's next car is the one
-function M.onStreetLegalRaceResult(won, opponent, racerId, stake)
+local function onStreetLegalRaceResult_(won, opponent, racerId, stake)
   local s = career()
   if not s or type(racerId) ~= 'string' then return end
   local m = store(s)
@@ -62,7 +62,8 @@ function M.onStreetLegalRaceResult(won, opponent, racerId, stake)
   end
   if won and stake == 'pink' and rivalOf(s, racerId) and not h then pendingWin = { racerId = racerId, at = os.clock() } end
 end
-function M.onStreetLegalCarAdded(car)
+function M.onStreetLegalRaceResult(won, opponent, racerId, stake) local ok, err = pcall(onStreetLegalRaceResult_, won, opponent, racerId, stake) if not ok then log('E', 'sl_rivalbeats', 'onStreetLegalRaceResult: ' .. tostring(err)) end end      -- (inside the career race and sale flow: never a throw)
+local function onStreetLegalCarAdded_(car)
   local s = career()
   if not s or not pendingWin or os.clock() - pendingWin.at > 60 then pendingWin = nil return end
   local m = store(s)
@@ -72,6 +73,7 @@ function M.onStreetLegalCarAdded(car)
   pendingWin = nil
   changed()
 end
+function M.onStreetLegalCarAdded(car) local ok, err = pcall(onStreetLegalCarAdded_, car) if not ok then log('E', 'sl_rivalbeats', 'onStreetLegalCarAdded: ' .. tostring(err)) end end      -- (inside the career race and sale flow: never a throw)
 local function huntOver(s, m, h, kind, meter)
   h.done, h.offered, h.racing = true, nil, nil
   if sl_rivals and sl_rivals.dropOffer then sl_rivals.dropOffer(h.rival) end
@@ -80,12 +82,13 @@ local function huntOver(s, m, h, kind, meter)
   say(s, h.rival, kind, 4)
 end
 -- the player sold the car: the rival hears of it
-function M.onStreetLegalCarSold(car)
+local function onStreetLegalCarSold_(car)
   local s = career()
   local m = s and store(s)
   local h = m and car and car.wonFrom and m.hunts[car.wonFrom]
   if h and not h.done and h.carId == car.id then huntOver(s, m, h, 'hunt_gone', rules.METER_SOLD) changed() end
 end
+function M.onStreetLegalCarSold(car) local ok, err = pcall(onStreetLegalCarSold_, car) if not ok then log('E', 'sl_rivalbeats', 'onStreetLegalCarSold: ' .. tostring(err)) end end      -- (inside the career race and sale flow: never a throw)
 -- the Rivals card's offer taken (sl_rivals.accept) or walked away from (sl_rivals.decline)
 function M.huntAccepted(rivalId) local s = career() local h = s and store(s).hunts[rivalId] if h then h.offered, h.racing = nil, true end end
 function M.huntLapsed(rivalId) local s = career() local h = s and store(s).hunts[rivalId] if h and not h.done then rules.lapse(h, s.day) end end
