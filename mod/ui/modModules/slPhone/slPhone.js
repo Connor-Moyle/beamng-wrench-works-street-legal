@@ -333,6 +333,8 @@
     bank: svg('M4 10v7h3v-7zm6 0v7h3v-7zM2 22h19v-3H2zm14-12v7h3v-7zM11.5 1 2 6v2h19V6z'),
     house: svg('M12 3 2 12h3v8h5v-6h4v6h5v-8h3z'),
     sponsors: svg('M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14 2 9.27l6.91-1.01z'),
+    event: svg('M14.4 6 14 4H5v17h2v-7h5.6l.4 2h7V6z'),
+    calendar: svg('M19 3h-1V1h-2v2H8V1H6v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm0 16H5V9h14zM5 7V5h14v2zm2 4h5v5H7z'),
     traps: svg('M20.38 8.57l-1.23 1.85a8 8 0 0 1-.22 7.58H5.07A8 8 0 0 1 15.58 6.85l1.85-1.23A10 10 0 0 0 3.35 19a2 2 0 0 0 1.72 1h13.85a2 2 0 0 0 1.74-1 10 10 0 0 0-.27-10.44zm-9.79 6.84a2 2 0 0 0 2.83 0l5.66-8.49-8.49 5.66a2 2 0 0 0 0 2.83z'),
     cab: svg('M18.9 6c-.2-.6-.8-1-1.4-1h-11c-.7 0-1.2.4-1.4 1L3 12v8a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-1h12v1a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-8zM6.5 16A1.5 1.5 0 1 1 8 14.5 1.5 1.5 0 0 1 6.5 16zm11 0a1.5 1.5 0 1 1 1.5-1.5 1.5 1.5 0 0 1-1.5 1.5zM5 11l1.5-4.5h11L19 11z'),
     me: svg('M12 2 4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5zm-1.5 14.5-4-4 1.4-1.4 2.6 2.6 6.1-6.1 1.4 1.4z'),
@@ -356,7 +358,7 @@
   var SLRR_ART = '/ui/modModules/slHud/slrr/icons/';
   var SLRR_ICON = { races: 'cup.png', garage: 'garage.png', bank: 'dollar.png', cab: 'city.png', me: 'roc.png' };
   function slrrIcon(name, cls) { return '<img class="slp-slrr ' + (cls || '') + '" src="' + SLRR_ART + name + '" alt="">'; }
-  var APP_COLORS = { map: '#3a7d6e', camera: '#3b6fa0', gallery: '#a05a8a', carmarket: '#2e7d4f', partmarket: '#a3322c', settings: '#5c6474', wait: '#4a5d7a', market: '#a3322c', paper: '#5b5346', bid: '#b5651d', club: '#6a2e7a', jobs: '#3d7a2e', phone: '#2e7d4f', messages: '#2f5fb3', contacts: '#7b4fb0', races: '#c2541e', bank: '#1f7a70', cab: '#b58a12', me: '#5c6474', garage: '#8a3b8f', garagekit: '#6b5b2e', sponsors: '#9a6b12' };
+  var APP_COLORS = { map: '#3a7d6e', camera: '#3b6fa0', gallery: '#a05a8a', carmarket: '#2e7d4f', partmarket: '#a3322c', settings: '#5c6474', wait: '#4a5d7a', market: '#a3322c', paper: '#5b5346', bid: '#b5651d', club: '#6a2e7a', jobs: '#3d7a2e', phone: '#2e7d4f', messages: '#2f5fb3', contacts: '#7b4fb0', races: '#c2541e', bank: '#1f7a70', cab: '#b58a12', me: '#5c6474', garage: '#8a3b8f', garagekit: '#6b5b2e', event: '#2f6f9f', calendar: '#2f6f9f', sponsors: '#9a6b12' };
   var AV_COLORS = ['#a8c7fa', '#f2b8b5', '#c3e7c6', '#ffd8a8', '#d0bcff', '#9fe0e8', '#ffb4ab', '#e8def8'];
   var CLASS_NAMES = { beater: T('ui.beaters', 'Beaters'), compact: T('ui.compacts', 'Compacts'), muscle: T('ui.muscle', 'Muscle'), tuner: T('ui.tuners', 'Tuners'), sport: T('ui.sports_cars', 'Sports cars'), super: T('ui.supercars', 'Supercars') };
 
@@ -445,6 +447,8 @@
           return '<div class="slp-app" data-a="open" data-v="' + a.id + '"><div class="slp-ico" style="background:' + APP_COLORS[a.id] + '">' + ico + '</div>' + badge + '<span>' + a.title + '</span></div>';
         }).join('');
       };
+      var ON_TRIP = { event: 1, garage: 1, bank: 1, calendar: 1, help: 1, messages: 1, contacts: 1, phone: 1 };      // (away from home: the paddock, the cars brought, money, plans, talk)
+      var onTrip = function (a) { if (d.visit && !ON_TRIP[a.id]) a.hide = true; return a; };
       var arranged = arr(d.challenges).length;
       var tut = d.tutorial ? ('<div class="slp-card slp-tut"><h4>' + T('ui.getting_started', 'Getting started ')) + d.tutorial.step + '/' + d.tutorial.total + ': ' + esc(d.tutorial.title) + '</h4><p>' + esc(d.tutorial.text) + '</p>' +
         ('<div class="slp-acts"><div class="slp-btn slp-text" data-a="tutskip" data-v="1">' + T('ui.skip_the_tutorial', 'Skip the tutorial') + '</div></div></div>') : '';
@@ -455,12 +459,14 @@
         (d.freeroam ? '' :         '<div><span class="slp-chip">' + esc(d.title || '') + ' &middot; ' + (d.rep || 0) + ' rep &middot; ' + money(d.money) + '</span>' +
           '<span class="slp-chip" data-a="routegarage" data-v="1" style="cursor:pointer">' + T('ui.route_to_my_garage', 'Route to my garage') + '</span></div>') +
         (d.freeroam ? '' : tut) + '<div class="slp-grid">' + appsHtml([
+          { id: 'event', title: T('app.event', 'Event'), icon: I.event, hide: !d.visit },
           { id: 'races', title: T('app.races', 'Races'), icon: I.flag, badge: arranged || 0, hide: has.races === false },
           { id: 'garage', title: T('app.garage', 'My cars'), icon: I.cab },
           { id: 'garagekit', title: T('app.garagekit', 'Garage'), icon: I.house },
           { id: 'bank', title: T('app.bank', 'Bank'), icon: I.bank, hide: has.bank === false },
           { id: 'me', title: T('app.me', 'Street cred'), icon: I.me },
           { id: 'sponsors', title: T('app.sponsors', 'Sponsors'), icon: I.sponsors, badge: d.sponsors && d.sponsors.offer ? 1 : 0, hide: !d.sponsors || has.sponsors === false },
+          { id: 'calendar', title: T('app.calendar', 'Calendar'), icon: I.calendar, badge: calOpenInvites(), hide: !d.calendar || has.calendar === false },
           { id: 'traps', title: T('app.traps', 'Speed traps'), icon: I.traps, hide: !(d.traps && has.traps !== false) && !(d.danger && has.danger !== false) },
           { id: 'jobs', title: T('app.jobs', 'Jobs'), icon: I.jobs, badge: d.jobs && d.jobs.active ? 1 : 0, hide: has.jobs === false },
           { id: 'wait', title: T('app.wait', 'Wait'), icon: I.wait },
@@ -472,13 +478,13 @@
           { id: 'turf', title: T('app.turf', 'Turf'), icon: I.turf, hide: has.crews === false },
           { id: 'carmarket', title: T('app.carmarket', 'Car market'), icon: I.cab, hide: has.market === false },
           { id: 'partmarket', title: T('app.partmarket', 'Part market'), icon: I.market, badge: (d.market && d.market.deliveries || 0) + (d.market ? arr(d.market.auctions).filter(function (l) { return l.high === 'you'; }).length : 0), hide: has.classifieds === false || has.market === false },
-        ]) + '</div>' +
+        ].map(onTrip)) + '</div>' +
         '<div class="slp-dock">' + appsHtml([
           { id: 'phone', title: T('app.phone', 'Phone'), icon: I.phone },
           { id: 'messages', title: T('app.messages', 'Messages'), icon: I.msg, badge: unread() || 0 },
           { id: 'contacts', title: T('app.contacts', 'Contacts'), icon: I.contacts },
           { id: 'cab', title: T('app.cab', 'Cab'), icon: I.cab },
-        ]).replace(/<span>[^<]*<\/span>/g, '') + '</div></div>';
+        ].map(onTrip)).replace(/<span>[^<]*<\/span>/g, '') + '</div></div>';
     }
 
     function contactLine(c) {
@@ -1326,7 +1332,9 @@
         sponsorTerms(cur.terms, cur.weekWins, cur.carRaces).map(function (x) { return '<p>' + esc(x) + '</p>'; }).join('') +
         '<div class="slp-kv"><span>' + T('ui.spn_strikes', 'Strikes') + '</span><b' + (strikes ? ' class="slp-warn"' : '') + '>' + (strikes ? '&#9888; ' : '&#10004; ') + strikes + ' / 2</b></div>' +
         (cur.daysToReview != null ? '<p>' + T('ui.spn_review', 'Review in {1} d', Number(cur.daysToReview) || 0) + '</p>' : '') +
-        '<div class="slp-acts"><div class="slp-btn slp-text" data-a="spnquit" data-v="1">' + T('ui.spn_quit', 'Leave this deal') + '</div></div></div>'
+        (st.spnQuit ? '<p class="slp-warn">' + T('ui.spn_quit_sure', 'Leave {1}? You will not get the old sponsor back; new offers come when brands know you.', esc(cur.name || cur.brand || '')) + '</p>' : '') +
+        '<div class="slp-acts"><div class="slp-btn slp-text" data-a="spnquit" data-v="1">' + (st.spnQuit ? T('ui.spn_quit_yes', 'Yes, leave') : T('ui.spn_quit', 'Leave this deal')) + '</div>' +
+        (st.spnQuit ? '<div class="slp-btn slp-text" data-a="spnquit" data-v="0">' + T('ui.cancel', 'Cancel') + '</div>' : '') + '</div></div>'
         : (off ? '' : '<div class="slp-empty">' + T('ui.spn_none', 'No sponsor yet. Win races and brands notice you.') + '</div>');
       var standing = arr(sp.standing).map(function (b) {
         var v = Math.max(0, Math.min(100, Math.round(Number(b.standing) || 0))), at = Number(b.nextAt) || 100;
@@ -1335,6 +1343,126 @@
       }).join('');
       return bar(T('app.sponsors', 'Sponsors')) + '<div class="slp-body">' + offerCard + curCard +
         (standing ? '<div class="slp-card"><h4>' + T('ui.spn_standing', 'Brands that know you') + '</h4>' + standing + '</div>' : '') + '</div>';
+    }
+
+    // the Calendar (sl_calendar.summary(): { today = { day, hour, week, dayOfWeek }, events = { { id, title, kind: race|series|weekend|invite|travel, day, hour, place, map, travel = { needed, fee, hours },
+    // series = { id, name, round, rounds }, status: open|entered|missed|done|declined, reward (number or text), requires = { label, met }, reminder, expiresIn } }, series = { { id, name, map, round, rounds,
+    // points, rank, nextDay } }, invites = { { id, from, text, eventId, expiresIn } } }). Three views (Agenda, Week, Series) and an event page with the actions.
+    function calOpenInvites() { var c = st.data.calendar; return c && obj(st.data.has).calendar !== false ? arr(c.invites).length : 0; }
+    var CAL_KIND = { race: T('ui.cal_kind_race', 'Race'), series: T('ui.cal_kind_series', 'Series'), weekend: T('ui.cal_kind_weekend', 'Weekend'), invite: T('ui.cal_kind_invite', 'Invitation'), travel: T('ui.cal_kind_travel', 'Trip') };
+    var CAL_STATUS = { entered: '&#10004; ' + T('ui.cal_entered', 'Entered'), missed: '&#9660; ' + T('ui.cal_missed', 'Missed'), done: '&#10004; ' + T('ui.cal_done', 'Done'), declined: T('ui.cal_declined', 'Declined') };
+    var DAY_NAMES = [T('ui.cal_mon', 'Mon'), T('ui.cal_tue', 'Tue'), T('ui.cal_wed', 'Wed'), T('ui.cal_thu', 'Thu'), T('ui.cal_fri', 'Fri'), T('ui.cal_sat', 'Sat'), T('ui.cal_sun', 'Sun')];
+    function calWhen(c, e) {      // "Today 18:00", "Tomorrow", "Sat, day 13 19:00"
+      var d = Number(e.day) || 0, today = Number(obj(c.today).day) || 0, dow = ((Number(obj(c.today).dayOfWeek) || 1) - 1 + (d - today)) % 7;
+      if (dow < 0) dow += 7;
+      var label = d === today ? T('ui.cal_today', 'Today') : d === today + 1 ? T('ui.cal_tomorrow', 'Tomorrow') : d < today ? T('ui.cal_day_ago', 'Day {1}', d) : DAY_NAMES[dow] + ', ' + T('ui.cal_day', 'day {1}', d);
+      return label + (e.hour != null ? ' ' + two(Math.floor(e.hour)) + ':' + two(Math.round((e.hour % 1) * 60)) : '');
+    }
+    function calReward(e) { return e.reward == null || e.reward === '' ? '' : (typeof e.reward === 'number' ? money(e.reward) : esc(e.reward)); }
+    function calEventCard(c, e) {
+      var tr = obj(e.travel), st1 = CAL_STATUS[e.status] || '';
+      var rq = e.requires && e.requires.label ? '<p' + (e.requires.met === false ? ' class="slp-warn"' : '') + '>' + (e.requires.met === false ? '&#9888; ' : '&#10004; ') + esc(e.requires.label) + '</p>' : '';
+      return '<div class="slp-card" data-a="calopen" data-v="' + esc(e.id) + '"><h4>' + esc(e.title || '') + ' <span class="slp-chip" style="margin:0 0 0 6px">' + (CAL_KIND[e.kind] || esc(e.kind || '')) + '</span>' + (e.reminder ? ' <span aria-label="' + T('ui.cal_reminder_on', 'Reminder on') + '">&#128276;</span>' : '') + '</h4>' +
+        '<p>' + calWhen(c, e) + (e.place ? ' &middot; ' + esc(e.place) : '') + (e.series ? ' &middot; ' + T('ui.cal_round', 'round {1} of {2}', e.series.round, e.series.rounds) : '') + '</p>' +
+        (tr.needed ? '<p>' + T('ui.cal_travel', 'Travel to {1}: {2} and {3} h', esc(e.map || ''), money(tr.fee), Number(tr.hours) || 0) + '</p>' : '') + rq +
+        (calReward(e) ? '<p>' + T('ui.cal_reward', 'Reward') + ': <b>' + calReward(e) + '</b></p>' : '') + (st1 ? '<p><b>' + st1 + '</b></p>' : '') +
+        (e.expiresIn != null ? '<p class="slp-warn">' + T('ui.cal_expires', 'Expires in {1} d', Number(e.expiresIn) || 0) + '</p>' : '') + '</div>';
+    }
+    function calEventPage(c, e) {
+      var tr = obj(e.travel), open = e.status === 'open', canEnter = open && !(e.requires && e.requires.met === false);
+      var acts = '';
+      if (open) {
+        acts += '<div class="slp-btn' + (canEnter ? '' : ' slp-off') + '" data-a="' + (tr.needed ? 'caltravel' : 'calenter') + '" data-v="' + esc(e.id) + '">' + (tr.needed ? T('ui.cal_go', 'Go there &middot; {1}', money(tr.fee)) : T('ui.cal_enter', 'Enter')) + '</div>';
+        acts += '<div class="slp-btn slp-tonal" data-a="calremind" data-v="' + esc(e.id) + '|' + (e.reminder ? 'false' : 'true') + '">' + (e.reminder ? T('ui.cal_remind_off', 'Reminder: on') : T('ui.cal_remind_on', 'Remind me')) + '</div>';
+        if (e.kind === 'invite' || e.expiresIn != null) acts += '<div class="slp-btn slp-text" data-a="caldecline" data-v="' + esc(e.id) + '">' + T('ui.cal_decline', 'Decline') + '</div>';
+      }
+      return bar(esc(e.title || T('app.calendar', 'Calendar'))) + '<div class="slp-body">' + calEventCard(c, e).replace(' data-a="calopen" data-v="' + esc(e.id) + '"', '') +
+        (acts ? '<div class="slp-card"><div class="slp-acts" style="flex-wrap:wrap">' + acts + '</div>' + (!canEnter && open ? '<p class="slp-warn">&#9888; ' + T('ui.cal_cannot', 'You cannot enter yet: see the requirement above.') + '</p>' : '') + '</div>' : '') + '</div>';
+    }
+    function calendarPage() {
+      var c = obj(st.data.calendar), events = arr(c.events).slice().sort(function (a, b) { return (a.day - b.day) || ((a.hour == null ? -1 : a.hour) - (b.hour == null ? -1 : b.hour)); });
+      if (st.calEvent) {
+        var ev = events.filter(function (x) { return x.id === st.calEvent; })[0];
+        if (ev) return calEventPage(c, ev);
+        st.calEvent = null;
+      }
+      var tab = st.calTab || 'agenda', today = Number(obj(c.today).day) || 0, dow = Number(obj(c.today).dayOfWeek) || 1;
+      var tabs = ['agenda', 'week', 'series'].map(function (t) {
+        return '<div class="slp-tab' + (tab === t ? ' slp-tabon' : '') + '" data-a="caltab" data-v="' + t + '">' + ({ agenda: T('ui.cal_agenda', 'Agenda'), week: T('ui.cal_week', 'Week'), series: T('ui.cal_series', 'Series') }[t]) + '</div>';
+      }).join('');
+      var body = '';
+      var inv = arr(c.invites).map(function (i) {
+        return '<div class="slp-card" data-a="calopen" data-v="' + esc(i.eventId) + '"><h4>&#9993; ' + esc(i.from || '') + '</h4><p>' + esc(i.text || '') + '</p>' + (i.expiresIn != null ? '<p class="slp-warn">' + T('ui.cal_expires', 'Expires in {1} d', Number(i.expiresIn) || 0) + '</p>' : '') + '</div>';
+      }).join('');
+      if (tab === 'agenda') {
+        var shown = events.filter(function (e) { return st.calDay == null || Number(e.day) === Number(st.calDay); });
+        body = inv + (shown.map(function (e) { return calEventCard(c, e); }).join('') || '<div class="slp-empty">' + T('ui.cal_none', 'Nothing planned.') + '</div>');
+      } else if (tab === 'week') {
+        var start = today - (dow - 1), cells = [];
+        for (var i = 0; i < 7; i++) {
+          var day = start + i, n = events.filter(function (e) { return Number(e.day) === day; }).length;
+          cells.push('<div class="slp-card" data-a="calday" data-v="' + day + '" style="margin:4px;padding:8px 4px;text-align:center;flex:1;min-width:0' + (day === today ? ';outline:2px solid #a8c7fa' : '') + '"><b>' + DAY_NAMES[i] + '</b><br><small>' + day + '</small><br>' + (n ? '<span class="slp-chip" style="margin:4px 0 0 0">' + n + '</span>' : '&nbsp;') + '</div>');
+        }
+        body = '<div style="display:flex;padding:0 12px">' + cells.join('') + '</div>' + (st.calDay != null ? '<div class="slp-acts" style="padding:0 16px"><div class="slp-btn slp-text" data-a="calday" data-v="">' + T('ui.cal_all_days', 'Show all days') + '</div></div>' : '') +
+          events.filter(function (e) { return st.calDay == null || Number(e.day) === Number(st.calDay); }).map(function (e) { return calEventCard(c, e); }).join('');
+      } else {
+        body = arr(c.series).map(function (x) {
+          return '<div class="slp-card"><h4>' + esc(x.name || '') + '</h4>' +
+            '<div class="slp-kv"><span>' + T('ui.cal_where', 'Where') + '</span><b>' + esc(x.map || '') + '</b></div>' +
+            '<div class="slp-kv"><span>' + T('ui.cal_round_label', 'Round') + '</span><b>' + (Number(x.round) || 0) + ' / ' + (Number(x.rounds) || 0) + '</b></div>' +
+            '<div class="slp-kv"><span>' + T('ui.cal_points', 'Points') + '</span><b>' + (Number(x.points) || 0) + '</b></div>' +
+            '<div class="slp-kv"><span>' + T('ui.cal_rank', 'Position') + '</span><b>' + (x.rank != null ? Number(x.rank) : '&ndash;') + '</b></div>' +
+            (x.nextDay != null ? '<p>' + T('ui.cal_next_round', 'Next round: day {1}', Number(x.nextDay)) + '</p>' : '') + '</div>';
+        }).join('') || '<div class="slp-empty">' + T('ui.cal_no_series', 'No series running. One opens each month.') + '</div>';
+      }
+      return bar(T('app.calendar', 'Calendar')) + '<div class="slp-tabs" style="padding:0 16px 8px">' + tabs + '</div><div class="slp-body">' + body + '</div>';
+    }
+
+    // the trip (docs/DESIGN_CAREER_TRAVEL.md): the pick-cars screen over everything while the series module’s options for the event is open, the paddock hub (sl_series.hub()) while on a visit
+    function pickPage() {
+      var o = obj(st.data.travelPick), sel = arr(st.pickSel), max = Number(o.max) || 3, lo = o.loaner;
+      if (st.pickFor !== o.eventId) { st.pickFor = o.eventId; st.pickSel = sel = []; st.pickLoaner = false; }
+      var n = sel.length + (st.pickLoaner ? 1 : 0), total = (Number(o.fee) || 0) + (Number(o.perCar) || 0) * sel.length + (st.pickLoaner && lo ? Number(lo.deposit) || 0 : 0);
+      var cars = arr(o.cars).map(function (c) {
+        var cid = String(c.id), on = sel.indexOf(cid) >= 0, ok = c.fits !== false && (on || sel.length < max);
+        return '<div class="slp-card' + (c.fits === false ? ' slp-off' : '') + '"' + (ok ? ' data-a="pickcar" data-v="' + esc(cid) + '" style="cursor:pointer"' : '') + '><h4>' + (on ? '&#10004; ' : '') + esc(c.name) + '</h4>' +
+          (c.fits === false ? '<p class="slp-warn">&#9888; ' + esc(c.why || T('ui.trip_no_fit', 'Does not fit this event')) + '</p>' : (c.report ? '<p>' + esc(c.report) + '</p>' : '')) + '</div>';
+      }).join('');
+      var loan = lo ? '<div class="slp-card" data-a="pickloaner" data-v="1" style="cursor:pointer"><h4>' + (st.pickLoaner ? '&#10004; ' : '') + T('ui.trip_loaner', 'Borrow {1}', esc(lo.name || '')) + '</h4><p>' + T('ui.trip_deposit', 'Deposit {1}', money(lo.deposit)) + '</p></div>' : '';
+      var body = o.refuse ? '<div class="slp-empty">' + esc(o.refuse) + '</div>'
+        : '<p style="padding:0 16px">' + T('ui.trip_pick', 'Pick up to {1} cars to bring.', max) + '</p>' + cars + loan +
+          '<div class="slp-card"><div class="slp-kv"><span>' + T('ui.trip_fee', 'Entry fee') + '</span><b>' + money(o.fee) + '</b></div>' +
+          '<div class="slp-kv"><span>' + T('ui.trip_per_car', 'Each car brought') + '</span><b>' + money(o.perCar) + '</b></div>' +
+          '<div class="slp-kv"><span>' + T('ui.trip_time', 'Travel') + '</span><b>' + T('ui.trip_hours', '{1} h', Number(o.hours) || 0) + '</b></div>' +
+          '<div class="slp-kv"><span>' + T('ui.trip_total', 'Total') + '</span><b>' + money(total) + '</b></div>' +
+          '<div class="slp-acts"><div class="slp-btn' + (n ? '' : ' slp-off') + '" data-a="pickconfirm" data-v="1">' + T('ui.trip_confirm', 'Confirm and go') + '</div></div></div>';
+      return bar(o.name || T('app.event', 'Event')).replace('data-a="back"', 'data-a="pickback"') + '<div class="slp-body">' + body + '</div>';
+    }
+    // the paddock = sl_series.hub(): { event = { title, mapName, round, rounds, rules = { text }, status 'ready'|'running'|'done' }, standings = { { pos, name, points, you, time } }, schedule = { { day, hour, title, status 'done'|'missed'|'next'|'later' } },
+    // cars = { { id, name } }, canStart, startWhy, leaveNote }; the trip's end day comes from the phone's `visit`
+    function hubPage() {
+      var h = obj(st.data.hub), ev = obj(h.event), vis = obj(st.data.visit), over = ev.status === 'done';
+      var rows = arr(h.standings).map(function (r) {
+        return '<div class="slp-kv"><span>' + (Number(r.pos) || 0) + '. ' + (r.you ? '<b>' + esc(r.name) + '</b>' : esc(r.name)) + '</span><b>' + (Number(r.points) || 0) + ' ' + T('ui.trip_pts', 'pts') + (r.time ? ' &middot; ' + esc(r.time) : '') + '</b></div>';
+      }).join('');
+      var MARK = { done: '&#10004; ', missed: '&#9660; ', next: '&#9654; ', later: '' };
+      var sched = arr(h.schedule).map(function (x) {
+        return '<div class="slp-kv"><span>' + (MARK[x.status] || '') + esc(x.title || '') + '</span><b>' + T('ui.trip_day_hour', 'Day {1} {2}:00', Number(x.day) || 0, two(Number(x.hour) || 0)) + '</b></div>';
+      }).join('');
+      var home = '<div class="slp-card">' + (st.hubHome ? '<p class="slp-warn">' + esc(h.leaveNote || T('ui.trip_home_sure', 'Go home now? The rest of this series counts as missed and the entry fee is gone.')) + '</p>' : '') +
+        '<div class="slp-acts"><div class="slp-btn slp-text" data-a="hubhome" data-v="1">' + (st.hubHome ? T('ui.trip_home_yes', 'Yes, go home') : T('ui.trip_home', 'Go home')) + '</div>' +
+        (st.hubHome ? '<div class="slp-btn slp-text" data-a="hubhome" data-v="0">' + T('ui.cancel', 'Cancel') + '</div>' : '') + '</div></div>';
+      var go = over ? '<div class="slp-card"><h4>' + T('ui.trip_over', 'The series is over') + '</h4></div>'
+        : '<div class="slp-card"><h4>' + T('ui.trip_next', 'Next: {1}', esc(((arr(h.schedule).filter(function (x) { return x.status === 'next'; })[0]) || {}).title || '')) + '</h4>' +
+          (h.canStart === false && h.startWhy ? '<p class="slp-warn">' + esc(h.startWhy) + '</p>' : '') +
+          '<div class="slp-acts"><div class="slp-btn' + (h.canStart === false ? ' slp-off' : '') + '" data-a="hubstart" data-v="1">' + T('ui.trip_start', 'Start') + '</div></div></div>';
+      return bar(ev.title || T('app.event', 'Event')) + '<div class="slp-body">' +
+        '<div class="slp-card"><h4>' + esc(ev.title || '') + '</h4><div class="slp-kv"><span>' + esc(ev.mapName || '') + '</span><b>' + T('ui.trip_round', 'Round {1} of {2}', Number(ev.round) || 1, Number(ev.rounds) || 1) + '</b></div>' +
+        arr(ev.rules).map(function (x) { return '<p>' + esc(x) + '</p>'; }).join('') +
+        (vis.untilDay != null ? '<p>' + T('ui.trip_until', 'You can stay until day {1}', Number(vis.untilDay) || 0) + '</p>' : '') + '</div>' + go +
+        (sched ? '<div class="slp-card"><h4>' + T('ui.trip_schedule', 'Schedule') + '</h4>' + sched + '</div>' : '') +
+        (rows ? '<div class="slp-card"><h4>' + T('ui.trip_standings', 'Standings') + '</h4>' + rows + '</div>' : '') +
+        (arr(h.cars).length ? '<div class="slp-card"><h4>' + T('ui.trip_cars', 'Your cars here') + '</h4>' + arr(h.cars).map(function (c) { return '<p>' + esc(c.name) + '</p>'; }).join('') + '</div>' : '') + home + '</div>';
     }
 
     function mePage() {
@@ -1553,6 +1681,18 @@
       }).join('') + '</div>';
     }
 
+    function askOf(n) { return arr(st.menu && st.menu.slots).filter(function (c) { return c.slot === n && c.visit; })[0]; }
+    function lastSlot() { var l = arr(st.menu && st.menu.slots); return l.filter(function (c) { return c.last; })[0] || l[0]; }
+
+    // a career left on a trip (slotVisit: { name, round, rounds, verdict 'ask' }): go back to it, or go home and count the rest as missed
+    function visitAskHtml(c) {
+      var v = obj(c.visit);
+      return '<div class="slp-slot"><b>' + esc(c.name) + '</b><span>' + T('ui.visit_left', 'You left this career at {1}, round {2} of {3}.', esc(v.name || ''), Number(v.round) || 1, Number(v.rounds) || 1) + '</span>' +
+        '<div class="slp-btn slp-go" data-a="visitgo" data-v="' + c.slot + '|resume">' + T('ui.visit_back', 'Go back to {1} (round {2} of {3})', esc(v.name || ''), Number(v.round) || 1, Number(v.rounds) || 1) + '</div>' +
+        '<div class="slp-btn slp-tonal" data-a="visitgo" data-v="' + c.slot + '|home">' + T('ui.visit_home', 'Go home: the rest counts as missed') + '</div>' +
+        '<div class="slp-btn slp-text" data-a="visitgo" data-v="0|cancel">' + T('ui.back', 'Back') + '</div></div>';
+    }
+
     // the map a new career is on (W1): the installed ones as chips, the first picked unless the player picked another
     function installedMaps(m) { return arr(m && m.maps).filter(function (x) { return x.installed; }); }
     function newMapId() {
@@ -1573,12 +1713,14 @@
     function menuView() {
       var m = st.menu;
       if (!m || !m.show || !st.chooser) return '';
+      var askSlot = arr(m.slots).filter(function (c) { return c.slot === st.visitAsk && c.visit; })[0];
       var sl = !m.installed
         ? ('<div class="slp-chcard slp-chsl slp-off"><b>' + T('menuTile.wrench_works_street_legal', 'Wrench Works: Street Legal') + '</b><span>' + T('ui.needs_the_wrench_works_valo', 'Needs the West Coast USA map (west_coast_usa).') + '</span></div>')
         : ('<div class="slp-chcard slp-chsl"><b>' + T('menuTile.wrench_works_street_legal', 'Wrench Works: Street Legal') + '</b>') + (st.slrrArt ? slrrIcon(m.summary ? 'load_career_a.png' : 'new_career_a.png', 'slp-chimg') : '') + '<span>' + (m.summary ? T('ui.your_career_1', 'Your career: {1}', esc(m.summary)) : T('ui.no_car_5_000_and', 'No car, $5,000 and a name nobody knows. Junkyard wrecks, street racers, pink slips and the top garage.')) + '</span>' +
-          (m.summary ? ('<div class="slp-btn slp-go" data-a="menustart" data-v="continue">' + T('ui.continue', 'Continue') + '</div>') : '') +
-          slotsHtml(m) +
-          (arr(m.slots).length < (m.maxSlots || 6)
+          (askSlot ? visitAskHtml(askSlot) : '') +
+          (m.summary && !askSlot ? ('<div class="slp-btn slp-go" data-a="menustart" data-v="continue">' + T('ui.continue', 'Continue') + '</div>') : '') +
+          (askSlot ? '' : slotsHtml(m)) +
+          (askSlot ? '' : arr(m.slots).length < (m.maxSlots || 6)
             ? mapsHtml(m) + '<div class="slp-btn' + (m.summary ? ' slp-tonal' : ' slp-go') + ('" data-a="menustart" data-v="new">' + T('ui.new_career', 'New career') + '</div>') +
               ('<div class="slp-btn slp-tonal" data-a="menustart" data-v="newskip">' + T('ui.new_career_no_tutorial', 'New career, no tutorial') + '</div>')
             : ('<span>' + T('ui.every_career_slot_is_taken', 'Every career slot is taken: delete one to start another.') + '</span>')) + '</div>';
@@ -1646,7 +1788,12 @@
       var repScroll0 = layer.querySelector('.slp-repbody');
       var repKeep = repScroll0 ? repScroll0.scrollTop : 0;
       var page;
+      if (!d.travelPick) st.pickDismissed = null;
+      if (d.travelPick && d.travelPick.eventId !== st.pickDismissed) st.app = 'pick';      // (Back dismisses it here too: the screen never traps the player if Lua does not answer)
+      else if (st.app === 'pick') st.app = 'home';
       switch (st.app) {
+        case 'pick': page = pickPage(); break;
+        case 'event': page = hubPage(); break;
         case 'contacts': page = contactsPage(); break;
         case 'contact': page = contactPage(); break;
         case 'messages': page = messagesPage(); break;
@@ -1671,6 +1818,7 @@
         case 'ad': page = adPage(); break;
         case 'bank': page = bankPage(); break;
         case 'sponsors': page = sponsorsPage(); break;
+        case 'calendar': page = calendarPage(); break;
         case 'traps': page = trapsPage(); break;
         case 'cab': page = cabPage(); break;
         case 'me': page = mePage(); break;
@@ -1953,7 +2101,7 @@
       switch (a) {
         case 'open': go(v); break;
         case 'helppage': go('helppage', { helpId: v }); break;
-        case 'back': back(); break;
+        case 'back': if (st.app === 'calendar' && st.calEvent) { st.calEvent = null; render(); } else back(); break;      // (on a Calendar event page Back returns to the list)
         case 'home': home(); break;
         case 'away': setOpen(false); break;
         case 'contact': go('contact', { contact: v }); break;
@@ -1997,7 +2145,33 @@
         case 'paydebt': lua('payDebt(' + Number(v) + ')'); break;
         case 'spnaccept': lua('sponsorAccept()'); break;
         case 'spndecline': lua('sponsorDecline()'); break;
-        case 'spnquit': lua('sponsorQuit()'); break;
+        case 'spnquit':
+          if (v === '0') st.spnQuit = false;
+          else if (!st.spnQuit) st.spnQuit = true;      // (the deal does not come back: ask once more)
+          else { st.spnQuit = false; lua('sponsorQuit()'); }
+          render(); break;
+        case 'caltab': st.calTab = String(v); st.calDay = null; render(); break;
+        case 'calday': st.calDay = v === '' ? null : Number(v); render(); break;
+        case 'calopen': st.calEvent = String(v); render(); break;
+        case 'calenter': lua('calendarEnter(' + JSON.stringify(String(v)) + ')'); break;
+        case 'caldecline': lua('calendarDecline(' + JSON.stringify(String(v)) + ')'); st.calEvent = null; break;
+        case 'calremind': var cr = String(v).split('|'); lua('calendarRemind(' + JSON.stringify(cr[0]) + ',' + (cr[1] === 'true' ? 'true' : 'false') + ')'); break;
+        case 'caltravel': st.pickDismissed = null; lua('travelPick(' + JSON.stringify(String(v)) + ')'); break;
+        case 'pickcar':
+          var ps = arr(st.pickSel).slice(), pi = ps.indexOf(String(v));
+          if (pi >= 0) ps.splice(pi, 1); else ps.push(String(v));
+          st.pickSel = ps; render(); break;
+        case 'pickloaner': st.pickLoaner = !st.pickLoaner; render(); break;
+        case 'pickconfirm':
+          if (arr(st.pickSel).length || st.pickLoaner) lua('travelConfirm(' + JSON.stringify(String(obj(st.data.travelPick).eventId)) + ',' + JSON.stringify(arr(st.pickSel)) + ',' + (st.pickLoaner ? 'true' : 'false') + ')');
+          break;
+        case 'pickback': st.pickFor = null; st.pickDismissed = obj(st.data.travelPick).eventId; lua('travelClose()'); render(); break;      // (the next time starts with no cars picked)
+        case 'hubstart': lua('hubStart()'); break;
+        case 'hubhome':
+          if (v === '0') st.hubHome = false;
+          else if (!st.hubHome) st.hubHome = true;      // (the rest counts as missed: ask once more)
+          else { st.hubHome = false; lua('hubHome()'); }
+          render(); break;
         case 'service': var sp = String(v).split('|'); lua('service(' + Number(sp[0]) + ',' + JSON.stringify(sp[1] || '') + ')'); break;
         case 'insure': lua('insure(' + (v === 'true' ? 'true' : 'false') + ')'); break;
         case 'tutskip': lua('@sl_tutorial.skip()'); break;
@@ -2034,7 +2208,14 @@
           st.gameOver = null; render();
           if (v === 'new') lua('@sl_menuTile.startFromMenu(true' + newMapArg() + ')'); else lua('@sl_menuTile.toMainMenu()');
           break;
-        case 'slotplay': lua('@sl_menuTile.startFromMenu(false,' + Number(v) + ')'); st.menu = null; st.chooser = false; render(); break;
+        case 'visitgo':
+          var vg = String(v).split('|');
+          if (vg[1] === 'cancel') { st.visitAsk = null; render(); break; }
+          lua('@sl_menuTile.startFromMenu(false,' + Number(vg[0]) + ',nil,' + JSON.stringify(vg[1]) + ')'); st.visitAsk = null; st.menu = null; st.chooser = false; render();
+          break;
+        case 'slotplay':
+          if (askOf(Number(v))) { st.visitAsk = Number(v); render(); break; }
+          lua('@sl_menuTile.startFromMenu(false,' + Number(v) + ')'); st.menu = null; st.chooser = false; render(); break;
         case 'slotname':
           var inp = root.querySelector('.slp-slotname[data-slot="' + Number(v) + '"]');
           if (inp) lua('@sl_menuTile.renameSlot(' + Number(v) + ',' + JSON.stringify(String(inp.value || '')) + ')');
@@ -2045,6 +2226,7 @@
           break;
         case 'newmap': st.newMap = v; render(); break;
         case 'menustart':
+          if (v === 'continue') { var lastC = lastSlot(); if (lastC && lastC.visit) { st.visitAsk = lastC.slot; render(); break; } }
           if (v === 'newskip') lua('@sl_tutorial.skipNextCareer()');
           lua('@sl_menuTile.startFromMenu(' + (v === 'new' || v === 'newskip' ? 'true' + newMapArg() : 'false') + ')');
           st.menu = null; st.chooser = false; render();
