@@ -1780,7 +1780,7 @@ M.TEXT = {
   ["progression.paint_booth"] = "Paint booth",
   ["progression.paint_liveries_and_tint_at"] = "Paint, liveries and tint at home.",
   ["progression.parts_shelves"] = "Parts shelves",
-  ["progression.photo_corner"] = "Photo corner",
+  ["progression.photo_corner"] = "Photo corner", ["progression.garage_dressing"] = "Garage dressing", ["progression.garage_dressing_desc"] = "Posters, a trophy shelf, tool boards and a lounge corner on the walls and floor of the garage.",
   ["progression.photo_mode_in_the_garage"] = "Photo mode in the garage, and a showcase shot for the meets.",
   ["progression.power_curves_before_and_after"] = "Power curves, before and after.",
   ["progression.repairs_at_the_normal_price"] = "Repairs at the normal price; engine rebuilds.",

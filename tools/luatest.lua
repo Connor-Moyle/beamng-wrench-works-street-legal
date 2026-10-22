@@ -62,6 +62,7 @@ do
   check('garage 1 starts bare; the club garages come with the lift and bench', not bare.lift and not bare.dyno and bare.repairFactor > 1 and club.lift and club.workbench and club.repairFactor == 1)
   local bought = progression.garageFeatures({ dyno = true, shelves = true }, 1)
   check('what you buy is there', bought.dyno and bought.shelfSize > bare.shelfSize and not bought.paint)
+  check('garage dressing is bought, not given: no garage comes with it, and Wrench Works is told with the features', not bare.dressing and not club.dressing and progression.garageFeatures({ dressing = true }, 1).dressing and progression.upgrade('dressing') ~= nil)
   check('the engine crane is bought, and the club garages come with it', not bare.crane and club.crane and progression.garageFeatures({ crane = true }, 1).crane and progression.upgrade('crane') ~= nil)
   check('every upgrade has a price', (function() for _, u in ipairs(progression.UPGRADES) do if not (u.price > 0 and progression.upgrade(u.id) == u) then return false end end return true end)())
   check('back to the road is never free and grows with distance', progression.roadFee(0) > 0 and progression.roadFee(40) > progression.roadFee(5))
