@@ -307,6 +307,9 @@ phone.handle('slRivals', { rank: 2, rivals: [ { id: 'r05', name: 'Viktor Halasz'
 assert.ok(text().includes('Pink slip offer: your Covet 1.5 against their Scintilla') && text().includes('Accept the pink slips') && text().includes('Race for money instead') && text().includes('Walk away'), 'a pink slip offer names both cars and has three answers');
 click('rvyes', 'r05'); click('rvmoney', 'r05'); click('rvno', 'r05');
 assert.ok(calls.includes('@sl_rivals.accept("r05")') && calls.includes('@sl_rivals.decline("r05",true)') && calls.includes('@sl_rivals.decline("r05",false)'), 'the three answers go to the game');
+// a hunt (the rival wants a car of yours back): the car named, the sweetener shown, no race-for-money button
+phone.handle('slRivals', { rank: 2, rivals: [ { id: 'r05', name: 'Viktor Halasz', tier: 4, boss: true, crew: 'Ring Road Ghosts', meter: -80, word: 'blood', beaten: 3, youLost: 1, offer: { stake: 'pink', myCar: 'Covet 1.5', theirCar: 'Scintilla', hunt: 'Covet 1.5', sweetener: 1500 } } ] });
+assert.ok(text().includes('They want the Covet 1.5 back') && text().includes('+$1,500 for a win') && text().includes('Accept the pink slips') && text().includes('Walk away') && !text().includes('Race for money instead'), 'a hunt names the car and the sweetener and has no money race');
 
 assert.ok(!text().includes('Rev counter'), 'the dashboard switches are in the Mods menu, not on the phone');
 phone.handle('slPhoneData', data);

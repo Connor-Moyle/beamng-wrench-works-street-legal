@@ -1354,9 +1354,11 @@
           '<p>' + esc(r.crew || '') + (r.car ? ' &middot; ' + esc(r.car) : '') + '</p>' +
           '<div class="slp-meter"><i style="width:' + Math.round(((r.meter || 0) + 100) / 2) + '%"></i></div>' +
           '<p>' + words[r.word] + ' &middot; ' + T('ui.rival_record', 'Won {1}, lost {2}', r.beaten || 0, r.youLost || 0) + (r.locked ? ' &middot; ' + T('ui.rival_locked', 'Beat {1} to move up', esc(r.locked)) : '') + '</p>' +
-        (r.offer ? '<p class="slp-warn">' + T('ui.rival_offer', 'Pink slip offer: your {1} against their {2}', esc(r.offer.myCar || '?'), esc(r.offer.theirCar || '?')) + '</p><div class="slp-acts">' +
+        (r.offer ? '<p class="slp-warn">' + T('ui.rival_offer', 'Pink slip offer: your {1} against their {2}', esc(r.offer.myCar || '?'), esc(r.offer.theirCar || '?')) + '</p>' +
+          (r.offer.hunt ? '<p class="slp-warn">' + T('ui.rival_hunt', 'They want the {1} back', esc(r.offer.hunt)) + '</p>' : '') +
+          (Number(r.offer.sweetener) > 0 ? '<p>' + T('ui.rival_sweet', '+{1} for a win', money(r.offer.sweetener)) + '</p>' : '') + '<div class="slp-acts">' +
           '<div class="slp-btn slp-pinkbtn" data-a="rvyes" data-v="' + esc(r.id) + '">' + T('ui.rival_accept', 'Accept the pink slips') + '</div>' +
-          '<div class="slp-btn slp-tonal" data-a="rvmoney" data-v="' + esc(r.id) + '">' + T('ui.rival_money', 'Race for money instead') + '</div>' +
+          (r.offer.hunt ? '' : '<div class="slp-btn slp-tonal" data-a="rvmoney" data-v="' + esc(r.id) + '">' + T('ui.rival_money', 'Race for money instead') + '</div>') +
           '<div class="slp-btn slp-text" data-a="rvno" data-v="' + esc(r.id) + '">' + T('ui.rival_walk', 'Walk away') + '</div></div>' : '') +
           '</div>';
       }).join('');
