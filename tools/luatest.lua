@@ -3312,14 +3312,14 @@ do
   local Opt = require('sl/options')
   local defs = {}
   for _, d in ipairs(Opt.defs) do defs[d.key] = d end
-  local okDefs = #F.LIST == 45
+  local okDefs = #F.LIST == 46
   local offByDefault = 0
   for _, f in ipairs(F.LIST) do
     local d = defs[f.opt]
     if not (d and d.type == 'bool' and d.default == (f.default ~= false) and d.feature == true and d.title == f.title and f.desc ~= '') then okDefs = false end
     if f.default == false then offByDefault = offByDefault + 1 end
   end
-  check('parts: every part has an option, one bool, on by default unless the part says off (needs), tagged for the Active features page', okDefs and offByDefault == 6 and F.get('needs').default == false and F.get('mates').default == false and F.get('seasons').default == false and F.get('radio').default == false)
+  check('parts: every part has an option, one bool, on by default unless the part says off (needs), tagged for the Active features page', okDefs and offByDefault == 7 and F.get('needs').default == false and F.get('siphon').default == false and F.get('mates').default == false and F.get('seasons').default == false and F.get('radio').default == false)
   local off = { slJobs = false }
   local function get(k) return off[k] end
   check('parts: on unless the option is false; a missing option system is on', F.on('jobs', get) == false and F.on('races', get) == true and F.on('jobs', function() return nil end) == true and F.on('nope', get) == true)
@@ -3869,6 +3869,229 @@ do
   check('mastery game: stopped, the market hook and the shop factor are removed', market.masteryFactor == nil and registered.fn == nil)
   _G.sl_career, _G.sl_options, _G.sl_shops = old.c, old.o, old.s
   package.loaded['sl/mastery'] = nil
+end
+
+-- fuel siphoning (sl/core/siphon)
+do
+  local Sp = require('sl/core/siphon')
+  local petrol = { name = 'mainTank', storageType = 'fuelTank', energyType = 'gasoline', currentEnergy = 40 * Sp.JOULES_PER_L.gasoline, maxEnergy = 50 * Sp.JOULES_PER_L.gasoline }
+  local f = Sp.fuelOf(petrol)
+  check('siphon: a tank is read in litres and its type', f and f.fuel == 'gasoline' and math.abs(f.litres - 40) < 1e-6 and math.abs(f.capacity - 50) < 1e-6 and f.name == 'mainTank')
+  check('siphon: only liquid fuel tanks count', Sp.fuelOf({ energyType = 'electricBattery', currentEnergy = 5, maxEnergy = 9 }) == nil and Sp.fuelOf({ storageType = 'n2oTank', energyType = 'gasoline', maxEnergy = 1 }) == nil
+    and Sp.fuelOf(nil) == nil and Sp.fuelOf({ energyType = 'diesel', maxEnergy = 0 }) == nil and Sp.pick({ { energyType = 'electricBattery', maxEnergy = 1 }, petrol }).fuel == 'gasoline')
+  check('siphon: garbage readings are clamped', Sp.fuelOf({ energyType = 'diesel', maxEnergy = 100, currentEnergy = 'x' }).litres == 0 and Sp.fuelOf({ energyType = 'diesel', maxEnergy = 100, currentEnergy = 1e30 }).litres <= Sp.fuelOf({ energyType = 'diesel', maxEnergy = 100 }).capacity)
+  check('siphon: the joules of a litre match the game tank', math.abs(Sp.joules('gasoline', 1) - 31.125e6) < 1 and math.abs(Sp.joules('diesel', 1) - 36.12e6) < 1 and Sp.joules('water', 5) == 0)
+  local can = { litres = 0, size = 10 }
+  check('siphon: an empty can takes any fuel, a petrol can refuses diesel, a full can takes none', Sp.canTake(can, f) and not Sp.canTake({ litres = 3, size = 10, fuel = 'diesel' }, f) and Sp.canTake({ litres = 3, size = 10, fuel = 'gasoline' }, f)
+    and not Sp.canTake({ litres = 10, size = 10, fuel = 'gasoline' }, f) and not Sp.canTake(nil, f))
+  check('siphon: the rate bounds the litres of a step', math.abs(Sp.take(can, f, 2, 0.25) - 0.5) < 1e-9 and Sp.take(can, f, 0, 0.25) == 0 and Sp.take(can, f, -3, 0.25) == 0)
+  check('siphon: the room in the can bounds it', math.abs(Sp.take({ litres = 9.9, size = 10, fuel = 'gasoline' }, f, 10, 1) - 0.1) < 1e-9)
+  check('siphon: the tank keeps its floor', Sp.take(can, { fuel = 'gasoline', litres = 1.05, capacity = 50 }, 100, 5) < 0.05 + 1e-9 and Sp.take(can, { fuel = 'gasoline', litres = 0.5, capacity = 50 }, 10, 5) == 0)
+  check('siphon: a whole can in 40 s at the default rate', (function()
+    local litres, tank = 0, { fuel = 'gasoline', litres = 40, capacity = 50 }
+    for _ = 1, 40 do local m = Sp.take({ litres = litres, size = 10, fuel = 'gasoline' }, tank, 1, Sp.RATE) litres = litres + m tank.litres = tank.litres - m end
+    return math.abs(litres - 10) < 1e-6 and math.abs(tank.litres - 30) < 1e-6
+  end)())
+  local own = { fuel = 'gasoline', litres = 20, capacity = 50 }
+  check('siphon: pour needs the same type, litres in the can and room in the tank', Sp.canPour({ litres = 5, size = 10, fuel = 'gasoline' }, own) and not Sp.canPour({ litres = 5, size = 10, fuel = 'diesel' }, own)
+    and not Sp.canPour({ litres = 0, size = 10, fuel = 'gasoline' }, own) and not Sp.canPour({ litres = 5, size = 10, fuel = 'gasoline' }, { fuel = 'gasoline', litres = 50, capacity = 50 }))
+  check('siphon: a pour moves at most what the can holds and the tank has room for', Sp.pour({ litres = 5, size = 10, fuel = 'gasoline' }, own, 100, 1) == 5 and Sp.pour({ litres = 5, size = 10, fuel = 'gasoline' }, { fuel = 'gasoline', litres = 48, capacity = 50 }, 100, 1) == 2)
+  check('siphon: interruptions', Sp.interrupted({ held = true, dist = 1 }) == false and Sp.interrupted({ held = false, dist = 1 }) and Sp.interrupted({ held = true, dist = 5 }) and Sp.interrupted({ held = true, dist = 1, inCar = true })
+    and Sp.interrupted({ held = true, dist = 1, carSpeed = 3 }) and Sp.interrupted({ held = true, dist = 1, tankGone = true }) and Sp.interrupted(nil))
+  check('siphon: the risk is higher by day, with witnesses and police, scaled by the setting, capped', Sp.risk(false, 0, false, 1) > Sp.risk(true, 0, false, 1) and Sp.risk(true, 2, false, 1) > Sp.risk(true, 0, false, 1)
+    and Sp.risk(true, 0, true, 1) == 2 * Sp.risk(true, 0, false, 1) and Sp.risk(true, 0, false, 0) == 0 and Sp.risk(false, 99, true, 3) == 1)
+  check('siphon: the chance of being noticed grows with time and is a probability', Sp.noticed(0.25, 0) == 0 and math.abs(Sp.noticed(0.25, 10) - 0.25) < 1e-9 and Sp.noticed(0.25, 30) > Sp.noticed(0.25, 10) and Sp.noticed(1, 5) <= 1 and Sp.noticed(nil, 5) == 0)
+end
+
+-- fuel siphoning, the game side (sl/siphon): the walking player, the tank through the game bridge, the can, the notice, the part switch
+do
+  local ST = require('sl/core/state')
+  local Sp = require('sl/core/siphon')
+  local st = ST.new(1, 0)
+  st.cars = { { id = 1, name = 'Mine' } }
+  st.inventory = { version = 1, items = {}, parts = {}, cans = { { size = 10, litres = 0 } }, tools = {} }
+  local names = { 'sl_career', 'sl_inventory', 'gameplay_walk', 'getPlayerVehicle', 'getAllVehicles', 'be', 'core_vehicleBridge', 'sl_fleet', 'sl_options', 'guihooks', 'extensions', 'vec3' }
+  local old = {}
+  for _, k in ipairs(names) do old[k] = rawget(_G, k) end
+  local oldRandom = math.random
+  local V = {}
+  V.__index = V
+  V.__sub = function(p, q) return setmetatable({ x = p.x - q.x, y = p.y - q.y, z = p.z - q.z }, V) end
+  function V:length() return math.sqrt(self.x * self.x + self.y * self.y + self.z * self.z) end
+  local function v3(x, y, z) return setmetatable({ x = x, y = y, z = z }, V) end
+  _G.vec3 = v3
+  local toasts, hooks, tubes, night = {}, {}, 0, false
+  local tank = { name = 'mainTank', storageType = 'fuelTank', energyType = 'gasoline', currentEnergy = 40 * Sp.JOULES_PER_L.gasoline, maxEnergy = 50 * Sp.JOULES_PER_L.gasoline }
+  local carPos, ownCarId = v3(3, 0, 0), nil
+  local me = { getID = function() return 1 end, getPosition = function() return v3(0, 0, 0) end }
+  local other = { getID = function() return 2 end, getPosition = function() return carPos end, getVelocity = function() return v3(0, 0, 0) end,
+    getSpawnWorldOOBB = function() return { getCenter = function() return carPos end, getHalfExtents = function() return { x = 1, y = 2, z = 1 } end } end }
+  _G.guihooks = { trigger = function(_, d) toasts[#toasts + 1] = d and d.text end, message = function() end }
+  _G.extensions = { hook = function(name) hooks[#hooks + 1] = name end }
+  _G.sl_options = nil
+  _G.sl_career = { isActive = function() return true end, getState = function() return st end, isNight = function() return night end }
+  _G.sl_inventory = { count = function() return tubes end }
+  _G.gameplay_walk = { isWalking = function() return true end }
+  _G.getPlayerVehicle = function() return me end
+  _G.getAllVehicles = function() return { me, other } end
+  _G.be = { getObjectByID = function(_, id) return id == 2 and other or (id == 1 and me or nil) end }
+  _G.sl_fleet = { vehicleOf = function(id) return (ownCarId and id == 1) and other or nil end }
+  _G.core_vehicleBridge = {
+    requestValue = function(_, cb) cb({ { { name = tank.name, storageType = tank.storageType, energyType = tank.energyType, currentEnergy = tank.currentEnergy, maxEnergy = tank.maxEnergy } } }) end,
+    executeAction = function(_, action, name, joules) if action == 'setEnergyStorageEnergy' and name == tank.name then tank.currentEnergy = joules end end }
+  package.loaded['sl/siphon'] = nil
+  local SX = require('sl/siphon')
+  local function seconds(n) for _ = 1, n do SX.onUpdate(1.0) end end
+  local function litres() return tank.currentEnergy / Sp.JOULES_PER_L.gasoline end
+  local function last() return toasts[#toasts] end
+
+  math.random = function() return 0.99 end                          -- (nobody notices)
+  SX.onUpdate(0.3)
+  check('siphon game: a car in reach is found and its tank read', SX.status():find('near 2') ~= nil)
+  SX.holdSiphon(true)
+  check('siphon game: without a siphon tube nothing starts and it says so', SX.status():find('session none') ~= nil and last() == 'You need a siphon tube.')
+  SX.holdSiphon(false)
+  tubes = 1
+  st.inventory.cans = {}
+  SX.holdSiphon(true)
+  check('siphon game: without a jerry can nothing starts and it says so', last() == 'You need a jerry can.' and SX.status():find('session none') ~= nil)
+  SX.holdSiphon(false)
+  st.inventory.cans = { { size = 10, litres = 0 } }
+  SX.holdSiphon(true)
+  check('siphon game: with both a siphon starts', SX.status():find('session take') ~= nil)
+  seconds(1)
+  local can = st.inventory.cans[1]
+  check('siphon game: a second moves a quarter litre from the tank into the can, the same energy', math.abs(can.litres - 0.25) < 1e-6 and can.fuel == 'gasoline' and math.abs(litres() - 39.75) < 1e-6)
+  seconds(40)
+  check('siphon game: a can fills in 40 seconds and the siphon stops by itself', math.abs(can.litres - 10) < 1e-6 and math.abs(litres() - 30) < 1e-6 and SX.status():find('session none') ~= nil and last() == 'The can is full.')
+  SX.holdSiphon(false)
+  -- let go: stops at once
+  can.litres, can.fuel = 0, nil
+  tank.currentEnergy = 40 * Sp.JOULES_PER_L.gasoline
+  SX.holdSiphon(true)
+  seconds(2)
+  SX.holdSiphon(false)
+  check('siphon game: letting go stops it, what moved stays', SX.status():find('session none') ~= nil and math.abs(can.litres - 0.5) < 1e-6)
+  -- walking away
+  SX.holdSiphon(true)
+  seconds(1)
+  carPos = v3(12, 0, 0)
+  SX.onUpdate(1.0)
+  check('siphon game: walking too far stops it with a text', SX.status():find('session none') ~= nil and last() == 'You walked away.')
+  SX.holdSiphon(false)
+  carPos = v3(3, 0, 0)
+  SX.onUpdate(0.3)
+  -- noticed
+  math.random = function() return 0 end
+  night = true
+  st.heat = 0
+  SX.holdSiphon(true)
+  seconds(1)
+  check('siphon game: somebody else car can be noticed: it stops, a text, heat at night, a hook', SX.status():find('session none') ~= nil and last() == 'Somebody saw you.' and (st.heat or 0) > 0 and hooks[#hooks - 1] == 'onStreetLegalFuelTheft' or hooks[#hooks] == 'onStreetLegalFuelTheft')
+  SX.holdSiphon(false)
+  night = false
+  -- the setting that makes it never noticed
+  _G.sl_options = { get = function(k) if k == 'slSiphonRisk' then return 0 end end }
+  SX.holdSiphon(true)
+  seconds(3)
+  check('siphon game: with the risk at 0 it is never noticed', SX.status():find('session take') ~= nil)
+  SX.holdSiphon(false)
+  _G.sl_options = nil
+  math.random = function() return 0.99 end
+  -- another fuel in the can, the wrong tank
+  can.litres, can.fuel = 3, 'diesel'
+  SX.holdSiphon(true)
+  check('siphon game: a diesel can does not take petrol', last() == 'Your can is full or holds another fuel.' and SX.status():find('session none') ~= nil)
+  SX.holdSiphon(false)
+  can.litres, can.fuel = 5, 'gasoline'
+  -- pouring: only into your own car
+  SX.holdPour(true)
+  check('siphon game: you cannot pour into somebody else car', last() == 'You can only pour fuel into your own car.' and SX.status():find('session none') ~= nil)
+  SX.holdPour(false)
+  ownCarId = 1
+  SX.onUpdate(0.3)
+  tank.currentEnergy = 20 * Sp.JOULES_PER_L.gasoline
+  SX.holdPour(true)
+  seconds(3)
+  SX.holdPour(false)
+  check('siphon game: pouring into your own car moves the litres back, a litre a second', math.abs(can.litres - 2) < 1e-6 and math.abs(litres() - 23) < 1e-6)
+  can.litres = 5
+  night = true
+  st.heat = 0
+  math.random = function() return 0 end
+  SX.holdSiphon(true)
+  seconds(2)
+  SX.holdSiphon(false)
+  check('siphon game: your own car is free: no notice whatever the chance, no heat', (st.heat or 0) == 0 and math.abs(can.litres - 5.5) < 1e-6)
+  _G.sl_options = { get = function(k) if k == 'slSiphonOwn' then return false end end }
+  SX.holdSiphon(true)
+  check('siphon game: with the own-cars switch off it is refused', last() == 'Siphoning your own cars is switched off.' and SX.status():find('session none') ~= nil)
+  SX.holdSiphon(false)
+  -- ab's theft rules, when they answer: not fair game / running refuse, the exposure decides every ten seconds
+  ownCarId = nil
+  _G.sl_theft = { fairGame = function() return false, 'own' end, exposure = function() return { witness = true } end }
+  SX.onStreetLegalStopped()
+  SX.onUpdate(0.3)
+  SX.holdSiphon(true)
+  check('siphon game: a car the theft rules call not fair game is refused', last() == 'You cannot take fuel from that car.' and SX.status():find('session none') ~= nil)
+  SX.holdSiphon(false)
+  _G.sl_theft.fairGame = function() return false, 'running' end
+  SX.holdSiphon(true)
+  check('siphon game: a running car is refused', last() == 'That car is being driven.' and SX.status():find('session none') ~= nil)
+  SX.holdSiphon(false)
+  _G.sl_theft.fairGame = function() return true end
+  local exposures = 0
+  _G.sl_theft.exposure = function() exposures = exposures + 1 return { witness = exposures >= 2 } end
+  night, st.heat = true, 0
+  can.litres, can.fuel = 0, nil
+  SX.holdSiphon(true)
+  seconds(9)
+  check('siphon game: with the theft rules the exposure is asked every ten seconds, not before', exposures == 0 and SX.status():find('session take') ~= nil)
+  seconds(1)
+  check('siphon game: a first exposure with nobody about lets it go on', exposures == 1 and SX.status():find('session take') ~= nil)
+  seconds(10)
+  check('siphon game: a witness found by the theft rules stops it, and their heat is theirs (none added here)', exposures == 2 and SX.status():find('session none') ~= nil and last() == 'Somebody saw you.' and (st.heat or 0) == 0)
+  SX.holdSiphon(false)
+  _G.sl_theft = { fairGame = function() return nil end, exposure = function() return nil end }      -- (the part off: nil means the rules here)
+  night = false
+  SX.holdSiphon(true)
+  check('siphon game: when the theft rules answer nil the rules here apply', SX.status():find('session take') ~= nil)
+  SX.holdSiphon(false)
+  _G.sl_theft = nil
+  -- the tank is read about once a second while a car stays near, not at every scan
+  SX.onStreetLegalStopped()
+  local reads = 0
+  local realRequest = _G.core_vehicleBridge.requestValue
+  _G.core_vehicleBridge.requestValue = function(...) reads = reads + 1 return realRequest(...) end
+  for _ = 1, 8 do SX.onUpdate(0.25) end                       -- two seconds of scans
+  check('siphon game: the tank of a car that stays near is read about once a second', reads >= 1 and reads <= 3)
+  _G.core_vehicleBridge.requestValue = realRequest
+  -- an error in the tick never raises and stops the part after a few
+  local realAll = _G.getAllVehicles
+  _G.getAllVehicles = function() error('boom') end
+  local raised = false
+  for _ = 1, 12 do if not pcall(SX.onUpdate, 0.3) then raised = true end end
+  _G.getAllVehicles = realAll
+  check('siphon game: an error in the tick does not raise, and after five the part stops until the career restarts', not raised and (function()
+    SX.onUpdate(0.3)
+    return SX.status():find('near none') ~= nil
+  end)())
+  SX.onStreetLegalStopped()
+  SX.onUpdate(0.3)
+  check('siphon game: a restart brings the part back', SX.status():find('near 2') ~= nil)
+  -- the part switch
+  _G.sl_options = { get = function(k) if k == 'slSiphon' then return false end end }
+  ownCarId, night = nil, false
+  math.random = function() return 0.99 end
+  local before = #toasts
+  SX.holdSiphon(true)
+  SX.onUpdate(1)
+  check('siphon game: with the part off nothing answers and nothing moves', SX.status() == nil and #toasts == before)
+  _G.sl_options = nil
+  SX.onStreetLegalStopped()
+  math.random = oldRandom
+  for _, k in ipairs(names) do _G[k] = old[k] end
+  package.loaded['sl/siphon'] = nil
 end
 
 -- tier perks (career expansion #6)

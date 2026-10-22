@@ -119,6 +119,10 @@ Walk up to an owner on foot and press the prompt (Talk to the owner). They tell 
 
 At high heat (4 or 5) the police can raid a meet: you get a text, the cars and people scatter and the heat goes up a little. Keep your heat low near a meet.
 
+## Fuel siphoning
+
+Fuel siphoning (Mods > Parts of the game > Fuel siphoning, off by default; needs the Inventory part): with a jerry can and a siphon tube in your boot, walk up to a car and hold the siphon key (J) to move its fuel into the can, 0.25 litres a second by default. Fuel from somebody else is stealing: passing cars may notice, more by day, and at night it adds heat. Your own cars are free. At your own car hold the pour key (N) to pour the can in. A can holds one fuel at a time, and a diesel tank will not take petrol (or the other way round). Rebind both keys in the game controls.
+
 ## Style shows
 
 On Saturday nights, from nine, there is a Style show at one of the meet spots. Drive your car to the marker and stand on it: the entry is $60. Judges score the car on paint and finish, wheels, aftermarket parts (a full set from one maker scores best), cleanliness, body damage and wear, against a field of rival cars. The top three win a purse and reputation (up to $1500 at the top of the ladder).
