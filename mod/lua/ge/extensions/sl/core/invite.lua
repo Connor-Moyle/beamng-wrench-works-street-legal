@@ -49,7 +49,7 @@ function M.pickBrand(standing, sponsor, day, kindOf)
   if sponsor and sponsor.brand and (day - (sponsor.since or day)) >= M.WEEKS_MIN * 7 then return sponsor.brand end
   local best, bestStanding
   for id, e in pairs(standing or {}) do
-    if kindOf(id) == 'maker' and e.standing >= M.STANDING_MIN and (not best or e.standing > bestStanding or (e.standing == bestStanding and id < best)) then best, bestStanding = id, e.standing end
+    if kindOf(id) == 'maker' and (tonumber(e.standing) or 0) >= M.STANDING_MIN and (not best or (tonumber(e.standing) or 0) > bestStanding or ((tonumber(e.standing) or 0) == bestStanding and id < best)) then best, bestStanding = id, tonumber(e.standing) or 0 end
   end
   return best
 end

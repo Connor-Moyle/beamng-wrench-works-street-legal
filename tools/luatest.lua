@@ -5835,6 +5835,7 @@ do
     I.pickBrand({}, { brand = 'ford', since = 1 }, 29, kindOf) == 'ford' and I.pickBrand({}, { brand = 'ford', since = 1 }, 28, kindOf) == nil)
   check('invite: else the maker with the best standing from 250; aftermarket brands and low standing do not',
     I.pickBrand({ ford = { standing = 300 }, toy = { standing = 400 }, hks = { standing = 900 } }, nil, 5, kindOf) == 'toy' and I.pickBrand({ ford = { standing = 249 } }, nil, 5, kindOf) == nil)
+  check('invite: a malformed standing entry is zero, not an error', I.pickBrand({ ford = { standing = 'x' }, toy = {} }, nil, 5, kindOf) == nil)
   local base = { count = 0, pending = false, brand = 'ford', standing = 300, day = 50 }
   local function el(t) local x = {} for k, v in pairs(base) do x[k] = v end for k, v in pairs(t) do x[k] = v end return I.eligible(x) end
   check('invite: at most three, none while one is pending, two weeks apart', el({}) and not el({ count = 3 }) and not el({ pending = true }) and not el({ last = 40 }) and el({ last = 36 }))
