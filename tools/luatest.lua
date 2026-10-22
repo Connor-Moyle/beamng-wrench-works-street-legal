@@ -6710,4 +6710,22 @@ do
   package.loaded['sl/radio'] = nil
 end
 
+-- the 0.8.0 economy per save (sl/core/economy, sl/core/features saveOff)
+do
+  local E = require('sl/core/economy')
+  local F = require('sl/core/features')
+  local old, fresh = { seed = 1 }, E.mark({ seed = 2 })
+  check('economy: a save without the marker is a career from before: the four parts are off for it and it is offered', E.pending(old) and #E.offFor(old) == 4 and not E.pending(fresh) and #E.offFor(fresh) == 0)
+  check('economy: the marker is not part of the new-state defaults (migrate would give it to every old save)', require('sl/core/state').migrate({ seed = 3, started = 1 }).economy == nil)
+  F.setSaveOff(E.offFor(old))
+  local allOff = true
+  for _, id in ipairs(E.PARTS) do if F.on(id) then allOff = false end end
+  check('economy: an old save has weekly costs, servicing, contracts and tier perks off, the other parts as before', allOff and F.on('jobs') and F.on('races'))
+  check('economy: the player\'s own switch is not touched: a part the player switched off stays off after the opt-in', (function()
+    F.setSaveOff({})
+    return F.on('weekly') and F.on('service') and F.on('contracts') and F.on('perks') and F.on('weekly', function(k) return k ~= 'slWeekly' end) == false
+  end)())
+  F.setSaveOff({})
+end
+
 print(string.format('lua tests passed: %d checks', passed))

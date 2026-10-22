@@ -1848,6 +1848,8 @@ M.TEXT = {
   ["progression.paint_booth"] = "Paint booth",
   ["progression.paint_liveries_and_tint_at"] = "Paint, liveries and tint at home.",
   ["progression.parts_shelves"] = "Parts shelves",
+  ["career.economy_none"] = "Nothing to switch on: this career already has the new economy.", ["career.economy_on"] = "The new economy is on for this career: weekly costs, service schedules, contracts and tier perks.",
+  ["career.economy_offer"] = "New in 0.8.0: weekly costs, service schedules, contracts and tier perks. Turn them on for this career?",
   ["progression.photo_corner"] = "Photo corner", ["progression.garage_dressing"] = "Garage dressing", ["progression.garage_dressing_desc"] = "Posters, a trophy shelf, tool boards and a lounge corner on the walls and floor of the garage.",
   ["progression.photo_mode_in_the_garage"] = "Photo mode in the garage, and a showcase shot for the meets.",
   ["progression.power_curves_before_and_after"] = "Power curves, before and after.",

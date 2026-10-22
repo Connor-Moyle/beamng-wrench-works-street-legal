@@ -54,9 +54,15 @@ for _, f in ipairs(M.LIST) do byId[f.id] = f end
 function M.get(id) return byId[id] end
 
 -- is the part on? get(key) is sl_options.get (a missing option system, or a missing value, is on)
+-- parts that are off for the career that is loaded (a save from before the 0.8.0 economy, sl/core/economy): id -> true; the player's own switches are not changed
+local saveOff = {}
+function M.setSaveOff(ids) saveOff = {} for _, id in ipairs(ids or {}) do saveOff[id] = true end end
+function M.isSaveOff(id) return saveOff[id] == true end
+
 function M.on(id, get)
   local f = byId[id]
   if not f then return true end
+  if saveOff[id] then return false end
   get = get or (rawget(_G, 'sl_options') and sl_options.get)
   if not get then return true end
   return get(f.opt) ~= false
