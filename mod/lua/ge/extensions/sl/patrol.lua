@@ -58,13 +58,14 @@ local function finishShift(s, j)
   local pay = math.max(0, rules.patrolPay(arrests) - charge)
   local vid = shift.vid
   endShift()
+  local okf, err = pcall(sl_jobs.finishWith, s, s.jobs, j, pay, 10 + 5 * #arrests, strings.t('patrol.shift_done_1_2_3', #arrests, pay, charge))
+  if not okf then log('E', 'sl_patrol', 'settling the shift: ' .. tostring(err)) if s.jobs then s.jobs.active = nil end end      -- (never a second shift on a car that is going)
   core_jobsystem.create(function(job)
     if gameplay_walk then gameplay_walk.setWalkingMode(true, nil, nil, true) end
     job.sleep(1)
     local veh = getObjectByID(vid)
     if veh then veh:delete() end
   end)
-  sl_jobs.finishWith(s, s.jobs, j, pay, 10 + 5 * #arrests, strings.t('patrol.shift_done_1_2_3', #arrests, pay, charge))
 end
 
 local tickT = 0
@@ -76,7 +77,7 @@ local function tick()
   if not shift then startShift(j) return end
   if shift.vid ~= j.carVid then endShift() return end
   local v = getPlayerVehicle(0)
-  if not v or v:getID() ~= shift.vid then return end            -- (out of the car: the shift waits)
+  if not v or v:getID() ~= shift.vid then shift.t0 = shift.t0 + 0.5 return end      -- (out of the car: the shift clock stops with you)
   local elapsed = os.clock() - shift.t0
   if not shift.returning and rules.shiftOver(elapsed, #shift.arrests) then
     shift.returning = true
@@ -96,13 +97,22 @@ function M.onUpdate(dtReal)
   if not ok then log('E', 'sl_patrol', tostring(err)) end
 end
 
--- the suspects' chases: an arrest pays by how fast it came
+-- the suspects' chases: an arrest pays by how fast it came. Only the chases your car took part in count: the suspect within reach of your
+-- car at the start and at the arrest (the game's own patrols arrest suspects across the map all the time: those are not yours)
+local function nearMe(id)
+  local v, o = getPlayerVehicle(0), getObjectByID(id)
+  if not (v and o and shift and v:getID() == shift.vid) then return false end
+  return (o:getPosition() - v:getPosition()):length() <= rules.PATROL.reach
+end
 function M.onPursuitAction(id, action, pursuit)
   if not shift or id == playerVid() then return end
-  if action == 'start' then shift.chases[id] = os.clock()
+  if action == 'start' then
+    if nearMe(id) then shift.chases[id] = os.clock() end
   elseif action == 'arrest' then
-    local sec = os.clock() - (shift.chases[id] or os.clock())
+    if not shift.chases[id] then return end                        -- (not your chase)
+    local sec = os.clock() - shift.chases[id]
     shift.chases[id] = nil
+    if not nearMe(id) then say(strings.t('patrol.not_your_arrest'), 4) return end
     shift.arrests[#shift.arrests + 1] = sec
     say(strings.t('patrol.arrest_1_2_3', #shift.arrests, math.floor(sec + 0.5), rules.arrestPay(sec)), 6)
   elseif action == 'evade' or action == 'release' then

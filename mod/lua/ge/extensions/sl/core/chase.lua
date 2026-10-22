@@ -295,7 +295,7 @@ function M.isStraight(headings)
 end
 
 -- ---- P12: the patrol shift (the game side is sl/patrol.lua): the job, the pay by arrest time, the damage charge
-M.PATROL = { unlock = 300, shiftS = 600, arrests = 3, earlyS = 60, radius = 22, car = 'fullsize', config = 'vehicles/fullsize/police.pc',
+M.PATROL = { unlock = 300, shiftS = 600, arrests = 3, earlyS = 60, radius = 22, reach = 80, car = 'fullsize', config = 'vehicles/fullsize/police.pc',
              base = 180, arrestPay = 220, arrestDrop = 2, arrestMin = 80, slowAfter = 20, damageFree = 500, damagePer = 20, damageMax = 400 }
 -- an arrest pays its full price when it came within slowAfter seconds of the chase's start, then $2 less a second, never under the floor
 function M.arrestPay(seconds) return math.max(M.PATROL.arrestMin, M.PATROL.arrestPay - M.PATROL.arrestDrop * math.max(0, (tonumber(seconds) or 0) - M.PATROL.slowAfter)) end
