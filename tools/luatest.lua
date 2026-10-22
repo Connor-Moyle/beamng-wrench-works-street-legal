@@ -5774,4 +5774,41 @@ do
   package.loaded['sl/shops'] = nil
 end
 
+-- the rally service stall (sl/core/rallyservice): the stall from the rally loop's mission file, at it or not; the game side on a visit
+do
+  local RS = require('sl/core/rallyservice')
+  local info = { missionTypeData = { serviceStallPos = { -518.02, 305.67, 298.48 }, serviceStallRot = { 0, 0, 0.99, -0.1 }, serviceStallScl = 5 } }
+  local st = RS.stallOf(info)
+  check('rallyservice: the stall is read from the mission file with its scale in the reach', st ~= nil and st.pos.x == -518.02 and st.pos.z == 298.48 and st.radius == 13 and RS.stallOf({}) == nil and RS.stallOf({ missionTypeData = { serviceStallPos = { 'x' } } }) == nil)
+  check('rallyservice: at the stall within the reach, flat; not beyond; nil points are away', RS.atStall({ x = -510, y = 305, z = 400 }, st) and not RS.atStall({ x = -500, y = 305, z = 298 }, st) and not RS.atStall(nil, st) and not RS.atStall({ x = 0, y = 0 }, nil))
+  check('rallyservice: Utah has the NGRC loop', RS.LOOPS.utah ~= nil and RS.LOOPS.utah:find('rallyLoop') ~= nil)
+  do
+    local old = { c = _G.sl_career, pv = _G.getPlayerVehicle, jr = _G.jsonReadFile, gh = _G.guihooks, o = _G.sl_options, v3 = _G.vec3, q = _G.quat }
+    local visit, level, pos, toasts = { active = true }, 'utah', { x = -515, y = 305, z = 298 }, {}
+    _G.sl_career = setmetatable({ isActive = function() return true end, visit = function() return visit end, getState = function() return { day = 3 } end }, { __index = function(_, k) if k == 'LEVEL' then return level end end })
+    _G.getPlayerVehicle = function() return { getPosition = function() return pos end } end
+    _G.jsonReadFile = function(f) if f == RS.LOOPS.utah then return info end return nil end
+    _G.guihooks = { trigger = function(name, d) if name == 'slPhoneToast' then toasts[#toasts + 1] = d.text end end }
+    _G.sl_options = { get = function() return nil end }
+    _G.vec3 = _G.vec3 or function(x, y, z) return { x = x, y = y, z = z } end
+    _G.quat = _G.quat or function() return {} end
+    package.loaded['sl/rallyservice'] = nil
+    local G = require('sl/rallyservice')
+    check('rallyservice game side: on a Utah visit the stall is found and the car at it says so', G.stall() ~= nil and G.atStall() == true)
+    local els = {}
+    G.onGetRawPoiListForLevel('utah', els)
+    check('rallyservice game side: the stall is a pin on the big map and a marker in play mode', #els == 1 and els[1].id == 'sl_rally_stall' and els[1].clusterInPlayMode == true and els[1].markerInfo.bigmapMarker.name == 'Service stall')
+    G.onUpdate(1.5) G.onUpdate(1.5)
+    check('rallyservice game side: one toast a day at the stall', #toasts == 1 and toasts[1]:find('service stall') ~= nil)
+    pos = { x = -400, y = 305, z = 298 }
+    check('rallyservice game side: away from the stall it is not at it', G.atStall() == false)
+    visit = nil
+    check('rallyservice game side: no visit: no stall, no pin', G.stall() == nil and G.atStall() == false and (function() local e = {} G.onGetRawPoiListForLevel('utah', e) return #e == 0 end)())
+    visit = { active = true } level = 'west_coast_usa' G.onClientStartMission()
+    check('rallyservice game side: a visit on a map without a rally loop has no stall', G.stall() == nil)
+    _G.sl_career, _G.getPlayerVehicle, _G.jsonReadFile, _G.guihooks, _G.sl_options, _G.vec3, _G.quat = old.c, old.pv, old.jr, old.gh, old.o, old.v3, old.q
+    package.loaded['sl/rallyservice'] = nil
+  end
+end
+
 print(string.format('lua tests passed: %d checks', passed))
