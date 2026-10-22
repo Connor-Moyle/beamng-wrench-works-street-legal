@@ -1228,7 +1228,7 @@
         else if (!c.seated) acts.push('<div class="slp-btn" data-a="usecar" data-v="' + c.id + ('">' + T('ui.drive_this_one', 'Drive this one') + '</div>'));
         if (c.out && c.towFee && c.where === 'Out on the street') acts.push('<div class="slp-btn slp-tonal" data-a="tow" data-v="' + c.id + ('">' + T('ui.tow_it_home', 'Tow it home ') + '&middot;' + ' ') + money(c.towFee) + '</div>');
         if (c.out && !c.impounded) acts.push('<div class="slp-btn slp-text" data-a="despawn" data-v="' + c.id + ('">' + T('ui.put_it_away', 'Put it away') + '</div>'));
-        return '<div class="slp-card"><h4>' + esc(c.name) + (c.active ? ' &#9733;' : '') + '</h4><p>' + esc(c.where) + ' &middot; condition ' + Math.round((c.condition || 0) * 100) + '%' + (c.look ? ' &middot; ' + esc(c.look) : '') +
+        return '<div class="slp-card"><h4>' + esc(c.name) + (c.active ? ' &#9733;' : '') + '</h4><p>' + esc(c.where) + ' &middot; condition ' + Math.round((c.condition || 0) * 100) + '%' + (c.look ? ' &middot; ' + esc(c.look) : '') + (c.mastery && c.mastery.level > 0 ? ' &middot; <b>' + esc(c.mastery.label) + ' ' + c.mastery.level + '/' + c.mastery.max + '</b>' + (c.mastery.perks.length ? ' (' + esc(c.mastery.perks.join(' ')) + ')' : '') : '') +
           (faults.length ? ('<br>' + T('ui.needs_2', 'Needs: ')) + esc(faults.join(', ')) : '') + '</p>' + careView(c) + (acts.length ? '<div class="slp-acts">' + acts.join('') + '</div>' : '') + '</div>';
       });
       return bar(T('app.garage', 'My cars')) + '<div class="slp-body">' + (cards.join('') + ordered.join('') ||

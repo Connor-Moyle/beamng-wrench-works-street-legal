@@ -3310,7 +3310,7 @@ do
   local Opt = require('sl/options')
   local defs = {}
   for _, d in ipairs(Opt.defs) do defs[d.key] = d end
-  local okDefs = #F.LIST == 34
+  local okDefs = #F.LIST == 35
   local offByDefault = 0
   for _, f in ipairs(F.LIST) do
     local d = defs[f.opt]
@@ -3804,6 +3804,69 @@ do
   end
   _G.sl_career, _G.extensions, _G.guihooks, _G.FS, _G.sl_weather, _G.sl_options, _G.sl_fleet = old.c, old.e, old.g, old.fs, old.w, old.o, old.f
   package.loaded['sl/jobs'] = nil
+end
+
+-- car mastery (career expansion #13)
+do
+  local K = require('sl/core/mastery')
+  check('mastery: nothing is level 0 with no points, whatever the garbage', K.level(nil) == 0 and K.points(nil) == 0 and K.level({ km = -5, clean = 'x' }) == 0 and K.points({ km = 0 / 0 }) == 0)
+  check('mastery: points are a fifth of the km plus twenty per clean run', K.points({ km = 100, clean = 2 }) == 60 and K.points({ km = 99 }) == 19)
+  check('mastery: the levels follow the thresholds, 5 at the top and no further', K.level({ km = 495 }) == 0 and K.level({ km = 500 }) == 1 and K.level({ clean = 5 }) == 1 and K.level({ km = 8000 }) == 5 and K.level({ km = 1e9, clean = 1e9 }) == 5)
+  check('mastery: points to the next level, nil at the top', K.toNext({ clean = 4 }) == 20 and K.toNext({ km = 8000 }) == nil)
+  check('mastery: the factors per level, capped, 1 for nothing known', K.factor('insurance', 5) == 0.9 and K.factor('trade', 5) == 1.075 and K.factor('service', 1) == 0.98 and K.factor('tyres', 99) == 0.9 and K.factor('insurance', 0) == 1 and K.factor('nope', 3) == 1 and K.factor('trade', nil) == 1)
+  local m = K.bump(nil, 12, true)
+  local m2 = K.bump({ km = m.km, clean = m.clean }, 5, false)
+  check('mastery: the odometer count never goes back and a clean run adds one', m.km == 12 and m.clean == 1 and m2.km == 12 and m2.clean == 1 and K.bump({ km = 12, clean = 1 }, 30, true).km == 30 and K.bump({ km = 12 }, 'x', false).km == 12)
+  check('mastery: the card view has the label and perks only from level 1', #K.view({}).perks == 0 and #K.view({ clean = 5 }).perks == 3 and not K.view({ clean = 5 }).perks[1]:find('^mastery%.') and not K.view({ km = 8000 }).label:find('^mastery%.') and K.view({ clean = 5 }).toNext == 200)
+  check('mastery: the best possible stack with the tier perks stays under a quarter off the service price', K.factor('service', 5) * require('sl/core/perks').factor(6, 'service') > 0.75)
+end
+
+-- car mastery, the game side (sl/mastery): the counters in the car record, the odometer, clean races, the factors, the market and the part switch
+do
+  local ST = require('sl/core/state')
+  local st = ST.new(1, 0)
+  st.day = 3
+  st.cars = { { id = 1, name = 'A', value = 8000, condition = 1, mileage = 1000, care = { engineKm = 1600 }, history = { wrecks = 0 } }, { id = 2, name = 'B', value = 8000, condition = 1, mileage = 0 } }
+  st.activeCar = 1
+  local old = { c = rawget(_G, 'sl_career'), o = rawget(_G, 'sl_options'), s = rawget(_G, 'sl_shops') }
+  local registered
+  _G.sl_career = { isActive = function() return true end, getState = function() return st end }
+  _G.sl_options = nil
+  _G.sl_shops = { setPriceFactor = function(id, fn) registered = { id = id, fn = fn } return true end }
+  package.loaded['sl/mastery'] = nil
+  local Mx = require('sl/mastery')
+  local market = require('sl/core/market')
+  check('mastery game: 600 km since you bought it is 120 points and level 1; the counters are in the car record', Mx.of(1).level == 1 and st.cars[1].mastery.km == 600 and Mx.of(2).level == 0 and Mx.of(99) == nil)
+  check('mastery game: the multipliers follow the driven car', math.abs(Mx.factor('insurance') - 0.98) < 1e-9 and Mx.factor('trade', st.cars[2]) == 1)
+  st.cars[1].care.engineKm = 0                                                      -- (the odometer reset by an engine swap never takes the points back)
+  check('mastery game: the count never goes back', Mx.of(1).level == 1 and st.cars[1].mastery.km == 600)
+  Mx.onStreetLegalRaceResult()
+  Mx.onStreetLegalRaceResult()
+  check('mastery game: clean races add a clean run each', st.cars[1].mastery.clean == 2 and st.cars[1].mastery.seenWrecks == 0)
+  st.cars[1].history.wrecks = 1
+  Mx.onStreetLegalRaceResult()
+  Mx.onStreetLegalRaceResult()
+  check('mastery game: a wreck costs the next run only, later races are clean again', st.cars[1].mastery.clean == 3)
+  st.cars[1].history.wreckedNow = true
+  Mx.onStreetLegalRaceResult()
+  check('mastery game: a car still wrecked earns no clean run', st.cars[1].mastery.clean == 3)
+  st.cars[1].history.wreckedNow = nil
+  Mx.onStreetLegalStarted()
+  check('mastery game: the tyre shop price chain is registered, 2% off at level 1 for tyre shops only', registered and registered.id == 'mastery' and math.abs(registered.fn({}, { kind = 'tyre' }) - 0.98) < 1e-9 and registered.fn({}, { kind = 'parts' }) == 1)
+  st.cars[1].mastery.clean = 25
+  check('mastery game: the trade-in is higher by the level, floored to 50, and only for the car itself', market.masteryFactor ~= nil and market.resaleValue(st.cars[1]) >= market.resaleValue(st.cars[2]) and Mx.levelOf(st.cars[1]) == 3)
+  local base = (function() market.masteryFactor = nil return market.resaleValue(st.cars[1]) end)()
+  Mx.refresh()
+  local boosted = market.resaleValue(st.cars[1])
+  check('mastery game: level 3 gives 4.5% on a resale value', boosted >= base and boosted <= base * 1.045 + 50 and boosted % 50 == 0)
+  st.cars[1].boughtFor = 3000
+  check('mastery game: the bonus never lifts a sale past what you paid', market.resaleValue(st.cars[1]) <= math.max(3000, base))
+  _G.sl_options = { get = function(k) if k == 'slMastery' then return false end end }
+  check('mastery game: with the part off nothing answers', Mx.factor('insurance') == nil and Mx.of(1) == nil)
+  Mx.onStreetLegalStopped()
+  check('mastery game: stopped, the market hook and the shop factor are removed', market.masteryFactor == nil and registered.fn == nil)
+  _G.sl_career, _G.sl_options, _G.sl_shops = old.c, old.o, old.s
+  package.loaded['sl/mastery'] = nil
 end
 
 -- tier perks (career expansion #6)

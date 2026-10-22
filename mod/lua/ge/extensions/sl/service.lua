@@ -60,7 +60,7 @@ function M.serviceOf(carId)
   local c, sv, _, net = figures(car)
   local km = svc.since(sv, c.engineKm, car.mileage)
   local bench = workbench(s)
-  local pf = sl_perks and sl_perks.factor('service') or 1                 -- (tier perks)
+  local pf = (sl_perks and sl_perks.factor('service') or 1) * (sl_mastery and sl_mastery.factor('service', car) or 1)      -- (tier perks, the car's mastery)
   local note = bench and '' or strings.t('service.no_bench')
   local rc = market.REPAIR_CONDITION
   return { due = svc.due(sv, km), km_since = math.floor(km), km_interval = math.floor(svc.INTERVAL / rate()), wearFactor = svc.wearFactor(sv, km), count = sv.count,
