@@ -880,12 +880,10 @@ M.TEXT = {
   ["gridrace.no_car"] = "You need a car on the grid.", ["gridrace.no_race_object"] = "The game has no race object here.", ["gridrace.no_track"] = "No layout with a grid here.",
   ["rallyservice.service_stall"] = "Service stall", ["rallyservice.stall_desc"] = "The rally service: Basic service and Full overhaul at the normal rate here, the mobile-mechanic rate anywhere else on the visit.",
   ["rallyservice.at_the_stall"] = "At the service stall: the service card works at the normal rate here.",
-<<<<<<< HEAD
   ["hillduel.hill_duel"] = "Hill duel", ["hillduel.hill_duel_1"] = "Hill duel: {1}", ["hillduel.pin_desc"] = "At night: a duel against a rival on this hill road, scored by points. The leader scores while 25 m or more ahead, the follower while 12 m or less behind; off the road costs.",
   ["hillduel.duel_against_1_for_2"] = "Hill duel against {1} for ${2}", ["hillduel.score_1_2"] = "You {1} : {2} them", ["hillduel.called_off"] = "The duel was called off.", ["hillduel.walked_out_1"] = "You walked out of the duel: the ${1} stake is gone.",
   ["hillduel.you_won_1_2_3"] = "You won the hill duel ({1}): ${2} and {3} reputation.", ["hillduel.you_lost_1_2"] = "You lost the hill duel ({1}): ${2}.", ["hillduel.at_night"] = "Hill duels run at night.",
   ["hillduel.no_such_road"] = "No such road.", ["hillduel.duel_1_against_2_3"] = "{1}: hill duel against {2} for ${3}. The leader scores from 25 m ahead, the follower within 12 m.",
-=======
   ["fasttravel.police_impound"] = "Police impound",
   ["justice.pulled_over_ticket_1_due_day_2"] = "Pulled over. A ticket: ${1}, due by day {2} (the phone has it).", ["justice.benny_ticket_1"] = "A ticket, ${1}. Pay it on the phone before the court day, or fight it. Three left to rot and they take your licence.",
   ["justice.no_such_ticket"] = "No such ticket.", ["justice.already_paid"] = "That one is paid.", ["justice.ticket"] = "Ticket", ["justice.paid_1"] = "Ticket paid: ${1}.", ["justice.licence_back"] = "Your licence is back.",
@@ -897,7 +895,6 @@ M.TEXT = {
   ["justice.nothing_impounded"] = "Nothing of yours is in the impound.", ["justice.window_closed"] = "The window is closed for the night.", ["justice.fence_by_day"] = "Not in daylight.",
   ["justice.took_the_1"] = "The {1} is yours again.", ["justice.fence_cut_1"] = "You cut the fence and took the {1}: the police are coming, and the car has a bounty on it now.",
   ["justice.police_impound"] = "Police impound", ["justice.cut_the_fence_1"] = "Cut the fence and take the {1}", ["justice.pay_1_take_2"] = "Pay ${1} and take the {2}",
->>>>>>> faec5e4a (Police batch 2 (P8-P10): tickets and court (a pull-over at level 1 is a ticket, pay or contest, three overdue suspend the licence), wanted posters (a record from heat 4 that outlives the day, patrols recognise the car, a repaint or an informant clears it), the impound lot (the Belasco police station as a place: pay at the window by day or cut the fence at night for a chase from the gate); rules in core/chase, sl_justice; three switches; the economy sim takes tickets (racer floor worst 35 to 17 min); tests)
   ["needs.no_career"] = "No career.", ["needs.nap_at_garage"] = "You can only nap at a garage.", ["needs.eat_at_station"] = "Food and drink are sold at fuel stations.",
   ["needs.food_and_drink"] = "Food and drink",
   ["needs.nap_1_rest_2"] = "A {1} hour nap: rest {2}.", ["needs.slept_1_2_rest_3"] = "You slept {1} hours {2}: rest {3}.",
