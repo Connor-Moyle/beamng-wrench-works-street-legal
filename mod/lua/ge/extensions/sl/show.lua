@@ -248,7 +248,7 @@ function M.onUpdate(dtReal)
   local ev, place = cachedEv, cachedPlace
   if not (ev and place) then standFor = 0 return end
   if store(s).history[ev.week] then standFor = 0 return end
-  if sl_career.freeToStart and not sl_career.freeToStart() then standFor = 0 return end         -- (not in a chase, a job or a race)
+  if sl_career.freeToStart and sl_career.freeToStart() then standFor = 0 return end         -- (not in a chase, a job or a race)
   local v = playerCar()
   if not v then standFor = 0 return end
   local pos = vec3(place.pos.x, place.pos.y, place.pos.z)

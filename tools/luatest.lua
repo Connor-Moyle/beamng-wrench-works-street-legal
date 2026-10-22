@@ -5103,6 +5103,32 @@ do
   local inp2 = SX.inputs(vehicle)
   check('show game: without Part Wear, brands and Car Surface FX the criteria drop and the rest remain', inp2.parts == nil and inp2.clean == nil and inp2.wear == nil and inp2.paint ~= nil and inp2.body ~= nil)
   check('show game: and it still judges', SX.begin() == true and st.show.history[2] ~= nil)
+  -- the prompt at the spot: free (freeToStart answers nil) starts it, busy (a reason) does not
+  do
+    local V = {}
+    V.__index = V
+    V.__sub = function(a, c) return setmetatable({ x = a.x - c.x, y = a.y - c.y, z = a.z - c.z }, V) end
+    V.__add = function(a, c) return setmetatable({ x = a.x + c.x, y = a.y + c.y, z = a.z + c.z }, V) end
+    function V:length() return math.sqrt(self.x * self.x + self.y * self.y + self.z * self.z) end
+    local oldV3 = _G.vec3
+    _G.vec3 = function(x, y, z) return setmetatable({ x = x or 0, y = y or 0, z = z or 0 }, V) end
+    st.day = 27
+    local e27, pl27 = SX.eventToday(st)
+    local busyWhy = 'busy'
+    _G.sl_career.freeToStart = function() return busyWhy end
+    vehicle.getPosition = function() return _G.vec3(pl27.pos.x, pl27.pos.y, pl27.pos.z) end
+    vehicle.getVelocity = function() return _G.vec3(0, 0, 0) end
+    st.show.history[e27.week] = nil
+    local weekBefore = st.show.history[e27.week]
+    for _ = 1, 4 do SX.onUpdate(0.5) end
+    check('show game: busy (a chase, a job, a race) the prompt at the spot does not start the show', weekBefore == nil and st.show.history[e27.week] == nil, tostring(e27.week) .. ' ' .. tostring(weekBefore) .. ' ' .. tostring(st.show.history[e27.week]))
+    busyWhy = nil
+    for _ = 1, 4 do SX.onUpdate(0.5) end
+    check('show game: free, standing at the spot for a moment starts the show', st.show.history[e27.week] ~= nil)
+    _G.sl_career.freeToStart = nil
+    _G.vec3 = oldV3
+    st.day = 27
+  end
   -- nothing to judge: no charge
   st.day = 20
   _G.core_vehicle_manager, _G.sl_carcare, _G.slrr_garageParts = { getVehicleData = function() return nil end }, nil, nil
