@@ -20,6 +20,8 @@ WEAR_SCALE = float(os.environ.get("WEAR_SCALE", "40"))   # core/service.lua SCAL
 WEAR = '--nowear' not in sys.argv          # core/service.lua: wear x40 paid back as repairs, and a basic service every 150 km
 SPONSOR = '--nosponsor' not in sys.argv       # core/brands.lua: standing from wins, a sponsorship at 100 with a retainer and a parts discount
 SHOW = '--noshow' not in sys.argv      # core/show.lua: the Saturday Style show (a purse by place, entered when the car is in show shape)
+FUEL = '--fuel' in sys.argv      # the pump (sl_station): 9 L per 100 km at Regular 91, $1.45 a litre, paid by whoever plays; shown so the fuel stays a small cost next to the income (opt-in: the sim has not charged fuel so far; the Fuel range switch adds warnings, not a cost)
+FUEL_L100, FUEL_PRICE = 9.0, 1.45
 WEEKLY = '--noweekly' not in sys.argv      # the weekly costs of core/weekly.lua
 BOOST = '--noboost' not in sys.argv     # the early-game boost in sl_jobs
 SHOPS = '--noshops' not in sys.argv     # what the shops of sl_shops take (docs/SHOPS_REWORK.md step 3): (price, how often a week) of the services a player buys now and then; a guess to check in game
@@ -135,6 +137,8 @@ class Player:
             km = minutes * 0.7 * 40 / 60
             value = CARS[self.car][0]
             self.money -= min(self.money, WEAR_SCALE / 40 * 4.6e-4 * value / 3 * minutes * 0.7 + (30 + 0.002 * value) * km / 150)
+        if FUEL and self.car is not None:
+            self.money -= min(self.money, FUEL_L100 / 100 * FUEL_PRICE * minutes * 0.7 * 40 / 60)
         if self.day() != before:
             self.heat *= 0.7                            # police: heat cools daily
             if SPONSOR:                                 # core/brands + sl_sponsor: decay 1 a day; an offer at 100 (taken); every 7th day since: the wins of the week

@@ -23,7 +23,7 @@ function M.groups(places, from)
   for _, p in ipairs(places) do
     local g = by[p.kind]
     if not g then g = { kind = p.kind, places = {} } by[p.kind] = g kinds[#kinds + 1] = g end
-    g.places[#g.places + 1] = { id = p.id, name = p.name, dist = M.distance(from, p) }
+    g.places[#g.places + 1] = { id = p.id, name = p.name, dist = M.distance(from, p), info = p.info }
   end
   for _, g in ipairs(kinds) do
     table.sort(g.places, function(a, b)

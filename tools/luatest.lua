@@ -6589,4 +6589,80 @@ do
   end
 end
 
+-- fuel range (campaign expansion #9): the rules, then the game side with stubs
+do
+  local R = require('sl/core/range')
+  local tr = R.newTrack()
+  R.push(tr, 100, 50) R.push(tr, 110, 49) R.push(tr, 120, 48)
+  local obs, km = R.observed(tr)
+  check('range: the litres used over the kilometres driven, 1 L per 10 km here', math.abs(obs - 0.1) < 1e-9 and math.abs(km - 20) < 1e-9 or math.abs(obs - 0.1) < 1e-9)
+  check('range: with enough distance the observed figure counts in full, the range is litres over it', math.abs(R.consumption(tr) - 0.1) < 1e-9 and math.abs(R.range(48, R.consumption(tr)) - 480) < 1e-6)
+  local fresh = R.newTrack()
+  check('range: with nothing driven yet the default figure is used (9 L per 100 km)', math.abs(R.consumption(fresh) - 0.09) < 1e-9 and math.abs(R.range(45, R.consumption(fresh)) - 500) < 1e-6)
+  local short = R.newTrack()
+  R.push(short, 0, 40) R.push(short, 1.5, 38.5)          -- 1 L per km over 1.5 km: half trusted
+  check('range: a short drive is blended with the default, half and half at half the trust distance', math.abs(R.consumption(short) - (1.0 * 0.5 + 0.09 * 0.5)) < 1e-9)
+  local long = R.newTrack()
+  for i = 0, 60 do R.push(long, i, 100 - i * 0.2) end
+  check('range: only the last 15 km count', #long.samples <= 17 and long.samples[1].km >= 44)
+  R.push(long, 61, 90)
+  check('range: a refuel (the litres rise) starts the window again', #long.samples == 1 and R.observed(long) == nil)
+  local back = R.newTrack()
+  R.push(back, 500, 30) R.push(back, 10, 30)
+  check('range: an odometer that goes back (another car) starts again', #back.samples == 1)
+  check('range: a car that burns nothing over a distance (coasting) has no observed figure', (function() local t2 = R.newTrack() R.push(t2, 0, 30) R.push(t2, 5, 30) return R.observed(t2) == nil end)())
+  check('range: levels: ok, low under 15 % or 40 km, critical under 5 % or 10 km, empty under 0.3 L', R.level(0.5, 20, 300) == 'ok' and R.level(0.14, 7, 300) == 'low' and R.level(0.5, 20, 39) == 'low'
+    and R.level(0.04, 2, 300) == 'critical' and R.level(0.5, 20, 9) == 'critical' and R.level(0, 0.1, 0) == 'empty' and R.level(nil, nil, nil) == 'ok')
+  check('range: a toast is due only when the level gets worse', R.worse('low', nil) and R.worse('critical', 'low') and not R.worse('low', 'critical') and not R.worse('low', 'low') and not R.worse('ok', 'low'))
+  check('range: the dashboard rounds to 5 km under 100 and 10 above', R.display(37) == 35 and R.display(38) == 40 and R.display(312) == 310 and R.display(318) == 320 and R.display(nil) == nil)
+
+  local saved = { sl_career = rawget(_G, 'sl_career'), sl_fleet = rawget(_G, 'sl_fleet'), guihooks = rawget(_G, 'guihooks'), ui_message = rawget(_G, 'ui_message'), sl_options = rawget(_G, 'sl_options'),
+    getPlayerVehicle = rawget(_G, 'getPlayerVehicle'), sl_carcare = rawget(_G, 'sl_carcare') }
+  local toasts = {}
+  local me = { getID = function() return 77 end, getPosition = function() return { x = 0, y = 0, z = 0 } end }
+  local trunk = {}
+  local state = { cars = { { id = 1 } } }
+  _G.sl_career = { isActive = function() return true end, getState = function() return state end,
+    allPlaces = function() return { g1 = { id = 'g1', kind = 'gas', name = 'Far Pump', pos = { x = 9000, y = 0, z = 0 } }, g2 = { id = 'g2', kind = 'gas', name = 'Near Pump', pos = { x = 2100, y = 0, z = 0 } }, d = { id = 'd', kind = 'dealer', name = 'Dealer', pos = { x = 10, y = 0, z = 0 } } } end }
+  _G.sl_fleet = { carOfVehicle = function(vid) return vid == 77 and 1 or nil end }
+  _G.sl_carcare = { careOf = function() return { trunk = trunk } end }
+  _G.getPlayerVehicle = function() return me end
+  _G.guihooks = { trigger = function(n, t) toasts[#toasts + 1] = t.text end }
+  _G.ui_message = nil
+  local optionOn = false
+  _G.sl_options = { get = function(k) return k == 'slFuelRange' and optionOn or nil end }
+  package.loaded['sl/fuelrange'] = nil
+  local F = require('sl/fuelrange')
+  F.onReport(77, { fuelLitres = 4, fuelCapacity = 50, fuelLevel = 0.08, engineKm = 100 })
+  check('fuel range: with the switch off nothing is kept, nothing is told, nothing shows', #toasts == 0 and F.hud(77) == nil and F.priceText() == nil and F.mapNote({ x = 0, y = 0 }) == nil)
+  optionOn = true
+  F.onReport(77, { fuelLitres = 40, fuelCapacity = 50, fuelLevel = 0.8, engineKm = 100 })
+  F.onReport(77, { fuelLitres = 38, fuelCapacity = 50, fuelLevel = 0.76, engineKm = 120 })
+  local h = F.hud(77)
+  check('fuel range: the HUD gets the range and a level; 38 L at 0.1 L/km is 380 km, ok', h and h.level == 'ok' and h.range == 380 and #toasts == 0)
+  F.onReport(77, { fuelLitres = 6.5, fuelCapacity = 50, fuelLevel = 0.13, engineKm = 340 })
+  check('fuel range: low is told once with the range and the nearest station', #toasts == 1 and toasts[1]:find('low', 1, true) and toasts[1]:find('Near Pump', 1, true) and toasts[1]:find('2.1', 1, true))
+  F.onReport(77, { fuelLitres = 6.0, fuelCapacity = 50, fuelLevel = 0.12, engineKm = 345 })
+  check('fuel range: and not again at the same level', #toasts == 1)
+  trunk[1] = 'fuelCan'
+  F.onReport(77, { fuelLitres = 1.5, fuelCapacity = 50, fuelLevel = 0.03, engineKm = 360 })
+  check('fuel range: critical is told, with the fuel can in the trunk', #toasts == 2 and toasts[2]:find('almost gone', 1, true) and toasts[2]:find('fuel can', 1, true))
+  F.onReport(77, { fuelLitres = 0.1, fuelCapacity = 50, fuelLevel = 0.002, engineKm = 363 })
+  check('fuel range: empty says out of fuel and the tow', #toasts == 3 and toasts[3]:find('Out of fuel', 1, true) and toasts[3]:find('tow', 1, true) and F.hud(77).level == 'empty')
+  check('fuel range: the map note names the nearest station while the tank is low', (F.mapNote({ x = 0, y = 0 }) or ''):find('Near Pump', 1, true) ~= nil)
+  F.onReport(77, { fuelLitres = 45, fuelCapacity = 50, fuelLevel = 0.9, engineKm = 363 })
+  check('fuel range: a refuel clears the level, so the next low is told again', F.hud(77).level == 'ok' and F.mapNote({ x = 0, y = 0 }) == nil)
+  F.onReport(77, { fuelLitres = 6, fuelCapacity = 50, fuelLevel = 0.12, engineKm = 400 })
+  check('fuel range: after the refuel the next low is told', #toasts == 4)
+  F.onReport(88, { fuelLitres = 1, fuelCapacity = 50, fuelLevel = 0.02, engineKm = 10 })
+  check('fuel range: only the car you drive talks', #toasts == 4 and F.hud(88).level == 'critical')
+  F.onReport(77, { engineKm = 5 })
+  check('fuel range: a car with no fuel tank reports no litres and gets nothing', true)
+  check('fuel range: the price shows the cheapest grade', F.priceText() == 'from $1.45/L')
+  F.onVehicleDestroyed(77)
+  check('fuel range: a destroyed car is forgotten', F.hud(77) == nil)
+  for k, v in pairs(saved) do _G[k] = v end
+  package.loaded['sl/fuelrange'] = nil
+end
+
 print(string.format('lua tests passed: %d checks', passed))

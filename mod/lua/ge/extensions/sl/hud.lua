@@ -209,7 +209,7 @@ local labelCache, labelAt = nil, -99
 local function hudLabels()
   if labelCache and os.clock() - labelAt < 5 then return labelCache end
   local S = require('sl/core/strings')
-  labelCache = { day = S.t('phase.day'), night = S.t('phase.night'), engine = S.t('status.engine'), atRisk = S.TEXT['hud.atRisk'], heat = S.TEXT['hud.heat'], rpm = S.TEXT['hud.rpm'], mph = S.TEXT['hud.mph'], kmh = S.TEXT['hud.kmh'], atRiskTip = S.TEXT['hud.atRiskTip'], cooldown = S.TEXT['hud.cooldown'], hidden = S.TEXT['hud.hidden'], busting = S.TEXT['hud.busting'], stripAhead = S.TEXT['hud.stripAhead'] }
+  labelCache = { day = S.t('phase.day'), night = S.t('phase.night'), engine = S.t('status.engine'), atRisk = S.TEXT['hud.atRisk'], fuel = S.TEXT['hud.fuel'], fuelTip = S.TEXT['hud.fuelTip'], heat = S.TEXT['hud.heat'], rpm = S.TEXT['hud.rpm'], mph = S.TEXT['hud.mph'], kmh = S.TEXT['hud.kmh'], atRiskTip = S.TEXT['hud.atRiskTip'], cooldown = S.TEXT['hud.cooldown'], hidden = S.TEXT['hud.hidden'], busting = S.TEXT['hud.busting'], stripAhead = S.TEXT['hud.stripAhead'] }
   labelAt = os.clock()
   return labelCache
 end
@@ -246,6 +246,7 @@ function M.onUpdate(dtReal)
     atRisk = sl_career and sl_career.atRisk and sl_career.atRisk() or 0,
     chase = sl_police and sl_police.chaseHud and sl_police.chaseHud() or nil,      -- the chase's meters (nil outside a chase)
     labels = payloadLabels,
+    fuel = sl_fuelrange and sl_fuelrange.hud and sl_fuelrange.hud(v:getID()) or nil,          -- (the range, with the switch Fuel range on)
     phase = sl_career and sl_career.phase and sl_career.phase() or nil, heat = require('sl/core/phase').heatLevel(sl_police and sl_police.heat and sl_police.heat() or 0),
     speed = car.speed or v:getVelocity():length(), rpm = car.rpm or 0, maxRpm = car.maxRpm or 0, gear = car.gear,
     x = pos.x, y = pos.y, heading = math.atan2(dir.x, dir.y),
