@@ -761,8 +761,24 @@ end
 function M.forget()
   ringObj, puddles, groundOk, debugPuddle, trails, lastTrail, emitters, sentEmpty, logged = nil, {}, {}, nil, {}, {}, {}, true, {}
 end
+-- delete up to n planes (a career that stops does not delete three hundred in one step); the rest of the clean-up (ring, trails, emitters, the car's list) when none are left. Returns how many planes remain.
+function M.clearBatch(n)
+  local k = 0
+  while #puddles > 0 and k < (n or 50) do
+    dropPuddle(puddles[#puddles])
+    puddles[#puddles] = nil
+    k = k + 1
+  end
+  if #puddles > 0 then return #puddles end
+  M.clear()
+  return 0
+end
+function M._testPuddles(list) puddles = list end      -- (for the tests)
+local function planeJob()
+  if M.clearBatch(50) > 0 and sl_teardown then sl_teardown.defer('puddle planes', planeJob) end      -- (fifty planes a step, 1.5 s apart, until none are left)
+end
 function M.onStreetLegalStopped()
-  if sl_teardown then sl_teardown.defer('puddle planes', M.clear) else M.clear() end      -- (queued after the atlas and the wet world)
+  if sl_teardown then sl_teardown.defer('puddle planes', planeJob) else M.clear() end      -- (queued after the atlas and the wet world)
 end
 function M.onClientEndMission() M.forget() end
 
