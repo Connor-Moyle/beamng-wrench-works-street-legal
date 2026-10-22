@@ -229,7 +229,10 @@ function M.profile()
 end
 
 function M.stats() return stats, current, plan and #plan or 0 end
-function M.onStreetLegalStopped() pcall(M.restore) plan = nil end
+function M.onStreetLegalStopped()
+  plan = nil
+  if sl_teardown then sl_teardown.defer('wet world textures', function() pcall(M.restore) end) else pcall(M.restore) end      -- (queued: a terrain material swap is not done in the frame the career stops)
+end
 -- (the level is going away with its materials: reloading hundreds of them in this tick would be a hitch for nothing, so only our state is dropped)
 function M.onClientEndMission() plan, state, current, terr, terrWet = nil, {}, 0, nil, 0 end
 function M.onClientStartMission() plan, state, current, terr, terrWet = nil, {}, 0, nil, 0 end      -- (a level load rebuilt the materials: nothing of ours is on them)

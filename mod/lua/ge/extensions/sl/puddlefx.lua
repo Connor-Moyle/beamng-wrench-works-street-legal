@@ -757,8 +757,14 @@ function M.clear()
   logged = {}
 end
 
-function M.onStreetLegalStopped() M.clear() end
-function M.onClientEndMission() M.clear() end
+-- the level ends: it frees its objects itself, so only our lists are dropped (deleting up to three hundred planes in the tick the level goes was work for nothing, like reloading its materials)
+function M.forget()
+  ringObj, puddles, groundOk, debugPuddle, trails, lastTrail, emitters, sentEmpty, logged = nil, {}, {}, nil, {}, {}, {}, true, {}
+end
+function M.onStreetLegalStopped()
+  if sl_teardown then sl_teardown.defer('puddle planes', M.clear) else M.clear() end      -- (queued after the atlas and the wet world)
+end
+function M.onClientEndMission() M.forget() end
 
 -- (the Mods menu's Parts of the game: with this part off, the hooks above do nothing)
 require('sl/core/features').gate('puddles', M, nil, nil, { 'update', 'wheelIn', 'wheelFx' })
