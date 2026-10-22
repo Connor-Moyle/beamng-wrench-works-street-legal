@@ -5331,7 +5331,8 @@ do
     findFiles = function() return {} end }, { __index = function() return function() return false end end })
   _G.jsonReadFile = function(p) local v = files[p] if v == nil then return nil end return v end
   _G.jsonWriteFile = function(p, t) files[p] = t return true end
-  _G.extensions = { hook = function(name, ...) events[#events + 1] = { name, ... } end, load = function() end }
+  local onHook = {}          -- (a test can answer a hook: name -> function)
+  _G.extensions = { hook = function(name, ...) events[#events + 1] = { name, ... } if onHook[name] then onHook[name](...) end end, load = function() end }
   _G.sl_options = { get = function() return nil end }
   _G.core_levels = { getLevelByName = function(l) return installed[l] and {} or nil end }
   _G.freeroam_freeroam = { startFreeroamByName = function(l) started[#started + 1] = l return true end, spawningOptionsHelper = {} }
@@ -5411,7 +5412,15 @@ do
       C.onUpdate(0.1)
       check('visit: arriving, the career is active on the visited map with a day-long clock and the visit in the state', okd2 and C.isActive() and C.LEVEL == 'utah' and C.visit() ~= nil and C.visit().event == 'utah-rally:2' and C.phase() == 'day' and C.homeLevel() == 'west_coast_usa' and next(C.getPlaces() or {}) == nil)
       local startedBefore = #started
+      local moneyBefore = C.getState().money
+      local stoppingRan, stoppingBeforeSave = 0, nil
+      onHook.onStreetLegalStopping = function()
+        stoppingRan = stoppingRan + 1
+        stoppingBeforeSave = (C.isActive() == true)          -- (still active when the hook runs)
+        C.getState().money = C.getState().money + 777          -- a module settling something into the save
+      end
       local okh = C.returnHome('done')
+      onHook.onStreetLegalStopping = nil
       level = 'west_coast_usa'
       C.onUpdate(0.1)
       local endedDone
@@ -5419,6 +5428,7 @@ do
       check('visit: the way home loads the home map, ends the visit as done and puts the cars in the garage', okh and #started == startedBefore + 1 and started[#started] == 'west_coast_usa' and C.isActive() and C.LEVEL == 'west_coast_usa' and C.visit() == nil
         and endedDone and endedDone[2].event == 'utah-rally:2' and C.getState().cars[1].out == false)
       check('visit: returnHome with no trip says so', C.returnHome() == false)
+      check('stopping: the hook runs once at a career stop, while the career is still active, and what it changed is in the saved career', stoppingRan == 1 and stoppingBeforeSave == true and C.getState().money == moneyBefore + 777)
     end
   end
   package.loaded['sl/career'] = nil

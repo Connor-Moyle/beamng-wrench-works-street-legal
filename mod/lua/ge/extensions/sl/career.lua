@@ -941,6 +941,7 @@ function M.endCareer() if active then stop() end end
 
 stop = function()
   if not active then return end
+  pcall(extensions.hook, 'onStreetLegalStopping')          -- (the career is still active and the save not yet written: a module settles what is pending into the save here, e.g. a refund)
   s.hour = hour()
   writeSave()
   connectWallet(false)
