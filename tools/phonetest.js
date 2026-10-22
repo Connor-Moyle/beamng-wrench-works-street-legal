@@ -1457,6 +1457,24 @@ if (out > 0) {
   assert.ok(phone.state.app === 'map', 'the map still opens by a deep link');
   phone.handle('slPhoneGo', { app: 'cab' });
   assert.ok(phone.state.app === 'cab', 'the cab still opens by a deep link');
+  // freight runs (tools/frjobs_fixture.js): no tile without the data, offers with Take, the run under way with Cancel and no Take
+  const fj = require('./frjobs_fixture.js');
+  assert.ok(!ids().includes('frjobs'), 'no frjobs data: no Freight runs tile');
+  phone.handle('slPhoneData', Object.assign({}, fr, { apps: ['map', 'cab', 'frjobs'], frjobs: { offers: fj.offers, pay: 'Wrench Works' } }));
+  phone.act('home');
+  assert.ok(ids().includes('frjobs'), 'the Freight runs tile shows with the data');
+  phone.act('open', 'frjobs');
+  assert.ok(/Tyre run/.test(text()) && /Torres Tires/.test(text()) && /\$480/.test(text()) && /7 min/.test(text()) && /5\.2 km/.test(text()), 'the offers show item, places, pay, time and distance');
+  calls.length = 0;
+  phone.act('frtake', 'fr2');
+  assert.deepStrictEqual(calls, ['frjobAccept("fr2")'], 'Take calls the phone with the offer id');
+  phone.handle('slPhoneData', Object.assign({}, fr, { apps: ['map', 'cab', 'frjobs'], frjobs: fj }));
+  assert.ok(/Brake pad run/.test(text()) && /Pick up at Jerry Riggs/.test(text()) && !phone.root.querySelector('[data-a="frtake"]') && phone.root.querySelector('[data-a="frcancel"]'), 'a run under way: its next stop, Cancel, no Take');
+  calls.length = 0; phone.act('frcancel');
+  assert.deepStrictEqual(calls, ['frjobCancel()']);
+  phone.handle('slPhoneData', Object.assign({}, fr, { apps: ['map', 'cab', 'frjobs'], frjobs: { offers: [], pay: 'Wrench Works' } }));
+  assert.ok(/No runs on the board/.test(text()), 'an empty board says so');
+  phone.act('home');
   // a Back that would pop an app pushed before the free roam flag came: it lands on home, not on that app
   phone.handle('slPhoneData', data);
   phone.act('home'); phone.act('open', 'bank'); phone.act('open', 'messages');
