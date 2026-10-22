@@ -1418,6 +1418,19 @@ do
   skip('morning')                                   -- across 06:00: the day counter moves, the order is still due
   check('and a wait until the morning across the day change delivers it too', #state.orders == 0 and #built == builtBefore + 2)
 
+  -- a pickup deposit paid and the job board then refuses the job (injuries, a race): the deposit comes back and the listing is open again
+  do
+    local oldJobs = rawget(_G, 'sl_jobs')
+    local C = require('sl/classifieds')
+    state.money, state.jobs = 500, nil
+    state.market.listings = { { id = 'm9', kind = 'part', channel = 'app', ask = 200, seller = 'Eve', where = { x = 10, y = 0, z = 0 }, item = { name = 'Intake', model = 'covet', part = 'x', slotId = 's' }, wear = 0 } }
+    sl_fleet.currentCar = function() return state.cars[1] or {} end
+    _G.sl_jobs = { take = function() return false, 'Not with those injuries: rest first.' end }
+    local ok9, text9 = C.buy('m9', 'pickup')
+    check('pickup deposit: a job the board refuses gives the deposit back, leaves no offer and the listing open', ok9 == false and state.money == 500 and not state.market.listings[1].taken and #(state.jobs and state.jobs.offers or {}) == 0, tostring(state.money))
+    _G.sl_jobs = oldJobs
+  end
+
   -- used-car checks: a private car ad shows its history but not its faults until a mechanic has looked
   do
     local U = require('sl/core/usedcar')
@@ -6141,6 +6154,14 @@ do
   check('sl_shops: no answer after 20 seconds: refunded, and the player is told', st.money == m3b and toasts[#toasts]:find('dyno', 1, true) ~= nil)
   SS.onWrenchWorksDyno(77, { maxPower = 99, maxPowerRPM = 1, maxTorque = 1, maxTorqueRPM = 1, power = { 1, 2 } })
   check('sl_shops: a late answer shows nothing', sent[#sent].n ~= 'slShopResult')
+  -- the screen is closed while the run is waiting for its answer: the run is refunded once, not lost
+  SS.open('tuner', {})
+  local m3c = st.money
+  SS.buy('dyno:1')
+  SS.close()
+  check('sl_shops: closing the shop during a dyno run refunds it', st.money == m3c)
+  SS.close()
+  check('sl_shops: closing twice refunds once', st.money == m3c)
   os.clock = realClock
   SS.open('tuner', {})
   SS.buy('dyno:1')
@@ -8673,6 +8694,20 @@ do
   m0 = st.money
   SS.buy('hot_2:1')
   check('fence game: a car that is sold costs nothing', st.money == m0)
+  -- two cars in one cart, the second cannot be handed over: only that one is refunded (the first is parked outside and stays paid)
+  local realBM, realBuy = _G.sl_theft.blackMarket, _G.sl_theft.buyHot
+  _G.sl_theft.blackMarket = function() return { { index = 1, model = 'covet', name = 'Covet', value = 9000, era = 'mid', price = 4050 }, { index = 2, model = 'pessima', name = 'Pessima', value = 3000, era = 'old', price = 1350 } } end
+  _G.sl_theft.buyHot = function(i, paid) if i == 2 then return false, 'No room.' end return true, 'Parked outside.' end
+  SS.open('blackmarket', { name = 'The Pier Market' })
+  m0 = st.money
+  SS.buy('hot_1:1,hot_2:1')
+  check('fence game: when the second car fails only its price comes back', st.money == m0 - 4050, tostring(st.money - m0))
+  -- one car in the cart and it cannot be handed over: the money ends exactly as it was (the counter refunds once)
+  SS.open('blackmarket', { name = 'The Pier Market' })
+  m0 = st.money
+  SS.buy('hot_2:1')
+  check('fence game: a cart of one failing car is refunded once, not twice', st.money == m0, tostring(st.money - m0))
+  _G.sl_theft.blackMarket, _G.sl_theft.buyHot = realBM, realBuy
   -- the plate counter on the accessories shop
   _G.sl_career.phase = function() return 'day' end
   tod = 0
@@ -9158,6 +9193,110 @@ do
   check('coverage: with the rows unset the rules go back to their own numbers', T.CUT_MAX == 100 and N.MOTEL_PRICE == 40 and S.MECHANIC_DISCOUNT == 0.85)
   N.PRICE_SCALE = 1
   _G.sl_options = saved
+end
+
+-- money charged first, then a result: a factory order that can never be built is cancelled and refunded
+do
+  local FA = require('sl/core/factory')
+  local orders = {}
+  local order = { name = 'Gone Trim', price = 15500 }
+  orders[1] = order
+  local gone, back
+  for _ = 1, FA.MAX_BUILD_TRIES - 1 do gone, back = FA.buildFailed(orders, order) end
+  check('fee leaks: a factory order keeps trying while there are tries left', gone == false and #orders == 1)
+  gone, back = FA.buildFailed(orders, order)
+  check('fee leaks: after the last try the factory order is cancelled and the price is the refund', gone == true and back == 15500 and #orders == 0, tostring(back))
+end
+-- money charged first, then a result: a tow that never takes the car gives the fee back (the car is gone, the career stops, the level ends)
+do
+  local old = {}
+  for _, k in ipairs({ 'sl_career', 'guihooks', 'getObjectByID', 'getPlayerVehicle', 'map' }) do old[k] = rawget(_G, k) end
+  local money = 1000
+  _G.guihooks = { trigger = function() end }
+  _G.getObjectByID = function() return nil end
+  _G.sl_career = { isActive = function() return true end, addMoney = function(a) money = money + a return true end }
+  package.loaded['sl/tow'] = nil
+  local TW = require('sl/tow')
+  TW.testCall({ truck = 5, carId = 'c1', car = 6, waited = 0, fee = 300 })
+  TW.onUpdate(1)
+  check('fee leaks: the car is gone before the truck arrives, the fee comes back', money == 1300 and TW.busy() == false, tostring(money))
+  TW.testCall({ truck = 5, carId = 'c1', car = 6, waited = 0, fee = 300 })
+  TW.onClientEndMission()
+  check('fee leaks: the level ends under a tow, the fee comes back once', money == 1600 and TW.busy() == false, tostring(money))
+  TW.testCall({ truck = 5, carId = 'c1', car = 6, waited = 0, fee = 300 })
+  TW.onStreetLegalStopping()      -- (the career is still active and the save is not written yet)
+  _G.sl_career.isActive = function() return false end      -- (it is no longer active when onStreetLegalStopped runs)
+  TW.onStreetLegalStopped()
+  TW.onClientEndMission()
+  check('fee leaks: the career stops under a tow: the fee comes back in onStreetLegalStopping, once, and nothing is paid into the stopped career', money == 1900 and TW.busy() == false, tostring(money))
+  package.loaded['sl/tow'] = nil
+  for k, v in pairs(old) do _G[k] = v end
+end
+-- money charged first, then a result: a bought car that can never be built is cancelled and refunded
+do
+  local DR = require('sl/core/dealers')
+  local s = { orders = {} }
+  local order = DR.place(s, { id = 'x1', name = 'Gone Car', price = 4200 }, 'd1', 100, 0)
+  local gone, back
+  for i = 1, DR.MAX_BUILD_TRIES - 1 do gone, back = DR.buildFailed(s, order) end
+  check('fee leaks: a car that fails to build keeps its order while there are tries left', gone == false and #s.orders == 1)
+  gone, back = DR.buildFailed(s, order)
+  check('fee leaks: after the last try the order is cancelled and the price is the refund', gone == true and back == 4200 and #s.orders == 0, tostring(back))
+end
+-- money charged first, then a result: the entry fees of the drag strip and the map's activities
+do
+  local old = {}
+  for _, k in ipairs({ 'sl_career', 'guihooks', 'career_career', 'extensions', 'ui_message', 'getPlayerVehicle' }) do old[k] = rawget(_G, k) end
+  local oldLog = package.loaded['sl/racelog']
+  package.loaded['sl/racelog'] = { add = function() end, car = function() return 'x' end }
+  local money, paid, racers, night = 1000, {}, {}, false
+  _G.guihooks = { trigger = function() end }
+  _G.career_career = nil
+  _G.extensions = { hook = function() end }
+  _G.getPlayerVehicle = function() return nil end
+  _G.sl_career = { isActive = function() return true end, phase = function() return 'day' end, isNight = function() return night end, LEVEL = 'west_coast_usa',
+    getState = function() return { rep = 0, heat = 0 } end,
+    addMoney = function(a) if money + a < 0 then return false end money = money + a return true end,
+    payOut = function(a) paid[#paid + 1] = a money = money + a end,
+    racersForRace = function() return racers end }
+  package.loaded['sl/drag'] = nil
+  local D = require('sl/drag')
+  local m0 = money
+  D.onDragRacersSetup({ racers = { a = { isPlayable = true, lane = 1 } } })
+  check('fee leaks: the drag fee is charged at the line and given back when no racer could be found (a practice run)', money == m0, tostring(money - m0))
+  D.onDragRacersSetup({ racers = { a = { isPlayable = true, lane = 1 } } })
+  check('fee leaks: a second run is refunded once for itself', money == m0, tostring(money - m0))
+  money = 10
+  D.onDragRacersSetup({ racers = { a = { isPlayable = true, lane = 1 } } })
+  check('fee leaks: a run the player cannot pay for is a practice run and nothing is given back', money == 10)
+  money = 1000
+  racers = { { name = 'Rex', racerId = 'r1' } }
+  _G.sl_streets = { buildRacerCar = function() return false end }
+  m0 = money
+  D.onDragRacersSetup({ racers = { a = { isPlayable = true, lane = 1 } } })
+  check('fee leaks: when the other lane cannot be made the fee comes back too', money == m0, tostring(money - m0))
+  _G.sl_streets = nil
+  package.loaded['sl/drag'] = nil
+
+  -- the map's activities: a stopped attempt never reports; its paid flag must not make the next attempt (a practice run) pay a prize
+  night = true
+  money, paid = 1000, {}
+  package.loaded['sl/activities'] = nil
+  local A = require('sl/activities')
+  local mission = { id = 'west_coast_usa/timeTrial/slrr_sprint_1' }
+  A.onAnyMissionChanged('started', mission)
+  check('fee leaks: the sprint fee is charged at night', money == 900, tostring(money))
+  night = false
+  A.onAnyMissionChanged('started', mission)      -- (the first attempt was stopped, never reported; this one is by day: no fee)
+  A.onMissionAttemptAggregated({ type = 'passed', unlockedStars = {} }, mission)
+  check('fee leaks: a practice run by day pays no prize because of an earlier attempt', #paid == 0, tostring(#paid))
+  night = true
+  A.onAnyMissionChanged('started', mission)
+  A.onMissionAttemptAggregated({ type = 'passed', unlockedStars = {} }, mission)
+  check('fee leaks: a paid attempt that passes still pays', #paid == 1)
+  package.loaded['sl/activities'] = nil
+  package.loaded['sl/racelog'] = oldLog
+  for k, v in pairs(old) do _G[k] = v end
 end
 
 print(string.format('lua tests passed: %d checks', passed))

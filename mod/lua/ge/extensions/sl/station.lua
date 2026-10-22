@@ -71,7 +71,7 @@ function M.fill(fuelId)
   litres = math.min(litres, math.floor(s.money / price))
   if litres < 1 then toast(strings.t('station.that_will_not_buy_any')) return end
   local cost = rules.fillCost(fuelId, litres, open and open.scale)
-  sl_career.addMoney(-cost, string.format('%d L of %s', litres, rules.fuel(fuelId).name))
+  if not sl_career.addMoney(-cost, string.format('%d L of %s', litres, rules.fuel(fuelId).name)) then toast(strings.t('station.that_will_not_buy_any')) return end      -- (the fuel is handed over only when the money was taken)
   sl_carcare.refill(car.id, 'fuel', litres, fuelId)
   c.fuelLitres = (c.fuelLitres or 0) + litres
   toast(string.format('%d L of %s. $%.2f.', litres, rules.fuel(fuelId).name, cost))

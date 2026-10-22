@@ -801,7 +801,7 @@ function M.buy()
     guihooks.trigger('slPhoneToast', { text = string.format(strings.t('carcare.it_is_d_you_have'), offer.price, s.money) })
     return
   end
-  sl_career.addMoney(-offer.price, strings.t('carcare.bought_1', (offer.name)))
+  if not sl_career.addMoney(-offer.price, strings.t('carcare.bought_1', (offer.name))) then return end      -- (the car is handed over only when the money was taken)
   s.bought = s.bought or {}
   s.bought[offer.id] = true
   local car = sl_fleet.registerVehicle(lot.veh, { name = offer.name, brand = offer.brand, value = offer.value, condition = offer.condition,
@@ -1019,6 +1019,12 @@ local function deliverOrders(s)
       if car and paint then car.config = car.config or {} car.config.paints = factoryLib.withPaint(car.config.paints, paint) end      -- (saved with the car: it survives a reload and a respawn)
       guihooks.trigger('slPhoneToast', { text = string.format(strings.t('lot.factory_delivered'), o.name) })
       sl_career.sendText('benny', string.format(strings.t('lot.factory_delivered_text'), o.name, o.dealer or ''), 1)
+    else
+      local gone, back = factoryLib.buildFailed(s.factoryOrders, o)      -- (a car that cannot be built at all: the order is cancelled and the price comes back)
+      if gone then
+        if back > 0 then sl_career.addMoney(back, strings.t('dealers.order_cancelled', o.name or '?')) end
+        sl_career.sendText('benny', string.format(strings.t('dealers.order_cancelled_text'), o.name or '?', back), 2)
+      end
     end
     delivering = false
   end)

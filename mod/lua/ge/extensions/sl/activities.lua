@@ -96,6 +96,7 @@ end
 function M.onAnyMissionChanged(change, mission)
   if change == 'stopped' then helmetForEvent(false) end
   local s = career()
+  if change == 'started' and mission then paidFee[mission.id] = nil end      -- (a stopped attempt never reports: its flag must not make the next one, a practice run, pay a prize)
   local r = s and change == 'started' and mission and ruleFor(mission.id)
   if not r then return end
   if r.roc then

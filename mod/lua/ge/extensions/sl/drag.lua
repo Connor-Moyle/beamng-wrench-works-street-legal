@@ -24,6 +24,16 @@ local function dayOn() return careerOn() and sl_career.phase() == 'day' end
 local function toast(text) guihooks.trigger('slPhoneToast', { text = text }) if ui_message then ui_message(text, 7, 'streetLegal') end end
 local function core() return gameplay_drag_core end
 
+-- the entry fee is paid when the player lines up; when the other lane cannot be made (no racer, no lane, the car did not come) the run becomes a practice run and the fee goes back, once
+local function toPractice()
+  if not run then return end
+  run.practice = true
+  if not run.refunded and (run.fee or 0) > 0 and careerOn() then
+    run.refunded = true
+    sl_career.addMoney(run.fee, strings.t('drag.drag_strip_entry'))
+  end
+end
+
 ----------------------------------------------------------------------------------------------
 -- the game's drag, switched on for the career's days
 
@@ -140,15 +150,15 @@ local function addOpponent(data, myLane, racer)
   local other = myLane == 1 and 2 or 1
   local pos, rot = laneSpawn(data, other)
   if not pos then
-    run.practice = true
+    toPractice()
     toast(strings.t('drag.drag_strip_the_other_lane'))
     return
   end
-  if not (sl_streets and sl_streets.buildRacerCar) then run.practice = true return end
+  if not (sl_streets and sl_streets.buildRacerCar) then toPractice() return end
   local started = sl_streets.buildRacerCar(racer.racerId, pos + vec3(0, 0, 0.4), rot, function(veh)
     if not run or not veh then
       if veh then veh:delete() end
-      if run then run.practice = true toast(strings.t('drag.nobody_showed_up_at_the')) end
+      if run then toPractice() toast(strings.t('drag.nobody_showed_up_at_the')) end
       return
     end
     local vid = veh:getID()
@@ -159,7 +169,7 @@ local function addOpponent(data, myLane, racer)
     if not (d and d.racers) then return end
     c.setupRacer(vid, other)
     local r = d.racers[vid]
-    if not r then run.practice = true return end
+    if not r then toPractice() return end
     r.isPlayable = false                    -- the game's drag AI stages, launches and stops it
     r.canBeReseted = false
     local details = core_vehicles and core_vehicles.getVehicleDetails and core_vehicles.getVehicleDetails(vid)
@@ -170,7 +180,7 @@ local function addOpponent(data, myLane, racer)
     racelog.add('drag', 'opponent', { name = racer.name, model = veh:getJBeamFilename(), place = racelog.car(veh), dial = dial })
     log('I', 'sl_drag', string.format('opponent %s: %s, dial %.2f (estimate %s)', racer.name, tostring(details and details.configs and details.configs.Name), dial, et and string.format('%.2f', et) or 'none'))
   end)
-  if not started then run.practice = true end
+  if not started then toPractice() end
 end
 
 -- the player has lined up: the entry fee, and the other lane
@@ -183,12 +193,12 @@ function M.onDragRacersSetup(data)
   run = { fee = rules.ENTRY_FEE, lane = myLane, t0 = os.clock() }
   racelog.add('drag', 'setup', { lane = myLane, player = racelog.car(getPlayerVehicle(0)), fee = rules.ENTRY_FEE })
   if not sl_career.addMoney(-run.fee, strings.t('drag.drag_strip_entry')) then
-    run.practice = true
+    run.practice, run.refunded = true, true      -- (nothing was charged: nothing to give back)
     toast(string.format(strings.t('drag.drag_strip_d_to_line'), rules.ENTRY_FEE))
     return
   end
   local racer = (sl_career.racersForRace('drag', 1) or {})[1]
-  if not racer then run.practice = true return end
+  if not racer then toPractice() return end
   run.racerName = racer.name
   racelog.add('drag', 'racer', { name = racer.name, racerId = racer.racerId or racer.id })
   toast(string.format(strings.t('drag.drag_strip_s_lines_up'), racer.name))

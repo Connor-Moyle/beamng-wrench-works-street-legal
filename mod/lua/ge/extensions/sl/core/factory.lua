@@ -44,6 +44,16 @@ function M.nextDue(orders, now)
   end
 end
 
+-- an order whose car cannot be built (its model is gone, a mod was removed) must not keep the money for ever: tried every 5 s while the player is slow, so 60 failures are minutes of trying; then the order is
+-- cancelled and its price comes back. Returns false while there are tries left; true and the amount when it is cancelled
+M.MAX_BUILD_TRIES = 60
+function M.buildFailed(orders, order)
+  order.tries = (tonumber(order.tries) or 0) + 1
+  if order.tries < M.MAX_BUILD_TRIES then return false end
+  for i, o in ipairs(orders or {}) do if o == order then table.remove(orders, i) break end end
+  return true, math.max(0, math.floor(tonumber(order.price) or 0))
+end
+
 -- the saved paints list of a car with the chosen paint as its first (body) paint; the others are the config's own
 function M.withPaint(paints, paint)
   local out = {}
