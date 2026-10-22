@@ -60,6 +60,13 @@ function M.airC(season, phase, state, altitude)
   return t - M.LAPSE * math.max(0, tonumber(altitude) or 0)
 end
 
+-- the temperature profile for the game's own day curve (core_environment.setTemperatureProfile({ minC, maxC })): the night low and the day high of the season at sea level, less in rain or cloud.
+-- The game follows its curve through the day between these; the fall with height is applied by Car Surface FX to the player car's height (its weather.lapse setting), not here.
+function M.profile(season, state)
+  local lo, hi = M.airC(season, 'night', state, 0), M.airC(season, 'day', state, 0)
+  return { minC = lo, maxC = hi }
+end
+
 M.SNOW_BELOW = 1.5               -- C: what Car Surface FX counts as cold enough for snow (rules.SNOW_AIR there)
 
 -- does the rain of this phase fall as snow at this height (the same rule Car Surface FX applies to the air temperature it reads)

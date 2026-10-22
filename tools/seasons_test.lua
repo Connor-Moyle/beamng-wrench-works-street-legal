@@ -45,6 +45,10 @@ return function(check, rngLib)
   check('the winter snow line is lower than the spring one', S.snowLine('winter', 'night') < S.snowLine('spring', 'night'))
   check('the phone line says it', S.note(85):find('Winter, week 1', 1, true) and S.note(85):find('snow above', 1, true) and not S.note(29):find('snow', 1, true))
 
+  local pr, pw = S.profile('winter', 'clear'), S.profile('summer', 'rain')
+  check('the profile is the night low and the day high of the season (less in rain)', pr.minC == 5 and pr.maxC == 10 and pw.minC == 17 and pw.maxC == 27 and pr.minC < pr.maxC)
+  check('every season has a profile the game accepts (inside -50 to 60 C)', (function() for _, s in ipairs(S.ORDER) do for _, st in ipairs({ 'clear', 'rain', 'cloudy', 'fog' }) do local p = S.profile(s, st) if p.minC < -50 or p.maxC > 60 or p.minC >= p.maxC then return false end end end return true end)())
+
   -- thirst
   check('clear summer days are hot, nothing else is', S.hot('summer', 'day', 'clear') and not S.hot('summer', 'night', 'clear') and not S.hot('summer', 'day', 'rain') and not S.hot('spring', 'day', 'clear') and not S.hot('winter', 'day', 'clear'))
 
