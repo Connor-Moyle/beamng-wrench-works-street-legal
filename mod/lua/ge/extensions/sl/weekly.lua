@@ -25,6 +25,8 @@ function M.onStreetLegalNewDay(day)
   local w = weeklyState(s)
   if day < w.nextDue then return end
   w.nextDue = day + rules.DAYS
+  local turf = sl_crews and sl_crews.turfWeek and sl_crews.turfWeek(s, day)        -- (the week's turf cuts come in before the bills: they help to cover them)
+  if turf and turf.total > 0 then sl_career.payOut(turf.total, strings.t('weekly.turf_label')) end
   local lines = rules.lines(s.garageLevel, #s.cars)
   local plan = sl_needs and sl_needs.weeklyBill and sl_needs.weeklyBill()      -- (the Needs part: the meal plan, when the player has it)
   if plan then lines[#lines + 1] = plan end
@@ -34,6 +36,9 @@ function M.onStreetLegalNewDay(day)
   w.debt = r.debt
   local earned = s.stats and s.stats.earned or 0
   local entry = { week = rules.week(day) - 1, income = earned - (w.earnedMark or 0), costs = r.billsPaid, lines = {} }
+  for _, l in ipairs(turf and turf.lines or {}) do
+    entry.lines[#entry.lines + 1] = { label = strings.t('weekly.turf_' .. l.kind, l.name, l.lost or 0), amount = l.amount }
+  end
   for _, l in ipairs(lines) do entry.lines[#entry.lines + 1] = { label = l.label, amount = -l.amount } end
   if r.repaid > 0 then entry.lines[#entry.lines + 1] = { label = strings.t('weekly.debt_repaid'), amount = -r.repaid } end
   local food = sl_needs and sl_needs.weeklyInfo and sl_needs.weeklyInfo()      -- (what was bought as food and drink this week: paid when bought, shown so the cost is visible)

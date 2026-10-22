@@ -834,11 +834,12 @@
       var t = obj(st.data.turf);
       var rows = arr(t.districts).map(function (d) {
         return '<div class="slp-row"><div class="slp-rt"><b>' + esc(d.name) + (d.here ? T('ui.middot_you_are_here', ' &middot; you are here') : '') + '</b><span>' +
-          (d.yours ? T('ui.yours', 'Yours') : esc(d.owner)) + ' &middot; ' + d.control + T('ui.control', '% control') + (d.home ? T('ui.middot_home_of_1', ' &middot; home of {1}', esc(d.home)) : '') + '</span></div></div>';
+          (d.yours ? T('ui.yours', 'Yours') : esc(d.owner)) + ' &middot; ' + d.control + T('ui.control', '% control') + (d.home ? T('ui.middot_home_of_1', ' &middot; home of {1}', esc(d.home)) : '') +
+          (d.yours && d.cut != null ? ' &middot; ' + T('ui.turf_cut_week', '{1} a week', money(d.cut)) + (d.base ? ' (' + T('ui.turf_base', 'base') + ')' : '') : '') + '</span></div></div>';
       }).join('');
       var crews = arr(t.crews).map(function (c) { return '<p>' + esc(c.name) + (c.leader ? T('ui.middot_led_by_1', ' &middot; led by {1}', esc(c.leader)) : '') + '</p>'; }).join('');
       return bar(T('app.turf', 'Turf')) + '<div class="slp-body">' + turfMap(t) +
-        ('<div class="slp-empty">' + T('ui.beat_a_crew_on_its', 'Beat a crew on its own streets to take the district. You hold ')) + (t.held || 0) + '.' + (t.turfWar ? T('ui.the_leaders_want_a_word', ' The leaders want a word.') : '') + '</div>' +
+        ('<div class="slp-empty">' + T('ui.beat_a_crew_on_its', 'Beat a crew on its own streets to take the district. You hold ')) + (t.held || 0) + '.' + (t.turfWar ? T('ui.the_leaders_want_a_word', ' The leaders want a word.') : '') + (t.income != null ? ' ' + T('ui.turf_income', 'Next payout: {1}', money(t.income)) : '') + '</div>' +
         (rows || ('<div class="slp-empty">' + T('ui.no_districts_on_this_map', 'No districts on this map.') + '</div>')) + ('<div class="slp-card"><h4>' + T('ui.the_crews', 'The crews') + '</h4>') + crews + '</div></div>';
     }
 

@@ -3312,14 +3312,14 @@ do
   local Opt = require('sl/options')
   local defs = {}
   for _, d in ipairs(Opt.defs) do defs[d.key] = d end
-  local okDefs = #F.LIST == 43
+  local okDefs = #F.LIST == 44
   local offByDefault = 0
   for _, f in ipairs(F.LIST) do
     local d = defs[f.opt]
     if not (d and d.type == 'bool' and d.default == (f.default ~= false) and d.feature == true and d.title == f.title and f.desc ~= '') then okDefs = false end
     if f.default == false then offByDefault = offByDefault + 1 end
   end
-  check('parts: every part has an option, one bool, on by default unless the part says off (needs), tagged for the Active features page', okDefs and offByDefault == 4 and F.get('needs').default == false and F.get('mates').default == false and F.get('seasons').default == false and F.get('radio').default == false)
+  check('parts: every part has an option, one bool, on by default unless the part says off (needs), tagged for the Active features page', okDefs and offByDefault == 5 and F.get('needs').default == false and F.get('mates').default == false and F.get('seasons').default == false and F.get('radio').default == false)
   local off = { slJobs = false }
   local function get(k) return off[k] end
   check('parts: on unless the option is false; a missing option system is on', F.on('jobs', get) == false and F.on('races', get) == true and F.on('jobs', function() return nil end) == true and F.on('nope', get) == true)
@@ -7308,6 +7308,94 @@ do
   for k, v in pairs(old) do _G[k] = v end
   package.loaded['sl/shops'] = nil
   package.loaded['sl/inventory'] = nil
+end
+
+-- turf income (career expansion #12)
+do
+  local T = require('sl/core/turfincome')
+  local rngLib = require('sl/core/rng')
+  local function terr() return { d1 = { owner = 'player', control = 100 }, d2 = { owner = 'player', control = 50 }, d3 = { owner = 'riverbed', control = 80 }, d4 = { owner = 'player', control = 100 } } end
+  check('turf: a district pays by its control, a rival one pays nothing', T.cut({ owner = 'player', control = 100 }) == 100 and T.cut({ owner = 'player', control = 50 }) == 50 and T.cut({ owner = 'riverbed', control = 100 }) == 0 and T.cut(nil) == 0)
+  check('turf: the base pays half as much again; control is clamped', T.cut({ owner = 'player', control = 100 }, true) == 150 and T.cut({ owner = 'player', control = 500 }) == 100 and T.cut({ owner = 'player', control = -5 }) == 0)
+  check('turf: the raid chance grows with the crews that are angry and is capped', T.raidChance(0) == 0.12 and math.abs(T.raidChance(2) - 0.28) < 1e-9 and T.raidChance(50) == 0.5)
+  check('turf: only recent anger counts', T.angryCount({ a = 10, b = 1 }, 12, 7) == 1 and T.angryCount(nil, 5) == 0)
+  local t = terr()
+  local w = T.week(t, { rng = rngLib.new(1), angry = 0, king = true, base = 'd4' })
+  check('turf: the king is never raided and is paid in full, the base more', #w.raids == 0 and w.total == 100 + 50 + 150 and #w.lines == 3)
+  t = terr()
+  w = T.week(t, { rng = { chance = function() return false end }, angry = 0, king = false, callouts = { d1 = true } })
+  local leaned
+  for _, l in ipairs(w.lines) do if l.kind == 'leaned' then leaned = l end end
+  check('turf: a district with an unanswered call-out pays nothing that week', leaned and leaned.id == 'leaned:d1' and leaned.lost == 100 and w.total <= 150)
+  -- raids over many weeks: never below 1 control, never lose the district, never negative money
+  local ok, raidsSeen, minControl = true, 0, 100
+  for seed = 1, 400 do
+    local tt = terr()
+    local rw = T.week(tt, { rng = rngLib.new(seed), angry = 4 })
+    raidsSeen = raidsSeen + #rw.raids
+    for _, e in pairs(tt) do if e.owner == 'player' then minControl = math.min(minControl, e.control) if e.owner ~= 'player' then ok = false end end end
+    if rw.total < 0 then ok = false end
+  end
+  check('turf: raids happen, take control but never the district, and the money is never negative', ok and raidsSeen > 0 and minControl >= T.MIN_CONTROL)
+  local tt = { d1 = { owner = 'player', control = 5 } }
+  T.week(tt, { rng = { chance = function() return true end }, angry = 0 })
+  check('turf: a raid on a weak district leaves it at the minimum, held', tt.d1.owner == 'player' and tt.d1.control == T.MIN_CONTROL)
+  local b = { d1 = { owner = 'player', control = 100 } }
+  T.week(b, { rng = { chance = function() return true end }, angry = 0, base = 'd1' })
+  check('turf: a raid on the base costs half the control', b.d1.control == 100 - 8)
+  local a1, a2 = terr(), terr()
+  local r1, r2 = T.week(a1, { rng = rngLib.new(9), angry = 2 }), T.week(a2, { rng = rngLib.new(9), angry = 2 })
+  check('turf: the same seed gives the same week', r1.total == r2.total and #r1.raids == #r2.raids)
+end
+
+-- turf income, the game side: the crews' weekly cuts and the ledger lines
+do
+  local ST = require('sl/core/state')
+  local PG = require('sl/core/progression')
+  local st = ST.new(1, 0)
+  st.day, st.money, st.garageLevel, st.seed = 8, 1000, 3, 5
+  st.cars = {}
+  st.crews = { sig = 'clustered', member = {}, leader = {}, callouts = { { crew = 'riverbed', district = 'd2', day = 6, racer = 'x' } }, angry = { riverbed = 6 },
+    districts = { { id = 'd1', name = 'Alder', centre = { x = 0, y = 0 } }, { id = 'd2', name = 'Belasco', centre = { x = 1000, y = 0 } }, { id = 'd3', name = 'Docks', centre = { x = 2000, y = 0 } } },
+    territory = { d1 = { owner = 'player', control = 100 }, d2 = { owner = 'player', control = 100 }, d3 = { owner = 'riverbed', control = 80 } } }
+  local old, sent = {}, {}
+  for _, k in ipairs({ 'sl_career', 'guihooks', 'extensions', 'sl_options', 'sl_crews', 'getPlayerVehicle' }) do old[k] = rawget(_G, k) end
+  _G.getPlayerVehicle = function() return nil end
+  local pkg = package.loaded['slrr/garageSites']
+  package.loaded['slrr/garageSites'] = { getSites = function() return { { id = PG.garages[3].site, spot = { x = 20, y = 5 } } } end }
+  _G.sl_options = nil
+  _G.guihooks = { trigger = function() end }
+  _G.extensions = { hook = function() end }
+  _G.sl_career = { isActive = function() return true end, getState = function() return st end, has = function() return true end, getPlaces = function() return {} end,
+    addMoney = function(a, l) return ST.addMoney(st, a, l) end, payOut = function(a, l) return ST.addMoney(st, a, l) end, sendText = function(_, t) sent[#sent + 1] = t end }
+  package.loaded['sl/crews'] = nil
+  local C = require('sl/crews')
+  local w = C.turfWeek(st, 8)
+  check('turf game: the same bill day is paid and raided once', C.turfWeek(st, 8) == nil and C.turfWeek(st, 7) == nil and st.crews.turfDay == 8)
+  st.crews.turfDay = nil
+  local byKind = {}
+  for _, l in ipairs(w.lines) do byKind[l.kind] = l end
+  check('turf game: the base district (garage 3) pays more, an unanswered call-out zeroes a district, a rival one pays nothing',
+    (byKind.cut and byKind.cut.id == 'cut:d1' and byKind.cut.amount == 150 or byKind.raid) and (byKind.leaned and byKind.leaned.id == 'leaned:d2' or byKind.raid) and #w.lines == 2)
+  local sum = C.summary()
+  check('turf game: the Turf app shows the expected cut per district, the base and the total', sum.income == 150 and sum.districts[1].cut == 150 and sum.districts[1].base == true and sum.districts[2].cut == 0 and sum.districts[3].cut == nil)
+  -- the weekly bill run pays the cuts first and writes them into the ledger
+  package.loaded['sl/weekly'] = nil
+  _G.sl_crews = { turfWeek = function() return { total = 150, lines = { { kind = 'cut', name = 'Alder', amount = 150 }, { kind = 'raid', name = 'Belasco', amount = 0, lost = 100 } } } end }
+  local WK = require('sl/weekly')
+  st.cars = {}
+  st.weekly = { nextDue = 9, debt = 0, history = {}, earnedMark = st.stats.earned }
+  WK.onStreetLegalNewDay(9)
+  local entry = st.weekly.history[1]
+  check('turf game: the weekly run pays the cut before the rent and lists turf lines with their amounts', st.money == 1000 + 150 - 400 and entry.lines[1].amount == 150 and entry.lines[1].label:find('Alder', 1, true) and entry.lines[2].amount == 0 and entry.lines[2].label:find('lost', 1, true) and entry.income >= 150, tostring(st.money) .. ' ' .. tostring(entry.lines[1].amount) .. ' ' .. tostring(entry.lines[1].label) .. ' ' .. tostring(entry.lines[2] and entry.lines[2].label) .. ' ' .. tostring(entry.income))
+  _G.sl_options = { get = function(k) if k == 'slTurf' then return false end end }
+  package.loaded['sl/crews'] = nil
+  C = require('sl/crews')
+  check('turf game: with the part off nothing is paid or rolled, and the Turf app has no income', C.turfWeek(st, 8) == nil and C.summary().income == nil)
+  package.loaded['slrr/garageSites'] = pkg
+  for k, v in pairs(old) do _G[k] = v end
+  package.loaded['sl/crews'] = nil
+  package.loaded['sl/weekly'] = nil
 end
 
 print(string.format('lua tests passed: %d checks', passed))
