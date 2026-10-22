@@ -2,6 +2,8 @@
   "displayName":"Keyboard",
   "imagePack":"keyboard",
   "bindings":[
-    {"control":"k", "action":"slPhone"}
+    {"control":"k", "action":"slPhone"},
+    {"control":"j", "action":"slSiphon"},
+    {"control":"n", "action":"slPour"}
   ]
 }

@@ -1,4 +1,6 @@
 {
 "slPhone" :{"cat":"gameplay", "order": 92, "ctx": "tlua", "onDown": "if sl_phone then sl_phone.toggle() end", "title": "Wrench Works: Street Legal: phone", "desc": "Takes the phone out of your pocket, or puts it away." },
+"slSiphon" :{"cat":"gameplay", "order": 94, "ctx": "tlua", "onDown": "if sl_siphon then sl_siphon.holdSiphon(true) end", "onUp": "if sl_siphon then sl_siphon.holdSiphon(false) end", "title": "Wrench Works: Street Legal: siphon fuel", "desc": "On foot at a car, with a jerry can and a siphon tube: hold to take its fuel." },
+"slPour" :{"cat":"gameplay", "order": 95, "ctx": "tlua", "onDown": "if sl_siphon then sl_siphon.holdPour(true) end", "onUp": "if sl_siphon then sl_siphon.holdPour(false) end", "title": "Wrench Works: Street Legal: pour fuel", "desc": "On foot at your own car, with fuel in a jerry can: hold to pour it in." },
 "slPerf" :{"cat":"gameplay", "order": 93, "ctx": "tlua", "onDown": "if sl_perf then sl_perf.toggle() end", "title": "Wrench Works: Street Legal: performance overlay", "desc": "Shows or hides the small frame time, fps and counts box top-left." }
 }

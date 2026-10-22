@@ -80,6 +80,9 @@ M.PAGES = {
     'Walk up to an owner on foot and press the prompt (Talk to the owner). They tell you a story and make an offer: a tip, a race word or a car for sale. Nothing opens by itself while you walk through. The music is loudest at one car and the crowd murmur is in the middle.',
     'At high heat (4 or 5) the police can raid a meet: you get a text, the cars and people scatter and the heat goes up a little. Keep your heat low near a meet.',
   } },
+  { id = 'siphon', title = 'Fuel siphoning', body = {
+    'Fuel siphoning (Mods > Parts of the game > Fuel siphoning, off by default; needs the Inventory part): with a jerry can and a siphon tube in your boot, walk up to a car and hold the siphon key (J) to move its fuel into the can, 0.25 litres a second by default. Fuel from somebody else is stealing: passing cars may notice, more by day, and at night it adds heat. Your own cars are free. At your own car hold the pour key (N) to pour the can in. A can holds one fuel at a time, and a diesel tank will not take petrol (or the other way round). Rebind both keys in the game controls.',
+  } },
   { id = 'show', title = 'Style shows', body = {
     'On Saturday nights, from nine, there is a Style show at one of the meet spots. Drive your car to the marker and stand on it: the entry is $60. Judges score the car on paint and finish, wheels, aftermarket parts (a full set from one maker scores best), cleanliness, body damage and wear, against a field of rival cars. The top three win a purse and reputation (up to $1500 at the top of the ladder).',
     'After the judging the result card says what the judges thought of each part of the car and what to put right first: wash the car, repair the body, respray it, fit matching parts, replace the worn ones. If a mod the judges look at is not installed, that part of the score is left out and the others count for more.',
