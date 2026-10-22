@@ -256,6 +256,7 @@ M.TEXT = {
   ["ui.tk_due"] = "Due day {1}",
   ["ui.tk_pay"] = "Pay {1}",
   ["ui.tk_contest"] = "Contest &middot; {1}",
+  ["ui.tk_contest_sure"] = "Sure? The lawyer costs {1} up front",
   ["ui.tk_day"] = "Ticket, day {1}",
   ["ui.tk_title"] = "Tickets: {1} unpaid",
   ["ui.tk_suspended"] = "Your licence is suspended until the tickets are dealt with.",

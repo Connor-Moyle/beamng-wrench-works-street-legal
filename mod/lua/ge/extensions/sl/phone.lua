@@ -414,8 +414,9 @@ function M.travelConfirm(eventId, carIds, useLoaner)
 end
 -- police batch 2 (sl_justice answers ok, text like the others)
 local function justice(fn, ...) if career() and rawget(_G, 'sl_justice') and sl_justice[fn] then answer(sl_justice[fn](...)) else answer(false, strings.t('phone.trip_unavailable')) end end
-function M.payTicket(id) justice('payTicket', tostring(id)) end
-function M.contestTicket(id) justice('contestTicket', tostring(id)) end
+-- (a ticket's id is a number in sl_justice; the phone sends it as text)
+function M.payTicket(id) justice('payTicket', tonumber(id) or id) end
+function M.contestTicket(id) justice('contestTicket', tonumber(id) or id) end
 function M.informant() justice('informant') end
 function M.hubStart()
   if not career() then return end

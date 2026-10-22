@@ -1478,7 +1478,7 @@
         var tag = t.paid ? '&#10004; ' + T('ui.tk_paid', 'Paid') : t.contested ? T('ui.tk_contested', 'Contested: the lawyer is on it')
           : t.overdue ? '<span class="slp-warn">&#9888; ' + T('ui.tk_overdue', 'Overdue') + '</span>' : T('ui.tk_due', 'Due day {1}', Number(t.due) || 0);
         var acts = !t.paid && !t.contested ? '<div class="slp-acts"><div class="slp-btn" data-a="tkpay" data-v="' + esc(t.id) + '">' + T('ui.tk_pay', 'Pay {1}', money(t.amount)) + '</div>' +
-          '<div class="slp-btn slp-tonal" data-a="tkcontest" data-v="' + esc(t.id) + '">' + T('ui.tk_contest', 'Contest &middot; {1}', money(j.lawyerFee)) + '</div></div>' : '';
+          '<div class="slp-btn slp-tonal" data-a="tkcontest" data-v="' + esc(t.id) + '">' + (String(st.tkArmed) === String(t.id) ? T('ui.tk_contest_sure', 'Sure? The lawyer costs {1} up front', money(j.lawyerFee)) : T('ui.tk_contest', 'Contest &middot; {1}', money(j.lawyerFee))) + '</div></div>' : '';
         return '<div class="slp-kv" style="display:block;padding:8px 0"><div style="display:flex;justify-content:space-between"><span>' + T('ui.tk_day', 'Ticket, day {1}', Number(t.day) || 0) + '</span><b>' + money(t.amount) + '</b></div><div>' + tag + '</div>' + acts + '</div>';
       }).join('');
       return '<div class="slp-card"><h4>' + T('ui.tk_title', 'Tickets: {1} unpaid', open) + '</h4>' +
@@ -2174,7 +2174,9 @@
         case 'borrow': lua('borrow(' + Number(v) + ')'); break;
         case 'repay': lua('repay(' + Number(v) + ')'); break;
         case 'tkpay': lua('payTicket(' + JSON.stringify(String(v)) + ')'); break;
-        case 'tkcontest': lua('contestTicket(' + JSON.stringify(String(v)) + ')'); break;
+        case 'tkcontest':
+          if (String(st.tkArmed) !== String(v)) { st.tkArmed = String(v); render(); break; }      // (the lawyer's fee is paid up front: ask once more)
+          st.tkArmed = null; lua('contestTicket(' + JSON.stringify(String(v)) + ')'); break;
         case 'informant': lua('informant()'); break;
         case 'paydebt': lua('payDebt(' + Number(v) + ')'); break;
         case 'spnaccept': lua('sponsorAccept()'); break;

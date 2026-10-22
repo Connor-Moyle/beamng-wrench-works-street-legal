@@ -1165,7 +1165,9 @@ assert.ok(/target\.focus\(\{ preventScroll: true \}\)/.test(code) && !/target\.f
   assert.ok(phone.root.querySelector('[data-a="tkpay"][data-v="t1"]') && phone.root.querySelector('[data-a="tkcontest"][data-v="t2"]') && !phone.root.querySelector('[data-a="tkpay"][data-v="t3"]') && !phone.root.querySelector('[data-a="tkpay"][data-v="t4"]') && tx.includes('Contest \u00b7 $150') && tx.includes('Pay $120'), 'Pay and Contest on a ticket that is open, none on a contested or paid one');
   calls.length = 0;
   click('tkpay', 't1'); click('tkcontest', 't2');
-  assert.ok(calls.includes('payTicket("t1")') && calls.includes('contestTicket("t2")'), 'the buttons ask the game: ' + calls.join(' '));
+  assert.ok(calls.includes('payTicket("t1")') && !calls.includes('contestTicket("t2")') && text().includes('Sure? The lawyer costs $150 up front'), 'Contest asks once more first (the lawyer is paid up front): ' + calls.join(' '));
+  click('tkcontest', 't2');
+  assert.ok(calls.includes('contestTicket("t2")'), 'the second press asks the game: ' + calls.join(' '));
   phone.act('home'); phone.act('open', 'me');
   tx = text();
   assert.ok(tx.includes('Wanted: Covet 1.5') && tx.includes('Bounty $2,400') && tx.includes('since day 39 (2 d ago)') && tx.includes('Use an informant \u00b7 $900'), 'the wanted poster with the informant: ' + tx.slice(0, 300));

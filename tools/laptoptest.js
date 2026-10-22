@@ -145,6 +145,10 @@ assert.deepStrictEqual(taskbtns(), ['My cars'], 'closing a window removes its ta
 // ---- B: the top window, then the next, then the laptop
 click('tile', 'playerAbstract');
 assert.ok(text().includes('Street kid') && text().includes('140 reputation') && text().includes('Achievements 1 / 2') && text().includes('First win'), 'street cred');
+assert.ok(!text().includes('Wanted:'), 'no wanted poster without police data');
+laptop.handle('slPhoneData', Object.assign({}, laptop.state.data, { justice: require('./justice_fixture.js') }));
+assert.ok(text().includes('Wanted: Covet 1.5') && text().includes('Bounty $2,400') && text().includes('since day 39 (2 d ago)') && !$('[data-a="informant"]'), 'the wanted poster on the garage computer: the same fields, no button');
+laptop.handle('slPhoneData', Object.assign({}, laptop.state.data, { justice: null }));
 laptop.handle('slRivals', { rank: 2, rivals: [ { id: 'r05', name: 'Viktor "Nitro" Halasz', tier: 1, boss: true, crew: 'Ring Road Ghosts', car: 'Covet "Dodger"', meter: -80, word: 'blood', beaten: 3, youLost: 1 }, { id: 'r20', name: 'Dora Kovacs', tier: 3, crew: 'Riverbed Runners', car: 'Pickup', meter: 40, word: 'respect', beaten: 0, youLost: 2, locked: 'Viktor Halasz' } ] });
 assert.ok(text().includes('Rivals') && text().includes('Boss 1') && text().includes('Bad blood') && text().includes('Won 3, lost 1') && text().includes('Respect') && text().includes('Beat Viktor Halasz to move up') && text().includes('Ring Road Ghosts'), 'the rivals show with crew, car, the meter word, the record and the lock');
 laptop.handle('slRivals', { rank: 2, rivals: [ { id: 'r05', name: 'Viktor Halasz', tier: 4, boss: true, crew: 'Ring Road Ghosts', meter: -80, word: 'blood', beaten: 3, youLost: 1, offer: { stake: 'pink', myCar: 'Covet 1.5', theirCar: 'Scintilla' } } ] });

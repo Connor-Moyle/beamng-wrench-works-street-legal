@@ -511,6 +511,12 @@
       }).join('');
     }
 
+    // the wanted poster (sl_justice.summary().wanted, the same data as the phone's Street cred page; no button on the computer)
+    function wantedCardL() {
+      var w = obj(obj(st.data.justice).wanted);
+      if (!w.model) return '';
+      return '<div class="sll-card"><h4>&#9888; ' + T('ui.wanted_title', 'Wanted: {1}', esc(w.model)) + '</h4><p>' + T('ui.wanted_bounty', 'Bounty {1} &middot; since day {2} ({3} d ago)', money(w.bounty), Number(w.since) || 0, Number(w.days) || 0) + '</p></div>';
+    }
     function credBody() {
       var d = st.data, s = obj(d.stats);
       var from = d.titleRep || 0, to = d.nextRep, pct = to ? Math.max(0, Math.min(100, ((d.rep || 0) - from) / (to - from) * 100)) : 100;
@@ -523,7 +529,7 @@
         }).join('') + '</div>';
       }
       return body('<div class="sll-card"><h4>' + esc(d.title) + '</h4><p>' + (d.rep || 0) + ' reputation' + (to ? T('ui.middot_next_title_at_1', ' &middot; next title at {1}', to) : '') + '</p>' +
-        '<div class="sll-meter"><i style="width:' + pct.toFixed(1) + '%"></i></div></div>' +
+        '<div class="sll-meter"><i style="width:' + pct.toFixed(1) + '%"></i></div></div>' + wantedCardL() +
         ('<div class="sll-card"><div class="sll-kv"><span>' + T('ui.garage', 'Garage') + '</span><b>') + esc(d.garage || '') + '</b></div>' + next +
         ('<div class="sll-kv"><span>' + T('ui.cars', 'Cars') + '</span><b>') + (d.cars || 0) + '</b></div>' +
         ('<div class="sll-kv"><span>' + T('ui.races', 'Races') + '</span><b>') + (s.races || 0) + ' (' + (s.wins || 0) + (T('ui.won_2', ' won)') + '</b></div>') +
