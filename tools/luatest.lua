@@ -6728,4 +6728,14 @@ do
   F.setSaveOff({})
 end
 
+-- time spent (sl/core/phase spendPlan)
+do
+  local P = require('sl/core/phase')
+  local plan = P.spendPlan('day', 10, 90)
+  check('spendPlan: ninety minutes inside the day move the clock an hour and a half', plan and plan.minutes == 90 and plan.to == 11.5 and not plan.ends)
+  local late = P.spendPlan('day', P.endHour('day') - 0.5, 120)
+  check('spendPlan: never past the end of the phase: it stops there and says how much it spent', late and late.ends and late.to == P.endHour('day') and late.minutes == 30)
+  check('spendPlan: too little, too much and a phase that has run out are refused', P.spendPlan('day', 10, 2) == nil and P.spendPlan('day', 10, 300) == nil and P.spendPlan('day', P.endHour('day'), 30) == nil)
+end
+
 print(string.format('lua tests passed: %d checks', passed))

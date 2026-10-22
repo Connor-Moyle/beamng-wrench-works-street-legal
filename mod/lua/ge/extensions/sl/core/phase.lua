@@ -71,6 +71,17 @@ function M.waitPlan(phase, h, what)
   return { hours = hours, to = (h + hours) % 24 }
 end
 
+-- time spent on something (a fitting in the garage): a number of minutes, 5 to 240, never past the end of the phase. Returns { hours, to, ends, minutes } or nil and the reason.
+M.SPEND_MIN, M.SPEND_MAX = 5, 240
+function M.spendPlan(phase, h, minutes)
+  minutes = math.floor(tonumber(minutes) or 0)
+  if minutes < M.SPEND_MIN or minutes > M.SPEND_MAX then return nil, strings.t('phase.spend_range', M.SPEND_MIN, M.SPEND_MAX) end
+  if not running(phase, h) then return nil, phase == 'night' and (S.t('phase.nightOver')) or (S.t('phase.dayOver')) end
+  local left = (M.endHour(phase) - h) % 24
+  if minutes / 60 >= left then return { hours = left, to = M.endHour(phase), ends = true, minutes = math.floor(left * 60 + 0.5) } end
+  return { hours = minutes / 60, to = (h + minutes / 60) % 24, minutes = minutes }
+end
+
 -- switching: day to night or night to day. Returns { to (the hour), day (true: the day counter goes up) } or nil and the reason.
 -- state = { racing, job, heat } as progression.skipRefusal
 function M.switchPlan(phase, state)

@@ -1785,6 +1785,34 @@ function M.skipTime(what)
   return true, text
 end
 
+-- time that passes while the player does something that takes a while (WW fits parts at home): the clock moves on like a short wait, never past the end of the phase; the same refusals as
+-- a wait (a race, a job, a chase), and none on a trip. Answers ok, text, minutes really spent. The hook onStreetLegalTimeSpent(minutes, reason) tells the rest.
+function M.spendTime(minutes, reason)
+  if not s then return false, strings.t('bank.no_career_running') end
+  if switching then return false, strings.t('career.one_moment') end
+  if s.visit and s.visit.active then return false, strings.t('career.no_time_on_a_trip') end
+  local why = progression.skipRefusal(busyState())
+  if why then return false, why end
+  local plan, reason2 = phaseLib.spendPlan(s.phase or 'day', hour(), minutes)
+  if not plan then return false, reason2 end
+  lastHour = plan.to
+  clockHeld = plan.ends or false
+  if core_jobsystem and core_jobsystem.create and guihooks then
+    switching = true
+    core_jobsystem.create(function(job)
+      local ok, err = pcall(moveClock, plan.to, job)
+      if not ok then log('E', logTag, 'the time could not be moved: ' .. tostring(err)) end
+      lastHour = hour()
+      switching = false
+    end)
+  else
+    setHour(plan.to)
+  end
+  changed()
+  extensions.hook('onStreetLegalTimeSpent', plan.minutes, tostring(reason or ''))
+  return true, strings.t('career.time_spent', plan.minutes), plan.minutes
+end
+
 -- the Clock setting changed: the clock runs at the new speed at once
 M.onStreetLegalOption = function(key) if s and key == 'slClock' then setHour(hour()) end end
 M.racesList = races
