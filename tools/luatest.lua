@@ -3597,6 +3597,13 @@ do
     check('service: from then on the driving and the new abuse count 40 times', math.abs(g1.brakes - W.lost(300 + 100 * 40, { brakes = 10 + 2 * 40 }).brakes) < 1e-9)
     check('service: the record is made once', S.state(old, 9999, {}).origin == 1300)
   end
+  do -- Quick setup moves the build gap: a longer gap on Performance, the default on Balanced, inside the field's range
+    local Opt = require('sl/options')
+    local gap
+    for _, d in ipairs(Opt.defs) do if d.key == 'slBuildGap' then gap = d end end
+    check('build gap: Quick setup presets, Balanced is the default, all inside the range', gap and gap.presets.balanced == gap.default and gap.presets.performance > gap.default and gap.presets.max < gap.default
+      and gap.presets.performance <= gap.max and gap.presets.max >= gap.min and gap.presets.quality >= gap.min)
+  end
   do -- the Wear rate setting: presets, the interval follows, a change keeps the wear already there
     check('service: Wear rate presets', S.rate('half') == 0.5 and S.rate('normal') == 1 and S.rate('double') == 2 and S.rate('quad') == 4 and S.rate('nope') == 1 and S.rate(nil) == 1)
     local r2 = S.state({}, 1000, {}, 2)

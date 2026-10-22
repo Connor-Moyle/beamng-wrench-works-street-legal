@@ -1921,7 +1921,7 @@
       var inside = active && layer.contains(active) && active.hasAttribute && active.hasAttribute('bng-nav-item');
       var padding = Date.now() - padAt < 15000;
       var target = again || (padding && !inside ? (modal ? modal.querySelector('[data-a="repsec"], [data-a="reportclose"]') : st.open ? first : panel) : null);
-      if (target && target !== active && target.focus) target.focus();
+      if (target && target !== active && target.focus) target.focus({ preventScroll: true });      // (BUGS_1018 #9: a plain focus() scrolled the home screen 171 px, the focus ring brings the control into view)
     }
     // drag the report's body to scroll it (the wheel and the pad work by themselves)
     var drag = null;

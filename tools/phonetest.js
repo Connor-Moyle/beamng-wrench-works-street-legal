@@ -1151,6 +1151,8 @@ assert.ok(calls.includes('routeGarage()'), 'Route to my garage on the home scree
   phone.act('home');
   phone.handle('slPhoneData', data);
 }
+// BUGS_1018 #9: the phone's own focus never scrolls the screen (a plain focus() brought the Home button into view and left the home grid 171 px down); jsdom has no scrolling, so the call is what is checked
+assert.ok(/target\.focus\(\{ preventScroll: true \}\)/.test(code) && !/target\.focus\(\)/.test(code), 'the phone focuses its controls with preventScroll');
 console.log('phone test passed');
 
 // a page to look at: the phone in several states side by side
