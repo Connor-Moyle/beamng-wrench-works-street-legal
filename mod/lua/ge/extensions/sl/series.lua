@@ -83,6 +83,74 @@ function M.onStreetLegalVisitEnded(visit, how, loaners)
   end
 end
 
+-- the trip planned from a calendar event (the phone's pick-cars screen): { eventId, name, place, fee, perCar, hours, max, refuse, cars = { { id, name, fits, why, report } }, loaner = { name, deposit } }
+local function eventOf(eventId)
+  local ev = sl_calendar and sl_calendar.event and sl_calendar.event(eventId)
+  local def = ev and ev.series and rules.def(ev.series.id)
+  return ev, def
+end
+local function reportLine(car)
+  local ok, r = pcall(function() return sl_carcare and sl_carcare.reportOf and sl_carcare.reportOf(car) end)
+  if ok and type(r) == 'table' then return string.format('%s, %d fault(s)', tostring(r.label or ''), #(r.faults or {})) end
+  return nil
+end
+function M.options(eventId)
+  local s = career()
+  if not s then return nil, strings.t('bank.no_career_running') end
+  local ev, def = eventOf(tostring(eventId))
+  if not (ev and def) then return nil, strings.t('series.no_event') end
+  local visits = require('sl/core/visit')
+  local out = { eventId = ev.id, name = ev.title, place = ev.place, fee = (ev.travel and ev.travel.fee) or 0, perCar = visits.FEE_PER_CAR, hours = (ev.travel and ev.travel.hours) or visits.TRAVEL_HOURS,
+    max = visits.MAX_CARS, cars = {} }
+  local anyFits = false
+  for _, car in ipairs(s.cars or {}) do
+    if not car.loaner then
+      local fits, why = rules.fits(def, car)
+      if car.impounded then fits, why = false, strings.t('visit.car_impounded', car.name or '?') end
+      anyFits = anyFits or fits
+      out.cars[#out.cars + 1] = { id = car.id, name = car.name, fits = fits == true, why = why, report = reportLine(car) }
+    end
+  end
+  local prices = rules.loaner(def, 0)
+  out.loaner = (not anyFits) and { name = prices.name, deposit = rules.loaner(def, M.listPrice and M.listPrice(def) or 20000).deposit } or nil
+  if ev.series.round ~= 1 then out.refuse = strings.t('series.enter_at_start')
+  elseif store(s)[ev.series.id] then out.refuse = strings.t('series.already_entered')
+  elseif sl_career.visit and sl_career.visit() then out.refuse = strings.t('visit.already') end
+  return out
+end
+
+-- the trip confirmed: the cars chosen (or a loaner), the entry paid (entry plus a fee a car), the series entered, the career sent to the map. Returns ok, text.
+function M.confirm(eventId, carIds, useLoaner)
+  local s = career()
+  if not s then return false, strings.t('bank.no_career_running') end
+  local ev, def = eventOf(tostring(eventId))
+  if not (ev and def) then return false, strings.t('series.no_event') end
+  local o = M.options(ev.id)
+  if o.refuse then return false, o.refuse end
+  local ids, loanerId = {}, nil
+  for _, id in ipairs(carIds or {}) do ids[#ids + 1] = id end
+  if useLoaner then
+    if not o.loaner then return false, strings.t('series.no_loaner_needed') end
+    local car = M.addLoaner(ev.series.id, M.listPrice and M.listPrice(def) or 20000)
+    if not car then return false, strings.t('visit.cannot_afford', o.loaner.deposit) end
+    loanerId = car.id
+    ids = { car.id }
+  end
+  if #ids == 0 then return false, strings.t('series.bring_a_car') end
+  M.enter(ev.series.id, ids[1])
+  local ok, text = sl_career.depart({ level = def.map, cars = ids, event = ev.id, series = ev.series.id, entry = o.fee, rounds = #def.rounds,
+    firstDay = ev.day - (ev.series.round - 1), untilDay = ev.day - (ev.series.round - 1) + #def.rounds, fits = function(car) return rules.fits(def, car) end })
+  if not ok then
+    store(s)[ev.series.id] = nil                                            -- (nothing was entered)
+    if loanerId then
+      local st = require('sl/core/state')
+      local car = st.removeCar(s, loanerId)
+      if car and (car.deposit or 0) > 0 then st.addMoney(s, car.deposit, strings.t('series.loaner_back', car.deposit), os.time()) end
+    end
+  end
+  return ok, text
+end
+
 -- the entry: a series state for the cycle, with the car that goes (called when the trip is confirmed)
 function M.enter(seriesId, carId)
   local s = career()
@@ -245,10 +313,23 @@ function M.hub()
 end
 
 -- a new day on a visit whose days have run out: the career goes home by itself (the rounds left count as missed)
+local leaving
 function M.onStreetLegalNewDay(day)
   local s = career()
   local v = s and sl_career.visit and sl_career.visit()
-  if v and v.untilDay and (tonumber(day) or 0) > v.untilDay then sl_career.returnHome(M.closeVisit() > 0 and 'missed' or 'done') end
+  if not (v and v.untilDay and (tonumber(day) or 0) > v.untilDay) or leaving then return end
+  leaving = true
+  -- not from inside the hook: returnHome stops the career and loads the home map while the other listeners of this hook are still being called; a moment later, retried while the clock is busy
+  core_jobsystem.create(function(job)
+    job.sleep(1)
+    for _ = 1, 8 do
+      local rounds = M.closeVisit()
+      local ok = sl_career.returnHome(rounds > 0 and 'missed' or 'done')
+      if ok then break end
+      job.sleep(1)
+    end
+    leaving = false
+  end)
 end
 
 function M.onClientEndMission() M.running = nil end
