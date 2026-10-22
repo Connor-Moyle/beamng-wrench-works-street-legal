@@ -3871,6 +3871,38 @@ do
   package.loaded['sl/mastery'] = nil
 end
 
+-- fuel siphoning (sl/core/siphon)
+do
+  local Sp = require('sl/core/siphon')
+  local petrol = { name = 'mainTank', storageType = 'fuelTank', energyType = 'gasoline', currentEnergy = 40 * Sp.JOULES_PER_L.gasoline, maxEnergy = 50 * Sp.JOULES_PER_L.gasoline }
+  local f = Sp.fuelOf(petrol)
+  check('siphon: a tank is read in litres and its type', f and f.fuel == 'gasoline' and math.abs(f.litres - 40) < 1e-6 and math.abs(f.capacity - 50) < 1e-6 and f.name == 'mainTank')
+  check('siphon: only liquid fuel tanks count', Sp.fuelOf({ energyType = 'electricBattery', currentEnergy = 5, maxEnergy = 9 }) == nil and Sp.fuelOf({ storageType = 'n2oTank', energyType = 'gasoline', maxEnergy = 1 }) == nil
+    and Sp.fuelOf(nil) == nil and Sp.fuelOf({ energyType = 'diesel', maxEnergy = 0 }) == nil and Sp.pick({ { energyType = 'electricBattery', maxEnergy = 1 }, petrol }).fuel == 'gasoline')
+  check('siphon: garbage readings are clamped', Sp.fuelOf({ energyType = 'diesel', maxEnergy = 100, currentEnergy = 'x' }).litres == 0 and Sp.fuelOf({ energyType = 'diesel', maxEnergy = 100, currentEnergy = 1e30 }).litres <= Sp.fuelOf({ energyType = 'diesel', maxEnergy = 100 }).capacity)
+  check('siphon: the joules of a litre match the game tank', math.abs(Sp.joules('gasoline', 1) - 31.125e6) < 1 and math.abs(Sp.joules('diesel', 1) - 36.12e6) < 1 and Sp.joules('water', 5) == 0)
+  local can = { litres = 0, size = 10 }
+  check('siphon: an empty can takes any fuel, a petrol can refuses diesel, a full can takes none', Sp.canTake(can, f) and not Sp.canTake({ litres = 3, size = 10, fuel = 'diesel' }, f) and Sp.canTake({ litres = 3, size = 10, fuel = 'gasoline' }, f)
+    and not Sp.canTake({ litres = 10, size = 10, fuel = 'gasoline' }, f) and not Sp.canTake(nil, f))
+  check('siphon: the rate bounds the litres of a step', math.abs(Sp.take(can, f, 2, 0.25) - 0.5) < 1e-9 and Sp.take(can, f, 0, 0.25) == 0 and Sp.take(can, f, -3, 0.25) == 0)
+  check('siphon: the room in the can bounds it', math.abs(Sp.take({ litres = 9.9, size = 10, fuel = 'gasoline' }, f, 10, 1) - 0.1) < 1e-9)
+  check('siphon: the tank keeps its floor', Sp.take(can, { fuel = 'gasoline', litres = 1.05, capacity = 50 }, 100, 5) < 0.05 + 1e-9 and Sp.take(can, { fuel = 'gasoline', litres = 0.5, capacity = 50 }, 10, 5) == 0)
+  check('siphon: a whole can in 40 s at the default rate', (function()
+    local litres, tank = 0, { fuel = 'gasoline', litres = 40, capacity = 50 }
+    for _ = 1, 40 do local m = Sp.take({ litres = litres, size = 10, fuel = 'gasoline' }, tank, 1, Sp.RATE) litres = litres + m tank.litres = tank.litres - m end
+    return math.abs(litres - 10) < 1e-6 and math.abs(tank.litres - 30) < 1e-6
+  end)())
+  local own = { fuel = 'gasoline', litres = 20, capacity = 50 }
+  check('siphon: pour needs the same type, litres in the can and room in the tank', Sp.canPour({ litres = 5, size = 10, fuel = 'gasoline' }, own) and not Sp.canPour({ litres = 5, size = 10, fuel = 'diesel' }, own)
+    and not Sp.canPour({ litres = 0, size = 10, fuel = 'gasoline' }, own) and not Sp.canPour({ litres = 5, size = 10, fuel = 'gasoline' }, { fuel = 'gasoline', litres = 50, capacity = 50 }))
+  check('siphon: a pour moves at most what the can holds and the tank has room for', Sp.pour({ litres = 5, size = 10, fuel = 'gasoline' }, own, 100, 1) == 5 and Sp.pour({ litres = 5, size = 10, fuel = 'gasoline' }, { fuel = 'gasoline', litres = 48, capacity = 50 }, 100, 1) == 2)
+  check('siphon: interruptions', Sp.interrupted({ held = true, dist = 1 }) == false and Sp.interrupted({ held = false, dist = 1 }) and Sp.interrupted({ held = true, dist = 5 }) and Sp.interrupted({ held = true, dist = 1, inCar = true })
+    and Sp.interrupted({ held = true, dist = 1, carSpeed = 3 }) and Sp.interrupted({ held = true, dist = 1, tankGone = true }) and Sp.interrupted(nil))
+  check('siphon: the risk is higher by day, with witnesses and police, scaled by the setting, capped', Sp.risk(false, 0, false, 1) > Sp.risk(true, 0, false, 1) and Sp.risk(true, 2, false, 1) > Sp.risk(true, 0, false, 1)
+    and Sp.risk(true, 0, true, 1) == 2 * Sp.risk(true, 0, false, 1) and Sp.risk(true, 0, false, 0) == 0 and Sp.risk(false, 99, true, 3) == 1)
+  check('siphon: the chance of being noticed grows with time and is a probability', Sp.noticed(0.25, 0) == 0 and math.abs(Sp.noticed(0.25, 10) - 0.25) < 1e-9 and Sp.noticed(0.25, 30) > Sp.noticed(0.25, 10) and Sp.noticed(1, 5) <= 1 and Sp.noticed(nil, 5) == 0)
+end
+
 -- tier perks (career expansion #6)
 do
   local P = require('sl/core/perks')
