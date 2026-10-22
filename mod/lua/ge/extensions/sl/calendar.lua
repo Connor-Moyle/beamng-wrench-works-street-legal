@@ -124,6 +124,7 @@ local function finished(eventId, res)
   if not ev then return end
   ev.reward = seasonal(ev, ev.reward)          -- (Seasons: a few per cent by season, as the card showed)
   local money, rep = rules.result(store(s), ev, res.place)
+  if res.place == 1 then s.trophies = require('sl/core/trophies').add(s.trophies, ev.title, 'sprint', s.day, 1) end
   if money > 0 then sl_career.payOut(money, strings.t('calendar.purse_1', ev.title)) end
   if rep > 0 then stateLib.addRep(s, rep) end
   toast(res.place and strings.t('calendar.you_finished_1_in_2_3_4_rep', require('sl/core/gridrace').placeWord(res.place), ev.title, money, rep) or strings.t('calendar.you_did_not_finish_1', ev.title))

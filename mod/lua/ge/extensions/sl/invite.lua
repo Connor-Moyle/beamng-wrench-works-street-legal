@@ -63,7 +63,11 @@ local function leave(c, res)
     if r.money > 0 then sl_career.payOut(r.money, strings.t('invite.title', nameOf(c.brand))) end
     if r.rep > 0 then stateLib.addRep(s, r.rep) end
     if pts > 0 and sl_sponsor and sl_sponsor.credit then sl_sponsor.credit(c.brand, pts) end
-    if r.trophy then local st = store(s) st.trophies = (st.trophies or 0) + 1 end
+    if r.trophy then
+      local st = store(s)
+      st.trophies = (st.trophies or 0) + 1
+      s.trophies = require('sl/core/trophies').add(s.trophies, strings.t('invite.title', nameOf(c.brand)), 'invite', s.day, 1)
+    end
     -- an aborted or failed race closes the event too: left entered, the calendar would start it again every two seconds for the next hour and a half
     if sl_calendar and sl_calendar.complete then sl_calendar.complete(c.event.id, res.place, r.money) end
     if not res.aborted then

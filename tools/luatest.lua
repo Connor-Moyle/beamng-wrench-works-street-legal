@@ -6259,4 +6259,16 @@ do
   package.loaded['sl/seasons'] = nil
 end
 
+-- the trophy list (sl/core/trophies)
+do
+  local T = require('sl/core/trophies')
+  local l = T.add(nil, 'Dockyards sprint', 'sprint', 12, 1)
+  l = T.add(l, 'Ford invitational', 'invite', 20, 1)
+  check('trophies: a win goes on the list, newest last', #l == 2 and l[1].kind == 'sprint' and l[2].name == 'Ford invitational' and l[2].day == 20 and l[2].place == 1)
+  check('trophies: an unknown kind or a bad name is not added; a damaged list keeps what is understood', #T.add(l, 'x', 'bogus', 1, 1) == 2 and #T.add(l, 5, 'sprint', 1, 1) == 2 and #T.repair({ { name = 'a', kind = 'series' }, 'junk', { kind = 'sprint' } }) == 1)
+  local big
+  for i = 1, T.MAX + 5 do big = T.add(big, 'w' .. i, 'sprint', i, 1) end
+  check('trophies: the list is capped and the oldest go first', #big == T.MAX and big[1].name == 'w6')
+end
+
 print(string.format('lua tests passed: %d checks', passed))
