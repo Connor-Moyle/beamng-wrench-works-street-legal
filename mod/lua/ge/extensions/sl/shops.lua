@@ -142,6 +142,15 @@ end
 local function clockNow(s) return dealersRules.clock(s.day, sl_career.hour and sl_career.hour() or 0) end
 
 -- the record the screen gets: the shop, its day's stock with the player's prices, the money, and why it is closed (nil: open)
+-- the carried parts that fit the car under the counter, as lines of the shop (id fit_<inventory id>, the price is the labour)
+function M.fitItems(model)
+  local out = {}
+  for _, it in ipairs(sl_inventory.carriedFor(model)) do
+    out[#out + 1] = { id = 'fit_' .. it.id, name = strings.t('shops.fit_name', it.name), group = strings.t('shops.fit_group'), desc = strings.t('shops.fit_desc'), price = it.price, brand = it.brand, count = 1 }
+  end
+  return out
+end
+
 local function view(shop, s)
   local c = ctx(s, shop)
   local out = { kind = shop.kind, title = shop.title, name = shop.name, brand = shop.brand, theme = shop.theme, screen = shop.screen, keeper = shop.keeper, goods = shop.goods, sections = shop.sections, reduceMotion = optionOn('slReduceMotion'),
@@ -163,6 +172,11 @@ local function view(shop, s)
     out.services[#out.services + 1] = { id = sv.id, name = sv.name, desc = sv.desc, minutes = sv.minutes, price = rules.price(sv, c), specs = sv.specs, swatch = sv.swatch, curve = sv.curve, curveLabel = sv.curveLabel }
   end
   out.note = shop.note
+  if at and at.entries and at.model and not shop.order and sl_inventory and sl_inventory.active and sl_inventory.active() and slrr_garage and slrr_garage.fitPart then      -- (the parts you brought: labour only)
+    for _, it in ipairs(M.fitItems(at.model)) do
+      out.stock[#out.stock + 1] = { id = it.id, name = it.name, group = it.group, desc = it.desc, count = 1, price = rules.price(it, c), brand = it.brand }
+    end
+  end
   if shop.order then
     local s2 = career()
     out.orders = {}
@@ -232,6 +246,9 @@ function M.buy(text)
   if current.closed then return toast(current.closed) end
   local day = {}
   for _, it in ipairs(shop.full and shop.stock or rules.dayStock(shop, s.day)) do day[#day + 1] = it end
+  if at.entries and at.model and not shop.order and sl_inventory and sl_inventory.active and sl_inventory.active() and slrr_garage and slrr_garage.fitPart then
+    for _, it in ipairs(M.fitItems(at.model)) do day[#day + 1] = it end
+  end
   local priced = { kind = shop.kind, name = shop.name, goods = shop.goods, stock = day, services = shop.services }
   local tyres = shop.goods == 'tyres'
   local lines, total = rules.checkout(priced, parseCart(text), tyres and math.huge or s.money or 0, ctx(s, shop))      -- (tyres: the counter charges its own price, with the trade-in, and checks the money itself)
@@ -242,6 +259,41 @@ function M.buy(text)
     toast(msg)
     if ok then guihooks.trigger('slShopOpen', view(shop, career() or s)) end
     return
+  end
+  -- the parts you brought: fitted at the labour price through Wrench Works' fit path; a part that could not be fitted costs nothing
+  local fits, rest, fitTotal = {}, {}, 0
+  for _, l in ipairs(lines) do
+    if tostring(l.id):sub(1, 4) == 'fit_' then fits[#fits + 1] = l; fitTotal = fitTotal + l.sum else rest[#rest + 1] = l end
+  end
+  if #fits > 0 then
+    if fitTotal > 0 and not sl_career.addMoney(-fitTotal, shop.name) then return toast(strings.t('shops.cannot_afford')) end
+    local fitted, texts = 0, {}
+    for _, l in ipairs(fits) do
+      local ok, text = sl_inventory.fit(tonumber(tostring(l.id):sub(5)))
+      if ok then fitted = fitted + l.sum else
+        if l.sum > 0 then sl_career.addMoney(l.sum, strings.t('shops.refund', shop.name)) end
+      end
+      if text then texts[#texts + 1] = text end
+    end
+    toast(texts[#texts] or strings.t('shops.not_here'))
+    if fitted > 0 and extensions and extensions.hook then extensions.hook('onStreetLegalShopBought', at.id, shop.kind, fits, fitted) end
+    lines, total = rest, total - fitTotal
+    if #rest == 0 then
+      guihooks.trigger('slShopOpen', view(shop, career() or s))
+      return
+    end
+  end
+  -- parts for the car are carried in the boot until the garage (the Inventory part): the points are checked before any money moves
+  local boot = at.entries and not shop.order and sl_inventory and sl_inventory.active and sl_inventory.active()
+  if boot then
+    local rulesInv = require('sl/core/inventory')
+    local points = 0
+    for _, l in ipairs(lines) do
+      local e = at.entries[l.id]
+      if e then points = points + (l.qty or 1) * rulesInv.partSize(e.slotId, e.name) end
+    end
+    local okFit, free = sl_inventory.fits(points)
+    if not okFit then return toast(strings.t('shops.boot_full', free)) end
   end
   -- the money first, then the goods: a refusal or an error in onBuy gives the money back
   local special = (shop.goods == 'services' and not at.onBuy) or (at.entries and shop.order)      -- (jobs and special orders take their money themselves, below)
@@ -281,7 +333,9 @@ function M.buy(text)
       local e = at.entries[l.id]
       for _ = 1, l.qty do
         if not failed then
-          local ok = pcall(slrr_garage.addShelfPart, at.model, { part = e.part, name = e.name, slotId = e.slotId, value = l.each })
+          local ok
+          if boot then ok = sl_inventory.addPart(at.model, { part = e.part, name = e.name, slotId = e.slotId, brand = e.brand, price = l.each, wear = e.wear })
+          else ok = pcall(slrr_garage.addShelfPart, at.model, { part = e.part, name = e.name, slotId = e.slotId, value = l.each }) end
           if ok then paid = paid + l.each else failed = true end
         end
       end
@@ -292,7 +346,7 @@ function M.buy(text)
       if paid == 0 then return end
       total = paid
     end
-    toast(strings.t('shops.on_the_shelf', total))
+    toast(strings.t(boot and 'shops.in_the_boot' or 'shops.on_the_shelf', total))
   elseif at.onBuy then
     local ok, accepted = pcall(at.onBuy, lines, total)
     if not ok or accepted == false then
