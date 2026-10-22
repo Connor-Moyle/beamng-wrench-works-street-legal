@@ -100,6 +100,7 @@ function M.onReport(vid, t)
     if t[k] ~= nil then c[k] = t[k] end
   end
   if sl_fuelrange and sl_fuelrange.onReport then sl_fuelrange.onReport(vid, t) end         -- (the fuel range and the low-fuel warnings, when the switch is on)
+  if sl_tyrecare and sl_tyrecare.onReport then sl_tyrecare.onReport(vid, t) end         -- (the career's own tyre wear, when it is on: km since the last report, weighted by how hard)
   -- a crash: its dents and the parts it broke go into the save now, not at the next minute's look
   -- (quitting straight after would lose them). Not in a garage: it measures the car itself there.
   if type(t.damage) == 'number' then

@@ -8,6 +8,7 @@
 local M = {}
 
 local rules = require('sl_carcare')
+local tyreRules = require('sl_basictyres')
 
 local state = { battery = 1, engineKm = 0, oilKm = 0, fuel = 'premium', abuse = { engine = 0, brakes = 0, drive = 0, susp = 0 } }
 local prevSpeed, abuseTimer, lastDamage = 0, 0, nil
@@ -17,6 +18,9 @@ local lastPos
 local reportTimer, capTimer, dripTimer = 0, 0, 0
 local leakCarry = 0
 local flatWarned = false
+local tyreKm, tyreAccel, prevVel = 0, 0, nil      -- km driven since the last report, weighted by how hard (the career's own tyre wear: sl_basictyres); the acceleration of the last half second
+local wheelNamesSent = false
+local tyreMult = {}                                 -- wheel id -> the grip of its worn tyre (set by the game side when the career's tyre wear is on; absent = 1)
 
 -- the engine model keeps its oil and coolant in a table of its own: found through one of its functions
 local function findFluids()
@@ -159,6 +163,12 @@ function M.report()
     coolantTemp = engine and engine.thermals and engine.thermals.coolantTemperature or nil, abuse = state.abuse,
     damage = beamstate and beamstate.damage or nil,                           -- a jump: a crash, kept at once
   }
+  if tyreKm > 0 then t.tyreKm = tyreKm tyreKm = 0 end                          -- (since the last report: the game side wears the set by it)
+  if not wheelNamesSent then
+    local names = {}
+    for wid, wheel in pairs(wheels and wheels.wheels or {}) do names[wid] = wheel.name end
+    if next(names) then t.wheelNames = names wheelNamesSent = true end
+  end
   local tank = M.fuelTank()
   if tank then t.fuelLitres, t.fuelCapacity = tank.remainingVolume, M.litres(tank) end
   obj:queueGameEngineLua(string.format('if sl_carcare then sl_carcare.onReport(%d,%s) end', obj:getId(), serialize(t)))
@@ -194,6 +204,7 @@ function M.updateGFX(dt)
     if km < 0.2 then                                                          -- not a teleport
       state.engineKm = (state.engineKm or 0) + km
       state.oilKm = (state.oilKm or 0) + km
+      tyreKm = tyreKm + km * tyreRules.hardness(tyreAccel)
       local leak = rules.leakLitresPerKm(state.engineKm) * km
       if leak > 0 and oil then
         local capacity = math.max(1, (oil.initialMass or 4) / 0.88)
@@ -216,6 +227,9 @@ function M.updateGFX(dt)
   if abuseTimer > 0.5 then
     abuseTimer = 0
     prevSpeed = speed
+    local vel = obj:getVelocity()
+    if prevVel then tyreAccel = (vel - prevVel):length() / 0.5 end
+    prevVel = vel
     local dmg = beamstate and beamstate.damage
     if dmg and lastDamage and dmg - lastDamage > 150 and dmg - lastDamage < 2000 then ab.susp = (ab.susp or 0) + (dmg - lastDamage) / 150 end      -- (a crash is counted by the career)
     lastDamage = dmg
@@ -233,7 +247,7 @@ local gripFactor = 1
 local function applyGrip()
   for wid, wheel in pairs(wheels and wheels.wheels or {}) do
     if wheel.treadNodes and not wheel.isTireDeflated then
-      local f = gripFactor * (slPuddles and slPuddles.wheelFactor and slPuddles.wheelFactor(wid) or 1)
+      local f = gripFactor * (slPuddles and slPuddles.wheelFactor and slPuddles.wheelFactor(wid) or 1) * (tyreMult[wid] or 1)
       for _, cid in pairs(wheel.treadNodes) do
         local n = v.data.nodes[cid]
         local fc = n and n.frictionCoef
@@ -245,6 +259,14 @@ end
 
 function M.reapplyGrip() applyGrip() end      -- (slPuddles changed a wheel's factor)
 
+-- the grip of each wheel's worn tyre, { [wheel id] = factor } (the career's own tyre wear); an empty table gives the jbeam's friction back
+function M.setTyreGrip(t)
+  local new = {}
+  for wid, f in pairs(type(t) == 'table' and t or {}) do new[wid] = math.max(0.5, math.min(1.3, tonumber(f) or 1)) end
+  tyreMult = new
+  applyGrip()
+end
+
 function M.setGrip(f)
   f = math.max(0.3, math.min(1.2, tonumber(f) or 1))
   if math.abs(f - gripFactor) < 1e-3 then return end
@@ -253,7 +275,8 @@ function M.setGrip(f)
 end
 
 function M.onReset()
-  if gripFactor ~= 1 then applyGrip() end
+  wheelNamesSent = false
+  if gripFactor ~= 1 or next(tyreMult) then applyGrip() end
   findFluids()
   lastPos = nil
   applyFactor()

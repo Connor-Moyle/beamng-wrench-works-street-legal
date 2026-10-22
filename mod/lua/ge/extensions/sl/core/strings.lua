@@ -1938,6 +1938,7 @@ M.TEXT = {
   ["fuel.can_hint"] = "There is a fuel can in the trunk.",
   ["fuel.map_note"] = "Low on fuel (about {1} km left). Nearest station: {2}, {3} km.",
   ["fuel.price"] = "from ${1}/L",
+  ["tyres.worn_toast"] = "Your tyres are worn out. A new set is on sale at the tyre shop and in the garage.",
   ["tyres.not_here"] = "Tyres are not available.",
   ["tyres.family_road"] = "road",
   ["tyres.family_weather"] = "weather",

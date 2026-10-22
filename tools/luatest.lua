@@ -8870,4 +8870,98 @@ do
   package.loaded['sl/fuelrange'] = nil
 end
 
+-- the career's own simple tyre wear (sl_basictyres + sl/tyrecare): the rules, then the game side with no Car Surface FX, then the hand-over when it appears
+do
+  local B = require('sl_basictyres')
+  check('basictyres: hardness is 1 when cruising and up to 3 braking or throwing it about', B.hardness(0) == 1 and B.hardness(3) == 1 and B.hardness(20) == B.HARD_MAX and B.hardness(6.5) > 1.5 and B.hardness(6.5) < 2.5)
+  local set = B.newSet(4)
+  check('basictyres: a new set is four full treads', #set.treads == 4 and set.treads[1] == 1 and set.treads[4] == 1)
+  check('basictyres: half a set of km wears half the tread, never below 0', B.wear(set, 'road', B.life('road') / 2) == true and math.abs(set.treads[1] - 0.5) < 1e-9
+    and (function() B.wear(set, 'road', 1e6) return set.treads[1] == 0 and set.treads[3] == 0 end)())
+  check('basictyres: a short drive moves the tread too little to report', B.wear(B.newSet(4), 'road', 0.01) == false)
+  check('basictyres: sporting compounds wear faster than a road tyre, a slick fastest of the road-legal', B.life('semislick') < B.life('performance') and B.life('performance') < B.life('road') and B.life('unknown') == B.life('road'))
+  check('basictyres: grip is 1 new, 20 % less worn out, and mild at half', B.gripAt(1) == 1 and math.abs(B.gripAt(0) - 0.8) < 1e-9 and B.gripAt(0.5) > 0.9 and B.gripAt(0.5) < 0.95)
+  local f = B.factors({ treads = { 1, 0.5, 0, 1 } }, 'performance')
+  check('basictyres: the factors are per wheel index from 0, with the compound bonus', f[0] == 1.04 and f[1] < f[0] and f[2] == 0.83 and f[3] == 1.04 and f[4] == nil)
+  local lay = B.layout({ [0] = 'FL', [1] = 'FR', [2] = 'RL', [3] = 'RR' }, 4)
+  check('basictyres: wheel names give the axle and side; no names give a default order', lay[3].axle == 'rear' and lay[3].side == 'left' and lay[2].side == 'right' and B.layout(nil, 4)[4].axle == 'rear' and B.layout(nil, 4)[4].side == 'right')
+  local TT = require('sl/core/tyres')
+  local rows = TT.carRows(B.raw({ treads = { 1, 1, 0.03, 1 } }, 'road', lay))
+  check('basictyres: the raw shape reads through the career tyre screens (a bald tyre says replace)', rows and #rows.rows == 4 and rows.replace and rows.worst.idx == 2 and rows.rows[1].stage == 'new')
+
+  -- the game side
+  local saved = { sl_career = rawget(_G, 'sl_career'), sl_fleet = rawget(_G, 'sl_fleet'), carSurfaceFx_tyres = rawget(_G, 'carSurfaceFx_tyres'), guihooks = rawget(_G, 'guihooks'),
+    extensions = rawget(_G, 'extensions'), getObjectByID = rawget(_G, 'getObjectByID'), ui_message = rawget(_G, 'ui_message'), sl_options = rawget(_G, 'sl_options'), serialize = rawget(_G, 'serialize') }
+  local function ser(t)
+    local keys = {}
+    for k in pairs(t) do keys[#keys + 1] = k end
+    table.sort(keys)
+    local out = {}
+    for _, k in ipairs(keys) do out[#out + 1] = '[' .. tostring(k) .. ']=' .. tostring(t[k]) end
+    return '{' .. table.concat(out, ',') .. '}'
+  end
+  _G.serialize = ser
+  local state = { money = 5000, cars = {} }
+  local car = { id = 1, name = 'Covet' }
+  state.cars[1] = car
+  local cmds, toasts, hooks = {}, {}, {}
+  local veh = { getID = function() return 77 end, queueLuaCommand = function(_, c) cmds[#cmds + 1] = c end, getVelocity = function() return { length = function() return 0 end } end }
+  _G.sl_career = { isActive = function() return true end, getState = function() return state end, addMoney = function(n) if state.money + n < 0 then return false end state.money = state.money + n return true end }
+  _G.sl_fleet = { currentCar = function() return car end, vehicleOf = function() return veh end, carOfVehicle = function(vid) return vid == 77 and 1 or nil end }
+  _G.getObjectByID = function() return veh end
+  _G.guihooks = { trigger = function(n, t) toasts[#toasts + 1] = t.text end }
+  _G.extensions = { hook = function(n) hooks[#hooks + 1] = n end }
+  _G.ui_message = nil
+  local optionOn, wearRate = true, 'normal'
+  _G.sl_options = { get = function(k) if k == 'slBasicTyres' then return optionOn end if k == 'slWearRate' then return wearRate end end }
+  _G.carSurfaceFx_tyres = nil
+  package.loaded['sl/tyrecare'] = nil
+  local tc = require('sl/tyrecare')
+  tc.onReport(77, { wheelNames = { [0] = 'FL', [1] = 'FR', [2] = 'RL', [3] = 'RR' } })
+  check('basic tyres: with the switch on and no Car Surface FX the tyres are available', tc.basic() == true and tc.available() == true and tc.noTyres(77) == false)
+  local list = {}
+  tc.onWrenchWorksServices(list)
+  local sawLine, sawSlick = false, false
+  for _, e in ipairs(list) do if e.id == 'tyres:info' then sawLine = true end if e.id == 'tyre:slick' then sawSlick = true end end
+  check('basic tyres: the garage drawer shows the fitted set and the sets for sale', sawLine and sawSlick)
+  tc.onReport(77, { tyreKm = B.life('road') / 2 })
+  local card = tc.card(car, 77, false)
+  check('basic tyres: half a life of km leaves half the tread, and the tyre card says so', car.tyres.set and math.abs(car.tyres.set.treads[1] - 0.5) < 1e-9 and card.worst.frac < 0.51 and card.worst.stage == 'good')
+  check('basic tyres: the car is told the grip of its worn tyres', cmds[#cmds] and cmds[#cmds]:find('slCar.setTyreGrip', 1, true) and cmds[#cmds]:find('[0]=0.93', 1, true))
+  local n = #cmds
+  tc.onReport(77, { tyreKm = 0 })
+  check('basic tyres: nothing is sent when the grip has not changed', #cmds == n)
+  wearRate = 'double'
+  tc.onReport(77, { tyreKm = B.life('road') * 0.2 })
+  check('basic tyres: the wear rate setting doubles the wear', math.abs(car.tyres.set.treads[1] - (0.5 - 0.4)) < 1e-9)
+  wearRate = 'normal'
+  tc.onReport(77, { tyreKm = B.life('road') * 0.09 })
+  check('basic tyres: a set worn to the limit says so once', #toasts == 1 and toasts[1]:find('worn out', 1, true) ~= nil)
+  tc.onReport(77, { tyreKm = 0.001 * B.life('road') })
+  check('basic tyres: and not again', #toasts == 1)
+  local ok, text = tc.changeNow('performance', 'garage')
+  check('basic tyres: a change pays, makes a new set of the new compound with its grip bonus, no Car Surface FX needed', ok and text:find('Performance') and car.tyres.compound == 'performance' and car.tyres.set.treads[1] == 1
+    and state.money < 5000 and cmds[#cmds]:find('[0]=1.04', 1, true) ~= nil and hooks[#hooks] == 'onStreetLegalChanged')
+  check('basic tyres: the shop quotes work too', tc.quotes('garage') and tc.quotes('garage').slick ~= nil)
+
+  -- the hand-over: Car Surface FX appears
+  local calls = {}
+  car.tyres.set.treads = { 0.9, 0.7, 0.5, 0.3 }
+  _G.carSurfaceFx_tyres = { getConfig = function() return { enabled = true } end, getTyres = function() return { wheels = {} } end, setCompound = function(id, axle, name) calls[#calls + 1] = 'compound:' .. name end,
+    setTread = function(id, w, f) calls[#calls + 1] = 'tread:' .. w .. ':' .. f end, snapshot = function() return {} end, restore = function() end, attach = function() end }
+  cmds = {}
+  check('basic tyres: with Car Surface FX present the career own wear is off', tc.basic() == false)
+  tc.restore(77, car)
+  check('hand-over: the treads go to the new tyres, the own set is dropped and the car is told to let the grip go', calls[1] == 'compound:performance' and calls[2] == 'tread:0:0.9' and calls[5] == 'tread:3:0.3'
+    and car.tyres.set == nil and cmds[#cmds]:find('slCar.setTyreGrip({})', 1, true) ~= nil)
+  tc.onReport(77, { tyreKm = 50 })
+  check('hand-over: and the career does not wear a set once Car Surface FX has the tyres', car.tyres.set == nil)
+  -- off again, and with the switch off nothing happens
+  _G.carSurfaceFx_tyres = nil
+  optionOn = false
+  check('basic tyres: the switch off: not available, nothing worn', tc.basic() == false and tc.available() == false and (function() tc.onReport(77, { tyreKm = 100 }) return car.tyres.set == nil end)())
+  for k, v in pairs(saved) do _G[k] = v end
+  package.loaded['sl/tyrecare'] = nil
+end
+
 print(string.format('lua tests passed: %d checks', passed))

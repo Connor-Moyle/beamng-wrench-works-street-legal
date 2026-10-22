@@ -24,6 +24,8 @@ WEEKLY = '--noweekly' not in sys.argv
 SEASON = '--noseason' not in sys.argv      # sl_calendar weekend races and sl_season: the championship season (six rounds, a prize every three weeks)      # the weekly costs of core/weekly.lua
 FUEL = '--fuel' in sys.argv      # the pump (sl_station): 9 L per 100 km at Regular 91, $1.45 a litre, paid by whoever plays; shown so the fuel stays a small cost next to the income (opt-in: the sim has not charged fuel so far; the Fuel range switch adds warnings, not a cost)
 FUEL_L100, FUEL_PRICE = 9.0, 1.45
+TYRES = '--tyres' in sys.argv      # sl_basictyres (the career's own tyre wear, option Simple tyre wear, OFF by default): a road set of $360 lasts 260 km, hard driving counts up to 3x (1.4x taken on average), the player replaces the set when it is worn
+TYRE_SET, TYRE_LIFE_KM, TYRE_HARD = 360, 260, 1.4
 WEEKLY = '--noweekly' not in sys.argv      # the weekly costs of core/weekly.lua
 BOOST = '--noboost' not in sys.argv     # the early-game boost in sl_jobs
 THEFT = '--notheft' not in sys.argv     # sl_theft (docs/CAR_THEFT.md): a night thief at 300 rep: one break-in now and then, the car sold hot to the fence; the tracker and the bust risk
@@ -147,6 +149,8 @@ class Player:
             self.money -= min(self.money, WEAR_SCALE / 40 * 4.6e-4 * value / 3 * minutes * 0.7 + (30 + 0.002 * value) * km / 150)
         if FUEL and self.car is not None:
             self.money -= min(self.money, FUEL_L100 / 100 * FUEL_PRICE * minutes * 0.7 * 40 / 60)
+        if TYRES and self.car is not None:
+            self.money -= min(self.money, TYRE_SET / TYRE_LIFE_KM * TYRE_HARD * minutes * 0.7 * 40 / 60)
         if self.day() != before:
             self.heat *= 0.7                            # police: heat cools daily
             if SPONSOR:                                 # core/brands + sl_sponsor: decay 1 a day; an offer at 100 (taken); every 7th day since: the wins of the week
