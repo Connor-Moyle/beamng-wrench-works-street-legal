@@ -389,16 +389,16 @@ end
 function M.cancel() if session then tried[session.vid] = os.clock() endSession() toast(strings.t('theft.failed')) end end
 
 -- a record without a car is rebuilt once the player is near its place (the terrain there is loaded by then; a car built far off can fall through)
-M.REBUILD_M = 300
-local rebuilding = {}
+M.REBUILD_M, M.REBUILD_WAIT_S = 300, 30
+local rebuilding, rebuildAfter = {}, {}      -- (session only)
 local function rebuildNear(s, t, p)
   for _, r in ipairs(t.stolen) do
-    if not r.vid and r.pos and not rebuilding[r] and (vec3(r.pos[1], r.pos[2], r.pos[3]) - p):length() <= M.REBUILD_M then
+    if not r.vid and r.pos and not rebuilding[r] and os.clock() - (rebuildAfter[r] or -1e9) >= M.REBUILD_WAIT_S and (vec3(r.pos[1], r.pos[2], r.pos[3]) - p):length() <= M.REBUILD_M then
       rebuilding[r] = true
       core_jobsystem.create(function(job)
         local ok, veh = pcall(core_vehicles.spawnNewVehicle, r.model, { config = r.config, pos = vec3(r.pos[1], r.pos[2], r.pos[3] + 0.3), autoEnterVehicle = false, canSpawnAnotherVehicleCheck = false })
         rebuilding[r] = nil
-        if not (ok and veh) then return end
+        if not (ok and veh) then rebuildAfter[r] = os.clock() log('W', 'sl_theft', 'the hot car (' .. tostring(r.model) .. ') could not be rebuilt; again in 30 s') return end      -- (no spawn storm: half a minute between tries)
         r.vid = veh:getID()
         if r.plate then applyPlate(r.vid, r.plate) end
         if s.wanted and s.wanted.stolen and s.wanted.name == r.name and not s.wanted.vid then s.wanted.vid = r.vid end
@@ -721,7 +721,7 @@ function M.title(i, paid)
   local car = rules.titled(r)
   local okr, fleet = pcall(sl_fleet.registerVehicle, o:getID(), { name = car.name, condition = car.condition, value = car.value })
   if not (okr and type(fleet) == 'table') then      -- (no fleet car: the record stays, the money back)
-    sl_career.addMoney(rules.titlePrice(r), strings.t('theft.title'))
+    if not paid then sl_career.addMoney(rules.titlePrice(r), strings.t('theft.title')) end      -- (a shop that charged refunds its own line on false)
     return false, strings.t('theft.not_here')
   end
   fleet.plate, fleet.history = car.plate, car.history
@@ -824,7 +824,7 @@ end
 -- for the tester: a tool for nothing; the fence known
 function M.debugTool(id) local s = career() if not s then return 'no career' end return tostring(M.giveTool(id)) end
 function M.debugFence() local s = career() if not s then return 'no career' end store(s).fenceKnown = true changed() return 'known' end
-function M.onStreetLegalStopped() session, pulling, market, jobTrack, lastJobsDone = nil, nil, nil, nil, nil marks, markSig, stoodSince, tried, rebuilding = {}, '', {}, {}, {} end
+function M.onStreetLegalStopped() session, pulling, market, jobTrack, lastJobsDone = nil, nil, nil, nil, nil marks, markSig, stoodSince, tried, rebuilding, rebuildAfter = {}, '', {}, {}, {}, {} end
 function M.onClientEndMission() session, pulling = nil, nil marks, markSig, stoodSince = {}, '', {} end
 
 features.gate('theft', M, nil, nil, { 'summary', 'tools', 'buyTool', 'giveTool', 'hotCars', 'current', 'sell', 'strip', 'plates', 'stripTracker', 'title', 'blackMarket', 'buyHot', 'newPlate', 'begin', 'gameResult', 'pullTracker', 'jam', 'deliveryOffer' })      -- (the part off: no prompts, nothing)

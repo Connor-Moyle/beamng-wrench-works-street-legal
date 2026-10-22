@@ -45,7 +45,6 @@ local function context(s)
 end
 
 M.context = function(s) return context(s or career()) end
-function M.activeJob() local s = career() return s and jobsState(s).active or nil end      -- (read only: sl_theft watches its deliveries)      -- (the tutorial makes its part run with it)
 
 local function leg(p) return { id = p.id, name = p.name, x = p.x, y = p.y, z = p.z, radius = p.radius } end
 
@@ -291,6 +290,7 @@ local function jobsState(s)
 end
 
 -- a fresh board each morning and each dusk
+function M.activeJob() local s = career() return s and jobsState(s).active or nil end      -- (read only: sl_theft watches its deliveries)      -- (the tutorial makes its part run with it)
 local function refresh(s, force)
   local js = jobsState(s)
   local phase = sl_career.phase() or 'day'
