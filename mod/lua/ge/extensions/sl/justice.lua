@@ -126,7 +126,10 @@ local function recogniseTick()
   if sl_police and sl_police.inPursuit and sl_police.inPursuit() then return end
   local car = sl_fleet and sl_fleet.currentCar and sl_fleet.currentCar()
   local v = getPlayerVehicle(0)
-  if not (car and v and car.id == s.wanted.carId) then return end
+  if not v then return end
+  local mine = (car ~= nil and car.id == s.wanted.carId) or (s.wanted.vid ~= nil and v:getID() == s.wanted.vid)      -- (a hot car of sl_theft is known by its vehicle)
+  if not mine then return end
+  car = car or { name = s.wanted.name }
   local p, speed = v:getPosition(), v:getVelocity():length()
   for cid in pairs(gameplay_police.getPoliceVehicles() or {}) do
     local c = getObjectByID(cid)
