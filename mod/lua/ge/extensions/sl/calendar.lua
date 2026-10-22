@@ -193,7 +193,7 @@ end
 function M.onUpdate(dtReal) tick(dtReal) end
 
 function M.onStreetLegalNewDay(day) local s = career() if s then rules.sweep(store(s), day or s.day) end end
-function M.onStreetLegalStopped() running = nil tracks = {} end
+function M.onStreetLegalStopped() running = nil tracks = {} require('sl/core/visit').FEE_PER_CAR = 200 end          -- (the trip fee setting does not outlive the career)
 function M.onClientEndMission() running = nil tracks = {} end
 
 function M.status()

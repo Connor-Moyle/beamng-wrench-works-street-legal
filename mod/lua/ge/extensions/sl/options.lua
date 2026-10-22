@@ -222,7 +222,7 @@ M.defs = {
   { key = 'slServicePrice', scope = 'gameplay', tab = 'Economy', group = 'Servicing', title = 'Service prices', type = 'range', min = 0, max = 300, step = 25, unit = '%', default = 100,
     desc = 'The price of a basic service and of an overhaul (100 is normal).' },
   { key = 'slServiceKm', scope = 'gameplay', tab = 'Economy', group = 'Servicing', title = 'Kilometres between services', type = 'range', min = 50, max = 500, step = 25, unit = 'km', default = 150,
-    desc = 'How far a car goes before a service is due (the Wear rate setting scales this too).' },
+    desc = 'How far a car goes before a service is due (the Wear rate setting scales this too). A change applies to the next interval, not to services already scheduled.' },
   { key = 'slContractBonus', scope = 'gameplay', tab = 'Economy', group = 'Contracts', title = 'Contract bonus', type = 'range', min = 0, max = 200, step = 25, unit = '%', default = 100,
     desc = 'How much extra a kept contract pays over the normal pay (100 is the normal bonus, 0 means the terms add nothing).' },
   { key = 'slContractChance', scope = 'gameplay', tab = 'Economy', group = 'Contracts', title = 'Contracts on the board', type = 'range', min = 0, max = 100, step = 10, unit = '%', default = 50,

@@ -130,6 +130,7 @@ function M.onUpdate(dt)
   push()
   ensureAll()
 end
+function M.onStreetLegalStopped() svc.INTERVAL = 150 end          -- (the interval setting does not outlive the career)
 function M.onStreetLegalStarted() svc.INTERVAL = opt('slServiceKm', svc.INTERVAL) sent = {} push() ensureAll() end
 function M.onStreetLegalOption(key, value)
   if key == 'slWearRate' then sent = {} push() ensureAll() end
