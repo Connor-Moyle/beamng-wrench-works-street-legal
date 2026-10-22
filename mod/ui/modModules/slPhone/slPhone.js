@@ -32,6 +32,7 @@
     '.slp-page.slp-open{animation:slp-zoom .3s cubic-bezier(.2,.9,.25,1)}@keyframes slp-zoom{from{transform:scale(.2);opacity:0;border-radius:40px}to{transform:none;opacity:1}}',
     '@media (prefers-reduced-motion:reduce){.slp-device{transition:none !important}.slp-page.slp-open{animation:none}.slp-root *,.slp-root *:before,.slp-root *:after{transition:none!important;animation:none!important}}',
     '.slp-rm .slp-device,.slp-rm *,.slp-rm *:before,.slp-rm *:after{transition:none!important;animation:none!important}',      /* (the career option Reduce motion: the same) */
+    '.slp-crack{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:9;border-radius:36px}.slp-crack path{fill:none;stroke-linecap:round;stroke-linejoin:round}.slp-crack-dark path{stroke:rgba(0,0,0,.55);stroke-width:2.2px;vector-effect:non-scaling-stroke}.slp-crack-light path{stroke:rgba(255,255,255,.85);stroke-width:1px;vector-effect:non-scaling-stroke}.slp-crack path.slp-shard{fill:rgba(0,0,0,.28);stroke:none}',
     '.slp-screen{position:relative;width:100%;height:100%;border-radius:36px;overflow:hidden;background:#141218;display:flex;flex-direction:column}',
     '.slp-cam{position:absolute;left:50%;top:10px;width:11px;height:11px;margin-left:-5.5px;border-radius:50%;background:#000;box-shadow:0 0 0 2px #1d1d22;z-index:5}',
     /* status bar */
@@ -384,6 +385,40 @@
 
   var STAKE_TEXT = { race: T('ui.race_for_money', 'Race for money'), high: T('ui.high_stakes', 'High stakes'), drag: T('ui.drag_race', 'Drag race'), pink: T('crews.pink_slips', 'Pink slips') };
   var QUICK = { race: T('phone.up_for_a_race', 'Up for a race?'), high: T('phone.race_me_high_stakes', 'Race me. High stakes.'), drag: T('phone.drag_race_at_the_test', 'Drag race at the test track?'), pink: T('phone.pink_slips_you_and_me', 'Pink slips. You and me.') };
+
+  // the cracked screen (sl_phonecrack, data.crack = { stage 1..3, x, y (the impact point, 0..1), seed, strength }): spider-web lines from the impact point, drawn over the whole screen and readable through
+  function crackRng(seed) { var s = (Number(seed) >>> 0) || 1; return function () { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
+  function crackPaths(stage, x, y, seed, w, h) {      // (w x h: the field in units, the screen's own shape, so the web is round: 100 x 211 portrait, 200 x 100 sideways)
+    w = Number(w) || 100; h = Number(h) || 211;
+    stage = Math.max(1, Math.min(3, Math.floor(Number(stage) || 1)));
+    var r = crackRng(seed), cx = (Number(x) || 0.5) * w, cy = (Number(y) || 0.4) * h, unit = Math.min(w, h) / 100, n = 5 + 3 * stage, step = Math.PI * 2 / n, radials = [], rings = [];
+    for (var i = 0; i < n; i++) {
+      var a = step * i + (r() - 0.5) * step * 0.5, len = unit * (22 + r() * (18 + stage * 22)), segs = 4 + stage, pts = [{ x: cx, y: cy }];
+      for (var k = 1; k <= segs; k++) {
+        var d = len * k / segs, jitter = (r() - 0.5) * 6 * unit;
+        pts.push({ x: cx + Math.cos(a) * d - Math.sin(a) * jitter, y: cy + Math.sin(a) * d + Math.cos(a) * jitter });
+      }
+      radials.push(pts);
+    }
+    var ringAt = stage === 1 ? [2] : stage === 2 ? [2, 4] : [2, 3, 4, 5];
+    ringAt.forEach(function (idx) {
+      for (var j = 0; j < n; j++) {
+        if (stage === 1 && j % 2) continue;      // (a light crack: the rings are broken)
+        var p1 = radials[j][idx], p2 = radials[(j + 1) % n][idx];
+        if (p1 && p2) rings.push([p1, { x: (p1.x + p2.x) / 2 + (r() - 0.5) * 3 * unit, y: (p1.y + p2.y) / 2 + (r() - 0.5) * 3 * unit }, p2]);
+      }
+    });
+    function pathD(pts) { return 'M' + pts.map(function (p) { return p.x.toFixed(1) + ' ' + p.y.toFixed(1); }).join(' L'); }
+    return radials.map(pathD).concat(rings.map(pathD));
+  }
+  function crackHtml(c, land) {
+    if (!c || !(Number(c.stage) > 0)) return '';
+    var w = land ? 200 : 100, h = land ? 100 : 211, paths = crackPaths(c.stage, c.x, c.y, c.seed, w, h), body = paths.map(function (d) { return '<path d="' + d + '"/>'; }).join('');
+    var shards = '';
+    if (Number(c.stage) >= 3) shards = '<path class="slp-shard" d="M' + (c.x * w - 6).toFixed(1) + ' ' + (c.y * h - 4).toFixed(1) + ' L' + (c.x * w + 9).toFixed(1) + ' ' + (c.y * h - 2).toFixed(1) + ' L' + (c.x * w + 2).toFixed(1) + ' ' + (c.y * h + 10).toFixed(1) + ' Z"/>';
+    return '<svg class="slp-crack" data-stage="' + Math.floor(Number(c.stage)) + '" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none" style="opacity:' + Math.max(0.3, Math.min(1, Number(c.strength) || 0.85)).toFixed(2) + '"><g class="slp-crack-dark">' + body + '</g><g class="slp-crack-light">' + body + '</g>' + shards + '</svg>';
+  }
+  if (typeof window !== 'undefined') window.__slPhoneCrack = { paths: crackPaths, html: crackHtml };
 
   function createPhone(doc, lua, clock) {
     clock = clock || { set: function (f, ms) { return setTimeout(f, ms); }, clear: function (t) { clearTimeout(t); }, now: function () { return Date.now(); } };
@@ -1860,7 +1895,7 @@
         '<div class="slp-status">' + two(d.hour || 0) + ':' + two(d.minute || 0) + '<div class="slp-sr">' + I.signal + I.wifi + I.battery + '</div></div>' +
         (isHome ? homePage() : '<div class="slp-page">' + page + '</div>') +
         (st.call ? callPage() : '') +
-        '<div class="slp-nav"><div data-a="back">' + NAV.back + '</div><div data-a="home">' + NAV.home + '</div><div data-a="away">' + NAV.recent + '</div></div></div>';
+        '<div class="slp-nav"><div data-a="back">' + NAV.back + '</div><div data-a="home">' + NAV.home + '</div><div data-a="away">' + NAV.recent + '</div></div>' + crackHtml(d.crack, mapWanted()) + '</div>';
       var hu = st.hu;
       var huHtml = '<div class="slp-hu' + (hu && !st.open && !lotHides() && obj(d.has).hudpill !== false ? '' : ' slp-gone') + '" data-a="openthread" data-v="' + esc(hu ? hu.thread : '') + '">' +
         (hu ? avatar({ id: hu.thread, name: hu.name }) + ('<div><small>' + T('ui.messages', 'Messages ') + '&middot;' + ' now' + '</small><b>') + esc(hu.name) + '</b><span>' + esc(hu.text) + '</span></div>' : '') + '</div>';

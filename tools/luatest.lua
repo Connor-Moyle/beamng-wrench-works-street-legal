@@ -3312,7 +3312,7 @@ do
   local Opt = require('sl/options')
   local defs = {}
   for _, d in ipairs(Opt.defs) do defs[d.key] = d end
-  local okDefs = #F.LIST == 42
+  local okDefs = #F.LIST == 43
   local offByDefault = 0
   for _, f in ipairs(F.LIST) do
     local d = defs[f.opt]
@@ -6736,6 +6736,19 @@ do
   local late = P.spendPlan('day', P.endHour('day') - 0.5, 120)
   check('spendPlan: never past the end of the phase: it stops there and says how much it spent', late and late.ends and late.to == P.endHour('day') and late.minutes == 30)
   check('spendPlan: too little, too much and a phase that has run out are refused', P.spendPlan('day', 10, 2) == nil and P.spendPlan('day', 10, 300) == nil and P.spendPlan('day', P.endHour('day'), 30) == nil)
+end
+
+do -- the cracked phone screen's rules (sl/core/phonecrack)
+  local pc = require('sl/core/phonecrack')
+  check('phonecrack: the stage follows the damage jump (under the threshold nothing, 1x one, 2.5x two, 5x three) and never goes over the highest stage', pc.stageFor(1000, 1500, 3) == 0 and pc.stageFor(1500, 1500, 3) == 1 and pc.stageFor(3800, 1500, 3) == 2 and pc.stageFor(7600, 1500, 3) == 3 and pc.stageFor(99999, 1500, 2) == 2 and pc.stageFor(99999, 1500, 0) == 0)
+  check('phonecrack: a crash cracks with the chance (a roll under it) and not otherwise', select(2, pc.crash(nil, 2000, { threshold = 1500, chance = 0.5 }, 0.3, 0.4, 0.4, 7)) == true and select(2, pc.crash(nil, 2000, { threshold = 1500, chance = 0.5 }, 0.7, 0.4, 0.4, 7)) == false)
+  local st = pc.crash(nil, 4000, { threshold = 1500, chance = 1 }, 0, 2, -1, 9)
+  check('phonecrack: the new crack has its impact point kept inside the screen and a seed', st.stage == 2 and st.x == 0.95 and st.y == 0.05 and st.seed == 9)
+  local again, did = pc.crash(st, 2000, { threshold = 1500, chance = 1 }, 0, 0.5, 0.5, 1)
+  check('phonecrack: a softer crash never lowers or moves the cracks, a harder one raises them and moves the point', did == false and again == st and select(2, pc.crash(st, 8000, { threshold = 1500, chance = 1 }, 0, 0.3, 0.3, 4)) == true and pc.crash(st, 8000, { threshold = 1500, chance = 1 }, 0, 0.3, 0.3, 4).stage == 3)
+  check('phonecrack: a repair is a drop of most of a damage worth a crack; ordinary changes are not one', pc.repaired(5000, 100, 1500) and not pc.repaired(5000, 4000, 1500) and not pc.repaired(300, 0, 1500) and not pc.repaired(nil, nil, 1500))
+  local v = pc.view({ stage = 2, x = 0.4, y = 0.3, seed = 5 }, 5)
+  check('phonecrack: the view is nothing for a whole screen and carries the stage, point, seed and a strength kept between 0.3 and 1', pc.view(nil, 0.8) == nil and pc.view({ stage = 0 }, 0.8) == nil and v.stage == 2 and v.strength == 1 and pc.view({ stage = 1 }, 0).strength == 0.3)
 end
 
 print(string.format('lua tests passed: %d checks', passed))

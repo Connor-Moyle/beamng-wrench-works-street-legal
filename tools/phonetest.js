@@ -1205,6 +1205,30 @@ assert.ok(/target\.focus\(\{ preventScroll: true \}\)/.test(code) && !/target\.f
   assert.ok(phone.state.open === true, 'an idle garage state leaves it alone');
   phone.handle('slPhoneToggle');
 }
+{
+  // the cracked screen (tools/crack_fixture.js): the overlay over the whole screen with the stage's web, the strength as its opacity, nothing for a whole screen
+  const cf = require('./crack_fixture.js'), K = win.__slPhoneCrack;
+  phone.act('home');
+  phone.handle('slPhoneData', Object.assign({}, data, { crack: cf }));
+  let svg = phone.root.querySelector('.slp-screen > .slp-crack');
+  assert.ok(svg && svg.getAttribute('data-stage') === '2' && parseFloat(svg.style.opacity) === 0.85, 'a stage 2 crack is drawn over the screen at the strength of the setting');
+  assert.ok(svg.querySelectorAll('.slp-crack-light path').length === svg.querySelectorAll('.slp-crack-dark path').length && svg.querySelectorAll('.slp-crack-light path').length > 11, 'a dark and a light line for every crack line');
+  assert.ok(text().includes('Street cred') || phone.root.querySelector('[data-a="open"]'), 'the phone is still readable through it (the overlay takes no clicks)');
+  assert.ok(/pointer-events:none/.test(win.document.querySelector('style').textContent.match(/\.slp-crack\{[^}]*\}/)[0]), 'the overlay does not take clicks');
+  assert.deepStrictEqual(K.paths(2, 0.42, 0.36, 20481), K.paths(2, 0.42, 0.36, 20481), 'the same seed draws the same web');
+  assert.notDeepStrictEqual(K.paths(2, 0.42, 0.36, 1), K.paths(2, 0.42, 0.36, 2), 'another seed another web');
+  const n1 = K.paths(1, 0.5, 0.5, 5).length, n2 = K.paths(2, 0.5, 0.5, 5).length, n3 = K.paths(3, 0.5, 0.5, 5).length;
+  assert.ok(n1 < n2 && n2 < n3, 'a worse crash has more lines: ' + [n1, n2, n3]);
+  assert.ok(K.paths(3, 0.5, 0.5, 5, 100, 100)[0].startsWith('M50.0 50.0'), 'the web starts at the impact point');
+  phone.handle('slPhoneData', Object.assign({}, data, { crack: Object.assign({}, cf, { stage: 3, strength: 0.3 }) }));
+  svg = phone.root.querySelector('.slp-crack');
+  assert.ok(svg.getAttribute('data-stage') === '3' && parseFloat(svg.style.opacity) === 0.3 && svg.querySelector('.slp-shard'), 'stage 3: shards too, a faint overlay at low strength');
+  phone.handle('slPhoneData', Object.assign({}, data, { crack: null }));
+  assert.ok(!phone.root.querySelector('.slp-crack'), 'a whole screen has no overlay');
+  phone.handle('slPhoneData', Object.assign({}, data, { crack: { stage: 0 } }));
+  assert.ok(!phone.root.querySelector('.slp-crack'), 'stage 0: no overlay');
+  phone.handle('slPhoneData', data);
+}
 console.log('phone test passed');
 
 // a page to look at: the phone in several states side by side
