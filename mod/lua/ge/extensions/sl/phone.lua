@@ -123,6 +123,7 @@ local function snapshot()
     needs = sl_needs and sl_needs.summary and sl_needs.summary() or nil,      -- (the Health page and the pill icons: nil with the part off or no career)
     trophies = type(s.trophies) == 'table' and s.trophies or nil,      -- (the trophy shelf's list, written at a win; nil until there is one)
     calendar = sl_calendar and sl_calendar.summary and sl_calendar.summary() or nil,      -- (the Calendar app: nil with the part off or no career)
+    hotcars = rawget(_G, 'sl_theft') and sl_theft.summary and sl_theft.summary() or nil,      -- (the Hot cars list: nil with the part off or no career)
     justice = rawget(_G, 'sl_justice') and sl_justice.summary and sl_justice.summary() or nil,      -- (police batch 2: tickets, the wanted poster, the impound line; nil with the part off)
     season = rawget(_G, 'sl_season') and sl_season.summary and sl_season.summary() or nil,      -- (the home championship: nil with the part off or no career)
     crack = rawget(_G, 'sl_phonecrack') and sl_phonecrack.view and sl_phonecrack.view() or nil,      -- (the cracked screen: nil when whole or the part is off)
@@ -449,6 +450,15 @@ function M.service(carId, optionId) if career() and sl_service then answer(sl_se
 function M.sponsorAccept() if career() and sl_sponsor then answer(sl_sponsor.accept()) end end
 function M.sponsorDecline() if career() and sl_sponsor then answer(sl_sponsor.decline()) end end
 function M.sponsorQuit() if career() and sl_sponsor then answer(sl_sponsor.quit()) end end
+-- the Hot cars page's two buttons on the car you sit in: pull the tracker (standing still) or run the jammer; the answer is a toast
+function M.theftAct(kind)
+  local th = rawget(_G, 'sl_theft')
+  if not (career() and th) then return end
+  local fn = kind == 'jam' and th.jam or kind == 'pull' and th.pullTracker or nil
+  if not fn then return end
+  local ok, _, text = pcall(fn)
+  if ok and text then guihooks.trigger('slPhoneToast', { text = text }) end
+end
 function M.payDebt(amount) if career() and sl_weekly then answer(sl_weekly.payDebt(tonumber(amount))) end end
 function M.repay(amount) if career() and sl_bank then answer(sl_bank.repay(tonumber(amount))) end end
 function M.frjobAccept(id) if sl_frjobs and sl_frjobs.accept then answer(sl_frjobs.accept(tostring(id))) end end          -- (free roam: take a freight run)

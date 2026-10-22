@@ -380,7 +380,7 @@
   var SLRR_ART = '/ui/modModules/slHud/slrr/icons/';
   var SLRR_ICON = { races: 'cup.png', garage: 'garage.png', bank: 'dollar.png', cab: 'city.png', me: 'roc.png' };
   function slrrIcon(name, cls) { return '<img class="slp-slrr ' + (cls || '') + '" src="' + SLRR_ART + name + '" alt="">'; }
-  var APP_COLORS = { map: '#3a7d6e', camera: '#3b6fa0', gallery: '#a05a8a', carmarket: '#2e7d4f', partmarket: '#a3322c', settings: '#5c6474', wait: '#4a5d7a', market: '#a3322c', paper: '#5b5346', bid: '#b5651d', club: '#6a2e7a', jobs: '#3d7a2e', phone: '#2e7d4f', messages: '#2f5fb3', contacts: '#7b4fb0', races: '#c2541e', bank: '#1f7a70', cab: '#b58a12', me: '#5c6474', garage: '#8a3b8f', garagekit: '#6b5b2e', traps: '#b4541a', inventory: '#7a6a2e', myroute: '#2f8f6a', health: '#b23a5e', help: '#4a6fa5', turf: '#7a4a2e', event: '#2f6f9f', calendar: '#2f6f9f', sponsors: '#9a6b12' };      // (every app has its own tile colour: the white icon needs a fill)
+  var APP_COLORS = { map: '#3a7d6e', camera: '#3b6fa0', gallery: '#a05a8a', carmarket: '#2e7d4f', partmarket: '#a3322c', settings: '#5c6474', wait: '#4a5d7a', market: '#a3322c', paper: '#5b5346', bid: '#b5651d', club: '#6a2e7a', jobs: '#3d7a2e', phone: '#2e7d4f', messages: '#2f5fb3', contacts: '#7b4fb0', races: '#c2541e', bank: '#1f7a70', cab: '#b58a12', me: '#5c6474', garage: '#8a3b8f', garagekit: '#6b5b2e', traps: '#b4541a', inventory: '#7a6a2e', myroute: '#2f8f6a', health: '#b23a5e', help: '#4a6fa5', turf: '#7a4a2e', event: '#2f6f9f', calendar: '#2f6f9f', sponsors: '#9a6b12', hotcars: '#6b3a3a' };      // (every app has its own tile colour: the white icon needs a fill)
   var AV_COLORS = ['#a8c7fa', '#f2b8b5', '#c3e7c6', '#ffd8a8', '#d0bcff', '#9fe0e8', '#ffb4ab', '#e8def8'];
   var CLASS_NAMES = { beater: T('ui.beaters', 'Beaters'), compact: T('ui.compacts', 'Compacts'), muscle: T('ui.muscle', 'Muscle'), tuner: T('ui.tuners', 'Tuners'), sport: T('ui.sports_cars', 'Sports cars'), super: T('ui.supercars', 'Supercars') };
 
@@ -523,6 +523,7 @@
           { id: 'me', title: T('app.me', 'Street cred'), icon: I.me },
           { id: 'health', title: T('app.health', 'Health'), icon: I.health, hide: !d.needs || has.needs === false },
           { id: 'sponsors', title: T('app.sponsors', 'Sponsors'), icon: I.sponsors, badge: d.sponsors && d.sponsors.offer ? 1 : 0, hide: !d.sponsors || has.sponsors === false },
+          { id: 'hotcars', title: T('app.hotcars', 'Hot cars'), icon: I.cab, badge: arr(obj(d.hotcars).hot).filter(function (c) { return c.wanted; }).length, hide: !d.hotcars || !(arr(d.hotcars.hot).length || arr(d.hotcars.tools).length) },
           { id: 'calendar', title: T('app.calendar', 'Calendar'), icon: I.calendar, badge: calOpenInvites(), hide: !d.calendar || has.calendar === false },
           { id: 'inventory', title: T('app.inventory', 'Inventory'), icon: I.inventory, hide: !d.inventory || has.inventory === false },
           { id: 'myroute', title: T('app.myroute', 'My routes'), icon: I.myroute, hide: !d.myroute || has.myroute === false },
@@ -1582,6 +1583,26 @@
       return bar(esc(e.title || T('app.calendar', 'Calendar'))) + '<div class="slp-body">' + calEventCard(c, e).replace(' data-a="calopen" data-v="' + esc(e.id) + '"', '') +
         (acts ? '<div class="slp-card"><div class="slp-acts" style="flex-wrap:wrap">' + acts + '</div>' + (!canEnter && open ? '<p class="slp-warn">&#9888; ' + T('ui.cal_cannot', 'You cannot enter yet: see the requirement above.') + '</p>' : '') + '</div>' : '') + '</div>';
     }
+    // the Hot cars list (sl_theft.summary(); tools/hotcars_fixture.js): the stolen cars with their state and what the fence would pay, the tools with their uses. The deals are at the fence shop.
+    function hotCarsPage() {
+      var h = obj(st.data.hotcars);
+      var cars = arr(h.hot).map(function (c) {
+        var chips = (c.driving ? '<span class="slp-chip">' + T('ui.hot_driving', 'Driving it') + '</span>' : '') + (c.plated ? '<span class="slp-chip">' + T('ui.hot_plated', 'New plates') + '</span>' : '') +
+          (c.wanted ? '<span class="slp-chip">&#9888; ' + T('ui.hot_wanted', 'Wanted') + '</span>' : '') + (c.tracked ? '<span class="slp-chip">' + T('ui.hot_tracked', 'Tracked') + '</span>' : '') +
+          (c.resprayed ? '<span class="slp-chip">' + T('ui.hot_resprayed', 'Resprayed') + '</span>' : '') + (c.legal ? '<span class="slp-chip">' + T('ui.hot_legal', 'Legal') + '</span>' : '');
+        var jammer = arr(h.tools).some(function (t) { return t.id === 'jammer' && (t.uses == null || Number(t.uses) > 0); });
+        var acts = (c.driving && c.tracked) ? '<div class="slp-acts"><div class="slp-btn" data-a="theftact" data-v="pull">' + T('ui.hot_pull', 'Pull the tracker') + '</div>' + (jammer ? '<div class="slp-btn slp-tonal" data-a="theftact" data-v="jam">' + T('ui.hot_jam', 'Run the jammer') + '</div>' : '') + '</div><p>' + T('ui.hot_pull_hint', 'Stand still in the car while it searches.') + '</p>' : '';
+        return '<div class="slp-card"><h4>' + esc(c.name || '') + '</h4><p>' + chips + '</p>' +
+          '<div class="slp-kv"><span>' + T('ui.hot_value', 'Worth') + '</span><b>' + money(c.value) + '</b></div>' +
+          '<div class="slp-kv"><span>' + T('ui.hot_sell', 'Sell whole') + '</span><b>' + money(c.sell) + '</b></div>' +
+          '<div class="slp-kv"><span>' + T('ui.hot_strip', 'Strip for parts') + '</span><b>' + money(c.strip) + '</b></div>' +
+          (c.plated ? '<div class="slp-kv"><span>' + T('ui.hot_title', 'Title it') + '</span><b>' + money(c.title) + '</b></div>' : '<div class="slp-kv"><span>' + T('ui.hot_plates', 'New plates') + '</span><b>' + money(c.plates) + '</b></div>') + acts + '</div>';
+      }).join('');
+      var tools = arr(h.tools).map(function (t) { return '<div class="slp-kv"><span>' + esc(t.title || t.id) + '</span><b>' + (t.uses != null ? T('ui.hot_uses', '{1} uses', Number(t.uses) || 0) : '&infin;') + '</b></div>'; }).join('');
+      return bar(T('app.hotcars', 'Hot cars')) + '<div class="slp-body">' + (h.tracked ? '<p class="slp-chip">' + T('ui.hot_tracked_banner', 'The police are following the car you drive.') + '</p>' : '') + (cars || '<div class="slp-empty">' + T('ui.hot_none', 'No hot cars. The fence takes them at night.') + '</div>') +
+        (tools ? '<div class="slp-card"><h4>' + T('ui.hot_tools', 'Your tools') + '</h4>' + tools + '</div>' : '') +
+        (Number(h.deliveries) > 0 ? '<p style="padding:0 16px">' + T('ui.hot_deliveries', 'Deliveries done: {1}', Number(h.deliveries)) + '</p>' : '') + '</div>';
+    }
     // the home championship (sl_season.summary(); tools/season_fixture.js): a card on the Series tab: the six rounds, the table, Enter while it can be entered, the titles won
     function seasonCard() {
       var sm = obj(st.data.season);
@@ -2090,6 +2111,7 @@
         case 'health': page = healthPage(); break;
         case 'sponsors': page = sponsorsPage(); break;
         case 'calendar': page = calendarPage(); break;
+        case 'hotcars': page = hotCarsPage(); break;
         case 'traps': page = trapsPage(); break;
         case 'inventory': page = inventoryPage(); break;
         case 'myroute': page = myroutePage(); break;
@@ -2427,6 +2449,7 @@
           st.tkArmed = null; lua('contestTicket(' + JSON.stringify(String(v)) + ')'); break;
         case 'informant': lua('informant()'); break;
         case 'economy': lua('economyOptIn()'); break;
+        case 'theftact': lua('theftAct("' + (v === 'jam' ? 'jam' : 'pull') + '")'); break;
         case 'frtake': lua('frjobAccept(' + JSON.stringify(String(v)) + ')'); break;
         case 'frcancel': lua('frjobCancel()'); break;
         case 'paydebt': lua('payDebt(' + Number(v) + ')'); break;
