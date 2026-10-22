@@ -13,7 +13,7 @@ local function career() return sl_career and sl_career.isActive() and sl_career.
 local function store(s) s.invite = type(s.invite) == 'table' and s.invite or {} s.invite.given, s.invite.list = s.invite.given or 0, s.invite.list or {} return s.invite end
 local function homeOn() return sl_career.LEVEL == 'west_coast_usa' end
 local function api() return rawget(_G, 'slrr_brands') end
-local function opt(key, default) local v = sl_options and sl_options.get and tonumber(sl_options.get(key)) return v or default end
+local function opt(key, default) local v = sl_options and sl_options.get and tonumber((sl_options.get(key))) return v or default end
 local function toast(text) guihooks.trigger('slPhoneToast', { text = text }) end
 local function nameOf(brand) return sl_sponsor and sl_sponsor.nameOf and sl_sponsor.nameOf(brand) or tostring(brand) end
 

@@ -8,6 +8,7 @@ local svc = require('sl/core/service')
 local market = require('sl/core/market')
 local wear = require('sl/core/wear')
 
+local function opt(key, default) local v = sl_options and sl_options.get and tonumber((sl_options.get(key))) return v or default end
 local function career() return sl_career and sl_career.isActive() and sl_career.getState() or nil end
 local function carById(s, id) for _, c in ipairs(s.cars) do if c.id == id then return c end end end
 
@@ -60,7 +61,7 @@ function M.serviceOf(carId)
   local c, sv, _, net = figures(car)
   local km = svc.since(sv, c.engineKm, car.mileage)
   local bench = workbench(s)
-  local pf = (sl_perks and sl_perks.factor('service') or 1) * (sl_mastery and sl_mastery.factor('service', car) or 1) * (sl_mates and sl_mates.labourFactor and sl_mates.labourFactor() or 1)      -- (tier perks, the car's mastery, a mechanic mate)
+  local pf = (opt('slServicePrice', 100) / 100) * (sl_perks and sl_perks.factor('service') or 1) * (sl_mastery and sl_mastery.factor('service', car) or 1) * (sl_mates and sl_mates.labourFactor and sl_mates.labourFactor() or 1)      -- (tier perks, the car's mastery, a mechanic mate)
   local note = bench and '' or strings.t('service.no_bench')
   local basicCost = math.floor(svc.basicCost(car.value, bench) * pf / 10 + 0.5) * 10
   local fullCost = math.floor(svc.overhaulCost(car.value, net, market.REPAIR_CONDITION, bench) * pf / 10 + 0.5) * 10
@@ -129,10 +130,11 @@ function M.onUpdate(dt)
   push()
   ensureAll()
 end
-function M.onStreetLegalStarted() sent = {} push() ensureAll() end
+function M.onStreetLegalStarted() svc.INTERVAL = opt('slServiceKm', svc.INTERVAL) sent = {} push() ensureAll() end
 function M.onStreetLegalOption(key, value)
   if key == 'slWearRate' then sent = {} push() ensureAll() end
   if key == 'slService' and value == true then ensureAll() end
+  if key == 'slServiceKm' then svc.INTERVAL = tonumber(value) or svc.INTERVAL sent = {} push() end
 end
 function M.onClientEndMission() sent = {} end
 

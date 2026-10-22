@@ -14,7 +14,7 @@ local function career() return sl_career and sl_career.isActive() and sl_career.
 local function roster(s) if type(s.mates) ~= 'table' then s.mates = rules.new() end return s.mates end
 local function text(m) if m then sl_career.sendText('benny', m.from .. ': ' .. m.text, 3) end end
 local function on() return features.on('mates') end
-local function opt(key, default) local v = sl_options and sl_options.get and tonumber(sl_options.get(key)) return v or default end
+local function opt(key, default) local v = sl_options and sl_options.get and tonumber((sl_options.get(key))) return v or default end
 
 -- ---- the mechanic: parts in the shops (sl_shops), labour in the service (sl_service reads labourFactor)
 local registered = false
