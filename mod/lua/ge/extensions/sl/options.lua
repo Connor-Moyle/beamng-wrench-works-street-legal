@@ -220,6 +220,8 @@ M.defs = {
     desc = 'A faint shake on the steering when you are hungry.' },
   { key = 'slNeedsReduceMotion', tab = 'Needs', group = 'Effects', title = 'Reduce motion', type = 'bool', default = false,
     desc = 'No screen blur from needs (the Driver Injuries add-on has its own Reduce motion switch, which also counts).' },
+  { key = 'slNeedsMicrosleep', tab = 'Needs', group = 'Effects', title = 'Micro-sleeps when exhausted', type = 'bool', default = false,
+    desc = 'A driver who is exhausted nods off for half a second to a second now and then at speed: the pedals and steering are let go for that moment. Never in a race or on a job, and never in the first seconds after you get into a car. Off by default: this one can cost you a crash.' },
   { key = 'slNeedsShow', tab = 'Needs', group = 'Needs', title = 'Show the meters always', type = 'bool', default = false,
     desc = 'The three meters on the phone pill at all times, not only when one is low.' },
 }

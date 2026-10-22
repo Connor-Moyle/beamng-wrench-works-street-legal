@@ -60,7 +60,7 @@ function M.fit(phase, h)
 end
 
 -- waiting a few hours (the Wait app): never past the end of the phase. Returns { hours, to } or nil and the reason.
-M.WAITS = { ['1'] = true, ['3'] = true, ['6'] = true }
+M.WAITS = { ['1'] = true, ['3'] = true, ['6'] = true, ['0.33'] = true }      -- (0.33: sitting down to eat; the Wait app offers the others)
 function M.waitPlan(phase, h, what)
   what = tostring(what)
   if not M.WAITS[what] then return nil, strings.t('phase.wait_how_long') end

@@ -74,6 +74,8 @@
     dyno: function (c) { return '<path d="M0 40q15-34 30-12t30-22" stroke="' + c + '" stroke-width="3" fill="none"/><path d="M0 52h60" stroke="' + c + '" stroke-width="1.5"/>'; },
     bolts: function (c) { return '<path d="M10 4l10 6v12l-10 6-10-6V10zM38 30l10 6v12l-10 6-10-6V36z" stroke="' + c + '" stroke-width="2.5" fill="none"/>'; },
     stripes: function (c) { return '<path d="M-10 60L30-10M10 60L50-10M30 60L70-10" stroke="' + c + '" stroke-width="5" fill="none"/>'; },
+    checks: function (c) { return '<path d="M0 0h20v20H0zM20 20h20v20H20z" fill="' + c + '" opacity=".5"/>'; },
+    stars: function (c) { return '<g fill="' + c + '"><circle cx="8" cy="10" r="1.5"/><circle cx="30" cy="26" r="2.5"/><circle cx="50" cy="8" r="1.2"/><circle cx="18" cy="46" r="2"/><circle cx="46" cy="44" r="1.5"/></g>'; },
     badge: function (c) { return '<path d="M30 4l22 8v18c0 14-10 22-22 26C18 52 8 44 8 30V12z" stroke="' + c + '" stroke-width="2.5" fill="none"/>'; },
   };
   var ICONS = {
@@ -85,6 +87,8 @@
     gauge: '<path d="M6 34a18 18 0 1 1 36 0" fill="none" stroke="currentColor" stroke-width="4"/><path d="M24 34l9-12" stroke="currentColor" stroke-width="4"/><circle cx="24" cy="34" r="3" fill="currentColor"/>',
     spanner: '<path d="M10 38L30 18a8 8 0 1 1 6 6L16 44z" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linejoin="round"/>',
     star: '<path d="M24 4l6 13 14 2-10 10 3 14-13-7-13 7 3-14L4 19l14-2z" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linejoin="round"/>',
+    cup: '<path d="M8 14h26v14a10 10 0 0 1-10 10h-6A10 10 0 0 1 8 28zM34 18h4a5 5 0 0 1 0 10h-4M14 6v4M21 6v4M28 6v4" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linejoin="round"/>',
+    bed: '<path d="M4 36V14M4 30h40v6M4 30V22h18v8M26 30v-10h14a4 4 0 0 1 4 4v6" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linejoin="round"/>',
     badge: '<path d="M24 4l17 6v14c0 10-8 16-17 20C15 40 7 34 7 24V10z" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linejoin="round"/>',
   };
   function iconSvg(name) { return '<svg viewBox="0 0 48 48" aria-hidden="true">' + (ICONS[name] || ICONS.wrench) + '</svg>'; }

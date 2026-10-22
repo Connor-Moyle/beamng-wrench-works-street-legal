@@ -16,6 +16,7 @@ local dealersRules = require('sl/core/dealers')      -- (its clock: game hours s
 local function career() return sl_career and sl_career.isActive() and sl_career.getState() or nil end
 local function toast(text) if text then guihooks.trigger('slPhoneToast', { text = text }) end end
 
+local providers = {}      -- kind -> { stock = fn(shop) -> lines, note, services = fn(shop) -> lines, note, buy = fn(lines, total, shop) -> ok }: what a kind brings when no stock is given (sl_shops.provide)
 local at          -- the shop open now: { id, shop, pos, onBuy, tier }
 local placed = {} -- the shops placed on the map: id -> { id, kind, name, pos = vec3, opts }
 
@@ -190,6 +191,18 @@ function M.open(kind, opts)
   if not s then return false, strings.t('shops.no_career') end
   local shop, why = rules.normalize(kind, opts)
   if not shop then return false, why end
+  local provider = providers[kind]
+  if provider and shop.goods == 'given' and #shop.stock == 0 and provider.stock then
+    local list, note = provider.stock(shop)
+    for _, it in ipairs(list or {}) do shop.stock[#shop.stock + 1] = it end
+    shop.note = note
+    shop.full = true
+  end
+  if provider and shop.goods == 'services' and #shop.services == 0 and provider.services then
+    local list, note = provider.services(shop)
+    for _, sv in ipairs(list or {}) do shop.services[#shop.services + 1] = sv end
+    shop.note = note
+  end
   local entries, model
   if shop.goods == 'catalog' and #shop.stock == 0 then
     shop.stock, entries, model, shop.note = catalogStock(shop)
@@ -200,7 +213,7 @@ function M.open(kind, opts)
     for _, sv in ipairs(list) do shop.services[#shop.services + 1] = sv end
     shop.note = note
   end
-  at = { entries = entries, model = model, id = tostring(type(opts) == 'table' and opts.id or shop.name), shop = shop, pos = asVec(type(opts) == 'table' and opts.pos or nil), onBuy = type(opts) == 'table' and type(opts.onBuy) == 'function' and opts.onBuy or nil }
+  at = { entries = entries, model = model, id = tostring(type(opts) == 'table' and opts.id or shop.name), shop = shop, pos = asVec(type(opts) == 'table' and opts.pos or nil), onBuy = type(opts) == 'table' and type(opts.onBuy) == 'function' and opts.onBuy or (provider and provider.buy and function(lines, total) return provider.buy(lines, total, shop) end) or nil }
   if sl_phone and sl_phone.requestStrings then sl_phone.requestStrings() end
   guihooks.trigger('slShopOpen', view(shop, s))
   return true
@@ -214,6 +227,12 @@ end
 
 -- another mod adds a kind of shop (see docs/MODDING_SHOPS.md)
 function M.define(kind, def) return rules.define(kind, def) end
+-- a mod brings what a kind sells and does when the shop is placed from a file: provide(kind, { stock = fn(shop) -> lines, note; services = fn(shop) -> lines, note; buy = fn(lines, total, shop) -> ok })
+function M.provide(kind, def)
+  if not rules.type(kind) then return false, 'unknown shop kind: ' .. tostring(kind) end
+  providers[kind] = type(def) == 'table' and def or nil
+  return true
+end
 function M.kinds() return rules.kinds() end
 function M.isOpen() return at ~= nil end
 

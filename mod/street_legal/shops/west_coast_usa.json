@@ -9,6 +9,8 @@
     { "id": "smash_auto", "kind": "parts", "name": "Smash Auto Repairs", "pos": [-607.6, 120.9, 102.0], "replaces": "smashAutoRepairs",
       "sections": ["body/bumpers_f", "body/bumpers_r", "body/hoods", "body/fenders", "body/doors", "body/trunk", "body/roof", "body/glass", "body/lights_f", "body/lights_r", "body/bulbs", "body/mirrors", "body/wings", "body/aero"],
       "keeper": { "name": "Moe", "line": "Panels, not miracles." } },
+    { "id": "diner", "kind": "diner", "name": "The Diner", "pos": [-654.2, 139.25, 116.67], "keeper": { "name": "Flo", "line": "Sit down, you look tired." } },
+    { "id": "mountainview_motel", "kind": "motel", "name": "Mountainview Motel", "pos": [-541.25, 133.73, 100.4], "keeper": { "name": "Walt", "line": "Quiet rooms, thin walls." } },
     { "id": "fast_automotive", "kind": "performance", "name": "Fast Automotive", "pos": [291.4, -142.4, 143.8], "replaces": "fastAutomotive",
       "sections": ["engine/blocks", "engine/internals", "engine/forced", "engine/nitrous", "engine/management", "engine/transmission", "engine/clutch", "engine/cooling", "engine/fuel", "engine/mounts", "running/differentials", "running/driveline"] }
   ]

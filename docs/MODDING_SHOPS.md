@@ -11,6 +11,8 @@ Street Legal draws every shop with one screen (`ui/modModules/slShop`) that chan
 | `accessories` | catalogue | the stock you give |
 | `paint` | services | what the state of the player's car calls for (Car Surface FX): Wash ($15, when the car is dirty), Scratch polish ($80 light, $190 heavy), and a Respray in one of eight colours ($450: the car comes out clean and unscratched; the paint goes on through the game's vehicle colours). Give `services` instead and the shop sells your list |
 | `tuner` | services | a Dyno run ($90): the car runs on the rollers through Wrench Works' vehicle side and the screen shows the peak power and torque and the curve. Needs Wrench Works |
+| `diner` | catalogue | drinks, coffee, meals and a meal plan: the stock is the Needs part's (drink, coffee, meal, big meal; what each gives is shown), a sale is eaten and you sit down for twenty minutes of the clock (the clock may refuse in a race, on a job or with the police on you: you eat standing). Open day and night. Needs the Needs part, which is off by default |
+| `motel` | services | a room for the night ($40): a full sleep, the clock runs on up to six hours (or to the end of the phase); refused when the clock may not move. Open day and night. Needs the Needs part |
 | `mechanic` | services | the services you give (none built in yet) |
 
 A mod can add its own kind with `sl_shops.define` (below).
@@ -88,6 +90,10 @@ Other calls: `sl_shops.kinds()` (the kinds known), `sl_shops.isOpen()`, `sl_shop
 ### Price modifiers
 
 `sl_shops.setPriceFactor(id, fn)` registers a function `fn(item, shop)` that returns a factor (1 = the price as it is, 0.8 = twenty per cent off); `fn = nil` removes it. `item` is the line as the shop shows it (`id`, `name`, `brand`, `price`, `group`...) and `shop` is `{ kind, name, brand }`. Several mods may register, each under its own `id`; the factors multiply. It is nil-safe: an error, or a result that is not a number, counts as 1, and the total factor is held between 0.05 and 3. It applies to the price shown (the list price is struck out) and to what is charged. Tyre shops charge their own counter price and ignore it.
+
+## Giving a kind its stock and its sale (`sl_shops.provide`)
+
+A shop placed from a file has no code of its own. A mod gives its kind what it sells and what a sale does with `sl_shops.provide(kind, { stock = function(shop) return lines, note end, services = function(shop) return lines, note end, buy = function(lines, total, shop) return ok end })`. `stock` fills a `given` shop whose file names no stock, `services` a `services` shop, and `buy` runs after the money is taken (return `false` and it is given back). The Needs part does this for the diner and the motel.
 
 ## Special orders (the performance shop)
 

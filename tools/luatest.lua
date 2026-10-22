@@ -5510,4 +5510,157 @@ do
   package.loaded['sl/core/needs'] = nil
 end
 
+-- needs batch 2: the game side (sl/needs): the diner, the motel, the fridge and the bed, the injury link, the hospital, the meal plan and the ledger, micro-sleeps
+do
+  local ST = require('sl/core/state')
+  local st = ST.new(1, 0)
+  st.day, st.money = 5, 1000
+  local old = {}
+  for _, k in ipairs({ 'sl_career', 'guihooks', 'extensions', 'sl_options', 'sl_upgrades', 'sl_shops', 'slrrInjury', 'getPlayerVehicle', 'sl_streets', 'sl_jobs' }) do old[k] = rawget(_G, k) end
+  local toasts, provided, skipped, queued, healed, fullHeal = {}, {}, {}, {}, {}, 0
+  local opts = { slNeeds = true, slNeedsMicrosleep = false }
+  local hasBed, hasFridge = false, false
+  local atGarage = true
+  local skipOk = true
+  local injured = { injured = true, recoverySeconds = 0 }
+  local P = { __sub = function(a, b) return { length = function() return math.sqrt((a.x - b.x) ^ 2 + (a.y - b.y) ^ 2) end } end }
+  local function vec(x, y) return setmetatable({ x = x, y = y, z = 0 }, P) end
+  local garagePlace = { kind = 'garage', pos = vec(0, 0) }
+  _G.guihooks = { trigger = function(n, d) if n == 'slPhoneToast' then toasts[#toasts + 1] = d.text end end }
+  _G.extensions = { hook = function() end }
+  _G.sl_options = { get = function(k) return opts[k] end }
+  _G.sl_career = { isActive = function() return true end, getState = function() return st end, addMoney = function(a, l) return ST.addMoney(st, a, l) end, hour = function() return 12 end,
+    skipTime = function(what) skipped[#skipped + 1] = what if skipOk then return true, 'ok' end return false, 'Not now.' end, sendText = function() end,
+    getPlaces = function() return atGarage and { g = garagePlace } or {} end, isNight = function() return false end }
+  _G.sl_upgrades = { features = function() return { bed = hasBed, fridge = hasFridge } end }
+  _G.sl_shops = { provide = function(kind, def) provided[kind] = def return true end }
+  _G.slrrInjury = { healFor = function(sec) healed[#healed + 1] = sec return 0 end, getState = function() return injured end, heal = function() fullHeal = fullHeal + 1 end }
+  local car = { getPosition = function() return vec(1, 1) end, getJBeamFilename = function() return 'covet' end, getVelocity = function() return { length = function() return 20 end } end,
+    queueLuaCommand = function(_, c) queued[#queued + 1] = c end, getID = function() return 7 end }
+  _G.getPlayerVehicle = function() return car end
+  package.loaded['sl/needs'] = nil
+  package.loaded['sl/core/features'] = nil
+  local N = require('sl/needs')
+  local R = require('sl/core/needs')
+  st.needs = R.repair({ food = 10, water = 10, rest = 10 })
+
+  N.onStreetLegalStarted()
+  check('needs: the diner and the motel are given to the shops', provided.diner and provided.motel and provided.diner.stock and provided.motel.services)
+
+  local stock = provided.diner.stock()
+  local byId = {}
+  for _, it in ipairs(stock) do byId[it.id] = it end
+  check('needs: the diner sells a drink, coffee, a meal, a big meal and the meal plan, with what each does', #stock == 5 and byId.meal.price == 12 and byId.bigmeal.price == 25 and byId.meal.specs[1].text == '+60' and byId.mealplan.price == 0 and byId.mealplan.count == 1)
+  provided.diner.buy({ { id = 'meal', qty = 1 }, { id = 'drink', qty = 2 } })
+  local n = st.needs
+  check('needs: a sale at the diner is eaten, you sit for twenty minutes, and it counts in the week', n.food == 70 and n.water == 10 + 20 + 70 and skipped[#skipped] == '0.33' and n.spentWeek == 12 + 4)
+  skipOk = false
+  provided.diner.buy({ { id = 'coffee', qty = 1 } })
+  check('needs: when the clock may not move you eat standing, and it still counts', toasts[#toasts] ~= nil and n.rest == 20)
+  skipOk = true
+  provided.diner.buy({ { id = 'mealplan', qty = 1 } })
+  check('needs: the meal plan is taken from the diner menu', n.plan == true)
+  stock = provided.diner.stock()
+  local meal
+  for _, it in ipairs(stock) do if it.id == 'meal' then meal = it end if it.id == 'mealplan' then byId.mealplan = it end end
+  check('needs: on the plan a meal is free and the menu offers to cancel it', meal.price == 0 and byId.mealplan.name:find('Cancel', 1, true) ~= nil)
+  check('needs: the ledger bills the plan and shows the food and drink of the week once', N.weeklyBill().amount == 60 and N.weeklyBill().id == 'mealplan' and N.weeklyInfo().amount == 19 and N.weeklyInfo() == nil)
+  provided.diner.buy({ { id = 'mealplan', qty = 1 } })
+  check('needs: and cancelled again, no bill', n.plan == false and N.weeklyBill() == nil)
+
+  -- the motel
+  skipped = {}
+  local sv = provided.motel.services()
+  check('needs: the motel offers a room for 40', #sv == 1 and sv[1].id == 'room' and sv[1].price == 40)
+  n.rest = 5
+  check('needs: a room is a full sleep, the clock runs on six hours, the driver heals', provided.motel.buy() == true and n.rest == 100 and skipped[1] == '6' and healed[#healed] == 720 and fullHeal == 1)
+  skipOk = false
+  n.rest = 5
+  local okRoom = provided.motel.buy()
+  check('needs: a room is refused when the clock may not run (a race, a job, the police)', okRoom == false and n.rest == 5)
+  skipOk = true
+  injured = { injured = true, recoverySeconds = 300 }
+  provided.motel.buy()
+  check('needs: a limb is not healed while recovery is left', fullHeal == 1)
+  _G.slrrInjury.healFor = nil
+  n.rest = 5
+  check('needs: without the add-on call the sleep still works', provided.motel.buy() == true and n.rest == 100)
+
+  -- the night: a bed, a couch, the car; the fridge
+  hasBed, hasFridge = false, false
+  n.rest, n.food, n.water = 0, 20, 20
+  N.onStreetLegalPhase('day')
+  check('needs: waking up at a garage without a bed: the couch (18 an hour)', n.rest == 54 and n.food == 20)
+  hasBed, hasFridge = true, true
+  n.rest = 0
+  N.onStreetLegalPhase('day')
+  check('needs: with a bed 27 an hour, and breakfast from the fridge (water full, food to 60)', n.rest == 81 and n.water == 100 and n.food == 60)
+  n.food, n.water, n.rest = 20, 20, 0
+  N.onStreetLegalPhase('day')
+  check('needs: the fridge gives once a day only', n.water == 20 and n.food == 20 and n.rest == 81)
+  atGarage = false
+  hasBed = true
+  n.rest = 0
+  N.onStreetLegalPhase('day')
+  check('needs: away from a garage you sleep in the car (9 an hour) whatever the garage has', n.rest == 27)
+  atGarage = true
+  hasFridge = false
+  check('needs: no fridge, no fridge use', ({ N.useFridge() })[1] == false)
+  hasFridge = true
+  n.fridgeDay = nil
+  n.water = 10
+  check('needs: the fridge button works once a day at the garage', ({ N.useFridge() })[1] == true and n.water == 100 and ({ N.useFridge() })[1] == false)
+
+  -- the hospital
+  n.food, n.water, n.rest = 5, 5, 5
+  N.hospital()
+  check('needs: the hospital sets the meters to at least 70', n.food == 70 and n.water == 70 and n.rest == 70)
+  n.food = 90
+  N.hospital()
+  check('needs: and never lowers one', n.food == 90)
+
+  -- micro-sleeps: their own switch, never blocked ones
+  n.food, n.water, n.rest = 100, 100, 3
+  local realRandom = math.random
+  math.random = function() return 0 end
+  local function run(seconds) for _ = 1, math.floor(seconds / 0.6) do N.onUpdate(0.6) end end
+  local before = #queued
+  opts.slNeedsMicrosleep = false
+  run(120)
+  check('needs: with the switch off there is no nod', #queued == before or not queued[#queued]:find('nod', 1, true))
+  opts.slNeedsMicrosleep = true
+  local clock = 100
+  local realClock = os.clock
+  os.clock = function() return clock end
+  N.onStreetLegalStarted()          -- (a quiet half minute after a start)
+  run(20)
+  local nods = 0
+  for _, c in ipairs(queued) do if c:find('slNeeds.nod(', 1, true) then nods = nods + 1 end end
+  check('needs: no nod in the quiet seconds after a start', nods == 0)
+  clock = clock + 40
+  run(40)
+  nods = 0
+  for _, c in ipairs(queued) do if c:find('slNeeds.nod(', 1, true) then nods = nods + 1 end end
+  check('needs: an exhausted driver at speed nods off, once, for under a second or so', nods >= 1)
+  local count = nods
+  _G.sl_jobs = { active = function() return true end }
+  run(200)
+  nods = 0
+  for _, c in ipairs(queued) do if c:find('slNeeds.nod(', 1, true) then nods = nods + 1 end end
+  check('needs: never on a job (or in a race)', nods == count)
+  _G.sl_jobs = nil
+  os.clock = realClock
+  math.random = realRandom
+
+  -- the part off: nothing is sold, nothing is billed
+  opts.slNeeds = false
+  local offStock = provided.diner.stock()
+  check('needs: with the part off the diner is empty', offStock == nil or #offStock == 0)
+  check('needs: and the motel and the ledger do nothing', provided.motel.buy() == false and N.weeklyBill() == nil and N.weeklyInfo() == nil)
+
+  for k, val in pairs(old) do _G[k] = val end
+  package.loaded['sl/needs'] = nil
+  package.loaded['sl/core/features'] = nil
+end
+
 print(string.format('lua tests passed: %d checks', passed))

@@ -26,6 +26,8 @@ function M.onStreetLegalNewDay(day)
   if day < w.nextDue then return end
   w.nextDue = day + rules.DAYS
   local lines = rules.lines(s.garageLevel, #s.cars)
+  local plan = sl_needs and sl_needs.weeklyBill and sl_needs.weeklyBill()      -- (the Needs part: the meal plan, when the player has it)
+  if plan then lines[#lines + 1] = plan end
   local owe = rules.total(lines)
   local r = rules.settle(s.money, w.debt, owe)
   if r.pay > 0 then sl_career.addMoney(-r.pay, strings.t('weekly.ledger_label')) end
@@ -34,6 +36,8 @@ function M.onStreetLegalNewDay(day)
   local entry = { week = rules.week(day) - 1, income = earned - (w.earnedMark or 0), costs = r.billsPaid, lines = {} }
   for _, l in ipairs(lines) do entry.lines[#entry.lines + 1] = { label = l.label, amount = -l.amount } end
   if r.repaid > 0 then entry.lines[#entry.lines + 1] = { label = strings.t('weekly.debt_repaid'), amount = -r.repaid } end
+  local food = sl_needs and sl_needs.weeklyInfo and sl_needs.weeklyInfo()      -- (what was bought as food and drink this week: paid when bought, shown so the cost is visible)
+  if food then entry.lines[#entry.lines + 1] = { label = food.label, amount = -food.amount, info = true } end
   entry.costs = r.billsPaid + r.repaid
   entry.net = entry.income - entry.costs
   w.earnedMark = earned
@@ -75,6 +79,8 @@ function M.summary()
   if b and b.policy and b.policy.active then
     bills[#bills + 1] = { id = 'insurance', label = strings.t('bank.insurance_premium'), amount = bank.premium(b.claims, s.day), due = math.max(0, b.policy.nextPremium - s.day) }
   end
+  local mealPlan = sl_needs and sl_needs.weeklyBill and sl_needs.weeklyBill()
+  if mealPlan then bills[#bills + 1] = { id = 'mealplan', label = mealPlan.label, amount = mealPlan.amount, due = left } end
   if b and b.loan then
     bills[#bills + 1] = { id = 'loan', label = strings.t('bank.loan_payment'), amount = bank.due(b.loan), due = math.max(0, b.loan.nextDue - s.day) }
   end

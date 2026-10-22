@@ -55,9 +55,12 @@ function M.summary()
   local s = career()
   if not s then return nil end
   local f, out = M.features(s), {}
+  local needsOn = require('sl/core/features').on('needs')
   for _, u in ipairs(progression.UPGRADES) do
+   if not u.needs or needsOn then
     local has = (u.id == 'shelves') and f.shelfSize > progression.SHELF.base or f[u.id] == true
     out[#out + 1] = { id = u.id, name = u.name, price = math.floor(u.price * (sl_perks and sl_perks.factor('upgrades') or 1) / 10 + 0.5) * 10, desc = u.desc, has = has }
+   end
   end
   return out
 end

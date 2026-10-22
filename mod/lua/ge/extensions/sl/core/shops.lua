@@ -23,9 +23,11 @@ M.TYPES = {
   tuner =       { title = 'Tuner',              goods = 'services', screen = 'services',  theme = { accent = '#5fb7e6', pattern = 'dyno',     icon = 'gauge' },    hours = 'shop' },
   mechanic =    { title = 'Mechanic',           goods = 'services', screen = 'services',  theme = { accent = '#b0b8c4', pattern = 'bolts',    icon = 'spanner' },  hours = 'shop' },
   accessories = { title = 'Accessories',        goods = 'given',    screen = 'catalogue', theme = { accent = '#e86fb0', pattern = 'stripes',  icon = 'star' },     hours = 'shop' },
+  diner =       { title = 'Diner',              goods = 'given',    screen = 'catalogue', theme = { accent = '#e8a23d', pattern = 'checks',   icon = 'cup' },      hours = 'always' },
+  motel =       { title = 'Motel',              goods = 'services', screen = 'services',  theme = { accent = '#7e8fd6', pattern = 'stars',    icon = 'bed' },      hours = 'always' },
   dealerparts = { title = 'Dealer parts',       goods = 'catalog',  screen = 'catalogue', theme = { accent = '#8ab4f8', pattern = 'badge',    icon = 'badge' },    hours = 'dealer' },
 }
-M.ORDER = { 'tyre', 'exhaust', 'parts', 'performance', 'paint', 'tuner', 'mechanic', 'accessories', 'dealerparts' }
+M.ORDER = { 'tyre', 'exhaust', 'parts', 'performance', 'paint', 'tuner', 'mechanic', 'accessories', 'dealerparts', 'diner', 'motel' }
 local KINDS = { 'catalogue', 'services' }
 
 -- the wording of a kind: the string keys of its tagline (under the name when there is no keeper), the add and the pay buttons (sl/shops turns them into text)
@@ -39,6 +41,8 @@ M.WORDS = {
   mechanic = { tag = 'shops.tag_mechanic', add = 'shops.word_book', buy = 'shops.word_book_pay' },
   accessories = { tag = 'shops.tag_accessories', add = 'shops.word_add', buy = 'shops.word_pay' },
   dealerparts = { tag = 'shops.tag_dealerparts', add = 'shops.word_add', buy = 'shops.word_order' },
+  diner = { tag = 'shops.tag_diner', add = 'shops.word_order_food', buy = 'shops.word_eat' },
+  motel = { tag = 'shops.tag_motel', add = 'shops.word_book', buy = 'shops.word_book_pay' },
 }
 
 local GOODS = { tyres = true, given = true, catalog = true, services = true }
