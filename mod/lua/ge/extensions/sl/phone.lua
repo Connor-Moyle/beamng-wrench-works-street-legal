@@ -120,6 +120,7 @@ local function snapshot()
     perks = sl_perks and sl_perks.perks and sl_perks.perks() or nil,
     trophies = type(s.trophies) == 'table' and s.trophies or nil,      -- (the trophy shelf's list, written at a win; nil until there is one)
     calendar = sl_calendar and sl_calendar.summary and sl_calendar.summary() or nil,      -- (the Calendar app: nil with the part off or no career)
+    hotcars = rawget(_G, 'sl_theft') and sl_theft.summary and sl_theft.summary() or nil,      -- (the Hot cars list: nil with the part off or no career)
     visit = sl_career.visit and sl_career.visit() and { name = sl_career.visit().name or sl_career.mapName(), round = sl_career.visit().round, rounds = sl_career.visit().rounds, untilDay = sl_career.visit().untilDay } or nil,      -- (on a trip: the phone shows the Event hub)
     hub = sl_career.visit and sl_career.visit() and sl_series and sl_series.hub and sl_series.hub() or nil,      -- (the paddock: standings, the next round, the cars brought)
     travelPick = travelPick,      -- (the pick-cars screen: sl_series.options(eventId) while one is open)

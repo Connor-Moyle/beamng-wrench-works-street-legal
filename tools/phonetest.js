@@ -1232,6 +1232,21 @@ assert.ok(/target\.focus\(\{ preventScroll: true \}\)/.test(code) && !/target\.f
   assert.ok(phone.state.open === true, 'an idle garage state leaves it alone');
   phone.handle('slPhoneToggle');
 }
+{
+  // the Hot cars list (tools/hotcars_fixture.js): the stolen cars with their state and the fence's prices, the tools, nothing without data
+  const hf = require('./hotcars_fixture.js');
+  phone.act('home');
+  phone.handle('slPhoneData', Object.assign({}, data, { hotcars: hf }));
+  assert.strictEqual(phone.root.querySelector('[data-a="open"][data-v="hotcars"] .slp-badge').textContent, '1', 'the tile counts the wanted cars');
+  phone.act('open', 'hotcars');
+  const tx = text();
+  assert.ok(tx.includes('Ibishu Covet DX') && tx.includes('Driving it') && tx.includes('Wanted') && tx.includes('$2,720') && tx.includes('$3,200') && tx.includes('New plates') && tx.includes('$1,200') && tx.includes('Title it') && tx.includes('$7,900') && tx.includes('Bypass box') && tx.includes('9 uses') && tx.includes('Deliveries done: 1'), 'the hot cars: ' + tx.slice(0, 300));
+  phone.act('home');
+  phone.handle('slPhoneData', Object.assign({}, data, { hotcars: { hot: [], tools: [], deliveries: 0 } }));
+  assert.ok(!phone.root.querySelector('[data-a="open"][data-v="hotcars"]'), 'nothing hot and no tools: no tile');
+  phone.handle('slPhoneData', data);
+  assert.ok(!phone.root.querySelector('[data-a="open"][data-v="hotcars"]'), 'no data: no tile');
+}
 console.log('phone test passed');
 
 // a page to look at: the phone in several states side by side

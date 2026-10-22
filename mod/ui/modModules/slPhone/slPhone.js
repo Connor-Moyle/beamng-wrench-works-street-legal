@@ -361,7 +361,7 @@
   var SLRR_ART = '/ui/modModules/slHud/slrr/icons/';
   var SLRR_ICON = { races: 'cup.png', garage: 'garage.png', bank: 'dollar.png', cab: 'city.png', me: 'roc.png' };
   function slrrIcon(name, cls) { return '<img class="slp-slrr ' + (cls || '') + '" src="' + SLRR_ART + name + '" alt="">'; }
-  var APP_COLORS = { map: '#3a7d6e', camera: '#3b6fa0', gallery: '#a05a8a', carmarket: '#2e7d4f', partmarket: '#a3322c', settings: '#5c6474', wait: '#4a5d7a', market: '#a3322c', paper: '#5b5346', bid: '#b5651d', club: '#6a2e7a', jobs: '#3d7a2e', phone: '#2e7d4f', messages: '#2f5fb3', contacts: '#7b4fb0', races: '#c2541e', bank: '#1f7a70', cab: '#b58a12', me: '#5c6474', garage: '#8a3b8f', garagekit: '#6b5b2e', traps: '#b4541a', inventory: '#7a6a2e', health: '#b23a5e', help: '#4a6fa5', turf: '#7a4a2e', event: '#2f6f9f', calendar: '#2f6f9f', sponsors: '#9a6b12' };      // (every app has its own tile colour: the white icon needs a fill)
+  var APP_COLORS = { map: '#3a7d6e', camera: '#3b6fa0', gallery: '#a05a8a', carmarket: '#2e7d4f', partmarket: '#a3322c', settings: '#5c6474', wait: '#4a5d7a', market: '#a3322c', paper: '#5b5346', bid: '#b5651d', club: '#6a2e7a', jobs: '#3d7a2e', phone: '#2e7d4f', messages: '#2f5fb3', contacts: '#7b4fb0', races: '#c2541e', bank: '#1f7a70', cab: '#b58a12', me: '#5c6474', garage: '#8a3b8f', garagekit: '#6b5b2e', traps: '#b4541a', inventory: '#7a6a2e', health: '#b23a5e', help: '#4a6fa5', turf: '#7a4a2e', event: '#2f6f9f', calendar: '#2f6f9f', sponsors: '#9a6b12', hotcars: '#6b3a3a' };      // (every app has its own tile colour: the white icon needs a fill)
   var AV_COLORS = ['#a8c7fa', '#f2b8b5', '#c3e7c6', '#ffd8a8', '#d0bcff', '#9fe0e8', '#ffb4ab', '#e8def8'];
   var CLASS_NAMES = { beater: T('ui.beaters', 'Beaters'), compact: T('ui.compacts', 'Compacts'), muscle: T('ui.muscle', 'Muscle'), tuner: T('ui.tuners', 'Tuners'), sport: T('ui.sports_cars', 'Sports cars'), super: T('ui.supercars', 'Supercars') };
 
@@ -469,6 +469,7 @@
           { id: 'bank', title: T('app.bank', 'Bank'), icon: I.bank, hide: has.bank === false },
           { id: 'me', title: T('app.me', 'Street cred'), icon: I.me },
           { id: 'sponsors', title: T('app.sponsors', 'Sponsors'), icon: I.sponsors, badge: d.sponsors && d.sponsors.offer ? 1 : 0, hide: !d.sponsors || has.sponsors === false },
+          { id: 'hotcars', title: T('app.hotcars', 'Hot cars'), icon: I.cab, badge: arr(obj(d.hotcars).hot).filter(function (c) { return c.wanted; }).length, hide: !d.hotcars || !(arr(d.hotcars.hot).length || arr(d.hotcars.tools).length) },
           { id: 'calendar', title: T('app.calendar', 'Calendar'), icon: I.calendar, badge: calOpenInvites(), hide: !d.calendar || has.calendar === false },
           { id: 'inventory', title: T('app.inventory', 'Inventory'), icon: I.inventory, hide: !d.inventory || has.inventory === false },
           { id: 'traps', title: T('app.traps', 'Speed traps'), icon: I.traps, hide: !(d.traps && has.traps !== false) && !(d.danger && has.danger !== false) },
@@ -1411,6 +1412,23 @@
       return bar(esc(e.title || T('app.calendar', 'Calendar'))) + '<div class="slp-body">' + calEventCard(c, e).replace(' data-a="calopen" data-v="' + esc(e.id) + '"', '') +
         (acts ? '<div class="slp-card"><div class="slp-acts" style="flex-wrap:wrap">' + acts + '</div>' + (!canEnter && open ? '<p class="slp-warn">&#9888; ' + T('ui.cal_cannot', 'You cannot enter yet: see the requirement above.') + '</p>' : '') + '</div>' : '') + '</div>';
     }
+    // the Hot cars list (sl_theft.summary(); tools/hotcars_fixture.js): the stolen cars with their state and what the fence would pay, the tools with their uses. The deals are at the fence shop.
+    function hotCarsPage() {
+      var h = obj(st.data.hotcars);
+      var cars = arr(h.hot).map(function (c) {
+        var chips = (c.driving ? '<span class="slp-chip">' + T('ui.hot_driving', 'Driving it') + '</span>' : '') + (c.plated ? '<span class="slp-chip">' + T('ui.hot_plated', 'New plates') + '</span>' : '') +
+          (c.wanted ? '<span class="slp-chip">&#9888; ' + T('ui.hot_wanted', 'Wanted') + '</span>' : '');
+        return '<div class="slp-card"><h4>' + esc(c.name || '') + '</h4><p>' + chips + '</p>' +
+          '<div class="slp-kv"><span>' + T('ui.hot_value', 'Worth') + '</span><b>' + money(c.value) + '</b></div>' +
+          '<div class="slp-kv"><span>' + T('ui.hot_sell', 'Sell whole') + '</span><b>' + money(c.sell) + '</b></div>' +
+          '<div class="slp-kv"><span>' + T('ui.hot_strip', 'Strip for parts') + '</span><b>' + money(c.strip) + '</b></div>' +
+          (c.plated ? '<div class="slp-kv"><span>' + T('ui.hot_title', 'Title it') + '</span><b>' + money(c.title) + '</b></div>' : '<div class="slp-kv"><span>' + T('ui.hot_plates', 'New plates') + '</span><b>' + money(c.plates) + '</b></div>') + '</div>';
+      }).join('');
+      var tools = arr(h.tools).map(function (t) { return '<div class="slp-kv"><span>' + esc(t.title || t.id) + '</span><b>' + (t.uses != null ? T('ui.hot_uses', '{1} uses', Number(t.uses) || 0) : '&infin;') + '</b></div>'; }).join('');
+      return bar(T('app.hotcars', 'Hot cars')) + '<div class="slp-body">' + (cars || '<div class="slp-empty">' + T('ui.hot_none', 'No hot cars. The fence takes them at night.') + '</div>') +
+        (tools ? '<div class="slp-card"><h4>' + T('ui.hot_tools', 'Your tools') + '</h4>' + tools + '</div>' : '') +
+        (Number(h.deliveries) > 0 ? '<p style="padding:0 16px">' + T('ui.hot_deliveries', 'Deliveries done: {1}', Number(h.deliveries)) + '</p>' : '') + '</div>';
+    }
     function calendarPage() {
       var c = obj(st.data.calendar), events = arr(c.events).slice().sort(function (a, b) { return (a.day - b.day) || ((a.hour == null ? -1 : a.hour) - (b.hour == null ? -1 : b.hour)); });
       if (st.calEvent) {
@@ -1868,6 +1886,7 @@
         case 'bank': page = bankPage(); break;
         case 'sponsors': page = sponsorsPage(); break;
         case 'calendar': page = calendarPage(); break;
+        case 'hotcars': page = hotCarsPage(); break;
         case 'traps': page = trapsPage(); break;
         case 'inventory': page = inventoryPage(); break;
         case 'cab': page = cabPage(); break;
