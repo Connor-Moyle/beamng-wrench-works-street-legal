@@ -7,16 +7,17 @@ local M = {}
 local rules = require('sl/core/seasons')
 local features = require('sl/core/features')
 
+local function opt(key, default) local v = sl_options and sl_options.get and tonumber(sl_options.get(key)) return v or default end
 local function career() return sl_career and sl_career.isActive() and sl_career.getState() or nil end
-local function seasonOf() local s = career() return s and rules.season(s.day) or nil end
+local function seasonOf() local s = career() rules.DAYS_PER_SEASON = opt('slSeasonDays', 28) return s and rules.season(s.day) or nil end
 
 -- the weather state of a phase with the season's odds (nil with the part off: sl_weather then draws its own)
-function M.forecast(seed, day, phase) return rules.forecast(seed, day, phase) end
+function M.forecast(seed, day, phase) rules.DAYS_PER_SEASON = opt('slSeasonDays', 28) return rules.forecast(seed, day, phase) end
 -- is this clear day hot (nil with the part off)
 function M.hot(state) local season = seasonOf() return season and rules.hot(season, 'day', state) or false end
 -- the factor on a purse of this kind ('sprint', 'series', 'rally', 'meet')
-function M.purse(kind) local season = seasonOf() return season and rules.purse(kind, season) or 1 end
-function M.note() local s = career() return s and rules.note(s.day) or nil end
+function M.purse(kind) local season = seasonOf() return season and (1 + (rules.purse(kind, season) - 1) * opt('slSeasonPurse', 100) / 100) or 1 end
+function M.note() local s = career() rules.DAYS_PER_SEASON = opt('slSeasonDays', 28) return s and rules.note(s.day) or nil end
 
 -- ---- the air: the game's own day curve gets the season's night low and day high; applied once per phase and weather, taken back when the part ends
 local applied, lapseOld = false, nil
@@ -24,9 +25,10 @@ local function apply()
   local s = career()
   local env = rawget(_G, 'core_environment')
   if not (s and env and env.setTemperatureProfile) then return end
+  rules.DAYS_PER_SEASON = opt('slSeasonDays', 28)
   local season = rules.season(s.day)
   local state = sl_weather and sl_weather.state and sl_weather.state() or 'clear'
-  local ok, err = pcall(env.setTemperatureProfile, rules.profile(season, state))          -- (a level without the day curve ignores it)
+  local ok, err = pcall(env.setTemperatureProfile, (function() local p = rules.profile(season, state) local o = opt('slSeasonTemp', 0) return { minC = p.minC + o, maxC = p.maxC + o } end)())          -- (a level without the day curve ignores it)
   if ok then applied = true else log('W', 'sl_seasons', 'the temperature profile was refused: ' .. tostring(err)) end
   -- the fall with height only through Car Surface FX (weather.lapse), never also in the profile
   local csfx = rawget(_G, 'carSurfaceFx')
@@ -53,6 +55,7 @@ function M.onClientEndMission() applied, lapseOld = false, nil end
 function M.status()
   local s = career()
   if not s then return 'no career' end
+  rules.DAYS_PER_SEASON = opt('slSeasonDays', 28)
   local season, week = rules.season(s.day)
   return string.format('%s, week %d; profile %s; lapse %s', season, week, tostring(applied), tostring(lapseOld ~= nil))
 end

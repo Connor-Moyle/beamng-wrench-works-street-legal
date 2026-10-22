@@ -6738,4 +6738,26 @@ do
   check('spendPlan: too little, too much and a phase that has run out are refused', P.spendPlan('day', 10, 2) == nil and P.spendPlan('day', 10, 300) == nil and P.spendPlan('day', P.endHour('day'), 30) == nil)
 end
 
+-- the settings of invitationals, mates and seasons: every default is what the code did before the setting existed
+do
+  local Opt = require('sl/options')
+  local byKey = {}
+  for _, d in ipairs(Opt.defs) do byKey[d.key] = d end
+  local I, Z = require('sl/core/invite'), require('sl/core/seasons')
+  local M = require('sl/core/mates')
+  local function def(k) return byKey[k] and byKey[k].default end
+  check('settings: invitationals default to the built-in numbers', def('slInviteMax') == I.MAX and def('slInviteGap') == I.GAP and def('slInviteStanding') == I.STANDING_MIN and def('slInvitePurse') == 100)
+  check('settings: mates default to the built-in numbers', def('slMatePartsCut') == math.floor((1 - M.PARTS_FACTOR) * 100 + 0.5) and def('slMateLabourCut') == math.floor((1 - M.LABOUR_FACTOR) * 100 + 0.5) and def('slMateWarnGap') == M.WARN_GAP and def('slMateTips') == 7)
+  check('settings: seasons default to the built-in numbers', def('slSeasonDays') == Z.DAYS_PER_SEASON and def('slSeasonPurse') == 100 and def('slSeasonTemp') == 0)
+  local allScoped = true
+  for _, k in ipairs({ 'slInviteMax', 'slInviteGap', 'slInviteStanding', 'slInvitePurse', 'slMatePartsCut', 'slMateLabourCut', 'slMateTips', 'slMateWarnGap', 'slSeasonDays', 'slSeasonPurse', 'slSeasonTemp' }) do
+    if not (byKey[k] and byKey[k].scope == 'gameplay' and byKey[k].type == 'range' and byKey[k].min <= byKey[k].default and byKey[k].default <= byKey[k].max) then allScoped = false end
+  end
+  check('settings: each is a gameplay-scoped range with its default inside the range', allScoped)
+  check('settings: the invitational rules take the numbers (a bigger cap, a smaller gap, a lower standing, a scaled purse)',
+    I.eligible({ count = 3, brand = 'ford', standing = 999, day = 50, max = 5 }) and not I.eligible({ count = 3, brand = 'ford', standing = 999, day = 50 }) and
+    I.eligible({ count = 0, brand = 'ford', standing = 999, day = 50, last = 45, gap = 3 }) and I.pickBrand({ ford = { standing = 120 } }, nil, 5, function() return 'maker' end, 100) == 'ford' and
+    I.reward(1, 2).money == 2 * I.reward(1).money)
+end
+
 print(string.format('lua tests passed: %d checks', passed))
