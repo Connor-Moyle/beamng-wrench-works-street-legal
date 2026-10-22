@@ -41,6 +41,7 @@ TUNE = dict(               # the game's numbers since the balance pass (DESIGN3_
     race_rep_base=35,       # progression.raceResult: rep for a win = base + bet/100 (x1.5 at night)
     job_rep=10,             # sl_jobs: rep per job done
     fine_base=250, fine_offence=150, fine_racing=500,    # progression.policeFine
+    ticket_base=120, ticket_offence=60, pullover=0.35,    # core/chase: a pull-over at level 1 is a ticket (police batch 2); the share of caught chases that are pull-overs at night
     heat_decay_per_min=0.01,  # sl_police: heat cooling per real minute (on top of the daily x0.7)
     crush_pay=250, hot_base=400, hot_per_km=220, test_top=1200, test_slope=3000,
 )
@@ -61,6 +62,7 @@ def race_rep(won, bet, night, opp_rep, my_rep, pink=False):          # progressi
     return round(rep)
 
 def police_fine(racing): return TUNE['fine_base'] + TUNE['fine_offence'] + (TUNE['fine_racing'] if racing else 0)
+def ticket_fine(): return TUNE['ticket_base'] + TUNE['ticket_offence']
 
 # jobs: (name, unlock rep, night only, pay(dist m, rng) -> $, minutes(dist, rng), rep on success, fail chance)
 def job_part(d, r):
@@ -78,6 +80,7 @@ JOBS = [
     ('test driver', 600, False, lambda r: (round(TUNE['test_top'] - (r.uniform(1.15, 1.35) - 1.15) * TUNE['test_slope'], -2), 0.3), lambda r, d=None: 6.0, 6),
     # day job variety (sl_jobs scrapparts / tow / dealerdrive; the taxi's pay carries an average comfort tip of a quarter of the fare)
     ('scrapyard parts', 0, False, lambda r: (lambda d: (round(max(120, d / 1000 * 140 * 1.5), -1), 0.06))(r.uniform(1200, 3000)), lambda r, d=None: 2 + r.uniform(1200, 3000) / CITY_SPEED / 60, 6),
+    ('patrol shift', 300, False, lambda r: (round(180 + sum(max(80, 220 - 2 * max(0, r.uniform(15, 120) - 20)) for _ in range(r.choice([1, 2, 2, 3]))) - r.choice([0, 0, 40, 120]), -1), 0.12), lambda r, d=None: 13 + r.uniform(0, 3), 6),      # sl_patrol: a ten-minute shift, one to three arrests paid by speed, a damage charge now and then
     ('tow job', 300, False, lambda r: (lambda d: (round(240 + d / 1000 * 180, -1), 0.1))(r.uniform(600, 2500)), lambda r, d=None: 3 + r.uniform(600, 2500) / 6 / 60, 6),
     ('dealer delivery', 200, False, lambda r: (lambda d: (320 + round(d / 1000 * 120, -1), 0.15))(r.uniform(800, 3000)), lambda r, d=None: 2 + r.uniform(800, 3000) / CITY_SPEED / 60, 6),
     ('hot car (night)', 1000, True, lambda r: (TUNE['hot_base'] + round(r.uniform(1000, 3000) / 1000 * TUNE['hot_per_km'], -2), 0.25), lambda r, d=None: 3 + r.uniform(1000, 3000) / CITY_SPEED / 60, 6),
@@ -263,7 +266,7 @@ class Player:
         self.heat = min(1, self.heat + 0.12)
         if self.r.random() < (0.15 + 0.55 * self.heat) * (1 if night else 0.3):
             if self.r.random() < 0.4:
-                fine = police_fine(True)
+                fine = ticket_fine() if (night and self.r.random() < TUNE['pullover']) else police_fine(True)
                 paid = min(self.money, fine)
                 self.money -= paid; self.fines += paid; self.rep -= 25; self.heat = min(1, self.heat + 0.2)
                 if paid < fine: self.broke += 1

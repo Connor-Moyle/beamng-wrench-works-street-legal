@@ -19,7 +19,7 @@ M.TAKEN_CONTROL = 50          -- a district changing hands starts with this much
 M.GAIN = { member = 25, leader = 40 }
 M.LOSS = 15                   -- a race lost in their district: they gain this much back
 M.DEFEND = { won = 10, lost = 25 }
-M.PERKS = { rep = 1.2, heat = 0.5, pay = 1.1, shop = 0.9 }
+M.PERKS = { rep = 1.2, heat = 0.5, pay = 1.1, shop = 0.9, informant = 0.5 }      -- (informant: a wanted record cleared for this share of the bounty, P9)
 M.TURF_WAR_AT = 4             -- districts held to be called to the turf war
 
 function M.crew(id) for _, c in ipairs(M.CREWS) do if c.id == id then return c end end end

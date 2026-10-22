@@ -3312,7 +3312,7 @@ do
   local Opt = require('sl/options')
   local defs = {}
   for _, d in ipairs(Opt.defs) do defs[d.key] = d end
-  local okDefs = #F.LIST == 40
+  local okDefs = #F.LIST == 41
   local offByDefault = 0
   for _, f in ipairs(F.LIST) do
     local d = defs[f.opt]
@@ -6258,6 +6258,335 @@ do
   check('seasons: at the end the profile is reset and the lapse put back', resets == 1 and lapse == false)
   for k, v in pairs(old) do _G[k] = v end
   package.loaded['sl/seasons'] = nil
+end
+
+-- police batch 2 (sl/core/chase, the P8-P10 block): a pull-over is a ticket, the court, the suspension, the wanted record, the impound lot; and sl/justice with stubs
+do
+  local C = require('sl/core/chase')
+  check('justice: a pull-over is a stop within 5 s at mode 1; later, or a higher mode, is a bust', C.isTicket(1, 3) and C.isTicket(1, 5) and not C.isTicket(1, 6) and not C.isTicket(2, 2) and not C.isTicket(1, nil))
+  local t = C.newTicket(1, 10, 2)
+  check('justice: a ticket is $120 plus $60 an offence, due the next day', t.amount == 240 and t.due == 11 and not t.paid and C.ticketFine(nil) == 180)
+  local list = { C.newTicket(1, 5, 1), C.newTicket(2, 6, 1), C.newTicket(3, 7, 1), C.newTicket(4, 9, 1) }
+  list[2].paid = true
+  check('justice: overdue = unpaid past the court day; three of them suspend the licence', #C.overdue(list, 9) == 2 and not C.suspended(list, 9) and #C.overdue(list, 11) == 3 and C.suspended(list, 11))
+  local a = C.newTicket(5, 1, 1)
+  check('justice: a contest won clears the ticket; lost adds half and a day; the chance depends on the evidence', C.contest(a, true, 0.5) and a.paid and not C.contest(C.newTicket(6, 1, 1), false, 0.5) and C.contest(C.newTicket(7, 1, 1), false, 0.2))
+  local b = C.newTicket(8, 1, 1)
+  C.contest(b, false, 0.9)
+  check('justice: the lost contest: $180 becomes $270, due a day later, contested once', b.amount == 270 and b.due == 3 and b.contested and not b.paid)
+  local keep = { C.newTicket(1, 1, 1), C.newTicket(2, 1, 1) }
+  keep[1].paid, keep[1].paidDay = true, 2
+  C.sweepTickets(keep, 12)
+  check('justice: a paid ticket leaves the phone after a week, an unpaid one stays', #keep == 1 and keep[1].id == 2)
+  check('justice: a suspended licence puts the strictness to 1 (by day too)', C.suspendedVars({ strictness = 0.1 }, true).strictness == 1 and C.suspendedVars({ strictness = 0.1 }, false).strictness == 0.1)
+  check('justice: the bounty from level 4 ($750, $1000 at 5), the informant takes half; the fence takes the larger of the bounty and the debt', C.bounty(4) == 750 and C.bounty(5) == 1000 and C.informantPrice(750) == 380 and C.fenceBounty(900, 4) == 900 and C.fenceBounty(100, 4) == 750)
+  local w = C.wantedRecord({ id = 7, name = 'Covet', model = 'covet' }, 12, 4)
+  check('justice: the wanted record names the car and the day', w.carId == 7 and w.name == 'Covet' and w.day == 12 and w.bounty == 750 and w.level == 4)
+  check('justice: a patrol within 25 m of the moving car, once a minute', C.recognised(20, 5, 61) and not C.recognised(30, 5, 61) and not C.recognised(20, 1, 61) and not C.recognised(20, 5, 30))
+  -- the game side
+  do
+    local old = { c = _G.sl_career, f = _G.sl_fleet, p = _G.sl_police, cr = _G.sl_crews, o = _G.sl_options, gh = _G.guihooks, ex = _G.extensions, pv = _G.getPlayerVehicle, gp = _G.gameplay_police, um = _G.ui_message, id = _G.getObjectByID, lg = _G.log, rp = _G.sl_replay, v3 = _G.vec3, q = _G.quat, js = _G.core_jobsystem, qd = _G.quatFromDir, cb = package.loaded['sl/carBuilder'] }
+    local state = { day = 10, money = 1000, heat = 0.2, cars = { { id = 3, name = 'Covet', model = 'covet' } } }
+    local isNight, texts, hooks, level, mode = true, {}, {}, 1, 1
+    local sw = { slPoliceTickets = true, slPoliceWanted = true, slPoliceImpoundLot = true }
+    local v3
+    v3 = function(x, y, z) return setmetatable({ x = x, y = y, z = z }, { __sub = function(p, q) return v3(p.x - q.x, p.y - q.y, p.z - q.z) end, __index = { length = function(p) return math.sqrt(p.x * p.x + p.y * p.y + p.z * p.z) end } }) end
+    _G.vec3 = v3
+    _G.quat = _G.quat or function() return {} end
+    _G.quatFromDir = _G.quatFromDir or function() return {} end
+    local speed, ppos = 0, v3(0, 0, 0)
+    local playerCar = { getID = function() return 100 end, getPosition = function() return ppos end, getVelocity = function() return v3(speed, 0, 0) end }
+    _G.getPlayerVehicle = function() return playerCar end
+    local places = { impound = { id = 'impound', kind = 'impound', name = 'Belasco police impound', pos = v3(0, 0, 0), dir = { 0, -1 }, displays = { { pos = { -1, -10, 0 }, dir = { 0, -1 } } } } }
+    local released = {}
+    _G.sl_career = { isActive = function() return true end, getState = function() return state end, isNight = function() return isNight end, LEVEL = 'west_coast_usa', getPlaces = function() return places end,
+      addMoney = function(a, l) if state.money + a < 0 then return false end state.money = state.money + a return true end, sendText = function(_, t) texts[#texts + 1] = t end,
+      releaseCar = function(id) for _, c in ipairs(state.cars) do if c.id == id and c.impounded then if state.money < c.impounded then return false, 'no' end state.money = state.money - c.impounded c.impounded = nil released[#released + 1] = id return true, 'ok' end end return false, 'none' end }
+    local adopted, activated, chased = nil, nil, 0
+    _G.sl_fleet = { currentCar = function() return state.cars[1] end, carOfVehicle = function(vid) return vid == 100 and 3 or nil end, adopt = function(id, vid) adopted = { id, vid } return true end, setActive = function(id) activated = id return true end }
+    _G.sl_police = { level = function() return level end, inPursuit = function() return false end, chaseFromHere = function() chased = chased + 1 return true end }
+    local perks = { rep = 1, heat = 1, pay = 1, shop = 1 }
+    _G.sl_crews = { perksHere = function() return perks end }
+    _G.sl_options = { get = function(k) return sw[k] end }
+    _G.guihooks = { trigger = function(name, d) if name == 'slPhoneToast' then texts[#texts + 1] = d.text end end }
+    _G.extensions = { hook = function(name, ...) hooks[#hooks + 1] = name end }
+    local pursuits = {}
+    local cops = {}
+    _G.gameplay_police = { getPursuitData = function() return { mode = mode } end, getPoliceVehicles = function() return cops end, setPursuitMode = function(m, id, ids) pursuits[#pursuits + 1] = { m, id, ids } end }
+    _G.ui_message = function(t) texts[#texts + 1] = t end
+    local copPos = v3(10, 0, 0)
+    _G.getObjectByID = function(id) if id == 200 then return { getPosition = function() return copPos end } end if id == 300 then return { setActive = function() activated = 'veh' end, queueLuaCommand = function() end, getID = function() return 300 end, delete = function() end } end return nil end
+    _G.log = function() end
+    _G.sl_replay = { summary = function() return { saved = true } end }
+    _G.core_jobsystem = { create = function(f) f({ sleep = function() end }) end }
+    package.loaded['sl/carBuilder'] = { spawnOwned = function() return { getID = function() return 300 end, queueLuaCommand = function() end } end }
+    package.loaded['sl/justice'] = nil
+    local J = require('sl/justice')
+    -- P8: a chase starts, the player stops within 5 s at mode 1: the arrest is a ticket
+    local t0 = os.clock()
+    J.onPursuitAction(100, 'start', { mode = 1 })
+    speed = 0
+    J.onUpdate(0.3)
+    check('justice game side: the stop is noted while the chase is watched', J.status():find('stopped 0') ~= nil or J.status():find('stopped %d') ~= nil)
+    local isTicket = J.ticketInstead({ offensesList = { 'speeding', 'reckless' } })
+    check('justice game side: the arrest after the stop is a ticket on the phone, not a bust; Benny texts', isTicket == true and #state.tickets == 1 and state.tickets[1].amount == 240 and texts[#texts]:find('ticket') ~= nil)
+    J.onPursuitAction(100, 'start', { mode = 1 })
+    mode = 2
+    J.onUpdate(0.3)
+    check('justice game side: a chase that climbed to mode 2 is a bust', J.ticketInstead({}) == false)
+    mode = 1
+    local sum = J.summary()
+    check('justice game side: the phone shape: tickets with id, amount, due, paid, overdue; no wanted, no impound', #sum.tickets == 1 and sum.tickets[1].amount == 240 and sum.tickets[1].due == 11 and sum.tickets[1].paid == false and sum.suspended == false and sum.wanted == nil and sum.impound == nil)
+    local okc, textc = J.contestTicket(1)
+    check('justice game side: the lawyer is paid, the recording counts as evidence (deterministic by the roll is not checked, only the outcome words)', okc and state.money == 850 and (textc:find('threw') ~= nil or textc:find('upheld') ~= nil))
+    state.tickets[1].paid = false state.tickets[1].contested = false state.tickets[1].amount = 240
+    local okp = J.payTicket(1)
+    check('justice game side: paying a ticket takes the money and marks it', okp and state.tickets[1].paid and state.money == 610)
+    -- three overdue tickets: the suspension on a new day, lifted when paid
+    state.tickets = { { id = 1, day = 5, amount = 180, due = 6, paid = false }, { id = 2, day = 5, amount = 180, due = 6, paid = false }, { id = 3, day = 5, amount = 180, due = 6, paid = false } }
+    state.day = 12
+    J.onStreetLegalNewDay()
+    check('justice game side: three overdue tickets suspend the licence on the new day, Benny texts', J.suspended() == true and texts[#texts]:find('suspended') ~= nil)
+    state.money = 2000
+    J.payTicket(1) J.payTicket(2)
+    check('justice game side: with two of them paid the licence is back', J.suspended() == false)
+    -- P9: a chase at level 4 marks the car wanted; a patrol near the moving car gives chase; a repaint clears it
+    level = 4
+    J.onPursuitAction(100, 'start', { mode = 2 })
+    check('justice game side: a level-4 chase puts a wanted record on the car with its bounty', state.wanted ~= nil and state.wanted.carId == 3 and state.wanted.bounty == 750 and J.summary().wanted.car == 'Covet')
+    J.onPursuitAction(100, 'evade', {})
+    cops[200] = true
+    speed = 10
+    J.onUpdate(0.3)
+    check('justice game side: a patrol 10 m from the moving wanted car starts a chase at mode 1', #pursuits == 1 and pursuits[1][1] == 1 and pursuits[1][2] == 100)
+    J.onUpdate(0.3)
+    check('justice game side: not again within a minute', #pursuits == 1)
+    local oki, texti = J.informant()
+    check('justice game side: no informant without the crew perk', not oki and texti:find('district') ~= nil)
+    perks.informant = 0.5
+    oki = J.informant()
+    check('justice game side: the informant clears the record for half the bounty', oki and state.wanted == nil and state.money == 2000 - 180 - 180 - 380)
+    state.wanted = { carId = 3, name = 'Covet', bounty = 500, day = 12 }
+    J.onWrenchWorksPainted(100)
+    check('justice game side: a repaint of the wanted car clears the record', state.wanted == nil)
+    -- P10: an impounded car stands at the station when the player is near; by day the window, by night the fence
+    state.cars[1].impounded = 700
+    isNight = false
+    ppos = v3(50, 0, 0)
+    J.onUpdate(0.3)
+    local els = {}
+    J.onGetRawPoiListForLevel('west_coast_usa', els)
+    check('justice game side: near the station the impounded car is built and the lot is a marker', J.summary().impound ~= nil and J.summary().impound.standing == true and #els == 1 and els[1].data.impoundLot == true)
+    local acts = {}
+    J.onActivityAcceptGatherData({ { impoundLot = true } }, acts)
+    check('justice game side: by day the prompt is Pay and take', #acts == 1 and acts[1].buttonLabel:find('Pay') ~= nil)
+    state.money = 1000
+    acts[1].buttonFun()
+    check('justice game side: paying at the window releases the car, hands it over and seats the player', #released == 1 and state.cars[1].impounded == nil and adopted ~= nil and adopted[1] == 3 and activated == 3 and state.money == 300)
+    -- the fence: refused while the car is not in the yard (the reviewer's case), nothing changes
+    state.cars[1].impounded = 900
+    isNight = true
+    local okf, textf = J.cutTheFence()
+    check('justice game side: the fence is refused while the car does not stand in the yard, nothing changes', not okf and textf:find('yard') ~= nil and state.cars[1].impounded == 900 and state.wanted == nil and chased == 0)
+    J.onUpdate(0.3)
+    acts = {}
+    J.onActivityAcceptGatherData({ { impoundLot = true } }, acts)
+    check('justice game side: by night the prompt is Cut the fence', #acts == 1 and acts[1].buttonLabel:find('fence') ~= nil)
+    acts[1].buttonFun()
+    check('justice game side: the fence: the car is yours with the debt as its bounty, heat 4, a chase from the gate, no money taken', state.cars[1].impounded == nil and state.wanted ~= nil and state.wanted.bounty == 900 and state.heat == 0.75 and chased == 1 and state.money == 300)
+    -- the switches off
+    sw.slPoliceTickets, sw.slPoliceWanted, sw.slPoliceImpoundLot = false, false, false
+    J.onPursuitAction(100, 'start', { mode = 1 })
+    speed = 0
+    J.onUpdate(0.3)
+    local e2 = {}
+    J.onGetRawPoiListForLevel('west_coast_usa', e2)
+    check('justice game side: with the switches off an arrest is a bust, no lot marker, no suspension', J.ticketInstead({}) == false and #e2 == 0 and J.suspended() == false)
+    _G.sl_career, _G.sl_fleet, _G.sl_police, _G.sl_crews, _G.sl_options, _G.guihooks, _G.extensions, _G.getPlayerVehicle, _G.gameplay_police, _G.ui_message, _G.getObjectByID, _G.log, _G.sl_replay, _G.vec3, _G.quat, _G.core_jobsystem, _G.quatFromDir = old.c, old.f, old.p, old.cr, old.o, old.gh, old.ex, old.pv, old.gp, old.um, old.id, old.lg, old.rp, old.v3, old.q, old.js, old.qd
+    package.loaded['sl/carBuilder'], package.loaded['sl/justice'] = old.cb, nil
+  end
+end
+
+-- P5 box and PIT (sl/core/chase, the P5 block; sl/pursuit with stubs)
+do
+  local C = require('sl/core/chase')
+  local cops = { [10] = 30, [11] = 12, [12] = 50 }
+  check('pursuit: the boxer is the second-nearest unit from level 2; none below or with one unit', C.boxUnit(2, cops) == 10 and C.boxUnit(3, cops) == 10 and C.boxUnit(1, cops) == nil and C.boxUnit(2, { [5] = 9 }) == nil and C.pitUnit(cops) == 11)
+  check('pursuit: a PIT needs level 3, 60 km/h, a straight and 45 s since the last', C.pitDue(3, 20, true, 50) and not C.pitDue(2, 20, true, 50) and not C.pitDue(3, 10, true, 50) and not C.pitDue(3, 20, false, 50) and not C.pitDue(3, 20, true, 30))
+  check('pursuit: a straight is four headings within 12 degrees, across north too', C.isStraight({ 10, 12, 8, 15 }) and not C.isStraight({ 10, 40, 8, 15 }) and C.isStraight({ 358, 2, 359, 5 }) and not C.isStraight({ 10, 12 }))
+  do
+    local old = { o = _G.sl_options, pv = _G.getPlayerVehicle, gp = _G.gameplay_police, gt = _G.gameplay_traffic, id = _G.getObjectByID, lg = _G.log, p = _G.sl_police, v3 = _G.vec3 }
+    local v3
+    v3 = function(x, y, z) return setmetatable({ x = x, y = y, z = z }, { __sub = function(a, b) return v3(a.x - b.x, a.y - b.y, a.z - b.z) end, __index = { length = function(p) return math.sqrt(p.x * p.x + p.y * p.y + p.z * p.z) end } }) end
+    _G.vec3 = v3
+    local mode, vel = 2, v3(20, 0, 0)
+    _G.getPlayerVehicle = function() return { getID = function() return 1 end, getPosition = function() return v3(0, 0, 0) end, getVelocity = function() return vel end } end
+    local aggr, cmds, radio = {}, {}, {}
+    local function role(id) return { setAggression = function(_, a) aggr[id] = a end } end
+    _G.gameplay_traffic = { getTrafficData = function() return { [10] = { role = role(10) }, [11] = { role = role(11) }, [12] = { role = role(12) } } end }
+    _G.gameplay_police = { getPursuitData = function() return { mode = mode } end, getPoliceVehicles = function() return { [10] = true, [11] = true, [12] = true } end }
+    local pos = { [10] = v3(30, 0, 0), [11] = v3(12, 0, 0), [12] = v3(50, 0, 0) }
+    _G.getObjectByID = function(id) if pos[id] then return { getPosition = function() return pos[id] end, queueLuaCommand = function(_, c) cmds[#cmds + 1] = id .. ':' .. c end } end end
+    _G.sl_options = { get = function() return nil end }
+    _G.sl_police = { radioSay = function(e) radio[#radio + 1] = e end }
+    _G.log = function() end
+    package.loaded['sl/pursuit'] = nil
+    local U = require('sl/pursuit')
+    U.onUpdate(0.6)
+    check('pursuit game side: at level 2 the second-nearest unit becomes the boxer: calm aggression, a speed cap at the player pace, the radio line', aggr[10] == 0.6 and aggr[11] == nil and cmds[#cmds]:find('^10:ai.setSpeedMode%("limit"%) ai.setSpeed%(21.0%)') ~= nil and radio[1] == 'box')
+    mode = 3
+    for i = 1, 3 do U.onUpdate(0.6) end
+    check('pursuit game side: at level 3 above 60 km/h on a straight the nearest unit gets the PIT window and the radio line', aggr[11] == 1.5 and radio[#radio] == 'pit' and U.status():find('pit 11') ~= nil)
+    local before = #radio
+    for i = 1, 3 do U.onUpdate(0.6) end
+    check('pursuit game side: no second PIT inside the window or the minute', #radio == before)
+    mode = 0
+    U.onUpdate(0.6)
+    check('pursuit game side: the chase over: the boxer and the pitter are put back', aggr[10] == 0.85 and aggr[11] == 0.85 and cmds[#cmds]:find('setSpeedMode%("off"%)') ~= nil and U.status():find('box none') ~= nil)
+    mode = 3
+    vel = v3(10, 0, 0)
+    for i = 1, 4 do U.onUpdate(0.6) end
+    check('pursuit game side: below 60 km/h there is no PIT, the box is back', aggr[11] == 0.85 and aggr[10] == 0.6)
+    _G.sl_options = { get = function(k) if k == 'slPoliceTactics' then return false end return nil end }
+    U.onUpdate(0.6)
+    check('pursuit game side: the switch off puts everything back and does nothing', aggr[10] == 0.85 and U.status():find('box none') ~= nil)
+    _G.sl_options, _G.getPlayerVehicle, _G.gameplay_police, _G.gameplay_traffic, _G.getObjectByID, _G.log, _G.sl_police, _G.vec3 = old.o, old.pv, old.gp, old.gt, old.id, old.lg, old.p, old.v3
+    package.loaded['sl/pursuit'] = nil
+  end
+end
+
+-- P12 the patrol shift (sl/core/chase, the P12 block; sl/patrol with stubs)
+do
+  local C = require('sl/core/chase')
+  check('patrol: an arrest pays $220 within 20 s, $2 a second less after, never under $80', C.arrestPay(0) == 220 and C.arrestPay(20) == 220 and C.arrestPay(50) == 160 and C.arrestPay(500) == 80)
+  check('patrol: the shift pays $180 plus the arrests, to 10', C.patrolPay({}) == 180 and C.patrolPay({ 10, 50 }) == 560 and C.patrolPay({ 10, 50, 500 }) == 640)
+  check('patrol: the damage charge: nothing under 500, $1 per 20 over it, at most $400', C.damageCharge(0) == 0 and C.damageCharge(500) == 0 and C.damageCharge(1500) == 50 and C.damageCharge(99999) == 400)
+  check('patrol: the shift is over after ten minutes or three arrests', C.shiftOver(600, 0) and C.shiftOver(0, 3) and not C.shiftOver(599, 2))
+  check('patrol: on a shift the suspects keep coming by day', C.patrolVars({ strictness = 0.1, suspectFrequency = 0 }, true).suspectFrequency == 1 and C.patrolVars({ strictness = 0.1, suspectFrequency = 0 }, false).suspectFrequency == 0)
+  do
+    local old = { c = _G.sl_career, j = _G.sl_jobs, p = _G.sl_police, o = _G.sl_options, gh = _G.guihooks, um = _G.ui_message, pv = _G.getPlayerVehicle, gt = _G.gameplay_traffic, id = _G.getObjectByID, lg = _G.log, js = _G.core_jobsystem, gw = _G.gameplay_walk, gm = _G.core_groundMarkers, v3 = _G.vec3 }
+    local v3
+    v3 = function(x, y, z) return setmetatable({ x = x, y = y, z = z }, { __sub = function(a, b) return v3(a.x - b.x, a.y - b.y, a.z - b.z) end, __index = { length = function(p) return math.sqrt(p.x * p.x + p.y * p.y + p.z * p.z) end } }) end
+    _G.vec3 = v3
+    local state = { day = 3, rep = 400, money = 500, jobs = { offers = {}, done = 0, earned = 0 } }
+    local texts, finished, role, randomEvents, refreshed = {}, nil, nil, false, 0
+    _G.sl_career = { isActive = function() return true end, getState = function() return state end }
+    _G.sl_jobs = { finishWith = function(s, js, j, pay, rep, text) finished = { pay = pay, rep = rep, text = text } js.active = nil end }
+    _G.sl_police = { refreshVars = function() refreshed = refreshed + 1 end }
+    local on = true
+    _G.sl_options = { get = function(k) if k == 'slPolicePatrolJob' then return on end return nil end }
+    _G.guihooks = { trigger = function(name, d) if name == 'slPhoneToast' then texts[#texts + 1] = d.text end end }
+    _G.ui_message = function(t) texts[#texts + 1] = t end
+    local speed, pos, pid = 0, v3(0, 0, 0), 500
+    _G.getPlayerVehicle = function() return { getID = function() return pid end, getPosition = function() return pos end, getVelocity = function() return v3(speed, 0, 0) end } end
+    local damage = 0
+    _G.gameplay_traffic = { getTrafficVars = function() return { enableRandomEvents = randomEvents } end, setTrafficVars = function(t) randomEvents = t.enableRandomEvents end,
+      getTrafficData = function() return { [500] = { damage = damage, setRole = function(_, r) role = r end } } end }
+    local deleted = 0
+    local far = {}
+    _G.getObjectByID = function(id) if id == 500 then return { delete = function() deleted = deleted + 1 end } end return { getPosition = function() return far[id] and v3(900, 0, 0) or v3(10, 0, 0) end } end
+    _G.log = function() end
+    _G.core_jobsystem = { create = function(f) f({ sleep = function() end }) end }
+    _G.gameplay_walk = { setWalkingMode = function() end }
+    _G.core_groundMarkers = { setPath = function() end }
+    package.loaded['sl/patrol'] = nil
+    local Pz = require('sl/patrol')
+    local ctx = { places = { { id = 'g', kind = 'garage', name = 'Garage', x = 1, y = 1, z = 0 }, { id = 'impound', kind = 'impound', name = 'Belasco police impound', x = 0, y = 0, z = 84 } } }
+    local j = Pz.offer(ctx, nil)
+    check('patrol game side: the offer picks the police station up and back, a settled car job in the stock patrol car, the base pay on the card', j ~= nil and j.patrol and j.settle and #j.legs == 2 and j.legs[1].id == 'impound' and j.legs[2].radius == 22 and j.car.config == 'vehicles/fullsize/police.pc' and j.pay == 180)
+    check('patrol game side: no station or the switch off: no offer', Pz.offer({ places = {} }, nil) == nil and (function() on = false local r = Pz.offer(ctx, nil) on = true return r == nil end)())
+    -- the job is taken and the car picked up (sl_jobs sets carVid): the shift starts
+    j.leg = 2 j.carVid = 500
+    state.jobs.active = j
+    Pz.onUpdate(0.6)
+    check('patrol game side: the pick-up starts the shift: the badge on the car, random suspects on, the police vars refreshed', Pz.active() and role == 'police' and randomEvents == true and refreshed == 1 and texts[#texts]:find('On shift') ~= nil)
+    -- suspects: a fast arrest, an escape, a slow arrest
+    Pz.onPursuitAction(7, 'start', {}) Pz.onPursuitAction(7, 'arrest', {})
+    Pz.onPursuitAction(8, 'start', {}) Pz.onPursuitAction(8, 'evade', {})
+    check('patrol game side: an arrest is counted and paid by its speed, an escape is not', Pz.status():find('arrests 1') ~= nil and texts[#texts]:find('got away') ~= nil)
+    Pz.onPursuitAction(500, 'arrest', {})
+    check('patrol game side: the player own car is never a suspect', Pz.status():find('arrests 1') ~= nil)
+    far[11] = true
+    Pz.onPursuitAction(11, 'start', {}) Pz.onPursuitAction(11, 'arrest', {})
+    check('patrol game side: an arrest by the AI patrols across the map (the reviewer case) is not yours', Pz.status():find('arrests 1') ~= nil)
+    Pz.onPursuitAction(9, 'start', {}) Pz.onPursuitAction(9, 'arrest', {}) Pz.onPursuitAction(10, 'start', {}) Pz.onPursuitAction(10, 'arrest', {})
+    pos = v3(300, 0, 84)
+    Pz.onUpdate(0.6)
+    check('patrol game side: three arrests end the shift: bring the car back', Pz.status():find('returning true') ~= nil and texts[#texts]:find('bring the patrol car back') ~= nil)
+    -- back at the station, stopped, with a dented car
+    damage = 1500
+    speed = 0
+    pos = v3(5, 5, 84)
+    Pz.onUpdate(0.6)
+    check('patrol game side: at the station the job settles: $180 + three fast arrests - $50 for the dents, the car deleted, suspects off again', finished ~= nil and finished.pay == 180 + 660 - 50 and finished.rep == 25 and deleted == 1 and randomEvents == false and not Pz.active() and state.jobs.active == nil and refreshed == 2)
+    -- a shift given up on the board (sl_jobs clears the job): the shift ends
+    j.leg, j.carVid = 2, 500
+    state.jobs.active = j
+    Pz.onUpdate(0.6)
+    check('patrol game side: a second pick-up starts a new shift', Pz.active())
+    state.jobs.active = nil
+    Pz.onUpdate(0.6)
+    check('patrol game side: the job dropped: the shift ends and the suspects are off', not Pz.active() and randomEvents == false)
+    _G.sl_career, _G.sl_jobs, _G.sl_police, _G.sl_options, _G.guihooks, _G.ui_message, _G.getPlayerVehicle, _G.gameplay_traffic, _G.getObjectByID, _G.log, _G.core_jobsystem, _G.gameplay_walk, _G.core_groundMarkers, _G.vec3 = old.c, old.j, old.p, old.o, old.gh, old.um, old.pv, old.gt, old.id, old.lg, old.js, old.gw, old.gm, old.v3
+    package.loaded['sl/patrol'] = nil
+  end
+end
+
+-- the grab bag (sl/core/grabbag): a good week, the pick from the parts that fit, the hand-over at the garage with stubs
+do
+  local G = require('sl/core/grabbag')
+  local rngLib = require('sl/core/rng')
+  check('grabbag: a good week is three jobs, two wins or $2,000 earned', G.goodWeek(G.mark(0, 0, 0), G.mark(3, 0, 0)) and G.goodWeek(G.mark(5, 1, 100), G.mark(5, 3, 100)) and G.goodWeek(G.mark(0, 0, 500), G.mark(0, 0, 2500)) and not G.goodWeek(G.mark(0, 0, 0), G.mark(2, 1, 1999)) and not G.goodWeek(nil, G.mark(9, 9, 9)))
+  local list = { { part = 'a', name = 'Air filter', slotId = 'filter', price = 60 }, { part = 'b', name = 'Pads', slotId = 'pads', price = 120 }, { part = 'c', name = 'Pads sport', slotId = 'pads', price = 300 }, { part = 'd', name = 'Turbo', slotId = 'turbo', price = 4000 }, { part = 'e', name = 'Shock', slotId = 'shock', price = 200 } }
+  local box = G.pick(list, rngLib.new(rngLib.hash('box1')))
+  local okBox = #box >= 2 and #box <= 4
+  local slots = {}
+  for _, p in ipairs(box) do if p.part == 'd' or slots[p.slotId] or p.condition < 0.35 or p.condition > 0.9 or p.value <= 0 then okBox = false end slots[p.slotId] = true end
+  check('grabbag: the box is two to four cheap parts of distinct slots with a used condition and value', okBox)
+  local fixed = G.pick(list, rngLib.new(rngLib.hash('box2')), 10)
+  check('grabbag: the pool bounds the box (three distinct slots under the price cap); an empty list gives nothing', #fixed == 3 and #G.pick({}, rngLib.new(1)) == 0)
+  check('grabbag: the names line', G.names({ { name = 'Pads', condition = 0.5 } }) == 'Pads (50%)')
+  do
+    local old = { c = _G.sl_career, f = _G.sl_fleet, g = _G.slrr_garage, o = _G.sl_options, gh = _G.guihooks, ex = _G.extensions, lg = _G.log }
+    local state = { day = 1, seed = 3, jobs = { done = 0 }, stats = { wins = 0, earned = 0 }, cars = { { id = 1, model = 'covet', name = 'Covet' } } }
+    local texts, shelf = {}, {}
+    _G.sl_career = { isActive = function() return true end, getState = function() return state end, sendText = function(_, t) texts[#texts + 1] = t end }
+    _G.sl_fleet = { currentCar = function() return state.cars[1] end, vehicleOf = function() return { getID = function() return 77 end } end }
+    _G.slrr_garage = { lookupParts = function() return list, 'covet' end, addShelfPart = function(model, p) shelf[#shelf + 1] = { model = model, p = p } return true end }
+    local on = true
+    _G.sl_options = { get = function(k) if k == 'slGrabBag' then return on end return nil end }
+    _G.guihooks = { trigger = function(name, d) if name == 'slPhoneToast' then texts[#texts + 1] = d.text end end }
+    _G.extensions = { hook = function() end }
+    _G.log = function() end
+    package.loaded['sl/grabbag'] = nil
+    local B = require('sl/grabbag')
+    B.onStreetLegalNewDay(1)
+    check('grabbag game side: the first day marks the week and judges nothing', state.grabbag.week == 1 and state.grabbag.pending == false and #texts == 0)
+    state.jobs.done = 4
+    B.onStreetLegalNewDay(5)
+    check('grabbag game side: a day inside the week judges nothing', state.grabbag.pending == false)
+    state.day = 8
+    B.onStreetLegalNewDay(8)
+    check('grabbag game side: the week turns: four jobs made it a good one, Benny texts, the box waits', state.grabbag.pending == true and state.grabbag.week == 2 and texts[#texts]:find('box of parts') ~= nil and B.summary().pending == true)
+    B.onWrenchWorksGarageEntered('Garage')
+    check('grabbag game side: at the garage the parts go on the shelf of the car brought in, with their wear (1 - condition, as the shelf reads it); the box is spent', #shelf >= 2 and shelf[1].model == 'covet' and shelf[1].p.wear ~= nil and shelf[1].p.wear >= 0.1 and shelf[1].p.wear <= 0.65 and shelf[1].p.condition == nil and state.grabbag.pending == false and state.grabbag.given == 1 and texts[#texts]:find('Grab bag') ~= nil)
+    local n = #shelf
+    B.onWrenchWorksGarageEntered('Garage')
+    check('grabbag game side: no second box from the same week', #shelf == n)
+    state.day = 15
+    B.onStreetLegalNewDay(15)
+    check('grabbag game side: a quiet week leaves no box', state.grabbag.pending == false and state.grabbag.week == 3)
+    state.stats.wins = 2
+    state.day = 22
+    B.onStreetLegalNewDay(22)
+    _G.slrr_garage = nil
+    B.onWrenchWorksGarageEntered('Garage')
+    check('grabbag game side: without the garage mod the box waits', state.grabbag.pending == true and #shelf == n)
+    on = false
+    check('grabbag game side: the part off: no summary', B.summary() == nil)
+    _G.sl_career, _G.sl_fleet, _G.slrr_garage, _G.sl_options, _G.guihooks, _G.extensions, _G.log = old.c, old.f, old.g, old.o, old.gh, old.ex, old.lg
+    package.loaded['sl/grabbag'] = nil
+  end
 end
 
 print(string.format('lua tests passed: %d checks', passed))
