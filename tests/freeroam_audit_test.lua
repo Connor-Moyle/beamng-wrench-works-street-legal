@@ -38,7 +38,7 @@ local GARAGE_WRITES = { addShelfPart = true, putShelfItem = true, takeShelfItem 
 local garageReads = { shelfItems = function() return {} end, getPhase = function() return 'idle' end, garageAt = function() return nil end, driverHasHelmet = function() return false end }
 _G.slrr_garage = setmetatable({}, { __index = function(_, k)
   if garageReads[k] then return garageReads[k] end
-  return function(a) if not (k == 'setFeatures' and a == nil) then calls[#calls + 1] = 'slrr_garage.' .. k end return false end      -- (setFeatures(nil) clears: a read-back, not a write)
+  return function(a) if not ((k == 'setFeatures' and a == nil) or k == 'bayMoving') then calls[#calls + 1] = 'slrr_garage.' .. k end return false end      -- (setFeatures(nil) clears and bayMoving asks: a read-back, not a write)
 end })
 _G.slrrDrivers = { setAppearance = function() calls[#calls + 1] = 'slrrDrivers.setAppearance' end, getAppearance = function() return {} end, getDriver = function() return nil end }
 package.loaded['slrr/garageParts'] = { setMoneyProvider = function(p) if p ~= nil then calls[#calls + 1] = 'garageParts.setMoneyProvider' end end,

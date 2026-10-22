@@ -7496,12 +7496,24 @@ do
   INV.onWrenchWorksWorkDone(77, 'fit', 'Gearbox', 160)
   INV.onWrenchWorksGarageLeft()
   check('inventory game: a day of heavy work is capped at four hours', spentW[2] and spentW[2].min == 240)
+  -- moving to another bay leaves and re-enters the garage: nothing is spent and nothing is lost until the real drive-out
+  local moving = true
+  _G.slrr_garage.bayMoving = function() return moving end
+  INV.onWrenchWorksGarageEntered('Belasco', 77)
+  INV.onWrenchWorksWorkDone(77, 'fit', 'Sport exhaust', 30)
+  INV.onWrenchWorksGarageLeft()
+  INV.onWrenchWorksGarageEntered('Belasco', 77)
+  local before = #spentW
+  moving = false
+  INV.onWrenchWorksGarageLeft()
+  check('inventory game: a bay move spends nothing and keeps the minutes for the real drive-out', before == 2 and #spentW == 3 and spentW[3].min == 24)
+  _G.slrr_garage.bayMoving = nil
   _G.sl_options = { get = function(k) if k == 'slFitTimeScale' then return 0 end end }
   INV.onWrenchWorksGarageEntered('Belasco', 77)
   INV.onWrenchWorksWorkDone(77, 'fit', 'Engine', 160)
   INV.onWrenchWorksGarageLeft()
   _G.sl_options = nil
-  check('inventory game: with the time setting at 0 no time passes', #spentW == 2)
+  check('inventory game: with the time setting at 0 no time passes', #spentW == 3)
   _G.sl_career.spendTime = nil
   -- using oil and a battery on the car through Part Wear (guarded; the item leaves only when the car took it)
   local pw, loaded = {}, false
