@@ -15,7 +15,7 @@ local function career() return sl_career and sl_career.isActive() and sl_career.
 local function store(s) s.calendar = rules.repair(s.calendar) return s.calendar end
 local function toast(text) guihooks.trigger('slPhoneToast', { text = text }) end
 local function homeOn() return sl_career.LEVEL == 'west_coast_usa' end         -- (the dockyards layouts are West Coast's)
-local function opts() return { home = homeOn(), swap = sl_career.has('swapMeet') } end
+local function opts() return { home = homeOn(), swap = sl_career.has('swapMeet'), extra = homeOn() and sl_invite and sl_invite.events and sl_invite.events() or nil } end
 
 local function schedule(s) return rules.schedule(s.day, sl_career.hour(), s.seed, s.rep, store(s), opts()) end
 
@@ -61,6 +61,17 @@ end
 function M.event(eventId)
   local s = career()
   return s and rules.find(schedule(s), tostring(eventId)) or nil
+end
+
+-- an invitational is over (sl_invite pays it): the event is done with the place
+function M.complete(eventId, place, reward)
+  local s = career()
+  local ev = s and rules.find(schedule(s), tostring(eventId))
+  if not ev then return end
+  local st = store(s)
+  st.done[ev.id] = { won = place == 1, place = place, day = ev.day, reward = reward or 0 }
+  st.entered[ev.id] = nil
+  extensions.hook('onStreetLegalChanged')
 end
 
 -- a series round is over (sl_series: it pays the series prize at the end, so the round's calendar event is only marked, never paid here)
@@ -109,6 +120,11 @@ local function finished(eventId, res)
 end
 local function startRace(ev)
   running = ev.id
+  if ev.invite then          -- (the brand lends the car: sl_invite spawns it and runs the race)
+    local ok = sl_invite and sl_invite.start(ev, function() running = nil end)
+    if not ok then running = nil end
+    return ok
+  end
   local ok = sl_gridrace.start({ layer = ev.layer, name = ev.title, laps = ev.laps or rules.HOME_LAPS, purse = ev.reward }, function(res) finished(ev.id, res) end)
   if not ok then running = nil end
   return ok

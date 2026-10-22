@@ -13,7 +13,7 @@ often the player wins against each tier with a car of a given class.
 """
 import math, os, random, sys, statistics
 
-PLAYERS, HOURS = int(os.environ.get('PLAYERS', '45')), 12   # simulated players, hours of play each
+PLAYERS, HOURS = int(os.environ.get('PLAYERS', '45')), int(os.environ.get('HOURS', '12'))   # simulated players, hours of play each
 DAY_PAY = float(os.environ.get('DAY_PAY', '1.35'))     # = core/jobs.lua DAY_PAY
 CARS_KEPT = int(sys.argv[sys.argv.index('--cars') + 1]) if '--cars' in sys.argv else 1      # cars stored for the weekly storage bill (the sim plays one)
 WEAR_SCALE = float(os.environ.get("WEAR_SCALE", "40"))   # core/service.lua SCALE
@@ -107,6 +107,7 @@ class Player:
         self.repossessed = 0
         self.standing, self.sponsor = 0.0, None          # brand standing (the sim plays one brand), the sponsorship {since, strikes, wins}
         self.weekWins, self.sponsorPaid = 0, 0
+        self.inv = {'given': 0, 'last': -99, 'day': None, 'money': 0, 'standing': 0, 'trophies': 0}          # core/invite: brand invitationals
         if style == 'borrower':             # takes the full loan at once (core/bank.loanLimit at 0 rep, the first garage, a $3,000 starter car)
             self.loan = [4500, 4500, 7, 0]
             self.money += 4500
@@ -143,6 +144,7 @@ class Player:
                         self.sponsor['strikes'] += 1
                         if self.sponsor['strikes'] >= 3: self.sponsor, self.standing = None, max(0.0, self.standing - 30)
                     self.weekWins = 0
+                self.invitational()
             if WEEKLY and self.day() % 7 == 0:          # core/weekly: garage rent (storage of cars beyond two is not simulated: the sim holds one car)
                 bill = {1: 0, 2: int(os.environ.get("RENT2", "150")), 3: int(os.environ.get("RENT3", "400"))}.get(self.garage, 700)
                 bill += 40 * max(0, CARS_KEPT - 2)       # core/weekly STORAGE for each car beyond two
@@ -196,6 +198,18 @@ class Player:
             self.mark('car %d' % (i + 1))
             return True
         return False
+
+    def invitational(self):                          # core/invite: a sponsor of 4 weeks invites (3 at most, 14 days apart), the race is 5 days on; places 1/2/3 at 40/25/15 % in a race car lent by the brand
+        v, d = self.inv, self.day()
+        if v['day'] == d:
+            place = self.r.choices([1, 2, 3, 4], [0.40, 0.25, 0.15, 0.20])[0]
+            money, standing = {1: (3000, 100), 2: (1800, 60), 3: (1000, 30), 4: (300, 10)}[place]
+            self.money += money; v['money'] += money; v['standing'] += standing; v['trophies'] += place == 1
+            self.standing += standing
+            self.book('invitational', money, 25)
+            v['day'] = None
+        elif v['day'] is None and v['given'] < 3 and self.sponsor and d - self.sponsor['since'] >= 28 and d - v['last'] >= 14:
+            v['given'] += 1; v['last'] = d; v['day'] = d + 5
 
     def race(self):
         t = self.tier()
@@ -367,6 +381,8 @@ def main():
               % (style, statistics.median(worth), sum(p.repossessed for p in ps), sum(1 for p in ps if p.loan)))
         spn = sorted(p.sponsorPaid for p in ps)
         print('Sponsor retainer paid (%s): median $%d, with a sponsor at the end: %d of %d' % (style, statistics.median(spn), sum(1 for p in ps if p.sponsor), len(ps)))
+        iv = sorted(p.inv['money'] for p in ps)
+        print('Invitationals (%s): median purse $%d (max $%d), given %d / raced %d, standing gained median %d, trophies %d' % (style, statistics.median(iv), iv[-1], sum(p.inv['given'] for p in ps), sum(1 for p in ps if p.inv['money'] > 0), statistics.median(sorted(p.inv['standing'] for p in ps)), sum(p.inv['trophies'] for p in ps)))
         bm = sorted(getattr(p, 'broke_min', 0) for p in ps)
         print('Floor (%s): minutes under $300 after the first 20: median %d, worst %d; players who ended under $300: %d of %d'
               % (style, statistics.median(bm), bm[-1], sum(1 for p in ps if p.money < 300), len(ps)))

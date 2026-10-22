@@ -3310,7 +3310,7 @@ do
   local Opt = require('sl/options')
   local defs = {}
   for _, d in ipairs(Opt.defs) do defs[d.key] = d end
-  local okDefs = #F.LIST == 34
+  local okDefs = #F.LIST == 35
   local offByDefault = 0
   for _, f in ipairs(F.LIST) do
     local d = defs[f.opt]
@@ -5830,6 +5830,36 @@ do
 
   for k, val in pairs(old) do _G[k] = val end
   package.loaded['sl/shops'] = nil
+end
+
+-- the brand invitationals (sl/core/invite)
+do
+  local I = require('sl/core/invite')
+  local C = require('sl/core/calendar')
+  local kinds = { ford = 'maker', hks = 'aftermarket', toy = 'maker' }
+  local function kindOf(id) return kinds[id] end
+  check('invite: the sponsor of four weeks invites; a sponsor of three does not',
+    I.pickBrand({}, { brand = 'ford', since = 1 }, 29, kindOf) == 'ford' and I.pickBrand({}, { brand = 'ford', since = 1 }, 28, kindOf) == nil)
+  check('invite: else the maker with the best standing from 250; aftermarket brands and low standing do not',
+    I.pickBrand({ ford = { standing = 300 }, toy = { standing = 400 }, hks = { standing = 900 } }, nil, 5, kindOf) == 'toy' and I.pickBrand({ ford = { standing = 249 } }, nil, 5, kindOf) == nil)
+  check('invite: a malformed standing entry is zero, not an error', I.pickBrand({ ford = { standing = 'x' }, toy = {} }, nil, 5, kindOf) == nil)
+  local base = { count = 0, pending = false, brand = 'ford', standing = 300, day = 50 }
+  local function el(t) local x = {} for k, v in pairs(base) do x[k] = v end for k, v in pairs(t) do x[k] = v end return I.eligible(x) end
+  check('invite: at most three, none while one is pending, two weeks apart', el({}) and not el({ count = 3 }) and not el({ pending = true }) and not el({ last = 40 }) and el({ last = 36 }))
+  local car = I.loaner('ford', function(m) return m == 'bolide' and 'ford' or 'x' end)
+  check('invite: the lent car is a race config of the brand\'s own model, else the first on the list', car.model == 'bolide' and I.loaner('zzz', function() return 'x' end).model == 'covet')
+  local inv = I.new(0, 'ford', 10, { model = 'bolide', config = 'race' })
+  local inv3 = I.new(3, 'ford', 10, { model = 'bolide', config = 'race' })
+  check('invite: the event is five days on at 15:00; the layout cycles through the three long ones', inv.day == 15 and inv.hour == 15 and inv.layer == '003' and inv3.layer == '003' and I.new(1, 'f', 1, {}).layer == '005')
+  local st = C.newStore()
+  local list = C.schedule(12, 9, 1, 100, st, { home = false, swap = false, series = false, extra = { I.event(inv, 'Ford invitational', I.PLACE) } })
+  local ev = C.find(list, 'invite:1')
+  check('invite: it is a calendar event of its own kind, free, with the layout', ev and ev.kind == 'invite' and ev.fee == 0 and ev.layer == '003' and ev.status == 'open' and not (ev.travel and ev.travel.needed))
+  local ok = C.enter(st, ev, 0, 12, 9)
+  local list2 = C.schedule(15, 15, 1, 100, st, { home = false, swap = false, series = false, extra = { I.event(inv, 'Ford invitational', I.PLACE) } })
+  check('invite: entered for nothing; on the day at the grid the calendar starts it', ok and C.due(list2, st, 15, 15.2, function() return 10 end) and C.due(list2, st, 15, 15.2, function() return 500 end) == nil)
+  local w, p, f = I.reward(1), I.reward(3), I.reward(nil)
+  check('invite: a win pays most and brings the trophy; a DNF pays nothing', w.money > p.money and w.standing > p.standing and w.trophy and not p.trophy and f.money == 0 and f.standing == 0)
 end
 
 -- the rally service stall (sl/core/rallyservice): the stall from the rally loop's mission file, at it or not; the game side on a visit
