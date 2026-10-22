@@ -465,6 +465,7 @@ function M.spawnOwned(job, car, pos, rot)
   local pc = m and m.model and m.model.default_pc
   if pc then attempts[#attempts + 1] = { 'stock default', 'vehicles/' .. car.model .. '/' .. pc .. '.pc' } end
   local veh
+  if sl_mates and sl_mates.armPassenger then pcall(sl_mates.armPassenger, car.model) end          -- (a scout mate rides in the passenger seat; Drivers loads it with this car)
   for i, a in ipairs(attempts) do
     veh = M.spawn(job, car.model, a[2], pos, rot, not M.PLAYER_DRIVER_PROPS, true)
     if veh then
