@@ -236,12 +236,16 @@ end
 -- racing: two positions against the goal, once a frame, and nothing else (sl/core/races.step)
 -- the finish: a tall red line and its name over it, from wherever you are, for the whole race (#18)
 local finishColor, finishBg, finishRing = ColorF(1, 0.25, 0.2, 1), ColorI(0, 0, 0, 170), ColorF(1, 0.25, 0.2, 0.5)
+local drawcache = require('sl/core/drawcache')
 local function drawFinish(c)
   local f = c.race.finish
-  local base = vec3(f.x, f.y, f.z)
-  debugDrawer:drawCylinder(base, base + vec3(0, 0, 0.1), 7, finishRing)              -- (a ring on the road and a tall pillar: seen from the start, not a thin line)
-  debugDrawer:drawCylinder(base, base + vec3(0, 0, 90), 0.6, finishColor)
-  debugDrawer:drawTextAdvanced(vec3(f.x, f.y, f.z + 93), String('FINISH'), finishColor, true, false, finishBg)
+  local m = drawcache.get('finish:' .. tostring(c.race.id) .. ':' .. f.x .. ',' .. f.y, function()          -- (built once per finish, not every frame)
+    local base = vec3(f.x, f.y, f.z)
+    return { base = base, ringTop = base + vec3(0, 0, 0.1), pillarTop = base + vec3(0, 0, 90), label = vec3(f.x, f.y, f.z + 93), text = String('FINISH') }
+  end)
+  debugDrawer:drawCylinder(m.base, m.ringTop, 7, finishRing)              -- (a ring on the road and a tall pillar: seen from the start, not a thin line)
+  debugDrawer:drawCylinder(m.base, m.pillarTop, 0.6, finishColor)
+  debugDrawer:drawTextAdvanced(m.label, m.text, finishColor, true, false, finishBg)
 end
 
 function M.onUpdate(dtReal)

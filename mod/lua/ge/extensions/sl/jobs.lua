@@ -18,6 +18,7 @@ local OFFERS = 6               -- on the board at a time
 local STOP_RADIUS = 9          -- metres from a stop, and slow, to count as there
 local DAMAGE_FULL = 30000      -- BeamNG damage counted as a wrecked load (a hard crash is ~25000)
 
+local function optn(key, default) local v = sl_options and sl_options.get and tonumber((sl_options.get(key))) return v or default end
 local function career() return sl_career and sl_career.isActive() and sl_career.getState() or nil end
 local function toast(text) guihooks.trigger('slPhoneToast', { text = text }) if ui_message then ui_message(text, 5, 'streetLegal') end end
 
@@ -98,6 +99,8 @@ local function diners()
   return out
 end
 
+local sites = require('sl/sites')          -- (the game's own delivery businesses: shared with the free-roam freight board)
+
 -- the valet stands (the map's places of kind "valet": a kerb drop-off and parking bays)
 local function valetStands()
   local out = {}
@@ -129,6 +132,16 @@ local TYPES = {
       local j = list[1]
       if not j then return nil end
       j.legs = { leg(ctx.byId[j.from]), leg(ctx.byId[j.to]) }
+      return j
+    end },
+  -- freight: a load between two of the game's delivery businesses (the Freight runs part; pay and the least distance are settings)
+  { kind = 'freight', title = strings.t('jobs.freight_run'), unlock = 0, offer = function(ctx, rng)
+      if not require('sl/core/features').on('freight') then return nil end
+      local get = sl_options and sl_options.get
+      local j = jobsLib.freight(sites.deliverySites(), rng, (tonumber(get and get('slFreightPay')) or 100) / 100, tonumber(get and get('slFreightMin')))
+      if not j then return nil end
+      j.legs = sites.freightLegs(j)
+      if not j.legs then return nil end
       return j
     end },
   -- night food delivery: three drops from a diner, the food going cold
@@ -266,6 +279,8 @@ local TYPES = {
         car = { model = ({ 'pessima', 'legran', 'midsize', 'fullsize', 'van' })[rng:int(5)], wear = 0.5, limp = 0 },
         seconds = math.max(360, math.floor(metres * 1.4 / 6 * 1.5)), pay = math.floor((240 + metres / 1000 * 180) / 10) * 10 }
     end },
+  -- a patrol shift (sl_patrol, police plan P12): pick up a patrol car at the police station, chase the game's suspects, bring it back; it settles there
+  { kind = 'patrol', title = strings.t('jobs.patrol_shift'), unlock = 300, offer = function(ctx, rng) return sl_patrol and sl_patrol.offer and sl_patrol.offer(ctx, rng) or nil end },
   -- a new car from the dealer to the customer's door: any scratch (Car Surface FX) or dent and it pays nothing
   { kind = 'dealerdrive', title = strings.t('jobs.dealer_delivery'), unlock = 200, offer = function(ctx, rng)
       local from = ctx.byId.dealer
@@ -320,7 +335,7 @@ local function refresh(s, force)
     local made = 0
     for _, j in ipairs(js.offers) do
       if made >= contractLib.COUNT then break end
-      if (j.kind == 'part' or j.kind == 'courier') and not j.contract and crng:chance(0.5) and contractLib.apply(j, contractLib.pick(crng, wet)) then
+      if (j.kind == 'part' or j.kind == 'courier') and not j.contract and crng:chance(optn('slContractChance', 50) / 100) and contractLib.apply(j, contractLib.pick(crng, wet), optn('slContractBonus', 100) / 100) then
         j.title = strings.t('contract.title', j.title)
         made = made + 1
       end
@@ -418,7 +433,8 @@ end
 
 -- the first hour: "new in town" doubles job pay, tapering to nothing at 150 rep, and ends the moment
 -- the first part is bought in Wrench Works; the first two jobs of each kind pay a bonus (balance pass)
-local NEW_IN_TOWN_REP, FIRST_TIMES, FIRST_BONUS = 150, 2, 150
+local NEW_IN_TOWN_REP, FIRST_TIMES = 150, 2
+local function firstBonus() return optn('slFirstBonus', 150) end
 local function boost(s, js)
   if js.upgraded then return 1 end
   return 1 + math.max(0, 1 - (s.rep or 0) / NEW_IN_TOWN_REP)
@@ -441,7 +457,7 @@ function M.bonusPay(s, js, j, pay)
   js.kindDone = js.kindDone or {}
   local n = (js.kindDone[j.kind] or 0) + 1
   js.kindDone[j.kind] = n
-  return math.floor(pay * boost(s, js) / 10) * 10 + (n <= FIRST_TIMES and FIRST_BONUS or 0)
+  return jobsLib.shown(pay, boost(s, js), n <= FIRST_TIMES and firstBonus() or 0)
 end
 
 -- a job called off before it was done (no pay, no rep, not counted as done)
@@ -713,6 +729,12 @@ function M.onStreetLegalRaceResult(won, opponent, racerId)
     j.item, shop.name, meet.name), 60)
 end
 
+-- the fixed sponsor goes (a brand sponsorship was signed)
+function M.clearSponsor()
+  local s = career()
+  if s and s.jobs then s.jobs.sponsor, s.jobs.weekWins = nil, 0 end
+end
+
 function M.onStreetLegalNewDay(day)
   local s = career()
   if not s then return end
@@ -725,7 +747,11 @@ function M.onStreetLegalNewDay(day)
   end
   -- sponsors: the best one your name gets you; paid weekly, as long as you win two races a week
   local best
-  for _, sp in ipairs(SPONSORS) do if (s.rep or 0) >= sp.rep then best = sp end end
+  -- with brand sponsorships working (sl_sponsor.active: the part on and Wrench Works' brand registry there) no new fixed sponsor is picked; one the career already holds keeps paying
+  -- until the player accepts a brand offer (M.clearSponsor)
+  if not (sl_sponsor and sl_sponsor.active and sl_sponsor.active()) then
+    for _, sp in ipairs(SPONSORS) do if (s.rep or 0) >= sp.rep then best = sp end end
+  end
   if best and (not js.sponsor or js.sponsor.name ~= best.name) then
     js.sponsor = { name = best.name, weekly = best.weekly, since = day }
     js.weekWins = 0
@@ -769,17 +795,18 @@ function M.summary()
   local out = { offers = {}, done = js.done, earned = js.earned, boost = boost(s, js), flip = js.flip or { target = FLIP_FIRST, best = 0, flips = 0 },
     quarter = QUARTER[js.quarter or 1] and QUARTER[js.quarter or 1][1] or nil, dyno = DYNO[js.dyno or 1] and DYNO[js.dyno or 1][1] or nil,
     crew = js.crew and not js.crew.done and { boss = js.crew.boss, tier = js.crew.tier, need = js.crew.need, won = js.crew.won, daysLeft = js.crew.untilDay - s.day, pay = js.crew.pay } or nil,
-    sponsor = js.sponsor and { name = js.sponsor.name, weekly = js.sponsor.weekly, weekWins = js.weekWins or 0 } or nil }
+    sponsor = (sl_sponsor and sl_sponsor.current and sl_sponsor.current()) or (js.sponsor and { name = js.sponsor.name, weekly = js.sponsor.weekly, weekWins = js.weekWins or 0 }) or nil }
+  local function shown(j, pay) return jobsLib.shown(pay, boost(s, js), ((js.kindDone or {})[j.kind] or 0) < FIRST_TIMES and firstBonus() or 0) end          -- (the board, the active card and the drop all show and pay the same number)
   for _, j in ipairs(js.offers) do
     out.offers[#out.offers + 1] = { id = j.id, title = j.title, item = j.item, from = j.legs[1].name, to = j.legs[#j.legs].name,
-      pay = math.floor(j.pay * boost(s, js) / 10) * 10 + (((js.kindDone or {})[j.kind] or 0) < FIRST_TIMES and FIRST_BONUS or 0), seconds = j.seconds, fragile = j.fragile, metres = j.metres,
-      contract = j.contract and { req = j.contract.req, label = contractLib.label(j.contract.req), mult = j.contract.mult, basePay = j.basePay } or nil }
+      pay = shown(j, j.pay), seconds = j.seconds, fragile = j.fragile, metres = j.metres,
+      contract = j.contract and { req = j.contract.req, label = contractLib.label(j.contract.req), mult = j.contract.mult, basePay = j.basePay and shown(j, j.basePay) } or nil }
   end
   local a = js.active
   if a then
-    out.active = { title = a.title, item = a.item, next = a.legs[a.leg].name, to = a.legs[#a.legs].name, pay = a.pay, fragile = a.fragile,
+    out.active = { title = a.title, item = a.item, next = a.legs[a.leg].name, to = a.legs[#a.legs].name, pay = shown(a, a.pay), fragile = a.fragile,
       timeLeft = a.startedAt and (a.seconds or 0) > 0 and math.floor(a.seconds - (os.clock() - a.startedAt)) or nil,
-      contract = a.contract and { req = a.contract.req, label = contractLib.label(a.contract.req), mult = a.contract.mult } or nil }
+      contract = a.contract and { req = a.contract.req, label = contractLib.label(a.contract.req), mult = a.contract.mult, basePay = a.basePay and shown(a, a.basePay) } or nil }
   end
   return out
 end

@@ -18,12 +18,12 @@ function M.week(day) return math.floor(((tonumber(day) or 1) - 1) / M.DAYS) + 1 
 function M.dayOfWeek(day) return ((tonumber(day) or 1) - 1) % M.DAYS + 1 end
 
 -- the bill lines for a week: { { id, label, amount } }
-function M.lines(garageLevel, carCount)
+function M.lines(garageLevel, carCount, rentScale, storage)
   local out = {}
-  local rent = M.RENT[garageLevel or 1] or M.RENT[3]
+  local rent = math.floor((M.RENT[garageLevel or 1] or M.RENT[3]) * (tonumber(rentScale) or 1) + 0.5)
   if rent > 0 then out[#out + 1] = { id = 'rent', label = strings.t('weekly.rent'), amount = rent } end
   local extra = math.max(0, (carCount or 0) - M.FREE_CARS)
-  if extra > 0 then out[#out + 1] = { id = 'storage', label = strings.t('weekly.storage', extra), amount = extra * M.STORAGE } end
+  if extra > 0 and (tonumber(storage) or M.STORAGE) > 0 then out[#out + 1] = { id = 'storage', label = strings.t('weekly.storage', extra), amount = extra * (tonumber(storage) or M.STORAGE) } end
   return out
 end
 

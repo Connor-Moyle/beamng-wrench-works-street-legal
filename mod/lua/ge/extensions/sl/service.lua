@@ -8,10 +8,12 @@ local svc = require('sl/core/service')
 local market = require('sl/core/market')
 local wear = require('sl/core/wear')
 
+local function opt(key, default) local v = sl_options and sl_options.get and tonumber((sl_options.get(key))) return v or default end
 local function career() return sl_career and sl_career.isActive() and sl_career.getState() or nil end
 local function carById(s, id) for _, c in ipairs(s.cars) do if c.id == id then return c end end end
 
 local function workbench(s)
+  if sl_career.visit and sl_career.visit() then return sl_rallyservice ~= nil and sl_rallyservice.atStall ~= nil and sl_rallyservice.atStall() == true end      -- (on a visit only a service stall is a bench)
   local f = sl_upgrades and sl_upgrades.features and sl_upgrades.features(s)
   return f == nil or f.workbench == true
 end
@@ -59,19 +61,22 @@ function M.serviceOf(carId)
   local c, sv, _, net = figures(car)
   local km = svc.since(sv, c.engineKm, car.mileage)
   local bench = workbench(s)
-  local pf = sl_perks and sl_perks.factor('service') or 1                 -- (tier perks)
+  local pf = (opt('slServicePrice', 100) / 100) * (sl_perks and sl_perks.factor('service') or 1) * (sl_mastery and sl_mastery.factor('service', car) or 1) * (sl_mates and sl_mates.labourFactor and sl_mates.labourFactor() or 1)      -- (tier perks, the car's mastery, a mechanic mate)
   local note = bench and '' or strings.t('service.no_bench')
+  local basicCost = math.floor(svc.basicCost(car.value, bench) * pf / 10 + 0.5) * 10
+  local fullCost = math.floor(svc.overhaulCost(car.value, net, market.REPAIR_CONDITION, bench) * pf / 10 + 0.5) * 10
+  local fullNote = fullCost == basicCost and (note ~= '' and (note .. ' ') or '') .. strings.t('service.full_same') or note          -- (nothing is worn: the overhaul adds nothing to the basic service)
   local rc = market.REPAIR_CONDITION
   return { due = svc.due(sv, km), km_since = math.floor(km), km_interval = math.floor(svc.INTERVAL / rate()), wearFactor = svc.wearFactor(sv, km), count = sv.count,
     sections = svc.sections(net, partwear(car)),
     options = {
-      { id = 'basic', label = strings.t('service.basic'), cost = math.floor(svc.basicCost(car.value, bench) * pf / 10 + 0.5) * 10, available = true, why = note },
-      { id = 'full', label = strings.t('service.overhaul'), cost = math.floor(svc.overhaulCost(car.value, net, rc, bench) * pf / 10 + 0.5) * 10, available = true, why = note },
+      { id = 'basic', label = strings.t('service.basic'), cost = basicCost, available = true, why = note },
+      { id = 'full', label = strings.t('service.overhaul'), cost = fullCost, available = true, why = fullNote },
     } }
 end
 
 -- pay for a service: option 'basic' or 'full'. Returns ok, text.
-function M.service(carId, optionId)
+function M.service(carId, optionId, factor)      -- factor: the price times this (0: the caller has charged already, the independent mechanic); nil = the price as it is
   local s = career()
   local car = s and carById(s, tonumber(carId))
   if not car then return false, strings.t('service.no_car') end
@@ -79,12 +84,13 @@ function M.service(carId, optionId)
   local opt
   for _, o in ipairs(info.options) do if o.id == optionId then opt = o end end
   if not opt then return false, strings.t('service.no_such_service') end
-  if not sl_career.addMoney(-opt.cost, opt.label) then return false, strings.t('career.not_enough_money') end
+  local cost = math.floor(opt.cost * (tonumber(factor) or 1) + 0.5)
+  if cost > 0 and not sl_career.addMoney(-cost, opt.label) then return false, strings.t('career.not_enough_money') end
   local c, sv = figures(car)
   if optionId == 'full' then svc.doOverhaul(sv, c.engineKm, car.mileage, c.abuse) else svc.doBasic(sv, c.engineKm, car.mileage) end
   sl_carcare.note(car, strings.t('service.noted', opt.label))
   extensions.hook('onStreetLegalChanged')
-  return true, strings.t('service.done', opt.label, opt.cost)
+  return true, strings.t('service.done', opt.label, cost)
 end
 
 -- the same factor to Part Wear (setWearRate) and the CSFX tyres (setWearScale), when they are there and have the call; sent at the start, on a change, and again every few seconds
@@ -124,10 +130,12 @@ function M.onUpdate(dt)
   push()
   ensureAll()
 end
-function M.onStreetLegalStarted() sent = {} push() ensureAll() end
+function M.onStreetLegalStopped() svc.INTERVAL = 150 end          -- (the interval setting does not outlive the career)
+function M.onStreetLegalStarted() svc.INTERVAL = opt('slServiceKm', svc.INTERVAL) sent = {} push() ensureAll() end
 function M.onStreetLegalOption(key, value)
   if key == 'slWearRate' then sent = {} push() ensureAll() end
   if key == 'slService' and value == true then ensureAll() end
+  if key == 'slServiceKm' then svc.INTERVAL = tonumber(value) or svc.INTERVAL sent = {} push() end
 end
 function M.onClientEndMission() sent = {} end
 

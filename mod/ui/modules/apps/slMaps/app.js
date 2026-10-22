@@ -38,7 +38,7 @@ if (typeof angular !== 'undefined') angular.module('beamng.apps').directive('slM
           lastKey = key; dirty = false; roads = [];
           keys.forEach(function (k) { if (tiles[k]) roads = roads.concat(Array.isArray(tiles[k]) ? tiles[k] : []); });
         }
-        var data = { roads: roads, route: route, pins: places.map(function (p) { return { x: p.x, y: p.y, name: p.name, kind: p.kind }; }), player: pose, speed: opts.speed === false ? null : speedOf(pose) };
+        var data = { roads: roads, route: route, pins: places.map(function (p) { return { x: p.x, y: p.y, name: p.name, kind: p.kind, r: p.r }; }), player: pose, speed: opts.speed === false ? null : speedOf(pose) };
         draw(ctx, w, h, data, { cx: pose.x, cy: pose.y, mpp: MPP, rot: opts.headingUp ? -(pose.heading || 0) : 0, skin: opts.style });
       }
       var timer = setInterval(frame, 100);                    // 10 fps

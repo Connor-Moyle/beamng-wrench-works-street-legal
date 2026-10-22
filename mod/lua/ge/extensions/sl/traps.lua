@@ -12,23 +12,31 @@ local function toast(text) guihooks.trigger('slPhoneToast', { text = text }) if 
 
 local function level() return getCurrentLevelIdentifier and getCurrentLevelIdentifier() or '' end
 
--- the traps of this career on this map (chosen once from the road graph, then kept in the save)
+-- the traps of this career on this map (chosen once from the road graph, then kept in the save, per map: going to another map and back keeps the records and what was paid)
+-- s.traps = { levels = { [level] = { list, rec = { [id] = { best, count, paid } } } } }; the first shape of this part (one level at the top) is read as that level's entry
 local function ensure(s)
   local lv = level()
-  if s.traps and s.traps.level == lv and type(s.traps.list) == 'table' then return s.traps end
+  local t = s.traps
+  if type(t) == 'table' and t.level ~= nil and t.levels == nil then t = { levels = { [t.level] = { list = t.list, rec = t.rec or {} } } } end
+  if type(t) ~= 'table' then t = {} end
+  t.levels = t.levels or {}
+  s.traps = t
+  local e = t.levels[lv]
+  if e and type(e.list) == 'table' then e.rec = e.rec or {} return e end
   local ok, nodes = pcall(function() return map.getMap().nodes end)
   if not (ok and nodes and next(nodes)) then return nil end            -- (the road graph is not up yet: tried again)
-  local list = rules.select(nodes, rngLib.new(rngLib.hash('traps:' .. lv .. ':' .. tostring(s.seed))))
-  s.traps = { level = lv, list = list, rec = (s.traps and s.traps.level == lv and s.traps.rec) or {} }
-  return s.traps
+  e = { list = rules.select(nodes, rngLib.new(rngLib.hash('traps:' .. lv .. ':' .. tostring(s.seed)))), rec = {} }
+  t.levels[lv] = e
+  return e
 end
 
 local prev, near, nearAt, nearPos, zoneStart = nil, {}, -1e9, nil, {}
 local timer = 0
 
 local function result(s, t, kmh)
-  local rec, info = rules.score(s.traps.rec[t.id], t, kmh)
-  s.traps.rec[t.id] = rec
+  local e = ensure(s)
+  local rec, info = rules.score(e.rec[t.id], t, kmh)
+  e.rec[t.id] = rec
   local line = strings.t(t.kind == 'zone' and 'traps.zone_result' or 'traps.trap_result', t.name, math.floor(kmh), t.target)
   if info.first then
     sl_career.payOut(rules.PAY[t.kind], strings.t('traps.paid', t.name))

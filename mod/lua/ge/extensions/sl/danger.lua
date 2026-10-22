@@ -13,16 +13,26 @@ local function career() return sl_career and sl_career.isActive() and sl_career.
 local function toast(text) guihooks.trigger('slPhoneToast', { text = text }) if ui_message then ui_message(text, 5, 'streetLegal') end end
 local function level() return getCurrentLevelIdentifier and getCurrentLevelIdentifier() or '' end
 
+-- s.danger = { levels = { [level] = { list, rec } }, jump = { paid, best, count } }: the drift zones and their records are per map, the jump record is the career's (the first shape of this part,
+-- { level, drift = { list, rec }, jump }, is read as that level's entry). Returns { drift = { list, rec }, jump } for this map, or nil while the road graph is not up.
 local function ensure(s)
   local lv = level()
   local d = s.danger
-  if d and d.level == lv and type(d.drift) == 'table' and type(d.drift.list) == 'table' then return d end
-  local ok, nodes = pcall(function() return map.getMap().nodes end)
-  if not (ok and nodes and next(nodes)) then return nil end
-  local taken = s.traps and s.traps.level == lv and s.traps.list or {}
-  local list = traps.selectDrift(nodes, rngLib.new(rngLib.hash('drift:' .. lv .. ':' .. tostring(s.seed))), 2, taken)
-  s.danger = { level = lv, drift = { list = list, rec = (d and d.level == lv and d.drift and d.drift.rec) or {} }, jump = (d and d.jump) or { paid = 0, best = 0, count = 0 } }
-  return s.danger
+  if type(d) == 'table' and d.level ~= nil and d.levels == nil then d = { levels = { [d.level] = d.drift }, jump = d.jump } end
+  if type(d) ~= 'table' then d = {} end
+  d.levels = d.levels or {}
+  d.jump = d.jump or { paid = 0, best = 0, count = 0 }
+  s.danger = d
+  local e = d.levels[lv]
+  if not (e and type(e.list) == 'table') then
+    local ok, nodes = pcall(function() return map.getMap().nodes end)
+    if not (ok and nodes and next(nodes)) then return nil end
+    local tl = s.traps and s.traps.levels and s.traps.levels[lv]
+    e = { list = traps.selectDrift(nodes, rngLib.new(rngLib.hash('drift:' .. lv .. ':' .. tostring(s.seed))), 2, tl and tl.list or {}), rec = {} }
+    d.levels[lv] = e
+  end
+  e.rec = e.rec or {}
+  return { drift = e, jump = d.jump }
 end
 
 local prev, jumpSt, nearList, nearAt, nearPos = nil, rules.newJump(), {}, -1e9, nil

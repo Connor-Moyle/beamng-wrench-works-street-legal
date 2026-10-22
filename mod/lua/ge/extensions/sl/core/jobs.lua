@@ -34,6 +34,25 @@ function M.make(kind, from, to, rng)
   }
 end
 
+-- freight runs between the stock delivery sites (the game's own businesses: sl_jobs reads them from freeroam_facilities). A parcel job over the distance, heavier goods, a little more pay.
+M.FREIGHT_ITEMS = { 'pallet of tyres', 'crate of bottles', 'drum of oil', 'box of tools', 'roll of cable', 'sack of cement', 'case of paint', 'crate of spares' }
+M.FREIGHT_MULT = 1.15
+function M.freight(sites, rng, payScale, minMetres)
+  if #sites < 2 then return nil end
+  minMetres = tonumber(minMetres) or M.MIN_METRES
+  for _ = 1, 10 do
+    local from, to = sites[rng:int(#sites)], sites[rng:int(#sites)]
+    if from.id ~= to.id and M.distance(from, to) >= minMetres then
+      local j = M.make('courier', from, to, rng)
+      j.kind = 'freight'
+      j.item = M.FREIGHT_ITEMS[rng:int(#M.FREIGHT_ITEMS)]
+      j.pay = round10(math.max(M.MIN_PAY, j.pay * M.FREIGHT_MULT * (tonumber(payScale) or 1)))
+      return j
+    end
+  end
+  return nil
+end
+
 -- up to `count` offers: part runs (a shop to your garage) and courier parcels (between two places), alternating
 function M.offers(shops, places, garage, rng, count)
   local out = {}
@@ -59,6 +78,11 @@ function M.offers(shops, places, garage, rng, count)
 end
 
 -- what a job pays at the drop: damage is the share of the car (0..1) damaged during the job
+-- the pay a player is shown and paid: the job's pay with the new-in-town boost, rounded down to ten, and the first-times bonus. One source for the board, the active card and the drop.
+function M.shown(pay, boost, firstBonus)
+  return math.floor((tonumber(pay) or 0) * (tonumber(boost) or 1) / 10) * 10 + (tonumber(firstBonus) or 0)
+end
+
 function M.settle(job, elapsedSeconds, damage)
   damage = damage or 0
   if job.fragile and damage > 0.05 then return 0, 'broken' end

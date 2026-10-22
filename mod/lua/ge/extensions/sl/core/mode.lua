@@ -7,7 +7,7 @@ local M = {}
 M.MASTER = 'freeroam'
 -- the features that can run in free roam, in menu order (0.6.0); jobs, races and police follow in 0.6.1. Everything else (rep, rivals, the campaign, the career's
 -- shops of cars, the bank...) is career-only: enabled() is false for it in free roam whatever the switches.
-M.IDS = { 'phone', 'maps', 'places', 'weather', 'traffic', 'shops', 'wash', 'cab', 'hud', 'clock' }
+M.IDS = { 'phone', 'maps', 'places', 'weather', 'traffic', 'shops', 'wash', 'cab', 'hud', 'clock', 'police', 'jobs' }
 
 local known = { [M.MASTER] = true }
 for _, id in ipairs(M.IDS) do known[id] = true end
@@ -41,7 +41,7 @@ end
 -- The sandbox state of a free-roam session: only what the features need to run (a seed for the weather, the day, the phase and the hour from the game's clock). No money, no cars, no
 -- rep: nothing a wallet or a garage could be asked for. Never saved, never the career's. `sb` is the table kept by the caller; hour = the game's hour of day (0-24) or nil.
 function M.sandbox(sb, hour, seed)
-  sb = sb or { seed = math.floor(tonumber(seed) or 1), day = 1, phase = 'day', hour = 12, sandbox = true }
+  sb = sb or { seed = math.floor(tonumber(seed) or 1), day = 1, phase = 'day', hour = 12, sandbox = true, heat = 0 }      -- (heat: the free-roam police; it goes with the session)
   if type(hour) == 'number' then
     if hour < sb.hour - 12 then sb.day = sb.day + 1 end      -- (the clock went past midnight)
     sb.hour = hour

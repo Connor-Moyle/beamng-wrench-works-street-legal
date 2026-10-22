@@ -69,8 +69,10 @@ The phone (K) has Races, My cars, Bank, Street cred, Jobs, Wait, Settings, Club,
 ## Money, wear and used cars
 
 - **Weekly costs** (on by default): every seventh day the garage rent (the first garage is free, the second $150, the third $400) and $40 for each car beyond two are paid. What you cannot pay becomes a debt at the bank, never a repossession; the bank lends nothing while you owe it. The Bank app lists the coming bills and the last weeks.
+- **Career travel** (on by default; needs the Calendar): from 300 to 600 reputation (by series) the Calendar invites you to race series on other maps (Hirochi Raceway, Utah, Johnson Valley). You take up to three cars or a loaner, race a round a day with the game's own races and rally stages against a field, and come home when it is over. The trip costs the series fee and $200 a car on the way out; the way back is free.
 - **Servicing and wear** (on by default): cars wear much faster than in the base model, a service is due about every 150 km, and driving past it wears the car faster. A basic service restarts the interval; a full overhaul also puts the worn sections right. **Mods > Difficulty > Wear** sets the wear rate and with it the service interval (0.5x to 4x), and tells Part Wear and the Car Surface FX tyres to wear at the same rate.
 - **Contracts and tier perks** (on by default): a few part runs and courier parcels carry terms and pay 1.6 to 2.2 times as much when you keep them; each boss you beat gives a lasting advantage (cheaper upgrades and services, better job pay, lower fines, a higher loan limit).
+- **Speed traps and danger zones** (on by default): six traps and two zones on long roads record your speed against a target, the longest jump you fly pays at 20, 40, 70 and 110 m, and two drift zones score your drifting; the first time you beat a target it pays.
 - **Used-car checks** (on by default): a private ad shows the history of a car but not its faults; a mechanic's check for a fee shows them and what each costs to fix.
 
 ## Street Legal in free roam (all off by default)
@@ -83,7 +85,7 @@ ESC > Mods > Street Legal > Screens and texts > Phone skin: **Classic** (default
 
 ## Settings
 
-All settings are in the pause menu: **ESC > Mods**. The Street Legal page has tabs: Difficulty (police, pay, hardcore mode, wear rate), Street racing, Clock and weather (the clock speed, weather and the wet roads), Screens and texts (the **Street Legal dashboard**, the phone skin, text size), Accessibility, Free roam, Parts of the game and Developer (a **performance overlay** for reporting stutters). Nothing is set on the phone, the laptop or the game's Options page. **Parts of the game** also lists, on the Active features page, what is switched on: spectators, billboards, ambient sounds, puddles, achievements, tips, car and part markets, rally, races and drag, clubs, crews, the tow truck, the taxi ride, the bank, the hospital, the HUD pill, the laptops, Maps, garage upgrades, jobs, weekly costs, servicing and wear, used-car checks, contracts and tier perks; each is on by default and can be switched off without losing anything in the save.
+All settings are in the pause menu: **ESC > Mods**. The Street Legal page has tabs: Difficulty (police, pay, hardcore mode, wear rate), Street racing, Clock and weather (the clock speed, weather and the wet roads), Screens and texts (the **Street Legal dashboard**, the phone skin, text size), Accessibility, Free roam, Parts of the game and Developer (a **performance overlay** for reporting stutters). Nothing is set on the phone, the laptop or the game's Options page. **Parts of the game** also lists, on the Active features page, what is switched on: spectators, billboards, ambient sounds, puddles, achievements, tips, car and part markets, rally, races and drag, clubs, crews, the tow truck, the taxi ride, the bank, the hospital, the HUD pill, the laptops, Maps, garage upgrades, jobs, weekly costs, servicing and wear, used-car checks, contracts, tier perks, speed traps, danger zones, barn finds, brand sponsorships, the calendar, career travel, shops, hill duels, the grab bag, seasons and cinematic moments (and Needs, off by default); each is on by default (except Needs) and can be switched off without losing anything in the save.
 
 ## Multiplayer (BeamMP)
 
@@ -97,7 +99,7 @@ Detection is BeamMP's own: `MPCoreNetwork.isMPSession()` or `MPGameNetwork.conne
 
 ## Known issues
 
-- **Wet roads and walls is off by default.** With it on, a long heavy-rain drive at High graphics lost the graphics device in five tests on BeamNG 0.40 (notes in `docs/WET_WORLD_HIGH_CRASH.md`); with it off the weather, puddles and rain work. Turn it on in Mods > Street Legal > Clock and weather only if you accept the risk.
+- **Wet roads and walls is off by default.** The version that also changed walls, roofs and pavements lost the graphics device in five heavy-rain drives at High graphics on BeamNG 0.40 (notes in `docs/WET_WORLD_HIGH_CRASH.md`). Since 0.8.1 it changes the terrain layers only, which ran one 366 s heavy-rain test at High without a crash; one run is not proof, so it stays off by default. Turn it on in Mods > Street Legal > Clock and weather if you accept the risk. With it off the weather, puddles and rain work.
 - Servicing and wear, weekly costs, used-car checks and the Wear rate setting have been tested offline; check the changelog for what has been seen in the game.
 - A few stock models (the midtruck) are kept off the lots: they can crash the game on a second lot build.
 - Some pedestrians stand still; frame time rises in the busy parts of the map with traffic and pedestrians on.

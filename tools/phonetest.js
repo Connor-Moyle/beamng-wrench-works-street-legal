@@ -74,6 +74,32 @@ calls.length = 0;
 assert.ok(text().includes('Test') && text().includes('last played'), 'the careers are listed');
 click('menustart', 'new');
 assert.ok(calls.includes('@sl_menuTile.startFromMenu(true)'), 'a new career goes in a free slot, nothing is lost');
+// T4: a career left on a trip asks first (Continue and Play both): go back, or go home and count the rest as missed
+{
+  const visit = { level: 'west_coast_usa', name: 'West Coast USA', round: 2, rounds: 4, verdict: 'ask' };
+  const slotsV = { show: true, installed: true, summary: 'Day 4', maxSlots: 6, slots: [{ slot: 1, name: 'Career 1', summary: 'Day 4', last: true, visit }, { slot: 2, name: 'Test', summary: 'Day 1' }] };
+  phone.handle('slMenu', slotsV);
+  pressCareer();
+  calls.length = 0;
+  click('menustart', 'continue');
+  assert.ok(calls.length === 0, 'Continue on a visit starts nothing yet');
+  assert.ok(text().includes('round 2 of 4') && text().includes('Go back to West Coast USA (round 2 of 4)') && text().includes('Go home: the rest counts as missed'), 'the question: ' + text().slice(0, 300));
+  click('visitgo', '0|cancel');
+  assert.ok(!text().includes('Go home: the rest'), 'Back closes the question');
+  click('slotplay', '2');
+  assert.ok(calls.some((c) => c.indexOf('startFromMenu(false,2)') >= 0), 'a career without a visit plays straight away');
+  phone.handle('slMenu', slotsV);
+  pressCareer();
+  click('slotplay', '1');
+  assert.ok(text().includes('Go home: the rest'), 'Play on the career with a visit asks too');
+  click('visitgo', '1|home');
+  assert.ok(calls.includes('@sl_menuTile.startFromMenu(false,1,nil,"home")'), 'Go home: ' + calls.join(' '));
+  phone.handle('slMenu', slotsV);
+  pressCareer();
+  click('slotplay', '1');
+  click('visitgo', '1|resume');
+  assert.ok(calls.includes('@sl_menuTile.startFromMenu(false,1,nil,"resume")'), 'Go back');
+}
 // W1: with two maps installed the card offers both; the one picked goes with the new career
 const maps = [{ id: 'slrr_valo_city', name: 'Valo City', installed: true }, { id: 'west_coast_usa', name: 'West Coast USA', installed: true }];
 phone.handle('slMenu', { show: true, installed: true, maps, maxSlots: 6, slots: [] });
@@ -563,6 +589,15 @@ assert.ok(text().includes('Pessima'), 'back to the list');
   assert.ok(text().includes('The mechanic found') && text().includes('Battery') && text().includes('$120') && !phone.root.querySelector('[data-a="mkcheck"]'), 'after the check: the faults with their costs, no button');
   phone.handle('slPhoneData', withCheck({ history: ['3 owners'], hidden: undefined, checked: true, found: [] }));
   assert.ok(text().includes('found no faults'), 'a clean car says so');
+  // the full car report of a CHECKED, fault-free car (rc2: "Show full car report" showed nothing): Lua sends its empty lists as {}, the history stays on the card, the panel opens
+  const cleanRep = { condition: 90, label: 'Good', mileage: 42000, damage: { amount: 0, label: 'None' }, faults: {}, total: 0,
+    sections: [{ id: 'engine', title: 'Engine', condition: 90, label: 'Good', estimate: 0, faults: {}, parts: [{ name: 'Block', condition: 90, label: 'Good' }] }, { id: 'body', title: 'Body', condition: 88, label: 'Good', estimate: 0, faults: {}, parts: [{ name: 'Hood', condition: 88, label: 'Good' }] }] };
+  phone.handle('slPhoneData', withCheck({ history: ['3 owners', 'Full service history'], hidden: undefined, checked: true, found: {}, report: cleanRep }));
+  assert.ok(text().includes('3 owners') && text().includes('Full service history') && phone.root.querySelector('[data-a="report"][data-v="ad:c1"]'), 'a checked clean car: the history and the report button are on the ad');
+  click('report', 'ad:c1');
+  assert.ok(phone.root.querySelector('.slp-repmodal') && text().includes('Car report') && text().includes('90% Good') && text().includes('42,000 km'), 'the report panel opens for a clean checked car: ' + text().slice(0, 200));
+  assert.ok(text().includes('3 owners') && text().includes('Full service history') && text().includes('Nothing more to report'), 'the panel always shows the history lines, and says when there is nothing more to report');
+  click('reportclose');
   phone.handle('slPhoneData', base);
 }
 calls.length = 0;
@@ -578,6 +613,44 @@ phone.handle('slPhoneData', Object.assign({}, data, { turf: { held: 1, turfWar: 
 phone.act('home');
 phone.act('open', 'turf');
 assert.ok(text().includes('The Docks') && text().includes('you are here') && text().includes('home of the North End crew') && text().includes('led by Nina'), 'Turf lists districts and crews');
+// the Inventory page: the boot bar, a row per item with Use / Drop, parts without Drop, two clicks to drop; nothing with the part off
+{
+  const inv = require('./inventory_fixture.js');
+  phone.handle('slPhoneData', Object.assign({}, data, { inventory: inv }));
+  phone.act('home');
+  assert.ok(phone.root.querySelector('[data-a="open"][data-v="inventory"]'), 'the Inventory app is on the home screen');
+  phone.act('open', 'inventory');
+  const tx = text();
+  assert.ok(tx.includes('14 / 28') && tx.includes('Engine oil') && tx.includes('4 of 10 L') && tx.includes('13 uses left') && tx.includes('Ibishu') && tx.includes('35 % worn'), 'the boot, the oil, the can, the tool uses, the part brand and wear: ' + tx.slice(0, 300));
+  assert.ok(phone.root.querySelector('[data-a="invuse"][data-v="oil"]') && phone.root.querySelector('[data-a="invuse"][data-v="battery"]') && !phone.root.querySelector('[data-a="invuse"][data-v="bypass"]'), 'oil and battery can be used, a tool not');
+  assert.strictEqual(phone.root.querySelectorAll('[data-a="invdrop"]').length, 4, 'items, the can and the tool can be dropped, the two parts not');
+  calls.length = 0;
+  click('invuse', 'oil');
+  assert.ok(calls.includes('@sl_inventory.use("oil")'), 'Use calls the module');
+  click('invdrop', 'can:1');
+  assert.ok(!calls.some(c => c.indexOf('discard') >= 0), 'the first click on Drop only asks');
+  click('invdrop', 'can:1');
+  assert.ok(calls.includes('@sl_inventory.discard("can",1)'), 'the second drops the can');
+  click('invdrop', 'item:oil');
+  click('invdrop', 'item:oil');
+  assert.ok(calls.includes('@sl_inventory.discard("item","oil")'), 'an item by id');
+  phone.handle('slPhoneData', Object.assign({}, data, { inventory: { used: 0, cap: 20, groups: [] } }));
+  assert.ok(text().includes('Nothing in the boot.'), 'an empty boot says so');
+  phone.act('home');
+  phone.handle('slPhoneData', Object.assign({}, data, { inventory: inv, has: Object.assign({}, data.has, { inventory: false }) }));
+  assert.ok(!phone.root.querySelector('[data-a="open"][data-v="inventory"]'), 'the part off: no app');
+}
+// turf income: a held district shows its weekly cut, the base is marked, the page shows the next payout; the part off shows neither
+phone.handle('slPhoneData', Object.assign({}, data, { turf: { held: 2, turfWar: false, income: 250, districts: [
+  { id: 'd1', name: 'The Docks', owner: 'You', yours: true, control: 100, cut: 150, base: true },
+  { id: 'd2', name: 'Northside', owner: 'You', yours: true, control: 100, cut: 100 },
+  { id: 'd3', name: 'Ring Road', owner: 'the Ring Road Ghosts', control: 60 } ], crews: [] } }));
+phone.act('home');
+phone.act('open', 'turf');
+assert.ok(text().includes('$150 a week') && text().includes('(base)') && text().includes('$100 a week') && text().includes('Next payout: $250'), 'Turf shows the cuts, the base and the next payout: ' + text().slice(0, 400));
+assert.ok(!/Ring Road Ghosts[^]*a week/.test(text().split('Ring Road Ghosts')[1] ? 'Ring Road Ghosts' + text().split('Ring Road Ghosts')[1].slice(0, 60) : ''), 'a rival district shows no cut');
+phone.handle('slPhoneData', Object.assign({}, data, { turf: { held: 1, turfWar: false, districts: [{ id: 'd1', name: 'The Docks', owner: 'You', yours: true, control: 50 }], crews: [] } }));
+assert.ok(!text().includes('Next payout') && !text().includes('a week'), 'the part off: no income text');
 // #48 the last race's replay on the Races page
 phone.handle('slPhoneData', Object.assign({}, data, { replay: { name: 'Quarry sprint', saved: false } }));
 phone.act('home');
@@ -878,6 +951,12 @@ assert.ok(!phone.root.querySelector('.slp-tyrecar'), 'a car without tyre data sh
   assert.ok(t.includes('Service due') && t.includes('6200 km since the last service (every 5000 km)') && t.includes('parts wear 1.4 times as fast'), 'due, the km and the wear factor: ' + t.slice(0, 300));
   assert.ok(t.includes('Engine') && t.includes('30%') && t.includes('Brakes') && t.includes('80%') && phone.root.querySelector('.slp-warn'), 'the sections, the low one marked');
   assert.ok(phone.root.querySelector('[data-a="service"][data-v="8|basic"]') && !phone.root.querySelector('[data-a="service"][data-v="8|full"]') && t.includes('$900'), 'an available service has a button, an unavailable one is shown without');
+  const sb = phone.root.querySelector('[data-a="service"][data-v="8|basic"]');
+  const lbl = sb.querySelector('.slp-lbl');
+  assert.ok(sb.classList.contains('slp-stack') && lbl && lbl.textContent === 'Basic service' && sb.querySelector('small') && sb.querySelector('small').textContent.includes('$120') && !sb.querySelector('br'), 'a service button: the label in its own node, the note under it, no line break between flex items');
+  const cssAll = [...win.document.querySelectorAll('style')].map((x) => x.textContent).join('');
+  assert.ok(/\.slp-btn\.slp-stack\{flex-direction:column;height:auto/.test(cssAll), 'the stacked button CSS: a column as tall as it needs (not a 40 px pill)');
+  assert.ok(!/class="slp-btn[^"]*"[^>]*>[^<]*<br><small>/.test(code), 'no button puts a line break and a note between flex items any more');
   calls.length = 0;
   click('service', '8|basic');
   assert.ok(calls.includes('service(8,"basic")'), 'the button asks the game for service(8,"basic"): ' + calls.join(' '));
@@ -961,6 +1040,357 @@ assert.ok(calls.includes('routeGarage()'), 'Route to my garage on the home scree
   assert.ok(!phone.root.querySelector('[data-a="open"][data-v="health"]') && phone.root.querySelector('.slp-pill').querySelectorAll('svg').length === 0, 'the part off: no app, no icons');
   phone.handle('slPhoneData', data);
   assert.ok(!phone.root.querySelector('[data-a="open"][data-v="health"]'), 'no data: no app');
+}
+{
+  // the speed traps and zones (sl_traps.summary()): nearest first, target, best (met = marked), times, reward or Paid; nothing with the part off or no data
+  const traps = { list: [{ id: 't2', name: 'Speed trap 2', kind: 'trap', target: 150, best: 182, count: 3, paid: true, metres: 4200, pay: 250 }, { id: 'z1', name: 'Speed zone 1', kind: 'zone', target: 90, best: 0, count: 0, paid: false, metres: 800, pay: 400 }] };
+  phone.handle('slPhoneData', Object.assign({}, data, { traps }));
+  phone.act('home');
+  assert.ok(phone.root.querySelector('[data-a="open"][data-v="traps"]'), 'the Speed traps app is on the home screen');
+  phone.act('open', 'traps');
+  const tx = text();
+  assert.ok(tx.includes('Speed zone 1') && tx.includes('Speed trap 2') && tx.indexOf('Speed zone 1') < tx.indexOf('Speed trap 2'), 'the nearest first');
+  assert.ok(tx.includes('150 km/h') && tx.includes('182 km/h') && tx.includes('\u2714') && tx.includes('Paid') && tx.includes('$400') && tx.includes('800 m away') && tx.includes('4.2 km away') && tx.includes('Zone') && tx.includes('Trap'), 'target, best with the met mark, paid or the reward, distance, kind: ' + tx.slice(0, 300));
+  phone.handle('slPhoneData', Object.assign({}, data, { traps: { list: [] } }));
+  assert.ok(text().includes('No traps on this map yet.'), 'an empty list says so');
+  phone.act('home');
+  phone.handle('slPhoneData', Object.assign({}, data, { traps, has: Object.assign({}, data.has, { traps: false }) }));
+  assert.ok(!phone.root.querySelector('[data-a="open"][data-v="traps"]'), 'the part off: no app');
+  phone.handle('slPhoneData', data);
+  assert.ok(!phone.root.querySelector('[data-a="open"][data-v="traps"]'), 'no data: no app');
+}
+{
+  // my routes (sl_myroute.summary()): the editor with the waypoint count, the saved routes with their times, a run in progress; nothing with the part off or no data
+  const myroute = { routes: [{ id: 2, name: 'Dock loop', points: 5, length: 4200, best: 61.5, bestText: '1:01.50', runs: 3, last: 65, lastText: '1:05.00' }], draft: 2, draftMin: 4, draftMax: 8, maxRoutes: 10 };
+  phone.handle('slPhoneData', Object.assign({}, data, { myroute }));
+  phone.act('home');
+  assert.ok(phone.root.querySelector('[data-a="open"][data-v="myroute"]'), 'the My routes app is on the home screen');
+  phone.act('open', 'myroute');
+  let tx = text();
+  assert.ok(tx.includes('Dock loop') && tx.includes('4.2 km') && tx.includes('1:01.50') && tx.includes('1:05.00') && tx.includes('Waypoints dropped: 2 of 8'), 'the route and the editor: ' + tx.slice(0, 300));
+  assert.ok(!phone.root.querySelector('[data-a="routesave"]'), 'two waypoints cannot be saved yet');
+  calls.length = 0;
+  click('routedrop', '1');
+  assert.ok(calls.includes('@sl_myroute.drop()'), 'Drop waypoint here calls the module');
+  click('routerace', '2');
+  assert.ok(calls.includes('@sl_myroute.race(2)'), 'Race it names the route');
+  calls.length = 0;
+  click('routedel', '2');
+  assert.ok(!calls.some(c => c.includes('delete')), 'the first click on Delete only asks');
+  click('routedel', '2');
+  assert.ok(calls.includes('@sl_myroute.delete(2)'), 'the second deletes');
+  phone.handle('slPhoneData', Object.assign({}, data, { myroute: Object.assign({}, myroute, { draft: 4 }) }));
+  assert.ok(phone.root.querySelector('[data-a="routesave"]'), 'four waypoints can be saved');
+  phone.handle('slPhoneData', Object.assign({}, data, { myroute: Object.assign({}, myroute, { run: { id: 2, name: 'Dock loop', next: 3, points: 5, started: true, t: 12.3, clock: '0:12.30' } }) }));
+  tx = text();
+  assert.ok(tx.includes('Racing Dock loop: waypoint 3 of 5') && tx.includes('0:12.30') && !phone.root.querySelector('[data-a="routerace"]') && !phone.root.querySelector('[data-a="routedrop"]') && phone.root.querySelector('[data-a="routestop"]'), 'a run: the clock, no new race or drop, a Stop: ' + tx.slice(0, 300));
+  phone.act('home');
+  phone.handle('slPhoneData', Object.assign({}, data, { myroute, has: Object.assign({}, data.has, { myroute: false }) }));
+  assert.ok(!phone.root.querySelector('[data-a="open"][data-v="myroute"]'), 'the part off: no app');
+  phone.handle('slPhoneData', data);
+  assert.ok(!phone.root.querySelector('[data-a="open"][data-v="myroute"]'), 'no data: no app');
+}
+{
+  // the danger zones (sl_danger.summary()) share the Speed traps page: the jump ladder card and the drift zones; the page works with one of them, both, or none
+  const danger = { drift: [{ id: 'd1', name: 'Drift zone 1', target: 3000, best: 3500, count: 2, paid: true, metres: 5200, pay: 300 }, { id: 'd2', name: 'Drift zone 2', target: 5000, best: 0, count: 0, paid: false, metres: 900, pay: 500 }], jump: { best: 38.4, count: 5, next: 50, prize: 400 } };
+  phone.handle('slPhoneData', Object.assign({}, data, { danger }));
+  phone.act('home');
+  assert.ok(phone.root.querySelector('[data-a="open"][data-v="traps"]'), 'the app shows with danger data alone');
+  phone.act('open', 'traps');
+  let tx = text();
+  assert.ok(tx.includes('Danger zones') && tx.includes('Longest jump') && tx.includes('38 m') && tx.includes('Next prize $400 at 50 m'), 'the jump card: ' + tx.slice(0, 300));
+  assert.ok(tx.indexOf('Drift zone 2') < tx.indexOf('Drift zone 1') && tx.includes('3000 points') && tx.includes('\u2714') && tx.includes('$500') && tx.includes('Paid') && tx.includes('900 m away'), 'the drift zones, nearest first, with target, met mark, reward or Paid, distance');
+  phone.handle('slPhoneData', Object.assign({}, data, { danger: { drift: [], jump: { best: 60, count: 9, next: null, prize: 400 } } }));
+  assert.ok(text().includes('Every prize is paid'), 'all four rungs paid');
+  phone.handle('slPhoneData', Object.assign({}, data, { danger, traps: { list: [{ id: 't1', name: 'Speed trap 1', kind: 'trap', target: 150, best: 0, count: 0, paid: false, metres: 100, pay: 250 }] } }));
+  tx = text();
+  assert.ok(tx.includes('Speed trap 1') && tx.includes('Danger zones') && tx.includes('Drift zone 1'), 'both on one page');
+  phone.handle('slPhoneData', Object.assign({}, data, { danger, has: Object.assign({}, data.has, { danger: false }) }));
+  assert.ok(!phone.root.querySelector('[data-a="open"][data-v="traps"]'), 'the part off: no app');
+  phone.handle('slPhoneData', data);
+}
+{
+  // the UI style kit: Reduce motion (option slReduceMotion, data.reduceMotion) and the focus band
+  const layer = () => phone.root.querySelector('.slp-layer') || phone.root;
+  phone.handle('slPhoneData', Object.assign({}, data, { reduceMotion: true }));
+  assert.ok(phone.root.classList.contains('slp-rm') || phone.root.querySelector('.slp-rm'), 'Reduce motion puts the slp-rm class on the phone');
+  phone.handle('slPhoneData', Object.assign({}, data, { reduceMotion: false }));
+  assert.ok(!phone.root.classList.contains('slp-rm') && !phone.root.querySelector('.slp-rm'), 'and takes it off');
+  const css = win.document.querySelector('style').textContent;
+  assert.ok(/\.slp-rm \.slp-device,\.slp-rm \*[^}]*transition:none!important;animation:none!important/.test(css) && /prefers-reduced-motion:reduce\)\{.*\.slp-root \*,\.slp-root \*:before/.test(css), 'both the option and the system setting stop every transition and animation');
+  assert.ok(/outline:3px solid #ffd54f!important;outline-offset:2px;box-shadow:0 0 0 2px #0d0b12/.test(css), 'the focus ring is 3 px with a dark band');
+  assert.ok(/reduceMotion\)\) return null/.test(code), 'with Reduce motion the K slide is the plain open and close');
+}
+{
+  // brand sponsorships (sl_sponsor.summary()): the offer with Accept / Decline, the deal with its terms and strikes, the standing bars; nothing with the part off or no data
+  const sponsors = { current: { brand: 'ironline', name: 'Ironline Racing', kind: 'maker', since: 30, retainer: 300, discount: 0.1, terms: { wins: 2, car: true }, weekWins: 1, carRaces: 3, strikes: 1, daysToReview: 4 },
+    offer: { brand: 'revline', name: 'Revline Parts', retainer: 450, discount: 0.15, terms: { wins: 2 }, expiresIn: 2 },
+    standing: [{ brand: 'ironline', name: 'Ironline Racing', kind: 'maker', standing: 72, nextAt: 100 }, { brand: 'revline', name: 'Revline Parts', kind: 'aftermarket', standing: 40, nextAt: 100 }] };
+  phone.handle('slPhoneData', Object.assign({}, data, { sponsors }));
+  phone.act('home');
+  assert.strictEqual(phone.root.querySelector('[data-a="open"][data-v="sponsors"] .slp-badge').textContent, '1', 'the Sponsors app shows a badge for an offer');
+  phone.act('open', 'sponsors');
+  let tx = text();
+  assert.ok(tx.includes('Offer: Revline Parts') && tx.includes('$450 a week') && tx.includes('15 %') && tx.includes('Win 2 races a week') && tx.includes('Expires in 2 d'), 'the offer: ' + tx.slice(0, 300));
+  assert.ok(phone.root.querySelector('[data-a="spnaccept"]') && phone.root.querySelector('[data-a="spndecline"]'), 'Accept and Decline');
+  assert.ok(tx.includes('Ironline Racing') && tx.includes('Maker') && tx.includes('$300 a week') && tx.includes('10 %') && tx.includes('Win 2 races a week (1 of 2)') && tx.includes('Race in a car with their parts (3)'), 'the deal with this week\u2019s progress');
+  assert.ok(tx.includes('\u26A0 1 / 2') && tx.includes('Review in 4 d'), 'strikes with a mark, and the review');
+  assert.ok(tx.includes('72 / 100') && tx.includes('40 / 100') && tx.includes('Brands that know you'), 'the standing list');
+  calls.length = 0;
+  click('spnaccept', '1'); click('spndecline', '1'); click('spnquit', '1');
+  assert.ok(!calls.includes('sponsorQuit()') && text().includes('Leave Ironline Racing? You will not get the old sponsor back'), 'the first press only asks, in plain words');
+  click('spnquit', '0'); assert.ok(!text().includes('You will not get'), 'Cancel closes the question');
+  click('spnquit', '1'); click('spnquit', '1');
+  assert.ok(calls.includes('sponsorAccept()') && calls.includes('sponsorDecline()') && calls.includes('sponsorQuit()'), 'the three actions: ' + calls.join(' '));
+  phone.handle('slPhoneData', Object.assign({}, data, { sponsors: { current: null, offer: null, standing: [] } }));
+  assert.ok(text().includes('No sponsor yet'), 'no deal, no offer: it says so');
+  phone.act('home');
+  assert.ok(!phone.root.querySelector('[data-a="open"][data-v="sponsors"] .slp-badge'), 'no badge without an offer');
+  phone.handle('slPhoneData', Object.assign({}, data, { sponsors, has: Object.assign({}, data.has, { sponsors: false }) }));
+  assert.ok(!phone.root.querySelector('[data-a="open"][data-v="sponsors"]'), 'the part off: no app');
+  phone.handle('slPhoneData', data);
+  assert.ok(!phone.root.querySelector('[data-a="open"][data-v="sponsors"]'), 'no data: no app');
+}
+{
+  // the Calendar app (sl_calendar.summary(), tools/calendar_fixture.js is the contract): tabs, the agenda with its cards, the week strip, the series, the event page and its actions
+  const fixture = require('./calendar_fixture.js');
+  phone.handle('slPhoneData', Object.assign({}, data, { calendar: fixture }));
+  phone.act('home');
+  assert.ok(phone.root.querySelector('[data-a="open"][data-v="calendar"]'), 'the Calendar app is on the home screen');
+  assert.strictEqual(phone.root.querySelector('[data-a="open"][data-v="calendar"] .slp-badge').textContent, '1', 'its badge is the open invitations');
+  phone.act('open', 'calendar');
+  let tx = text();
+  assert.ok(tx.includes('Agenda') && tx.includes('Week') && tx.includes('Series'), 'three tabs');
+  assert.ok(tx.includes('Benny') && tx.includes('Bring a car for gravel') && tx.includes('Expires in 2 d'), 'the invitation on top');
+  assert.ok(tx.indexOf('Johnson Valley off-road, round 2') < tx.indexOf('Dockyards night heat') && tx.indexOf('Dockyards night heat') < tx.indexOf('NGRC Utah Rally: SS1 River'), 'events in day order');
+  assert.ok(tx.includes('Tomorrow 15:00') && tx.includes('Dockyards 3-lap sprint'), 'when: Tomorrow with the time: ' + tx.slice(0, 500));
+  assert.ok(/Sun, day 42 08:00/.test(tx) || /Sat, day 42 08:00/.test(tx) || /day 42 08:00/.test(tx), 'a weekday and the day number: ' + tx.slice(0, 500));
+  assert.ok(tx.includes('Travel to Utah: $800 and 6 h') && tx.includes('round 1 of 4') && tx.includes('Purse by place, up to $3,000') && tx.includes('$800'), 'travel, round, reward as text and as money');
+  assert.ok(tx.includes('A gravel or rally car') && tx.includes('\u26A0'), 'an unmet requirement is marked');
+  assert.ok(tx.includes('Entered') && tx.includes('Done') && tx.includes('Missed'), 'status words');
+  assert.ok(tx.includes('Hirochi invitational') && tx.includes('★ Invitational'), 'a brand invitational has its own star and label: ' + tx.slice(0, 400));
+  click('caltab', 'week');
+  assert.strictEqual(phone.root.querySelectorAll('[data-a="calday"]').length, 7, 'seven days');
+  click('calday', '41');
+  tx = text();
+  assert.ok(tx.includes('Dockyards 3-lap sprint') && tx.includes('Swap meet') && !tx.includes('NGRC Utah Rally: SS1 River') && tx.includes('Show all days'), 'a day shows its events only');
+  click('calday', '');
+  assert.ok(text().includes('NGRC Utah Rally: SS1 River'), 'all days again');
+  click('caltab', 'series');
+  tx = text();
+  assert.ok(tx.includes('Johnson Valley off-road') && tx.includes('2 / 5') && tx.includes('17') && tx.includes('Next round: day 44'), 'the series card');
+  click('caltab', 'agenda');
+  click('calopen', 'utah-rally:3:r1');
+  tx = text();
+  assert.ok(tx.includes('NGRC Utah Rally: SS1 River') && phone.root.querySelector('[data-a="caltravel"][data-v="utah-rally:3:r1"]') && tx.includes('Go there') && tx.includes('You cannot enter yet'), 'a travel event offers Go there, refused while the requirement is unmet, with the reason');
+  assert.ok(phone.root.querySelector('.slp-btn.slp-off[data-a="caltravel"]'), 'the Go there button is dimmed');
+  calls.length = 0;
+  click('calremind', 'utah-rally:3:r1|false');
+  assert.ok(calls.some((c) => c.indexOf('calendarRemind("utah-rally:3:r1",false)') >= 0), 'Reminder: on turns it off: ' + calls.join(' '));
+  click('caldecline', 'utah-rally:3:r1');
+  assert.ok(calls.some((c) => c.indexOf('calendarDecline("utah-rally:3:r1")') >= 0), 'Decline asks the game');
+  phone.handle('slPhoneData', Object.assign({}, data, { calendar: Object.assign({}, fixture, { events: fixture.events.map((e) => (e.id === 'utah-rally:3:r1' ? Object.assign({}, e, { requires: { label: 'A gravel or rally car', met: true } }) : e)) }) }));
+  click('calopen', 'utah-rally:3:r1');
+  calls.length = 0;
+  click('caltravel', 'utah-rally:3:r1');
+  assert.ok(calls.some((c) => c.indexOf('travelPick("utah-rally:3:r1")') >= 0), 'with the requirement met, Go there opens the pick-cars screen');
+  click('back');
+  click('calopen', 'weekend:dock-3:5');
+  assert.ok(phone.root.querySelector('[data-a="calenter"][data-v="weekend:dock-3:5"]'), 'a home event is entered directly');
+  calls.length = 0;
+  click('calenter', 'weekend:dock-3:5');
+  assert.ok(calls.some((c) => c.indexOf('calendarEnter("weekend:dock-3:5")') >= 0), 'Enter asks the game');
+  click('back');
+  assert.ok(text().includes('Dockyards night heat'), 'back to the agenda');
+  phone.act('home');
+  phone.handle('slPhoneData', Object.assign({}, data, { calendar: fixture, has: Object.assign({}, data.has, { calendar: false }) }));
+  assert.ok(!phone.root.querySelector('[data-a="open"][data-v="calendar"]'), 'the part off: no app');
+  phone.handle('slPhoneData', Object.assign({}, data, { calendar: { today: fixture.today, events: [], series: [], invites: [] } }));
+  phone.act('open', 'calendar');
+  assert.ok(text().includes('Nothing planned.'), 'an empty calendar says so');
+  click('caltab', 'series');
+  assert.ok(text().includes('No series running'), 'no series says so');
+  phone.act('home');
+  phone.handle('slPhoneData', data);
+}
+{
+  // the trip (tools/travel_fixture.js is the contract): the pick-cars screen, the Event hub, a trip leaves only the apps that work away from home
+  const tf = require('./travel_fixture.js');
+  const base = Object.assign({}, data);
+  phone.act('home');
+  phone.handle('slPhoneData', Object.assign({}, base, { travelPick: tf.options }));
+  let tx = text();
+  assert.ok(tx.includes('NGRC Utah Rally') && tx.includes('Subaru Impreza GC8') && tx.includes('Gravel tyres') && tx.includes('Too low for the stages') && tx.includes('Pick up to 3 cars'), 'the pick screen: ' + tx.slice(0, 300));
+  assert.ok(!phone.root.querySelector('[data-a="pickcar"][data-v="c3"]'), 'a car that does not fit cannot be picked');
+  assert.ok(phone.root.querySelector('.slp-btn.slp-off[data-a="pickconfirm"]'), 'Confirm is dimmed with no car');
+  calls.length = 0;
+  click('pickconfirm', '1');
+  assert.ok(calls.length === 0, 'nothing sent with no car');
+  click('pickcar', 'c1'); click('pickcar', '2'); click('pickcar', '2'); click('pickcar', '2');      // (a numeric id: the second press takes it off again)
+  tx = text();
+  assert.ok(tx.includes('$800') && tx.includes('$200') && tx.includes('6 h') && tx.includes('$1,200'), 'total = fee + each car: ' + tx.slice(0, 500));
+  click('pickconfirm', '1');
+  assert.ok(calls.includes('travelConfirm("utah-rally:3:r1",["c1","2"],false)'), 'Confirm: ' + calls.join(' '));
+  click('pickback');
+  assert.ok(calls.includes('travelClose()'), 'Back closes the screen');
+  assert.ok(!text().includes('Pick up to'), 'Back leaves the screen even while the data stays (Lua did not answer)');
+  phone.handle('slPhoneData', Object.assign({}, base, { travelPick: tf.options }));
+  assert.ok(!text().includes('Pick up to'), 'a push of the same screen stays dismissed');
+  phone.handle('slPhoneData', base);
+  phone.handle('slPhoneData', Object.assign({}, base, { travelPick: tf.options }));
+  assert.ok(text().includes('Pick up to'), 'a screen opened again after the data cleared shows again');
+  phone.handle('slPhoneData', Object.assign({}, base, { travelPick: Object.assign({}, tf.options, { loaner: { name: 'Rental Hatch', deposit: 300 }, cars: [] }) }));
+  click('pickloaner', '1');
+  assert.ok(text().includes('Borrow Rental Hatch') && text().includes('Deposit $300') && text().includes('$1,100'), 'a loaner when no car fits, with its deposit in the total');
+  calls.length = 0; click('pickconfirm', '1');
+  assert.ok(calls.includes('travelConfirm("utah-rally:3:r1",[],true)'), 'the loaner goes');
+  phone.handle('slPhoneData', Object.assign({}, base, { travelPick: Object.assign({}, tf.options, { refuse: 'Not during a race.' }) }));
+  assert.ok(text().includes('Not during a race.') && !phone.root.querySelector('[data-a="pickconfirm"]'), 'a refusal shows its reason and nothing to confirm');
+  phone.handle('slPhoneData', base);
+  assert.ok(!text().includes('Pick up to'), 'closed with the data gone');
+  phone.act('home');
+  assert.ok(!phone.root.querySelector('[data-a="open"][data-v="event"]'), 'no Event app at home');
+  phone.handle('slPhoneData', Object.assign({}, base, { visit: tf.visit, hub: tf.hub }));
+  assert.ok(phone.root.querySelector('[data-a="open"][data-v="event"]') && !phone.root.querySelector('[data-a="open"][data-v="races"]') && !phone.root.querySelector('[data-a="open"][data-v="garagekit"]') && !phone.root.querySelector('[data-a="open"][data-v="cab"]') &&
+    phone.root.querySelector('[data-a="open"][data-v="garage"]') && phone.root.querySelector('[data-a="open"][data-v="bank"]') && phone.root.querySelector('[data-a="open"][data-v="messages"]'), 'on a trip: the Event app, the cars, money, talk; no races, home garage or cab');
+  phone.act('open', 'event');
+  tx = text();
+  assert.ok(tx.includes('Round 2 of 4') && tx.includes('Utah') && tx.includes('You can stay until day 45') && tx.includes('Stage times: fastest wins') && tx.includes('Next: SS2 Canyon') && tx.includes('Day 43 10:00') && tx.includes('\u2714 SS1 River') && tx.includes('K. Ward') && tx.includes('25 pts') && tx.includes('4:15.9') && tx.includes('Standings') && tx.includes('Subaru Impreza GC8'), 'the hub: ' + tx.slice(0, 600));
+  calls.length = 0;
+  click('hubstart', '1');
+  assert.ok(calls.includes('hubStart()'), 'Start');
+  click('hubhome', '1');
+  assert.ok(!calls.includes('hubHome()') && text().includes('The rounds you have not run count as missed'), 'Go home asks first, in plain words (the core\u2019s own note)');
+  click('hubhome', '0'); assert.ok(!text().includes('counts as missed'), 'Cancel closes it');
+  click('hubhome', '1'); click('hubhome', '1');
+  assert.ok(calls.includes('hubHome()'), 'the second press goes home');
+  phone.handle('slPhoneData', Object.assign({}, base, { visit: tf.visit, hub: Object.assign({}, tf.hub, { canStart: false, startWhy: 'Not before 10:00' }) }));
+  assert.ok(phone.root.querySelector('.slp-btn.slp-off[data-a="hubstart"]') && text().includes('Not before 10:00'), 'a round that cannot start yet says why');
+  phone.handle('slPhoneData', Object.assign({}, base, { visit: tf.visit, hub: Object.assign({}, tf.hub, { event: Object.assign({}, tf.hub.event, { status: 'done' }) }) }));
+  assert.ok(text().includes('The series is over') && !phone.root.querySelector('[data-a="hubstart"]') && phone.root.querySelector('[data-a="hubhome"]'), 'a finished series: no Start, Go home stays');
+  phone.act('home');
+  phone.handle('slPhoneData', data);
+}
+// BUGS_1018 #9: the phone's own focus never scrolls the screen (a plain focus() brought the Home button into view and left the home grid 171 px down); jsdom has no scrolling, so the call is what is checked
+assert.ok(/target\.focus\(\{ preventScroll: true \}\)/.test(code) && !/target\.focus\(\)/.test(code), 'the phone focuses its controls with preventScroll');
+{
+  // the trophy list on Street cred (tools/trophies_fixture.js): newest first, kind and day, the place; no card without the list
+  const tf = require('./trophies_fixture.js');
+  phone.act('home');
+  phone.handle('slPhoneData', Object.assign({}, data, { trophies: tf }));
+  phone.act('open', 'me');
+  let tx = text();
+  assert.ok(tx.includes('Trophies: 3') && tx.includes('NGRC Utah Rally') && tx.includes('Series') && tx.includes('day 58') && tx.includes('1st') && tx.includes('2nd') && tx.includes('Invitational'), 'the trophies: ' + tx.slice(0, 300));
+  assert.ok(tx.indexOf('NGRC Utah Rally') < tx.indexOf('Hirochi invitational') && tx.indexOf('Hirochi invitational') < tx.indexOf('Dockyards 3-lap sprint'), 'newest first');
+  phone.handle('slPhoneData', Object.assign({}, data, { trophies: [] }));
+  assert.ok(text().includes('Trophies: 0') && text().includes('No trophies yet'), 'an empty list says so');
+  phone.handle('slPhoneData', data);
+  assert.ok(!text().includes('Trophies:'), 'no list: no card');
+  // the per-save economy offer (tools/economy_fixture.js): a card with one button only while the snapshot carries the text
+  const ef = require('./economy_fixture.js');
+  phone.act('home');
+  phone.handle('slPhoneData', Object.assign({}, data, ef));
+  phone.act('open', 'me');
+  assert.ok(text().includes('New in 0.8.0') && text().includes('Turn them on for this career?') && phone.root.querySelector('[data-a="economy"]'), 'an old save: the offer card on Street cred');
+  calls.length = 0; click('economy', '1');
+  assert.ok(calls.includes('economyOptIn()'), 'the button calls the game: ' + calls.join(' '));
+  phone.handle('slPhoneData', Object.assign({}, data, { economyOffer: null }));
+  assert.ok(!text().includes('New in 0.8.0') && !phone.root.querySelector('[data-a="economy"]'), 'a new career or after the opt-in: no card');
+  phone.handle('slPhoneData', data);
+  phone.act('home');
+}
+{
+  // Wrench Works' garage takes the right of the screen: an open phone is put away when a visit starts (80, WW 1.8.8: the HUD phone hid the Services list)
+  phone.handle('slPhoneToggle');
+  assert.ok(phone.state.open === true || phone.root.querySelector('.slp-device'), 'the phone is up');
+  phone.handle('slrrGarageState', { phase: 'garage' });
+  assert.ok(!phone.state.open, 'a garage visit puts the open phone away');
+  phone.handle('slPhoneToggle');
+  phone.handle('slrrGarageState', { phase: 'idle' });
+  assert.ok(phone.state.open === true, 'an idle garage state leaves it alone');
+  phone.handle('slPhoneToggle');
+}
+{
+  // the cracked screen (tools/crack_fixture.js): the overlay over the whole screen with the stage's web, the strength as its opacity, nothing for a whole screen
+  const cf = require('./crack_fixture.js'), K = win.__slPhoneCrack;
+  phone.act('home');
+  phone.handle('slPhoneData', Object.assign({}, data, { crack: cf }));
+  let svg = phone.root.querySelector('.slp-screen > .slp-crack');
+  assert.ok(svg && svg.getAttribute('data-stage') === '2' && parseFloat(svg.style.opacity) === 0.85, 'a stage 2 crack is drawn over the screen at the strength of the setting');
+  assert.ok(svg.querySelectorAll('.slp-crack-light path').length === svg.querySelectorAll('.slp-crack-dark path').length && svg.querySelectorAll('.slp-crack-light path').length > 11, 'a dark and a light line for every crack line');
+  assert.ok(text().includes('Street cred') || phone.root.querySelector('[data-a="open"]'), 'the phone is still readable through it (the overlay takes no clicks)');
+  assert.ok(/pointer-events:none/.test(win.document.querySelector('style').textContent.match(/\.slp-crack\{[^}]*\}/)[0]), 'the overlay does not take clicks');
+  assert.deepStrictEqual(K.paths(2, 0.42, 0.36, 20481), K.paths(2, 0.42, 0.36, 20481), 'the same seed draws the same web');
+  assert.notDeepStrictEqual(K.paths(2, 0.42, 0.36, 1), K.paths(2, 0.42, 0.36, 2), 'another seed another web');
+  const n1 = K.paths(1, 0.5, 0.5, 5).length, n2 = K.paths(2, 0.5, 0.5, 5).length, n3 = K.paths(3, 0.5, 0.5, 5).length;
+  assert.ok(n1 < n2 && n2 < n3, 'a worse crash has more lines: ' + [n1, n2, n3]);
+  assert.ok(K.paths(3, 0.5, 0.5, 5, 100, 100)[0].startsWith('M50.0 50.0'), 'the web starts at the impact point');
+  phone.handle('slPhoneData', Object.assign({}, data, { crack: Object.assign({}, cf, { stage: 3, strength: 0.3 }) }));
+  svg = phone.root.querySelector('.slp-crack');
+  assert.ok(svg.getAttribute('data-stage') === '3' && parseFloat(svg.style.opacity) === 0.3 && svg.querySelector('.slp-shard'), 'stage 3: shards too, a faint overlay at low strength');
+  phone.handle('slPhoneData', Object.assign({}, data, { crack: null }));
+  assert.ok(!phone.root.querySelector('.slp-crack'), 'a whole screen has no overlay');
+  phone.handle('slPhoneData', Object.assign({}, data, { crack: { stage: 0 } }));
+  assert.ok(!phone.root.querySelector('.slp-crack'), 'stage 0: no overlay');
+  phone.handle('slPhoneData', data);
+}
+{
+  // the Camera app as a camera (tools/camera_fixture.js): opening it asks for the first-person view and draws the sideways phone; leaving puts the camera back
+  const cam = require('./camera_fixture.js'), cf = require('./crack_fixture.js');
+  if (!phone.state.open) phone.handle('slPhoneToggle');
+  phone.act('home');
+  phone.handle('slPhoneData', Object.assign({}, data, { camera: cam }));
+  calls.length = 0;
+  phone.act('open', 'camera');
+  assert.ok(calls.includes('cameraEnter()'), 'the Camera app asks for the first-person view: ' + calls.join(' '));
+  assert.ok(phone.root.classList.contains('slp-camon') || phone.root.querySelector('.slp-camon') || phone.root.querySelector('.slp-camui'), 'the camera screen is up');
+  const ui = phone.root.querySelector('.slp-camui');
+  assert.ok(ui && ui.querySelector('[data-a="photo"]') && ui.querySelector('.slp-camgrid') && ui.querySelector('.slp-cambz') && ui.querySelector('[data-a="camflash"]') && ui.querySelectorAll('[data-a="camzoom"]').length === 3, 'shutter, grid, bezel, flash and zoom 1x 2x 4x (zoomMax 4)');
+  assert.ok(ui.getAttribute('style').includes('--slp-sway:0.50'), 'the sway setting is on the frame');
+  calls.length = 0;
+  click('camzoom', '2');
+  assert.ok(calls.includes('cameraZoom(2)') && phone.root.querySelector('[data-a="camzoom"][data-v="2"]').classList.contains('slp-on'), 'a zoom button sets the zoom through the game');
+  click('camflash', '1');
+  assert.ok(phone.root.querySelector('.slp-camflashb').classList.contains('slp-on'), 'the flash toggles');
+  click('camgrid', '1');
+  assert.ok(!phone.root.querySelector('.slp-camgrid'), 'the grid toggles off');
+  calls.length = 0;
+  click('photo', '1');
+  assert.ok(calls.includes('takePhoto()'), 'the shutter is the app’s own photo: ' + calls.join(' '));
+  calls.length = 0;
+  win.document.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  assert.ok(calls.includes('cameraLeave()') && !phone.root.querySelector('.slp-camui'), 'Esc leaves the camera too');
+  phone.act('open', 'camera');
+  phone.handle('slPhoneData', Object.assign({}, data, { camera: Object.assign({}, cam, { bezel: false, zoomMax: 1, sway: 0 }), crack: cf }));
+  assert.ok(!phone.root.querySelector('.slp-cambz') && phone.root.querySelectorAll('[data-a="camzoom"]').length === 1 && phone.root.querySelector('.slp-camui .slp-crack'), 'no bezel, one zoom step, and a cracked phone has its cracks over the camera too');
+  calls.length = 0;
+  click('home', undefined);
+  assert.ok(calls.includes('cameraLeave()') && !phone.root.querySelector('.slp-camui'), 'leaving the app puts the camera back and the screen away: ' + calls.join(' '));
+  phone.handle('slPhoneData', data);
+}
+{
+  // the home championship on the Series tab (tools/season_fixture.js)
+  const sf = require('./season_fixture.js');
+  phone.act('home');
+  phone.handle('slPhoneData', Object.assign({}, data, { calendar: require('./calendar_fixture.js'), season: sf }));
+  phone.act('open', 'calendar');
+  click('caltab', 'series');
+  let tx = text();
+  assert.ok(tx.includes('Home championship, season 2') && tx.includes('Days 40 to 58') && tx.includes('$2,000 for the champion') && tx.includes('you are 2nd') && tx.includes('Titles won: 1') && tx.includes('Home championship, season 1'), 'the season card: ' + tx.slice(0, 400));
+  assert.ok(tx.includes('Dockyards sprint') && tx.includes('Place 2, 8 pts') && tx.includes('Hill duel night, Saturday 21:00') && tx.includes('Missed') && tx.includes('Next') && tx.includes('Day 58'), 'six rounds with their states');
+  assert.ok(tx.includes('Standings') && tx.includes('K. Ward') && tx.includes('26 pts') && tx.includes('Mia the Mechanic of the Pier Street Garage Crew'), 'the table, with a long name');
+  assert.ok(!phone.root.querySelector('[data-a="seasonenter"]'), 'entered: no Enter button');
+  phone.handle('slPhoneData', Object.assign({}, data, { calendar: require('./calendar_fixture.js'), season: Object.assign({}, sf, { season: Object.assign({}, sf.season, { entered: false, canEnter: true, position: null }) }) }));
+  calls.length = 0; click('seasonenter', '1');
+  assert.ok(calls.includes('seasonEnter()') && !phone.root.querySelector('.slp-btn.slp-off[data-a="seasonenter"]'), 'Enter while it can be entered');
+  phone.handle('slPhoneData', Object.assign({}, data, { calendar: require('./calendar_fixture.js'), season: Object.assign({}, sf, { season: Object.assign({}, sf.season, { entered: false, canEnter: false }) }) }));
+  assert.ok(phone.root.querySelector('.slp-btn.slp-off[data-a="seasonenter"]'), 'dimmed when it cannot');
+  phone.handle('slPhoneData', Object.assign({}, data, { calendar: require('./calendar_fixture.js'), season: Object.assign({}, sf, { season: null }) }));
+  assert.ok(text().includes('No season running') && text().includes('$2,000'), 'no season: the card says so');
+  phone.handle('slPhoneData', Object.assign({}, data, { calendar: require('./calendar_fixture.js') }));
+  assert.ok(!text().includes('Home championship'), 'no data: no card');
+  phone.act('home');
+  phone.handle('slPhoneData', data);
 }
 console.log('phone test passed');
 
@@ -1145,6 +1575,24 @@ if (out > 0) {
   assert.ok(phone.state.app === 'map', 'the map still opens by a deep link');
   phone.handle('slPhoneGo', { app: 'cab' });
   assert.ok(phone.state.app === 'cab', 'the cab still opens by a deep link');
+  // freight runs (tools/frjobs_fixture.js): no tile without the data, offers with Take, the run under way with Cancel and no Take
+  const fj = require('./frjobs_fixture.js');
+  assert.ok(!ids().includes('frjobs'), 'no frjobs data: no Freight runs tile');
+  phone.handle('slPhoneData', Object.assign({}, fr, { apps: ['map', 'cab', 'frjobs'], frjobs: { offers: fj.offers, pay: 'Wrench Works' } }));
+  phone.act('home');
+  assert.ok(ids().includes('frjobs'), 'the Freight runs tile shows with the data');
+  phone.act('open', 'frjobs');
+  assert.ok(/Tyre run/.test(text()) && /Torres Tires/.test(text()) && /\$480/.test(text()) && /7 min/.test(text()) && /5\.2 km/.test(text()), 'the offers show item, places, pay, time and distance');
+  calls.length = 0;
+  phone.act('frtake', 'fr2');
+  assert.deepStrictEqual(calls, ['frjobAccept("fr2")'], 'Take calls the phone with the offer id');
+  phone.handle('slPhoneData', Object.assign({}, fr, { apps: ['map', 'cab', 'frjobs'], frjobs: fj }));
+  assert.ok(/Brake pad run/.test(text()) && /Pick up at Jerry Riggs/.test(text()) && !phone.root.querySelector('[data-a="frtake"]') && phone.root.querySelector('[data-a="frcancel"]'), 'a run under way: its next stop, Cancel, no Take');
+  calls.length = 0; phone.act('frcancel');
+  assert.deepStrictEqual(calls, ['frjobCancel()']);
+  phone.handle('slPhoneData', Object.assign({}, fr, { apps: ['map', 'cab', 'frjobs'], frjobs: { offers: [], pay: 'Wrench Works' } }));
+  assert.ok(/No runs on the board/.test(text()), 'an empty board says so');
+  phone.act('home');
   // a Back that would pop an app pushed before the free roam flag came: it lands on home, not on that app
   phone.handle('slPhoneData', data);
   phone.act('home'); phone.act('open', 'bank'); phone.act('open', 'messages');

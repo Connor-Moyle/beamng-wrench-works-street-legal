@@ -21,6 +21,7 @@ M.KINDS = {
   carwash = { cardIcon = 'droplet', pin = 'poi_point_1_round', what = strings.t('fasttravel.car_wash') },
   meet = { cardIcon = 'cars', pin = 'poi_parking_round', what = strings.t('fasttravel.car_meet') },
   hospital = { cardIcon = 'shieldHandPlus', pin = 'poi_exclamationmark_round', what = strings.t('fasttravel.hospital') },
+  impound = { cardIcon = 'shieldHandPlus', pin = 'poi_exclamationmark_round', what = strings.t('fasttravel.police_impound') },
   valet = { cardIcon = 'keys1', pin = 'poi_parking_round', what = strings.t('fasttravel.valet') },
   parts = { cardIcon = 'wrench', pin = 'poi_point_1_round', what = strings.t('fasttravel.parts_store') },
   auction = { cardIcon = 'carCoins', pin = 'poi_point_1_round', what = strings.t('fasttravel.live_auction') },     -- (the junkyard on auction day)

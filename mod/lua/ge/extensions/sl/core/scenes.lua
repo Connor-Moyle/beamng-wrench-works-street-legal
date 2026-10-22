@@ -1,0 +1,101 @@
+-- Street Legal: the rules of the cinematic moments (docs/TRANSITIONS.md). Pure: no game calls. A moment is a short full-screen scene the UI plays while the game
+-- changes something behind it (the clock jumps to the night, the day starts). This file decides what is shown and for how long; sl/scenes.lua plays it.
+local M = {}
+
+-- seconds the scene holds the screen: the full one, and the reduced-motion one (a still title card)
+M.KINDS = {
+  night = { hold = 3.4, reduce = 1.4, title = 'scenes.night', sub = 'scenes.night_sub',
+    cues = { { at = 0, event = 'event:>UI>Bigmap>Whoosh_In' }, { at = 1.3, event = 'event:>UI>Missions>Info_Open' } }, reduceCues = { { at = 0.1, event = 'event:>UI>Missions>Info_Open' } } },
+  day = { hold = 3.0, reduce = 1.2, title = 'scenes.day', sub = 'scenes.day_sub',
+    cues = { { at = 0, event = 'event:>UI>Bigmap>Whoosh_In' }, { at = 1.3, event = 'event:>UI>Missions>Checkpoint' } }, reduceCues = { { at = 0.1, event = 'event:>UI>Missions>Checkpoint' } } },
+}
+
+-- the short moments (banners over the live game: bars, a big title; no black screen, nothing held): style -> hold seconds, text keys, tone (the UI's colour), cues
+M.BANNERS = {
+  busted = { hold = 2.6, title = 'scenes.busted', sub = 'scenes.busted_sub', tone = 'bad', cues = { { at = 0, event = 'event:>UI>Career>Drift_Canceled' } } },
+  impound = { hold = 2.4, title = 'scenes.impound', sub = 'scenes.impound_sub', tone = 'bad', cues = { { at = 0, event = 'event:>UI>Career>Drift_Canceled' } } },
+  pinkwin = { hold = 2.8, title = 'scenes.pinkwin', sub = 'scenes.pinkwin_sub', tone = 'good', cues = { { at = 0, event = 'event:>UI>Career>EndScreen_Receive_Money' } } },
+  pinklose = { hold = 2.8, title = 'scenes.pinklose', sub = 'scenes.pinklose_sub', tone = 'bad', cues = { { at = 0, event = 'event:>UI>Career>Drift_Canceled' } } },
+  heat = { hold = 2.0, title = 'scenes.heat', sub = 'scenes.heat_sub', tone = 'warn', cues = { { at = 0, event = 'event:>UI>Career>Drift_Tier' } } },
+  reveal = { hold = 2.6, title = 'scenes.reveal', sub = 'scenes.reveal_sub', tone = 'good', cues = { { at = 0, event = 'event:>UI>Career>Buy_01' } } },
+  tier = { hold = 3.0, title = 'scenes.tier', sub = 'scenes.tier_sub', tone = 'good', cues = { { at = 0, event = 'event:>UI>Career>EndScreen_Receive_XP' } } },
+  garage_in = { hold = 1.6, title = 'scenes.garage_in', sub = 'scenes.garage_sub', tone = 'plain', cues = {} },
+  garage_out = { hold = 1.4, title = 'scenes.garage_out', sub = 'scenes.garage_out_sub', tone = 'plain', cues = {} },
+  reminder = { hold = 3.0, title = 'scenes.reminder', sub = 'scenes.reminder_sub', tone = 'warn', cues = { { at = 0, event = 'event:>UI>Missions>Info_Open' } } },
+  count = { hold = 0.9, title = 'scenes.count', tone = 'warn', cues = { { at = 0, event = 'event:>UI>Main>Click_Tonal_01' } } },
+  -- a series round and a whole series (the hooks onStreetLegalRoundResult / onStreetLegalSeriesFinished): title {1} = round (or place), {2} = place; subtitle {1} = series name, {2} = points
+  round_win = { hold = 3.0, title = 'scenes.round_win', sub = 'scenes.round_sub', tone = 'good', cues = { { at = 0, event = 'event:>UI>Career>EndScreen_Receive_XP' } } },
+  round_podium = { hold = 2.8, title = 'scenes.round_podium', sub = 'scenes.round_sub', tone = 'good', cues = { { at = 0, event = 'event:>UI>Career>EndScreen_Receive_Money' } } },
+  round_done = { hold = 2.4, title = 'scenes.round_done', sub = 'scenes.round_sub', tone = 'plain', cues = { { at = 0, event = 'event:>UI>Missions>Info_Open' } } },
+  round_dnf = { hold = 2.4, title = 'scenes.round_dnf', sub = 'scenes.round_sub', tone = 'bad', cues = { { at = 0, event = 'event:>UI>Career>Drift_Canceled' } } },
+  series_win = { hold = 4.0, title = 'scenes.series_win', sub = 'scenes.series_sub', tone = 'good', cues = { { at = 0, event = 'event:>UI>Career>EndScreen_Receive_XP' }, { at = 1.0, event = 'event:>UI>Career>EndScreen_Receive_Money' } } },
+  series_podium = { hold = 3.4, title = 'scenes.series_podium', sub = 'scenes.series_sub', tone = 'good', cues = { { at = 0, event = 'event:>UI>Career>EndScreen_Receive_Money' } } },
+  series_end = { hold = 3.0, title = 'scenes.series_end', sub = 'scenes.series_sub', tone = 'plain', cues = { { at = 0, event = 'event:>UI>Missions>Info_Open' } } },
+  -- the style show's podium (sl_scenes.play('showpodium', { place, names = { first, second, third } })): the style follows the place, the subtitle lists the three names
+  show_win = { hold = 5.0, title = 'scenes.show_win', sub = 'scenes.show_sub', tone = 'good', cues = { { at = 0, event = 'event:>UI>Career>EndScreen_Receive_XP' }, { at = 1.0, event = 'event:>UI>Career>EndScreen_Receive_Money' } } },
+  show_2 = { hold = 5.0, title = 'scenes.show_2', sub = 'scenes.show_sub', tone = 'good', cues = { { at = 0, event = 'event:>UI>Career>EndScreen_Receive_Money' } } },
+  show_3 = { hold = 5.0, title = 'scenes.show_3', sub = 'scenes.show_sub', tone = 'good', cues = { { at = 0, event = 'event:>UI>Career>EndScreen_Receive_Money' } } },
+  show_other = { hold = 4.0, title = 'scenes.show_other', sub = 'scenes.show_sub', tone = 'plain', cues = { { at = 0, event = 'event:>UI>Missions>Info_Open' } } },
+  go = { hold = 1.0, title = 'scenes.go', tone = 'good', cues = { { at = 0, event = 'event:>UI>Missions>Checkpoint' } } },
+}
+
+-- a banner's spec: nil for an unknown style. data: { name, level, n, day, extra }. Under reduce motion the same card, with no movement and the same hold (the UI does the rest).
+function M.banner(style, data, reduce, t)
+  local b = M.BANNERS[style]
+  if not b then return nil end
+  data = data or {}
+  local name = data.name and tostring(data.name) or ''
+  local title = b.title and t(b.title, tonumber(data.n) or tonumber(data.level) or name, data.extra ~= nil and data.extra or '') or ''
+  return {
+    kind = 'banner', style = style, tone = b.tone, reduce = reduce == true, hold = b.hold, title = title,
+    subtitle = b.sub and t(b.sub, name, tonumber(data.level) or '', data.extra ~= nil and data.extra or '') or '', cues = b.cues, skipHint = '',
+  }
+end
+
+-- a round result r = { series, name, round, rounds, place = n|nil, points, dnf, missed } -> style and data; nil for a missed round (nothing to celebrate)
+function M.roundBanner(r)
+  if type(r) ~= 'table' or r.missed == true then return nil end
+  local place = tonumber(r.place)
+  local style = (r.dnf == true or not place) and 'round_dnf' or place == 1 and 'round_win' or place <= 3 and 'round_podium' or 'round_done'
+  return style, { name = r.name, n = tonumber(r.round) or 1, level = tonumber(r.points) or 0, extra = place }
+end
+-- a series result r = { series, name, pos, points } (pos = the final place in the standings)
+function M.seriesBanner(r)
+  if type(r) ~= 'table' then return nil end
+  local pos = tonumber(r.pos)
+  local style = not pos and 'series_end' or pos == 1 and 'series_win' or pos <= 3 and 'series_podium' or 'series_end'
+  return style, { name = r.name, n = pos, level = tonumber(r.points) or 0, extra = pos }
+end
+
+-- the show podium: data = { place, names = { first, second, third }, total } -> style and data; nil with no place
+function M.showBanner(d)
+  if type(d) ~= 'table' or not tonumber(d.place) then return nil end
+  local place, names = tonumber(d.place), {}
+  for i = 1, 3 do local n = type(d.names) == 'table' and d.names[i] or nil if n ~= nil then names[#names + 1] = i .. '. ' .. tostring(n) end end
+  return place == 1 and 'show_win' or place == 2 and 'show_2' or place == 3 and 'show_3' or 'show_other', { name = table.concat(names, '   '), n = place }
+end
+
+M.FADE_IN = 0.5          -- the screen goes dark under the scene this long before the game changes anything behind it
+M.FADE_OUT = 0.6         -- and clears this long after it ends
+
+-- what the UI is told: nil for a kind that has no scene. t = the strings function (key, ...) -> text
+function M.spec(kind, data, reduce, t)
+  local k = M.KINDS[kind]
+  if not k then return nil end
+  data = data or {}
+  local day = tonumber(data.day) or 1
+  return {
+    kind = kind, reduce = reduce == true, hold = reduce and k.reduce or k.hold, fadeIn = M.FADE_IN, fadeOut = M.FADE_OUT,
+    title = t(k.title), subtitle = t(k.sub, day), skipHint = t('scenes.skip'), day = day,
+    cues = reduce and k.reduceCues or k.cues,      -- the game's own UI sounds, played by sl/scenes at their time (seconds since the scene began)
+  }
+end
+
+-- a scene may be skipped once it has been up this long (not at the first instant: a key still held down from the menu must not cancel it)
+M.SKIP_AFTER = 0.4
+
+function M.canSkip(elapsed)
+  return (tonumber(elapsed) or 0) >= M.SKIP_AFTER
+end
+
+return M

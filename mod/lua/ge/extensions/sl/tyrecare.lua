@@ -98,6 +98,17 @@ function M.card(car, vid, withOffers)
   return out
 end
 
+-- what a set of each compound costs on the player's car, where `where` is 'garage' (default) or 'track', the trade-in of the old set counted: id -> price. nil when there is no car or no tyres to report
+function M.quotes(where)
+  if not career() then return nil end
+  local car, vid = current()
+  if not (car and vid and M.available() and not M.noTyres(vid)) then return nil end
+  local now = setNow(car, M.info(car, vid))
+  local out = {}
+  for _, id in ipairs(T.ORDER) do out[id] = T.quote(id, nil, where or 'garage', now) end
+  return out
+end
+
 local function moving(vid)
   local v = getObjectByID and getObjectByID(vid)
   if not v then return false end

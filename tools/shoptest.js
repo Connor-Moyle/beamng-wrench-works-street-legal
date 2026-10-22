@@ -1,0 +1,180 @@
+// Runs the shop screen (ui/modModules/slShop/slShop.js) in a simulated page and checks what it draws, how a gamepad reaches it, and the style rules of docs/UI_STYLE.md:
+// every interactive element has data-a and bng-nav-item and a visible focus style, no text outside T(), and no motion when the player asks for less.
+// Needs jsdom:  npm i jsdom   then   node tools/shoptest.js
+const fs = require('fs'), path = require('path'), assert = require('assert');
+const { JSDOM } = require('jsdom');
+
+const code = fs.readFileSync(path.join(__dirname, '..', 'mod/ui/modModules/slShop/slShop.js'), 'utf8');
+const dom = new JSDOM('<!doctype html><html><body></body></html>', { runScripts: 'outside-only', pretendToBeVisual: true });
+const win = dom.window;
+win.__slShopTest = true;
+win.eval(code);
+
+const calls = [];
+const shop = win.__slShopCreate(win.document, (c) => calls.push(c));
+const $ = (sel) => shop.root.querySelector(sel);
+const $$ = (sel) => Array.from(shop.root.querySelectorAll(sel));
+const sel = (a, v) => '[data-a="' + a + '"]' + (v === undefined ? '' : '[data-v="' + v + '"]');
+const click = (a, v) => $(sel(a, v)).dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+const nav = (name) => win.dispatchEvent(new win.CustomEvent('ui_nav', { detail: { name, value: 1 } }));
+
+// every key answers with a marker, so any text on screen without a marker is text that did not go through T()
+shop.handle('slStrings', new Proxy({}, { get: (t, k) => (typeof k === 'string' ? '«' + k + '»' : undefined) }));
+
+const tyreShop = {
+  kind: 'tyre', title: 'Tyre shop', name: 'Torres on 5th', goods: 'tyres', screen: 'catalogue', money: 1200,
+  theme: { accent: '#f2b84b', pattern: 'tread', icon: 'tyre' }, keeper: { name: 'Gus', line: 'Tread tells the truth.' },
+  stock: [
+    { id: 'road', name: 'Road', group: 'road', price: 357, was: 360 },
+    { id: 'performance', name: 'Performance', group: 'road', price: 635, was: 640 },
+    { id: 'winter', name: 'Winter', group: 'weather', price: 480, desc: 'Soft rubber for the cold.' },
+    { id: 'slick', name: 'Slick', group: 'track', price: 1100, cond: 0.6, count: 1 },
+  ],
+  services: [],
+};
+shop.handle('slShopOpen', JSON.parse(JSON.stringify(tyreShop)));
+assert(shop.root.classList.contains('slsh-open'), 'the screen is open');
+assert.strictEqual($('.slsh-title b').textContent, 'Torres on 5th');
+assert(/Gus/.test($('.slsh-title span').textContent), 'the keeper is in the header');
+assert.strictEqual($('.slsh-panel').getAttribute('style').match(/--sl-accent:(#[0-9a-f]{6})/i)[1], '#f2b84b', 'the theme accent is on the panel');
+assert(/\$1,200/.test($('.slsh-money').textContent), 'the money is shown');
+assert.strictEqual($$('.slsh-card').length, 4, 'a card per item');
+assert.deepStrictEqual($$('.slsh-cat').map((b) => b.firstChild.textContent).slice(1), ['road', 'weather', 'track'], 'the groups are the rail');
+click('cat', 'road');
+assert.strictEqual($$('.slsh-card').length, 2, 'a group filters the cards');
+click('cat', 'all');
+click('pick', 'winter');
+assert(/Soft rubber/.test($('.slsh-detail').textContent), 'the detail pane shows the picked item');
+click('add', 'winter'); click('pick', 'road'); click('add', 'road'); click('add', 'road');
+assert(/\$1,194/.test($('.slsh-total').textContent), 'the basket totals: 480 + 2 x 357 = 1194: ' + $('.slsh-total').textContent);
+assert(!$(sel('buy')).disabled, 'pay is on when the money is enough');
+click('pick', 'slick'); click('add', 'slick'); click('add', 'slick');
+assert(/count|stock/i.test($('.slsh-toast') ? $('.slsh-toast').textContent : '') && shop.state.cart.slick === 1, 'more than the stock is refused with a note');
+assert($(sel('buy')).disabled, 'pay is off when the basket costs more than the money (1194 + 1100 > 1200)');
+assert(/shops\.cannot_afford/.test($('.slsh-foot').textContent), 'and says why');
+click('remove', 'slick');
+click('buy');
+assert.strictEqual(calls[calls.length - 1], '@sl_shops.buy("winter:1,road:2")', 'pay sends the basket: ' + calls[calls.length - 1]);
+
+// the Lua side answers with the new state: the basket is empty again, the money is less
+shop.handle('slShopOpen', Object.assign(JSON.parse(JSON.stringify(tyreShop)), { money: 6 }));
+assert.strictEqual($$('.slsh-line').length, 0, 'a new state empties the basket');
+
+// a shut shop
+shop.handle('slShopOpen', Object.assign(JSON.parse(JSON.stringify(tyreShop)), { closed: 'Closed. Opens at 08:00.' }));
+click('pick', 'road');
+assert(/Closed/.test($('.slsh-closed').textContent), 'the closed note shows');
+assert($(sel('add', 'road')).disabled && $(sel('buy')).disabled, 'a shut shop sells nothing');
+
+// a services shop and the other themes
+const paint = { kind: 'paint', title: 'Paint and body', name: 'Spray Kings', goods: 'services', screen: 'services', money: 500, theme: { accent: '#9b8cf0', pattern: 'spray', icon: 'paint' }, stock: [],
+  services: [{ id: 'buff', name: 'Buff scratches', price: 80, minutes: 30, desc: 'Polishes light scratches out.' }, { id: 'wax', name: 'Wax', price: 40 }] };
+shop.handle('slShopOpen', paint);
+assert.strictEqual($$('.slsh-row').length, 2, 'a row per service');
+click('add', 'buff');
+assert(/\$80/.test($('.slsh-total').textContent) && $(sel('remove', 'buff')), 'booking puts it in the basket and the row offers Remove');
+click('buy');
+assert.strictEqual(calls[calls.length - 1], '@sl_shops.buy("buff:1")');
+const parts = win.__slShopParts;
+parts.themes.forEach((t) => assert(parts.patternSvg(t, '#123456').indexOf('#123456') > 0, 'pattern ' + t + ' uses the accent'));
+['tyre', 'exhaust', 'wrench', 'engine', 'paint', 'gauge', 'spanner', 'star', 'badge', 'cup', 'bed', 'drop', 'crate'].forEach((i) => assert(parts.iconSvg(i).indexOf('<path') > 0 || parts.iconSvg(i).indexOf('<circle') > 0, 'icon ' + i));
+// a catalogue shop with no stock says where parts come from
+shop.handle('slShopOpen', { kind: 'exhaust', title: 'Exhaust shop', name: 'Pipe Dreams', goods: 'catalog', screen: 'catalogue', money: 100, theme: { accent: '#e9855b', pattern: 'pipes', icon: 'exhaust' }, stock: [], services: [] });
+assert(/shops\.ui_catalog_note/.test($('.slsh-note').textContent), 'an empty catalogue shop explains itself');
+// a bad accent colour falls back to the family accent (no style injection)
+shop.handle('slShopOpen', Object.assign(JSON.parse(JSON.stringify(tyreShop)), { theme: { accent: 'red;x:y', pattern: 'nope', icon: 'nope' } }));
+assert(/--sl-accent:#a8c7fa/.test($('.slsh-panel').getAttribute('style')), 'a bad accent is replaced');
+// names from the data are escaped
+shop.handle('slShopOpen', Object.assign(JSON.parse(JSON.stringify(tyreShop)), { name: '<img src=x onerror=alert(1)>' }));
+assert(!$('.slsh-head img') && /<img/.test($('.slsh-title b').textContent), 'a shop name cannot inject markup');
+
+// ---- what a kind adds: specs, a swatch, a curve, its own words, the reduce-motion option
+const tuner = { kind: 'tuner', title: 'Tuner', name: 'Dyno Dan', tagline: 'Dyno and setup', goods: 'services', screen: 'services', money: 700, reduceMotion: true, theme: { accent: '#5fb7e6', pattern: 'dyno', icon: 'gauge' }, stock: [],
+  words: { add: 'Reserve', buy: 'Pay and reserve' },
+  services: [{ id: 'dyno', name: 'Dyno run', price: 90, curve: [10, 40, 80, 120, 140, 130], swatch: '#5fb7e6', specs: [{ label: 'Peak', text: '140 hp', bar: 0.7 }] }] };
+shop.handle('slShopOpen', tuner);
+assert(/Dyno and setup/.test($('.slsh-title span').textContent), 'no keeper: the tagline of the kind is under the name');
+assert($('.slsh-row .slsh-curve path') && /^M0\.0 /.test($('.slsh-row .slsh-curve path').getAttribute('d')), 'a service with a curve draws it');
+assert($('.slsh-row .slsh-swatch') && $('.slsh-row .slsh-spec'), 'a swatch and a spec row');
+assert(/Reserve/.test($(sel('add', 'dyno')).textContent), 'the kind has its own word for the add button');
+click('add', 'dyno');
+assert(/Pay and reserve/.test($(sel('buy')).textContent), 'and for the pay button');
+assert(shop.root.classList.contains('slsh-rm'), 'the reduce-motion option is on the root');
+shop.handle('slShopOpen', Object.assign(JSON.parse(JSON.stringify(tyreShop)), { stock: [{ id: 'road', name: 'Road', group: 'road', price: 357, specs: [{ label: 'Dry grip', text: '1.00', bar: 0.4 }, { label: 'Tread', text: '8 mm' }] }] }));
+assert(!$('.slsh-brand'), 'no brand line without a brand');
+click('pick', 'road');
+assert.strictEqual($$('.slsh-detail .slsh-spec').length, 2, 'the detail pane shows the specs');
+assert($('.slsh-detail .slsh-spec .slsh-bar i').getAttribute('style').indexOf('40%') >= 0, 'a bar spec has its bar');
+assert(!shop.root.classList.contains('slsh-rm'), 'and the option is off again');
+
+shop.handle('slShopOpen', Object.assign(JSON.parse(JSON.stringify(tyreShop)), { stock: [{ id: 'cat', name: 'Cat-back', group: 'Cat-back', price: 420, brand: 'Vexaro' }] }));
+click('pick', 'cat');
+assert($('.slsh-card .slsh-brand') && /Vexaro/.test($('.slsh-card .slsh-brand').textContent) && /Vexaro/.test($('.slsh-detail .slsh-brand').textContent), 'a part brand shows on the card and in the detail pane');
+
+shop.handle('slShopOpen', { kind: 'dealerparts', title: 'Dealer parts', name: 'Jefferson Motors', goods: 'catalog', screen: 'catalogue', money: 100, theme: { accent: '#8ab4f8', pattern: 'badge', icon: 'badge' }, stock: [], services: [], note: 'Nothing fits your Pickup: this counter sells parts of Ibishu only.' });
+assert(/Nothing fits your Pickup/.test($('.slsh-note').textContent), 'a catalogue shop says why nothing fits (the note from the Lua side)');
+
+// a result (the dyno run) and the orders of a special-order shop
+shop.handle('slShopOpen', tuner);
+shop.handle('slShopResult', { title: 'Dyno run', lines: [{ label: 'Peak power', text: '240 hp at 6500 rpm' }, { label: 'Peak torque', text: '300 Nm at 4200 rpm' }], curve: [20, 80, 160, 240, 220], curveLabel: 'Peak power' });
+assert(/240 hp at 6500 rpm/.test($('.slsh-result').textContent) && $('.slsh-result .slsh-curve path'), 'a result shows its figures and its curve');
+shop.handle('slShopOpen', Object.assign(JSON.parse(JSON.stringify(tuner)), { name: 'Elsewhere' }));
+assert(!$('.slsh-result'), 'a result belongs to the shop that gave it');
+shop.handle('slShopOpen', { kind: 'performance', title: 'Performance shop', name: 'Fast Automotive', goods: 'catalog', screen: 'catalogue', money: 3000, theme: { accent: '#d9575f', pattern: 'chevrons', icon: 'engine' }, services: [],
+  stock: [{ id: 'p1', name: 'Big turbo', group: 'Turbo', price: 1500, brand: 'Turvane' }], orders: [{ name: 'Cams', hours: 12 }] });
+assert(/Cams/.test($('.slsh-orders').textContent) && /shops.ui_hours_left/.test($('.slsh-orders').textContent), 'the parts on order show with the hours to go (the text through T)');
+
+// ---- text on an accent fill: --sl-deep on a light accent, white on a dark one, at least 4.5:1 for every built-in accent (and the ones in the sample data)
+const core = fs.readFileSync(path.join(__dirname, '..', 'mod/lua/ge/extensions/sl/core/shops.lua'), 'utf8');
+const accents = Array.from(new Set((core.match(/accent = '#[0-9a-fA-F]{6}'/g) || []).map((m) => m.slice(10, 17)).concat(['#f2b84b', '#9b8cf0', '#e9855b', '#a8c7fa'])));
+assert(accents.length >= 9, 'the built-in accents were found: ' + accents.length);
+const contrast = (a, b) => { const x = win.__slShopParts.luminance(a), y = win.__slShopParts.luminance(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+accents.forEach((a) => assert(contrast(a, win.__slShopParts.onAccent(a)) >= 4.5, 'text on ' + a + ' is ' + contrast(a, win.__slShopParts.onAccent(a)).toFixed(2) + ':1'));
+shop.handle('slShopOpen', Object.assign(JSON.parse(JSON.stringify(tyreShop)), { colorBlind: true }));
+assert(shop.root.classList.contains('slsh-cb') && /\.slsh-cb\{--sl-good:#56b4e9;--sl-bad:#ffb454\}/.test(shop.css), 'the colour-blind palette is the same as the phone, toggled by the data');
+shop.handle('slShopOpen', JSON.parse(JSON.stringify(tyreShop)));
+assert(!shop.root.classList.contains('slsh-cb'), 'and off again');
+assert(/--sl-on-accent:#0d0b12/.test($('.slsh-panel').getAttribute('style')), 'amber gets the dark text');
+assert.strictEqual($('.slsh-cat[data-v="all"] .slsh-count').textContent, '4', 'the rail counts the items');
+assert(/box-shadow:0 0 0 2px var\(--sl-deep\)/.test(shop.css), 'the focus ring has a dark inner line so it shows on any accent');
+
+// ---- the style rules
+shop.handle('slShopOpen', JSON.parse(JSON.stringify(tyreShop)));
+click('pick', 'winter'); click('add', 'winter');
+const bad = $$('button').filter((b) => !b.hasAttribute('data-a') || !b.hasAttribute('bng-nav-item'));
+assert.strictEqual(bad.length, 0, 'every button has data-a and bng-nav-item: ' + bad.map((b) => b.outerHTML.slice(0, 80)));
+assert(/\.slsh-root \[data-a\]:focus[^{]*\{[^}]*outline:3px solid var\(--sl-focus\)/.test(shop.css), 'a visible focus style (3 px, --sl-focus)');
+assert(/--sl-focus:#ffd54f/.test(shop.css) && /--sl-accent:#a8c7fa/.test(shop.css) && /--sl-surface1:#141218/.test(shop.css), 'the family tokens');
+const noMotion = shop.css.split(/\r?\n/).filter((l) => !l.startsWith('@media (prefers-reduced-motion:no-preference)')).join(' ');      // (the guarded rules are the one line)
+assert(!/transition\s*:(?!\s*none)|animation\s*:(?!\s*none)/.test(noMotion), 'motion only inside prefers-reduced-motion:no-preference (and switched off by the reduce-motion option)');
+assert(/prefers-reduced-motion:no-preference/.test(shop.css), 'the reduced-motion guard is there');
+// no text outside T(): remove the markers, the data and the money; no word is left
+const data = ['Dry grip', 'Tread', '8 mm', '1.00', tyreShop.name, 'Gus', 'Tread tells the truth.', 'Tyre shop', 'Road', 'Performance', 'Winter', 'Slick', 'road', 'weather', 'track', 'Soft rubber for the cold.', '<img src=x onerror=alert(1)>'];
+let seen = $$('*').filter((e) => e.children.length === 0 && e.tagName !== 'STYLE').map((e) => e.textContent).join(' | ');
+seen = seen.replace(/«[^»]*»/g, ' ');
+data.sort((x, y) => y.length - x.length).forEach((d) => { seen = seen.split(d).join(' '); });
+const words = seen.match(/[A-Za-z]{2,}/g) || [];
+assert.strictEqual(words.length, 0, 'text not from T() or the data: ' + words.join(','));
+$$('[aria-label]').forEach((e) => assert(/«/.test(e.getAttribute('aria-label')), 'aria-label goes through T()'));
+
+// ---- the pad
+const first = () => $$('[data-a]').filter((e) => !e.disabled);
+win.document.activeElement && win.document.activeElement.blur && win.document.activeElement.blur();
+nav('right');
+assert(first().indexOf(win.document.activeElement) >= 0, 'right focuses a control');
+const a0 = win.document.activeElement;
+nav('right');
+assert(win.document.activeElement !== a0, 'right moves on');
+nav('left');
+assert(win.document.activeElement === a0, 'left moves back');
+const before = calls.length;
+nav('back');
+assert.strictEqual(calls[calls.length - 1], '@sl_shops.close()', 'B closes through the Lua side');
+assert(!shop.root.classList.contains('slsh-open'), 'and the screen is shut');
+shop.handle('slShopOpen', JSON.parse(JSON.stringify(tyreShop)));
+win.document.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+assert(!shop.root.classList.contains('slsh-open'), 'Escape closes');
+shop.handle('slShopClose', {});
+assert(!shop.root.classList.contains('slsh-open'));
+console.log('shop screen tests passed');
+process.exit(0);

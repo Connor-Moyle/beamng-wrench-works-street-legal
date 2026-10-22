@@ -94,4 +94,15 @@ function M.besideStopped(rel, dir, speed, stoppedFor)
   return math.abs(along) < 6 and side > 1.5 and side < 8
 end
 
+-- the place of tonight's nth meet (n = 0 for the first): decided by the day and n alone, so it is known when the night begins and the cars of its racers can be built behind the night fade.
+-- `list` is the meet places in a fixed order (sorted by id); returns one of them, or nil with no places. rngLib is sl/core/rng.
+function M.plannedMeet(list, day, n, seed, rngLib)
+  if not list or #list == 0 then return nil end
+  local sorted = {}
+  for _, p in ipairs(list) do sorted[#sorted + 1] = p end
+  table.sort(sorted, function(a, b) return tostring(a.id) < tostring(b.id) end)
+  local rng = rngLib.new(rngLib.hash('meetplace:' .. tostring(day) .. ':' .. tostring(seed)))
+  return sorted[(rng:int(#sorted) - 1 + (n or 0)) % #sorted + 1]
+end
+
 return M

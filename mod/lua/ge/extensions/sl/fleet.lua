@@ -407,6 +407,7 @@ function M.sell(carId, to)
   local s = career()
   local car = s and carById(s, carId)
   if not car then return false, strings.t('carcare.no_such_car') end
+  if car.loaner then return false, strings.t('series.loaner_not_yours') end
   local veh = M.vehicleOf(carId)
   local parts = veh and builder.partsValue(veh:getID())
   local price = to == 'scrap' and market.scrapValue(car, parts) or market.resaleValue(car, parts)
@@ -455,6 +456,7 @@ function M.list()
       care = sl_carcare and sl_carcare.summary and sl_carcare.summary(c) or nil,
       tyres = (veh and sl_tyrecare and sl_tyrecare.card) and sl_tyrecare.card(c, veh:getID(), player ~= nil and player:getID() == veh:getID()) or nil,
       impounded = c.impounded,
+      mastery = sl_mastery and sl_mastery.of and sl_mastery.of(c.id) or nil,        -- (car mastery: the level and its perks, nil with the part off)
       look = veh and sl_surfacefx and sl_surfacefx.lookText(veh:getID()) or nil,      -- ('Clean, no scratches': Car Surface FX, when it is there)
       report = (function() local ok, r = pcall(sl_carcare.reportOf, c) return ok and r or nil end)(),       -- (#30: with the wear since you bought it)
     }

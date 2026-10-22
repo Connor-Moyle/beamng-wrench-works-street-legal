@@ -26,6 +26,8 @@ if (status !== lua.LUA_OK) {
 }
 // the free-roam audit (tests/freeroam_audit_test.lua, docs/FREEROAM_AUDIT.md): every sl module against a stubbed game with no career
 lauxlib.luaL_dostring(L, to_luastring('SL_MODULES = {' + require('fs').readdirSync(path.join(root, 'mod/lua/ge/extensions/sl')).filter((f) => f.endsWith('.lua')).map((f) => JSON.stringify(f.slice(0, -4))).join(',') + '}')); if (lauxlib.luaL_dofile(L, to_luastring(path.join(root, 'tests/freeroam_audit_test.lua'))) !== lua.LUA_OK) { console.error(to_jsstring(lua.lua_tostring(L, -1))); process.exit(1); }
+// the visit audit (tests/visit_audit_test.lua): the same modules on a visited map, compared with the same career at home
+if (lauxlib.luaL_dofile(L, to_luastring(path.join(root, 'tests/visit_audit_test.lua'))) !== lua.LUA_OK) { console.error(to_jsstring(lua.lua_tostring(L, -1))); process.exit(1); }
 // undefined globals (a local helper used before it is defined, a typo): tools/globalcheck.js, which needs luaparse (npm i luaparse)
 try { require.resolve('luaparse'); } catch (e) { console.log('globalcheck skipped: luaparse is not installed'); process.exit(0); }
 const gc = require('child_process').spawnSync(process.execPath, [path.join(__dirname, 'globalcheck.js')], { encoding: 'utf8' });

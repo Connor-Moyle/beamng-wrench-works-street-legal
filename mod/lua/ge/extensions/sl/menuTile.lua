@@ -88,12 +88,22 @@ end
 
 local shown, timer = nil, 0
 
+-- the careers saved; one that was left on a trip carries its visit (only while the question is open: 'ask')
+local function slotList()
+  local list = sl_career and sl_career.listSlots and sl_career.listSlots() or {}
+  for _, c in ipairs(list) do
+    local v = sl_career.slotVisit and sl_career.slotVisit(c.slot)
+    if v and v.verdict == 'ask' then c.visit = v end
+  end
+  return list
+end
+
 local function send(force)
   local inMenu = not (getCurrentLevelIdentifier and getCurrentLevelIdentifier())
   if inMenu == shown and not force then return end
   shown = inMenu
   guihooks.trigger('slMenu', { show = inMenu, installed = levelInstalled(), maps = maps(), summary = sl_career and sl_career.saveSummary() or nil,
-    slots = sl_career and sl_career.listSlots and sl_career.listSlots() or {}, maxSlots = sl_career and sl_career.SLOTS })
+    slots = slotList(), maxSlots = sl_career and sl_career.SLOTS })
 end
 
 function M.onUpdate(dtReal)
@@ -104,11 +114,11 @@ end
 function M.request() send(true) end
 M.onUiReady = function() send(true) end
 
-function M.startFromMenu(fresh, n, level)
+function M.startFromMenu(fresh, n, level, choice)
   if not sl_career or not levelInstalled() or (sl_career.inMultiplayer and sl_career.inMultiplayer()) then return end
   guihooks.trigger('slMenu', { show = false })
   shown = false
-  sl_career.start(fresh == true, n, level)
+  sl_career.start(fresh == true, n, level, choice)
 end
 
 -- the game-over screen's way out

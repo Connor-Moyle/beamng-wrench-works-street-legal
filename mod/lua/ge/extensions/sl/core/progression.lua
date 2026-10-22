@@ -27,6 +27,11 @@ M.MAPS = {
     { id = 'alderDragwayGarage', name = strings.t('progression.alder_dragway_garage') }, { id = 'commercialGarage', name = strings.t('progression.industrial_garage') },
     { id = 'belascoCityGarage', name = strings.t('progression.belasco_city_garage') } } },
 }
+-- the maps a career travels to (docs/DESIGN_CAREER_TRAVEL.md): not maps to play a career on (they are not in MAP_ORDER), no feature of the home world exists there
+M.MAPS.johnson_valley = { name = strings.t('progression.johnson_valley'), visit = true, races = 'sl_races', has = {} }
+M.MAPS.utah = { name = strings.t('progression.utah'), visit = true, races = 'sl_races', has = {} }
+M.MAPS.hirochi_raceway = { name = strings.t('progression.hirochi_raceway'), visit = true, races = 'sl_races', has = {} }
+function M.isVisit(level) return M.MAPS[level] ~= nil and M.MAPS[level].visit == true end
 M.MAP_ORDER = { 'west_coast_usa', 'slrr_valo_city' }      -- (West Coast USA is the game; Valo City is parked: its code stays, it is only not the default)
 M.DEFAULT_MAP = 'west_coast_usa'
 -- A save from before the maps were chosen has no level field, and before West Coast USA was the default every career was a Valo City one: a save with no level IS Valo City.
@@ -52,7 +57,7 @@ end
 
 -- Waiting (the phone's Wait app): 'morning' = the next 06:00 (a few minutes past it, so the day change is counted once), or 1, 3 or
 -- 6 hours. h0 = the hour now (0..24). Returns { hours, to (the hour it will be), days (06:00s passed: the day counter goes up by that) } or nil.
-M.WAIT_CHOICES = { morning = true, ['1'] = true, ['3'] = true, ['6'] = true }
+M.WAIT_CHOICES = { morning = true, ['1'] = true, ['3'] = true, ['6'] = true, ['0.33'] = true }
 function M.skipPlan(h0, what)
   what = tostring(what)
   if not M.WAIT_CHOICES[what] then return nil end
@@ -102,6 +107,9 @@ M.UPGRADES = {
   { id = 'paint', name = strings.t('progression.paint_booth'), price = 5000, desc = strings.t('progression.paint_liveries_and_tint_at') },
   { id = 'shelves', name = strings.t('progression.parts_shelves'), price = 1000, desc = strings.t('progression.three_times_the_shelf_space') },
   { id = 'photo', name = strings.t('progression.photo_corner'), price = 800, desc = strings.t('progression.photo_mode_in_the_garage') },
+  { id = 'dressing', name = strings.t('progression.garage_dressing'), price = 1200, desc = strings.t('progression.garage_dressing_desc') },
+  { id = 'fridge', needs = true, name = strings.t('progression.fridge'), price = 400, desc = strings.t('progression.fridge_desc') },      -- (the Needs part: shown only while it is on)
+  { id = 'bed', needs = true, name = strings.t('progression.bed'), price = 1200, desc = strings.t('progression.bed_desc') },
 }
 M.GARAGE_COMES_WITH = { [2] = { lift = true, workbench = true, crane = true }, [3] = { lift = true, workbench = true, crane = true } }
 M.SHELF = { base = 12, shelves = 40 }       -- parts per model on the shelf
@@ -114,7 +122,7 @@ function M.garageFeatures(bought, level)
   local has = {}
   for k, v in pairs(M.GARAGE_COMES_WITH[level or 1] or {}) do has[k] = v end
   for k, v in pairs(bought or {}) do if v then has[k] = true end end
-  return { lift = has.lift == true, crane = has.crane == true, workbench = has.workbench == true, dyno = has.dyno == true, paint = has.paint == true, photo = has.photo == true,
+  return { lift = has.lift == true, crane = has.crane == true, workbench = has.workbench == true, dyno = has.dyno == true, paint = has.paint == true, photo = has.photo == true, dressing = has.dressing == true, fridge = has.fridge == true, bed = has.bed == true,
     shelfSize = has.shelves and M.SHELF.shelves or M.SHELF.base, repairFactor = has.workbench and 1 or M.MOBILE_MECHANIC }
 end
 

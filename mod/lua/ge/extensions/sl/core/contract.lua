@@ -30,11 +30,12 @@ function M.pick(rng, wet)
 end
 
 -- put terms on a job (a part run or a courier parcel): the pay rises, the plain pay is kept
-function M.apply(job, req)
+function M.apply(job, req, bonusScale)
   if job.contract or not M.REQS[req] then return false end
+  local mult = 1 + (M.REQS[req].mult - 1) * (tonumber(bonusScale) or 1)          -- (the Contract bonus setting: 1 is the normal bonus)
   job.basePay = job.pay
-  job.pay = math.floor(job.pay * M.REQS[req].mult / 10 + 0.5) * 10
-  job.contract = { req = req, mult = M.REQS[req].mult }
+  job.pay = math.floor(job.pay * mult / 10 + 0.5) * 10
+  job.contract = { req = req, mult = mult }
   return true
 end
 

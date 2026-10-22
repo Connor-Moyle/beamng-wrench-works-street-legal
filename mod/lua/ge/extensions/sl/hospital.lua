@@ -64,6 +64,7 @@ function M.toHospital(vehId, severity, died)
     if not pos then pos, dir = sl_fleet.forecourt(s, 1), vec3(0, 1, 0) end    -- (no hospital on this map: home)
     if me and pos then spawn.safeTeleport(me, pos + vec3(0, 0, 0.3), quatFromDir(dir or vec3(0, 1, 0), vec3(0, 0, 1)), true) end
     if slrrInjury and slrrInjury.heal then slrrInjury.heal(vehId) end
+    if sl_needs and sl_needs.hospital then pcall(sl_needs.hospital) end      -- (fed, watered and rested to 70)
     local paid = bill(M.hospitalBill(severity, died), 'Hospital')
     job.sleep(1.0)
     guihooks.trigger('slFade', { on = false })

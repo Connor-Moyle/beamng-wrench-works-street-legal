@@ -55,6 +55,12 @@ local function places()
     local x, y = feed.xy(type(p) == 'table' and p.pos or nil)
     if x then list[#list + 1] = { id = id, kind = p.kind, name = p.name, x = math.floor(x), y = math.floor(y) } end
   end
+  -- barn-find rumours (sl_barnfinds.summary(): nil with the part off): an area pin, never the exact spot
+  local ok, sum = pcall(function() return sl_barnfinds and sl_barnfinds.summary and sl_barnfinds.summary() end)
+  for _, r in ipairs(ok and type(sum) == 'table' and sum.rumours or {}) do
+    local a = require('sl/core/mapapp').rumourArea(r.id, r.x, r.y)
+    list[#list + 1] = { id = 'rumour:' .. tostring(r.id), kind = 'rumour', name = 'Barn rumour', x = a.x, y = a.y, r = a.r }
+  end
   return list
 end
 

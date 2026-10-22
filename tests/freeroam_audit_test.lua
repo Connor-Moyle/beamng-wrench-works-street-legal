@@ -111,7 +111,7 @@ _G.getCurrentLevelIdentifier = oldLevel
 local appSet = {}
 for _, a in ipairs(snap.apps) do appSet[a] = true end
 check('audit: the free-roam phone snapshot is free of a career (no money, rep, cars, contacts, jobs, bank, threads)', snap.freeroam == true and snap.money == nil and snap.rep == nil and snap.stats == nil and snap.garage == nil and snap.jobs == nil and snap.bank == nil and #snap.contacts == 0 and #snap.threads == 0 and snap.cars == 0 and #snap.fleet == 0)
-check('audit: the free-roam phone lists only Map and Cab, and none of the career apps', appSet.map and appSet.cab and #snap.apps == 2 and not appSet.settings and not (appSet.bank or appSet.garage or appSet.jobs or appSet.contacts or appSet.races or appSet.club or appSet.carmarket))
+check('audit: the free-roam phone lists only Map, Cab and Freight runs (the Jobs switch), and none of the career apps', appSet.map and appSet.cab and appSet.frjobs and #snap.apps == 3 and not appSet.settings and not (appSet.bank or appSet.garage or appSet.jobs or appSet.contacts or appSet.races or appSet.club or appSet.carmarket))
 local kinds = {}
 for _, p in ipairs(snap.places) do kinds[#kinds + 1] = p.kind end
 local hasGarage = false
@@ -175,7 +175,7 @@ for _, id in ipairs(modeCore.IDS) do
   check('audit: sandbox state for ' .. id .. ' carries no money, cars, rep or garage', type(s) == 'table' and s.sandbox == true and s.money == nil and s.cars == nil and s.rep == nil and s.garageLevel == nil and s.activeCar == nil and s.slot == nil,
     type(s) == 'table' and table.concat(keys, ',') or tostring(s))
 end
-check('audit: career-only features stay off in free roam', not sl_mode.enabled('rivals') and not sl_mode.enabled('bank') and not sl_mode.enabled('classifieds') and not sl_mode.enabled('races') and not sl_mode.enabled('jobs'))
+check('audit: career-only features stay off in free roam', not sl_mode.enabled('rivals') and not sl_mode.enabled('bank') and not sl_mode.enabled('classifieds') and not sl_mode.enabled('races') and not sl_mode.enabled('bogus-career-only'))
 
 for _, n in ipairs(names) do package.loaded['sl/' .. n] = savedLoaded[n] _G['sl_' .. n] = nil end
 package.loaded['slrr/garageParts'] = savedParts

@@ -455,20 +455,23 @@ M.APPLY_DAMAGE_ON_SPAWN = true
 -- A car of the player's must never become unspawnable: its saved setup, then the whole setup from before parts were struck off, then the game's stock
 -- default for the model, each tried only if the one before gave nothing (logged which one worked).
 function M.spawnOwned(job, car, pos, rot)
-  if type(car.config) ~= 'table' then return nil end
+  if type(car.config) ~= 'table' and not car.pcPath then return nil end          -- (a loaner has no saved setup, only the path of its config file)
   local function cfgOf(c) return { model = c.model or car.model, partsTree = c.partsTree, vars = c.vars, paints = c.paints } end
-  local attempts = { { 'saved setup', cfgOf(car.config) } }
+  local attempts = {}
+  if car.pcPath then attempts[#attempts + 1] = { 'config file', car.pcPath } end
+  if type(car.config) == 'table' then attempts[#attempts + 1] = { 'saved setup', cfgOf(car.config) } end
   if type(car.fullConfig) == 'table' then attempts[#attempts + 1] = { 'setup before parts were struck off', cfgOf(car.fullConfig) } end
   local m = core_vehicles.getModel and core_vehicles.getModel(car.model)
   local pc = m and m.model and m.model.default_pc
   if pc then attempts[#attempts + 1] = { 'stock default', 'vehicles/' .. car.model .. '/' .. pc .. '.pc' } end
   local veh
+  if sl_mates and sl_mates.armPassenger then pcall(sl_mates.armPassenger, car.model) end          -- (a scout mate rides in the passenger seat; Drivers loads it with this car)
   for i, a in ipairs(attempts) do
     veh = M.spawn(job, car.model, a[2], pos, rot, not M.PLAYER_DRIVER_PROPS, true)
     if veh then
       if i > 1 then
         log('W', 'street_legal', 'owned car ' .. tostring(car.name) .. ': the ' .. attempts[1][1] .. ' would not spawn, built from the ' .. a[1])
-        if i == 2 then car.config, car.fullConfig = car.fullConfig, nil end          -- (the whole setup is the car again)
+        if i == 2 and not car.pcPath then car.config, car.fullConfig = car.fullConfig, nil end          -- (the whole setup is the car again)
       end
       break
     end

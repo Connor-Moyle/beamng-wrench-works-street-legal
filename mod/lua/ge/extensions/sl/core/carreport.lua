@@ -81,7 +81,9 @@ function M.build(car)
   for _, sec in ipairs(sections) do
     local share = deficitSum > 0 and sec.deficit / deficitSum or 0
     local worn = ((car.wear or {})[sec.id] or 0) * value / market.REPAIR_CONDITION          -- what the wear since you bought it costs to put right
+    sec.faultCost = r10(#sec.faults * M.FAULT_COST * value)          -- (of the estimate: the open faults of the section; the rest is the wear of the car and since you bought it)
     sec.estimate = r10(wear * share + #sec.faults * M.FAULT_COST * value + worn)
+    sec.wearCost = math.max(0, sec.estimate - sec.faultCost)
     sec.deficit = nil
     total = total + sec.estimate
   end

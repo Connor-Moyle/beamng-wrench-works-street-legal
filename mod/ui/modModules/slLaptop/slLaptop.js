@@ -32,7 +32,9 @@
     /* #51 colour-blind friendly colours: blue and orange, with a mark beside every good or bad figure; and the pad's focus always visible */
     '.sll-cb .sll-plus,.sll-cb .sll-rok{color:#56b4e9}.sll-cb .sll-minus,.sll-cb .sll-rbad,.sll-cb .sll-note,.sll-cb .sll-balloon{color:#ffb454}',
     '.sll-cb .sll-plus:before{content:"\\25B2 "}.sll-cb .sll-minus:before{content:"\\25BC "}.sll-cb .sll-rok:before{content:"\\2714 "}',
-    '.sll-screen [bng-nav-item]:focus,.sll-screen [data-a]:focus,.sll-screen [tabindex]:focus{outline:3px solid #ffd54f!important;outline-offset:2px}',
+    '.sll-screen [bng-nav-item]:focus,.sll-screen [data-a]:focus,.sll-screen [tabindex]:focus{outline:3px solid #ffd54f!important;outline-offset:2px;box-shadow:0 0 0 2px #0d0b12}',      /* (docs/UI_STYLE.md: a dark band so the ring shows on any fill) */
+    '@media (prefers-reduced-motion:reduce){.sll-root *,.sll-root *:before,.sll-root *:after{transition:none!important;animation:none!important}}',
+    '.sll-rm *,.sll-rm *:before,.sll-rm *:after{transition:none!important;animation:none!important}',      /* (the career option Reduce motion) */
     '.sll-repsum:focus,.sll-repsum:hover{outline:2px solid #a8c7fa}.sll-repparts{margin:2px 0 6px 14px}',
     '.sll-screen{position:absolute;left:0;top:0;right:0;bottom:0;overflow:hidden;pointer-events:auto;transition:opacity .2s;',
     '  background-color:#0d0b12;background-size:cover;background-position:center}',
@@ -284,9 +286,11 @@
     // opens a panel of its own (reportModal) that fits the screen: a header with a close button and a body that scrolls, one collapsible row per
     // section with its condition, worst fault and repair estimate.
     var reports = {};                      // key -> the report, kept while the buttons are drawn so the panel can show it
-    function reportBlock(key, rp) {
+    var reportHist = {};                   // key -> the history lines of the ad (shown at the top of the panel)
+    function reportBlock(key, rp, history) {
       if (!rp || !rp.sections) return '';
       reports[key] = rp;
+      reportHist[key] = arr(history);
       return '<div class="sll-acts"><div class="sll-btn sll-tonal" data-a="report" data-v="' + esc(key) + '">' + T('ui.show_full_car_report', 'Show full car report') + '</div></div>';
     }
     function repWorst(rp) {
@@ -296,8 +300,10 @@
     }
     function repOpen(rp, id) { return st.repSec[id] !== undefined ? !!st.repSec[id] : id === repWorst(rp); }
     function reportModal() {
-      var rp = st.repOpen && reports[st.repOpen];
+      var rp = st.repOpen && (reports[st.repOpen] || st.repKeep);      // (the report as it was when the button was pressed, if a data push dropped it meanwhile)
       if (!rp) return '';
+      var hist = arr(reportHist[st.repOpen]);
+      var nothing = !(Number(rp.total) > 0) && !arr(rp.faults).length ? '<p>' + T('ui.nothing_more_to_report', 'Nothing more to report: no faults and no repair needed.') + '</p>' : '';
       var secs = arr(rp.sections).map(function (sc) {
         var open = repOpen(rp, sc.id);
         var worst = null;
@@ -314,9 +320,26 @@
       return '<div class="sll-repmodal"><div class="sll-reppanel"><div class="sll-rephead"><b>' + T('ui.car_report', 'Car report') + '</b><span>' + rp.condition + '% ' + esc(rp.label) + '</span>' +
         '<div class="sll-btn sll-tonal" data-a="reportclose">' + T('ui.close', 'Close') + '</div></div><div class="sll-repbody">' +
         '<div class="sll-kv"><span>' + T('ui.overall', 'Overall') + '</span><b>' + rp.condition + '% ' + esc(rp.label) + '</b></div>' +
+        hist.map(function (x) { return '<p>' + esc(x) + '</p>'; }).join('') + nothing +
         '<div class="sll-kv"><span>' + T('ui.mileage', 'Mileage') + '</span><b>' + Number(rp.mileage || 0).toLocaleString() + ' km</b></div><div class="sll-kv"><span>' + T('ui.dents_and_damage', 'Dents and damage') + '</span><b>' + esc(dm.label) + ' (' + (dm.amount || 0) + '%)</b></div>' +
         '<div class="sll-kv"><span>' + T('ui.known_faults', 'Known faults') + '</span><b>' + (arr(rp.faults).length ? esc(arr(rp.faults).join(', ')) : 'none') + '</b></div>' + secs +
         '<div class="sll-kv"><span><b>' + T('ui.repair_estimate_to_95', 'Repair estimate, to 95 %') + '</b></span><b>' + money(rp.total) + '</b></div></div></div></div>';
+    }
+    // used-car checks (sl_classifieds): the ad tells the history; the faults and the report show after a paid mechanic's check (same data and texts as the phone)
+    function usedCheckL(l) {
+      var lines = arr(l.history);
+      if (!lines.length && !l.hidden && !l.checked) return '';
+      var html = '<div class="sll-props"><b>' + T('ui.history', 'History') + '</b></div>' + lines.map(function (x) { return '<div class="sll-props">' + esc(x) + '</div>'; }).join('');
+      if (l.hidden) {
+        html += '<div class="sll-props" style="color:#f2b8b5">&#9888; ' + T('ui.hidden_faults', 'The faults and the car report show after a mechanic has checked the car.') + '</div>' +
+          '<div class="sll-acts"><div class="sll-btn sll-tonal" data-a="mkcheck" data-v="' + esc(l.id) + '">' + T('ui.check_car', 'Check the car') + ' &middot; ' + money(l.checkFee) + '</div></div>';
+      } else if (l.checked) {
+        var found = arr(l.found);
+        html += found.length ? '<div class="sll-props">' + T('ui.faults_found', 'The mechanic found:') + '</div>' + found.map(function (f) {
+          return '<div class="sll-kv"><span>' + esc(f.label || '') + '</span><b>' + money(f.cost) + '</b></div>';
+        }).join('') : '<div class="sll-props">' + T('ui.no_faults_found', 'The mechanic found no faults.') + '</div>';
+      }
+      return html;
     }
     function adCardL(l) {
       var tells = arr(l.tells).length ? '<div class="sll-props" style="color:#f2b8b5">&#9888; ' + arr(l.tells).map(esc).join(' &middot; ') + '</div>' : '';
@@ -324,7 +347,7 @@
         return '<div class="sll-card sll-listing">' + pic(l) + '<div class="sll-li"><h4>' + (l.year ? l.year + ' ' : '') + esc(l.name) + '</h4><div class="sll-brand">' + esc(l.brand || '') + '</div>' +
           '<div class="sll-props">' + facts(l) + '</div><div class="sll-props">' + esc(l.seller) + ' ' + '&#9733;'.repeat(l.rating || 0) + (l.metres != null ? T('ui.middot_1_away', ' &middot; {1} away', dist(l.metres)) : '') +
           (l.hours ? T('ui.middot_delivered_in_about_1', ' &middot; delivered in about {1} h', l.hours) : '') + ' &middot; condition ' + l.condition + '%' + (l.faults ? T('ui.middot_1_fault_2', ' &middot; {1} fault{2}', l.faults, (l.faults > 1 ? 's' : '')) : '') + '</div>' + tells +
-          '<div class="sll-props"><b>' + money(l.ask) + '</b>' + (l.agreed ? T('ui.agreed', ' (agreed)') : '') + ' &middot; deposit ' + money(l.deposit) + '</div>' + reportBlock('ad:' + l.id, l.report) + mkButtons(l) + '</div></div>';
+          '<div class="sll-props"><b>' + money(l.ask) + '</b>' + (l.agreed ? T('ui.agreed', ' (agreed)') : '') + ' &middot; deposit ' + money(l.deposit) + '</div>' + usedCheckL(l) + reportBlock('ad:' + l.id, l.report, l.history) + mkButtons(l) + '</div></div>';
       }
       return '<div class="sll-card sll-listing">' + partPicL(l) + '<div class="sll-li"><h4>' + (l.rare ? '&#9733; ' : '') + esc(l.name) + '</h4><p>' + partMetaL(l) + ' &middot; ' + l.condition + T('ui.condition_middot', '% condition &middot; ') + esc(l.seller) + ' ' + '&#9733;'.repeat(l.rating || 0) +
         ' &middot; ' + Math.max(0, l.hoursLeft | 0) + (T('ui.h_left', ' h left') + '</p>') + tells + '<p><b>' + money(l.ask) + '</b>' + (l.agreed ? T('ui.agreed', ' (agreed)') : '') + ' &middot; deposit ' + money(l.deposit) + '</p>' + mkButtons(l) + '</div></div>';
@@ -509,6 +532,17 @@
       }).join('');
     }
 
+    // the trophy shelf's list (s.trophies = { { name, kind sprint|invite|series, day, place } }, newest last; tools/trophies_fixture.js): newest first, a card only when the list exists
+    var TROPHY_KIND = { sprint: T('ui.trophy_sprint', 'Sprint'), invite: T('ui.trophy_invite', 'Invitational'), series: T('ui.trophy_series', 'Series') };
+    function placeWord(n) { n = Number(n) || 0; var m = n % 100; var sfx = (m >= 11 && m <= 13) ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th'; return n + sfx; }
+    function trophiesCardL() {
+      var list = st.data.trophies;
+      if (!Array.isArray(list)) return '';
+      var rows = list.slice().reverse().map(function (t) {
+        return '<div class="sll-kv"><span>&#127942; ' + esc(t.name || '') + '<br><small>' + (TROPHY_KIND[t.kind] || esc(t.kind || '')) + ' &middot; ' + T('ui.trophy_day', 'day {1}', Number(t.day) || 0) + '</small></span><b>' + placeWord(t.place) + '</b></div>';
+      }).join('');
+      return '<div class="sll-card"><h4>' + T('ui.trophies', 'Trophies: {1}', list.length) + '</h4>' + (rows || '<p>' + T('ui.trophy_none', 'No trophies yet. Win an invitational or a series.') + '</p>') + '</div>';
+    }
     function credBody() {
       var d = st.data, s = obj(d.stats);
       var from = d.titleRep || 0, to = d.nextRep, pct = to ? Math.max(0, Math.min(100, ((d.rep || 0) - from) / (to - from) * 100)) : 100;
@@ -521,7 +555,7 @@
         }).join('') + '</div>';
       }
       return body('<div class="sll-card"><h4>' + esc(d.title) + '</h4><p>' + (d.rep || 0) + ' reputation' + (to ? T('ui.middot_next_title_at_1', ' &middot; next title at {1}', to) : '') + '</p>' +
-        '<div class="sll-meter"><i style="width:' + pct.toFixed(1) + '%"></i></div></div>' +
+        '<div class="sll-meter"><i style="width:' + pct.toFixed(1) + '%"></i></div></div>' + trophiesCardL() +
         ('<div class="sll-card"><div class="sll-kv"><span>' + T('ui.garage', 'Garage') + '</span><b>') + esc(d.garage || '') + '</b></div>' + next +
         ('<div class="sll-kv"><span>' + T('ui.cars', 'Cars') + '</span><b>') + (d.cars || 0) + '</b></div>' +
         ('<div class="sll-kv"><span>' + T('ui.races', 'Races') + '</span><b>') + (s.races || 0) + ' (' + (s.wins || 0) + (T('ui.won_2', ' won)') + '</b></div>') +
@@ -643,6 +677,7 @@
       var zoom = Math.max(Number(st.data.textScale) || 1, Date.now() - st.padAt < 60000 ? 1.25 : 1);
       layer.style.setProperty('--sl-zoom', zoom); layer.setAttribute('data-zoom', zoom);      // (#51 text size; at least Large on a pad)
       layer.classList.toggle('sll-cb', !!st.data.colorBlind);      // (#51 colour-blind friendly colours)
+      layer.classList.toggle('sll-rm', !!st.data.reduceMotion);      // (the Reduce motion option, docs/UI_STYLE.md)
       var html = '<div class="sll-screen' + (st.open ? '' : ' sll-gone') + '">' + inner + '</div>';
       if (html === lastHtml && layer.firstChild) { renderSkips++; reportRenders(); return; }
       lastHtml = html; renders++; reportRenders();
@@ -774,6 +809,7 @@
         case 'awatch': var aw = String(v).split('|'); lua('@sl_carauctions.watch(' + JSON.stringify(aw[0]) + ',' + (aw[1] === '1' ? 'true' : 'false') + ')'); break;
         case 'asell': var as = String(v).split('|'); lua('@sl_carauctions.sell(' + Number(as[0]) + ',' + Number(as[1]) + ')'); break;
         case 'mkoffer': var op = String(v).split('|'); lua('@sl_phone.marketOffer(' + JSON.stringify(op[0]) + ',' + Number(op[1]) + ')'); break;
+        case 'mkcheck': lua('@sl_phone.marketCheck(' + JSON.stringify(String(v)) + ')'); break;
         case 'mkbuy': var bp = String(v).split('|'); lua('@sl_phone.marketBuy(' + JSON.stringify(bp[0]) + ',' + JSON.stringify(bp[1]) + ')'); break;
         case 'mkbid': lua('@sl_phone.marketBid(' + JSON.stringify(String(v)) + ')'); break;
         case 'mkmeet': lua('@sl_phone.buyAtMeet(' + JSON.stringify(String(v)) + ')'); break;
@@ -787,7 +823,7 @@
         case 'helpindex': st.helpId = null; render(); break;
         case 'league': lua('@sl_phone.enterLeague(' + JSON.stringify(String(v)) + ')'); break;
         case 'dealer': st.dview = 'offers'; st.offers = { name: T('ui.dealer', 'Dealer'), offers: [], dealer: v }; st.note = ''; focusKey = null; lua('@sl_dealers.offers(' + JSON.stringify(v) + ')'); render(); break;
-        case 'report': st.repOpen = v; st.repSec = {}; render(); break;
+        case 'report': st.repOpen = v; st.repKeep = reports[v] || null; st.repSec = {}; render(); break;
         case 'reportclose': st.repOpen = null; render(); break;
         case 'repsec': var rpOpen = st.repOpen && reports[st.repOpen]; if (rpOpen) { st.repSec[v] = !repOpen(rpOpen, v); render(); } break;
         case 'offer': st.dview = 'offer'; st.offerId = v; st.note = ''; focusKey = null; render(); break;

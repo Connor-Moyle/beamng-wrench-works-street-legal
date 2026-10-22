@@ -27,12 +27,14 @@ M.LIST = {
   { id = 'all_bosses', title = strings.t('achievements.top_of_the_strip'), desc = strings.t('achievements.beat_the_boss_of_every'), check = function(s) local n = 0 for _, r in ipairs(s.rivals and s.rivals.list or {}) do if r.boss and r.bossBeaten and not r.grandfathered then n = n + 1 end end return n >= 5 end },
   { id = 'roc', title = 'Champion', desc = strings.t('achievements.win_the_roc'), check = function(s) return s.roc and s.roc.champion == true end },
   { id = 'money_100k', title = strings.t('achievements.six_figures'), desc = strings.t('achievements.have_100_000_in_the'), check = function(s) return (s.money or 0) >= 100000 end },
+  { id = 'season_champion', title = strings.t('achievements.belasco_champion'), desc = strings.t('achievements.win_a_home_season'), check = function(s) return (s.season and s.season.titles or 0) >= 1 end },
   { id = 'jobs_25', title = strings.t('achievements.working_stiff'), desc = strings.t('achievements.finish_25_jobs'), check = function(s) return (jobs(s).done or 0) >= 25 end },
   { id = 'jobs_all', title = strings.t('achievements.jack_of_all_trades'), desc = strings.t('achievements.finish_eight_different_kinds_of'), check = function(s) return count(jobs(s).kindDone) >= 8 end },
   { id = 'turf', title = strings.t('achievements.on_the_map'), desc = strings.t('achievements.take_a_district_from_a'), check = function(s) for _, t in pairs(s.crews and s.crews.territory or {}) do if t.owner == 'player' then return true end end return false end },
   { id = 'home', title = strings.t('achievements.their_own_front_door'), desc = strings.t('achievements.take_a_crew_s_home'), check = function(s) for _, t in pairs(s.crews and s.crews.territory or {}) do if t.home and t.owner == 'player' then return true end end return false end },
   { id = 'king', title = strings.t('achievements.king_of_valo'), desc = strings.t('achievements.win_the_turf_war_against'), check = function(s) return s.crews ~= nil and s.crews.king ~= nil end },
   { id = 'flip', title = 'Flipper', desc = strings.t('achievements.sell_a_car_for_more'), check = function(s) return jobs(s).flip ~= nil and (jobs(s).flip.flips or 0) >= 1 end },
+  { id = 'my_route', title = 'Trailblazer', desc = strings.t('achievements.own_route'), check = function(s) for _, lv in pairs(s.myroutes and s.myroutes.levels or {}) do if #(lv.list or {}) > 0 then return true end end return false end },
   { id = 'activities_5', title = 'Explorer', desc = strings.t('achievements.complete_five_different_activities'), check = function(s) return count(s.activitiesDone) >= 5 end },
 }
 

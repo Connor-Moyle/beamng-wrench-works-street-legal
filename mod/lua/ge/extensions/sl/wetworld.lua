@@ -188,8 +188,11 @@ function M.update(dt, wet)
   local on = option('slWetWorld', false) == true
   held = rules.held(held, wet, dt)
   local target = on and rules.step(held, option('slWetStrength', 0.8), current) or 0
+  -- The 300-odd material reloads (walls, roofs, pavements...) are what lost the graphics device at High (docs/WET_WORLD_HIGH_CRASH.md); the terrain layers are a texture swap. So the wet
+  -- world is the terrain layers only, unless the key slWetMaterials is set to true in the options file (an experiment: it is not in the Mods menu).
+  local mats = option('slWetMaterials', false) == true
   if target ~= current then
-    if target > 0 and gather() == false then return end
+    if target > 0 and mats and gather() == false then return end
     current = target
     log('I', TAG, string.format('wet world heads for step %d of %d (wetness %.2f)', current, rules.STEPS, wet or 0))
   end
@@ -204,7 +207,7 @@ function M.update(dt, wet)
     return
   end
   timer = 0
-  local did = batch(rules.batch(msPerEdit, M.BUDGET_MS, M.MAX_BATCH), rules.materialStep(current))
+  local did = batch(rules.batch(msPerEdit, M.BUDGET_MS, M.MAX_BATCH), mats and rules.materialStep(current) or 0)      -- (switched off while wet: they dry back, one per tick)
   if did > 0 then stats.batches = stats.batches + 1 gate.reloaded(os.clock()) end
 end
 
@@ -229,7 +232,10 @@ function M.profile()
 end
 
 function M.stats() return stats, current, plan and #plan or 0 end
-function M.onStreetLegalStopped() pcall(M.restore) plan = nil end
+function M.onStreetLegalStopped()
+  plan = nil
+  if sl_teardown then sl_teardown.defer('wet world textures', function() pcall(M.restore) end) else pcall(M.restore) end      -- (queued: a terrain material swap is not done in the frame the career stops)
+end
 -- (the level is going away with its materials: reloading hundreds of them in this tick would be a hitch for nothing, so only our state is dropped)
 function M.onClientEndMission() plan, state, current, terr, terrWet = nil, {}, 0, nil, 0 end
 function M.onClientStartMission() plan, state, current, terr, terrWet = nil, {}, 0, nil, 0 end      -- (a level load rebuilt the materials: nothing of ours is on them)
