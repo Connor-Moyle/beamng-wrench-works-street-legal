@@ -5554,6 +5554,11 @@ do
   provided.diner.buy({ { id = 'meal', qty = 1 }, { id = 'drink', qty = 2 } })
   local n = st.needs
   check('needs: a sale at the diner is eaten, you sit for twenty minutes, and it counts in the week', n.food == 70 and n.water == 10 + 20 + 70 and skipped[#skipped] == '0.33' and n.spentWeek == 12 + 4)
+  local keepFood, keepWater, keepSpent = n.food, n.water, n.spentWeek
+  n.food = 0
+  provided.diner.buy({ { id = 'snack', qty = 5000 } })
+  check('needs: a quantity from the screen is held to ten', n.spentWeek == keepSpent + 30)
+  n.food, n.water, n.spentWeek = keepFood, keepWater, keepSpent
   skipOk = false
   provided.diner.buy({ { id = 'coffee', qty = 1 } })
   check('needs: when the clock may not move you eat standing, and it still counts', toasts[#toasts] ~= nil and n.rest == 20)

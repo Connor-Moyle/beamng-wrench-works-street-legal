@@ -195,7 +195,7 @@ function M.onStreetLegalPhase(phase)
   local atGarage = nearPlace('garage', 40) ~= nil
   local where = rules.sleepPlace(atGarage, garageHas('bed'))
   local gained = rules.sleep(n, rules.NIGHT_GAP_HOURS, where)
-  healInjury(rules.NIGHT_GAP_HOURS, false)
+  healInjury(rules.NIGHT_GAP_HOURS, where == 'bed')      -- (a night in your own bed is a long sleep: a limb that has nothing left to recover heals)
   if gained > 0 then toast(strings.t('needs.slept_1_2_rest_3', rules.NIGHT_GAP_HOURS, strings.t(where == 'bed' and 'needs.in_the_bed' or where == 'couch' and 'needs.on_the_couch' or 'needs.in_the_car'), math.floor(n.rest + 0.5))) end
   if atGarage and garageHas('fridge') and rules.fridge(n, s.day) then toast(strings.t('needs.fridge_used')) end      -- (breakfast from the fridge)
 end
@@ -265,6 +265,7 @@ function M.weeklyBill()
   if amount <= 0 then return nil end
   return { id = 'mealplan', label = strings.t('needs.ledger_plan'), amount = amount }
 end
+-- (called once per settlement, by sl_weekly when it closes the week: it takes the week's total, so the ledger preview does not call it)
 function M.weeklyInfo()
   local s = career()
   local line = s and rules.takeWeek(needsOf(s))
@@ -303,12 +304,12 @@ function M.dinerBuy(lines)
     if l.id == 'mealplan' then
       M.setMealPlan(not n.plan)
     elseif rules.ITEMS[l.id] then
-      for _ = 1, l.qty or 1 do rules.eatAt(n, l.id, n.plan) end
+      for _ = 1, math.max(1, math.min(10, math.floor(tonumber(l.qty) or 1))) do rules.eatAt(n, l.id, n.plan) end      -- (the quantity comes from the screen: one to ten)
       ate = true
     end
   end
   if ate then
-    local ok = sl_career.skipTime(tostring(rules.SIT_HOURS))
+    local ok = sl_career.skipTime(tostring(rules.SIT_HOURS))      -- (refused: the food is still eaten and paid, you just do not sit; the note says so)
     lastHour = nil
     toast(ok and strings.t('needs.diner_ate', strings.t('needs.meter_food') .. ' ' .. math.floor(n.food + 0.5) .. ', ' .. strings.t('needs.meter_water') .. ' ' .. math.floor(n.water + 0.5)) or strings.t('needs.diner_no_time'))
   end
