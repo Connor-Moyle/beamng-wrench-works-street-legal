@@ -640,6 +640,17 @@ assert.ok(text().includes('The Docks') && text().includes('you are here') && tex
   phone.handle('slPhoneData', Object.assign({}, data, { inventory: inv, has: Object.assign({}, data.has, { inventory: false }) }));
   assert.ok(!phone.root.querySelector('[data-a="open"][data-v="inventory"]'), 'the part off: no app');
 }
+// turf income: a held district shows its weekly cut, the base is marked, the page shows the next payout; the part off shows neither
+phone.handle('slPhoneData', Object.assign({}, data, { turf: { held: 2, turfWar: false, income: 250, districts: [
+  { id: 'd1', name: 'The Docks', owner: 'You', yours: true, control: 100, cut: 150, base: true },
+  { id: 'd2', name: 'Northside', owner: 'You', yours: true, control: 100, cut: 100 },
+  { id: 'd3', name: 'Ring Road', owner: 'the Ring Road Ghosts', control: 60 } ], crews: [] } }));
+phone.act('home');
+phone.act('open', 'turf');
+assert.ok(text().includes('$150 a week') && text().includes('(base)') && text().includes('$100 a week') && text().includes('Next payout: $250'), 'Turf shows the cuts, the base and the next payout: ' + text().slice(0, 400));
+assert.ok(!/Ring Road Ghosts[^]*a week/.test(text().split('Ring Road Ghosts')[1] ? 'Ring Road Ghosts' + text().split('Ring Road Ghosts')[1].slice(0, 60) : ''), 'a rival district shows no cut');
+phone.handle('slPhoneData', Object.assign({}, data, { turf: { held: 1, turfWar: false, districts: [{ id: 'd1', name: 'The Docks', owner: 'You', yours: true, control: 50 }], crews: [] } }));
+assert.ok(!text().includes('Next payout') && !text().includes('a week'), 'the part off: no income text');
 // #48 the last race's replay on the Races page
 phone.handle('slPhoneData', Object.assign({}, data, { replay: { name: 'Quarry sprint', saved: false } }));
 phone.act('home');

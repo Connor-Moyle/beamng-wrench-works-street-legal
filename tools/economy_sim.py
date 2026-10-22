@@ -432,7 +432,47 @@ def diff(a, b):
         real = hb < la or lb > ha
         print('%-34s %10.0f %10.0f %+9.0f %s' % (key, ma, mb, mb - ma, 'REAL' if real else '(within the spread)'))
 
+def turf_check(n):
+    """--turf [--seeds N]: the late game with turf income (docs/TURF_INCOME_PLAN.md). Not the 12 h sim (garage 3 is outside it): a year of weeks for a player who holds 2 to 6 districts at
+    60 to 100 % control, with the rules of core/turfincome.lua mirrored here (cut = 100 x control, +50 % at the base, a raid chance 12 % + 8 % per angry crew costing the cut and 15 control,
+    10 control won back a week by racing there, an unanswered call-out 15 % of district-weeks). Prints the weekly turf money against the garage-3 rent and storage and against the weekly pay
+    of the populations the sim plays (the sim's own median over the same seeds). Acceptance: 40 to 100 % of garage-3 costs at 4 to 6 districts, and far below the weekly pay."""
+    import random
+    garage3 = 400 + 40 * max(0, CARS_KEPT - 2)
+    rows, pay = [], []
+    for seed in range(n):
+        rng = random.Random(seed)
+        pops = population(seed)
+        weeks = HOURS * 60 / DAY_MIN / 7
+        pay.append(statistics.median(sum(m for m, _ in p.earned.values()) / weeks for p in pops))
+        for k in (2, 3, 4, 5, 6):
+            money, lost, raids = 0.0, 0.0, 0
+            control = [rng.uniform(60, 100) for _ in range(k)]
+            base = 0 if rng.random() < 0.5 else -1
+            angry = rng.choice((0, 1, 2))
+            for _week in range(52):
+                for i in range(k):
+                    cut = 100 * control[i] / 100 * (1.5 if i == base else 1.0)
+                    cut = int(cut / 10 + 0.5) * 10
+                    if rng.random() < min(0.5, 0.12 + 0.08 * angry):
+                        raids += 1; lost += cut
+                        control[i] = max(1, control[i] - 15 * (0.5 if i == base else 1))
+                    elif rng.random() < 0.15:
+                        lost += cut
+                    else:
+                        money += cut
+                    control[i] = min(100, control[i] + 10)
+            rows.append((k, money / 52, lost / 52, raids / 52))
+    print('Turf income over a year of weeks (%d seeds): garage 3 rent+storage $%d a week; the sim median weekly pay $%d' % (n, garage3, statistics.median(pay)))
+    for k in (2, 3, 4, 5, 6):
+        got = [r for r in rows if r[0] == k]
+        m = statistics.median(r[1] for r in got)
+        print('  %d districts held: $%4d a week paid (%3.0f %% of garage 3, %4.1f %% of the weekly pay), $%3d a week lost to raids and call-outs, %.2f raids a week'
+              % (k, m, 100 * m / garage3, 100 * m / max(1, statistics.median(pay)), statistics.median(r[2] for r in got), statistics.median(r[3] for r in got)))
+
 def main():
+    if '--turf' in sys.argv:
+        turf_check(int(sys.argv[sys.argv.index('--seeds') + 1]) if '--seeds' in sys.argv else 3); return
     if '--diff' in sys.argv:
         i = sys.argv.index('--diff'); diff(sys.argv[i + 1], sys.argv[i + 2]); return
     if '--seeds' in sys.argv:
