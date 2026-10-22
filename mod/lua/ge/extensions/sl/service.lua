@@ -62,12 +62,15 @@ function M.serviceOf(carId)
   local bench = workbench(s)
   local pf = (sl_perks and sl_perks.factor('service') or 1) * (sl_mastery and sl_mastery.factor('service', car) or 1) * (sl_mates and sl_mates.labourFactor and sl_mates.labourFactor() or 1)      -- (tier perks, the car's mastery, a mechanic mate)
   local note = bench and '' or strings.t('service.no_bench')
+  local basicCost = math.floor(svc.basicCost(car.value, bench) * pf / 10 + 0.5) * 10
+  local fullCost = math.floor(svc.overhaulCost(car.value, net, market.REPAIR_CONDITION, bench) * pf / 10 + 0.5) * 10
+  local fullNote = fullCost == basicCost and (note ~= '' and (note .. ' ') or '') .. strings.t('service.full_same') or note          -- (nothing is worn: the overhaul adds nothing to the basic service)
   local rc = market.REPAIR_CONDITION
   return { due = svc.due(sv, km), km_since = math.floor(km), km_interval = math.floor(svc.INTERVAL / rate()), wearFactor = svc.wearFactor(sv, km), count = sv.count,
     sections = svc.sections(net, partwear(car)),
     options = {
-      { id = 'basic', label = strings.t('service.basic'), cost = math.floor(svc.basicCost(car.value, bench) * pf / 10 + 0.5) * 10, available = true, why = note },
-      { id = 'full', label = strings.t('service.overhaul'), cost = math.floor(svc.overhaulCost(car.value, net, rc, bench) * pf / 10 + 0.5) * 10, available = true, why = note },
+      { id = 'basic', label = strings.t('service.basic'), cost = basicCost, available = true, why = note },
+      { id = 'full', label = strings.t('service.overhaul'), cost = fullCost, available = true, why = fullNote },
     } }
 end
 

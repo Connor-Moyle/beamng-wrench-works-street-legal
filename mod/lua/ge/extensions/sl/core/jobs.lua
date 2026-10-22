@@ -59,6 +59,11 @@ function M.offers(shops, places, garage, rng, count)
 end
 
 -- what a job pays at the drop: damage is the share of the car (0..1) damaged during the job
+-- the pay a player is shown and paid: the job's pay with the new-in-town boost, rounded down to ten, and the first-times bonus. One source for the board, the active card and the drop.
+function M.shown(pay, boost, firstBonus)
+  return math.floor((tonumber(pay) or 0) * (tonumber(boost) or 1) / 10) * 10 + (tonumber(firstBonus) or 0)
+end
+
 function M.settle(job, elapsedSeconds, damage)
   damage = damage or 0
   if job.fragile and damage > 0.05 then return 0, 'broken' end
