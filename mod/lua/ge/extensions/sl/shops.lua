@@ -68,6 +68,31 @@ end
 -- an option of 9e's style kit (Reduce motion): absent in a build that does not have it yet, which reads as off
 local function optionOn(key) return sl_options ~= nil and sl_options.get ~= nil and sl_options.get(key) == true end
 
+-- the prices of the plate counters (settings): a new plate for a normal car and a plate for a stolen car; $300 and $700 by default
+local function optPrice(key, default)
+  local v = sl_options and sl_options.get and sl_options.get(key)
+  return type(v) == 'number' and v >= 0 and v or default
+end
+local function plateLegalPrice() return optPrice('slPlateLegal', rules.THEFT.plateLegal) end
+local function plateStolenPrice() return optPrice('slPlateStolen', rules.THEFT.plateStolen) end
+
+-- a shop with a "gate" in its marker (the fence) shows and opens only when the gate is open
+local function gateOpen(gate)
+  if gate == 'fence' then return sl_theft ~= nil and sl_theft.fenceKnown ~= nil and sl_theft.fenceKnown() == true end
+  return true
+end
+
+-- accessories: with Car theft present the plate is the career's plate ($300, a new seeded text, a normal wanted poster cleared); without it the old text plates
+local function newPlateBuy(lines)
+  local car = playerCar()
+  if not (car and sl_theft and sl_theft.newPlate) then return false end
+  local ok, text = sl_theft.newPlate(car.id, true)
+  if ok == false then return false end
+  toast(text or strings.t('shops.plate_done'))
+  return true
+end
+local oldPlates = nil
+
 -- accessories without a stock of their own sell plates: a plate text on the player's car (core_vehicles.setPlateText)
 local function plateBuy(lines)
   local car, vid = playerCar()
@@ -79,7 +104,35 @@ local function plateBuy(lines)
   toast(strings.t('shops.plate_done'))
   return true
 end
-providers.accessories = { stock = function() return rules.plateStock() end, buy = plateBuy }
+oldPlates = { stock = function() return rules.plateStock() end, buy = plateBuy }
+providers.accessories = {
+  stock = function()
+    if sl_theft and sl_theft.newPlate then return { { id = 'plate_new', name = strings.t('shops.plate_new'), price = plateLegalPrice(), group = strings.t('shops.group_plates'), count = 1, desc = strings.t('shops.plate_new_desc') } } end
+    return oldPlates.stock()
+  end,
+  buy = function(lines, total, shop)
+    if sl_theft and sl_theft.newPlate then return newPlateBuy(lines) end
+    return oldPlates.buy(lines, total, shop)
+  end,
+}
+-- the black market: the day's three hot cars; the shop charges, then Car theft spawns the car (hot and wanted at once)
+providers.blackmarket = {
+  stock = function()
+    if not (sl_theft and sl_theft.blackMarket) then return {}, strings.t('shops.not_here') end
+    local list = rules.blackMarketStock(sl_theft.blackMarket())
+    return list, #list == 0 and strings.t('shops.nothing_today') or nil
+  end,
+  buy = function(lines)
+    for _, l in ipairs(lines or {}) do
+      local idx = tonumber(tostring(l.id):match('^hot_(%d+)$'))
+      if not idx then return false end
+      local ok, text = sl_theft.buyHot(idx, true)
+      if ok == false then toast(text or strings.t('shops.not_here')) return false end
+      if text then toast(text) end
+    end
+    return true
+  end,
+}
 
 local function brandsText(list) return table.concat(list or {}, ', ') end
 
@@ -126,6 +179,10 @@ local function serviceList(shop)
     if not (car and vid) then return {}, strings.t('shops.bring_car') end
     local info = sl_service and sl_service.serviceOf and sl_service.serviceOf(car.id)
     return rules.mechanicServices(info and info.options or {}), nil
+  elseif shop.kind == 'fence' then
+    if not (sl_theft and sl_theft.tools) then return {}, strings.t('shops.not_here') end
+    local hot = sl_theft.current and sl_theft.current() or nil
+    return rules.fenceServices(sl_theft.tools(), hot, { plateStolen = plateStolenPrice() }), hot == nil and strings.t('shops.fence_bring_car') or nil
   elseif shop.kind == 'tuner' then
     if not (car and vid) then return {}, strings.t('shops.bring_car') end
     if not (slrr_garage and slrr_garage.lookupParts) then return {}, strings.t('shops.need_ww') end      -- (the dyno is the garage mod's: slrrGarageVeh)
@@ -134,8 +191,28 @@ local function serviceList(shop)
   return {}, nil
 end
 
+-- the fence: a tool goes to the buyer (Car theft keeps the uses), a sale or a strip pays out inside Car theft's call, the others were charged by the shop (paid = true)
+local function performFence(id)
+  if not sl_theft then return false, strings.t('shops.not_here') end
+  local ok, text
+  if id:match('^tool_') then
+    ok, text = sl_theft.giveTool(id:sub(6))
+    return ok ~= false, text
+  end
+  local hot = sl_theft.current and sl_theft.current() or nil
+  if not hot then return false, strings.t('shops.fence_bring_car') end
+  if id == 'fence_sell' then ok, text = sl_theft.sell(hot.index)
+  elseif id == 'fence_strip' then ok, text = sl_theft.strip(hot.index)
+  elseif id == 'fence_plates' then ok, text = sl_theft.plates(hot.index, true)
+  elseif id == 'fence_striptracker' then ok, text = sl_theft.stripTracker(hot.index, true)
+  elseif id == 'fence_title' then ok, text = sl_theft.title(hot.index, true)
+  else return false, strings.t('shops.not_here') end
+  return ok ~= false, text
+end
+
 -- does one booked service on the player's car. Returns ok, text
 local function perform(line)
+  if type(line.id) == 'string' and (line.id:match('^tool_') or line.id:match('^fence_')) then return performFence(line.id) end
   local car, vid = playerCar()
   if not (car and vid) then return false, strings.t('shops.bring_car') end
   local id = line.id
@@ -488,9 +565,19 @@ function M.onGetRawPoiListForLevel(level, elements)
   if not career() then return end
   readPlaced()
   for id, p in pairs(placed) do
-    elements[#elements + 1] = { id = 'sl_shop_' .. id, data = { type = 'slrrShop', id = id, name = p.name, kind = p.kind, date = 0 },
-      markerInfo = { missionMarker = { pos = p.pos, rot = quat(0, 0, 0, 1), icon = 'mission_arrival_triangle' } } }
+    if gateOpen(p.opts and p.opts.gate) then
+      elements[#elements + 1] = { id = 'sl_shop_' .. id, data = { type = 'slrrShop', id = id, name = p.name, kind = p.kind, date = 0 },
+        markerInfo = { missionMarker = { pos = p.pos, rot = quat(0, 0, 0, 1), icon = 'mission_arrival_triangle' } } }
+    end
   end
+end
+
+-- the markers of a gated shop (the fence) appear when the gate opens: the game's marker list is cached, so it is cleared when the gate changes
+local gateWas = {}
+function M.onStreetLegalChanged()
+  local now = gateOpen('fence')
+  if gateWas.fence ~= nil and gateWas.fence ~= now and gameplay_rawPois and gameplay_rawPois.clear then gameplay_rawPois.clear() end
+  gateWas.fence = now
 end
 
 function M.onActivityAcceptGatherData(elemData, activityData)
