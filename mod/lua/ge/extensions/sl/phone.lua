@@ -381,6 +381,7 @@ function M.borrow(amount) if career() and sl_bank then answer(sl_bank.borrow(ton
 function M.service(carId, optionId) if career() and sl_service then answer(sl_service.service(tonumber(carId), tostring(optionId))) end end
 function M.payDebt(amount) if career() and sl_weekly then answer(sl_weekly.payDebt(tonumber(amount))) end end
 function M.repay(amount) if career() and sl_bank then answer(sl_bank.repay(tonumber(amount))) end end
+function M.economyOptIn() if career() and sl_career.optInEconomy then answer(sl_career.optInEconomy()) end end      -- (the offer card's button: ok, text; the text is the toast)
 function M.insure(on) if career() and sl_bank then answer(sl_bank.insure(on == true or on == 'true')) end end
 function M.takeJob(id) if career() and sl_jobs then answer(sl_jobs.take(tostring(id))) end end
 function M.marketOffer(id, amount) if career() and sl_classifieds then answer(sl_classifieds.offer(tostring(id), tonumber(amount))) end end

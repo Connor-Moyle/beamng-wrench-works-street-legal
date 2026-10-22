@@ -979,6 +979,20 @@ assert.ok(calls.includes('routeGarage()'), 'Route to my garage on the home scree
   assert.ok(!phone.root.querySelector('[data-a="open"][data-v="traps"]'), 'the part off: no app');
   phone.handle('slPhoneData', data);
 }
+{
+  // the per-save economy offer (tools/economy_fixture.js): a card with one button only while the snapshot carries the text
+  const ef = require('./economy_fixture.js');
+  phone.act('home');
+  phone.handle('slPhoneData', Object.assign({}, data, ef));
+  phone.act('open', 'me');
+  assert.ok(text().includes('New in 0.8.0') && text().includes('Turn them on for this career?') && phone.root.querySelector('[data-a="economy"]'), 'an old save: the offer card on Street cred');
+  calls.length = 0; click('economy', '1');
+  assert.ok(calls.includes('economyOptIn()'), 'the button calls the game: ' + calls.join(' '));
+  phone.handle('slPhoneData', Object.assign({}, data, { economyOffer: null }));
+  assert.ok(!text().includes('New in 0.8.0') && !phone.root.querySelector('[data-a="economy"]'), 'a new career or after the opt-in: no card');
+  phone.handle('slPhoneData', data);
+  phone.act('home');
+}
 console.log('phone test passed');
 
 // a page to look at: the phone in several states side by side
