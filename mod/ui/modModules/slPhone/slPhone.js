@@ -611,9 +611,11 @@
     // (here) opens a panel of its own (reportModal) that fits the screen: a header with a close button and a body that scrolls, one collapsible
     // row per section with its condition, worst fault and repair estimate.
     var reports = {};                      // key -> the report, kept while the buttons are drawn so the panel can show it
-    function reportBlock(key, rp) {
+    var reportHist = {};                   // key -> the history lines of the ad (shown at the top of the panel)
+    function reportBlock(key, rp, history) {
       if (!rp || !rp.sections) return '';
       reports[key] = rp;
+      reportHist[key] = arr(history);
       return '<div class="slp-acts"><div class="slp-btn slp-tonal" data-a="report" data-v="' + esc(key) + '">' + T('ui.show_full_car_report', 'Show full car report') + '</div></div>';
     }
     function repWorst(rp) {                // the section in the worst condition: open when the panel opens
@@ -623,8 +625,10 @@
     }
     function repOpen(rp, id) { return st.repSec[id] !== undefined ? !!st.repSec[id] : id === repWorst(rp); }
     function reportModal() {
-      var rp = st.repOpen && reports[st.repOpen];
+      var rp = st.repOpen && (reports[st.repOpen] || st.repKeep);      // (the report as it was when the button was pressed, if a data push dropped it meanwhile)
       if (!rp) return '';
+      var hist = arr(reportHist[st.repOpen]);
+      var nothing = !(Number(rp.total) > 0) && !arr(rp.faults).length ? '<p>' + T('ui.nothing_more_to_report', 'Nothing more to report: no faults and no repair needed.') + '</p>' : '';
       var secs = arr(rp.sections).map(function (sc) {
         var open = repOpen(rp, sc.id);
         var worst = null;
@@ -641,6 +645,7 @@
       return '<div class="slp-repmodal"><div class="slp-reppanel"><div class="slp-rephead"><b>' + T('ui.car_report', 'Car report') + '</b><span>' + rp.condition + '% ' + esc(rp.label) + '</span>' +
         '<div class="slp-btn slp-tonal" data-a="reportclose">' + T('ui.close', 'Close') + '</div></div><div class="slp-repbody">' +
         '<div class="slp-kv"><span>' + T('ui.overall', 'Overall') + '</span><b>' + rp.condition + '% ' + esc(rp.label) + '</b></div>' +
+        hist.map(function (x) { return '<p>' + esc(x) + '</p>'; }).join('') + nothing +
         '<div class="slp-kv"><span>' + T('ui.mileage', 'Mileage') + '</span><b>' + Number(rp.mileage || 0).toLocaleString() + ' km</b></div><div class="slp-kv"><span>' + T('ui.dents_and_damage', 'Dents and damage') + '</span><b>' + esc(dm.label) + ' (' + (dm.amount || 0) + '%)</b></div>' +
         '<div class="slp-kv"><span>' + T('ui.known_faults', 'Known faults') + '</span><b>' + (arr(rp.faults).length ? esc(arr(rp.faults).join(', ')) : 'none') + '</b></div>' + secs +
         '<div class="slp-kv"><span><b>' + T('ui.repair_estimate_to_95', 'Repair estimate, to 95 %') + '</b></span><b>' + money(rp.total) + '</b></div></div></div></div>';
@@ -669,7 +674,7 @@
         '<p>' + esc(l.seller) + ' ' + '&#9733;'.repeat(l.rating || 0) + (l.metres != null ? T('ui.middot_1_away', ' &middot; {1} away', adDist(l.metres)) : '') + (l.hours ? T('ui.middot_delivered_in_about_1', ' &middot; delivered in about {1} h', l.hours) : '') +
         ' &middot; ' + l.condition + T('ui.condition', '% condition') + (l.faults ? T('ui.middot_1_fault_2', ' &middot; {1} fault{2}', l.faults, (l.faults > 1 ? 's' : '')) : '') + ' &middot; ' + Math.max(0, l.hoursLeft | 0) + (T('ui.h_left', ' h left') + '</p>') + tells +
         '<p><b>' + money(l.ask) + '</b>' + (l.agreed ? T('ui.agreed', ' (agreed)') : '') + ' &middot; deposit ' + money(l.deposit) + (l.delivery != null ? T('ui.middot_delivery_1', ' &middot; delivery +{1}', money(l.delivery)) : '') + '</p>' +
-        usedCheck(l) + reportBlock('ad:' + l.id, l.report) +
+        usedCheck(l) + reportBlock('ad:' + l.id, l.report, l.history) +
         adButtons(l).replace('<div class="slp-acts">', '<div class="slp-acts"><div class="slp-btn slp-tonal" data-a="adview" data-v="' + esc(l.id) + ('">' + T('ui.details', 'Details') + '</div>')) + '</div>';
     }
     // the detail view: the picture, every spec, the seller and the price
@@ -683,7 +688,7 @@
         row(T('ui.brand', 'Brand'), esc(l.brand)) + row(T('ui.year', 'Year'), l.year) + row(T('ui.mileage', 'Mileage'), l.mileage != null ? Number(l.mileage).toLocaleString() + ' km' : null) + row(T('ui.condition_2', 'Condition'), l.condition + '%') +
         row(T('ui.power', 'Power'), sp.power ? Math.round(sp.power) + ' PS' : null) + row(T('ui.weight', 'Weight'), sp.weight ? Math.round(sp.weight).toLocaleString() + ' kg' : null) +
         row(T('ui.transmission', 'Transmission'), esc(sp.transmission)) + row(T('ui.drivetrain', 'Drivetrain'), esc(sp.drivetrain)) + row(T('ui.fuel', 'Fuel'), esc(sp.fuel)) + row(T('ui.body', 'Body'), esc(sp.body)) +
-        row(T('ui.top_speed', 'Top speed'), sp.topSpeed ? Math.round(sp.topSpeed * 3.6) + ' km/h' : null) + (faults.length ? row(T('ui.needs', 'Needs'), esc(faults.join(', '))) : '') + usedCheck(l) + reportBlock('ad:' + l.id, l.report) + '</div>' +
+        row(T('ui.top_speed', 'Top speed'), sp.topSpeed ? Math.round(sp.topSpeed * 3.6) + ' km/h' : null) + (faults.length ? row(T('ui.needs', 'Needs'), esc(faults.join(', '))) : '') + usedCheck(l) + reportBlock('ad:' + l.id, l.report, l.history) + '</div>' +
         '<div class="slp-card">' + row(T('ui.seller', 'Seller'), esc(l.seller) + ' ' + '&#9733;'.repeat(l.rating || 0)) + row(T('ui.distance', 'Distance'), l.metres != null ? adDist(l.metres) : null) +
         row(T('ui.delivery', 'Delivery'), l.hours ? T('ui.to_your_garage_in_about', 'to your garage in about {1} h', l.hours) : null) + row(T('ui.asking', 'Asking'), money(l.ask)) + row(T('ui.deposit_pick_up', 'Deposit (pick up)'), money(l.deposit)) +
         (l.delivery != null ? row(T('ui.delivery_fee', 'Delivery fee'), money(l.delivery)) : '') + adButtons(l) + '</div></div>';
@@ -1934,7 +1939,7 @@
         case 'watchreplay': lua('watchReplay()'); break;
         case 'saveclip': lua('saveClip()'); break;
         case 'adview': go('ad', { adId: v }); break;
-        case 'report': st.repOpen = v; st.repSec = {}; render(); break;
+        case 'report': st.repOpen = v; st.repKeep = reports[v] || null; st.repSec = {}; render(); break;
         case 'reportclose': st.repOpen = null; render(); break;
         case 'repsec': var rpOpen = st.repOpen && reports[st.repOpen]; if (rpOpen) { st.repSec[v] = !repOpen(rpOpen, v); render(); } break;
         case 'workon': lua('workOn(' + Number(v) + ')'); st.garage = null; break;

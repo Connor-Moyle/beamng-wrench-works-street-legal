@@ -195,6 +195,7 @@ M.TEXT = {
   ["ui.call_ended"] = "Call ended",
   ["ui.call_it_off"] = "Call it off",
   ["ui.cancel"] = "Cancel",
+  ["ui.nothing_more_to_report"] = "Nothing more to report: no faults and no repair needed.",
   ["ui.car_1_2"] = "Car{1}{2}",
   ["ui.car_wash"] = "Car wash ",
   ["ui.career"] = "Career",
