@@ -1133,6 +1133,7 @@ assert.ok(calls.includes('routeGarage()'), 'Route to my garage on the home scree
   assert.ok(tx.includes('Travel to Utah: $800 and 6 h') && tx.includes('round 1 of 4') && tx.includes('Purse by place, up to $3,000') && tx.includes('$800'), 'travel, round, reward as text and as money');
   assert.ok(tx.includes('A gravel or rally car') && tx.includes('\u26A0'), 'an unmet requirement is marked');
   assert.ok(tx.includes('Entered') && tx.includes('Done') && tx.includes('Missed'), 'status words');
+  assert.ok(tx.includes('Hirochi invitational') && tx.includes('★ Invitational'), 'a brand invitational has its own star and label: ' + tx.slice(0, 400));
   click('caltab', 'week');
   assert.strictEqual(phone.root.querySelectorAll('[data-a="calday"]').length, 7, 'seven days');
   click('calday', '41');
