@@ -98,6 +98,24 @@ local function diners()
   return out
 end
 
+-- the stock delivery businesses (the game's own delivery providers: a parking spot each, read once per level)
+local siteCache = {}
+local function deliverySites()
+  local level = getCurrentLevelIdentifier and getCurrentLevelIdentifier() or ''
+  if siteCache[level] then return siteCache[level] end
+  local out = {}
+  local f = freeroam_facilities and freeroam_facilities.getFacilities and freeroam_facilities.getFacilities(level)
+  for _, p in ipairs(f and f.deliveryProviders or {}) do
+    local ok, spots = pcall(freeroam_facilities.getParkingSpotsForFacility, p)
+    local spot = ok and type(spots) == 'table' and spots[1]
+    if spot and spot.pos then
+      out[#out + 1] = { id = 'site:' .. tostring(p.id or p.name), name = tostring(p.name or p.id or 'Depot'), x = spot.pos.x, y = spot.pos.y, z = spot.pos.z, radius = STOP_RADIUS }
+    end
+  end
+  siteCache[level] = out
+  return out
+end
+
 -- the valet stands (the map's places of kind "valet": a kerb drop-off and parking bays)
 local function valetStands()
   local out = {}
@@ -129,6 +147,20 @@ local TYPES = {
       local j = list[1]
       if not j then return nil end
       j.legs = { leg(ctx.byId[j.from]), leg(ctx.byId[j.to]) }
+      return j
+    end },
+  -- freight: a load between two of the game's delivery businesses (the Freight runs part; pay and the least distance are settings)
+  { kind = 'freight', title = strings.t('jobs.freight_run'), unlock = 0, offer = function(ctx, rng)
+      if not require('sl/core/features').on('freight') then return nil end
+      local get = sl_options and sl_options.get
+      local j = jobsLib.freight(deliverySites(), rng, (tonumber(get and get('slFreightPay')) or 100) / 100, tonumber(get and get('slFreightMin')))
+      if not j then return nil end
+      j.legs = { { id = j.from, name = j.fromName, x = nil }, { id = j.to, name = j.toName } }
+      for _, site in ipairs(deliverySites()) do
+        if site.id == j.from then j.legs[1] = leg(site) end
+        if site.id == j.to then j.legs[2] = leg(site) end
+      end
+      if not (j.legs[1].x and j.legs[2].x) then return nil end
       return j
     end },
   -- night food delivery: three drops from a diner, the food going cold
