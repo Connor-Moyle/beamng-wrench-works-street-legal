@@ -66,9 +66,9 @@ At night, walk up to the owner of a parked car at a meet and press **Talk to <na
 
 ## The phone and the laptop
 
-
-More apps and cards since 0.8.0: the Calendar with its Series tab (the race series and the home championship), the Health app (needs), Hot cars (theft), trophies and wanted posters on Street cred, camera challenges, a cracked screen after a hard crash, and the Maps app's fuel-range line. Every page has a long-name and small-screen check (`tools/phone_audit.js`).
 The phone (K) has Races, My cars, Bank, Street cred, Jobs, Wait, Settings, Club, Turf, Car market, Part market and Help, with Messages, Contacts, Phone and Cab in the dock. Garage computers (and the other computers on the map) open a Windows-style laptop with the same markets, your cars, the bank and Help, and the garage's own tools.
+
+More apps and cards since 0.8.0: the Calendar with its Series tab (the race series and the home championship), the Health app (needs), Hot cars (theft), trophies, tickets and wanted posters on Street cred and Bank, the Camera app as a first-person camera with its photo challenges (off by default), a cracked screen after a hard crash, the Maps app's barn-find rumours and fuel-range line, and the laptop's used-car checks. Every page has a long-name and small-screen check (`tools/phone_audit.js`).
 
 ## Money, wear and used cars
 
@@ -79,10 +79,11 @@ The phone (K) has Races, My cars, Bank, Street cred, Jobs, Wait, Settings, Club,
 - **Speed traps and danger zones** (on by default): six traps and two zones on long roads record your speed against a target, the longest jump you fly pays at 20, 40, 70 and 110 m, and two drift zones score your drifting; the first time you beat a target it pays.
 - **Used-car checks** (on by default): a private ad shows the history of a car but not its faults; a mechanic's check for a fee shows them and what each costs to fix.
 - **Shops and the inventory** (on by default): parts, paint, tyres, exhausts and special orders at shops with their own screens; what you buy waits in the boot of your car until you reach the garage. **Freight runs** (on by default) are loads between the game's own delivery businesses on the Jobs board; **turf income**, **My route**, **Crew mates**, **Seasons**, **fuel siphoning** and the **car radio DJ** are off by default.
+- **Three more switches, off by default** (not parts of the game, so not on the Active features list): **Simple tyre wear** (Difficulty > Wear; tread by distance and hard use, only when Car Surface FX's tyres are not there), **Fuel range and low-fuel warnings** (World > Cars; a range on the HUD, the nearest station in the warnings and the Map app) and **The file on each boss** (The climb > Bosses; three milestones on each tier boss before he calls you). The Realistic preset turns them on.
 
 ## Street Legal in free roam (all off by default)
 
-ESC > Mods > Street Legal > Free roam: a master switch and one per feature. The phone (K) with the Map and Cab apps, map pins (shops, garages, car washes, gas stations), weather on the game's clock, a free cab, a free car wash and the dashboard. No career is started or saved, no money is spent or taken.
+ESC > Mods > Street Legal > Free roam: a master switch and one per feature. The phone (K) with the Map and Cab apps, map pins (shops, garages, car washes, gas stations), weather on the game's clock, a free cab, a free car wash, the dashboard, police patrols at night with a sandbox heat (a bust is a message, nothing more), and freight runs between the map's delivery businesses (the Freight runs page on the phone; the pay goes into the Wrench Works free-roam money only). No career is started or saved, no career money is spent or taken.
 
 ## Phone skins
 
@@ -108,6 +109,7 @@ Detection is BeamMP's own: `MPCoreNetwork.isMPSession()` or `MPGameNetwork.conne
 
 - **Wet roads and walls is off by default.** The version that also changed walls, roofs and pavements lost the graphics device in five heavy-rain drives at High graphics on BeamNG 0.40 (notes in `docs/WET_WORLD_HIGH_CRASH.md`). Since 0.8.1 it changes the terrain layers only, which ran one 366 s heavy-rain test at High without a crash; one run is not proof, so it stays off by default. Turn it on in Mods > Street Legal > Clock and weather if you accept the risk. With it off the weather, puddles and rain work.
 - Servicing and wear, weekly costs, used-car checks and the Wear rate setting have been tested offline; check the changelog for what has been seen in the game.
+- The fence (the Lock-Up) and the black market of Car theft stand at placeholder positions at the docks until they are placed in the game (`sl_shops.placeHere` from the console moves a shop to where you stand).
 - A few stock models (the midtruck) are kept off the lots: they can crash the game on a second lot build.
 - Some pedestrians stand still; frame time rises in the busy parts of the map with traffic and pedestrians on.
 - The Valo City map and the original cars and traffic of Street Legal Racing Redline are on hold and not part of this release.
@@ -145,6 +147,8 @@ node tools/luatest.js     # the rules: money, reputation, garages, racers, car m
 node tools/phonetest.js   # the phone, in a simulated page (--html <file> writes a preview of its screens)
 node tools/hudtest.js     # the dashboard, the same way
 python tools/refcheck.py  # every global, hook, cross-mod call and settings key refers to something that exists (needs lupa and the game's lua folder)
+node tools/phone_audit.js # every phone page in headless Chrome: overflow, tap targets, contrast, long names
+python tools/economy_sim.py --seeds 5   # the money of a career played by a script: pay per minute of each source
 ```
 
 ## Source
